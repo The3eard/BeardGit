@@ -1,0 +1,318 @@
+<script lang="ts">
+  import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import { formatRelativeTimeUnix } from "../../utils/time";
+  import {
+    selectedBranchName,
+    selectedBranchInfo,
+    selectedBranchCommits,
+    loadingDetail,
+    doCheckout,
+    doDeleteBranch,
+    doMergeBranch,
+    branchSelectedCommit,
+    selectBranchCommit,
+    closeBranchCommitDetail,
+  } from "../../stores/branches";
+
+  let confirmDelete = $state(false);
+
+  $effect(() => {
+    $selectedBranchName;
+    closeBranchCommitDetail();
+  });
+</script>
+
+<div class="branch-detail">
+  {#if $loadingDetail}
+    <div class="detail-loading">
+      <div class="spinner"></div>
+      <span>Loading commits…</span>
+    </div>
+  {:else if $selectedBranchInfo}
+    <!-- Header -->
+    <div class="detail-header">
+      <div class="detail-title-row">
+        <span class="detail-title">{$selectedBranchInfo.name}</span>
+        {#if $selectedBranchInfo.is_head}
+          <span class="badge badge-head">HEAD</span>
+        {/if}
+        {#if $selectedBranchInfo.is_remote}
+          <span class="badge badge-remote">remote</span>
+        {/if}
+      </div>
+      <div class="detail-meta">
+        <span class="meta-oid">{$selectedBranchInfo.oid.slice(0, 8)}</span>
+      </div>
+    </div>
+
+    <!-- Commit list -->
+    <div class="branch-commits-panel">
+      {#if $selectedBranchCommits.length > 0}
+        <div class="detail-section">
+          <div class="section-label">RECENT COMMITS</div>
+          <div class="commits-list">
+            {#each $selectedBranchCommits as commit (commit.oid)}
+              <div
+                class="commit-row"
+                class:selected={$branchSelectedCommit?.oid === commit.oid}
+                onclick={() => selectBranchCommit(commit.oid)}
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => { if (e.key === "Enter") selectBranchCommit(commit.oid); }}
+              >
+                <div class="commit-summary">{commit.summary}</div>
+                <div class="commit-meta">
+                  <span class="commit-author">{commit.author}</span>
+                  <span class="commit-sep">·</span>
+                  <span class="commit-time">{formatRelativeTimeUnix(commit.timestamp)}</span>
+                  <span class="commit-oid">{commit.oid.slice(0, 7)}</span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {:else}
+        <div class="no-commits">No commits found</div>
+      {/if}
+    </div>
+
+    <!-- Actions footer -->
+    {#if !$selectedBranchInfo.is_remote}
+      <div class="detail-actions">
+        {#if !$selectedBranchInfo.is_head}
+          <button
+            class="action-btn action-checkout"
+            onclick={() => doCheckout($selectedBranchInfo!.name)}
+          >
+            Checkout
+          </button>
+          <button
+            class="action-btn action-merge"
+            onclick={() => doMergeBranch($selectedBranchInfo!.name)}
+          >
+            Merge into current
+          </button>
+          <button class="action-btn action-delete" onclick={() => (confirmDelete = true)}>
+            Delete
+          </button>
+        {/if}
+      </div>
+    {/if}
+  {:else if !$selectedBranchName}
+    <div class="detail-empty">
+      <span>Select a branch to view details</span>
+    </div>
+  {/if}
+
+  {#if confirmDelete && $selectedBranchInfo}
+    <ConfirmDialog
+      title="Delete Branch"
+      detail={`${$selectedBranchInfo.name}\n${$selectedBranchInfo.oid.slice(0, 8)}`}
+      message={`Are you sure you want to delete branch "${$selectedBranchInfo.name}"? This action cannot be undone.`}
+      confirmLabel="Delete"
+      destructive={true}
+      onConfirm={() => {
+        doDeleteBranch($selectedBranchInfo!.name);
+        confirmDelete = false;
+      }}
+      onCancel={() => (confirmDelete = false)}
+    />
+  {/if}
+</div>
+
+<style>
+  .branch-detail {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .detail-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+  }
+
+  .detail-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+
+  .detail-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-all;
+  }
+
+  .badge {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+  }
+
+  .badge-head {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent-blue);
+  }
+
+  .badge-remote {
+    background: rgba(163, 113, 247, 0.15);
+    color: var(--accent-purple, #a371f7);
+  }
+
+  .detail-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .meta-oid {
+    font-family: var(--font-mono);
+    color: var(--accent-blue);
+  }
+
+  .branch-commits-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .detail-section {
+    margin-bottom: 20px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  .commits-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .commit-row {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+  }
+
+  .commit-row:last-child {
+    border-bottom: none;
+  }
+
+  .commit-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+  }
+
+  .commit-row.selected {
+    background: var(--selection);
+  }
+
+  .commit-summary {
+    font-size: 12px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .commit-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .commit-author {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+  }
+
+  .commit-sep {
+    opacity: 0.5;
+  }
+
+  .commit-time {
+    flex-shrink: 0;
+  }
+
+  .commit-oid {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-blue);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .no-commits {
+    padding: 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .detail-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+  }
+
+  .action-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  .action-checkout:hover {
+    background: rgba(88, 166, 255, 0.15);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+  }
+
+  .action-merge:hover {
+    background: rgba(63, 185, 80, 0.15);
+    border-color: #3fb950;
+    color: #3fb950;
+  }
+
+  .action-delete:hover {
+    background: rgba(248, 81, 73, 0.15);
+    border-color: #f85149;
+    color: #f85149;
+  }
+</style>

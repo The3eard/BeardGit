@@ -1,0 +1,28 @@
+[package]
+name = "beardgit"
+version.workspace = true
+edition.workspace = true
+description = "BeardGit"
+authors = ["Adolfo Fuentes <adolfofuentes@metricool.com>"]
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "beardgit_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+app-core = { path = "../crates/app-core" }
+github-api = { path = "../crates/github-api" }
+task-runner = { path = "../crates/task-runner" }
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri-plugin-dialog = "2.6.0"
+storage = { path = "../crates/storage" }
+dirs = "6"

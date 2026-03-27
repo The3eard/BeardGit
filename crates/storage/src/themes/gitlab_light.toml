@@ -1,0 +1,47 @@
+[meta]
+id = "gitlab-light"
+name = "GitLab Light"
+mode = "light"
+
+[colors]
+bg-primary = "#ffffff"
+bg-secondary = "#fafafa"
+bg-toolbar = "#ededed"
+text-primary = "#303030"
+text-secondary = "#737278"
+accent-blue = "#1068bf"
+accent-green = "#217645"
+accent-orange = "#c17d10"
+accent-purple = "#694cc0"
+accent-red = "#dd2b0e"
+border = "#dbdbdb"
+selection = "#1068bf22"
+
+[graph]
+lane-colors = [
+    "#1068bf",
+    "#217645",
+    "#c17d10",
+    "#694cc0",
+    "#dd2b0e",
+    "#428fdc",
+    "#2da160",
+    "#e0a42b",
+    "#9475db",
+    "#ec5941",
+]
+background = "#ffffff"
+foreground = "#303030"
+text-primary = "#303030"
+text-secondary = "#737278"
+text-sha = "#1068bf"
+selection = "#1068bf22"
+head-lane-tint = "#1068bf18"
+selection-highlight = "#1068bf44"
+dim-opacity = 0.4
+node-radius = 4.0
+merge-radius = 3.0
+ref-branch = "#217645"
+ref-remote = "#1068bf"
+ref-tag = "#c17d10"
+ref-head = "#694cc0"

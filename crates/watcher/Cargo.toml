@@ -1,0 +1,8 @@
+[package]
+name = "watcher"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+notify = "7"
+notify-debouncer-mini = "0.5"

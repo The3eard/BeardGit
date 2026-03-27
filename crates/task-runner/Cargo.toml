@@ -1,0 +1,11 @@
+[package]
+name = "task-runner"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+tokio-util = "0.7"
+serde = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }

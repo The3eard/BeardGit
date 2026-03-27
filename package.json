@@ -1,0 +1,35 @@
+{
+  "name": "beardgit",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tauri": "tauri"
+  },
+  "license": "CC-BY-NC-SA-4.0",
+  "dependencies": {
+    "@inlang/paraglide-js": "^2.15.1",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-opener": "^2"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3",
+    "@sveltejs/kit": "^2",
+    "@sveltejs/vite-plugin-svelte": "^7",
+    "@tauri-apps/cli": "^2",
+    "@types/node": "^25.5.0",
+    "svelte": "^5",
+    "svelte-check": "^4",
+    "typescript": "~5.8",
+    "vite": "^8",
+    "vitest": "^4.1.2"
+  }
+}

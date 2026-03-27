@@ -1,0 +1,23 @@
+[package]
+name = "app-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+git-engine = { path = "../git-engine" }
+graph-builder = { path = "../graph-builder" }
+storage = { path = "../storage" }
+auth = { path = "../auth" }
+provider = { path = "../provider" }
+gitlab-api = { path = "../gitlab-api" }
+github-api = { path = "../github-api" }
+task-runner = { path = "../task-runner" }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { version = "2", features = [] }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+dirs = "6"
+rayon = "1"
+watcher = { path = "../watcher" }

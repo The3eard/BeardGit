@@ -1,0 +1,153 @@
+/**
+ * Tasks store — background task lifecycle, output streaming, and UI state.
+ *
+ * Listens for Tauri events (`task-started`, `task-output`, `task-completed`,
+ * `task-failed`, `task-cancelled`) and maintains a reactive list of tasks
+ * and their output buffers. Output events are batched via `requestAnimationFrame`
+ * to reduce GC pressure from rapid updates.
+ *
+ * After remote operations (Fetch/Pull) complete successfully, the graph,
+ * branches, and file statuses are auto-refreshed.
+ */
+
+import { writable, derived, get } from "svelte/store";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { TaskInfo, TaskId, TaskOutputLine, TaskOutputEvent } from "../types";
+import * as api from "../api/tauri";
+import { loadViewport, graphOffset } from "./graph";
+import { refreshStatuses } from "./changes";
+import { getBranches as apiGetBranches } from "../api/tauri";
+import { branches } from "./repo";
+
+export const tasks = writable<TaskInfo[]>([]);
+/** Output lines keyed by task ID. Mutated in-place, cloned on rAF tick. */
+export const taskOutput = writable<Map<TaskId, TaskOutputLine[]>>(new Map());
+export const selectedTaskId = writable<TaskId | null>(null);
+
+/** Display mode for the task UI: hidden, floating popover, or full panel. */
+export type TaskPanelMode = "closed" | "popover" | "panel";
+export const panelMode = writable<TaskPanelMode>("closed");
+
+// Derived
+export const runningTasks = derived(tasks, ($tasks) =>
+  $tasks.filter((t) => t.status.state === "running")
+);
+export const hasRunningTasks = derived(runningTasks, ($running) => $running.length > 0);
+export const selectedTask = derived(
+  [tasks, selectedTaskId],
+  ([$tasks, $id]) => ($id !== null ? $tasks.find((t) => t.id === $id) ?? null : null)
+);
+export const selectedOutput = derived(
+  [taskOutput, selectedTaskId],
+  ([$output, $id]) => ($id !== null ? $output.get($id) ?? [] : [])
+);
+
+// Lifecycle
+let unlisteners: UnlistenFn[] = [];
+let outputRafPending = false;
+
+export async function initTaskStore(): Promise<void> {
+  const existing = await api.getTasks();
+  tasks.set(existing);
+
+  unlisteners.push(
+    await listen<TaskInfo>("task-started", (event) => {
+      tasks.update((list) => {
+        const idx = list.findIndex((t) => t.id === event.payload.id);
+        if (idx >= 0) {
+          list[idx] = event.payload;
+          return [...list];
+        }
+        return [...list, event.payload];
+      });
+    })
+  );
+
+  unlisteners.push(
+    await listen<TaskOutputEvent>("task-output", (event) => {
+      taskOutput.update((map) => {
+        const lines = map.get(event.payload.task_id) ?? [];
+        lines.push(event.payload.line);
+        map.set(event.payload.task_id, lines);
+        return map; // mutate in place, defer clone
+      });
+      if (!outputRafPending) {
+        outputRafPending = true;
+        requestAnimationFrame(() => {
+          outputRafPending = false;
+          taskOutput.update((map) => new Map(map));
+        });
+      }
+    })
+  );
+
+  const updateTaskStatus = (event: { payload: TaskInfo }) => {
+    tasks.update((list) => {
+      const idx = list.findIndex((t) => t.id === event.payload.id);
+      if (idx >= 0) {
+        list[idx] = event.payload;
+        return [...list];
+      }
+      return list;
+    });
+  };
+
+  unlisteners.push(
+    await listen<TaskInfo>("task-completed", (event) => {
+      updateTaskStatus(event);
+      // Auto-refresh graph after fetch or pull completes
+      const label = event.payload.label;
+      if (label.startsWith("Fetch") || label.startsWith("Pull")) {
+        refreshAfterRemoteOp();
+      }
+    })
+  );
+  unlisteners.push(await listen<TaskInfo>("task-failed", updateTaskStatus));
+  unlisteners.push(await listen<TaskInfo>("task-cancelled", updateTaskStatus));
+}
+
+/** Unregister all task event listeners (called on app teardown). */
+export function cleanupTaskStore(): void {
+  for (const unlisten of unlisteners) {
+    unlisten();
+  }
+  unlisteners = [];
+}
+
+/** Refresh the graph, branches, and statuses after a remote operation completes. */
+async function refreshAfterRemoteOp() {
+  try {
+    const offset = get(graphOffset);
+    await loadViewport(offset);
+    const branchList = await apiGetBranches();
+    branches.set(branchList);
+    await refreshStatuses();
+  } catch {
+    // Silently ignore refresh errors — the user can manually refresh
+  }
+}
+
+// Actions
+export async function cancelTask(taskId: TaskId): Promise<void> {
+  await api.cancelTask(taskId);
+}
+
+export function selectTask(taskId: TaskId): void {
+  selectedTaskId.set(taskId);
+}
+
+export function togglePopover(): void {
+  panelMode.update((mode) => (mode === "closed" ? "popover" : "closed"));
+}
+
+export function expandPanel(): void {
+  panelMode.set("panel");
+}
+
+export function collapsePanel(): void {
+  panelMode.set("popover");
+}
+
+export function closePanel(): void {
+  panelMode.set("closed");
+}

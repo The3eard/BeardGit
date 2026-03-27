@@ -1,0 +1,50 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.svelte-kit/
+
+# Tauri
+src-tauri/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code config + CLAUDE.md files
+.claude/
+CLAUDE.md
+**/CLAUDE.md
+
+# Documentation (kept local, not in repo)
+docs/
+.superpowers/
+
+# Editor config
+.zed/
+
+# Mobile icons (desktop app only)
+src-tauri/icons/android/
+src-tauri/icons/ios/
+
+# Git worktrees
+.worktrees/
+
+# Environment
+.env
+.env.local
+
+# Paraglide generated output
+src/lib/paraglide/

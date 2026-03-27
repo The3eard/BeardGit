@@ -1,0 +1,47 @@
+[meta]
+id = "gitlab-dark"
+name = "GitLab Dark"
+mode = "dark"
+
+[colors]
+bg-primary = "#0a1628"
+bg-secondary = "#0d1b2a"
+bg-toolbar = "#16213e"
+text-primary = "#cccccc"
+text-secondary = "#888888"
+accent-blue = "#58a6ff"
+accent-green = "#3fb950"
+accent-orange = "#f0883e"
+accent-purple = "#bb80ff"
+accent-red = "#f85149"
+border = "#1e3a5f"
+selection = "#58a6ff33"
+
+[graph]
+lane-colors = [
+    "#58a6ff",
+    "#3fb950",
+    "#f0883e",
+    "#bb80ff",
+    "#f85149",
+    "#79c0ff",
+    "#56d364",
+    "#d29922",
+    "#d2a8ff",
+    "#ff7b72",
+]
+background = "#0a1628"
+foreground = "#cccccc"
+text-primary = "#cccccc"
+text-secondary = "#888888"
+text-sha = "#58a6ff"
+selection = "#58a6ff44"
+head-lane-tint = "#58a6ff22"
+selection-highlight = "#58a6ff66"
+dim-opacity = 0.4
+node-radius = 4.0
+merge-radius = 3.0
+ref-branch = "#3fb950"
+ref-remote = "#58a6ff"
+ref-tag = "#f0883e"
+ref-head = "#bb80ff"
