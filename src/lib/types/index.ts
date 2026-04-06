@@ -346,8 +346,31 @@ export interface ThemeGraphData {
   ref_head: string;
 }
 
+export interface ThemeEditorData {
+  background: string;
+  foreground: string;
+  cursor: string;
+  selection: string;
+  line_highlight: string;
+  gutter_bg: string;
+  gutter_fg: string;
+  added_bg: string;
+  removed_bg: string;
+  added_text: string;
+  removed_text: string;
+  syntax_keyword: string | null;
+  syntax_string: string | null;
+  syntax_comment: string | null;
+  syntax_function: string | null;
+  syntax_type: string | null;
+  syntax_number: string | null;
+  syntax_operator: string | null;
+  syntax_property: string | null;
+}
+
 export interface ThemeData {
   meta: ThemeMeta;
   colors: ThemeColors;
   graph: ThemeGraphData;
+  editor: ThemeEditorData | null;
 }

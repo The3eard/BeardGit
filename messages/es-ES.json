@@ -229,5 +229,13 @@
   "changes_menu_copy_path": "Copiar ruta",
   "settings_language": "Idioma",
   "settings_theme": "Tema",
-  "settings_theme_auto": "Seguir tema del sistema"
+  "settings_theme_auto": "Seguir tema del sistema",
+  "settings_repository": "Repositorio",
+  "settings_remotes": "Remotos",
+  "settings_remote_rename": "Renombrar",
+  "settings_remote_remove": "Eliminar",
+  "settings_remote_remove_confirm": "¿Eliminar remoto \"{name}\"? Esta acción no se puede deshacer.",
+  "settings_remote_rename_title": "Renombrar remoto",
+  "settings_remote_rename_placeholder": "Nuevo nombre",
+  "settings_remote_no_repo": "Abre un repositorio para ver su configuración."
 }

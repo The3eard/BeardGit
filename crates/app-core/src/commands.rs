@@ -395,6 +395,55 @@ pub fn get_commit_file_diff(
     })
 }
 
+/// Returns raw file content at a specific commit.
+///
+/// # Parameters
+/// - `oid` – Full or abbreviated commit SHA.
+/// - `path` – Repo-relative file path.
+///
+/// # Returns
+/// Raw UTF-8 file content (binary blobs are lossy-decoded), or an error string
+/// if the OID or path is invalid.
+#[tauri::command]
+pub fn get_file_at_commit(
+    oid: String,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    with_active_repo(&state, |repo| {
+        repo.get_file_at_commit(&oid, &path)
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Returns raw file content from the working directory.
+///
+/// # Parameters
+/// - `path` – Repo-relative file path.
+///
+/// # Returns
+/// Raw file content, or an IO error string if the file does not exist.
+#[tauri::command]
+pub fn get_file_workdir(path: String, state: State<'_, AppState>) -> Result<String, String> {
+    with_active_repo(&state, |repo| {
+        repo.get_file_workdir(&path).map_err(|e| e.to_string())
+    })
+}
+
+/// Returns raw file content from the index (staged version).
+///
+/// # Parameters
+/// - `path` – Repo-relative file path.
+///
+/// # Returns
+/// Raw staged file content, or an error string if the file is not staged.
+#[tauri::command]
+pub fn get_file_index(path: String, state: State<'_, AppState>) -> Result<String, String> {
+    with_active_repo(&state, |repo| {
+        repo.get_file_index(&path).map_err(|e| e.to_string())
+    })
+}
+
 /// List all local branches in the open repository with their HEAD OIDs.
 #[tauri::command]
 pub fn get_branches(state: State<'_, AppState>) -> Result<Vec<git_engine::BranchInfo>, String> {
@@ -1161,6 +1210,33 @@ pub async fn push_remote(
         .await;
 
     Ok(id)
+}
+
+/// Renames a remote in the active repository.
+///
+/// Equivalent to `git remote rename <old_name> <new_name>`. Returns an error
+/// if `old_name` does not exist or `new_name` is already taken.
+#[tauri::command]
+pub fn rename_remote(
+    old_name: String,
+    new_name: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.rename_remote(&old_name, &new_name)
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Removes a remote from the active repository.
+///
+/// Equivalent to `git remote remove <name>`. Returns an error if the remote
+/// does not exist.
+#[tauri::command]
+pub fn remove_remote(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.remove_remote(&name).map_err(|e| e.to_string())
+    })
 }
 
 // ---------------------------------------------------------------------------

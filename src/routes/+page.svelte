@@ -7,16 +7,16 @@
   import GitGraph from "$lib/components/graph/GitGraph.svelte";
   import CommitDetail from "$lib/components/detail/CommitDetail.svelte";
   import StagingArea from "$lib/components/changes/StagingArea.svelte";
-  import DiffViewer from "$lib/components/diff/DiffViewer.svelte";
+  import DiffEditor from "$lib/components/editor/DiffEditor.svelte";
   import SettingsPage from "$lib/components/settings/SettingsPage.svelte";
   import PipelineList from "$lib/components/pipeline/PipelineList.svelte";
   import PipelineDetail from "$lib/components/pipeline/PipelineDetail.svelte";
   import JobLog from "$lib/components/pipeline/JobLog.svelte";
   import { repoInfo, isLoading, error } from "$lib/stores/repo";
   import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit } from "$lib/stores/graph";
-  import { unstagedDiffs, stagedDiffs } from "$lib/stores/changes";
+  import type { RawDiffContent } from "$lib/stores/graph";
   import { selectedCiRun, jobLog } from "$lib/stores/provider";
-  import type { FileDiff, ThemeData } from "$lib/types";
+  import type { ThemeData } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import TaskPopover from "$lib/components/tasks/TaskPopover.svelte";
   import TaskPanel from "$lib/components/tasks/TaskPanel.svelte";
@@ -27,13 +27,12 @@
   import TagView from "$lib/components/tags/TagView.svelte";
   import BranchView from "$lib/components/branches/BranchView.svelte";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
-  import { getCommitFileDiff } from "$lib/api/tauri";
-  import SideBySideDiff from "$lib/components/diff/SideBySideDiff.svelte";
+  import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
   import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
 
   let activeView = $state("graph");
-  let selectedDiff = $state<FileDiff | null>(null);
+  let selectedDiff = $state<RawDiffContent | null>(null);
   let showJobLog = $state(false);
   let diffPanelHeight = $state(250);
   let pipelineSidebarWidth = $state(360);
@@ -132,16 +131,41 @@
     showJobLog = true;
   }
 
-  function handleFileClick(path: string, staged: boolean) {
-    const diffs = staged ? $stagedDiffs : $unstagedDiffs;
-    selectedDiff = diffs.find(d => d.path === path) ?? null;
+  async function handleFileClick(path: string, staged: boolean) {
+    try {
+      if (staged) {
+        // Staged: old = HEAD, new = index
+        const [oldContent, newContent] = await Promise.all([
+          getFileAtCommit("HEAD", path).catch(() => ""),
+          getFileIndex(path).catch(() => ""),
+        ]);
+        selectedDiff = { oldContent, newContent, filename: path };
+      } else {
+        // Unstaged: old = index, new = workdir
+        const [oldContent, newContent] = await Promise.all([
+          getFileIndex(path).catch(() => ""),
+          getFileWorkdir(path).catch(() => ""),
+        ]);
+        selectedDiff = { oldContent, newContent, filename: path };
+      }
+    } catch {
+      selectedDiff = null;
+    }
   }
 
   async function handleBranchFileClick(path: string) {
     const commit = $branchSelectedCommit;
     if (!commit) return;
-    const diffs = await getCommitFileDiff(commit.oid, path);
-    branchFileDiff.set(diffs.length > 0 ? diffs[0] : null);
+    const parentOid = commit.parents?.[0] ?? null;
+    try {
+      const [oldContent, newContent] = await Promise.all([
+        parentOid ? getFileAtCommit(parentOid, path).catch(() => "") : Promise.resolve(""),
+        getFileAtCommit(commit.oid, path).catch(() => ""),
+      ]);
+      branchFileDiff.set({ oldContent, newContent, filename: path });
+    } catch {
+      branchFileDiff.set(null);
+    }
   }
 </script>
 
@@ -188,7 +212,14 @@
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
             <div class="diff-panel" style="height: {diffPanelHeight}px">
-              <SideBySideDiff diff={$branchFileDiff} onClose={() => branchFileDiff.set(null)} />
+              <DiffEditor
+                oldContent={$branchFileDiff.oldContent}
+                newContent={$branchFileDiff.newContent}
+                filename={$branchFileDiff.filename}
+                editorTheme={$activeTheme?.editor}
+                isDark={$activeTheme?.meta.mode !== 'light'}
+                onClose={() => branchFileDiff.set(null)}
+              />
             </div>
           {/if}
         </div>
@@ -215,7 +246,19 @@
               <StagingArea onFileClick={handleFileClick} />
             </div>
             <div class="changes-diff">
-              <DiffViewer diff={selectedDiff} />
+              {#if selectedDiff}
+                <DiffEditor
+                  oldContent={selectedDiff.oldContent}
+                  newContent={selectedDiff.newContent}
+                  filename={selectedDiff.filename}
+                  editorTheme={$activeTheme?.editor}
+                  isDark={$activeTheme?.meta.mode !== 'light'}
+                />
+              {:else}
+                <div class="no-diff">
+                  <p>{m.diff_empty()}</p>
+                </div>
+              {/if}
             </div>
           </div>
         {:else}
@@ -227,7 +270,14 @@
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
               <div class="diff-panel" style="height: {diffPanelHeight}px">
-                <SideBySideDiff diff={$fileDiffPanel} onClose={closeFileDiff} />
+                <DiffEditor
+                  oldContent={$fileDiffPanel.oldContent}
+                  newContent={$fileDiffPanel.newContent}
+                  filename={$fileDiffPanel.filename}
+                  editorTheme={$activeTheme?.editor}
+                  isDark={$activeTheme?.meta.mode !== 'light'}
+                  onClose={closeFileDiff}
+                />
               </div>
             </div>
           {:else if $loadingFileDiff}
@@ -548,5 +598,14 @@
     align-items: center;
     justify-content: center;
     border-top: 1px solid var(--border);
+  }
+
+  .no-diff {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 13px;
   }
 </style>

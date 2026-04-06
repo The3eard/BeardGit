@@ -2,6 +2,10 @@
 //!
 //! Supports built-in themes (compiled into the binary) and user-provided TOML
 //! theme files loaded from `~/.config/beardgit/themes/`.
+//!
+//! Only `[meta]` and `[colors]` are required. The `[graph]` and `[editor]`
+//! sections are derived automatically from the base palette when omitted.
+//! Users can still override any derived value by including the section.
 
 use std::path::Path;
 
@@ -23,9 +27,9 @@ const THEMES_README: &str = r##"# BeardGit Custom Themes
 Place `.toml` files in this directory to add custom themes.
 BeardGit will pick them up automatically on next launch.
 
-## Required Format
+## Creating a Theme
 
-Every theme file must have three sections: `[meta]`, `[colors]`, and `[graph]`.
+Only `[meta]` and `[colors]` are required — everything else is derived:
 
 ```toml
 [meta]
@@ -34,48 +38,64 @@ name = "My Custom Theme"    # display name in the theme picker
 mode = "dark"               # "dark" or "light"
 
 [colors]
-bg-primary = "#1a1b26"
-bg-secondary = "#24283b"
-bg-toolbar = "#1f2335"
-text-primary = "#c0caf5"
-text-secondary = "#565f89"
-accent-blue = "#7aa2f7"
-accent-green = "#9ece6a"
-accent-orange = "#ff9e64"
-accent-purple = "#bb9af7"
-accent-red = "#f7768e"
-border = "#3b4261"
-selection = "#283457"
-
-[graph]
-lane-colors = [
-    "#7aa2f7",
-    "#9ece6a",
-    "#ff9e64",
-    "#bb9af7",
-    "#f7768e",
-    "#7dcfff",
-    "#73daca",
-    "#e0af68",
-    "#c0caf5",
-    "#ff007c",
-]
-background = "#1a1b26"
-foreground = "#c0caf5"
-text-primary = "#c0caf5"
-text-secondary = "#565f89"
-text-sha = "#7aa2f7"
-selection = "#28345766"
-head-lane-tint = "#7aa2f722"
-selection-highlight = "#28345799"
-dim-opacity = 0.4
-node-radius = 4.0
-merge-radius = 3.0
-ref-branch = "#9ece6a"
-ref-remote = "#7aa2f7"
-ref-tag = "#ff9e64"
-ref-head = "#bb9af7"
+bg-primary = "#1a1b26"      # main background
+bg-secondary = "#24283b"    # sidebar, panels, secondary areas
+bg-toolbar = "#1f2335"      # toolbar, top bar
+text-primary = "#c0caf5"    # main text
+text-secondary = "#565f89"  # dimmed text, labels, line numbers
+accent-blue = "#7aa2f7"     # links, branch refs, cursor
+accent-green = "#9ece6a"    # added lines, branch names, success
+accent-orange = "#ff9e64"   # tag refs, warnings
+accent-purple = "#bb9af7"   # HEAD ref, functions in syntax
+accent-red = "#f7768e"      # removed lines, errors, keywords in syntax
+border = "#3b4261"          # borders, separators
+selection = "#283457"       # text selection background
 ```
+
+That's it — 14 lines. The entire UI is built from these 12 colors:
+
+- **Graph:** lane colors = 5 accents + lighter variants; refs = green (branch),
+  blue (remote), orange (tag), purple (HEAD); selection/tints from selection color
+- **Editor:** syntax highlighting = red (keywords/operators), blue (types/numbers),
+  purple (functions), green (properties), lightened-blue (strings), text-secondary
+  (comments); diff backgrounds = dark green/red for dark mode, light green/red for
+  light mode; cursor and selection from accent-blue and selection color
+- **All other UI elements** are styled via CSS custom properties from these colors
+
+## Optional Overrides
+
+To tweak specific derived values, add a partial `[graph]` or `[editor]` section.
+Only the fields you include are overridden — everything else keeps the derived value.
+
+```toml
+[graph]
+lane-colors = ["#7aa2f7", "#9ece6a", "#ff9e64"]  # custom lane palette
+node-radius = 5.0                                   # bigger commit dots
+dim-opacity = 0.3                                    # more transparent dimmed lanes
+
+[editor]
+added-bg = "#1b3829"          # custom diff added background
+removed-bg = "#3c1e22"        # custom diff removed background
+syntax-keyword = "#ff7b72"    # override keyword color
+syntax-string = "#a5d6ff"     # override string color
+```
+
+### Graph fields
+- `lane-colors` — array of hex colors for commit graph lanes (min 2)
+- `background`, `foreground` — graph canvas colors
+- `text-primary`, `text-secondary`, `text-sha` — graph text colors
+- `selection`, `head-lane-tint`, `selection-highlight` — selection tints
+- `dim-opacity` — opacity for dimmed lanes (0.0–1.0)
+- `node-radius`, `merge-radius` — commit dot sizes
+- `ref-branch`, `ref-remote`, `ref-tag`, `ref-head` — ref badge colors
+
+### Editor fields
+- `background`, `foreground` — editor background/text
+- `cursor`, `selection`, `line-highlight` — cursor and selection
+- `gutter-bg`, `gutter-fg` — line number gutter
+- `added-bg`, `removed-bg`, `added-text`, `removed-text` — diff colors
+- `syntax-keyword`, `syntax-string`, `syntax-comment`, `syntax-function`,
+  `syntax-type`, `syntax-number`, `syntax-operator`, `syntax-property` — syntax tokens
 
 ## Color Formats
 
@@ -142,6 +162,8 @@ pub struct Theme {
     pub colors: ThemeColors,
     /// Graph-specific rendering tokens.
     pub graph: ThemeGraph,
+    /// CodeMirror 6 editor color tokens.
+    pub editor: Option<ThemeEditor>,
 }
 
 /// The `[meta]` section of a theme file.
@@ -182,6 +204,64 @@ pub struct ThemeColors {
     pub selection: String,
 }
 
+/// Editor color tokens for CodeMirror 6 integration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThemeEditor {
+    /// Editor background color.
+    pub background: String,
+    /// Default text foreground color.
+    pub foreground: String,
+    /// Cursor/caret color.
+    pub cursor: String,
+    /// Text selection background color.
+    pub selection: String,
+    /// Active line highlight background.
+    #[serde(rename = "line-highlight")]
+    pub line_highlight: String,
+    /// Gutter background color.
+    #[serde(rename = "gutter-bg")]
+    pub gutter_bg: String,
+    /// Gutter foreground (line numbers) color.
+    #[serde(rename = "gutter-fg")]
+    pub gutter_fg: String,
+    /// Added line background in diff view.
+    #[serde(rename = "added-bg")]
+    pub added_bg: String,
+    /// Removed line background in diff view.
+    #[serde(rename = "removed-bg")]
+    pub removed_bg: String,
+    /// Added line text color in diff view.
+    #[serde(rename = "added-text")]
+    pub added_text: String,
+    /// Removed line text color in diff view.
+    #[serde(rename = "removed-text")]
+    pub removed_text: String,
+    /// Syntax: keyword color.
+    #[serde(default, rename = "syntax-keyword")]
+    pub syntax_keyword: Option<String>,
+    /// Syntax: string literal color.
+    #[serde(default, rename = "syntax-string")]
+    pub syntax_string: Option<String>,
+    /// Syntax: comment color.
+    #[serde(default, rename = "syntax-comment")]
+    pub syntax_comment: Option<String>,
+    /// Syntax: function/method name color.
+    #[serde(default, rename = "syntax-function")]
+    pub syntax_function: Option<String>,
+    /// Syntax: type/class name color.
+    #[serde(default, rename = "syntax-type")]
+    pub syntax_type: Option<String>,
+    /// Syntax: number literal color.
+    #[serde(default, rename = "syntax-number")]
+    pub syntax_number: Option<String>,
+    /// Syntax: operator color.
+    #[serde(default, rename = "syntax-operator")]
+    pub syntax_operator: Option<String>,
+    /// Syntax: property/attribute color.
+    #[serde(default, rename = "syntax-property")]
+    pub syntax_property: Option<String>,
+}
+
 /// The `[graph]` section — canvas/graph rendering tokens.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThemeGraph {
@@ -216,19 +296,305 @@ pub struct ThemeGraph {
     pub ref_head: String,
 }
 
-// -- Raw deserialization helper --
+// -- Derivation from base palette --
+
+/// Append a 2-digit hex alpha to a `#RRGGBB` color. If the color already has
+/// alpha or isn't hex, return it unchanged.
+fn with_alpha(hex: &str, alpha: &str) -> String {
+    if hex.starts_with('#') && hex.len() == 7 {
+        format!("{hex}{alpha}")
+    } else {
+        hex.to_string()
+    }
+}
+
+/// Strip alpha from a `#RRGGBBAA` color, returning `#RRGGBB`.
+fn strip_alpha(hex: &str) -> String {
+    if hex.starts_with('#') && hex.len() == 9 {
+        hex[..7].to_string()
+    } else {
+        hex.to_string()
+    }
+}
+
+/// Lighten a `#RRGGBB` color by blending toward white. `amount` is 0.0–1.0.
+fn lighten_hex(hex: &str, amount: f64) -> String {
+    if !hex.starts_with('#') || hex.len() < 7 {
+        return hex.to_string();
+    }
+    let r = u8::from_str_radix(&hex[1..3], 16).unwrap_or(128);
+    let g = u8::from_str_radix(&hex[3..5], 16).unwrap_or(128);
+    let b = u8::from_str_radix(&hex[5..7], 16).unwrap_or(128);
+    let lr = r as f64 + (255.0 - r as f64) * amount;
+    let lg = g as f64 + (255.0 - g as f64) * amount;
+    let lb = b as f64 + (255.0 - b as f64) * amount;
+    format!("#{:02x}{:02x}{:02x}", lr as u8, lg as u8, lb as u8)
+}
+
+/// Shift the hue of a `#RRGGBB` color by `degrees` (-180..180).
+/// Uses a simple RGB→HSL→RGB conversion.
+fn shift_hue_hex(hex: &str, degrees: i32) -> String {
+    if !hex.starts_with('#') || hex.len() < 7 {
+        return hex.to_string();
+    }
+    let r = u8::from_str_radix(&hex[1..3], 16).unwrap_or(128) as f64 / 255.0;
+    let g = u8::from_str_radix(&hex[3..5], 16).unwrap_or(128) as f64 / 255.0;
+    let b = u8::from_str_radix(&hex[5..7], 16).unwrap_or(128) as f64 / 255.0;
+
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let l = (max + min) / 2.0;
+
+    if (max - min).abs() < 1e-6 {
+        return hex.to_string(); // achromatic
+    }
+
+    let d = max - min;
+    let s = if l > 0.5 { d / (2.0 - max - min) } else { d / (max + min) };
+    let h = if (max - r).abs() < 1e-6 {
+        ((g - b) / d + if g < b { 6.0 } else { 0.0 }) / 6.0
+    } else if (max - g).abs() < 1e-6 {
+        ((b - r) / d + 2.0) / 6.0
+    } else {
+        ((r - g) / d + 4.0) / 6.0
+    };
+
+    let new_h = (h + degrees as f64 / 360.0).rem_euclid(1.0);
+
+    // HSL → RGB
+    let hue_to_rgb = |p: f64, q: f64, mut t: f64| -> f64 {
+        if t < 0.0 { t += 1.0; }
+        if t > 1.0 { t -= 1.0; }
+        if t < 1.0 / 6.0 { return p + (q - p) * 6.0 * t; }
+        if t < 1.0 / 2.0 { return q; }
+        if t < 2.0 / 3.0 { return p + (q - p) * (2.0 / 3.0 - t) * 6.0; }
+        p
+    };
+
+    let q = if l < 0.5 { l * (1.0 + s) } else { l + s - l * s };
+    let p = 2.0 * l - q;
+    let nr = (hue_to_rgb(p, q, new_h + 1.0 / 3.0) * 255.0) as u8;
+    let ng = (hue_to_rgb(p, q, new_h) * 255.0) as u8;
+    let nb = (hue_to_rgb(p, q, new_h - 1.0 / 3.0) * 255.0) as u8;
+
+    format!("#{:02x}{:02x}{:02x}", nr, ng, nb)
+}
+
+/// Derive the full `[graph]` section from base colors and mode.
+fn derive_graph(colors: &ThemeColors) -> ThemeGraph {
+    // Build 10 lane colors: 5 accents + 5 shifted variants (lighter for dark, darker for light)
+    let lane_colors = vec![
+        colors.accent_blue.clone(),
+        colors.accent_green.clone(),
+        colors.accent_orange.clone(),
+        colors.accent_purple.clone(),
+        colors.accent_red.clone(),
+        lighten_hex(&colors.accent_blue, 0.25),
+        lighten_hex(&colors.accent_green, 0.25),
+        shift_hue_hex(&colors.accent_orange, -20), // orange → golden
+        lighten_hex(&colors.accent_purple, 0.25),
+        lighten_hex(&colors.accent_red, 0.2),
+    ];
+
+    // Use the base selection color (strip alpha) for graph selection tints
+    let sel_base = strip_alpha(&colors.selection);
+
+    ThemeGraph {
+        lane_colors,
+        background: colors.bg_primary.clone(),
+        foreground: colors.text_primary.clone(),
+        text_primary: colors.text_primary.clone(),
+        text_secondary: colors.text_secondary.clone(),
+        text_sha: colors.accent_blue.clone(),
+        selection: with_alpha(&sel_base, "44"),
+        head_lane_tint: with_alpha(&colors.accent_blue, "22"),
+        selection_highlight: with_alpha(&sel_base, "66"),
+        dim_opacity: 0.4,
+        node_radius: 4.0,
+        merge_radius: 3.0,
+        ref_branch: colors.accent_green.clone(),
+        ref_remote: colors.accent_blue.clone(),
+        ref_tag: colors.accent_orange.clone(),
+        ref_head: colors.accent_purple.clone(),
+    }
+}
+
+/// Derive the full `[editor]` section from base colors and mode.
+fn derive_editor(colors: &ThemeColors, is_dark: bool) -> ThemeEditor {
+    let (added_bg, removed_bg) = if is_dark {
+        ("#1b3829".to_string(), "#3c1e22".to_string())
+    } else {
+        ("#d4f8db".to_string(), "#fdd8d8".to_string())
+    };
+
+    // Derive syntax colors from the theme's own accent palette.
+    // keyword/operator → red, string → blue (lightened for dark), function → purple,
+    // type/number → blue, property → green, comment → text-secondary.
+    let kw = &colors.accent_red;
+    let str_c = if is_dark { lighten_hex(&colors.accent_blue, 0.35) } else { shift_hue_hex(&colors.accent_blue, 15) };
+    let func = &colors.accent_purple;
+    let typ = &colors.accent_blue;
+    let prop = &colors.accent_green;
+
+    let sel_base = strip_alpha(&colors.selection);
+
+    ThemeEditor {
+        background: colors.bg_primary.clone(),
+        foreground: colors.text_primary.clone(),
+        cursor: colors.accent_blue.clone(),
+        selection: with_alpha(&sel_base, "44"),
+        line_highlight: with_alpha(&colors.bg_secondary, "66"),
+        gutter_bg: colors.bg_primary.clone(),
+        gutter_fg: colors.text_secondary.clone(),
+        added_bg,
+        removed_bg,
+        added_text: colors.accent_green.clone(),
+        removed_text: colors.accent_red.clone(),
+        syntax_keyword: Some(kw.clone()),
+        syntax_string: Some(str_c),
+        syntax_comment: None, // None → frontend uses text-secondary
+        syntax_function: Some(func.clone()),
+        syntax_type: Some(typ.clone()),
+        syntax_number: Some(typ.clone()),    // numbers same color as types
+        syntax_operator: Some(kw.clone()),    // operators same color as keywords
+        syntax_property: Some(prop.clone()),
+    }
+}
+
+// -- Raw deserialization helper (all sections optional except meta+colors) --
+
+/// Partial editor for TOML override merging. Every field is optional.
+#[derive(Debug, Deserialize)]
+struct RawEditorOverride {
+    background: Option<String>,
+    foreground: Option<String>,
+    cursor: Option<String>,
+    selection: Option<String>,
+    #[serde(rename = "line-highlight")]
+    line_highlight: Option<String>,
+    #[serde(rename = "gutter-bg")]
+    gutter_bg: Option<String>,
+    #[serde(rename = "gutter-fg")]
+    gutter_fg: Option<String>,
+    #[serde(rename = "added-bg")]
+    added_bg: Option<String>,
+    #[serde(rename = "removed-bg")]
+    removed_bg: Option<String>,
+    #[serde(rename = "added-text")]
+    added_text: Option<String>,
+    #[serde(rename = "removed-text")]
+    removed_text: Option<String>,
+    #[serde(rename = "syntax-keyword")]
+    syntax_keyword: Option<String>,
+    #[serde(rename = "syntax-string")]
+    syntax_string: Option<String>,
+    #[serde(rename = "syntax-comment")]
+    syntax_comment: Option<String>,
+    #[serde(rename = "syntax-function")]
+    syntax_function: Option<String>,
+    #[serde(rename = "syntax-type")]
+    syntax_type: Option<String>,
+    #[serde(rename = "syntax-number")]
+    syntax_number: Option<String>,
+    #[serde(rename = "syntax-operator")]
+    syntax_operator: Option<String>,
+    #[serde(rename = "syntax-property")]
+    syntax_property: Option<String>,
+}
+
+/// Partial graph for TOML override merging. Every field is optional.
+#[derive(Debug, Deserialize)]
+struct RawGraphOverride {
+    #[serde(alias = "lane-colors")]
+    lane_colors: Option<Vec<String>>,
+    background: Option<String>,
+    foreground: Option<String>,
+    #[serde(alias = "text-primary")]
+    text_primary: Option<String>,
+    #[serde(alias = "text-secondary")]
+    text_secondary: Option<String>,
+    #[serde(alias = "text-sha")]
+    text_sha: Option<String>,
+    selection: Option<String>,
+    #[serde(alias = "head-lane-tint")]
+    head_lane_tint: Option<String>,
+    #[serde(alias = "selection-highlight")]
+    selection_highlight: Option<String>,
+    #[serde(alias = "dim-opacity")]
+    dim_opacity: Option<f64>,
+    #[serde(alias = "node-radius")]
+    node_radius: Option<f64>,
+    #[serde(alias = "merge-radius")]
+    merge_radius: Option<f64>,
+    #[serde(alias = "ref-branch")]
+    ref_branch: Option<String>,
+    #[serde(alias = "ref-remote")]
+    ref_remote: Option<String>,
+    #[serde(alias = "ref-tag")]
+    ref_tag: Option<String>,
+    #[serde(alias = "ref-head")]
+    ref_head: Option<String>,
+}
 
 /// Intermediate struct for TOML deserialization with optional sections.
 #[derive(Deserialize)]
 struct RawTheme {
     meta: Option<ThemeMetaSection>,
     colors: Option<ThemeColors>,
-    graph: Option<ThemeGraph>,
+    graph: Option<RawGraphOverride>,
+    editor: Option<RawEditorOverride>,
+}
+
+/// Apply partial overrides from a `RawGraphOverride` onto a derived `ThemeGraph`.
+fn merge_graph_overrides(base: &mut ThemeGraph, overrides: RawGraphOverride) {
+    if let Some(v) = overrides.lane_colors { base.lane_colors = v; }
+    if let Some(v) = overrides.background { base.background = v; }
+    if let Some(v) = overrides.foreground { base.foreground = v; }
+    if let Some(v) = overrides.text_primary { base.text_primary = v; }
+    if let Some(v) = overrides.text_secondary { base.text_secondary = v; }
+    if let Some(v) = overrides.text_sha { base.text_sha = v; }
+    if let Some(v) = overrides.selection { base.selection = v; }
+    if let Some(v) = overrides.head_lane_tint { base.head_lane_tint = v; }
+    if let Some(v) = overrides.selection_highlight { base.selection_highlight = v; }
+    if let Some(v) = overrides.dim_opacity { base.dim_opacity = v; }
+    if let Some(v) = overrides.node_radius { base.node_radius = v; }
+    if let Some(v) = overrides.merge_radius { base.merge_radius = v; }
+    if let Some(v) = overrides.ref_branch { base.ref_branch = v; }
+    if let Some(v) = overrides.ref_remote { base.ref_remote = v; }
+    if let Some(v) = overrides.ref_tag { base.ref_tag = v; }
+    if let Some(v) = overrides.ref_head { base.ref_head = v; }
+}
+
+/// Apply partial overrides from a `RawEditorOverride` onto a derived `ThemeEditor`.
+fn merge_editor_overrides(base: &mut ThemeEditor, overrides: RawEditorOverride) {
+    if let Some(v) = overrides.background { base.background = v; }
+    if let Some(v) = overrides.foreground { base.foreground = v; }
+    if let Some(v) = overrides.cursor { base.cursor = v; }
+    if let Some(v) = overrides.selection { base.selection = v; }
+    if let Some(v) = overrides.line_highlight { base.line_highlight = v; }
+    if let Some(v) = overrides.gutter_bg { base.gutter_bg = v; }
+    if let Some(v) = overrides.gutter_fg { base.gutter_fg = v; }
+    if let Some(v) = overrides.added_bg { base.added_bg = v; }
+    if let Some(v) = overrides.removed_bg { base.removed_bg = v; }
+    if let Some(v) = overrides.added_text { base.added_text = v; }
+    if let Some(v) = overrides.removed_text { base.removed_text = v; }
+    if overrides.syntax_keyword.is_some() { base.syntax_keyword = overrides.syntax_keyword; }
+    if overrides.syntax_string.is_some() { base.syntax_string = overrides.syntax_string; }
+    if overrides.syntax_comment.is_some() { base.syntax_comment = overrides.syntax_comment; }
+    if overrides.syntax_function.is_some() { base.syntax_function = overrides.syntax_function; }
+    if overrides.syntax_type.is_some() { base.syntax_type = overrides.syntax_type; }
+    if overrides.syntax_number.is_some() { base.syntax_number = overrides.syntax_number; }
+    if overrides.syntax_operator.is_some() { base.syntax_operator = overrides.syntax_operator; }
+    if overrides.syntax_property.is_some() { base.syntax_property = overrides.syntax_property; }
 }
 
 // -- Parsing and validation --
 
 /// Parse and validate a TOML theme string into a [`Theme`].
+///
+/// Only `[meta]` and `[colors]` are required. `[graph]` and `[editor]` are
+/// derived from the base palette when omitted. Partial overrides are merged
+/// on top of the derived defaults.
 pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
     let raw: RawTheme = toml::from_str(toml_str)?;
 
@@ -238,21 +604,15 @@ pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
     let colors = raw
         .colors
         .ok_or_else(|| ThemeError::MissingField("colors".to_string()))?;
-    let graph = raw
-        .graph
-        .ok_or_else(|| ThemeError::MissingField("graph".to_string()))?;
 
     // Validate mode
     if meta.mode != "dark" && meta.mode != "light" {
         return Err(ThemeError::InvalidMode);
     }
 
-    // Validate lane colors count
-    if graph.lane_colors.len() < 2 {
-        return Err(ThemeError::InsufficientLaneColors);
-    }
+    let is_dark = meta.mode == "dark";
 
-    // Validate all color fields
+    // Validate all base color fields
     validate_color("colors.bg_primary", &colors.bg_primary)?;
     validate_color("colors.bg_secondary", &colors.bg_secondary)?;
     validate_color("colors.bg_toolbar", &colors.bg_toolbar)?;
@@ -266,26 +626,28 @@ pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
     validate_color("colors.border", &colors.border)?;
     validate_color("colors.selection", &colors.selection)?;
 
-    for (i, c) in graph.lane_colors.iter().enumerate() {
-        validate_color(&format!("graph.lane_colors[{i}]"), c)?;
+    // Derive graph from base palette, then merge overrides
+    let mut graph = derive_graph(&colors);
+    if let Some(overrides) = raw.graph {
+        merge_graph_overrides(&mut graph, overrides);
     }
-    validate_color("graph.background", &graph.background)?;
-    validate_color("graph.foreground", &graph.foreground)?;
-    validate_color("graph.text_primary", &graph.text_primary)?;
-    validate_color("graph.text_secondary", &graph.text_secondary)?;
-    validate_color("graph.text_sha", &graph.text_sha)?;
-    validate_color("graph.selection", &graph.selection)?;
-    validate_color("graph.head_lane_tint", &graph.head_lane_tint)?;
-    validate_color("graph.selection_highlight", &graph.selection_highlight)?;
-    validate_color("graph.ref_branch", &graph.ref_branch)?;
-    validate_color("graph.ref_remote", &graph.ref_remote)?;
-    validate_color("graph.ref_tag", &graph.ref_tag)?;
-    validate_color("graph.ref_head", &graph.ref_head)?;
+
+    // Validate graph lane colors
+    if graph.lane_colors.len() < 2 {
+        return Err(ThemeError::InsufficientLaneColors);
+    }
+
+    // Derive editor from base palette, then merge overrides
+    let mut editor = derive_editor(&colors, is_dark);
+    if let Some(overrides) = raw.editor {
+        merge_editor_overrides(&mut editor, overrides);
+    }
 
     Ok(Theme {
         meta,
         colors,
         graph,
+        editor: Some(editor),
     })
 }
 
@@ -405,7 +767,7 @@ pub fn ensure_themes_dir(themes_dir: &Path) -> Result<(), ThemeError> {
 mod tests {
     use super::*;
 
-    /// A minimal valid TOML for testing.
+    /// A minimal valid TOML — only `[meta]` + `[colors]`, no graph/editor.
     const MINIMAL_THEME: &str = r##"
 [meta]
 id = "test-theme"
@@ -425,34 +787,62 @@ accent-purple = "#8800ff"
 accent-red = "#ff0000"
 border = "#444444"
 selection = "#0000ff33"
-
-[graph]
-lane-colors = ["#0000ff", "#00ff00", "#ff0000"]
-background = "#111111"
-foreground = "#eeeeee"
-text-primary = "#eeeeee"
-text-secondary = "#999999"
-text-sha = "#0000ff"
-selection = "#0000ff44"
-head-lane-tint = "#0000ff22"
-selection-highlight = "#0000ff66"
-dim-opacity = 0.4
-node-radius = 4.0
-merge-radius = 3.0
-ref-branch = "#00ff00"
-ref-remote = "#0000ff"
-ref-tag = "#ff8800"
-ref-head = "#8800ff"
 "##;
 
     #[test]
-    fn test_parse_valid_theme() {
+    fn test_parse_minimal_theme_derives_graph_and_editor() {
         let theme = parse_theme(MINIMAL_THEME).unwrap();
         assert_eq!(theme.meta.id, "test-theme");
-        assert_eq!(theme.meta.name, "Test Theme");
         assert_eq!(theme.meta.mode, "dark");
         assert_eq!(theme.colors.bg_primary, "#111111");
-        assert_eq!(theme.graph.lane_colors.len(), 3);
+        // Graph derived from colors
+        assert_eq!(theme.graph.background, "#111111");
+        assert_eq!(theme.graph.ref_branch, "#00ff00");
+        assert_eq!(theme.graph.lane_colors.len(), 10);
+        // Editor derived
+        assert!(theme.editor.is_some());
+        let ed = theme.editor.unwrap();
+        assert_eq!(ed.background, "#111111");
+        assert_eq!(ed.cursor, "#0000ff");
+        assert_eq!(ed.added_text, "#00ff00");
+        assert_eq!(ed.removed_text, "#ff0000");
+    }
+
+    #[test]
+    fn test_graph_override_merges_on_top_of_derived() {
+        let toml = format!(
+            r##"{}
+[graph]
+node-radius = 6.0
+ref-branch = "#aabbcc"
+"##,
+            MINIMAL_THEME
+        );
+        let theme = parse_theme(&toml).unwrap();
+        assert_eq!(theme.graph.node_radius, 6.0);
+        assert_eq!(theme.graph.ref_branch, "#aabbcc");
+        // Non-overridden fields still derived
+        assert_eq!(theme.graph.background, "#111111");
+        assert_eq!(theme.graph.ref_remote, "#0000ff");
+    }
+
+    #[test]
+    fn test_editor_override_merges_on_top_of_derived() {
+        let toml = format!(
+            r##"{}
+[editor]
+added-bg = "#114411"
+syntax-keyword = "#ff0000"
+"##,
+            MINIMAL_THEME
+        );
+        let theme = parse_theme(&toml).unwrap();
+        let ed = theme.editor.unwrap();
+        assert_eq!(ed.added_bg, "#114411");
+        assert_eq!(ed.syntax_keyword, Some("#ff0000".to_string()));
+        // Non-overridden fields still derived
+        assert_eq!(ed.background, "#111111");
+        assert_eq!(ed.cursor, "#0000ff");
     }
 
     #[test]
@@ -471,24 +861,6 @@ accent-purple = "#8800ff"
 accent-red = "#ff0000"
 border = "#444444"
 selection = "#0000ff33"
-
-[graph]
-lane-colors = ["#0000ff", "#00ff00"]
-background = "#111111"
-foreground = "#eeeeee"
-text-primary = "#eeeeee"
-text-secondary = "#999999"
-text-sha = "#0000ff"
-selection = "#0000ff44"
-head-lane-tint = "#0000ff22"
-selection-highlight = "#0000ff66"
-dim-opacity = 0.4
-node-radius = 4.0
-merge-radius = 3.0
-ref-branch = "#00ff00"
-ref-remote = "#0000ff"
-ref-tag = "#ff8800"
-ref-head = "#8800ff"
 "##;
         let err = parse_theme(toml).unwrap_err();
         assert!(err.to_string().contains("meta"));
@@ -501,24 +873,6 @@ ref-head = "#8800ff"
 id = "x"
 name = "X"
 mode = "dark"
-
-[graph]
-lane-colors = ["#0000ff", "#00ff00"]
-background = "#111111"
-foreground = "#eeeeee"
-text-primary = "#eeeeee"
-text-secondary = "#999999"
-text-sha = "#0000ff"
-selection = "#0000ff44"
-head-lane-tint = "#0000ff22"
-selection-highlight = "#0000ff66"
-dim-opacity = 0.4
-node-radius = 4.0
-merge-radius = 3.0
-ref-branch = "#00ff00"
-ref-remote = "#0000ff"
-ref-tag = "#ff8800"
-ref-head = "#8800ff"
 "##;
         let err = parse_theme(toml).unwrap_err();
         assert!(err.to_string().contains("colors"));
@@ -532,10 +886,13 @@ ref-head = "#8800ff"
     }
 
     #[test]
-    fn test_parse_insufficient_lane_colors() {
-        let toml = MINIMAL_THEME.replace(
-            r##"lane-colors = ["#0000ff", "#00ff00", "#ff0000"]"##,
-            r##"lane-colors = ["#0000ff"]"##,
+    fn test_parse_lane_colors_override_validated() {
+        let toml = format!(
+            r##"{}
+[graph]
+lane-colors = ["#0000ff"]
+"##,
+            MINIMAL_THEME
         );
         let err = parse_theme(&toml).unwrap_err();
         assert!(err.to_string().contains("lane-colors"));
@@ -554,7 +911,6 @@ ref-head = "#8800ff"
             r##"selection = "#0000ff33""##,
             r##"selection = "rgba(0, 0, 255, 0.2)""##,
         );
-        // This replaces the first occurrence (colors.selection)
         let theme = parse_theme(&toml).unwrap();
         assert_eq!(theme.colors.selection, "rgba(0, 0, 255, 0.2)");
     }
@@ -606,7 +962,6 @@ ref-head = "#8800ff"
     #[test]
     fn test_user_theme_overrides_builtin() {
         let dir = tempfile::tempdir().unwrap();
-        // Write a user theme that overrides github-dark
         let custom = MINIMAL_THEME
             .replace("id = \"test-theme\"", "id = \"github-dark\"")
             .replace("name = \"Test Theme\"", "name = \"My Custom GitHub Dark\"");
@@ -639,5 +994,314 @@ ref-head = "#8800ff"
         let themes = load_user_themes(dir.path());
         assert_eq!(themes.len(), 1);
         assert_eq!(themes[0].meta.id, "test-theme");
+    }
+
+    #[test]
+    fn test_with_alpha() {
+        assert_eq!(with_alpha("#58a6ff", "22"), "#58a6ff22");
+        assert_eq!(with_alpha("#58a6ff33", "22"), "#58a6ff33"); // already has alpha
+        assert_eq!(with_alpha("rgba(0,0,0,1)", "22"), "rgba(0,0,0,1)"); // not hex
+    }
+
+    #[test]
+    fn test_lighten_hex() {
+        let lighter = lighten_hex("#000000", 0.5);
+        assert_eq!(lighter, "#7f7f7f");
+        let white = lighten_hex("#000000", 1.0);
+        assert_eq!(white, "#ffffff");
+    }
+
+    #[test]
+    fn test_light_theme_derives_different_diff_colors() {
+        let toml = MINIMAL_THEME.replace("mode = \"dark\"", "mode = \"light\"");
+        let theme = parse_theme(&toml).unwrap();
+        let ed = theme.editor.unwrap();
+        assert_eq!(ed.added_bg, "#d4f8db");
+        assert_eq!(ed.removed_bg, "#fdd8d8");
+    }
+
+    #[test]
+    fn test_editor_always_some_after_parse() {
+        let theme = parse_theme(MINIMAL_THEME).unwrap();
+        assert!(theme.editor.is_some());
+    }
+
+    // -- with_alpha edge cases --
+
+    #[test]
+    fn test_with_alpha_empty_string() {
+        assert_eq!(with_alpha("", "ff"), "");
+    }
+
+    #[test]
+    fn test_with_alpha_short_hex() {
+        // #RGB (4 chars) is not #RRGGBB — pass through unchanged
+        assert_eq!(with_alpha("#abc", "ff"), "#abc");
+    }
+
+    #[test]
+    fn test_with_alpha_rgba_input_unchanged() {
+        assert_eq!(with_alpha("rgba(88, 166, 255, 0.2)", "33"), "rgba(88, 166, 255, 0.2)");
+    }
+
+    #[test]
+    fn test_with_alpha_rrggbbaa_unchanged() {
+        // #RRGGBBAA already has alpha — return as-is
+        assert_eq!(with_alpha("#58a6ff99", "44"), "#58a6ff99");
+    }
+
+    // -- strip_alpha edge cases --
+
+    #[test]
+    fn test_strip_alpha_no_alpha() {
+        // #RRGGBB already has no alpha — return unchanged
+        assert_eq!(strip_alpha("#58a6ff"), "#58a6ff");
+    }
+
+    #[test]
+    fn test_strip_alpha_removes_aa() {
+        assert_eq!(strip_alpha("#58a6ff33"), "#58a6ff");
+    }
+
+    #[test]
+    fn test_strip_alpha_non_hex() {
+        assert_eq!(strip_alpha("rgba(0, 0, 0, 0.5)"), "rgba(0, 0, 0, 0.5)");
+    }
+
+    #[test]
+    fn test_strip_alpha_empty() {
+        assert_eq!(strip_alpha(""), "");
+    }
+
+    // -- lighten_hex edge cases --
+
+    #[test]
+    fn test_lighten_hex_white_stays_white() {
+        assert_eq!(lighten_hex("#ffffff", 0.5), "#ffffff");
+    }
+
+    #[test]
+    fn test_lighten_hex_middle_gray() {
+        // #808080 lightened by 0.5: each channel = 128 + (255-128)*0.5 = 191 = 0xbf
+        let result = lighten_hex("#808080", 0.5);
+        assert_eq!(result, "#bfbfbf");
+    }
+
+    #[test]
+    fn test_lighten_hex_amount_zero_unchanged() {
+        assert_eq!(lighten_hex("#123456", 0.0), "#123456");
+    }
+
+    #[test]
+    fn test_lighten_hex_non_hex_passthrough() {
+        assert_eq!(lighten_hex("rgba(0,0,0,1)", 0.5), "rgba(0,0,0,1)");
+    }
+
+    #[test]
+    fn test_lighten_hex_short_hex_passthrough() {
+        // Less than 7 chars — pass through
+        assert_eq!(lighten_hex("#fff", 0.5), "#fff");
+    }
+
+    // -- shift_hue_hex --
+
+    #[test]
+    fn test_shift_hue_hex_zero_degrees_is_identity() {
+        assert_eq!(shift_hue_hex("#ff0000", 0), "#ff0000");
+    }
+
+    #[test]
+    fn test_shift_hue_hex_360_degrees_is_identity() {
+        // 360° rotation = full cycle = same color
+        assert_eq!(shift_hue_hex("#ff0000", 360), "#ff0000");
+    }
+
+    #[test]
+    fn test_shift_hue_hex_positive_shift() {
+        // Red (#ff0000) shifted +120° → Green (#00ff00)
+        let result = shift_hue_hex("#ff0000", 120);
+        assert_eq!(result, "#00ff00");
+    }
+
+    #[test]
+    fn test_shift_hue_hex_negative_shift() {
+        // Green (#00ff00) shifted -120° → Red (#ff0000)
+        let result = shift_hue_hex("#00ff00", -120);
+        assert_eq!(result, "#ff0000");
+    }
+
+    #[test]
+    fn test_shift_hue_hex_achromatic_returns_same() {
+        // Gray is achromatic — no hue to shift, return unchanged
+        assert_eq!(shift_hue_hex("#808080", 90), "#808080");
+        assert_eq!(shift_hue_hex("#000000", 45), "#000000");
+        assert_eq!(shift_hue_hex("#ffffff", 180), "#ffffff");
+    }
+
+    #[test]
+    fn test_shift_hue_hex_non_hex_passthrough() {
+        assert_eq!(shift_hue_hex("rgba(255,0,0,1)", 90), "rgba(255,0,0,1)");
+    }
+
+    #[test]
+    fn test_shift_hue_hex_short_passthrough() {
+        assert_eq!(shift_hue_hex("#f00", 90), "#f00");
+    }
+
+    // -- derive_graph direct tests (via parse_theme) --
+
+    #[test]
+    fn test_derive_graph_lane_colors_count() {
+        let theme = parse_theme(MINIMAL_THEME).unwrap();
+        assert_eq!(theme.graph.lane_colors.len(), 10);
+    }
+
+    #[test]
+    fn test_derive_graph_specific_mappings() {
+        let theme = parse_theme(MINIMAL_THEME).unwrap();
+        // background = bg_primary
+        assert_eq!(theme.graph.background, theme.colors.bg_primary);
+        // ref_branch = accent_green
+        assert_eq!(theme.graph.ref_branch, theme.colors.accent_green);
+        // ref_remote = accent_blue
+        assert_eq!(theme.graph.ref_remote, theme.colors.accent_blue);
+        // ref_tag = accent_orange
+        assert_eq!(theme.graph.ref_tag, theme.colors.accent_orange);
+        // ref_head = accent_purple
+        assert_eq!(theme.graph.ref_head, theme.colors.accent_purple);
+        // text_sha = accent_blue
+        assert_eq!(theme.graph.text_sha, theme.colors.accent_blue);
+        // foreground = text_primary
+        assert_eq!(theme.graph.foreground, theme.colors.text_primary);
+    }
+
+    #[test]
+    fn test_derive_graph_first_five_lane_colors_are_accents() {
+        let theme = parse_theme(MINIMAL_THEME).unwrap();
+        let lc = &theme.graph.lane_colors;
+        assert_eq!(lc[0], theme.colors.accent_blue);
+        assert_eq!(lc[1], theme.colors.accent_green);
+        assert_eq!(lc[2], theme.colors.accent_orange);
+        assert_eq!(lc[3], theme.colors.accent_purple);
+        assert_eq!(lc[4], theme.colors.accent_red);
+    }
+
+    // -- derive_editor direct tests (via parse_theme) --
+
+    #[test]
+    fn test_derive_editor_dark_diff_colors() {
+        let theme = parse_theme(MINIMAL_THEME).unwrap();
+        let ed = theme.editor.unwrap();
+        assert_eq!(ed.added_bg, "#1b3829");
+        assert_eq!(ed.removed_bg, "#3c1e22");
+    }
+
+    #[test]
+    fn test_derive_editor_light_diff_colors() {
+        let toml = MINIMAL_THEME.replace("mode = \"dark\"", "mode = \"light\"");
+        let theme = parse_theme(&toml).unwrap();
+        let ed = theme.editor.unwrap();
+        assert_eq!(ed.added_bg, "#d4f8db");
+        assert_eq!(ed.removed_bg, "#fdd8d8");
+    }
+
+    #[test]
+    fn test_derive_editor_syntax_colors_from_accent() {
+        let theme = parse_theme(MINIMAL_THEME).unwrap();
+        let ed = theme.editor.unwrap();
+        // keyword = accent_red
+        assert_eq!(ed.syntax_keyword, Some(theme.colors.accent_red.clone()));
+        // operator = accent_red (same as keyword)
+        assert_eq!(ed.syntax_operator, Some(theme.colors.accent_red.clone()));
+        // function = accent_purple
+        assert_eq!(ed.syntax_function, Some(theme.colors.accent_purple.clone()));
+        // type = accent_blue
+        assert_eq!(ed.syntax_type, Some(theme.colors.accent_blue.clone()));
+        // number = accent_blue (same as type)
+        assert_eq!(ed.syntax_number, Some(theme.colors.accent_blue.clone()));
+        // property = accent_green
+        assert_eq!(ed.syntax_property, Some(theme.colors.accent_green.clone()));
+        // comment = None (frontend uses text-secondary)
+        assert_eq!(ed.syntax_comment, None);
+    }
+
+    #[test]
+    fn test_derive_editor_cursor_and_selection() {
+        let theme = parse_theme(MINIMAL_THEME).unwrap();
+        let ed = theme.editor.unwrap();
+        // cursor = accent_blue
+        assert_eq!(ed.cursor, theme.colors.accent_blue);
+        // gutter_bg = bg_primary
+        assert_eq!(ed.gutter_bg, theme.colors.bg_primary);
+        // gutter_fg = text_secondary
+        assert_eq!(ed.gutter_fg, theme.colors.text_secondary);
+    }
+
+    // -- merge_graph_overrides direct tests (via parse_theme with partial graph) --
+
+    #[test]
+    fn test_merge_graph_override_one_field_others_unchanged() {
+        let toml = format!(
+            r##"{}
+[graph]
+dim-opacity = 0.8
+"##,
+            MINIMAL_THEME
+        );
+        let theme = parse_theme(&toml).unwrap();
+        assert_eq!(theme.graph.dim_opacity, 0.8);
+        // Derived defaults preserved
+        assert_eq!(theme.graph.node_radius, 4.0);
+        assert_eq!(theme.graph.merge_radius, 3.0);
+        assert_eq!(theme.graph.ref_branch, theme.colors.accent_green);
+    }
+
+    #[test]
+    fn test_merge_graph_override_lane_colors_with_valid_count() {
+        let toml = format!(
+            r##"{}
+[graph]
+lane-colors = ["#aabbcc", "#ddeeff"]
+"##,
+            MINIMAL_THEME
+        );
+        let theme = parse_theme(&toml).unwrap();
+        assert_eq!(theme.graph.lane_colors, vec!["#aabbcc", "#ddeeff"]);
+    }
+
+    // -- merge_editor_overrides direct tests (via parse_theme with partial editor) --
+
+    #[test]
+    fn test_merge_editor_override_one_field_others_unchanged() {
+        let toml = format!(
+            r##"{}
+[editor]
+removed-bg = "#ff000033"
+"##,
+            MINIMAL_THEME
+        );
+        let theme = parse_theme(&toml).unwrap();
+        let ed = theme.editor.unwrap();
+        assert_eq!(ed.removed_bg, "#ff000033");
+        // Dark-mode added-bg still derived
+        assert_eq!(ed.added_bg, "#1b3829");
+        // Other fields still derived
+        assert_eq!(ed.cursor, theme.colors.accent_blue);
+    }
+
+    #[test]
+    fn test_merge_editor_override_syntax_color() {
+        let toml = format!(
+            r##"{}
+[editor]
+syntax-comment = "#888888"
+"##,
+            MINIMAL_THEME
+        );
+        let theme = parse_theme(&toml).unwrap();
+        let ed = theme.editor.unwrap();
+        assert_eq!(ed.syntax_comment, Some("#888888".to_string()));
+        // Other syntax fields still derived
+        assert_eq!(ed.syntax_keyword, Some(theme.colors.accent_red.clone()));
     }
 }

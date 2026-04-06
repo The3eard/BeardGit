@@ -13,6 +13,7 @@
 
 import type { LayoutNode, LaneSegment, MergeCurve, GraphTheme } from "../../types";
 import { formatRelativeTimeUnix } from "../../utils/time";
+import { hashString as _hashString } from "../../utils/ref-colors";
 
 export const ROW_HEIGHT = 28;
 export const LANE_WIDTH = 22;
@@ -578,11 +579,14 @@ function formatRef(ref: string): string {
   return ref;
 }
 
+/** Delegates to the shared ref-colors utility for consistent hashing. */
+const hashString = _hashString;
+
 function refColor(ref: string, theme: GraphTheme): string {
-  if (ref.startsWith("refs/tags/")) return theme.refBadge.tag;
-  if (ref.startsWith("refs/remotes/")) return theme.refBadge.remote;
   if (ref === "HEAD") return theme.refBadge.head;
-  return theme.refBadge.branch;
+  const label = formatRef(ref);
+  const colors = theme.laneColors;
+  return colors[hashString(label) % colors.length];
 }
 
 function roundRect(

@@ -16,32 +16,3 @@ accent-purple = "#8250df"
 accent-red = "#cf222e"
 border = "#d0d7de"
 selection = "#0969da22"
-
-[graph]
-lane-colors = [
-    "#0969da",
-    "#1a7f37",
-    "#bf5700",
-    "#8250df",
-    "#cf222e",
-    "#218bff",
-    "#2da44e",
-    "#d4a72c",
-    "#a475f9",
-    "#ff8182",
-]
-background = "#ffffff"
-foreground = "#1f2328"
-text-primary = "#1f2328"
-text-secondary = "#656d76"
-text-sha = "#0969da"
-selection = "#0969da22"
-head-lane-tint = "#0969da18"
-selection-highlight = "#0969da44"
-dim-opacity = 0.4
-node-radius = 4.0
-merge-radius = 3.0
-ref-branch = "#1a7f37"
-ref-remote = "#0969da"
-ref-tag = "#bf5700"
-ref-head = "#8250df"

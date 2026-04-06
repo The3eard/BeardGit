@@ -85,6 +85,7 @@ const MOCK_THEME: ThemeData = {
     ref_tag: "#ffb86c",
     ref_head: "#ff79c6",
   },
+  editor: null,
 };
 
 describe("buildGraphTheme", () => {

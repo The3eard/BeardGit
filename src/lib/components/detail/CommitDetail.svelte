@@ -2,6 +2,7 @@
   import type { CommitInfo, CommitFileChange } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import FileChangeList from "../common/FileChangeList.svelte";
+  import { hashString as _hashString } from "$lib/utils/ref-colors";
 
   let {
     commit,
@@ -42,11 +43,29 @@
     return ref;
   }
 
-  function refClass(ref: string): string {
-    if (ref.startsWith("refs/tags/")) return "ref-tag";
-    if (ref.startsWith("refs/remotes/")) return "ref-remote";
-    if (ref === "HEAD") return "ref-head";
-    return "ref-branch";
+  const REF_COLORS = [
+    { color: 'var(--accent-blue)', rgb: '88, 166, 255' },
+    { color: 'var(--accent-green)', rgb: '63, 185, 80' },
+    { color: 'var(--accent-orange)', rgb: '240, 136, 62' },
+    { color: 'var(--accent-purple)', rgb: '188, 140, 255' },
+    { color: 'var(--accent-red)', rgb: '248, 81, 73' },
+  ];
+
+  /** Delegates to the shared ref-colors utility for consistent hashing. */
+  const hashString = _hashString;
+
+  function refColorIndex(ref: string): number {
+    if (ref === "HEAD") return -1;
+    return hashString(formatRef(ref)) % REF_COLORS.length;
+  }
+
+  function refStyle(ref: string): string {
+    if (ref === "HEAD") {
+      return 'color: #f778ba; background: rgba(247, 120, 186, 0.12); border: 1px solid rgba(247, 120, 186, 0.3)';
+    }
+    const idx = refColorIndex(ref);
+    const { color, rgb } = REF_COLORS[idx];
+    return `color: ${color}; background: rgba(${rgb}, 0.12); border: 1px solid rgba(${rgb}, 0.3)`;
   }
 
 </script>
@@ -118,7 +137,7 @@
         <div class="detail-label">{m.commit_detail_refs()}</div>
         <div class="ref-list">
           {#each commit.refs as ref}
-            <span class="ref-badge {refClass(ref)}">{formatRef(ref)}</span>
+            <span class="ref-badge" style={refStyle(ref)}>{formatRef(ref)}</span>
           {/each}
         </div>
       </div>
@@ -311,28 +330,5 @@
     cursor: default;
   }
 
-  .ref-branch {
-    background: rgba(88, 166, 255, 0.12);
-    color: var(--accent-blue);
-    border: 1px solid rgba(88, 166, 255, 0.3);
-  }
-
-  .ref-remote {
-    background: rgba(187, 128, 255, 0.12);
-    color: var(--accent-purple);
-    border: 1px solid rgba(187, 128, 255, 0.3);
-  }
-
-  .ref-tag {
-    background: rgba(240, 136, 62, 0.12);
-    color: var(--accent-orange);
-    border: 1px solid rgba(240, 136, 62, 0.3);
-  }
-
-  .ref-head {
-    background: rgba(247, 120, 186, 0.12);
-    color: #f778ba;
-    border: 1px solid rgba(247, 120, 186, 0.3);
-  }
 
 </style>

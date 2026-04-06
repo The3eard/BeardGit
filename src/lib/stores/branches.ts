@@ -7,8 +7,9 @@
  */
 
 import { writable, derived, get } from "svelte/store";
-import type { BranchInfo, CommitInfo, CommitFileChange, FileDiff } from "../types";
-import { getCommitDetail, getCommitFiles } from "../api/tauri";
+import type { BranchInfo, CommitInfo, CommitFileChange } from "../types";
+import type { RawDiffContent } from "./graph";
+import { getCommitDetail, getCommitFiles, getFileAtCommit } from "../api/tauri";
 import {
   getBranches as apiBranches,
   getBranchCommits,
@@ -22,7 +23,7 @@ export const branchesLoading = writable(false);
 export const selectedBranchName = writable<string | null>(null);
 export const selectedBranchCommits = writable<CommitInfo[]>([]);
 export const loadingDetail = writable(false);
-export const branchFileDiff = writable<FileDiff | null>(null);
+export const branchFileDiff = writable<RawDiffContent | null>(null);
 export const branchSelectedCommit = writable<CommitInfo | null>(null);
 export const branchSelectedFiles = writable<CommitFileChange[]>([]);
 

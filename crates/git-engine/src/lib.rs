@@ -11,6 +11,7 @@
 //! - [`operations`] — create commits, manage branches, checkout
 //! - [`diff`] — diff working directory, index, and individual commits
 //! - [`conflict`] — conflict detection, status, and abort/continue operations
+//! - [`file_content`] — raw file content retrieval for CodeMirror diff views
 //! - [`cli`] — shell-out wrapper for git CLI operations
 //! - [`error`] — unified error type
 
@@ -19,7 +20,9 @@ pub mod commits;
 pub mod conflict;
 pub mod diff;
 pub mod error;
+pub mod file_content;
 pub mod operations;
+pub mod remote;
 pub mod repository;
 pub mod staging;
 

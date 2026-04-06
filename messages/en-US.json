@@ -229,5 +229,13 @@
   "changes_menu_copy_path": "Copy Path",
   "settings_language": "Language",
   "settings_theme": "Theme",
-  "settings_theme_auto": "Follow system theme"
+  "settings_theme_auto": "Follow system theme",
+  "settings_repository": "Repository",
+  "settings_remotes": "Remotes",
+  "settings_remote_rename": "Rename",
+  "settings_remote_remove": "Remove",
+  "settings_remote_remove_confirm": "Remove remote \"{name}\"? This cannot be undone.",
+  "settings_remote_rename_title": "Rename remote",
+  "settings_remote_rename_placeholder": "New name",
+  "settings_remote_no_repo": "Open a repository to see its settings."
 }

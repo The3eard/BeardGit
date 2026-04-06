@@ -7,8 +7,15 @@
  */
 
 import { writable, get } from "svelte/store";
-import type { GraphViewport, CommitInfo, CommitFileChange, FileDiff } from "../types";
-import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow } from "../api/tauri";
+import type { GraphViewport, CommitInfo, CommitFileChange } from "../types";
+import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow, getFileAtCommit } from "../api/tauri";
+
+/** Holds raw file content for the DiffEditor panel. */
+export interface RawDiffContent {
+  oldContent: string;
+  newContent: string;
+  filename: string;
+}
 
 export const viewport = writable<GraphViewport | null>(null);
 /** OID of the selected commit in the graph (drives CommitDetail). */
@@ -25,7 +32,7 @@ export const selectedRef = writable<string | null>(null);
 /** Files changed between the merge commit's parents (for ref badge click). */
 export const refFiles = writable<CommitFileChange[] | null>(null);
 export const loadingRefFiles = writable(false);
-export const fileDiffPanel = writable<FileDiff | null>(null);
+export const fileDiffPanel = writable<RawDiffContent | null>(null);
 export const loadingFileDiff = writable(false);
 
 const VIEWPORT_SIZE = 300;
@@ -77,14 +84,25 @@ export function clearRefFiles() {
   loadingRefFiles.set(false);
 }
 
+/**
+ * Fetch raw old/new content for a file at a given commit and display
+ * it in the DiffEditor panel.  The "old" side is the file at the
+ * commit's first parent; the "new" side is the file at the commit itself.
+ */
 export async function openFileDiff(oid: string, path: string) {
   loadingFileDiff.set(true);
   fileDiffPanel.set(null);
   try {
-    const diffs = await getCommitFileDiff(oid, path);
-    if (diffs.length > 0) {
-      fileDiffPanel.set(diffs[0]);
-    }
+    // Resolve the parent OID for the "old" side.
+    const commit = get(selectedCommit);
+    const parentOid = commit?.parents?.[0] ?? null;
+
+    const [oldContent, newContent] = await Promise.all([
+      parentOid ? getFileAtCommit(parentOid, path).catch(() => "") : Promise.resolve(""),
+      getFileAtCommit(oid, path).catch(() => ""),
+    ]);
+
+    fileDiffPanel.set({ oldContent, newContent, filename: path });
   } finally {
     loadingFileDiff.set(false);
   }

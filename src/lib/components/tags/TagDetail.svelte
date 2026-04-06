@@ -2,12 +2,14 @@
   import * as m from "$lib/paraglide/messages";
   import FileChangeList from "../common/FileChangeList.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
-  import SideBySideDiff from "../diff/SideBySideDiff.svelte";
+  import DiffEditor from "../editor/DiffEditor.svelte";
   import CommitDetail from "../detail/CommitDetail.svelte";
   import { formatRelativeTime } from "../../utils/time";
-  import { getCommitFileDiff, getCommitDetail, getCommitFiles } from "../../api/tauri";
+  import { getFileAtCommit, getCommitDetail, getCommitFiles } from "../../api/tauri";
   import { navigateToCommit } from "../../stores/graph";
-  import type { FileDiff, CommitInfo, CommitFileChange } from "../../types";
+  import type { RawDiffContent } from "../../stores/graph";
+  import type { CommitInfo, CommitFileChange } from "../../types";
+  import { activeTheme } from "../../stores/theme";
   import {
     selectedTagName,
     selectedTagInfo,
@@ -20,7 +22,7 @@
   } from "../../stores/tags";
 
   let confirmDelete = $state(false);
-  let fileDiff = $state<FileDiff | null>(null);
+  let fileDiff = $state<RawDiffContent | null>(null);
   let parentCommit = $state<CommitInfo | null>(null);
   let parentFiles = $state<CommitFileChange[]>([]);
 
@@ -53,8 +55,16 @@
 
   async function handleFileClick(path: string) {
     if (!$selectedCommitInfo) return;
-    const diffs = await getCommitFileDiff($selectedCommitInfo.oid, path);
-    fileDiff = diffs.length > 0 ? diffs[0] : null;
+    const parentOid = $selectedCommitInfo.parents?.[0] ?? null;
+    try {
+      const [oldContent, newContent] = await Promise.all([
+        parentOid ? getFileAtCommit(parentOid, path).catch(() => "") : Promise.resolve(""),
+        getFileAtCommit($selectedCommitInfo.oid, path).catch(() => ""),
+      ]);
+      fileDiff = { oldContent, newContent, filename: path };
+    } catch {
+      fileDiff = null;
+    }
   }
 
   async function handleParentClick(oid: string) {
@@ -168,7 +178,14 @@
       <!-- File diff preview (B10) -->
       {#if fileDiff}
         <div class="tag-diff-preview">
-          <SideBySideDiff diff={fileDiff} onClose={() => { fileDiff = null; }} />
+          <DiffEditor
+            oldContent={fileDiff.oldContent}
+            newContent={fileDiff.newContent}
+            filename={fileDiff.filename}
+            editorTheme={$activeTheme?.editor}
+            isDark={$activeTheme?.meta.mode !== 'light'}
+            onClose={() => { fileDiff = null; }}
+          />
         </div>
       {/if}
 

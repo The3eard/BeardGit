@@ -110,6 +110,21 @@ Three-layer design: **Rust Core** (10 crates) → **Tauri IPC** → **Svelte Fro
 
 ---
 
+## Installation
+
+Pre-built binaries are available for each tagged release:
+
+| Platform | Architecture | Format |
+|----------|-------------|--------|
+| macOS | Apple Silicon (arm64) | `.dmg` |
+| macOS | Intel (x64) | `.dmg` |
+| Linux | x64 | `.AppImage`, `.deb` |
+| Windows | x64 | `.msi`, `.exe` |
+
+Download the latest version from [GitHub Releases](https://github.com/The3eard/BeardGit/releases). Pick the installer that matches your platform, run it, and you are good to go.
+
+---
+
 ## Building from Source
 
 ### Prerequisites

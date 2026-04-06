@@ -225,6 +225,14 @@ export async function getRemotes(): Promise<RemoteInfo[]> {
   return invoke<RemoteInfo[]>("get_remotes");
 }
 
+export async function renameRemote(oldName: string, newName: string): Promise<void> {
+  return invoke<void>("rename_remote", { oldName, newName });
+}
+
+export async function removeRemote(name: string): Promise<void> {
+  return invoke<void>("remove_remote", { name });
+}
+
 // ---------------------------------------------------------------------------
 // Provider auth
 // ---------------------------------------------------------------------------
@@ -361,4 +369,23 @@ export async function getThemeAuto(): Promise<boolean> {
 
 export async function setThemeAuto(enabled: boolean): Promise<void> {
   return invoke<void>("set_theme_auto", { enabled });
+}
+
+// ---------------------------------------------------------------------------
+// Raw file content (for CodeMirror diff views)
+// ---------------------------------------------------------------------------
+
+/** Returns raw file content at a specific commit. */
+export async function getFileAtCommit(oid: string, path: string): Promise<string> {
+  return invoke<string>("get_file_at_commit", { oid, path });
+}
+
+/** Returns raw file content from the working directory. */
+export async function getFileWorkdir(path: string): Promise<string> {
+  return invoke<string>("get_file_workdir", { path });
+}
+
+/** Returns raw file content from the index (staged version). */
+export async function getFileIndex(path: string): Promise<string> {
+  return invoke<string>("get_file_index", { path });
 }
