@@ -1836,6 +1836,25 @@ pub fn set_locale(locale: String, state: State<'_, AppState>) -> Result<(), Stri
 }
 
 // ---------------------------------------------------------------------------
+// UI scale
+// ---------------------------------------------------------------------------
+
+/// Return the current UI scale percentage (80–150).
+#[tauri::command]
+pub fn get_ui_scale(state: State<'_, AppState>) -> u32 {
+    let config = state.config.lock().unwrap();
+    config.ui_scale
+}
+
+/// Set the UI scale percentage and persist. Clamped to 80–150.
+#[tauri::command]
+pub fn set_ui_scale(scale: u32, state: State<'_, AppState>) -> Result<(), String> {
+    let mut config = state.config.lock().unwrap();
+    config.ui_scale = scale.clamp(80, 150);
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // User identity
 // ---------------------------------------------------------------------------
 

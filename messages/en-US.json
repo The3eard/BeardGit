@@ -254,6 +254,7 @@
   "settings_language": "Language",
   "settings_theme": "Theme",
   "settings_theme_auto": "Follow system theme",
+  "settings_ui_scale": "UI Scale",
   "settings_repository": "Repository",
   "settings_remotes": "Remotes",
   "settings_remote_rename": "Rename",

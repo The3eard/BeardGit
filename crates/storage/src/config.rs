@@ -18,6 +18,10 @@ fn default_locale() -> String {
     "en-US".to_string()
 }
 
+fn default_ui_scale() -> u32 {
+    100
+}
+
 /// Persisted provider connection info for auto-reconnect on startup.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SavedProvider {
@@ -73,6 +77,10 @@ pub struct AppConfig {
     #[serde(default)]
     pub active_project_index: Option<usize>,
 
+    /// UI scale percentage (80–150). Defaults to 100.
+    #[serde(default = "default_ui_scale")]
+    pub ui_scale: u32,
+
     // -- Legacy fields (read during migration, never written) --
     /// Legacy Plan 5 field. Migrated to `providers` vec.
     #[serde(default, skip_serializing)]
@@ -98,6 +106,7 @@ impl Default for AppConfig {
             window_height: None,
             open_projects: Vec::new(),
             active_project_index: None,
+            ui_scale: default_ui_scale(),
             provider_kind: None,
             provider_instance_url: None,
             gitlab_instance_url: None,

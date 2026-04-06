@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { currentLocale, changeLocale } from "../../stores/locale";
-  import { listThemes, getThemeAuto, setTheme, setThemeAuto } from "../../api/tauri";
-  import { activeTheme } from "../../stores/theme";
+  import { listThemes, getThemeAuto, setTheme, setThemeAuto, getUiScale, setUiScale } from "../../api/tauri";
+  import { activeTheme, applyUiScale } from "../../stores/theme";
   import type { ThemeMeta } from "../../types";
   import * as m from "$lib/paraglide/messages";
 
@@ -11,15 +11,19 @@
     { tag: "es-ES", label: "Español (ES)" },
   ];
 
+  const scaleOptions = [80, 90, 100, 110, 125, 150];
+
   let themes = $state<ThemeMeta[]>([]);
   let themeAuto = $state(true);
   let selectedThemeId = $state("");
+  let uiScale = $state(100);
 
   onMount(async () => {
     themes = await listThemes();
     themeAuto = await getThemeAuto();
     const current = $activeTheme;
     if (current) selectedThemeId = current.meta.id;
+    uiScale = await getUiScale();
   });
 
   async function handleLanguageChange(e: Event) {
@@ -40,6 +44,14 @@
   async function handleAutoToggle() {
     themeAuto = !themeAuto;
     await setThemeAuto(themeAuto);
+  }
+
+  async function handleScaleChange(e: Event) {
+    const select = e.target as HTMLSelectElement;
+    const scale = parseInt(select.value, 10);
+    uiScale = scale;
+    applyUiScale(scale);
+    await setUiScale(scale);
   }
 </script>
 
@@ -67,6 +79,15 @@
     <select id="theme-select" class="setting-select" value={selectedThemeId} onchange={handleThemeChange}>
       {#each themes as theme}
         <option value={theme.id}>{theme.name}</option>
+      {/each}
+    </select>
+  </div>
+
+  <div class="setting-row">
+    <label for="scale-select">{m.settings_ui_scale()}</label>
+    <select id="scale-select" class="setting-select" value={uiScale} onchange={handleScaleChange}>
+      {#each scaleOptions as opt}
+        <option value={opt}>{opt}%</option>
       {/each}
     </select>
   </div>

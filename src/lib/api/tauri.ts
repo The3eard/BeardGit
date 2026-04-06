@@ -387,6 +387,14 @@ export async function setThemeAuto(enabled: boolean): Promise<void> {
   return invoke<void>("set_theme_auto", { enabled });
 }
 
+export async function getUiScale(): Promise<number> {
+  return invoke<number>("get_ui_scale");
+}
+
+export async function setUiScale(scale: number): Promise<void> {
+  return invoke<void>("set_ui_scale", { scale });
+}
+
 // ---------------------------------------------------------------------------
 // Raw file content (for CodeMirror diff views)
 // ---------------------------------------------------------------------------

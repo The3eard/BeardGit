@@ -4,6 +4,7 @@
   import { tryAutoConnect } from "$lib/stores/provider";
   import { initLocale } from "$lib/stores/locale";
   import { initTaskStore, cleanupTaskStore } from "$lib/stores/tasks";
+  import { initUiScale } from "$lib/stores/theme";
   let { children } = $props();
 
   // Disable default browser context menu globally
@@ -16,6 +17,7 @@
 
   onMount(() => {
     initLocale();
+    initUiScale();
     tryAutoConnect();
     initTaskStore();
     return () => cleanupTaskStore();

@@ -254,6 +254,7 @@
   "settings_language": "Idioma",
   "settings_theme": "Tema",
   "settings_theme_auto": "Seguir tema del sistema",
+  "settings_ui_scale": "Escala de interfaz",
   "settings_repository": "Repositorio",
   "settings_remotes": "Remotos",
   "settings_remote_rename": "Renombrar",
