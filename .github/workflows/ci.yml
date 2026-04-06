@@ -2,9 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main, beta]
+    branches: [main, beta, 'feature/**']
   pull_request:
     branches: [main, beta]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   frontend-checks:

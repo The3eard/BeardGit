@@ -467,7 +467,10 @@ mod tests {
                 Some("0000000"),
             )
             .unwrap();
-        assert!(commits.is_empty(), "no commits should match all bad filters");
+        assert!(
+            commits.is_empty(),
+            "no commits should match all bad filters"
+        );
     }
 
     #[test]

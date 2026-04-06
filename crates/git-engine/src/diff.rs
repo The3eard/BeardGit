@@ -593,7 +593,14 @@ mod tests {
             .find_commit(git2::Oid::from_str(&first_oid).unwrap())
             .unwrap();
         git_repo
-            .commit(Some("HEAD"), &sig, &sig, "Modify test.txt", &tree, &[&parent])
+            .commit(
+                Some("HEAD"),
+                &sig,
+                &sig,
+                "Modify test.txt",
+                &tree,
+                &[&parent],
+            )
             .unwrap();
 
         let second_oid = git_repo.head().unwrap().target().unwrap().to_string();

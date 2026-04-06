@@ -37,8 +37,7 @@ pub fn run() {
                                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                                 .join("beardgit");
                             let config_path = config_dir.join("settings.json");
-                            let config =
-                                storage::AppConfig::load(&config_path).unwrap_or_default();
+                            let config = storage::AppConfig::load(&config_path).unwrap_or_default();
 
                             if config.theme_auto {
                                 let new_id = app_core::commands::resolve_theme_for_mode(
@@ -46,8 +45,7 @@ pub fn run() {
                                     os_dark,
                                 );
                                 let themes_dir = config_dir.join("themes");
-                                let resolved =
-                                    storage::theme::resolve_theme(&new_id, &themes_dir);
+                                let resolved = storage::theme::resolve_theme(&new_id, &themes_dir);
                                 use tauri::Emitter as _;
                                 let _ = handle.emit("theme-changed", &resolved);
                             }

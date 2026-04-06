@@ -342,12 +342,7 @@ pub fn load_user_themes(themes_dir: &Path) -> Vec<Theme> {
 
     entries
         .filter_map(|entry| entry.ok())
-        .filter(|entry| {
-            entry
-                .path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "toml"))
         .filter_map(|entry| {
             let content = std::fs::read_to_string(entry.path()).ok()?;
             parse_theme(&content).ok()

@@ -4,6 +4,9 @@ on:
   push:
     branches: [beta]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     name: Build ${{ matrix.label }}
@@ -59,16 +62,23 @@ jobs:
         run: npm ci
 
       - name: Build Tauri app
-        run: npm run tauri build -- ${{ matrix.args }}
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: ${{ matrix.args }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: BeardGit-${{ matrix.label }}-${{ github.sha }}
+          name: BeardGit-${{ matrix.label }}
           path: |
-            src-tauri/target/**/release/bundle/**/*.dmg
-            src-tauri/target/**/release/bundle/**/*.AppImage
-            src-tauri/target/**/release/bundle/**/*.exe
-            src-tauri/target/**/release/bundle/**/*.deb
+            target/**/release/bundle/**/*.dmg
+            target/**/release/bundle/**/*.app
+            target/**/release/bundle/**/*.AppImage
+            target/**/release/bundle/**/*.deb
+            target/**/release/bundle/**/*.msi
+            target/**/release/bundle/**/*.exe
+            target/**/release/bundle/**/*.rpm
           retention-days: 7
           if-no-files-found: warn

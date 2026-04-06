@@ -322,7 +322,8 @@ mod tests {
             "expected can_continue after resolving conflicts"
         );
 
-        // Continue the merge — should succeed
+        // Continue the merge — set GIT_EDITOR to avoid "Terminal is dumb" in CI
+        unsafe { std::env::set_var("GIT_EDITOR", "true") };
         let result = repo.continue_merge().unwrap();
         assert!(
             result.success,

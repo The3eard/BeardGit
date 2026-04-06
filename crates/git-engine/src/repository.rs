@@ -371,15 +371,20 @@ mod tests {
         std::fs::write(path.join("tracked.txt"), "content\n").unwrap();
         {
             let mut index = git_repo.index().unwrap();
-            index
-                .add_path(std::path::Path::new("tracked.txt"))
-                .unwrap();
+            index.add_path(std::path::Path::new("tracked.txt")).unwrap();
             index.write().unwrap();
             let tree_id = index.write_tree().unwrap();
             let tree = git_repo.find_tree(tree_id).unwrap();
             let head = git_repo.head().unwrap().peel_to_commit().unwrap();
             git_repo
-                .commit(Some("HEAD"), &sig, &sig, "Add tracked file", &tree, &[&head])
+                .commit(
+                    Some("HEAD"),
+                    &sig,
+                    &sig,
+                    "Add tracked file",
+                    &tree,
+                    &[&head],
+                )
                 .unwrap();
         }
 
