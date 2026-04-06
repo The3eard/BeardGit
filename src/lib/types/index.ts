@@ -304,6 +304,23 @@ export interface ConflictStatus {
   can_continue: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Worktrees
+// ---------------------------------------------------------------------------
+
+export interface WorktreeInfo {
+  /** Absolute path to the worktree directory. */
+  path: string;
+  /** Branch checked out in this worktree, or null for detached HEAD. */
+  branch: string | null;
+  /** HEAD commit OID for this worktree. */
+  head_oid: string;
+  /** True when this is the main (primary) worktree. */
+  is_main: boolean;
+  /** True when the worktree is locked and cannot be removed without --force. */
+  is_locked: boolean;
+}
+
 // ── Theme types ──────────────────────────────────────────────────────
 
 export interface ThemeMeta {

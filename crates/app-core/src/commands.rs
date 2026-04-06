@@ -609,6 +609,33 @@ pub async fn merge_branch(branch: String, state: State<'_, AppState>) -> Result<
 /// Cherry-pick a commit onto the current branch via the git CLI.
 ///
 /// # Parameters
+/// Revert a commit, creating a new commit that undoes its changes.
+///
+/// # Arguments
+/// - `oid` – Full or abbreviated SHA of the commit to revert.
+///
+/// # Returns
+/// The stdout of `git revert` on success, or stderr as an error.
+#[tauri::command]
+pub async fn revert_commit(oid: String, state: State<'_, AppState>) -> Result<String, String> {
+    let repo_path = get_active_project_path(&state)?;
+
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        let result = repo.revert_commit(&oid).map_err(|e| e.to_string())?;
+        if result.success {
+            Ok(result.stdout)
+        } else {
+            Err(result.stderr)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Cherry-pick a commit onto the current branch.
+///
+/// # Arguments
 /// - `oid` – Full or abbreviated SHA of the commit to cherry-pick.
 ///
 /// # Returns
@@ -628,6 +655,67 @@ pub async fn cherry_pick(oid: String, state: State<'_, AppState>) -> Result<Stri
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// Reset HEAD to a specific commit.
+///
+/// # Arguments
+/// - `oid`  – Full or abbreviated SHA of the target commit.
+/// - `mode` – Reset mode: `"soft"`, `"mixed"`, or `"hard"`.
+///
+/// # Returns
+/// `Ok(())` on success, or an error string if the mode is invalid or
+/// `git reset` exits with a non-zero status.
+#[tauri::command]
+pub async fn reset_to_commit(
+    oid: String,
+    mode: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.reset_to_commit(&oid, &mode).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Amend the most recent commit with a new message.
+///
+/// Any currently staged changes are included in the amended commit,
+/// mirroring `git commit --amend -m <message>`.
+///
+/// # Arguments
+/// - `message` – The replacement commit message.
+///
+/// # Returns
+/// `Ok(())` on success, or an error string if `git commit --amend` fails.
+#[tauri::command]
+pub async fn amend_commit(message: String, state: State<'_, AppState>) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.amend_commit(&message).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Return the commit message of the current HEAD commit.
+///
+/// Useful for pre-filling an amend dialog with the existing message.
+///
+/// # Returns
+/// The raw commit message string, or an error string if HEAD cannot be
+/// resolved.
+#[tauri::command]
+pub fn get_head_message(state: State<'_, AppState>) -> Result<String, String> {
+    with_active_repo(&state, |repo| {
+        repo.get_head_message().map_err(|e| e.to_string())
+    })
 }
 
 /// Push the current working-tree changes onto the stash stack.
@@ -2097,6 +2185,59 @@ pub fn resolve_theme_for_mode(base: &str, os_dark: bool) -> String {
     } else {
         base.to_string()
     }
+}
+
+// ---------------------------------------------------------------------------
+// Worktrees
+// ---------------------------------------------------------------------------
+
+/// List all worktrees for the active repository, including the main worktree.
+///
+/// Returns a [`WorktreeInfo`] for each worktree. The first element is always
+/// the main worktree.
+#[tauri::command]
+pub fn list_worktrees(state: State<'_, AppState>) -> Result<Vec<git_engine::WorktreeInfo>, String> {
+    with_active_repo(&state, |repo| {
+        repo.list_worktrees().map_err(|e| e.to_string())
+    })
+}
+
+/// Create a new linked worktree at `path` on `branch`.
+///
+/// # Parameters
+/// - `path` – Absolute filesystem path where the new worktree directory will be created.
+/// - `branch` – Branch name to check out (or create when `create_branch` is `true`).
+/// - `create_branch` – When `true`, create a new branch with `-b`; when `false`, check
+///   out an existing branch.
+#[tauri::command]
+pub fn create_worktree(
+    path: String,
+    branch: String,
+    create_branch: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.create_worktree(&path, &branch, create_branch)
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Remove a linked worktree at `path`.
+///
+/// # Parameters
+/// - `path` – Absolute filesystem path to the worktree directory to remove.
+/// - `force` – When `true`, remove the worktree even if it has uncommitted changes
+///   or is locked.
+#[tauri::command]
+pub fn remove_worktree(
+    path: String,
+    force: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.remove_worktree(&path, force)
+            .map_err(|e| e.to_string())
+    })
 }
 
 /// Extract the origin remote URL from a repository (synchronous, no await).

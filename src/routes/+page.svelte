@@ -26,6 +26,7 @@
   import ConflictToolbar from "$lib/components/conflict/ConflictToolbar.svelte";
   import TagView from "$lib/components/tags/TagView.svelte";
   import BranchView from "$lib/components/branches/BranchView.svelte";
+  import WorktreeList from "$lib/components/worktrees/WorktreeList.svelte";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
   import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
@@ -223,6 +224,8 @@
             </div>
           {/if}
         </div>
+      {:else if activeView === "worktrees"}
+        <WorktreeList />
       {:else if activeView === "merge-requests"}
         <div class="wip-placeholder">
           <div class="wip-icon">🚧</div>

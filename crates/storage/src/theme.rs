@@ -350,7 +350,11 @@ fn shift_hue_hex(hex: &str, degrees: i32) -> String {
     }
 
     let d = max - min;
-    let s = if l > 0.5 { d / (2.0 - max - min) } else { d / (max + min) };
+    let s = if l > 0.5 {
+        d / (2.0 - max - min)
+    } else {
+        d / (max + min)
+    };
     let h = if (max - r).abs() < 1e-6 {
         ((g - b) / d + if g < b { 6.0 } else { 0.0 }) / 6.0
     } else if (max - g).abs() < 1e-6 {
@@ -363,15 +367,29 @@ fn shift_hue_hex(hex: &str, degrees: i32) -> String {
 
     // HSL → RGB
     let hue_to_rgb = |p: f64, q: f64, mut t: f64| -> f64 {
-        if t < 0.0 { t += 1.0; }
-        if t > 1.0 { t -= 1.0; }
-        if t < 1.0 / 6.0 { return p + (q - p) * 6.0 * t; }
-        if t < 1.0 / 2.0 { return q; }
-        if t < 2.0 / 3.0 { return p + (q - p) * (2.0 / 3.0 - t) * 6.0; }
+        if t < 0.0 {
+            t += 1.0;
+        }
+        if t > 1.0 {
+            t -= 1.0;
+        }
+        if t < 1.0 / 6.0 {
+            return p + (q - p) * 6.0 * t;
+        }
+        if t < 1.0 / 2.0 {
+            return q;
+        }
+        if t < 2.0 / 3.0 {
+            return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+        }
         p
     };
 
-    let q = if l < 0.5 { l * (1.0 + s) } else { l + s - l * s };
+    let q = if l < 0.5 {
+        l * (1.0 + s)
+    } else {
+        l + s - l * s
+    };
     let p = 2.0 * l - q;
     let nr = (hue_to_rgb(p, q, new_h + 1.0 / 3.0) * 255.0) as u8;
     let ng = (hue_to_rgb(p, q, new_h) * 255.0) as u8;
@@ -431,7 +449,11 @@ fn derive_editor(colors: &ThemeColors, is_dark: bool) -> ThemeEditor {
     // keyword/operator → red, string → blue (lightened for dark), function → purple,
     // type/number → blue, property → green, comment → text-secondary.
     let kw = &colors.accent_red;
-    let str_c = if is_dark { lighten_hex(&colors.accent_blue, 0.35) } else { shift_hue_hex(&colors.accent_blue, 15) };
+    let str_c = if is_dark {
+        lighten_hex(&colors.accent_blue, 0.35)
+    } else {
+        shift_hue_hex(&colors.accent_blue, 15)
+    };
     let func = &colors.accent_purple;
     let typ = &colors.accent_blue;
     let prop = &colors.accent_green;
@@ -455,8 +477,8 @@ fn derive_editor(colors: &ThemeColors, is_dark: bool) -> ThemeEditor {
         syntax_comment: None, // None → frontend uses text-secondary
         syntax_function: Some(func.clone()),
         syntax_type: Some(typ.clone()),
-        syntax_number: Some(typ.clone()),    // numbers same color as types
-        syntax_operator: Some(kw.clone()),    // operators same color as keywords
+        syntax_number: Some(typ.clone()), // numbers same color as types
+        syntax_operator: Some(kw.clone()), // operators same color as keywords
         syntax_property: Some(prop.clone()),
     }
 }
@@ -547,45 +569,115 @@ struct RawTheme {
 
 /// Apply partial overrides from a `RawGraphOverride` onto a derived `ThemeGraph`.
 fn merge_graph_overrides(base: &mut ThemeGraph, overrides: RawGraphOverride) {
-    if let Some(v) = overrides.lane_colors { base.lane_colors = v; }
-    if let Some(v) = overrides.background { base.background = v; }
-    if let Some(v) = overrides.foreground { base.foreground = v; }
-    if let Some(v) = overrides.text_primary { base.text_primary = v; }
-    if let Some(v) = overrides.text_secondary { base.text_secondary = v; }
-    if let Some(v) = overrides.text_sha { base.text_sha = v; }
-    if let Some(v) = overrides.selection { base.selection = v; }
-    if let Some(v) = overrides.head_lane_tint { base.head_lane_tint = v; }
-    if let Some(v) = overrides.selection_highlight { base.selection_highlight = v; }
-    if let Some(v) = overrides.dim_opacity { base.dim_opacity = v; }
-    if let Some(v) = overrides.node_radius { base.node_radius = v; }
-    if let Some(v) = overrides.merge_radius { base.merge_radius = v; }
-    if let Some(v) = overrides.ref_branch { base.ref_branch = v; }
-    if let Some(v) = overrides.ref_remote { base.ref_remote = v; }
-    if let Some(v) = overrides.ref_tag { base.ref_tag = v; }
-    if let Some(v) = overrides.ref_head { base.ref_head = v; }
+    if let Some(v) = overrides.lane_colors {
+        base.lane_colors = v;
+    }
+    if let Some(v) = overrides.background {
+        base.background = v;
+    }
+    if let Some(v) = overrides.foreground {
+        base.foreground = v;
+    }
+    if let Some(v) = overrides.text_primary {
+        base.text_primary = v;
+    }
+    if let Some(v) = overrides.text_secondary {
+        base.text_secondary = v;
+    }
+    if let Some(v) = overrides.text_sha {
+        base.text_sha = v;
+    }
+    if let Some(v) = overrides.selection {
+        base.selection = v;
+    }
+    if let Some(v) = overrides.head_lane_tint {
+        base.head_lane_tint = v;
+    }
+    if let Some(v) = overrides.selection_highlight {
+        base.selection_highlight = v;
+    }
+    if let Some(v) = overrides.dim_opacity {
+        base.dim_opacity = v;
+    }
+    if let Some(v) = overrides.node_radius {
+        base.node_radius = v;
+    }
+    if let Some(v) = overrides.merge_radius {
+        base.merge_radius = v;
+    }
+    if let Some(v) = overrides.ref_branch {
+        base.ref_branch = v;
+    }
+    if let Some(v) = overrides.ref_remote {
+        base.ref_remote = v;
+    }
+    if let Some(v) = overrides.ref_tag {
+        base.ref_tag = v;
+    }
+    if let Some(v) = overrides.ref_head {
+        base.ref_head = v;
+    }
 }
 
 /// Apply partial overrides from a `RawEditorOverride` onto a derived `ThemeEditor`.
 fn merge_editor_overrides(base: &mut ThemeEditor, overrides: RawEditorOverride) {
-    if let Some(v) = overrides.background { base.background = v; }
-    if let Some(v) = overrides.foreground { base.foreground = v; }
-    if let Some(v) = overrides.cursor { base.cursor = v; }
-    if let Some(v) = overrides.selection { base.selection = v; }
-    if let Some(v) = overrides.line_highlight { base.line_highlight = v; }
-    if let Some(v) = overrides.gutter_bg { base.gutter_bg = v; }
-    if let Some(v) = overrides.gutter_fg { base.gutter_fg = v; }
-    if let Some(v) = overrides.added_bg { base.added_bg = v; }
-    if let Some(v) = overrides.removed_bg { base.removed_bg = v; }
-    if let Some(v) = overrides.added_text { base.added_text = v; }
-    if let Some(v) = overrides.removed_text { base.removed_text = v; }
-    if overrides.syntax_keyword.is_some() { base.syntax_keyword = overrides.syntax_keyword; }
-    if overrides.syntax_string.is_some() { base.syntax_string = overrides.syntax_string; }
-    if overrides.syntax_comment.is_some() { base.syntax_comment = overrides.syntax_comment; }
-    if overrides.syntax_function.is_some() { base.syntax_function = overrides.syntax_function; }
-    if overrides.syntax_type.is_some() { base.syntax_type = overrides.syntax_type; }
-    if overrides.syntax_number.is_some() { base.syntax_number = overrides.syntax_number; }
-    if overrides.syntax_operator.is_some() { base.syntax_operator = overrides.syntax_operator; }
-    if overrides.syntax_property.is_some() { base.syntax_property = overrides.syntax_property; }
+    if let Some(v) = overrides.background {
+        base.background = v;
+    }
+    if let Some(v) = overrides.foreground {
+        base.foreground = v;
+    }
+    if let Some(v) = overrides.cursor {
+        base.cursor = v;
+    }
+    if let Some(v) = overrides.selection {
+        base.selection = v;
+    }
+    if let Some(v) = overrides.line_highlight {
+        base.line_highlight = v;
+    }
+    if let Some(v) = overrides.gutter_bg {
+        base.gutter_bg = v;
+    }
+    if let Some(v) = overrides.gutter_fg {
+        base.gutter_fg = v;
+    }
+    if let Some(v) = overrides.added_bg {
+        base.added_bg = v;
+    }
+    if let Some(v) = overrides.removed_bg {
+        base.removed_bg = v;
+    }
+    if let Some(v) = overrides.added_text {
+        base.added_text = v;
+    }
+    if let Some(v) = overrides.removed_text {
+        base.removed_text = v;
+    }
+    if overrides.syntax_keyword.is_some() {
+        base.syntax_keyword = overrides.syntax_keyword;
+    }
+    if overrides.syntax_string.is_some() {
+        base.syntax_string = overrides.syntax_string;
+    }
+    if overrides.syntax_comment.is_some() {
+        base.syntax_comment = overrides.syntax_comment;
+    }
+    if overrides.syntax_function.is_some() {
+        base.syntax_function = overrides.syntax_function;
+    }
+    if overrides.syntax_type.is_some() {
+        base.syntax_type = overrides.syntax_type;
+    }
+    if overrides.syntax_number.is_some() {
+        base.syntax_number = overrides.syntax_number;
+    }
+    if overrides.syntax_operator.is_some() {
+        base.syntax_operator = overrides.syntax_operator;
+    }
+    if overrides.syntax_property.is_some() {
+        base.syntax_property = overrides.syntax_property;
+    }
 }
 
 // -- Parsing and validation --
@@ -1041,7 +1133,10 @@ lane-colors = ["#0000ff"]
 
     #[test]
     fn test_with_alpha_rgba_input_unchanged() {
-        assert_eq!(with_alpha("rgba(88, 166, 255, 0.2)", "33"), "rgba(88, 166, 255, 0.2)");
+        assert_eq!(
+            with_alpha("rgba(88, 166, 255, 0.2)", "33"),
+            "rgba(88, 166, 255, 0.2)"
+        );
     }
 
     #[test]

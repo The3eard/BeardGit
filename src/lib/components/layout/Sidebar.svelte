@@ -14,6 +14,7 @@
     { label: m.sidebar_branches(), icon: "\uE725", id: "branches" },
     { label: m.sidebar_tags(), icon: "\uF02B", id: "tags" },
     { label: m.sidebar_stashes(), icon: "\uF187", id: "stashes" },
+    { label: m.sidebar_worktrees(), icon: "\uE728", id: "worktrees" },
   ];
 
   const providerItems: NavItem[] = [
@@ -48,13 +49,6 @@
       </button>
     {/each}
   </nav>
-
-  <div class="nav-section">
-    <div class="section-label">{m.sidebar_worktrees()}</div>
-    <div class="placeholder-text wip">
-      {m.worktrees_coming_soon()}
-    </div>
-  </div>
 
   <nav class="nav-section">
     <div class="section-label">
@@ -167,18 +161,6 @@
     min-width: 16px;
     text-align: center;
     line-height: 16px;
-  }
-
-  .placeholder-text {
-    padding: 6px 16px;
-    font-size: 12px;
-    color: var(--text-secondary);
-    font-style: italic;
-  }
-
-  .placeholder-text.wip {
-    font-style: italic;
-    opacity: 0.5;
   }
 
   .provider-status-dot {

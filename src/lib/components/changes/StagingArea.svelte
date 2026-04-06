@@ -3,10 +3,13 @@
   import ChangesList from "./ChangesList.svelte";
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
+  import { amendCommit, getHeadMessage } from "$lib/api/tauri";
 
   let { onFileClick }: { onFileClick?: (path: string, staged: boolean) => void } = $props();
 
   let message = $state("");
+  let isAmend = $state(false);
+  let savedMessage = $state("");
 
   onMount(async () => {
     await refreshStatuses();
@@ -16,10 +19,29 @@
   let staged = $derived($fileStatuses.filter(f => f.is_staged));
   let unstaged = $derived($fileStatuses.filter(f => !f.is_staged));
 
+  async function handleAmendToggle() {
+    if (isAmend) {
+      savedMessage = message;
+      try {
+        message = await getHeadMessage();
+      } catch {
+        message = '';
+      }
+    } else {
+      message = savedMessage;
+      savedMessage = '';
+    }
+  }
+
   async function handleCommit() {
     if (!message.trim()) return;
-    await commit(message, "Adolfo Fuentes", "adolfofuentes@metricool.com");
+    if (isAmend) {
+      await amendCommit(message);
+    } else {
+      await commit(message, "Adolfo Fuentes", "adolfofuentes@metricool.com");
+    }
     message = "";
+    isAmend = false;
   }
 </script>
 
@@ -33,6 +55,10 @@
   />
 
   <div class="commit-box">
+    <label class="amend-toggle">
+      <input type="checkbox" bind:checked={isAmend} onchange={handleAmendToggle} />
+      <span>{m.staging_amend_toggle()}</span>
+    </label>
     <textarea
       class="commit-input"
       placeholder={m.staging_commit_placeholder()}
@@ -41,10 +67,14 @@
     ></textarea>
     <button
       class="commit-btn"
-      disabled={!message.trim() || staged.length === 0}
+      disabled={!message.trim() || (!isAmend && staged.length === 0)}
       onclick={handleCommit}
     >
-      {staged.length === 1 ? m.staging_commit_button_one({ count: String(staged.length) }) : m.staging_commit_button({ count: String(staged.length) })}
+      {isAmend
+        ? m.staging_amend_button()
+        : staged.length === 1
+          ? m.staging_commit_button_one({ count: String(staged.length) })
+          : m.staging_commit_button({ count: String(staged.length) })}
     </button>
   </div>
 
@@ -79,4 +109,17 @@
   }
   .commit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .commit-btn:hover:not(:disabled) { opacity: 0.9; }
+  .amend-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .amend-toggle input[type="checkbox"] {
+    margin: 0;
+    accent-color: var(--accent-blue);
+  }
 </style>

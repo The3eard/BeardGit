@@ -15,7 +15,8 @@
   import { renderGraph, hitTest, graphHitTest, ROW_HEIGHT, DEFAULT_COLUMNS, DEFAULT_GRAPH_THEME, type GraphColumn } from "./graph-renderer";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
-  import { cherryPick, checkoutBranch, createBranch } from "../../api/tauri";
+  import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit } from "../../api/tauri";
   import { debounce } from "../../utils/debounce";
   import SearchBar from "../common/SearchBar.svelte";
   import { activeTheme, buildGraphTheme } from "../../stores/theme";
@@ -49,6 +50,21 @@
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
   let contextMenuItems = $state<MenuItem[]>([]);
+
+  // Confirm dialog state
+  let showConfirm = $state(false);
+  let confirmProps = $state<{
+    title: string;
+    detail?: string;
+    message: string;
+    confirmLabel?: string;
+    destructive?: boolean;
+    onConfirm: () => void;
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Scroll state — accumulates sub-row delta for proportional scrolling
   let scrollAccumulator = 0;
@@ -333,6 +349,80 @@
           }
         },
       },
+      { label: "", action: () => {}, separator: true },
+      {
+        label: m.graph_revert_commit(),
+        action: () => {
+          confirmProps = {
+            title: m.graph_revert_commit(),
+            detail: node.oid.slice(0, 8),
+            message: m.graph_revert_confirm({ sha: node.oid.slice(0, 8) }),
+            confirmLabel: m.graph_revert_commit(),
+            destructive: false,
+            onConfirm: async () => {
+              try {
+                await revertCommit(node.oid);
+              } catch {
+                // Conflict will be detected by watcher
+              }
+              showConfirm = false;
+            },
+          };
+          showConfirm = true;
+        },
+      },
+      { label: "", action: () => {}, separator: true },
+      {
+        label: m.graph_reset_soft(),
+        action: () => {
+          confirmProps = {
+            title: m.graph_reset_to(),
+            detail: node.oid.slice(0, 8) + ' — ' + (node.summary || ''),
+            message: m.graph_reset_confirm_soft({ sha: node.oid.slice(0, 8) }),
+            confirmLabel: m.graph_reset_soft(),
+            destructive: false,
+            onConfirm: async () => {
+              try { await resetToCommit(node.oid, 'soft'); } catch {}
+              showConfirm = false;
+            },
+          };
+          showConfirm = true;
+        },
+      },
+      {
+        label: m.graph_reset_mixed(),
+        action: () => {
+          confirmProps = {
+            title: m.graph_reset_to(),
+            detail: node.oid.slice(0, 8) + ' — ' + (node.summary || ''),
+            message: m.graph_reset_confirm_mixed({ sha: node.oid.slice(0, 8) }),
+            confirmLabel: m.graph_reset_mixed(),
+            destructive: false,
+            onConfirm: async () => {
+              try { await resetToCommit(node.oid, 'mixed'); } catch {}
+              showConfirm = false;
+            },
+          };
+          showConfirm = true;
+        },
+      },
+      {
+        label: m.graph_reset_hard(),
+        action: () => {
+          confirmProps = {
+            title: m.graph_reset_to(),
+            detail: node.oid.slice(0, 8) + ' — ' + (node.summary || ''),
+            message: m.graph_reset_confirm_hard({ sha: node.oid.slice(0, 8) }),
+            confirmLabel: m.graph_reset_hard(),
+            destructive: true,
+            onConfirm: async () => {
+              try { await resetToCommit(node.oid, 'hard'); } catch {}
+              showConfirm = false;
+            },
+          };
+          showConfirm = true;
+        },
+      },
     ];
 
     contextMenuX = e.clientX;
@@ -464,6 +554,18 @@
   visible={contextMenuVisible}
   onClose={() => contextMenuVisible = false}
 />
+
+{#if showConfirm}
+  <ConfirmDialog
+    title={confirmProps.title}
+    detail={confirmProps.detail}
+    message={confirmProps.message}
+    confirmLabel={confirmProps.confirmLabel}
+    destructive={confirmProps.destructive}
+    onConfirm={confirmProps.onConfirm}
+    onCancel={() => showConfirm = false}
+  />
+{/if}
 
 <style>
   .git-graph {

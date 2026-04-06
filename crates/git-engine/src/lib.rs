@@ -13,6 +13,7 @@
 //! - [`conflict`] — conflict detection, status, and abort/continue operations
 //! - [`file_content`] — raw file content retrieval for CodeMirror diff views
 //! - [`cli`] — shell-out wrapper for git CLI operations
+//! - [`worktree`] — list, create, and remove linked worktrees
 //! - [`error`] — unified error type
 
 pub mod cli;
@@ -24,7 +25,9 @@ pub mod file_content;
 pub mod operations;
 pub mod remote;
 pub mod repository;
+pub mod reset;
 pub mod staging;
+pub mod worktree;
 
 pub use cli::{CommitStats, GitCliResult, StashEntry, TagInfo};
 pub use commits::CommitInfo;
@@ -33,3 +36,4 @@ pub use diff::{CommitFileChange, DiffHunkInfo, DiffLineInfo, FileDiff};
 pub use error::GitError;
 pub use repository::{BranchInfo, RepoStatus, Repository, StatusSummary};
 pub use staging::FileStatus;
+pub use worktree::WorktreeInfo;

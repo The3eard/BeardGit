@@ -84,6 +84,10 @@ pub fn run() {
             app_core::commands::get_diff_index,
             app_core::commands::merge_branch,
             app_core::commands::cherry_pick,
+            app_core::commands::revert_commit,
+            app_core::commands::reset_to_commit,
+            app_core::commands::amend_commit,
+            app_core::commands::get_head_message,
             app_core::commands::stash_push,
             app_core::commands::stash_pop,
             app_core::commands::stash_list,
@@ -136,6 +140,9 @@ pub fn run() {
             app_core::task_commands::get_tasks,
             app_core::task_commands::get_task_output,
             app_core::task_commands::cancel_task,
+            app_core::commands::list_worktrees,
+            app_core::commands::create_worktree,
+            app_core::commands::remove_worktree,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

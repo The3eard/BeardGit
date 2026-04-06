@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ThemeMeta, ThemeData } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ThemeMeta, ThemeData, WorktreeInfo } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -123,6 +123,22 @@ export async function mergeBranch(branch: string): Promise<string> {
 
 export async function cherryPick(oid: string): Promise<string> {
   return invoke<string>("cherry_pick", { oid });
+}
+
+export async function revertCommit(oid: string): Promise<string> {
+  return invoke<string>("revert_commit", { oid });
+}
+
+export async function resetToCommit(oid: string, mode: string): Promise<void> {
+  return invoke<void>("reset_to_commit", { oid, mode });
+}
+
+export async function amendCommit(message: string): Promise<void> {
+  return invoke<void>("amend_commit", { message });
+}
+
+export async function getHeadMessage(): Promise<string> {
+  return invoke<string>("get_head_message");
 }
 
 export async function stashPush(message: string | null): Promise<string> {
@@ -388,4 +404,29 @@ export async function getFileWorkdir(path: string): Promise<string> {
 /** Returns raw file content from the index (staged version). */
 export async function getFileIndex(path: string): Promise<string> {
   return invoke<string>("get_file_index", { path });
+}
+
+// ---------------------------------------------------------------------------
+// Worktrees
+// ---------------------------------------------------------------------------
+
+/** List all worktrees for the active repository, including the main worktree. */
+export async function listWorktrees(): Promise<WorktreeInfo[]> {
+  return invoke<WorktreeInfo[]>("list_worktrees");
+}
+
+/**
+ * Create a new linked worktree at `path` on `branch`.
+ * Set `createBranch` to true to create a new branch with `-b`.
+ */
+export async function createWorktree(path: string, branch: string, createBranch: boolean): Promise<void> {
+  return invoke<void>("create_worktree", { path, branch, createBranch });
+}
+
+/**
+ * Remove a linked worktree at `path`.
+ * Set `force` to true to remove locked or dirty worktrees.
+ */
+export async function removeWorktree(path: string, force: boolean): Promise<void> {
+  return invoke<void>("remove_worktree", { path, force });
 }
