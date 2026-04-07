@@ -384,15 +384,19 @@ pub fn get_diff_between_commits(
 
 /// Return the full diff (hunks + lines) for a single file in a commit.
 #[tauri::command]
-pub fn get_commit_file_diff(
+pub async fn get_commit_file_diff(
     oid: String,
     path: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::FileDiff>, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.commit_file_diff(&oid, &path)
             .map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Returns raw file content at a specific commit.
@@ -726,8 +730,13 @@ pub fn get_head_message(state: State<'_, AppState>) -> Result<String, String> {
 /// # Returns
 /// The stdout of `git stash push` on success, or stderr as an error.
 #[tauri::command]
-pub fn stash_push(message: Option<String>, state: State<'_, AppState>) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
+pub async fn stash_push(
+    message: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let result = repo
             .stash_push(message.as_deref())
             .map_err(|e| e.to_string())?;
@@ -737,6 +746,8 @@ pub fn stash_push(message: Option<String>, state: State<'_, AppState>) -> Result
             Err(result.stderr)
         }
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Pop (apply and drop) a stash entry.
@@ -747,8 +758,10 @@ pub fn stash_push(message: Option<String>, state: State<'_, AppState>) -> Result
 /// # Returns
 /// The stdout of `git stash pop` on success, or stderr as an error.
 #[tauri::command]
-pub fn stash_pop(index: Option<usize>, state: State<'_, AppState>) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
+pub async fn stash_pop(index: Option<usize>, state: State<'_, AppState>) -> Result<String, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let result = repo.stash_pop(index).map_err(|e| e.to_string())?;
         if result.success {
             Ok(result.stdout)
@@ -756,14 +769,22 @@ pub fn stash_pop(index: Option<usize>, state: State<'_, AppState>) -> Result<Str
             Err(result.stderr)
         }
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Return a list of stash entry descriptions (one per stash entry).
 ///
 /// Each string corresponds to a line from `git stash list`.
 #[tauri::command]
-pub fn stash_list(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    with_active_repo(&state, |repo| repo.stash_list().map_err(|e| e.to_string()))
+pub async fn stash_list(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.stash_list().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Apply a stash entry without removing it.
@@ -774,8 +795,13 @@ pub fn stash_list(state: State<'_, AppState>) -> Result<Vec<String>, String> {
 /// # Returns
 /// The stdout of `git stash apply` on success, or stderr as an error.
 #[tauri::command]
-pub fn stash_apply(index: Option<usize>, state: State<'_, AppState>) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
+pub async fn stash_apply(
+    index: Option<usize>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let result = repo.stash_apply(index).map_err(|e| e.to_string())?;
         if result.success {
             Ok(result.stdout)
@@ -783,6 +809,8 @@ pub fn stash_apply(index: Option<usize>, state: State<'_, AppState>) -> Result<S
             Err(result.stderr)
         }
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Restore a single file from a stash entry into the working directory.
@@ -794,12 +822,14 @@ pub fn stash_apply(index: Option<usize>, state: State<'_, AppState>) -> Result<S
 /// # Returns
 /// The stdout of `git restore` on success, or stderr as an error.
 #[tauri::command]
-pub fn stash_apply_file(
+pub async fn stash_apply_file(
     index: usize,
     path: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let result = repo
             .stash_apply_file(index, &path)
             .map_err(|e| e.to_string())?;
@@ -809,6 +839,8 @@ pub fn stash_apply_file(
             Err(result.stderr)
         }
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Drop a stash entry without applying it.
@@ -819,8 +851,13 @@ pub fn stash_apply_file(
 /// # Returns
 /// The stdout of `git stash drop` on success, or stderr as an error.
 #[tauri::command]
-pub fn stash_drop(index: Option<usize>, state: State<'_, AppState>) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
+pub async fn stash_drop(
+    index: Option<usize>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let result = repo.stash_drop(index).map_err(|e| e.to_string())?;
         if result.success {
             Ok(result.stdout)
@@ -828,16 +865,24 @@ pub fn stash_drop(index: Option<usize>, state: State<'_, AppState>) -> Result<St
             Err(result.stderr)
         }
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Return structured stash entries with parsed metadata.
 ///
 /// Each entry includes index, message, branch, timestamp, and commit OID.
 #[tauri::command]
-pub fn stash_entries(state: State<'_, AppState>) -> Result<Vec<git_engine::StashEntry>, String> {
-    with_active_repo(&state, |repo| {
+pub async fn stash_entries(
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::StashEntry>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.stash_entries().map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Return the diff of a stash entry as structured `FileDiff` objects.
@@ -845,13 +890,17 @@ pub fn stash_entries(state: State<'_, AppState>) -> Result<Vec<git_engine::Stash
 /// # Parameters
 /// - `index` – Zero-based stash index (defaults to 0, i.e. the latest stash).
 #[tauri::command]
-pub fn stash_show_parsed(
+pub async fn stash_show_parsed(
     index: Option<usize>,
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::FileDiff>, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.stash_show_parsed(index).map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // ---------------------------------------------------------------------------
@@ -1305,15 +1354,19 @@ pub async fn push_remote(
 /// Equivalent to `git remote rename <old_name> <new_name>`. Returns an error
 /// if `old_name` does not exist or `new_name` is already taken.
 #[tauri::command]
-pub fn rename_remote(
+pub async fn rename_remote(
     old_name: String,
     new_name: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.rename_remote(&old_name, &new_name)
             .map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Removes a remote from the active repository.
@@ -1321,10 +1374,14 @@ pub fn rename_remote(
 /// Equivalent to `git remote remove <name>`. Returns an error if the remote
 /// does not exist.
 #[tauri::command]
-pub fn remove_remote(name: String, state: State<'_, AppState>) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
+pub async fn remove_remote(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.remove_remote(&name).map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // ---------------------------------------------------------------------------
@@ -1333,43 +1390,61 @@ pub fn remove_remote(name: String, state: State<'_, AppState>) -> Result<(), Str
 
 /// Return all tags in the active repository, sorted newest-version-first.
 #[tauri::command]
-pub fn list_tags(state: State<'_, AppState>) -> Result<Vec<git_engine::TagInfo>, String> {
-    with_active_repo(&state, |repo| repo.tags().map_err(|e| e.to_string()))
+pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<git_engine::TagInfo>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.tags().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Return diff statistics for a single commit.
 #[tauri::command]
-pub fn get_commit_stats(
+pub async fn get_commit_stats(
     oid: String,
     state: State<'_, AppState>,
 ) -> Result<git_engine::CommitStats, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.commit_stats(&oid).map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// List tags with pagination, sorted newest-version-first.
 #[tauri::command]
-pub fn list_tags_paginated(
+pub async fn list_tags_paginated(
     per_page: u32,
     page: u32,
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::TagInfo>, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.tags_paginated(per_page, page)
             .map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Search all tags by name substring (case-insensitive).
 #[tauri::command]
-pub fn search_tags(
+pub async fn search_tags(
     query: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::TagInfo>, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.search_tags(&query).map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Create a new tag in the active repository.
@@ -1378,13 +1453,15 @@ pub fn search_tags(
 /// - Otherwise creates a lightweight tag.
 /// - If `target` is empty, tags HEAD.
 #[tauri::command]
-pub fn create_tag(
+pub async fn create_tag(
     name: String,
     target: String,
     message: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let msg = message.as_deref().filter(|m| !m.is_empty());
         let result = if target.is_empty() {
             repo.create_tag(&name, msg).map_err(|e| e.to_string())?
@@ -1404,12 +1481,16 @@ pub fn create_tag(
             Err(result.stderr)
         }
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Delete a local tag by name.
 #[tauri::command]
-pub fn delete_tag(name: String, state: State<'_, AppState>) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
+pub async fn delete_tag(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let result = repo.delete_tag(&name).map_err(|e| e.to_string())?;
         if result.success {
             Ok(())
@@ -1417,6 +1498,8 @@ pub fn delete_tag(name: String, state: State<'_, AppState>) -> Result<(), String
             Err(result.stderr)
         }
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Push a tag to a remote as a background task.
@@ -1468,8 +1551,10 @@ pub fn get_conflict_status(
 
 /// Abort the current mid-operation git state (merge/rebase/cherry-pick/revert).
 #[tauri::command]
-pub fn abort_operation(state: State<'_, AppState>) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
+pub async fn abort_operation(state: State<'_, AppState>) -> Result<String, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let conflict_state = repo.detect_conflict_state();
         let result = match conflict_state {
             git_engine::ConflictState::Merging => repo.abort_merge().map_err(|e| e.to_string())?,
@@ -1492,12 +1577,16 @@ pub fn abort_operation(state: State<'_, AppState>) -> Result<String, String> {
             Err(result.stderr)
         }
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Continue the current mid-operation git state after conflicts are resolved.
 #[tauri::command]
-pub fn continue_operation(state: State<'_, AppState>) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
+pub async fn continue_operation(state: State<'_, AppState>) -> Result<String, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let status = repo.conflict_status().map_err(|e| e.to_string())?;
         if status.state == git_engine::ConflictState::None {
             return Err("No operation in progress to continue".to_string());
@@ -1526,6 +1615,8 @@ pub fn continue_operation(state: State<'_, AppState>) -> Result<String, String> 
             Err(result.stderr)
         }
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // ---------------------------------------------------------------------------
@@ -2215,10 +2306,16 @@ pub fn resolve_theme_for_mode(base: &str, os_dark: bool) -> String {
 /// Returns a [`WorktreeInfo`] for each worktree. The first element is always
 /// the main worktree.
 #[tauri::command]
-pub fn list_worktrees(state: State<'_, AppState>) -> Result<Vec<git_engine::WorktreeInfo>, String> {
-    with_active_repo(&state, |repo| {
+pub async fn list_worktrees(
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::WorktreeInfo>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.list_worktrees().map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Create a new linked worktree at `path` on `branch`.
@@ -2229,16 +2326,20 @@ pub fn list_worktrees(state: State<'_, AppState>) -> Result<Vec<git_engine::Work
 /// - `create_branch` – When `true`, create a new branch with `-b`; when `false`, check
 ///   out an existing branch.
 #[tauri::command]
-pub fn create_worktree(
+pub async fn create_worktree(
     path: String,
     branch: String,
     create_branch: bool,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.create_worktree(&path, &branch, create_branch)
             .map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Remove a linked worktree at `path`.
@@ -2248,15 +2349,19 @@ pub fn create_worktree(
 /// - `force` – When `true`, remove the worktree even if it has uncommitted changes
 ///   or is locked.
 #[tauri::command]
-pub fn remove_worktree(
+pub async fn remove_worktree(
     path: String,
     force: bool,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.remove_worktree(&path, force)
             .map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Extract the origin remote URL from a repository (synchronous, no await).

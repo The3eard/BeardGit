@@ -178,12 +178,21 @@ fn parse_stat_summary(output: &str) -> CommitStats {
 
 impl Repository {
     /// Run a git command in the repository directory.
+    ///
+    /// On Windows, the `CREATE_NO_WINDOW` flag is set to prevent a visible
+    /// console window from flashing on screen.
     pub fn git_cmd(&self, args: &[&str]) -> Result<GitCliResult, GitError> {
-        let output = Command::new("git")
-            .args(args)
-            .current_dir(self.path())
-            .output()
-            .map_err(GitError::Io)?;
+        let mut cmd = Command::new("git");
+        cmd.args(args).current_dir(self.path());
+
+        // Suppress the console window that Windows shows for child processes.
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        let output = cmd.output().map_err(GitError::Io)?;
 
         Ok(GitCliResult {
             success: output.status.success(),

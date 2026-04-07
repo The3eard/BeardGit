@@ -100,6 +100,12 @@ impl TaskManager {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
+        // Suppress the console window on Windows.
+        #[cfg(target_os = "windows")]
+        {
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {

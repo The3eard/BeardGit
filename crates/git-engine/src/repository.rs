@@ -212,12 +212,20 @@ impl Repository {
             .unwrap_or((0, 0));
 
         // Stash count via CLI (stash_foreach requires &mut self)
-        let stash_count = std::process::Command::new("git")
-            .args(["stash", "list"])
-            .current_dir(&self.path)
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).lines().count())
-            .unwrap_or(0);
+        let stash_count = {
+            let mut cmd = std::process::Command::new("git");
+            cmd.args(["stash", "list"]).current_dir(&self.path);
+
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            }
+
+            cmd.output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).lines().count())
+                .unwrap_or(0)
+        };
 
         Ok(StatusSummary {
             ahead,
