@@ -9,6 +9,17 @@ use serde::{Deserialize, Serialize};
 use crate::error::GitError;
 use crate::repository::Repository;
 
+/// The three versions of a conflicted file (ours, theirs, and the common base).
+#[derive(Debug, Clone, Serialize)]
+pub struct ConflictFileContents {
+    /// Content from the current branch ("ours").
+    pub ours: String,
+    /// Content from the incoming branch ("theirs").
+    pub theirs: String,
+    /// Content from the common ancestor ("base").
+    pub base: String,
+}
+
 /// The kind of in-progress operation that may cause conflicts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -118,6 +129,46 @@ impl Repository {
             conflicted_files,
             can_continue,
         })
+    }
+
+    /// Get the ours/theirs/base content of a conflicted file from the index.
+    ///
+    /// Reads the three conflict stages for `path` from the git index and
+    /// returns their blob contents as strings. Missing sides (e.g. a file
+    /// added on only one branch) return an empty string.
+    pub fn get_conflict_file_contents(&self, path: &str) -> Result<ConflictFileContents, GitError> {
+        let mut index = self.inner().index()?;
+        index.read(true)?;
+        let conflict = index.conflict_get(std::path::Path::new(path))?;
+
+        let get_blob = |entry: Option<git2::IndexEntry>| -> String {
+            entry
+                .and_then(|e| self.inner().find_blob(e.id).ok())
+                .map(|b| String::from_utf8_lossy(b.content()).into_owned())
+                .unwrap_or_default()
+        };
+
+        Ok(ConflictFileContents {
+            base: get_blob(conflict.ancestor),
+            ours: get_blob(conflict.our),
+            theirs: get_blob(conflict.their),
+        })
+    }
+
+    /// Write resolved content to disk and mark the file as resolved in the index.
+    ///
+    /// Overwrites the working-directory file at `path` with `content`, stages
+    /// the result, removes conflict entries from the index, and writes the
+    /// index back to disk.
+    pub fn write_resolved_file(&self, path: &str, content: &str) -> Result<(), GitError> {
+        let full_path = self.path().join(path);
+        std::fs::write(&full_path, content)?;
+
+        let mut index = self.inner().index()?;
+        index.add_path(std::path::Path::new(path))?;
+        index.conflict_remove(std::path::Path::new(path))?;
+        index.write()?;
+        Ok(())
     }
 
     // -----------------------------------------------------------------

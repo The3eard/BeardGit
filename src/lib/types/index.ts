@@ -304,6 +304,13 @@ export interface ConflictStatus {
   can_continue: boolean;
 }
 
+/** The three versions of a conflicted file (ours, theirs, base). */
+export interface ConflictFileContents {
+  ours: string;
+  theirs: string;
+  base: string;
+}
+
 // ---------------------------------------------------------------------------
 // Worktrees
 // ---------------------------------------------------------------------------
@@ -416,6 +423,24 @@ export interface FileHistoryEntry {
   additions: number;
   deletions: number;
   old_path: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Interactive rebase
+// ---------------------------------------------------------------------------
+
+/** A commit in the rebase todo list. */
+export interface RebaseCommit {
+  oid: string;
+  message: string;
+  author: string;
+  date: string;
+}
+
+/** An action for a commit in the interactive rebase. */
+export interface RebaseAction {
+  oid: string;
+  action: string;
 }
 
 // ---------------------------------------------------------------------------

@@ -201,6 +201,37 @@ impl Repository {
         })
     }
 
+    /// Run a git command with additional environment variables.
+    ///
+    /// Behaves identically to [`git_cmd`] but injects extra environment
+    /// variables into the child process. This is used, for example, to set
+    /// `GIT_SEQUENCE_EDITOR` for non-interactive interactive rebases.
+    pub fn git_cmd_with_env(
+        &self,
+        args: &[&str],
+        env_vars: &[(&str, &str)],
+    ) -> Result<GitCliResult, GitError> {
+        let mut cmd = Command::new("git");
+        cmd.args(args).current_dir(self.path());
+        for (key, val) in env_vars {
+            cmd.env(key, val);
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        let output = cmd.output().map_err(GitError::Io)?;
+
+        Ok(GitCliResult {
+            success: output.status.success(),
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        })
+    }
+
     /// Merge `branch` into the current branch using `--no-edit` (no interactive prompt).
     pub fn merge_branch(&self, branch: &str) -> Result<GitCliResult, GitError> {
         self.git_cmd(&["merge", branch, "--no-edit"])

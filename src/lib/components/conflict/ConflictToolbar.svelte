@@ -11,8 +11,50 @@
     isInConflict,
     abortOperation,
     continueOperation,
+    refreshConflictStatus,
   } from "../../stores/conflict";
+  import { getConflictFileContents, writeResolvedFile } from "../../api/tauri";
+  import type { ConflictFileContents } from "../../types";
+  import MergeEditor from "../editor/MergeEditor.svelte";
+  import { activeTheme } from "../../stores/theme";
   import * as m from "$lib/paraglide/messages";
+
+  /** The file path currently open in the merge editor. */
+  let mergeFile = $state<string | null>(null);
+  /** Conflict contents for the open file. */
+  let mergeContents = $state<ConflictFileContents | null>(null);
+  /** Whether the file list is expanded. */
+  let showFileList = $state(false);
+
+  /** Open a conflicted file in the merge editor. */
+  async function openConflictFile(path: string) {
+    try {
+      const contents = await getConflictFileContents(path);
+      mergeFile = path;
+      mergeContents = contents;
+    } catch {
+      // Silently fail — file may have been resolved externally.
+    }
+  }
+
+  /** Handle resolve from the merge editor: write content and refresh status. */
+  async function handleResolve(content: string) {
+    if (!mergeFile) return;
+    try {
+      await writeResolvedFile(mergeFile, content);
+    } catch {
+      // Write may fail if file was already resolved.
+    }
+    mergeFile = null;
+    mergeContents = null;
+    await refreshConflictStatus();
+  }
+
+  /** Close the merge editor without resolving. */
+  function handleCancelMerge() {
+    mergeFile = null;
+    mergeContents = null;
+  }
 
   function getAbortLabel(state: string): string {
     switch (state) {
@@ -74,9 +116,14 @@
       <span class="conflict-icon">{"\uF071"}</span>
       <span class="conflict-state">{getStateLabel($conflictStatus.state)}</span>
       <span class="conflict-separator">—</span>
-      <span class="conflict-files" class:resolved={$conflictStatus.can_continue}>
+      <button
+        class="conflict-files-btn"
+        class:resolved={$conflictStatus.can_continue}
+        onclick={() => showFileList = !showFileList}
+      >
         {fileCountText}
-      </span>
+        <span class="chevron" class:open={showFileList}>{"\uF078"}</span>
+      </button>
     </div>
     <div class="conflict-right">
       <button class="btn btn-abort" onclick={abortOperation}>
@@ -91,6 +138,31 @@
         {getContinueLabel($conflictStatus.state)}
       </button>
     </div>
+  </div>
+  {#if showFileList && $conflictStatus.conflicted_files.length > 0}
+    <div class="conflict-file-list">
+      {#each $conflictStatus.conflicted_files as file}
+        <button class="conflict-file-item" onclick={() => openConflictFile(file)}>
+          <span class="file-icon">{"\uF15C"}</span>
+          <span class="file-path">{file}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+{/if}
+
+{#if mergeFile && mergeContents}
+  <div class="merge-editor-overlay">
+    <MergeEditor
+      ours={mergeContents.ours}
+      theirs={mergeContents.theirs}
+      base={mergeContents.base}
+      filename={mergeFile}
+      editorTheme={$activeTheme?.editor}
+      isDark={$activeTheme?.meta.mode !== 'light'}
+      onResolve={handleResolve}
+      onCancel={handleCancelMerge}
+    />
   </div>
 {/if}
 
@@ -129,12 +201,34 @@
     color: var(--text-secondary);
   }
 
-  .conflict-files {
+  .conflict-files-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
     color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
   }
 
-  .conflict-files.resolved {
+  .conflict-files-btn:hover {
+    color: var(--accent-blue);
+  }
+
+  .conflict-files-btn.resolved {
     color: var(--accent-green);
+  }
+
+  .chevron {
+    font-family: var(--font-icons);
+    font-size: 9px;
+    transition: transform 0.15s;
+  }
+
+  .chevron.open {
+    transform: rotate(180deg);
   }
 
   .conflict-right {
@@ -175,5 +269,54 @@
   .btn-continue:disabled {
     opacity: 0.4;
     cursor: default;
+  }
+
+  .conflict-file-list {
+    display: flex;
+    flex-direction: column;
+    background: rgba(210, 153, 34, 0.05);
+    border-bottom: 1px solid rgba(210, 153, 34, 0.2);
+  }
+
+  .conflict-file-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 16px 4px 32px;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .conflict-file-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--accent-blue);
+  }
+
+  .file-icon {
+    font-family: var(--font-icons);
+    font-size: 12px;
+    color: #d29922;
+    flex-shrink: 0;
+  }
+
+  .file-path {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .merge-editor-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
   }
 </style>

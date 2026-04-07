@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -136,6 +136,10 @@ export async function mergeBranch(branch: string): Promise<string> {
   return invoke<string>("merge_branch", { branch });
 }
 
+export async function rebaseBranch(onto: string): Promise<string> {
+  return invoke<string>("rebase_branch", { onto });
+}
+
 export async function cherryPick(oid: string): Promise<string> {
   return invoke<string>("cherry_pick", { oid });
 }
@@ -234,6 +238,16 @@ export async function abortOperation(): Promise<string> {
 
 export async function continueOperation(): Promise<string> {
   return invoke<string>("continue_operation");
+}
+
+/** Get the ours/theirs/base content of a conflicted file from the index. */
+export async function getConflictFileContents(path: string): Promise<ConflictFileContents> {
+  return invoke<ConflictFileContents>("get_conflict_file_contents", { path });
+}
+
+/** Write resolved content to disk and mark the file as resolved. */
+export async function writeResolvedFile(path: string, content: string): Promise<void> {
+  return invoke<void>("write_resolved_file", { path, content });
 }
 
 // ---------------------------------------------------------------------------
@@ -466,4 +480,18 @@ export async function blameFile(path: string, oid?: string): Promise<BlameLine[]
 /** Get the commit history for a specific file with rename tracking. */
 export async function fileHistory(path: string, limit?: number): Promise<FileHistoryEntry[]> {
   return invoke<FileHistoryEntry[]>("file_history", { path, limit: limit ?? null });
+}
+
+// ---------------------------------------------------------------------------
+// Interactive rebase
+// ---------------------------------------------------------------------------
+
+/** Get commits between base (exclusive) and HEAD in rebase order (oldest first). */
+export async function getRebaseCommits(baseOid: string): Promise<RebaseCommit[]> {
+  return invoke<RebaseCommit[]>("get_rebase_commits", { baseOid });
+}
+
+/** Start an interactive rebase with pre-defined actions. */
+export async function startInteractiveRebase(baseOid: string, actions: RebaseAction[]): Promise<void> {
+  return invoke<void>("start_interactive_rebase", { baseOid, actions });
 }

@@ -16,7 +16,8 @@
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
-  import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit } from "../../api/tauri";
+  import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit, rebaseBranch } from "../../api/tauri";
+  import RebaseEditor from "../rebase/RebaseEditor.svelte";
   import { debounce } from "../../utils/debounce";
   import SearchBar from "../common/SearchBar.svelte";
   import { activeTheme, buildGraphTheme } from "../../stores/theme";
@@ -50,6 +51,10 @@
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
   let contextMenuItems = $state<MenuItem[]>([]);
+
+  // Interactive rebase editor state
+  let showRebaseEditor = $state(false);
+  let rebaseBaseOid = $state('');
 
   // Confirm dialog state
   let showConfirm = $state(false);
@@ -423,6 +428,31 @@
           showConfirm = true;
         },
       },
+      { label: "", action: () => {}, separator: true },
+      {
+        label: m.graph_rebase_onto(),
+        action: () => {
+          confirmProps = {
+            title: m.graph_rebase_onto(),
+            detail: node.oid.slice(0, 8),
+            message: m.graph_rebase_confirm({ sha: node.oid.slice(0, 8) }),
+            confirmLabel: m.graph_rebase_onto(),
+            destructive: false,
+            onConfirm: async () => {
+              try { await rebaseBranch(node.oid); } catch {}
+              showConfirm = false;
+            },
+          };
+          showConfirm = true;
+        },
+      },
+      {
+        label: m.graph_interactive_rebase(),
+        action: () => {
+          rebaseBaseOid = node.oid;
+          showRebaseEditor = true;
+        },
+      },
     ];
 
     contextMenuX = e.clientX;
@@ -564,6 +594,14 @@
     destructive={confirmProps.destructive}
     onConfirm={confirmProps.onConfirm}
     onCancel={() => showConfirm = false}
+  />
+{/if}
+
+{#if showRebaseEditor}
+  <RebaseEditor
+    baseOid={rebaseBaseOid}
+    onComplete={() => showRebaseEditor = false}
+    onCancel={() => showRebaseEditor = false}
   />
 {/if}
 

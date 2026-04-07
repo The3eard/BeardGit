@@ -130,12 +130,13 @@ fn parse_blame_porcelain(output: &str) -> Vec<BlameLine> {
 
             // Look up from cache if we didn't see a full header for this block.
             if current_author.is_empty()
-                && let Some(cached) = commit_cache.get(&current_oid) {
-                    current_author.clone_from(&cached.0);
-                    current_email.clone_from(&cached.1);
-                    current_timestamp = cached.2;
-                    current_summary.clone_from(&cached.3);
-                }
+                && let Some(cached) = commit_cache.get(&current_oid)
+            {
+                current_author.clone_from(&cached.0);
+                current_email.clone_from(&cached.1);
+                current_timestamp = cached.2;
+                current_summary.clone_from(&cached.3);
+            }
 
             lines.push(BlameLine {
                 line_num,

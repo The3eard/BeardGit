@@ -86,6 +86,7 @@ pub fn run() {
             app_core::commands::get_diff_workdir,
             app_core::commands::get_diff_index,
             app_core::commands::merge_branch,
+            app_core::commands::rebase_branch,
             app_core::commands::cherry_pick,
             app_core::commands::revert_commit,
             app_core::commands::reset_to_commit,
@@ -120,6 +121,8 @@ pub fn run() {
             app_core::commands::list_tags_paginated,
             app_core::commands::search_tags,
             app_core::commands::get_conflict_status,
+            app_core::commands::get_conflict_file_contents,
+            app_core::commands::write_resolved_file,
             app_core::commands::abort_operation,
             app_core::commands::continue_operation,
             app_core::commands::connect_provider,
@@ -150,6 +153,8 @@ pub fn run() {
             app_core::commands::remove_worktree,
             app_core::commands::blame_file,
             app_core::commands::file_history,
+            app_core::commands::get_rebase_commits,
+            app_core::commands::start_interactive_rebase,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

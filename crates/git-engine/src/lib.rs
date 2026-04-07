@@ -14,6 +14,7 @@
 //! - [`file_content`] — raw file content retrieval for CodeMirror diff views
 //! - [`blame`] — per-line blame and file history with rename tracking
 //! - [`cli`] — shell-out wrapper for git CLI operations
+//! - [`interactive_rebase`] — pre-planned interactive rebase via `GIT_SEQUENCE_EDITOR`
 //! - [`worktree`] — list, create, and remove linked worktrees
 //! - [`error`] — unified error type
 
@@ -25,6 +26,7 @@ pub mod diff;
 pub mod error;
 pub mod file_content;
 pub mod hunk_staging;
+pub mod interactive_rebase;
 pub mod operations;
 pub mod remote;
 pub mod repository;
@@ -35,10 +37,11 @@ pub mod worktree;
 pub use blame::{BlameLine, FileHistoryEntry};
 pub use cli::{CommitStats, GitCliResult, StashEntry, TagInfo};
 pub use commits::CommitInfo;
-pub use conflict::{ConflictState, ConflictStatus};
+pub use conflict::{ConflictFileContents, ConflictState, ConflictStatus};
 pub use diff::{CommitFileChange, DiffHunkInfo, DiffLineInfo, FileDiff};
 pub use error::GitError;
 pub use hunk_staging::HunkSelection;
+pub use interactive_rebase::{RebaseAction, RebaseCommit};
 pub use repository::{BranchInfo, RepoStatus, Repository, StatusSummary};
 pub use staging::FileStatus;
 pub use worktree::WorktreeInfo;

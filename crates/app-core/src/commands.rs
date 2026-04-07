@@ -661,6 +661,30 @@ pub async fn merge_branch(branch: String, state: State<'_, AppState>) -> Result<
     .map_err(|e| e.to_string())?
 }
 
+/// Rebase the current branch onto another branch or commit via the git CLI.
+///
+/// # Parameters
+/// - `onto` – Branch name or commit SHA to rebase onto.
+///
+/// # Returns
+/// The stdout of `git rebase` on success, or stderr as an error.
+#[tauri::command]
+pub async fn rebase_branch(onto: String, state: State<'_, AppState>) -> Result<String, String> {
+    let repo_path = get_active_project_path(&state)?;
+
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        let result = repo.rebase_branch(&onto).map_err(|e| e.to_string())?;
+        if result.success {
+            Ok(result.stdout)
+        } else {
+            Err(result.stderr)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Cherry-pick a commit onto the current branch via the git CLI.
 ///
 /// # Parameters
@@ -1600,6 +1624,31 @@ pub fn get_conflict_status(
     })
 }
 
+/// Get the ours/theirs/base content of a conflicted file from the index.
+#[tauri::command]
+pub fn get_conflict_file_contents(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<git_engine::ConflictFileContents, String> {
+    with_active_repo(&state, |repo| {
+        repo.get_conflict_file_contents(&path)
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Write resolved content to disk and mark the file as resolved in the index.
+#[tauri::command]
+pub fn write_resolved_file(
+    path: String,
+    content: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.write_resolved_file(&path, &content)
+            .map_err(|e| e.to_string())
+    })
+}
+
 /// Abort the current mid-operation git state (merge/rebase/cherry-pick/revert).
 #[tauri::command]
 pub async fn abort_operation(state: State<'_, AppState>) -> Result<String, String> {
@@ -2455,6 +2504,50 @@ pub async fn file_history(
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.file_history(&path, limit).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+// ---------------------------------------------------------------------------
+// Interactive rebase
+// ---------------------------------------------------------------------------
+
+/// Get the commits between `base_oid` (exclusive) and HEAD in rebase order.
+///
+/// Returns the commit list that would appear in `git rebase -i` for the given
+/// base, ordered oldest-first.
+#[tauri::command]
+pub async fn get_rebase_commits(
+    base_oid: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::RebaseCommit>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.get_rebase_commits(&base_oid)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Start an interactive rebase with pre-defined actions.
+///
+/// Each action specifies a commit OID and a rebase verb (`pick`, `squash`,
+/// `fixup`, `edit`, `drop`). The todo file is injected via `GIT_SEQUENCE_EDITOR`
+/// so no interactive terminal is required.
+#[tauri::command]
+pub async fn start_interactive_rebase(
+    base_oid: String,
+    actions: Vec<git_engine::RebaseAction>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.start_interactive_rebase(&base_oid, &actions)
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?

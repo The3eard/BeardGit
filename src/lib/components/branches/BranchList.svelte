@@ -17,6 +17,8 @@
     doDeleteBranch,
     doMergeBranch,
   } from "../../stores/branches";
+  import { rebaseBranch } from "../../api/tauri";
+  import * as m from "$lib/paraglide/messages";
   import type { BranchInfo } from "../../types";
 
   function buildTree(branchList: BranchInfo[]): TreeNode[] {
@@ -101,6 +103,7 @@
   let contextBranch = $state("");
   let contextIsRemote = $state(false);
   let confirmDelete = $state<string | null>(null);
+  let confirmRebase = $state<string | null>(null);
 
   let menuItems: MenuItem[] = $derived.by(() => {
     const items: MenuItem[] = [];
@@ -109,7 +112,12 @@
     }
     items.push({ label: "New branch from here [WIP]", action: () => {} });
     items.push({ label: "Merge into current", action: () => doMergeBranch(contextBranch) });
-    items.push({ label: "Rebase onto [WIP]", action: () => {} });
+    items.push({
+      label: m.branch_rebase_onto(),
+      action: () => {
+        confirmRebase = contextBranch;
+      },
+    });
     if (!contextIsRemote) {
       items.push({
         label: "Delete",
@@ -256,6 +264,23 @@
       confirmDelete = null;
     }}
     onCancel={() => (confirmDelete = null)}
+  />
+{/if}
+
+{#if confirmRebase !== null}
+  <ConfirmDialog
+    title={m.branch_rebase_onto()}
+    detail={confirmRebase}
+    message={m.branch_rebase_confirm({ branch: confirmRebase })}
+    confirmLabel={m.branch_rebase_onto()}
+    destructive={false}
+    onConfirm={async () => {
+      try {
+        await rebaseBranch(confirmRebase!);
+      } catch {}
+      confirmRebase = null;
+    }}
+    onCancel={() => (confirmRebase = null)}
   />
 {/if}
 
