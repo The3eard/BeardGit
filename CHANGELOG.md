@@ -2,6 +2,63 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [0.1.1] - 2026-04-07
+
+**CodeMirror 6 Editor Engine**
+
+- Replaced custom diff viewer with CodeMirror 6 — syntax highlighting for 16 languages (JS, TS, Rust, Python, CSS, HTML, JSON, YAML, Markdown, Java, Go, C/C++, SQL, XML, and more)
+- Side-by-side diff view with collapsed unchanged regions via @codemirror/merge
+- Line numbers in all editor and diff views
+- Language auto-detection from file extension with lazy-loaded grammars
+
+**Core Git Operations**
+
+- Revert commits from graph context menu with confirmation dialog
+- Amend last commit via toggle in staging area (pre-fills HEAD message)
+- Reset to any commit: soft (keep staged), mixed (unstage), hard (discard all) from graph context menu
+- Hard reset shows destructive warning with explicit confirmation
+
+**Worktree Management**
+
+- Sidebar section listing all worktrees with branch name, path, and status badges
+- Create new worktrees with auto-suggested path and new/existing branch options
+- Open worktree as a tab (reuses multi-project tab system)
+- Remove worktrees with confirmation dialog
+
+**Remote Management**
+
+- Settings > Repository section showing configured remotes
+- Rename and remove remotes with inline editing and confirmation
+
+**Theme System Improvements**
+
+- Simplified TOML themes: only `[meta]` + `[colors]` required (14 lines instead of 50+)
+- Graph, editor, and syntax highlighting colors auto-derived from 12 base colors
+- Optional `[graph]` and `[editor]` overrides for fine-tuning
+- Syntax token colors derived from theme accent palette (keywords, strings, comments, functions, types, numbers, operators, properties)
+- Updated themes README with full documentation for custom theme creators
+
+**UI Improvements**
+
+- UI Scale setting (80%–150%) in Settings > Appearance for font size control
+- Ref badges in commit detail and graph rotate through accent colors (hash-based, deterministic)
+- Fira Code font explicitly set in all CodeMirror instances
+
+**Performance & Windows Fixes**
+
+- All 22 git CLI-backed commands now run on background threads (async + spawn_blocking) — UI never freezes during git operations
+- Added CREATE_NO_WINDOW flag on Windows to prevent CMD console flash when spawning git processes
+- Covers: tags, stashes, diffs, conflict operations, remotes, worktrees
+
+**Testing**
+
+- Added vitest coverage configuration (@vitest/coverage-v8)
+- 32 new Rust tests (theme derivation, file content, remote operations)
+- 23 new frontend tests (diff utils, ref colors, editor theme, language support)
+- Shared ref-colors utility extracted from duplicate implementations
+
+---
+
 ## [0.1.0] - 2026-04-06
 
 **Git Operations**

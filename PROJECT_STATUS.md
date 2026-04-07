@@ -1,5 +1,61 @@
 # BeardGit — Project Status
 
+## v0.1.1 — In Progress
+
+### Completed (Plans 1–2)
+
+**CodeMirror 6 Editor Engine**
+
+- [x] Replaced custom diff viewer with CodeMirror 6 (syntax highlighting, 16 languages)
+- [x] Side-by-side diff with collapsed unchanged regions (@codemirror/merge)
+- [x] Line numbers in all editor and diff views
+- [x] Language auto-detection from file extension with lazy-loaded grammars
+- [x] Theme bridge: TOML themes → CodeMirror extensions (chrome + syntax tokens)
+
+**Core Git Operations**
+
+- [x] Revert commits from graph context menu with confirmation
+- [x] Amend last commit via toggle in staging area (pre-fills HEAD message)
+- [x] Reset (soft/mixed/hard) from graph context menu with mode-specific warnings
+- [x] Worktree management: list, create, remove with sidebar + tab integration
+
+**Remote Management**
+
+- [x] Settings > Repository section: list, rename, remove remotes
+
+**Theme System Improvements**
+
+- [x] Simplified TOML themes: only [meta] + [colors] required (14 lines)
+- [x] Graph, editor, syntax colors auto-derived from 12 base colors
+- [x] Optional [graph] and [editor] overrides for fine-tuning
+- [x] Updated themes README for custom theme creators
+
+**UI Improvements**
+
+- [x] UI Scale setting (80%–150%) in Settings > Appearance
+- [x] Ref badges rotate through accent colors (hash-based)
+
+**Performance & Windows Fixes**
+
+- [x] All 22 CLI-backed commands non-blocking (async + spawn_blocking)
+- [x] CREATE_NO_WINDOW flag on Windows (no CMD flash)
+
+**Testing**
+
+- [x] Vitest coverage configuration
+- [x] 32 new Rust tests, 23 new frontend tests
+- [x] Shared ref-colors utility
+
+### Remaining (Phase 2)
+
+- 3-way merge editor (CodeMirror 6, IntelliJ-style 3-column layout)
+- Hunk + line-level staging
+- Blame + file history
+- Rebase (non-interactive)
+- Interactive rebase
+
+---
+
 ## MVP (v0.1.0) — Complete
 
 All Phase 1 features are implemented and tested.
@@ -93,23 +149,18 @@ All Phase 1 features are implemented and tested.
 
 ## Next Steps
 
-### Phase 2: Core Workflows
+### Phase 2: Core Workflows (remaining)
 
-- CodeMirror 6 engine (unified code viewer/editor replacing DiffViewer)
 - 3-way merge editor (CodeMirror 6, IntelliJ-style 3-column layout)
 - Hunk + line-level staging
 - Blame + file history
 - Rebase (non-interactive)
 - Interactive rebase
-- Revert
-- Amend commits
-- Reset (soft/mixed/hard)
-- Worktrees (sidebar + tab integration)
-- Remote management (list, rename, remove)
 
 ### Phase 3: Power Features + CLI Integration
 
 - glab / gh CLI for MR/PR operations and OAuth
+- info popup for process clicking in the process in the statusbar. History of the last 10 processes with their command, start time, duration, and exit code.
 - Submodules
 - Reflog viewer
 - Bisect
