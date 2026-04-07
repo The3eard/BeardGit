@@ -1,0 +1,18 @@
+[meta]
+id = "monokai-pro"
+name = "Monokai Pro"
+mode = "dark"
+
+[colors]
+bg-primary = "#2d2a2e"
+bg-secondary = "#221f22"
+bg-toolbar = "#403e41"
+text-primary = "#fcfcfa"
+text-secondary = "#939293"
+accent-blue = "#78dce8"
+accent-green = "#a9dc76"
+accent-orange = "#fc9867"
+accent-purple = "#ab9df2"
+accent-red = "#ff6188"
+border = "#403e41"
+selection = "#403e4166"

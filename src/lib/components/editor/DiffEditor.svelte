@@ -122,6 +122,10 @@
   .diff-filename {
     font-family: var(--font-mono);
     color: var(--accent-blue);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .diff-close {
@@ -132,6 +136,7 @@
     font-family: var(--font-icons);
     font-size: 12px;
     padding: 2px 4px;
+    flex-shrink: 0;
   }
 
   .diff-close:hover {

@@ -271,15 +271,15 @@
   .pipeline-list { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
   .list-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
 
-  .list-error { padding: 8px 12px; font-size: 12px; color: var(--accent-red); background: rgba(248,81,73,0.1); margin: 8px; border-radius: 4px; word-break: break-word; }
+  .list-error { padding: 8px 12px; font-size: 12px; color: var(--accent-red); background: var(--overlay-accent-red); margin: 8px; border-radius: 4px; word-break: break-word; }
   .list-loading-bar { padding: 0; }
-  .loading-bar-track { height: 2px; background: rgba(255,255,255,0.05); overflow: hidden; }
+  .loading-bar-track { height: 2px; background: var(--overlay-hover); overflow: hidden; }
   .loading-bar-fill { height: 100%; width: 40%; background: var(--accent-blue); border-radius: 1px; animation: loading-slide 1s ease-in-out infinite; }
   @keyframes loading-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
 
   .pipeline-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 10px 12px; background: none; border: none; border-bottom: 1px solid var(--border); color: var(--text-primary); cursor: pointer; text-align: left; }
-  .pipeline-row:hover { background: rgba(255,255,255,0.03); }
-  .pipeline-row.selected { background: rgba(88,166,255,0.08); }
+  .pipeline-row:hover { background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
+  .pipeline-row.selected { background: color-mix(in srgb, var(--accent-blue) 8%, transparent); }
 
   .row-status { display: flex; align-items: flex-start; gap: 8px; min-width: 90px; flex-shrink: 0; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -299,11 +299,11 @@
   .row-time { font-size: 11px; color: var(--text-secondary); white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
 
   .source-badge { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; flex-shrink: 0; }
-  .source-badge--branch { background: rgba(88,166,255,0.12); color: var(--accent-blue); }
-  .source-badge--mr { background: rgba(187,128,255,0.15); color: var(--accent-purple); }
-  .source-badge--schedule { background: rgba(210,153,34,0.15); color: var(--accent-orange); }
-  .source-badge--gray { background: rgba(139,148,158,0.15); color: var(--text-secondary); }
-  .source-badge--manual { background: rgba(187,128,255,0.12); color: var(--accent-purple); }
+  .source-badge--branch { background: var(--overlay-accent-blue); color: var(--accent-blue); }
+  .source-badge--mr { background: var(--overlay-accent-purple); color: var(--accent-purple); }
+  .source-badge--schedule { background: var(--overlay-accent-orange); color: var(--accent-orange); }
+  .source-badge--gray { background: var(--overlay-accent-muted); color: var(--text-secondary); }
+  .source-badge--manual { background: var(--overlay-accent-purple); color: var(--accent-purple); }
 
   .load-more-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -311,6 +311,6 @@
     border-top: 1px solid var(--border); color: var(--accent-blue);
     font-size: 12px; cursor: pointer;
   }
-  .load-more-btn:hover:not(:disabled) { background: rgba(88,166,255,0.05); }
+  .load-more-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-blue) 5%, transparent); }
   .load-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

@@ -18,17 +18,22 @@
   import TagCreateDialog from "./TagCreateDialog.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { formatRelativeTime } from "../../utils/time";
+  import { debounce } from "../../utils/debounce";
 
   let loadingMore = $state(false);
   let showCreateDialog = $state(false);
   let confirmDelete = $state<string | null>(null);
   let filterValue = $state("");
   let searchingBackend = $state(false);
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const debouncedBackendSearch = debounce(async (value: string) => {
+    if (value.length >= 2 && $filteredTags.length === 0) {
+      searchingBackend = true;
+      await searchTagsBackend(value);
+      searchingBackend = false;
+    }
+  }, 300);
 
   function handleFilterInput() {
-    if (debounceTimer) clearTimeout(debounceTimer);
-
     if (!filterValue) {
       tagFilter.set("");
       restorePreFilterTags();
@@ -37,15 +42,7 @@
     }
 
     tagFilter.set(filterValue);
-
-    // Debounce backend fallback
-    debounceTimer = setTimeout(async () => {
-      if (filterValue.length >= 2 && $filteredTags.length === 0) {
-        searchingBackend = true;
-        await searchTagsBackend(filterValue);
-        searchingBackend = false;
-      }
-    }, 300);
+    debouncedBackendSearch(filterValue);
   }
 
   async function handleLoadMore() {

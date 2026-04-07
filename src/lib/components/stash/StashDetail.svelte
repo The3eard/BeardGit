@@ -4,6 +4,7 @@
   import { stashes, selectedStashIndex, selectedStashDiff, doStashApplyFile } from "../../stores/stashes";
   import { activeTheme } from "../../stores/theme";
   import { fileDiffToContents } from "../../utils/diff";
+  import { formatDateTime } from "../../utils/time";
   import type { StashEntry } from "../../types";
 
   let selectedEntry = $derived<StashEntry | undefined>(
@@ -17,7 +18,7 @@
       <div class="stash-detail-title">{selectedEntry.message || `stash@{${selectedEntry.index}}`}</div>
       <div class="stash-detail-meta">
         <span>{m.stash_on_branch({ branch: selectedEntry.branch })}</span>
-        <span>{new Date(selectedEntry.timestamp * 1000).toLocaleString()}</span>
+        <span>{formatDateTime(selectedEntry.timestamp)}</span>
         <span class="stash-oid">{selectedEntry.oid.slice(0, 8)}</span>
       </div>
     </div>

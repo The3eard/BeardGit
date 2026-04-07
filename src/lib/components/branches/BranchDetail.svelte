@@ -185,6 +185,7 @@
 
   .branch-commits-panel {
     flex: 1;
+    min-width: 0;
     overflow-y: auto;
     padding: 16px;
   }

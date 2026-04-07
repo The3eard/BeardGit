@@ -1,0 +1,18 @@
+[meta]
+id = "one-dark"
+name = "One Dark Pro"
+mode = "dark"
+
+[colors]
+bg-primary = "#282c34"
+bg-secondary = "#21252b"
+bg-toolbar = "#2c313a"
+text-primary = "#abb2bf"
+text-secondary = "#5c6370"
+accent-blue = "#61afef"
+accent-green = "#98c379"
+accent-orange = "#e5c07b"
+accent-purple = "#c678dd"
+accent-red = "#e06c75"
+border = "#3e4451"
+selection = "#3e445166"

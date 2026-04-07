@@ -11,6 +11,7 @@
 
 use crate::dag::Dag;
 use serde::Serialize;
+use std::sync::Arc;
 
 /// Synchronization state of a lane segment relative to its remote tracking branch.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -221,9 +222,9 @@ impl GraphLayout {
     /// a new one is needed, the last lane is shared (edges may overlap but
     /// the graph stays compact and readable).
     pub fn compute(dag: &Dag) -> Self {
-        let mut active_lanes: Vec<Option<String>> = Vec::new();
+        let mut active_lanes: Vec<Option<Arc<str>>> = Vec::new();
         let mut layout_nodes: Vec<LayoutNode> = Vec::new();
-        let mut position: std::collections::HashMap<String, (usize, usize)> =
+        let mut position: std::collections::HashMap<Arc<str>, (usize, usize)> =
             std::collections::HashMap::new();
 
         // Tracks the row at which each lane's current segment began.
@@ -236,7 +237,7 @@ impl GraphLayout {
         let mut next_group_id: usize = 0;
         let mut lane_group: Vec<usize> = Vec::new();
 
-        let find_lane = |lanes: &[Option<String>], oid: &str| -> Option<usize> {
+        let find_lane = |lanes: &[Option<Arc<str>>], oid: &str| -> Option<usize> {
             lanes.iter().position(|slot| slot.as_deref() == Some(oid))
         };
 
@@ -253,12 +254,12 @@ impl GraphLayout {
         ///
         /// Returns `(lane_index, was_recycled)`.
         fn alloc_lane(
-            lanes: &mut Vec<Option<String>>,
+            lanes: &mut Vec<Option<Arc<str>>>,
             lane_start_row: &mut Vec<Option<usize>>,
             lane_segments: &mut Vec<LaneSegment>,
             lane_group: &mut Vec<usize>,
             next_group_id: &mut usize,
-            oid: String,
+            oid: Arc<str>,
             current_row: usize,
         ) -> (usize, bool) {
             // 1. Reuse a free slot
@@ -335,7 +336,7 @@ impl GraphLayout {
                     &mut lane_segments,
                     &mut lane_group,
                     &mut next_group_id,
-                    dag_node.oid.clone(),
+                    Arc::clone(&dag_node.oid),
                     row,
                 );
                 idx
@@ -355,7 +356,7 @@ impl GraphLayout {
                 next_group_id += 1;
             }
 
-            active_lanes[lane] = Some(dag_node.oid.clone());
+            active_lanes[lane] = Some(Arc::clone(&dag_node.oid));
 
             if dag_node.parents.is_empty() {
                 // Root commit: close this lane's segment
@@ -374,7 +375,7 @@ impl GraphLayout {
             } else {
                 for (i, parent_oid) in dag_node.parents.iter().enumerate() {
                     if i == 0 {
-                        active_lanes[lane] = Some(parent_oid.clone());
+                        active_lanes[lane] = Some(Arc::clone(parent_oid));
                     } else {
                         let already_assigned = find_lane(&active_lanes, parent_oid).is_some();
                         if !already_assigned {
@@ -384,7 +385,7 @@ impl GraphLayout {
                                 &mut lane_segments,
                                 &mut lane_group,
                                 &mut next_group_id,
-                                parent_oid.clone(),
+                                Arc::clone(parent_oid),
                                 row,
                             );
                         }
@@ -396,10 +397,10 @@ impl GraphLayout {
                 max_lanes = active_lanes.len();
             }
 
-            position.insert(dag_node.oid.clone(), (lane, row));
+            position.insert(Arc::clone(&dag_node.oid), (lane, row));
 
             layout_nodes.push(LayoutNode {
-                oid: dag_node.oid.clone(),
+                oid: dag_node.oid.to_string(),
                 lane,
                 row,
                 refs: dag_node.refs.clone(),

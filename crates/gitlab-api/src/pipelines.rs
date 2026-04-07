@@ -68,12 +68,15 @@ impl GitLabClient {
         pipeline_id: u64,
     ) -> Result<Vec<Stage>, ApiError> {
         let jobs = self.list_pipeline_jobs(project_id, pipeline_id).await?;
+        let mut stage_map: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
         let mut stages: Vec<Stage> = Vec::new();
 
         for job in jobs {
-            if let Some(stage) = stages.iter_mut().find(|s| s.name == job.stage) {
-                stage.jobs.push(job);
+            if let Some(&idx) = stage_map.get(&job.stage) {
+                stages[idx].jobs.push(job);
             } else {
+                stage_map.insert(job.stage.clone(), stages.len());
                 stages.push(Stage {
                     name: job.stage.clone(),
                     jobs: vec![job],

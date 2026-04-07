@@ -4,7 +4,7 @@
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import DiffEditor from "../editor/DiffEditor.svelte";
   import CommitDetail from "../detail/CommitDetail.svelte";
-  import { formatRelativeTime } from "../../utils/time";
+  import { formatRelativeTime, formatDate } from "../../utils/time";
   import { getFileAtCommit, getCommitDetail, getCommitFiles } from "../../api/tauri";
   import { navigateToCommit } from "../../stores/graph";
   import type { RawDiffContent } from "../../stores/graph";
@@ -33,14 +33,6 @@
     parentCommit = null;
     parentFiles = [];
   });
-
-  function formatDate(timestamp: number): string {
-    return new Date(timestamp * 1000).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
 
   let statsBarWidth = $derived.by(() => {
     if (!$selectedCommitStats) return { add: 50, del: 50 };

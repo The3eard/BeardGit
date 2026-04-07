@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 provider = { path = "../provider" }
+github-api = { path = "../github-api" }
 aes-gcm = { workspace = true }
 hkdf = { workspace = true }
 sha2 = { workspace = true }

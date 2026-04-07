@@ -1,0 +1,18 @@
+[meta]
+id = "tokyo-night"
+name = "Tokyo Night"
+mode = "dark"
+
+[colors]
+bg-primary = "#1a1b26"
+bg-secondary = "#16161e"
+bg-toolbar = "#24283b"
+text-primary = "#a9b1d6"
+text-secondary = "#565f89"
+accent-blue = "#7aa2f7"
+accent-green = "#9ece6a"
+accent-orange = "#e0af68"
+accent-purple = "#bb9af7"
+accent-red = "#f7768e"
+border = "#292e42"
+selection = "#283457"

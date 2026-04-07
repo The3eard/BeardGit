@@ -36,6 +36,12 @@
   --overlay-hover: rgba(255, 255, 255, 0.06);
   --overlay-active: rgba(255, 255, 255, 0.1);
   --overlay-shadow: rgba(0, 0, 0, 0.3);
+  --overlay-accent-blue: rgba(88, 166, 255, 0.12);
+  --overlay-accent-green: rgba(63, 185, 80, 0.12);
+  --overlay-accent-orange: rgba(240, 136, 62, 0.15);
+  --overlay-accent-purple: rgba(187, 128, 255, 0.15);
+  --overlay-accent-red: rgba(248, 81, 73, 0.1);
+  --overlay-accent-muted: rgba(139, 148, 158, 0.15);
   --border: rgba(240, 246, 252, 0.1);
 
   /* Graph lane colors */

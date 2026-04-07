@@ -38,6 +38,9 @@
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-opener": "^2"
   },
+  "overrides": {
+    "cookie": "^0.7.0"
+  },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3",
     "@sveltejs/kit": "^2",

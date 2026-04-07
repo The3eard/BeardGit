@@ -6,6 +6,7 @@
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import { hashString as _hashString } from "$lib/utils/ref-colors";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
+  import { formatDateTime } from "../../utils/time";
 
   let {
     commit,
@@ -60,17 +61,6 @@
 
   function handleFileSelect(path: string) {
     onFileClick?.(path);
-  }
-
-  function formatDate(timestamp: number): string {
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   }
 
   function formatRef(ref: string): string {
@@ -144,7 +134,7 @@
       </div>
       <div class="detail-row">
         <span class="detail-label">{m.commit_detail_date()}</span>
-        <span class="detail-value">{formatDate(commit.timestamp)}</span>
+        <span class="detail-value">{formatDateTime(commit.timestamp)}</span>
       </div>
     </div>
 

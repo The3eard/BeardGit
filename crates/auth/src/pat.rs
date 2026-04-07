@@ -100,7 +100,7 @@ pub async fn validate_github_pat(
     instance_url: &str,
     token: &str,
 ) -> Result<ProviderUser, AuthError> {
-    let base = normalize_github_url(instance_url);
+    let base = github_api::GitHubClient::normalize_url(instance_url);
     let url = format!("{}/user", base);
     let client = reqwest::Client::builder()
         .user_agent("BeardGit")
@@ -137,57 +137,4 @@ pub async fn validate_github_pat(
         avatar_url: user.avatar_url,
         profile_url: user.html_url,
     })
-}
-
-/// Normalize a GitHub instance URL so that `https://github.com` becomes
-/// `https://api.github.com`. Other hosts (GitHub Enterprise) are left unchanged.
-fn normalize_github_url(url: &str) -> String {
-    let trimmed = url.trim_end_matches('/');
-    let lower = trimmed.to_lowercase();
-    if lower == "https://github.com" || lower == "http://github.com" {
-        "https://api.github.com".to_string()
-    } else {
-        trimmed.to_string()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn normalize_github_url_rewrites_github_com() {
-        assert_eq!(
-            normalize_github_url("https://github.com"),
-            "https://api.github.com"
-        );
-        assert_eq!(
-            normalize_github_url("https://github.com/"),
-            "https://api.github.com"
-        );
-        assert_eq!(
-            normalize_github_url("https://GitHub.com"),
-            "https://api.github.com"
-        );
-        assert_eq!(
-            normalize_github_url("http://github.com"),
-            "https://api.github.com"
-        );
-    }
-
-    #[test]
-    fn normalize_github_url_preserves_api_url() {
-        assert_eq!(
-            normalize_github_url("https://api.github.com"),
-            "https://api.github.com"
-        );
-    }
-
-    #[test]
-    fn normalize_github_url_preserves_enterprise() {
-        assert_eq!(
-            normalize_github_url("https://github.example.com/api/v3"),
-            "https://github.example.com/api/v3"
-        );
-    }
 }

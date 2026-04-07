@@ -64,7 +64,7 @@ impl GitHubClient {
 
     /// Normalize a GitHub instance URL so that `https://github.com` becomes
     /// `https://api.github.com`. Other hosts (GitHub Enterprise) are left unchanged.
-    fn normalize_url(url: &str) -> String {
+    pub fn normalize_url(url: &str) -> String {
         let trimmed = url.trim_end_matches('/');
         let lower = trimmed.to_lowercase();
         if lower == "https://github.com" || lower == "http://github.com" {

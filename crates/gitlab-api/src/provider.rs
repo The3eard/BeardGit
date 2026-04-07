@@ -197,13 +197,15 @@ fn gitlab_job_to_ci_job(j: types::Job) -> CiJob {
 
 /// Group a flat list of GitLab jobs into stages, preserving order.
 fn group_jobs_by_stage(jobs: Vec<types::Job>) -> Vec<CiStage> {
+    let mut stage_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     let mut stages: Vec<CiStage> = Vec::new();
     for job in jobs {
         let stage_name = job.stage.clone();
         let ci_job = gitlab_job_to_ci_job(job);
-        if let Some(stage) = stages.iter_mut().find(|s| s.name == stage_name) {
-            stage.jobs.push(ci_job);
+        if let Some(&idx) = stage_map.get(&stage_name) {
+            stages[idx].jobs.push(ci_job);
         } else {
+            stage_map.insert(stage_name.clone(), stages.len());
             stages.push(CiStage {
                 name: stage_name,
                 jobs: vec![ci_job],

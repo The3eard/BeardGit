@@ -45,6 +45,30 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 - Activated during any conflict operation (merge, rebase, cherry-pick, revert)
 - Backend: `get_conflict_file_contents` reads ours/theirs/base from libgit2 index stages
 
+**10 New Built-in Themes**
+
+- Dracula, One Dark Pro, Catppuccin Mocha, Catppuccin Latte, Nord, Tokyo Night, Solarized Dark, Solarized Light, Gruvbox Dark, Monokai Pro
+- Total: 14 built-in themes (10 dark, 4 light)
+
+**Performance**
+
+- `Arc<str>` for commit OIDs in graph-builder — eliminates ~10 String clones per commit in the 100K+ commit hot path
+- GitLab stage grouping optimized from O(n²) to O(n) via HashMap index
+
+**Code Quality & Deduplication**
+
+- Replaced 30+ hardcoded CSS color values with theme variables across 5 components
+- Added `--overlay-accent-*` CSS variables for consistent overlay theming
+- Consolidated 3 inline date formatters into shared `formatDate()`/`formatDateTime()` utilities
+- Replaced manual debounce in TagList with shared `debounce()` utility
+- Deduplicated `normalize_github_url` (auth crate now imports from github-api)
+
+**Bug Fixes**
+
+- Branch commit list not taking full available width (missing `min-width: 0`)
+- Diff close button hidden when file path is too long (added overflow handling + `flex-shrink: 0`)
+- npm security audit: resolved high-severity vite vulnerability, overrode cookie to ^0.7.0 (0 vulnerabilities)
+
 ---
 
 ## [0.1.1] - 2026-04-07

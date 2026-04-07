@@ -1,0 +1,18 @@
+[meta]
+id = "nord"
+name = "Nord"
+mode = "dark"
+
+[colors]
+bg-primary = "#2e3440"
+bg-secondary = "#292e39"
+bg-toolbar = "#3b4252"
+text-primary = "#d8dee9"
+text-secondary = "#81a1c1"
+accent-blue = "#88c0d0"
+accent-green = "#a3be8c"
+accent-orange = "#ebcb8b"
+accent-purple = "#b48ead"
+accent-red = "#bf616a"
+border = "#3b4252"
+selection = "#434c5e66"

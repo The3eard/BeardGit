@@ -1,0 +1,18 @@
+[meta]
+id = "solarized-light"
+name = "Solarized Light"
+mode = "light"
+
+[colors]
+bg-primary = "#fdf6e3"
+bg-secondary = "#eee8d5"
+bg-toolbar = "#dfd9c5"
+text-primary = "#657b83"
+text-secondary = "#93a1a1"
+accent-blue = "#268bd2"
+accent-green = "#859900"
+accent-orange = "#b58900"
+accent-purple = "#6c71c4"
+accent-red = "#dc322f"
+border = "#eee8d5"
+selection = "#268bd233"

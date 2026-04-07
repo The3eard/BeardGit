@@ -8,6 +8,7 @@
 
 use serde::Serialize;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Raw commit data provided by the git engine before graph construction.
 ///
@@ -37,11 +38,11 @@ pub struct GraphCommit {
 #[derive(Debug, Clone, Serialize)]
 pub struct DagNode {
     /// Full SHA-1 object ID of the commit.
-    pub oid: String,
+    pub oid: Arc<str>,
     /// OIDs of this node's parents (empty for root commits).
-    pub parents: Vec<String>,
+    pub parents: Vec<Arc<str>>,
     /// OIDs of commits that have this node as a parent.
-    pub children: Vec<String>,
+    pub children: Vec<Arc<str>>,
     /// Branch and tag names pointing at this commit.
     pub refs: Vec<String>,
     /// First line of the commit message.
@@ -67,9 +68,9 @@ pub struct DagNode {
 #[derive(Debug, Default)]
 pub struct Dag {
     // Ordered list of node oids (insertion order from commits)
-    order: Vec<String>,
+    order: Vec<Arc<str>>,
     // Map from oid to node
-    nodes: HashMap<String, DagNode>,
+    nodes: HashMap<Arc<str>, DagNode>,
 }
 
 impl Dag {
@@ -84,9 +85,15 @@ impl Dag {
 
         // Pass 1 — create nodes
         for (index, commit) in commits.iter().enumerate() {
+            let oid: Arc<str> = commit.oid.as_str().into();
+            let parents: Vec<Arc<str>> = commit
+                .parents
+                .iter()
+                .map(|s| Arc::from(s.as_str()))
+                .collect();
             let node = DagNode {
-                oid: commit.oid.clone(),
-                parents: commit.parents.clone(),
+                oid: Arc::clone(&oid),
+                parents: parents.clone(),
                 children: Vec::new(),
                 refs: commit.refs.clone(),
                 summary: commit.summary.clone(),
@@ -94,29 +101,29 @@ impl Dag {
                 email: commit.email.clone(),
                 timestamp: commit.timestamp,
                 index,
-                is_merge: commit.parents.len() > 1,
-                is_root: commit.parents.is_empty(),
+                is_merge: parents.len() > 1,
+                is_root: parents.is_empty(),
             };
-            dag.order.push(commit.oid.clone());
-            dag.nodes.insert(commit.oid.clone(), node);
+            dag.order.push(Arc::clone(&oid));
+            dag.nodes.insert(oid, node);
         }
 
         // Pass 2 — populate children
         // Collect edges first to avoid borrow-checker issues
-        let edges: Vec<(String, String)> = dag
+        let edges: Vec<(Arc<str>, Arc<str>)> = dag
             .order
             .iter()
             .flat_map(|oid| {
-                let node = &dag.nodes[oid];
+                let node = &dag.nodes[oid.as_ref()];
                 node.parents
                     .iter()
-                    .map(|parent_oid| (parent_oid.clone(), oid.clone()))
+                    .map(|parent_oid| (Arc::clone(parent_oid), Arc::clone(oid)))
                     .collect::<Vec<_>>()
             })
             .collect();
 
         for (parent_oid, child_oid) in edges {
-            if let Some(parent_node) = dag.nodes.get_mut(&parent_oid) {
+            if let Some(parent_node) = dag.nodes.get_mut(parent_oid.as_ref()) {
                 parent_node.children.push(child_oid);
             }
         }
@@ -126,7 +133,10 @@ impl Dag {
 
     /// Ordered slice of all nodes.
     pub fn nodes(&self) -> Vec<&DagNode> {
-        self.order.iter().map(|oid| &self.nodes[oid]).collect()
+        self.order
+            .iter()
+            .map(|oid| &self.nodes[oid.as_ref()])
+            .collect()
     }
 
     /// Returns the number of nodes in the DAG.
@@ -152,6 +162,10 @@ impl Dag {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn arc_strs(v: &[Arc<str>]) -> Vec<&str> {
+        v.iter().map(|s| s.as_ref()).collect()
+    }
 
     fn commit(oid: &str, parents: &[&str], refs: &[&str]) -> GraphCommit {
         GraphCommit {
@@ -180,12 +194,12 @@ mod tests {
         let a = dag.get("a").unwrap();
         assert!(a.is_root);
         assert!(!a.is_merge);
-        assert_eq!(a.children, vec!["b"]);
+        assert_eq!(arc_strs(&a.children), vec!["b"]);
 
         let c = dag.get("c").unwrap();
         assert!(c.refs.contains(&"HEAD".to_string()));
         assert!(c.refs.contains(&"main".to_string()));
-        assert_eq!(c.parents, vec!["b"]);
+        assert_eq!(arc_strs(&c.parents), vec!["b"]);
         assert!(c.children.is_empty());
     }
 
@@ -219,10 +233,10 @@ mod tests {
         let dag = Dag::build(&commits);
 
         let a = dag.get("a").unwrap();
-        assert_eq!(a.children, vec!["b"], "a should list b as child");
+        assert_eq!(arc_strs(&a.children), vec!["b"], "a should list b as child");
 
         let b = dag.get("b").unwrap();
         assert!(b.children.is_empty(), "b has no children");
-        assert_eq!(b.parents, vec!["a"]);
+        assert_eq!(arc_strs(&b.parents), vec!["a"]);
     }
 }

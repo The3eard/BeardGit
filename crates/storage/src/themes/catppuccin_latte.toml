@@ -1,0 +1,18 @@
+[meta]
+id = "catppuccin-latte"
+name = "Catppuccin Latte"
+mode = "light"
+
+[colors]
+bg-primary = "#eff1f5"
+bg-secondary = "#e6e9ef"
+bg-toolbar = "#dce0e8"
+text-primary = "#4c4f69"
+text-secondary = "#6c6f85"
+accent-blue = "#1e66f5"
+accent-green = "#40a02b"
+accent-orange = "#fe640b"
+accent-purple = "#8839ef"
+accent-red = "#d20f39"
+border = "#ccd0da"
+selection = "#1e66f533"

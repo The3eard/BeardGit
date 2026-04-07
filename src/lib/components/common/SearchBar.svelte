@@ -51,11 +51,11 @@
 
   function tagColor(type: string): string {
     switch (type) {
-      case "branch": return "#58a6ff";
-      case "user": return "#3fb950";
-      case "commit": return "#f0883e";
-      case "status": return "#bb80ff";
-      default: return "#8b949e";
+      case "branch": return "var(--accent-blue)";
+      case "user": return "var(--accent-green)";
+      case "commit": return "var(--accent-orange)";
+      case "status": return "var(--accent-purple)";
+      default: return "var(--text-secondary)";
     }
   }
 </script>
@@ -124,8 +124,8 @@
     border-radius: 3px;
     font-size: 11px;
     line-height: 1.4;
-    background: rgba(139, 148, 158, 0.15);
-    color: #8b949e;
+    background: var(--overlay-accent-muted);
+    color: var(--text-secondary);
     white-space: nowrap;
     max-width: 200px;
   }

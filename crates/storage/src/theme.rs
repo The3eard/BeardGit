@@ -17,6 +17,16 @@ const GITHUB_DARK_TOML: &str = include_str!("themes/github_dark.toml");
 const GITHUB_LIGHT_TOML: &str = include_str!("themes/github_light.toml");
 const GITLAB_DARK_TOML: &str = include_str!("themes/gitlab_dark.toml");
 const GITLAB_LIGHT_TOML: &str = include_str!("themes/gitlab_light.toml");
+const DRACULA_TOML: &str = include_str!("themes/dracula.toml");
+const ONE_DARK_TOML: &str = include_str!("themes/one_dark.toml");
+const CATPPUCCIN_MOCHA_TOML: &str = include_str!("themes/catppuccin_mocha.toml");
+const CATPPUCCIN_LATTE_TOML: &str = include_str!("themes/catppuccin_latte.toml");
+const NORD_TOML: &str = include_str!("themes/nord.toml");
+const TOKYO_NIGHT_TOML: &str = include_str!("themes/tokyo_night.toml");
+const SOLARIZED_DARK_TOML: &str = include_str!("themes/solarized_dark.toml");
+const SOLARIZED_LIGHT_TOML: &str = include_str!("themes/solarized_light.toml");
+const GRUVBOX_DARK_TOML: &str = include_str!("themes/gruvbox_dark.toml");
+const MONOKAI_PRO_TOML: &str = include_str!("themes/monokai_pro.toml");
 
 /// The default theme used when the requested theme is not found.
 pub const DEFAULT_THEME_ID: &str = "github-dark";
@@ -782,6 +792,16 @@ pub fn load_builtin_themes() -> Vec<Theme> {
         GITHUB_LIGHT_TOML,
         GITLAB_DARK_TOML,
         GITLAB_LIGHT_TOML,
+        DRACULA_TOML,
+        ONE_DARK_TOML,
+        CATPPUCCIN_MOCHA_TOML,
+        CATPPUCCIN_LATTE_TOML,
+        NORD_TOML,
+        TOKYO_NIGHT_TOML,
+        SOLARIZED_DARK_TOML,
+        SOLARIZED_LIGHT_TOML,
+        GRUVBOX_DARK_TOML,
+        MONOKAI_PRO_TOML,
     ]
     .iter()
     .filter_map(|src| parse_theme(src).ok())
@@ -1025,7 +1045,7 @@ lane-colors = ["#0000ff"]
     #[test]
     fn test_load_builtin_themes() {
         let themes = load_builtin_themes();
-        assert_eq!(themes.len(), 4);
+        assert_eq!(themes.len(), 14);
     }
 
     #[test]
@@ -1033,8 +1053,8 @@ lane-colors = ["#0000ff"]
         let themes = load_builtin_themes();
         let dark_count = themes.iter().filter(|t| t.meta.mode == "dark").count();
         let light_count = themes.iter().filter(|t| t.meta.mode == "light").count();
-        assert_eq!(dark_count, 2);
-        assert_eq!(light_count, 2);
+        assert_eq!(dark_count, 10);
+        assert_eq!(light_count, 4);
     }
 
     #[test]

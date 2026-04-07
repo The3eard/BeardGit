@@ -180,7 +180,7 @@
   }
 
   .state-message.error {
-    color: #f85149;
+    color: var(--accent-red);
   }
 
   .remotes-list {
@@ -216,7 +216,7 @@
     font-size: 13px;
     font-weight: 600;
     font-family: var(--font-mono);
-    color: #3fb950;
+    color: var(--accent-green);
   }
 
   .remote-url {
@@ -254,12 +254,12 @@
   }
 
   .rename-input:focus {
-    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-blue) 20%, transparent);
   }
 
   .inline-error {
     font-size: 11px;
-    color: #f85149;
+    color: var(--accent-red);
     flex-shrink: 0;
   }
 
@@ -275,7 +275,7 @@
 
   .btn-primary {
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border-color: var(--accent-blue);
   }
 
@@ -284,22 +284,22 @@
   }
 
   .btn-ghost {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--overlay-hover);
     color: var(--text-primary);
   }
 
   .btn-ghost:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--overlay-active);
   }
 
   .btn-danger-ghost {
     background: transparent;
-    color: #f85149;
+    color: var(--accent-red);
     border-color: transparent;
   }
 
   .btn-danger-ghost:hover {
-    background: rgba(248, 81, 73, 0.1);
-    border-color: rgba(248, 81, 73, 0.3);
+    background: var(--overlay-accent-red);
+    border-color: color-mix(in srgb, var(--accent-red) 30%, transparent);
   }
 </style>

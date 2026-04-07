@@ -22,3 +22,29 @@ export function formatRelativeTime(dateStr: string | null | undefined): string {
   const timestamp = date.getTime() / 1000;
   return formatRelativeTimeUnix(timestamp);
 }
+
+/**
+ * Format a Unix timestamp (seconds) as a short absolute date.
+ * Example: "Apr 7, 2026"
+ */
+export function formatDate(timestamp: number): string {
+  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * Format a Unix timestamp (seconds) as a date with time.
+ * Example: "Apr 7, 2026, 10:30 AM"
+ */
+export function formatDateTime(timestamp: number): string {
+  return new Date(timestamp * 1000).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
