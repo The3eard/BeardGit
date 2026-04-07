@@ -12,9 +12,11 @@
   let {
     files,
     onSelect,
+    onContextMenu,
   }: {
     files: CommitFileChange[];
     onSelect?: (path: string) => void;
+    onContextMenu?: (e: MouseEvent, path: string) => void;
   } = $props();
 
   let selectedPath = $state<string | null>(null);
@@ -69,6 +71,7 @@
           class="file-item"
           class:selected={selectedPath === file.path}
           onclick={() => handleClick(file.path)}
+          oncontextmenu={onContextMenu ? (e) => onContextMenu!(e, file.path) : undefined}
         >
           <span class="file-status {fileStatusClass(file.status)}">{fileStatusIcon(file.status)}</span>
           <span class="file-path">

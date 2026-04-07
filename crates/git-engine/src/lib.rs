@@ -12,16 +12,19 @@
 //! - [`diff`] — diff working directory, index, and individual commits
 //! - [`conflict`] — conflict detection, status, and abort/continue operations
 //! - [`file_content`] — raw file content retrieval for CodeMirror diff views
+//! - [`blame`] — per-line blame and file history with rename tracking
 //! - [`cli`] — shell-out wrapper for git CLI operations
 //! - [`worktree`] — list, create, and remove linked worktrees
 //! - [`error`] — unified error type
 
+pub mod blame;
 pub mod cli;
 pub mod commits;
 pub mod conflict;
 pub mod diff;
 pub mod error;
 pub mod file_content;
+pub mod hunk_staging;
 pub mod operations;
 pub mod remote;
 pub mod repository;
@@ -29,11 +32,13 @@ pub mod reset;
 pub mod staging;
 pub mod worktree;
 
+pub use blame::{BlameLine, FileHistoryEntry};
 pub use cli::{CommitStats, GitCliResult, StashEntry, TagInfo};
 pub use commits::CommitInfo;
 pub use conflict::{ConflictState, ConflictStatus};
 pub use diff::{CommitFileChange, DiffHunkInfo, DiffLineInfo, FileDiff};
 pub use error::GitError;
+pub use hunk_staging::HunkSelection;
 pub use repository::{BranchInfo, RepoStatus, Repository, StatusSummary};
 pub use staging::FileStatus;
 pub use worktree::WorktreeInfo;

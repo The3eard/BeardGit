@@ -391,3 +391,41 @@ export interface ThemeData {
   graph: ThemeGraphData;
   editor: ThemeEditorData | null;
 }
+
+// ---------------------------------------------------------------------------
+// Blame & file history
+// ---------------------------------------------------------------------------
+
+/** A single line of blame output with commit attribution. */
+export interface BlameLine {
+  line_num: number;
+  content: string;
+  oid: string;
+  author: string;
+  email: string;
+  timestamp: number;
+  summary: string;
+}
+
+/** An entry in a file's commit history with diff stats. */
+export interface FileHistoryEntry {
+  oid: string;
+  message: string;
+  author: string;
+  date: string;
+  additions: number;
+  deletions: number;
+  old_path: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Hunk-level staging
+// ---------------------------------------------------------------------------
+
+/** Describes which hunks/lines the user selected for staging/unstaging. */
+export interface HunkSelection {
+  /** Index into the FileDiff.hunks array. */
+  hunk_index: number;
+  /** If null, the entire hunk is selected. Otherwise inclusive 0-based line ranges within the hunk. */
+  line_ranges: [number, number][] | null;
+}

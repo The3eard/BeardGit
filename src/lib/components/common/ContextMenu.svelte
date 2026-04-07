@@ -1,7 +1,7 @@
 <script lang="ts">
   export interface MenuItem {
-    label: string;
-    action: () => void;
+    label?: string;
+    action?: () => void;
     separator?: boolean;
     disabled?: boolean;
   }
@@ -22,7 +22,7 @@
 
   function handleClick(item: MenuItem) {
     if (item.disabled) return;
-    item.action();
+    item.action?.();
     onClose();
   }
 

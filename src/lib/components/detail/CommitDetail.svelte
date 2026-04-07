@@ -2,7 +2,10 @@
   import type { CommitInfo, CommitFileChange } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import FileChangeList from "../common/FileChangeList.svelte";
+  import ContextMenu from "../common/ContextMenu.svelte";
+  import type { MenuItem } from "../common/ContextMenu.svelte";
   import { hashString as _hashString } from "$lib/utils/ref-colors";
+  import { openBlame, blameActiveTab } from "$lib/stores/blame";
 
   let {
     commit,
@@ -11,6 +14,7 @@
     onNavigateToGraph,
     onClose,
     onFileClick,
+    onNavigate,
   }: {
     commit: CommitInfo;
     files?: CommitFileChange[];
@@ -18,7 +22,41 @@
     onNavigateToGraph?: (oid: string) => void;
     onClose?: () => void;
     onFileClick?: (path: string) => void;
+    onNavigate?: (view: string) => void;
   } = $props();
+
+  let ctxVisible = $state(false);
+  let ctxX = $state(0);
+  let ctxY = $state(0);
+  let ctxFile = $state<string | null>(null);
+
+  function openFileContextMenu(e: MouseEvent, path: string) {
+    e.preventDefault();
+    ctxFile = path;
+    ctxX = e.clientX;
+    ctxY = e.clientY;
+    ctxVisible = true;
+  }
+
+  function buildFileContextItems(path: string): MenuItem[] {
+    return [
+      {
+        label: m.context_blame(),
+        action: () => {
+          openBlame(path, commit.oid);
+          onNavigate?.('blame');
+        },
+      },
+      {
+        label: m.context_file_history(),
+        action: () => {
+          openBlame(path, commit.oid);
+          blameActiveTab.set('history');
+          onNavigate?.('blame');
+        },
+      },
+    ];
+  }
 
   function handleFileSelect(path: string) {
     onFileClick?.(path);
@@ -146,11 +184,19 @@
     {#if files.length > 0}
       <div class="detail-section">
         <div class="detail-label">{m.commit_detail_files({ count: String(files.length) })}</div>
-        <FileChangeList files={files} onSelect={handleFileSelect} />
+        <FileChangeList files={files} onSelect={handleFileSelect} onContextMenu={openFileContextMenu} />
       </div>
     {/if}
   </div>
 </aside>
+
+<ContextMenu
+  items={ctxFile ? buildFileContextItems(ctxFile) : []}
+  x={ctxX}
+  y={ctxY}
+  visible={ctxVisible}
+  onClose={() => (ctxVisible = false)}
+/>
 
 <style>
   .commit-detail {

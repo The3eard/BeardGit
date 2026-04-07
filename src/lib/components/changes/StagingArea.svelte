@@ -5,7 +5,13 @@
   import * as m from "$lib/paraglide/messages";
   import { amendCommit, getHeadMessage } from "$lib/api/tauri";
 
-  let { onFileClick }: { onFileClick?: (path: string, staged: boolean) => void } = $props();
+  let {
+    onFileClick,
+    onNavigate,
+  }: {
+    onFileClick?: (path: string, staged: boolean) => void;
+    onNavigate?: (view: string) => void;
+  } = $props();
 
   let message = $state("");
   let isAmend = $state(false);
@@ -52,6 +58,7 @@
     isStaged={true}
     onUnstage={(paths) => unstageFiles(paths)}
     onFileClick={(path) => onFileClick?.(path, true)}
+    onNavigate={onNavigate}
   />
 
   <div class="commit-box">
@@ -84,6 +91,7 @@
     isStaged={false}
     onStage={(paths) => stageFiles(paths)}
     onFileClick={(path) => onFileClick?.(path, false)}
+    onNavigate={onNavigate}
   />
 </div>
 

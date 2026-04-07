@@ -76,6 +76,9 @@ pub fn run() {
             app_core::commands::unstage_files,
             app_core::commands::stage_all,
             app_core::commands::unstage_all,
+            app_core::commands::stage_hunks,
+            app_core::commands::unstage_hunks,
+            app_core::commands::discard_hunks,
             app_core::commands::create_commit,
             app_core::commands::create_branch,
             app_core::commands::delete_branch,
@@ -145,6 +148,8 @@ pub fn run() {
             app_core::commands::list_worktrees,
             app_core::commands::create_worktree,
             app_core::commands::remove_worktree,
+            app_core::commands::blame_file,
+            app_core::commands::file_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

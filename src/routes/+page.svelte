@@ -8,6 +8,7 @@
   import CommitDetail from "$lib/components/detail/CommitDetail.svelte";
   import StagingArea from "$lib/components/changes/StagingArea.svelte";
   import DiffEditor from "$lib/components/editor/DiffEditor.svelte";
+  import StagingDiffEditor from "$lib/components/editor/StagingDiffEditor.svelte";
   import SettingsPage from "$lib/components/settings/SettingsPage.svelte";
   import PipelineList from "$lib/components/pipeline/PipelineList.svelte";
   import PipelineDetail from "$lib/components/pipeline/PipelineDetail.svelte";
@@ -27,13 +28,25 @@
   import TagView from "$lib/components/tags/TagView.svelte";
   import BranchView from "$lib/components/branches/BranchView.svelte";
   import WorktreeList from "$lib/components/worktrees/WorktreeList.svelte";
+  import BlameView from "$lib/components/blame/BlameView.svelte";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
+  import { blamePreviousView } from "$lib/stores/blame";
   import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
+  import { unstagedDiffs, stagedDiffs } from "$lib/stores/changes";
+  import type { FileDiff } from "$lib/types";
   import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
 
   let activeView = $state("graph");
   let selectedDiff = $state<RawDiffContent | null>(null);
+  let selectedStagingFile = $state<{ filename: string; isStaged: boolean } | null>(null);
+
+  /** Look up the FileDiff for the currently selected staging file from stores. */
+  let selectedStagingDiff = $derived.by<FileDiff | null>(() => {
+    if (!selectedStagingFile) return null;
+    const diffs = selectedStagingFile.isStaged ? $stagedDiffs : $unstagedDiffs;
+    return diffs.find(d => d.path === selectedStagingFile!.filename) ?? null;
+  });
   let showJobLog = $state(false);
   let diffPanelHeight = $state(250);
   let pipelineSidebarWidth = $state(360);
@@ -123,8 +136,13 @@
   });
 
   function handleNavigate(view: string) {
+    // Store the previous view before switching so blame can navigate back.
+    if (view === "blame") {
+      blamePreviousView.set(activeView);
+    }
     activeView = view;
     selectedDiff = null;
+    selectedStagingFile = null;
     showJobLog = false;
   }
 
@@ -132,26 +150,8 @@
     showJobLog = true;
   }
 
-  async function handleFileClick(path: string, staged: boolean) {
-    try {
-      if (staged) {
-        // Staged: old = HEAD, new = index
-        const [oldContent, newContent] = await Promise.all([
-          getFileAtCommit("HEAD", path).catch(() => ""),
-          getFileIndex(path).catch(() => ""),
-        ]);
-        selectedDiff = { oldContent, newContent, filename: path };
-      } else {
-        // Unstaged: old = index, new = workdir
-        const [oldContent, newContent] = await Promise.all([
-          getFileIndex(path).catch(() => ""),
-          getFileWorkdir(path).catch(() => ""),
-        ]);
-        selectedDiff = { oldContent, newContent, filename: path };
-      }
-    } catch {
-      selectedDiff = null;
-    }
+  function handleFileClick(path: string, staged: boolean) {
+    selectedStagingFile = { filename: path, isStaged: staged };
   }
 
   async function handleBranchFileClick(path: string) {
@@ -226,6 +226,8 @@
         </div>
       {:else if activeView === "worktrees"}
         <WorktreeList />
+      {:else if activeView === "blame"}
+        <BlameView onNavigateBack={(view) => { activeView = view; }} />
       {:else if activeView === "merge-requests"}
         <div class="wip-placeholder">
           <div class="wip-icon">🚧</div>
@@ -246,16 +248,15 @@
         {#if activeView === "changes"}
           <div class="changes-layout">
             <div class="changes-sidebar">
-              <StagingArea onFileClick={handleFileClick} />
+              <StagingArea onFileClick={handleFileClick} onNavigate={handleNavigate} />
             </div>
             <div class="changes-diff">
-              {#if selectedDiff}
-                <DiffEditor
-                  oldContent={selectedDiff.oldContent}
-                  newContent={selectedDiff.newContent}
-                  filename={selectedDiff.filename}
-                  editorTheme={$activeTheme?.editor}
-                  isDark={$activeTheme?.meta.mode !== 'light'}
+              {#if selectedStagingDiff && selectedStagingFile}
+                <StagingDiffEditor
+                  diff={selectedStagingDiff}
+                  isStaged={selectedStagingFile.isStaged}
+                  filename={selectedStagingFile.filename}
+                  onClose={() => { selectedStagingFile = null; }}
                 />
               {:else}
                 <div class="no-diff">
@@ -327,6 +328,7 @@
           }}
           onFileClick={(path) => openFileDiff($selectedCommit!.oid, path)}
           onNavigateToGraph={(oid) => navigateToCommit(oid)}
+          onNavigate={handleNavigate}
         />
       </div>
     {/if}
@@ -340,6 +342,7 @@
           onNavigateToGraph={(oid) => navigateToCommit(oid)}
           onClose={() => closeBranchCommitDetail()}
           onFileClick={handleBranchFileClick}
+          onNavigate={handleNavigate}
         />
       </div>
     {/if}

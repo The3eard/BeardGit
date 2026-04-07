@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ThemeMeta, ThemeData, WorktreeInfo } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -91,6 +91,21 @@ export async function stageAll(): Promise<void> {
 
 export async function unstageAll(): Promise<void> {
   return invoke("unstage_all");
+}
+
+/** Stage selected hunks or individual lines from the working directory. */
+export async function stageHunks(path: string, selections: HunkSelection[]): Promise<void> {
+  return invoke<void>("stage_hunks", { path, selections });
+}
+
+/** Unstage selected hunks or individual lines from the index. */
+export async function unstageHunks(path: string, selections: HunkSelection[]): Promise<void> {
+  return invoke<void>("unstage_hunks", { path, selections });
+}
+
+/** Discard selected hunks or individual lines from the working directory. */
+export async function discardHunks(path: string, selections: HunkSelection[]): Promise<void> {
+  return invoke<void>("discard_hunks", { path, selections });
 }
 
 export async function createCommit(message: string, name: string, email: string): Promise<string> {
@@ -437,4 +452,18 @@ export async function createWorktree(path: string, branch: string, createBranch:
  */
 export async function removeWorktree(path: string, force: boolean): Promise<void> {
   return invoke<void>("remove_worktree", { path, force });
+}
+
+// ---------------------------------------------------------------------------
+// Blame & file history
+// ---------------------------------------------------------------------------
+
+/** Get per-line blame information for a file, optionally at a specific commit. */
+export async function blameFile(path: string, oid?: string): Promise<BlameLine[]> {
+  return invoke<BlameLine[]>("blame_file", { path, oid: oid ?? null });
+}
+
+/** Get the commit history for a specific file with rename tracking. */
+export async function fileHistory(path: string, limit?: number): Promise<FileHistoryEntry[]> {
+  return invoke<FileHistoryEntry[]>("file_history", { path, limit: limit ?? null });
 }

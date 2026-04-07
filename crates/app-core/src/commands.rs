@@ -513,6 +513,57 @@ pub fn unstage_all(state: State<'_, AppState>) -> Result<(), String> {
     with_active_repo(&state, |repo| repo.unstage_all().map_err(|e| e.to_string()))
 }
 
+/// Stage selected hunks or individual lines from the working directory.
+///
+/// # Parameters
+/// - `path` – Workspace-relative file path.
+/// - `selections` – Which hunks/lines to stage.
+#[tauri::command]
+pub fn stage_hunks(
+    path: String,
+    selections: Vec<git_engine::HunkSelection>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.stage_hunks(&path, &selections)
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Unstage selected hunks or individual lines from the index.
+///
+/// # Parameters
+/// - `path` – Workspace-relative file path.
+/// - `selections` – Which hunks/lines to unstage.
+#[tauri::command]
+pub fn unstage_hunks(
+    path: String,
+    selections: Vec<git_engine::HunkSelection>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.unstage_hunks(&path, &selections)
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Discard selected hunks or individual lines from the working directory.
+///
+/// # Parameters
+/// - `path` – Workspace-relative file path.
+/// - `selections` – Which hunks/lines to discard.
+#[tauri::command]
+pub fn discard_hunks(
+    path: String,
+    selections: Vec<git_engine::HunkSelection>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.discard_hunks(&path, &selections)
+            .map_err(|e| e.to_string())
+    })
+}
+
 /// Create a new commit from the current index with the given message and author.
 ///
 /// # Parameters
@@ -2359,6 +2410,51 @@ pub async fn remove_worktree(
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.remove_worktree(&path, force)
             .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+// ---------------------------------------------------------------------------
+// Blame & file history
+// ---------------------------------------------------------------------------
+
+/// Get per-line blame information for a file, optionally at a specific commit.
+///
+/// # Parameters
+/// - `path` – Repository-relative file path to blame.
+/// - `oid` – Optional commit OID; when `None`, blame is computed at HEAD.
+#[tauri::command]
+pub async fn blame_file(
+    path: String,
+    oid: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::BlameLine>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.blame_file(&path, oid.as_deref())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Get the commit history for a specific file with rename tracking.
+///
+/// # Parameters
+/// - `path` – Repository-relative file path.
+/// - `limit` – Maximum number of entries to return (default 100).
+#[tauri::command]
+pub async fn file_history(
+    path: String,
+    limit: Option<u32>,
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::FileHistoryEntry>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.file_history(&path, limit).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?

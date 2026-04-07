@@ -3,6 +3,7 @@
   import * as m from "$lib/paraglide/messages";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
+  import { openBlame, blameActiveTab } from "$lib/stores/blame";
 
   let {
     files,
@@ -11,6 +12,7 @@
     onUnstage,
     isStaged = false,
     onFileClick,
+    onNavigate,
   }: {
     files: FileStatus[];
     title: string;
@@ -18,6 +20,7 @@
     onUnstage?: (paths: string[]) => void;
     isStaged?: boolean;
     onFileClick?: (path: string) => void;
+    onNavigate?: (view: string) => void;
   } = $props();
 
   let contextMenuVisible = $state(false);
@@ -65,6 +68,23 @@
     items.push({
       label: m.changes_menu_copy_path(),
       action: () => navigator.clipboard.writeText(filePath),
+    });
+
+    items.push({ separator: true });
+    items.push({
+      label: m.context_blame(),
+      action: () => {
+        openBlame(filePath);
+        onNavigate?.('blame');
+      },
+    });
+    items.push({
+      label: m.context_file_history(),
+      action: () => {
+        openBlame(filePath);
+        blameActiveTab.set('history');
+        onNavigate?.('blame');
+      },
     });
 
     return items;
