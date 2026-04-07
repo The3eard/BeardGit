@@ -2382,19 +2382,14 @@ pub fn resolve_startup_theme(app: AppHandle, _state: State<'_, AppState>) -> sto
 
 /// Given a base theme id and whether the OS is in dark mode, resolve the correct variant.
 ///
-/// E.g. `"github-dark"` + light mode → `"github-light"`.
+/// Delegates to `storage::theme::resolve_theme_for_mode` which uses the
+/// `complementary` field from theme metadata instead of string replacement.
 pub fn resolve_theme_for_mode(base: &str, os_dark: bool) -> String {
-    if os_dark {
-        if base.ends_with("-light") {
-            base.replace("-light", "-dark")
-        } else {
-            base.to_string()
-        }
-    } else if base.ends_with("-dark") {
-        base.replace("-dark", "-light")
-    } else {
-        base.to_string()
-    }
+    let config_dir = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("beardgit");
+    let themes_dir = config_dir.join("themes");
+    storage::theme::resolve_theme_for_mode(base, os_dark, &themes_dir)
 }
 
 // ---------------------------------------------------------------------------

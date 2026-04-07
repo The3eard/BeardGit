@@ -2,6 +2,7 @@
 id = "gitlab-light"
 name = "GitLab Light"
 mode = "light"
+complementary = "gitlab-dark"
 
 [colors]
 bg-primary = "#ffffff"

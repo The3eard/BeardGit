@@ -334,6 +334,7 @@ export interface ThemeMeta {
   id: string;
   name: string;
   mode: string;
+  complementary: string | null;
 }
 
 export interface ThemeColors {

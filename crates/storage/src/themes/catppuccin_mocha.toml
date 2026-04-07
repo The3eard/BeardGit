@@ -2,6 +2,7 @@
 id = "catppuccin-mocha"
 name = "Catppuccin Mocha"
 mode = "dark"
+complementary = "catppuccin-latte"
 
 [colors]
 bg-primary = "#1e1e2e"

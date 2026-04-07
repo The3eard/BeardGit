@@ -2,6 +2,7 @@
 id = "solarized-dark"
 name = "Solarized Dark"
 mode = "dark"
+complementary = "solarized-light"
 
 [colors]
 bg-primary = "#002b36"

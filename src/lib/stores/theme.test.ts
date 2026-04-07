@@ -52,7 +52,7 @@ function computeOverlays(mode: string): Record<string, string> {
 }
 
 const MOCK_THEME: ThemeData = {
-  meta: { id: "dracula", name: "Dracula", mode: "dark" },
+  meta: { id: "dracula", name: "Dracula", mode: "dark", complementary: null },
   colors: {
     bg_primary: "#282a36",
     bg_secondary: "#21222c",

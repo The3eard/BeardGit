@@ -2,6 +2,7 @@
 id = "github-light"
 name = "GitHub Light"
 mode = "light"
+complementary = "github-dark"
 
 [colors]
 bg-primary = "#ffffff"

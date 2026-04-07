@@ -30,6 +30,10 @@ const MONOKAI_PRO_TOML: &str = include_str!("themes/monokai_pro.toml");
 
 /// The default theme used when the requested theme is not found.
 pub const DEFAULT_THEME_ID: &str = "github-dark";
+/// Default dark theme for fallback when no complementary pair exists.
+pub const DEFAULT_DARK_THEME_ID: &str = "github-dark";
+/// Default light theme for fallback when no complementary pair exists.
+pub const DEFAULT_LIGHT_THEME_ID: &str = "github-light";
 
 /// README content written into the user themes directory.
 const THEMES_README: &str = r##"# BeardGit Custom Themes
@@ -46,6 +50,7 @@ Only `[meta]` and `[colors]` are required — everything else is derived:
 id = "my-custom-theme"      # unique identifier (kebab-case)
 name = "My Custom Theme"    # display name in the theme picker
 mode = "dark"               # "dark" or "light"
+complementary = "my-light"  # optional: paired theme for OS auto-switch
 
 [colors]
 bg-primary = "#1a1b26"      # main background
@@ -161,6 +166,9 @@ pub struct ThemeMeta {
     pub name: String,
     /// `"dark"` or `"light"`.
     pub mode: String,
+    /// ID of the paired theme for OS dark/light auto-switching.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub complementary: Option<String>,
 }
 
 /// Full theme definition as parsed from TOML.
@@ -185,6 +193,9 @@ pub struct ThemeMetaSection {
     pub name: String,
     /// `"dark"` or `"light"`.
     pub mode: String,
+    /// ID of the paired theme for OS dark/light auto-switching.
+    #[serde(default)]
+    pub complementary: Option<String>,
 }
 
 /// The `[colors]` section — general UI color tokens.
@@ -779,6 +790,7 @@ impl Theme {
             id: self.meta.id.clone(),
             name: self.meta.name.clone(),
             mode: self.meta.mode.clone(),
+            complementary: self.meta.complementary.clone(),
         }
     }
 }
@@ -863,6 +875,41 @@ pub fn resolve_theme(id: &str, themes_dir: &Path) -> Theme {
     }
     // Fallback
     parse_theme(GITHUB_DARK_TOML).expect("built-in github-dark theme must parse")
+}
+
+/// Resolve the correct theme when the OS switches between dark and light mode.
+///
+/// Logic:
+/// 1. If the current theme's mode already matches `target_mode`, return its id.
+/// 2. If the current theme has a `complementary`, and that theme exists with
+///    a matching mode, return the complementary id.
+/// 3. Otherwise fall back to the default theme for `target_mode`.
+pub fn resolve_theme_for_mode(current_id: &str, os_dark: bool, themes_dir: &Path) -> String {
+    let target_mode = if os_dark { "dark" } else { "light" };
+
+    // Load the current theme to check its mode and complementary field.
+    let current = resolve_theme(current_id, themes_dir);
+
+    // Already the right mode — keep it.
+    if current.meta.mode == target_mode {
+        return current_id.to_string();
+    }
+
+    // Try the complementary theme.
+    if let Some(ref comp_id) = current.meta.complementary {
+        let comp = resolve_theme(comp_id, themes_dir);
+        // Only use it if its mode actually matches and it's not the fallback.
+        if comp.meta.mode == target_mode && comp.meta.id == *comp_id {
+            return comp_id.clone();
+        }
+    }
+
+    // Fallback to defaults.
+    if os_dark {
+        DEFAULT_DARK_THEME_ID.to_string()
+    } else {
+        DEFAULT_LIGHT_THEME_ID.to_string()
+    }
 }
 
 /// Create the themes directory and a README.md if they don't already exist.
@@ -1418,5 +1465,40 @@ syntax-comment = "#888888"
         assert_eq!(ed.syntax_comment, Some("#888888".to_string()));
         // Other syntax fields still derived
         assert_eq!(ed.syntax_keyword, Some(theme.colors.accent_red.clone()));
+    }
+
+    #[test]
+    fn test_resolve_theme_for_mode_already_correct() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = resolve_theme_for_mode("github-dark", true, dir.path());
+        assert_eq!(result, "github-dark");
+    }
+
+    #[test]
+    fn test_resolve_theme_for_mode_uses_complementary() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = resolve_theme_for_mode("github-dark", false, dir.path());
+        assert_eq!(result, "github-light");
+    }
+
+    #[test]
+    fn test_resolve_theme_for_mode_complementary_reverse() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = resolve_theme_for_mode("github-light", true, dir.path());
+        assert_eq!(result, "github-dark");
+    }
+
+    #[test]
+    fn test_resolve_theme_for_mode_no_complementary_falls_back() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = resolve_theme_for_mode("dracula", false, dir.path());
+        assert_eq!(result, "github-light");
+    }
+
+    #[test]
+    fn test_resolve_theme_for_mode_unpaired_dark_stays() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = resolve_theme_for_mode("dracula", true, dir.path());
+        assert_eq!(result, "dracula");
     }
 }
