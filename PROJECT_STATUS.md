@@ -1,8 +1,35 @@
 # BeardGit — Project Status
 
-## v0.1.1 — In Progress
+## Phase 2: Core Workflows — Complete
 
-### Completed (Plans 1–2)
+### v0.1.2 (Plans 3–4)
+
+**Hunk + Line-Level Staging**
+
+- [x] Stage/unstage/discard individual hunks or specific lines
+- [x] StagingDiffEditor with per-hunk and per-line checkboxes
+- [x] Backend patch builder → `git apply --cached`
+
+**Blame + File History**
+
+- [x] Blame view with per-line gutter annotations (author, OID, relative date)
+- [x] File history panel with `git log --follow` and rename detection
+- [x] Right-click any file → "Blame" / "File History"
+
+**Rebase**
+
+- [x] Non-interactive rebase from branch + graph context menus
+- [x] Interactive rebase: visual commit editor with drag-to-reorder + actions (pick/squash/fixup/edit/drop)
+- [x] GIT_SEQUENCE_EDITOR injection for todo list
+
+**3-Way Merge Editor**
+
+- [x] CodeMirror unifiedMergeView with inline accept/reject per chunk
+- [x] Conflict toolbar shows clickable file list → opens merge editor
+- [x] get_conflict_file_contents reads ours/theirs/base from libgit2 index
+- [x] write_resolved_file writes + stages + removes conflict entries
+
+### v0.1.1 (Plans 1–2)
 
 **CodeMirror 6 Editor Engine**
 
@@ -28,7 +55,6 @@
 - [x] Simplified TOML themes: only [meta] + [colors] required (14 lines)
 - [x] Graph, editor, syntax colors auto-derived from 12 base colors
 - [x] Optional [graph] and [editor] overrides for fine-tuning
-- [x] Updated themes README for custom theme creators
 
 **UI Improvements**
 
@@ -39,20 +65,6 @@
 
 - [x] All 22 CLI-backed commands non-blocking (async + spawn_blocking)
 - [x] CREATE_NO_WINDOW flag on Windows (no CMD flash)
-
-**Testing**
-
-- [x] Vitest coverage configuration
-- [x] 32 new Rust tests, 23 new frontend tests
-- [x] Shared ref-colors utility
-
-### Remaining (Phase 2)
-
-- 3-way merge editor (CodeMirror 6, IntelliJ-style 3-column layout)
-- Hunk + line-level staging
-- Blame + file history
-- Rebase (non-interactive)
-- Interactive rebase
 
 ---
 

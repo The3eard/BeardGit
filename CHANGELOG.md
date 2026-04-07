@@ -2,6 +2,51 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [0.1.2] - 2026-04-07
+
+**Hunk + Line-Level Staging**
+
+- Stage, unstage, or discard individual hunks or specific lines within a hunk
+- StagingDiffEditor with per-hunk and per-line checkboxes, select all/deselect all
+- Backend builds unified diff patches from selections and applies via `git apply --cached`
+- Discard with confirmation dialog (destructive action)
+
+**Blame + File History**
+
+- Blame view with per-line gutter annotations (author, OID, relative date)
+- Commit grouping in gutter — consecutive lines from same commit share annotation block
+- Click OID in gutter to reload blame at that commit
+- File history panel with `git log --follow` — shows all commits that touched the file
+- Rename detection — shows "renamed from" badge when file was moved
+- Click any commit in history to view blame at that point in time
+- Right-click any file in staging area or commit detail → "Blame" / "File History"
+
+**Rebase**
+
+- Non-interactive rebase from branch context menu ("Rebase onto this branch") and graph context menu ("Rebase current onto here")
+- Confirmation dialog before rebase; conflicts route to merge editor automatically
+
+**Interactive Rebase**
+
+- Visual commit list editor from graph context menu ("Interactive rebase from here")
+- Per-commit action dropdown: pick, squash, fixup, edit, drop
+- Drag-to-reorder commits with color-coded left border per action
+- Drop action shows strikethrough with reduced opacity
+- Footer legend explaining each action
+- Backend uses `GIT_SEQUENCE_EDITOR` to inject pre-built todo list
+
+**3-Way Merge Editor**
+
+- CodeMirror `unifiedMergeView` with ours as editable content, base as reference
+- Inline accept/reject controls per changed chunk
+- Prev/Next conflict navigation buttons
+- "Mark Resolved" writes content to disk and stages the file
+- Conflict toolbar now shows expandable clickable file list → opens merge editor
+- Activated during any conflict operation (merge, rebase, cherry-pick, revert)
+- Backend: `get_conflict_file_contents` reads ours/theirs/base from libgit2 index stages
+
+---
+
 ## [0.1.1] - 2026-04-07
 
 **CodeMirror 6 Editor Engine**
