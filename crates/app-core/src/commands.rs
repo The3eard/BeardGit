@@ -3106,11 +3106,7 @@ pub async fn merge_mr_pr(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    run_blocking(move || {
-        cli.merge_mr_pr(number, strategy)
-            .map_err(|e| e.to_string())
-    })
-    .await
+    run_blocking(move || cli.merge_mr_pr(number, strategy).map_err(|e| e.to_string())).await
 }
 
 /// Close a MR/PR without merging.
