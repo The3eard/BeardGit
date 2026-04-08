@@ -310,5 +310,10 @@
   "shortcuts_category_tabs": "Tabs",
   "shortcuts_category_git": "Git",
   "shortcuts_category_graph": "Graph",
-  "shortcuts_category_general": "General"
+  "shortcuts_category_general": "General",
+  "sidebar_reflog": "Reflog",
+  "reflog_title": "Reflog",
+  "reflog_empty": "No reflog entries",
+  "reflog_select_entry": "Select a reflog entry to view details",
+  "reflog_show_in_graph": "Show in Graph"
 }

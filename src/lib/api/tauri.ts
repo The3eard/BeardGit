@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -502,4 +502,13 @@ export async function getRebaseCommits(baseOid: string): Promise<RebaseCommit[]>
 /** Start an interactive rebase with pre-defined actions. */
 export async function startInteractiveRebase(baseOid: string, actions: RebaseAction[]): Promise<void> {
   return invoke<void>("start_interactive_rebase", { baseOid, actions });
+}
+
+// ---------------------------------------------------------------------------
+// Reflog
+// ---------------------------------------------------------------------------
+
+/** Get the HEAD reflog entries, limited to the given count (default 100). */
+export async function getReflog(limit?: number): Promise<ReflogEntry[]> {
+  return invoke<ReflogEntry[]>("get_reflog", { limit: limit ?? null });
 }

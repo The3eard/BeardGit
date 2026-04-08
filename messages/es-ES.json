@@ -310,5 +310,10 @@
   "shortcuts_category_tabs": "Pestañas",
   "shortcuts_category_git": "Git",
   "shortcuts_category_graph": "Gráfico",
-  "shortcuts_category_general": "General"
+  "shortcuts_category_general": "General",
+  "sidebar_reflog": "Reflog",
+  "reflog_title": "Reflog",
+  "reflog_empty": "No hay entradas en el reflog",
+  "reflog_select_entry": "Selecciona una entrada del reflog para ver detalles",
+  "reflog_show_in_graph": "Mostrar en el grafico"
 }

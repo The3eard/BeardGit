@@ -31,7 +31,20 @@
   import BlameView from "$lib/components/blame/BlameView.svelte";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
+  import ReflogList from "$lib/components/reflog/ReflogList.svelte";
+  import ReflogDetail from "$lib/components/reflog/ReflogDetail.svelte";
+  import ContextMenu from "$lib/components/common/ContextMenu.svelte";
+  import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
+  import {
+    reflogEntries,
+    selectedReflogEntry,
+    loadReflog,
+    initReflogWatcher,
+    cleanupReflogWatcher,
+  } from "$lib/stores/reflog";
+  import type { ReflogEntry } from "$lib/types";
   import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
+  import * as api from "$lib/api/tauri";
   import { unstagedDiffs, stagedDiffs } from "$lib/stores/changes";
   import type { FileDiff } from "$lib/types";
   import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
@@ -350,6 +363,92 @@
       branchFileDiff.set(null);
     }
   }
+
+  // ── Reflog context menu ────────────────────────────────────────────
+  let reflogCtxVisible = $state(false);
+  let reflogCtxX = $state(0);
+  let reflogCtxY = $state(0);
+  let reflogCtxEntry = $state<ReflogEntry | null>(null);
+
+  function handleReflogContextMenu(e: MouseEvent, entry: ReflogEntry) {
+    reflogCtxEntry = entry;
+    reflogCtxX = e.clientX;
+    reflogCtxY = e.clientY;
+    reflogCtxVisible = true;
+  }
+
+  function buildReflogContextItems(entry: ReflogEntry): MenuItem[] {
+    return [
+      {
+        label: m.reflog_show_in_graph(),
+        action: () => {
+          navigateToCommit(entry.oid);
+          handleNavigate("graph");
+        },
+      },
+      {
+        label: m.graph_checkout({ sha: entry.oid.substring(0, 7) }),
+        action: async () => {
+          try {
+            await api.resetToCommit(entry.oid, "mixed");
+          } catch { /* handled */ }
+        },
+      },
+      {
+        label: m.graph_create_branch({ sha: entry.oid.substring(0, 7) }),
+        action: async () => {
+          const name = prompt(m.graph_branch_name_prompt());
+          if (!name) return;
+          try {
+            await api.createBranch(name);
+            await api.resetToCommit(entry.oid, "soft");
+          } catch (err) {
+            console.error("Failed to create branch at reflog entry:", err);
+          }
+        },
+      },
+      { separator: true },
+      {
+        label: m.graph_reset_soft(),
+        action: async () => {
+          if (confirm(m.graph_reset_confirm_soft({ sha: entry.oid.substring(0, 7) }))) {
+            try { await api.resetToCommit(entry.oid, "soft"); } catch { /* handled */ }
+          }
+        },
+      },
+      {
+        label: m.graph_reset_mixed(),
+        action: async () => {
+          if (confirm(m.graph_reset_confirm_mixed({ sha: entry.oid.substring(0, 7) }))) {
+            try { await api.resetToCommit(entry.oid, "mixed"); } catch { /* handled */ }
+          }
+        },
+      },
+      {
+        label: m.graph_reset_hard(),
+        action: async () => {
+          if (confirm(m.graph_reset_confirm_hard({ sha: entry.oid.substring(0, 7) }))) {
+            try { await api.resetToCommit(entry.oid, "hard"); } catch { /* handled */ }
+          }
+        },
+      },
+      { separator: true },
+      {
+        label: m.graph_copy_sha({ sha: entry.oid.substring(0, 7) }),
+        action: () => navigator.clipboard.writeText(entry.oid),
+      },
+    ];
+  }
+
+  // ── Reflog lifecycle ───────────────────────────────────────────────
+  $effect(() => {
+    if (activeView === "reflog") {
+      loadReflog();
+      initReflogWatcher();
+    } else {
+      cleanupReflogWatcher();
+    }
+  });
 </script>
 
 <div class="app-shell">
@@ -408,6 +507,28 @@
         </div>
       {:else if activeView === "worktrees"}
         <WorktreeList />
+      {:else if activeView === "reflog"}
+        <div class="reflog-layout">
+          <div class="reflog-sidebar">
+            <ReflogList
+              entries={$reflogEntries}
+              onContextMenu={handleReflogContextMenu}
+            />
+          </div>
+          <div class="reflog-main">
+            {#if $selectedReflogEntry}
+              <ReflogDetail
+                entry={$selectedReflogEntry}
+                onNavigateToGraph={(oid) => { navigateToCommit(oid); handleNavigate("graph"); }}
+                onNavigate={handleNavigate}
+              />
+            {:else}
+              <div class="no-diff">
+                <p>{m.reflog_select_entry()}</p>
+              </div>
+            {/if}
+          </div>
+        </div>
       {:else if activeView === "blame"}
         <BlameView onNavigateBack={(view) => { activeView = view; }} />
       {:else if activeView === "merge-requests"}
@@ -536,6 +657,16 @@
 
   <ShortcutOverlay />
   <StatusBar />
+
+  {#if reflogCtxVisible && reflogCtxEntry}
+    <ContextMenu
+      items={buildReflogContextItems(reflogCtxEntry)}
+      x={reflogCtxX}
+      y={reflogCtxY}
+      visible={reflogCtxVisible}
+      onClose={() => { reflogCtxVisible = false; }}
+    />
+  {/if}
 </div>
 
 <style>
@@ -796,5 +927,24 @@
     height: 100%;
     color: var(--text-secondary);
     font-size: 13px;
+  }
+
+  .reflog-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .reflog-sidebar {
+    width: clamp(280px, 30vw, 420px);
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .reflog-main {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
   }
 </style>

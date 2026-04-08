@@ -458,6 +458,21 @@ export interface GraphColumnConfig {
   visible: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Reflog
+// ---------------------------------------------------------------------------
+
+/** A single entry from the HEAD reflog. */
+export interface ReflogEntry {
+  oid: string;
+  prev_oid: string;
+  action: string;
+  summary: string;
+  author: string;
+  email: string;
+  timestamp: number;
+}
+
 /** Describes which hunks/lines the user selected for staging/unstaging. */
 export interface HunkSelection {
   /** Index into the FileDiff.hunks array. */
