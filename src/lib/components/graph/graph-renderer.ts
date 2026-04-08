@@ -14,6 +14,7 @@
 import type { LayoutNode, LaneSegment, MergeCurve, GraphTheme, MrPr } from "../../types";
 import { formatRelativeTimeUnix } from "../../utils/time";
 import { hashString as _hashString } from "../../utils/ref-colors";
+import { shortOid } from "../../utils/git";
 
 export const ROW_HEIGHT = 28;
 export const LANE_WIDTH = 22;
@@ -600,7 +601,7 @@ export function renderGraph(
 
       switch (col.id) {
         case "sha":
-          text = node.oid.substring(0, 7);
+          text = shortOid(node.oid);
           font = "12px 'SF Mono', 'Fira Code', 'Consolas', monospace";
           style = isSelected ? theme.textPrimary : theme.textSha;
           break;

@@ -1,6 +1,7 @@
 <script lang="ts">
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { formatRelativeTimeUnix } from "../../utils/time";
+  import { shortOid } from "../../utils/git";
   import {
     selectedBranchName,
     selectedBranchInfo,
@@ -65,7 +66,7 @@
                   <span class="commit-author">{commit.author}</span>
                   <span class="commit-sep">·</span>
                   <span class="commit-time">{formatRelativeTimeUnix(commit.timestamp)}</span>
-                  <span class="commit-oid">{commit.oid.slice(0, 7)}</span>
+                  <span class="commit-oid">{shortOid(commit.oid)}</span>
                 </div>
               </div>
             {/each}

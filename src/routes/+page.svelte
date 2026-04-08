@@ -46,6 +46,7 @@
   } from "$lib/stores/reflog";
   import type { ReflogEntry } from "$lib/types";
   import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
+  import { shortOid } from "$lib/utils/git";
   import * as api from "$lib/api/tauri";
   import { unstagedDiffs, stagedDiffs } from "$lib/stores/changes";
   import type { FileDiff } from "$lib/types";
@@ -388,7 +389,7 @@
         },
       },
       {
-        label: m.graph_checkout({ sha: entry.oid.substring(0, 7) }),
+        label: m.graph_checkout({ sha: shortOid(entry.oid) }),
         action: async () => {
           try {
             await api.resetToCommit(entry.oid, "mixed");
@@ -396,7 +397,7 @@
         },
       },
       {
-        label: m.graph_create_branch({ sha: entry.oid.substring(0, 7) }),
+        label: m.graph_create_branch({ sha: shortOid(entry.oid) }),
         action: async () => {
           const name = prompt(m.graph_branch_name_prompt());
           if (!name) return;
@@ -412,7 +413,7 @@
       {
         label: m.graph_reset_soft(),
         action: async () => {
-          if (confirm(m.graph_reset_confirm_soft({ sha: entry.oid.substring(0, 7) }))) {
+          if (confirm(m.graph_reset_confirm_soft({ sha: shortOid(entry.oid) }))) {
             try { await api.resetToCommit(entry.oid, "soft"); } catch { /* handled */ }
           }
         },
@@ -420,7 +421,7 @@
       {
         label: m.graph_reset_mixed(),
         action: async () => {
-          if (confirm(m.graph_reset_confirm_mixed({ sha: entry.oid.substring(0, 7) }))) {
+          if (confirm(m.graph_reset_confirm_mixed({ sha: shortOid(entry.oid) }))) {
             try { await api.resetToCommit(entry.oid, "mixed"); } catch { /* handled */ }
           }
         },
@@ -428,14 +429,14 @@
       {
         label: m.graph_reset_hard(),
         action: async () => {
-          if (confirm(m.graph_reset_confirm_hard({ sha: entry.oid.substring(0, 7) }))) {
+          if (confirm(m.graph_reset_confirm_hard({ sha: shortOid(entry.oid) }))) {
             try { await api.resetToCommit(entry.oid, "hard"); } catch { /* handled */ }
           }
         },
       },
       { separator: true },
       {
-        label: m.graph_copy_sha({ sha: entry.oid.substring(0, 7) }),
+        label: m.graph_copy_sha({ sha: shortOid(entry.oid) }),
         action: () => navigator.clipboard.writeText(entry.oid),
       },
     ];

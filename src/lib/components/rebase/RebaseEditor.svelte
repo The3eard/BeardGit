@@ -10,6 +10,7 @@
   import { getRebaseCommits, startInteractiveRebase } from "../../api/tauri";
   import type { RebaseCommit, RebaseAction } from "../../types";
   import * as m from "$lib/paraglide/messages";
+  import { shortOid } from "../../utils/git";
 
   interface Props {
     /** The base commit OID (exclusive — commits after this up to HEAD). */
@@ -191,7 +192,7 @@
                 {/each}
               </select>
 
-              <span class="commit-oid">{entry.commit.oid.substring(0, 7)}</span>
+              <span class="commit-oid">{shortOid(entry.commit.oid)}</span>
 
               <span class="commit-message" class:strikethrough={entry.action === "drop"}>
                 {entry.commit.message}

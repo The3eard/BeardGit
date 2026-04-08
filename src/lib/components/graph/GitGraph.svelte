@@ -27,6 +27,7 @@
   import { graphFilters, filterGraphRemote } from "../../search/graph-provider";
   import { mrPrByBranch } from "../../stores/mr-pr";
   import { activeProvider } from "../../stores/provider";
+  import { shortOid } from "../../utils/git";
   import * as m from "$lib/paraglide/messages";
 
   // Column visibility state
@@ -395,11 +396,11 @@
     // Only highlight visually — don't open detail panel on right-click
     selectedOid.set(node.oid);
 
-    const shortOid = node.oid.substring(0, 7);
+    const sha = shortOid(node.oid);
 
     contextMenuItems = [
       {
-        label: m.graph_copy_sha({ sha: shortOid }),
+        label: m.graph_copy_sha({ sha }),
         action: () => navigator.clipboard.writeText(node.oid),
       },
       {
@@ -412,7 +413,7 @@
           try {
             const dir = await save({
               title: m.patch_save_dialog_title(),
-              defaultPath: `${shortOid}.patch`,
+              defaultPath: `${sha}.patch`,
               filters: [{ name: "Patch", extensions: ["patch", "diff"] }],
             });
             if (!dir) return;
@@ -427,7 +428,7 @@
       },
       { label: "", action: () => {}, separator: true },
       {
-        label: m.graph_create_branch({ sha: shortOid }),
+        label: m.graph_create_branch({ sha }),
         action: async () => {
           const name = prompt(m.graph_branch_name_prompt());
           if (name) {
@@ -441,7 +442,7 @@
         },
       },
       {
-        label: m.graph_cherry_pick({ sha: shortOid }),
+        label: m.graph_cherry_pick({ sha }),
         action: async () => {
           try {
             await cherryPick(node.oid);
@@ -452,7 +453,7 @@
       },
       { label: "", action: () => {}, separator: true },
       {
-        label: m.graph_checkout({ sha: shortOid }),
+        label: m.graph_checkout({ sha }),
         action: async () => {
           try {
             // For commits with refs, checkout the branch name

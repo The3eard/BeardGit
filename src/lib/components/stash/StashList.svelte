@@ -3,6 +3,7 @@
   import { stashes, selectedStashIndex, doStashPush, doStashApply, doStashPop, doStashDrop, selectStash } from "../../stores/stashes";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { formatRelativeTimeUnix } from "../../utils/time";
+  import { shortOid } from "../../utils/git";
 
   let showStashInput = $state(false);
   let stashMessage = $state("");
@@ -73,7 +74,7 @@
           <div class="stash-bottom-container">
             <div class="stash-bottom">
               <span class="stash-branch">{m.stash_on_branch({ branch: entry.branch })}</span>
-              <span class="stash-oid">{entry.oid.slice(0, 7)}</span>
+              <span class="stash-oid">{shortOid(entry.oid)}</span>
             </div>
             <div class="stash-bottom-hover">
               <div class="stash-actions">
@@ -93,7 +94,7 @@
                   onclick={(e: MouseEvent) => { e.stopPropagation(); confirmDrop = entry.index; }}
                 >{m.stash_drop()}</button>
               </div>
-              <span class="stash-oid">{entry.oid.slice(0, 7)}</span>
+              <span class="stash-oid">{shortOid(entry.oid)}</span>
             </div>
           </div>
         </div>
@@ -106,7 +107,7 @@
   {@const dropEntry = $stashes.find((e) => e.index === confirmDrop)}
   <ConfirmDialog
     title={m.stash_confirm_drop_title()}
-    detail={dropEntry ? `${dropEntry.message || `stash@{${dropEntry.index}}`}\n${dropEntry.oid.slice(0, 7)}` : `stash@{${confirmDrop}}`}
+    detail={dropEntry ? `${dropEntry.message || `stash@{${dropEntry.index}}`}\n${shortOid(dropEntry.oid)}` : `stash@{${confirmDrop}}`}
     message={m.stash_confirm_drop_message()}
     confirmLabel={m.stash_drop()}
     destructive={true}

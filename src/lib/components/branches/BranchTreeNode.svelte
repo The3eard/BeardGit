@@ -1,6 +1,7 @@
 <script lang="ts">
   import BranchTreeNode from "./BranchTreeNode.svelte";
   import type { BranchTreeNode as TreeNode } from "./branch-tree";
+  import { shortOid } from "../../utils/git";
 
   let {
     node,
@@ -65,7 +66,7 @@
     {#if node.isHead}
       <span class="head-dot" title="Current branch"></span>
     {/if}
-    <span class="branch-oid">{node.oid.slice(0, 7)}</span>
+    <span class="branch-oid">{shortOid(node.oid)}</span>
   </div>
 {/if}
 

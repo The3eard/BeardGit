@@ -16,6 +16,7 @@
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import * as m from "$lib/paraglide/messages";
   import type { SubmoduleInfo } from "../../types";
+  import { shortOid } from "../../utils/git";
 
   // Refresh on mount
   onMount(() => {
@@ -195,7 +196,7 @@
           </div>
           <div class="sub-meta">
             {#if sub.oid}
-              <span class="sub-sha">{sub.oid.substring(0, 7)}</span>
+              <span class="sub-sha">{shortOid(sub.oid)}</span>
             {/if}
             <span class="status-badge" style="color: {statusColor(sub.status)}">
               {statusLabel(sub.status)}
