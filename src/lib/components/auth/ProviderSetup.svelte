@@ -7,6 +7,7 @@
     disconnect,
     checkStatus,
   } from "../../stores/provider";
+  import { isCliAuthenticated, cliLogin } from "../../api/tauri";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import type { ProviderKind } from "../../types";
   import * as m from "$lib/paraglide/messages";
@@ -16,8 +17,21 @@
   let token = $state("");
   let showAddForm = $state(false);
 
+  let authMethod = $state<"oauth" | "pat">("oauth");
+  let cliAvailable = $state(true);
+  let oauthInProgress = $state(false);
+
   $effect(() => {
     checkStatus();
+  });
+
+  // Check CLI availability when provider changes
+  $effect(() => {
+    void selectedProvider;
+    isCliAuthenticated(selectedProvider).then(
+      () => { cliAvailable = true; },
+      () => { cliAvailable = false; authMethod = "pat"; },
+    );
   });
 
   function defaultUrl(kind: ProviderKind): string {
@@ -50,6 +64,22 @@
       showAddForm = false;
     } catch {
       // error is set in store
+    }
+  }
+
+  async function handleOAuthLogin() {
+    oauthInProgress = true;
+    providerError.set(null);
+    try {
+      const url = instanceUrl.trim() || undefined;
+      await cliLogin(selectedProvider, url);
+      showAddForm = false;
+      await checkStatus();
+    } catch {
+      // Fall back to PAT on error
+      authMethod = "pat";
+    } finally {
+      oauthInProgress = false;
     }
   }
 
@@ -111,80 +141,146 @@
       </p>
     {/if}
 
-    <form class="setup-form" onsubmit={handleConnect}>
+    <div class="setup-form">
       <div class="provider-selector">
         <button
           type="button"
           class="provider-btn"
           class:active={selectedProvider === "gitlab"}
-          onclick={() => { selectedProvider = "gitlab"; instanceUrl = ""; }}
+          onclick={() => { selectedProvider = "gitlab"; instanceUrl = ""; authMethod = cliAvailable ? "oauth" : "pat"; }}
         >{m.provider_gitlab()}</button>
         <button
           type="button"
           class="provider-btn"
           class:active={selectedProvider === "github"}
-          onclick={() => { selectedProvider = "github"; instanceUrl = ""; }}
+          onclick={() => { selectedProvider = "github"; instanceUrl = ""; authMethod = cliAvailable ? "oauth" : "pat"; }}
         >{m.provider_github()}</button>
       </div>
 
-      <label class="field">
-        <span class="field-label">
-          {m.provider_instance_url()}
-          <span class="field-hint" title={selectedProvider === 'github' ? m.provider_instance_hint_github() : m.provider_instance_hint_gitlab()}>?</span>
-        </span>
-        <input
-          type="text"
-          class="field-input"
-          bind:value={instanceUrl}
-          placeholder={selectedProvider === 'github' ? m.provider_instance_placeholder_github() : m.provider_instance_placeholder_gitlab()}
-          disabled={$isConnecting}
-        />
-      </label>
-
-      <label class="field">
-        <span class="field-label">
-          {m.provider_token_label()}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <span class="token-link" onclick={handleOpenTokenUrl} title={selectedProvider === 'github' ? m.provider_token_get_title_github() : m.provider_token_get_title_gitlab()}>{m.provider_token_get_link()}</span>
-        </span>
-        <input
-          type="password"
-          class="field-input"
-          bind:value={token}
-          placeholder={selectedProvider === "github" ? m.provider_token_placeholder_github() : m.provider_token_placeholder_gitlab()}
-          disabled={$isConnecting}
-        />
-      </label>
-
-      {#if $providerError}
-        <div class="error-message">{$providerError}</div>
-      {/if}
-
-      <div class="form-actions">
-        <button
-          type="submit"
-          class="btn btn-connect"
-          disabled={$isConnecting || !token.trim()}
-        >
-          {#if $isConnecting}
-            {m.provider_connecting()}
-          {:else}
-            {m.provider_connect()}
-          {/if}
-        </button>
-
-        {#if showAddForm && $providerStatus.providers.length > 0}
+      {#if cliAvailable}
+        <div class="auth-method-toggle">
           <button
             type="button"
-            class="btn btn-cancel"
-            onclick={() => { showAddForm = false; token = ""; instanceUrl = ""; }}
+            class="auth-method-btn"
+            class:active={authMethod === "oauth"}
+            onclick={() => { authMethod = "oauth"; }}
           >
-            {m.provider_cancel()}
+            {m.provider_login_oauth()}
           </button>
+          <button
+            type="button"
+            class="auth-method-btn"
+            class:active={authMethod === "pat"}
+            onclick={() => { authMethod = "pat"; }}
+          >
+            {m.provider_login_pat()}
+          </button>
+        </div>
+      {/if}
+
+      {#if authMethod === "oauth"}
+        <p class="oauth-desc">{m.provider_login_oauth_desc()}</p>
+
+        <label class="field">
+          <span class="field-label">
+            {m.provider_instance_url()}
+            <span class="field-hint" title={selectedProvider === 'github' ? m.provider_instance_hint_github() : m.provider_instance_hint_gitlab()}>?</span>
+          </span>
+          <input
+            type="text"
+            class="field-input"
+            bind:value={instanceUrl}
+            placeholder={selectedProvider === 'github' ? m.provider_instance_placeholder_github() : m.provider_instance_placeholder_gitlab()}
+            disabled={oauthInProgress}
+          />
+        </label>
+
+        {#if $providerError}
+          <div class="error-message">{$providerError}</div>
         {/if}
-      </div>
-    </form>
+
+        <div class="form-actions">
+          <button
+            type="button"
+            class="btn btn-connect"
+            disabled={oauthInProgress}
+            onclick={handleOAuthLogin}
+          >
+            {oauthInProgress ? m.provider_logging_in() : m.provider_login_oauth()}
+          </button>
+
+          {#if showAddForm && $providerStatus.providers.length > 0}
+            <button
+              type="button"
+              class="btn btn-cancel"
+              onclick={() => { showAddForm = false; token = ""; instanceUrl = ""; }}
+            >
+              {m.provider_cancel()}
+            </button>
+          {/if}
+        </div>
+      {:else}
+        <form class="pat-form" onsubmit={handleConnect}>
+          <label class="field">
+            <span class="field-label">
+              {m.provider_instance_url()}
+              <span class="field-hint" title={selectedProvider === 'github' ? m.provider_instance_hint_github() : m.provider_instance_hint_gitlab()}>?</span>
+            </span>
+            <input
+              type="text"
+              class="field-input"
+              bind:value={instanceUrl}
+              placeholder={selectedProvider === 'github' ? m.provider_instance_placeholder_github() : m.provider_instance_placeholder_gitlab()}
+              disabled={$isConnecting}
+            />
+          </label>
+
+          <label class="field">
+            <span class="field-label">
+              {m.provider_token_label()}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <span class="token-link" onclick={handleOpenTokenUrl} title={selectedProvider === 'github' ? m.provider_token_get_title_github() : m.provider_token_get_title_gitlab()}>{m.provider_token_get_link()}</span>
+            </span>
+            <input
+              type="password"
+              class="field-input"
+              bind:value={token}
+              placeholder={selectedProvider === "github" ? m.provider_token_placeholder_github() : m.provider_token_placeholder_gitlab()}
+              disabled={$isConnecting}
+            />
+          </label>
+
+          {#if $providerError}
+            <div class="error-message">{$providerError}</div>
+          {/if}
+
+          <div class="form-actions">
+            <button
+              type="submit"
+              class="btn btn-connect"
+              disabled={$isConnecting || !token.trim()}
+            >
+              {#if $isConnecting}
+                {m.provider_connecting()}
+              {:else}
+                {m.provider_connect()}
+              {/if}
+            </button>
+
+            {#if showAddForm && $providerStatus.providers.length > 0}
+              <button
+                type="button"
+                class="btn btn-cancel"
+                onclick={() => { showAddForm = false; token = ""; instanceUrl = ""; }}
+              >
+                {m.provider_cancel()}
+              </button>
+            {/if}
+          </div>
+        </form>
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -234,4 +330,12 @@
 
   .btn-add-provider { width: 100%; padding: 8px; background: none; border: 1px dashed var(--border); border-radius: 6px; color: var(--accent-blue); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
   .btn-add-provider:hover { background: rgba(88,166,255,0.06); }
+
+  .auth-method-toggle { display: flex; gap: 0; }
+  .auth-method-btn { flex: 1; padding: 8px; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .auth-method-btn:first-child { border-radius: 6px 0 0 6px; }
+  .auth-method-btn:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+  .auth-method-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(88,166,255,0.08); }
+  .oauth-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+  .pat-form { display: flex; flex-direction: column; gap: 16px; }
 </style>

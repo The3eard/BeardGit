@@ -540,3 +540,58 @@ export interface PatchPreview {
   total_insertions: number;
   total_deletions: number;
 }
+
+// ---------------------------------------------------------------------------
+// Merge Requests / Pull Requests
+// ---------------------------------------------------------------------------
+
+export type MrPrState = "open" | "closed" | "merged";
+
+export type ReviewStatus = "pending" | "approved" | "changes_requested" | "commented";
+
+export type MergeStrategy = "merge" | "squash" | "rebase";
+
+export interface MrPr {
+  number: number;
+  title: string;
+  state: MrPrState;
+  author: string;
+  source_branch: string;
+  target_branch: string;
+  url: string;
+  draft: boolean;
+  labels: string[];
+  reviewers: string[];
+  created_at: string;
+  updated_at: string;
+  additions: number | null;
+  deletions: number | null;
+  changed_files: number | null;
+}
+
+export interface MrPrDetail {
+  summary: MrPr;
+  body: string;
+  comments: MrPrComment[];
+  review_status: ReviewStatus;
+  mergeable: boolean | null;
+}
+
+export interface MrPrComment {
+  id: number;
+  author: string;
+  body: string;
+  created_at: string;
+  path: string | null;
+  line: number | null;
+  is_review: boolean;
+}
+
+export interface MrPrDiffFile {
+  path: string;
+  old_path: string | null;
+  status: string;
+  additions: number;
+  deletions: number;
+  patch: string | null;
+}

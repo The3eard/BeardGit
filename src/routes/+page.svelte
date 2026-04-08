@@ -30,6 +30,7 @@
   import WorktreeList from "$lib/components/worktrees/WorktreeList.svelte";
   import SubmoduleList from "$lib/components/submodules/SubmoduleList.svelte";
   import BlameView from "$lib/components/blame/BlameView.svelte";
+  import MrPrView from "$lib/components/mr-pr/MrPrView.svelte";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
   import ReflogList from "$lib/components/reflog/ReflogList.svelte";
@@ -534,11 +535,7 @@
       {:else if activeView === "blame"}
         <BlameView onNavigateBack={(view) => { activeView = view; }} />
       {:else if activeView === "merge-requests"}
-        <div class="wip-placeholder">
-          <div class="wip-icon">🚧</div>
-          <h3>{m.app_wip_title()}</h3>
-          <p>{m.app_wip_message({ view: activeView })}</p>
-        </div>
+        <MrPrView />
       {:else if $isLoading}
         <div class="welcome-screen">
           <div class="spinner spinner--large"></div>

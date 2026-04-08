@@ -2008,6 +2008,166 @@ pub async fn detect_project(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------------------------
+// CLI provider auth
+// ---------------------------------------------------------------------------
+
+/// Resolve the path to the CLI binary for a given provider.
+///
+/// Checks the app's bundled resources first, then falls back to PATH lookup.
+fn resolve_cli_binary(
+    _state: &State<'_, AppState>,
+    kind: provider::ProviderKind,
+) -> Result<std::path::PathBuf, String> {
+    let binary_name = match kind {
+        provider::ProviderKind::GitHub => {
+            if cfg!(target_os = "windows") {
+                "gh.exe"
+            } else {
+                "gh"
+            }
+        }
+        provider::ProviderKind::GitLab => {
+            if cfg!(target_os = "windows") {
+                "glab.exe"
+            } else {
+                "glab"
+            }
+        }
+    };
+
+    // Look in the app's resource directory (bundled binaries)
+    let resource_path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.join(binary_name)));
+
+    if let Some(ref path) = resource_path
+        && path.exists()
+    {
+        return Ok(path.clone());
+    }
+
+    // Fallback: check if it's on PATH
+    which::which(binary_name)
+        .map_err(|_| format!("{binary_name} not found. Install it or check your PATH."))
+}
+
+/// Check if the CLI tool is already authenticated for the given provider.
+#[tauri::command]
+pub fn is_cli_authenticated(kind: String, state: State<'_, AppState>) -> Result<bool, String> {
+    let provider_kind = provider::ProviderKind::from_config_str(&kind)
+        .ok_or_else(|| format!("Unknown provider: {kind}"))?;
+    let binary = resolve_cli_binary(&state, provider_kind)?;
+    Ok(cli_provider::auth::is_cli_authenticated(
+        &binary,
+        provider_kind,
+    ))
+}
+
+/// Start the CLI OAuth login flow and extract + store the token.
+///
+/// This is a blocking call — the browser opens for OAuth, and this
+/// command waits until login completes. Run on `spawn_blocking`.
+#[tauri::command]
+pub async fn cli_login(
+    kind: String,
+    instance_url: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<provider::ProviderUser, String> {
+    let provider_kind = provider::ProviderKind::from_config_str(&kind)
+        .ok_or_else(|| format!("Unknown provider: {kind}"))?;
+    let binary = resolve_cli_binary(&state, provider_kind)?;
+    let url_ref = instance_url.clone();
+
+    // Run login on blocking thread (opens browser, waits for user)
+    let binary_clone = binary.clone();
+    let url_clone = url_ref.clone();
+    tokio::task::spawn_blocking(move || {
+        cli_provider::auth::start_cli_login(&binary_clone, provider_kind, url_clone.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())?;
+
+    // Extract token
+    let token = cli_provider::auth::extract_cli_token(&binary, provider_kind, url_ref.as_deref())
+        .map_err(|e| e.to_string())?;
+
+    // Determine the effective URL for storing
+    let effective_url = instance_url.unwrap_or_else(|| match provider_kind {
+        provider::ProviderKind::GitHub => "https://api.github.com".to_string(),
+        provider::ProviderKind::GitLab => "https://gitlab.com".to_string(),
+    });
+
+    // Validate and store — reuse existing connect_provider logic
+    let user = connect_provider(provider_kind, effective_url, token, state).await?;
+    Ok(user)
+}
+
+// ---------------------------------------------------------------------------
+// MR/PR management
+// ---------------------------------------------------------------------------
+
+/// Build a [`CliProvider`] from the current application state.
+///
+/// Resolves the active provider's kind, the CLI binary path, and the active
+/// project's filesystem path.
+fn build_cli_provider(state: &State<'_, AppState>) -> Result<cli_provider::CliProvider, String> {
+    let kind = {
+        let providers = state.providers.lock().map_err(|e| e.to_string())?;
+        let active_idx = state
+            .active_provider_index
+            .lock()
+            .map_err(|e| e.to_string())?;
+        let idx = active_idx.ok_or("No active provider")?;
+        let conn = providers.get(idx).ok_or("Provider index out of bounds")?;
+        conn.kind
+    };
+
+    let cwd = get_active_project_path(state)?;
+    let binary = resolve_cli_binary(state, kind)?;
+
+    Ok(cli_provider::CliProvider::new(kind, binary, cwd))
+}
+
+/// List merge requests / pull requests.
+#[tauri::command]
+pub fn list_mr_prs(
+    state_filter: Option<String>,
+    limit: Option<u32>,
+    state: State<'_, AppState>,
+) -> Result<Vec<cli_provider::MrPr>, String> {
+    let cli = build_cli_provider(&state)?;
+    let filter = state_filter.as_deref().and_then(|s| match s {
+        "open" => Some(cli_provider::MrPrState::Open),
+        "closed" => Some(cli_provider::MrPrState::Closed),
+        "merged" => Some(cli_provider::MrPrState::Merged),
+        _ => None,
+    });
+    cli.list_mr_prs(filter, limit.unwrap_or(30))
+        .map_err(|e| e.to_string())
+}
+
+/// Get detailed info about a single MR/PR.
+#[tauri::command]
+pub fn get_mr_pr_detail(
+    number: u64,
+    state: State<'_, AppState>,
+) -> Result<cli_provider::MrPrDetail, String> {
+    let cli = build_cli_provider(&state)?;
+    cli.get_mr_pr_detail(number).map_err(|e| e.to_string())
+}
+
+/// Get the changed files in a MR/PR.
+#[tauri::command]
+pub fn get_mr_pr_diff(
+    number: u64,
+    state: State<'_, AppState>,
+) -> Result<Vec<cli_provider::MrPrDiffFile>, String> {
+    let cli = build_cli_provider(&state)?;
+    cli.get_mr_pr_diff(number).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // Locale
 // ---------------------------------------------------------------------------
 

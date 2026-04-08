@@ -12,6 +12,8 @@ provider = { path = "../provider" }
 gitlab-api = { path = "../gitlab-api" }
 github-api = { path = "../github-api" }
 task-runner = { path = "../task-runner" }
+cli-provider = { path = "../cli-provider" }
+which = "7"
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

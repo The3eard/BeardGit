@@ -92,9 +92,7 @@ fn parse_reflog_action(message: &str) -> String {
     }
 
     // Find the first word (before : or space)
-    let end = trimmed
-        .find([':', ' '])
-        .unwrap_or(trimmed.len());
+    let end = trimmed.find([':', ' ']).unwrap_or(trimmed.len());
     let action = &trimmed[..end];
 
     action.to_lowercase()

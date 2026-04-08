@@ -178,6 +178,11 @@ pub fn run() {
             app_core::commands::update_all_submodules,
             app_core::commands::deinit_submodule,
             app_core::commands::submodule_abs_path,
+            app_core::commands::is_cli_authenticated,
+            app_core::commands::cli_login,
+            app_core::commands::list_mr_prs,
+            app_core::commands::get_mr_pr_detail,
+            app_core::commands::get_mr_pr_diff,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

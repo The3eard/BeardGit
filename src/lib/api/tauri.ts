@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -634,4 +634,40 @@ export async function deinitSubmodule(path: string, force: boolean): Promise<voi
 /** Get the absolute filesystem path of a submodule. */
 export async function submoduleAbsPath(submodulePath: string): Promise<string> {
   return invoke<string>("submodule_abs_path", { submodulePath });
+}
+
+// ---------------------------------------------------------------------------
+// CLI provider auth
+// ---------------------------------------------------------------------------
+
+/** Check if the CLI tool is authenticated. */
+export async function isCliAuthenticated(kind: string): Promise<boolean> {
+  return invoke<boolean>("is_cli_authenticated", { kind });
+}
+
+/** Start CLI OAuth login flow (opens browser). */
+export async function cliLogin(kind: string, instanceUrl?: string): Promise<ProviderUser> {
+  return invoke<ProviderUser>("cli_login", { kind, instanceUrl: instanceUrl ?? null });
+}
+
+// ---------------------------------------------------------------------------
+// MR/PR management
+// ---------------------------------------------------------------------------
+
+/** List merge requests / pull requests. */
+export async function listMrPrs(stateFilter?: string, limit?: number): Promise<MrPr[]> {
+  return invoke<MrPr[]>("list_mr_prs", {
+    stateFilter: stateFilter ?? null,
+    limit: limit ?? null,
+  });
+}
+
+/** Get detailed info about a single MR/PR. */
+export async function getMrPrDetail(number: number): Promise<MrPrDetail> {
+  return invoke<MrPrDetail>("get_mr_pr_detail", { number });
+}
+
+/** Get changed files in a MR/PR diff. */
+export async function getMrPrDiff(number: number): Promise<MrPrDiffFile[]> {
+  return invoke<MrPrDiffFile[]>("get_mr_pr_diff", { number });
 }

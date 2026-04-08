@@ -10,6 +10,7 @@ members = [
     "crates/github-api",
     "crates/provider",
     "crates/task-runner",
+    "crates/cli-provider",
     "src-tauri",
 ]
 resolver = "2"
