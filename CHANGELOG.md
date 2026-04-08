@@ -2,28 +2,108 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [Unreleased]
+## [0.1.3] - 2026-04-08 — Phase 3: Power Features + CLI Integration
+
+**Task History Popup**
+
+- Enriched TaskInfo with command string, start timestamp, and exit code
+- Always-clickable status bar task area — visible even when no tasks are running
+- Two-line card popup: colored status bar (green/red/orange/gray), label, command, duration, relative time
+- Click any task to open full output panel
+
+**Keyboard Shortcuts**
+
+- Central shortcut registry with platform-aware modifiers (⌘ on macOS, Ctrl on Windows/Linux)
+- Cmd+1-6 for view navigation, Cmd+Tab/Shift+Tab for tabs, Cmd+W to close tab
+- Cmd+Shift+F/L/P for Fetch/Pull/Push, Cmd+Shift+S/U for Stage/Unstage all
+- J/K for graph commit navigation, Home/End for first/last commit, / for search
+- `?` opens cheat sheet overlay with all shortcuts grouped by category
+
+**Reflog Viewer**
+
+- New sidebar view showing HEAD reflog entries with action-specific icons (commit, checkout, rebase, reset, merge, pull)
+- Detail panel reuses CommitDetail with "Show in Graph" navigation button
+- Context menu: checkout commit, create branch, reset (soft/mixed/hard), copy SHA
+
+**Clean (Untracked File Removal)**
+
+- "Clean" button in staging area when untracked files exist
+- Dialog with filter toggles: include directories, include ignored, only ignored
+- Per-file checkboxes with select/deselect all
+- Per-file "Delete untracked file" from right-click context menu
+- Destructive action warnings on all delete operations
+
+**Git Config Editor**
+
+- New Settings section: two-column table showing Local (project) and Global (user) config side by side
+- Dropdown selectors for known enum-type keys (core.autocrlf, pull.rebase, push.default, etc.)
+- Free text input for all other keys
+- Inline editing with Enter to save, Escape to cancel
+- Add new entries, unset existing keys, filter by key name
+- Collapsible read-only System config section
+
+**Gitignore Management**
+
+- Quick "Add to .gitignore" from untracked file context menu with smart pattern suggestions (filename, *.ext, exact path, directory/)
+- Full CodeMirror editor in Settings with save/revert and dirty state tracking
+- Basic syntax highlighting for comments and negation patterns
+
+**Patch Management**
+
+- Create patches from commits (graph context menu → native save dialog)
+- Create patches from working tree changes (staged or unstaged)
+- Apply patches with dry-run preview showing per-file stats
+- Three-way merge fallback for conflicting patches — integrates with existing merge editor
+
+**Submodules**
+
+- New sidebar view listing all submodules with status badges (Uninitialized, Clean, Outdated, Dirty)
+- Init, update (background task), deinit operations
+- "Open in Tab" — opens submodule as a full project tab with all BeardGit features
+- Context menu with all operations + copy path/URL
+- "Update All" header button for batch update
+
+**MR/PR Management (GitHub + GitLab)**
+
+- New `cli-provider` crate wrapping bundled `gh` and `glab` CLIs (both MIT licensed)
+- CLI OAuth as primary auth flow — opens browser, extracts token, stores in encrypted credential store
+- PAT entry remains as fallback for restricted environments
+- Full CRUD: list, view, create, edit, merge (merge/squash/rebase), close
+- Code review: approve, request changes, general + inline comments
+- MR/PR badges on graph commits for branches with open MR/PRs (purple pills)
+- Create dialog with source/target branch, title, description, draft toggle, labels, reviewers
+- Filter tabs: Open / Closed / Merged / All
 
 **Windows DPI & Zoom Fixes**
 
 - Replaced CSS `zoom` with Tauri native `webview.setZoom()` — fixes blurry fonts and layout overflow at >100% UI scale on Windows
 - Added `-webkit-font-smoothing: antialiased` and `text-rendering: optimizeLegibility` for crisper text rendering
-- Canvas graph now detects DPI changes when moving between screens and re-renders at the correct resolution
-- Fixed canvas backing store using non-integer dimensions causing subpixel blurriness at fractional DPR values
-- Stored canvas DPR consistently across resize and draw calls to prevent scale mismatches
+- Canvas graph detects DPI changes when moving between screens and re-renders at correct resolution
+- Fixed canvas subpixel blurriness at fractional DPR values
 
 **Graph UX Improvements**
 
-- Row hover highlight on graph view (subtle transparent overlay)
-- Standard cursor on graph rows instead of pointer hand
-- Increased graph canvas font sizes by 1px across all text elements (badges, summary, columns)
-- Fixed column resize hit zone misaligned with separator lines (was offset by 6px)
+- Row hover highlight (subtle transparent overlay)
+- Standard cursor instead of pointer hand on graph rows
+- Increased canvas font sizes by 1px across all text elements
+- Fixed column resize hit zone misaligned with separator lines
 
 **Tauri Native Migration**
 
-- Replaced `-webkit-app-region: drag` CSS with `data-tauri-drag-region` HTML attribute in Toolbar and TabBar
+- Replaced `-webkit-app-region: drag` CSS with `data-tauri-drag-region` HTML attribute
 - Added `core:webview:allow-set-webview-zoom` capability permission
-- Removed unnecessary `height: 100vh` from layout wrapper with `display: contents`
+
+**Performance & Code Quality**
+
+- All MR/PR CLI commands run on `spawn_blocking` — never block the Tauri async runtime
+- Canvas draw batched with `requestAnimationFrame` via `scheduleDraw()` helper
+- Keyboard shortcut handler uses `get()` instead of subscribe/unsubscribe per keydown
+- Reflog auto-refresh debounced (300ms) on repo-changed events
+- Extracted shared utilities: `shortOid()`, `configure_no_window()`, `run_blocking()` helper
+- Added `GitError::CliError` variant — CLI failures no longer misuse `RepoNotFound`
+- Stringly-typed MR/PR params replaced with proper enum types (`MrPrState`, `MergeStrategy`)
+- Error handling added to CleanDialog and GitConfigSettings (visible error messages)
+- `formatRelativeTimeMs` delegates to `formatRelativeTimeUnix` instead of duplicating
 
 ## [0.1.2] - 2026-04-07
 

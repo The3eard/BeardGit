@@ -2,7 +2,7 @@
 
 ## Current State
 
-**v0.1.2** — Phase 2 complete. CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase (interactive + non-interactive), 3-way merge editor, resizable graph columns, 14 built-in themes with OS auto-switch pairing. CI/CD verified cross-platform.
+**v0.1.3** — Phase 3 complete: task history popup, keyboard shortcuts, reflog viewer, clean, git config editor, gitignore management, patch management, submodules, MR/PR management with bundled gh/glab CLIs, Windows DPI/zoom fixes, graph UX improvements. Phase 2: CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase, 3-way merge editor, resizable graph columns, 14 themes.
 
 ## Project Overview
 
@@ -23,7 +23,8 @@ Cross-platform desktop Git client with GitLab + GitHub CI integration. Tauri v2 
 | `storage` | SQLite (commits cache) + JSON config + TOML themes |
 | `task-runner` | Async background tasks with cancellation + streaming output |
 | `watcher` | Debounced filesystem events via `notify` (500ms, filters `.git/`) |
-| `app-core` | 75 Tauri commands, `AppState`, event bridge — **only crate coupled to Tauri** |
+| `cli-provider` | Wraps bundled `gh`/`glab` CLIs for MR/PR CRUD, review, comments |
+| `app-core` | ~100 Tauri commands, `AppState`, event bridge — **only crate coupled to Tauri** |
 
 **Frontend:** SPA with no file-based routing — all views switched via `activeView` state in `+page.svelte`. Stores in `src/lib/stores/`, IPC in `src/lib/api/tauri.ts`, types in `src/lib/types/index.ts`.
 

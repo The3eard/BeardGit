@@ -1,5 +1,73 @@
 # BeardGit — Project Status
 
+## Phase 3: Power Features + CLI Integration — Complete (v0.1.3)
+
+### Task History Popup
+
+- [x] Enriched TaskInfo with command, started_at_ms, exit_code
+- [x] Always-clickable status bar task area (history icon when idle)
+- [x] Two-line card popup with colored status bars, sorted running-first
+
+### Keyboard Shortcuts
+
+- [x] Central shortcut registry with platform-aware modifiers (⌘/Ctrl)
+- [x] ~20 shortcuts: view navigation, tab management, git ops, graph nav
+- [x] Cheat sheet overlay via `?` key
+
+### Reflog Viewer
+
+- [x] New sidebar view with action-specific icons
+- [x] Detail panel reusing CommitDetail + Show in Graph
+- [x] Context menu with recovery actions (checkout, branch, reset)
+
+### Clean
+
+- [x] Dry-run preview with filter toggles (dirs, ignored, only-ignored)
+- [x] Per-file checkboxes with select all, destructive warnings
+- [x] Per-file delete from untracked file context menu
+
+### Git Config Editor
+
+- [x] Two-column table (Local + Global) in Settings
+- [x] Dropdown selectors for known enum keys, free text for others
+- [x] Add/unset entries, filter by key, collapsible system section
+
+### Gitignore Management
+
+- [x] Quick "Add to .gitignore" from context menu with smart patterns
+- [x] Full CodeMirror editor in Settings with save/revert
+
+### Patch Management
+
+- [x] Create patches from commits (graph) and working tree (changes)
+- [x] Apply with dry-run preview + three-way merge fallback
+
+### Submodules
+
+- [x] Sidebar view with status badges (uninit/clean/outdated/dirty)
+- [x] Init, update (background task), deinit operations
+- [x] Open submodule as full project tab
+
+### MR/PR Management
+
+- [x] New cli-provider crate wrapping bundled gh/glab CLIs (MIT)
+- [x] CLI OAuth primary auth flow + PAT fallback
+- [x] Full CRUD: list, view, create, edit, merge, close
+- [x] Code review: approve, request changes, inline comments
+- [x] MR/PR badges on graph commits
+- [ ] Download and bundle gh/glab binaries in CI pipeline
+- [ ] Auto-update bundled CLIs with app updates
+
+### Audit Fixes
+
+- [x] All CLI commands async with spawn_blocking
+- [x] Canvas draw batched with requestAnimationFrame
+- [x] Shared utilities: shortOid, configure_no_window, run_blocking
+- [x] GitError::CliError variant, enum-typed MR/PR params
+- [x] Error handling in CleanDialog and GitConfigSettings
+
+---
+
 ## Phase 2: Core Workflows — Complete
 
 ### v0.1.2 (Plans 3–4 + Graph Columns + Fixes)
@@ -180,17 +248,11 @@ All Phase 1 features are implemented and tested.
 
 ## Next Steps
 
-### Phase 3: Power Features + CLI Integration
+### Phase 3 Remaining
 
-- glab / gh CLI for MR/PR operations, OAuth, and remote management
-- Info popup for process clicking in the statusbar. History of the last 10 processes with their command, start time, duration, and exit code.
-- Submodules
-- Reflog viewer
-- Bisect
-- Clean
-- Patch management
-- Config viewer/editor
-- Gitignore management
+- Bisect (visual bisect workflow)
+- Bundle gh/glab binaries in CI build pipeline per platform
+- Auto-update bundled CLIs with app updates
 
 ### Phase 4: Developer Experience
 
@@ -199,9 +261,16 @@ All Phase 1 features are implemented and tested.
 
 ### Infrastructure
 
-- Auto-update system (tauri-plugin-updater)
-- Keyboard shortcuts
+- Auto-update system (tauri-plugin-updater) — update app, libgit, git, gh, glab
 - Crash reporting / telemetry (opt-in)
+
+### Code Quality (Deferred from Audit)
+
+- Split `commands.rs` (3148 lines) into feature-based modules
+- Extract generic `<List>` component (saves ~1500 LOC across 8 components)
+- Extract shared dialog CSS to `src/lib/styles/dialog.css`
+- Extract store `fetchIntoStore` helper
+- CLI provider JSON parsing deduplication (GitHub/GitLab parsers)
 
 ---
 
