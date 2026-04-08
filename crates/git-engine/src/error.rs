@@ -14,6 +14,9 @@ pub enum GitError {
     /// No git repository was found at or above the given path.
     #[error("Repository not found at {0}")]
     RepoNotFound(String),
+    /// A git CLI command exited with a non-zero status.
+    #[error("CLI error: {0}")]
+    CliError(String),
     /// An I/O error occurred (e.g. spawning the git CLI process).
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

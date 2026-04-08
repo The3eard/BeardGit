@@ -199,6 +199,15 @@
     }
   }
 
+  /** Schedule a draw on the next animation frame, coalescing rapid calls. */
+  function scheduleDraw() {
+    if (drawRafId !== null) cancelAnimationFrame(drawRafId);
+    drawRafId = requestAnimationFrame(() => {
+      drawRafId = null;
+      draw();
+    });
+  }
+
   function resizeCanvas() {
     if (!canvas || !container) return;
     const dpr = window.devicePixelRatio || 1;
@@ -276,7 +285,7 @@
     if (resizeTarget >= 0) {
       canvas.style.cursor = "col-resize";
       hoveredGroup = null;
-      if (hoveredRow !== prevHovered) draw();
+      if (hoveredRow !== prevHovered) scheduleDraw();
       return;
     }
 
@@ -298,13 +307,13 @@
     }
     canvas.style.cursor = "default";
 
-    if (hoveredRow !== prevHovered) draw();
+    if (hoveredRow !== prevHovered) scheduleDraw();
   }
 
   function handleMouseLeave() {
     if (hoveredRow !== null) {
       hoveredRow = null;
-      draw();
+      scheduleDraw();
     }
     hoveredGroup = null;
   }

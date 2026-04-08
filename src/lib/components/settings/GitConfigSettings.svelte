@@ -34,6 +34,7 @@
 
   // Show/hide system config
   let showSystem = $state(false);
+  let errorMessage = $state<string | null>(null);
 
   /** Merged key list from local + global, sorted alphabetically. */
   let mergedKeys = $derived.by(() => {
@@ -89,10 +90,15 @@
 
   async function saveEdit() {
     if (!editingKey || !editingScope) return;
-    await setConfig(editingScope, editingKey, editingValue);
-    editingKey = null;
-    editingScope = null;
-    await loadAll();
+    errorMessage = null;
+    try {
+      await setConfig(editingScope, editingKey, editingValue);
+      editingKey = null;
+      editingScope = null;
+      await loadAll();
+    } catch (err) {
+      errorMessage = String(err);
+    }
   }
 
   function cancelEdit() {
@@ -107,18 +113,28 @@
 
   async function confirmUnset() {
     if (!unsetTarget) return;
-    await unsetConfig(unsetTarget.scope, unsetTarget.key);
-    unsetTarget = null;
-    await loadAll();
+    errorMessage = null;
+    try {
+      await unsetConfig(unsetTarget.scope, unsetTarget.key);
+      unsetTarget = null;
+      await loadAll();
+    } catch (err) {
+      errorMessage = String(err);
+    }
   }
 
   async function handleAddEntry() {
     if (!addKey.trim()) return;
-    await addConfig(addScope, addKey.trim(), addValue);
-    addKey = "";
-    addValue = "";
-    showAddRow = false;
-    await loadAll();
+    errorMessage = null;
+    try {
+      await addConfig(addScope, addKey.trim(), addValue);
+      addKey = "";
+      addValue = "";
+      showAddRow = false;
+      await loadAll();
+    } catch (err) {
+      errorMessage = String(err);
+    }
   }
 
   function handleAddKeydown(e: KeyboardEvent) {
@@ -143,6 +159,10 @@
       {m.config_add_entry()}
     </button>
   </div>
+
+  {#if errorMessage}
+    <div class="config-error">{errorMessage}</div>
+  {/if}
 
   {#if showAddRow}
     <div class="add-row">
@@ -354,6 +374,15 @@
 
   .add-btn:hover {
     background: rgba(255, 255, 255, 0.1);
+  }
+
+  .config-error {
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--accent-red, #f85149);
+    background: rgba(248, 81, 73, 0.1);
+    border-bottom: 1px solid var(--border);
+    word-break: break-word;
   }
 
   .add-row {

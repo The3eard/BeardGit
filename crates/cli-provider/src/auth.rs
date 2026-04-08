@@ -10,6 +10,7 @@ use std::process::Command;
 
 use provider::ProviderKind;
 
+use crate::configure_no_window;
 use crate::error::CliError;
 
 /// Check if the CLI is already authenticated.
@@ -22,12 +23,7 @@ pub fn is_cli_authenticated(binary_path: &Path, kind: ProviderKind) -> bool {
     };
     let mut cmd = Command::new(binary_path);
     cmd.args(&args);
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000);
-    }
+    configure_no_window(&mut cmd);
 
     cmd.output().is_ok_and(|o| o.status.success())
 }
@@ -65,11 +61,7 @@ pub fn extract_cli_token(
         }
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000);
-    }
+    configure_no_window(&mut cmd);
 
     let output = cmd.output()?;
 
@@ -121,11 +113,7 @@ pub fn start_cli_login(
         }
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000);
-    }
+    configure_no_window(&mut cmd);
 
     let output = cmd.output()?;
 

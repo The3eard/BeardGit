@@ -18,11 +18,7 @@
 
   let showCreateDialog = $state(false);
 
-  $effect(() => {
-    refreshMrPrList();
-  });
-
-  // Re-fetch when filter changes
+  // Re-fetch when filter changes (also fires on mount)
   $effect(() => {
     void $mrPrFilter;
     refreshMrPrList();

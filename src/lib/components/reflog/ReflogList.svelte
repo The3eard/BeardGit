@@ -2,6 +2,7 @@
   import type { ReflogEntry } from "../../types";
   import { selectedReflogOid, selectReflogEntry } from "../../stores/reflog";
   import { formatRelativeTimeUnix } from "../../utils/time";
+  import { shortOid } from "../../utils/git";
   import * as m from "$lib/paraglide/messages";
 
   let {
@@ -34,9 +35,6 @@
     }
   }
 
-  function shortOid(oid: string): string {
-    return oid.substring(0, 7);
-  }
 </script>
 
 <div class="reflog-list">

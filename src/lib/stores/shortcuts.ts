@@ -5,7 +5,7 @@
  * only fire when no input, textarea, or contenteditable element is focused.
  */
 
-import { writable } from "svelte/store";
+import { writable, get } from "svelte/store";
 
 /** A keyboard shortcut binding. */
 export interface Shortcut {
@@ -116,25 +116,20 @@ function matchesKeys(e: KeyboardEvent, keys: ShortcutKeys): boolean {
  */
 export function initShortcutListener(): () => void {
   function handleKeyDown(e: KeyboardEvent) {
-    let matched = false;
+    const list = get(shortcuts);
 
-    shortcuts.subscribe((list) => {
-      for (const shortcut of list) {
-        if (!matchesKeys(e, shortcut.keys)) continue;
+    for (const shortcut of list) {
+      if (!matchesKeys(e, shortcut.keys)) continue;
 
-        // Bare-key shortcuts (no mod) only fire when no input focused
-        const hasModifier = shortcut.keys.mod || shortcut.keys.alt;
-        if (!hasModifier && isInputFocused()) continue;
+      // Bare-key shortcuts (no mod) only fire when no input focused
+      const hasModifier = shortcut.keys.mod || shortcut.keys.alt;
+      if (!hasModifier && isInputFocused()) continue;
 
-        e.preventDefault();
-        e.stopPropagation();
-        shortcut.action();
-        matched = true;
-        break;
-      }
-    })(); // immediately unsubscribe (sync read)
-
-    void matched;
+      e.preventDefault();
+      e.stopPropagation();
+      shortcut.action();
+      break;
+    }
   }
 
   window.addEventListener("keydown", handleKeyDown, { capture: true });

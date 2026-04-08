@@ -52,7 +52,7 @@ impl Repository {
 
         let result = self.git_cmd(&args)?;
         if !result.success {
-            return Err(GitError::RepoNotFound(result.stderr));
+            return Err(GitError::CliError(result.stderr));
         }
 
         Ok(parse_clean_output(&result.stdout, only_ignored))

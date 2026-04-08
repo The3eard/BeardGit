@@ -8,6 +8,7 @@
 <script lang="ts">
   import type { BlameLine } from '$lib/types';
   import { formatRelativeTimeUnix } from '$lib/utils/time';
+  import { shortOid } from '$lib/utils/git';
 
   interface Props {
     lines: BlameLine[];
@@ -38,10 +39,6 @@
       return groupIdx;
     });
   });
-
-  function shortOid(oid: string): string {
-    return oid.slice(0, 7);
-  }
 
   function truncateAuthor(author: string): string {
     return author.length > 12 ? author.slice(0, 11) + '\u2026' : author;

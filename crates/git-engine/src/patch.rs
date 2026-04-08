@@ -58,7 +58,7 @@ impl Repository {
                 &(i + 1).to_string(),
             ])?;
             if !result.success {
-                return Err(GitError::RepoNotFound(result.stderr));
+                return Err(GitError::CliError(result.stderr));
             }
             // git format-patch prints the created file path to stdout
             for line in result.stdout.lines() {
@@ -84,7 +84,7 @@ impl Repository {
         };
         let result = self.git_cmd(&args)?;
         if result.stdout.trim().is_empty() {
-            return Err(GitError::RepoNotFound(
+            return Err(GitError::CliError(
                 "No changes to create patch from".to_string(),
             ));
         }
@@ -132,7 +132,7 @@ impl Repository {
         if result.success {
             Ok(result.stdout)
         } else {
-            Err(GitError::RepoNotFound(result.stderr))
+            Err(GitError::CliError(result.stderr))
         }
     }
 }

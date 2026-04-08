@@ -7,6 +7,7 @@
 <script lang="ts">
   import type { FileHistoryEntry } from '$lib/types';
   import { formatRelativeTime } from '$lib/utils/time';
+  import { shortOid } from '$lib/utils/git';
   import * as m from '$lib/paraglide/messages';
 
   interface Props {
@@ -16,10 +17,6 @@
   }
 
   let { entries, loading, onCommitClick }: Props = $props();
-
-  function shortOid(oid: string): string {
-    return oid.slice(0, 7);
-  }
 
   function truncateMessage(msg: string, max = 60): string {
     const first = msg.split('\n')[0];

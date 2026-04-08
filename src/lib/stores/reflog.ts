@@ -9,6 +9,7 @@ import { writable, derived } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { ReflogEntry } from "../types";
 import * as api from "../api/tauri";
+import { debounce } from "../utils/debounce";
 
 /** All loaded reflog entries (most recent first). */
 export const reflogEntries = writable<ReflogEntry[]>([]);
@@ -52,11 +53,14 @@ export function clearReflogSelection(): void {
   selectedReflogOid.set(null);
 }
 
+/** Debounced reflog loader to avoid rapid re-fetches on burst repo-changed events. */
+const debouncedLoadReflog = debounce(() => loadReflog(), 300);
+
 /** Start listening for repo changes to auto-refresh the reflog. */
 export async function initReflogWatcher(): Promise<void> {
   if (unlisten) return;
   unlisten = await listen("repo-changed", () => {
-    loadReflog();
+    debouncedLoadReflog();
   });
 }
 

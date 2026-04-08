@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import {
     submodules,
     submodulesLoading,
@@ -17,7 +18,7 @@
   import type { SubmoduleInfo } from "../../types";
 
   // Refresh on mount
-  $effect(() => {
+  onMount(() => {
     refreshSubmodules();
   });
 

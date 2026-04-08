@@ -2053,14 +2053,21 @@ fn resolve_cli_binary(
 
 /// Check if the CLI tool is already authenticated for the given provider.
 #[tauri::command]
-pub fn is_cli_authenticated(kind: String, state: State<'_, AppState>) -> Result<bool, String> {
+pub async fn is_cli_authenticated(
+    kind: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
     let provider_kind = provider::ProviderKind::from_config_str(&kind)
         .ok_or_else(|| format!("Unknown provider: {kind}"))?;
     let binary = resolve_cli_binary(&state, provider_kind)?;
-    Ok(cli_provider::auth::is_cli_authenticated(
-        &binary,
-        provider_kind,
-    ))
+    tokio::task::spawn_blocking(move || {
+        Ok(cli_provider::auth::is_cli_authenticated(
+            &binary,
+            provider_kind,
+        ))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Start the CLI OAuth login flow and extract + store the token.
@@ -2088,9 +2095,19 @@ pub async fn cli_login(
     .map_err(|e| e.to_string())?
     .map_err(|e| e.to_string())?;
 
-    // Extract token
-    let token = cli_provider::auth::extract_cli_token(&binary, provider_kind, url_ref.as_deref())
-        .map_err(|e| e.to_string())?;
+    // Extract token (also blocking — runs a subprocess)
+    let binary_for_token = binary.clone();
+    let url_for_token = url_ref.clone();
+    let token = tokio::task::spawn_blocking(move || {
+        cli_provider::auth::extract_cli_token(
+            &binary_for_token,
+            provider_kind,
+            url_for_token.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())?;
 
     // Determine the effective URL for storing
     let effective_url = instance_url.unwrap_or_else(|| match provider_kind {
@@ -2131,40 +2148,48 @@ fn build_cli_provider(state: &State<'_, AppState>) -> Result<cli_provider::CliPr
 
 /// List merge requests / pull requests.
 #[tauri::command]
-pub fn list_mr_prs(
+pub async fn list_mr_prs(
     state_filter: Option<String>,
     limit: Option<u32>,
     state: State<'_, AppState>,
 ) -> Result<Vec<cli_provider::MrPr>, String> {
     let cli = build_cli_provider(&state)?;
-    let filter = state_filter.as_deref().and_then(|s| match s {
-        "open" => Some(cli_provider::MrPrState::Open),
-        "closed" => Some(cli_provider::MrPrState::Closed),
-        "merged" => Some(cli_provider::MrPrState::Merged),
-        _ => None,
-    });
-    cli.list_mr_prs(filter, limit.unwrap_or(30))
-        .map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || {
+        let filter = state_filter.as_deref().and_then(|s| match s {
+            "open" => Some(cli_provider::MrPrState::Open),
+            "closed" => Some(cli_provider::MrPrState::Closed),
+            "merged" => Some(cli_provider::MrPrState::Merged),
+            _ => None,
+        });
+        cli.list_mr_prs(filter, limit.unwrap_or(30))
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Get detailed info about a single MR/PR.
 #[tauri::command]
-pub fn get_mr_pr_detail(
+pub async fn get_mr_pr_detail(
     number: u64,
     state: State<'_, AppState>,
 ) -> Result<cli_provider::MrPrDetail, String> {
     let cli = build_cli_provider(&state)?;
-    cli.get_mr_pr_detail(number).map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || cli.get_mr_pr_detail(number).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Get the changed files in a MR/PR.
 #[tauri::command]
-pub fn get_mr_pr_diff(
+pub async fn get_mr_pr_diff(
     number: u64,
     state: State<'_, AppState>,
 ) -> Result<Vec<cli_provider::MrPrDiffFile>, String> {
     let cli = build_cli_provider(&state)?;
-    cli.get_mr_pr_diff(number).map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || cli.get_mr_pr_diff(number).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 // ---------------------------------------------------------------------------
@@ -3043,7 +3068,7 @@ fn extract_origin_url(repo: &git_engine::Repository) -> Option<String> {
 /// metadata. Returns the newly created MR/PR summary.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub fn create_mr_pr(
+pub async fn create_mr_pr(
     source: String,
     target: String,
     title: String,
@@ -3054,46 +3079,60 @@ pub fn create_mr_pr(
     state: State<'_, AppState>,
 ) -> Result<cli_provider::MrPr, String> {
     let cli = build_cli_provider(&state)?;
-    cli.create_mr_pr(&source, &target, &title, &body, draft, &labels, &reviewers)
-        .map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || {
+        cli.create_mr_pr(&source, &target, &title, &body, draft, &labels, &reviewers)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Edit a MR/PR's title and/or description.
 #[tauri::command]
-pub fn edit_mr_pr(
+pub async fn edit_mr_pr(
     number: u64,
     title: Option<String>,
     body: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    cli.edit_mr_pr(number, title.as_deref(), body.as_deref())
-        .map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || {
+        cli.edit_mr_pr(number, title.as_deref(), body.as_deref())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Merge a MR/PR with the given strategy.
 ///
 /// Strategy must be one of `"merge"`, `"squash"`, or `"rebase"`.
 #[tauri::command]
-pub fn merge_mr_pr(
+pub async fn merge_mr_pr(
     number: u64,
     strategy: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    let strat = match strategy.as_str() {
-        "squash" => cli_provider::MergeStrategy::Squash,
-        "rebase" => cli_provider::MergeStrategy::Rebase,
-        _ => cli_provider::MergeStrategy::Merge,
-    };
-    cli.merge_mr_pr(number, strat).map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || {
+        let strat = match strategy.as_str() {
+            "squash" => cli_provider::MergeStrategy::Squash,
+            "rebase" => cli_provider::MergeStrategy::Rebase,
+            _ => cli_provider::MergeStrategy::Merge,
+        };
+        cli.merge_mr_pr(number, strat).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Close a MR/PR without merging.
 #[tauri::command]
-pub fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    cli.close_mr_pr(number).map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || cli.close_mr_pr(number).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 // ---------------------------------------------------------------------------
@@ -3102,40 +3141,45 @@ pub fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String
 
 /// Approve a MR/PR.
 #[tauri::command]
-pub fn approve_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn approve_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    cli.approve_mr_pr(number).map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || cli.approve_mr_pr(number).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Request changes on a MR/PR with a comment body.
-///
-/// On GitHub this submits a "request changes" review. On GitLab it posts
-/// a comment (GitLab has no direct "request changes" concept).
 #[tauri::command]
-pub fn request_changes_mr_pr(
+pub async fn request_changes_mr_pr(
     number: u64,
     body: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    cli.request_changes(number, &body)
-        .map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || {
+        cli.request_changes(number, &body)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Add a general comment to a MR/PR.
 #[tauri::command]
-pub fn add_mr_pr_comment(
+pub async fn add_mr_pr_comment(
     number: u64,
     body: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    cli.add_comment(number, &body).map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || cli.add_comment(number, &body).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Add an inline comment on a specific file and line of a MR/PR diff.
 #[tauri::command]
-pub fn add_mr_pr_inline_comment(
+pub async fn add_mr_pr_inline_comment(
     number: u64,
     path: String,
     line: u64,
@@ -3143,6 +3187,10 @@ pub fn add_mr_pr_inline_comment(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    cli.add_inline_comment(number, &path, line, &body)
-        .map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || {
+        cli.add_inline_comment(number, &path, line, &body)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

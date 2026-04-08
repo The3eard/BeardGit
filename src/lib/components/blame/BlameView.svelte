@@ -22,6 +22,7 @@
     loadFileHistory,
   } from '$lib/stores/blame';
   import { activeTheme } from '$lib/stores/theme';
+  import { shortOid } from '$lib/utils/git';
   import * as m from '$lib/paraglide/messages';
 
   interface Props {
@@ -54,10 +55,6 @@
     scroller.addEventListener('scroll', syncGutter);
     return () => scroller.removeEventListener('scroll', syncGutter);
   });
-
-  function shortOid(oid: string): string {
-    return oid.slice(0, 7);
-  }
 
   function handleClose() {
     onNavigateBack?.($blamePreviousView);

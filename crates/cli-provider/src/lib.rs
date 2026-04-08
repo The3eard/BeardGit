@@ -20,6 +20,21 @@ use provider::ProviderKind;
 pub use error::CliError;
 pub use types::*;
 
+/// Configure a [`Command`] to suppress the console window on Windows.
+///
+/// On Windows, this sets `CREATE_NO_WINDOW` (0x08000000) to prevent a visible
+/// console window from flashing when spawning CLI subprocesses.
+/// On other platforms this is a no-op.
+#[cfg(target_os = "windows")]
+pub(crate) fn configure_no_window(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(0x08000000);
+}
+
+/// No-op on non-Windows platforms.
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn configure_no_window(_cmd: &mut Command) {}
+
 /// CLI provider that dispatches to `gh` or `glab` based on the provider kind.
 pub struct CliProvider {
     /// Which provider this instance represents.
@@ -58,12 +73,7 @@ impl CliProvider {
 
         let mut cmd = Command::new(&self.binary_path);
         cmd.args(args).current_dir(&self.repo_path);
-
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        }
+        configure_no_window(&mut cmd);
 
         let output = cmd.output()?;
 
@@ -85,7 +95,11 @@ impl CliProvider {
     }
 
     /// Run a CLI command with stdin input.
-    pub(crate) fn run_with_stdin(&self, args: &[&str], stdin_data: &str) -> Result<String, CliError> {
+    pub(crate) fn run_with_stdin(
+        &self,
+        args: &[&str],
+        stdin_data: &str,
+    ) -> Result<String, CliError> {
         use std::io::Write;
         use std::process::Stdio;
 
@@ -101,12 +115,7 @@ impl CliProvider {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x08000000);
-        }
+        configure_no_window(&mut cmd);
 
         let mut child = cmd.spawn()?;
 

@@ -21,6 +21,7 @@
   let items = $state<CleanItem[]>([]);
   let selected = $state<Set<string>>(new Set());
   let loading = $state(true);
+  let errorMessage = $state<string | null>(null);
 
   // Filter toggles
   let includeDirs = $state(false);
@@ -83,9 +84,14 @@
 
   async function handleDelete() {
     if (selected.size === 0) return;
-    await cleanPaths([...selected]);
-    await Promise.all([refreshStatuses(), refreshDiffs()]);
-    onClose();
+    errorMessage = null;
+    try {
+      await cleanPaths([...selected]);
+      await Promise.all([refreshStatuses(), refreshDiffs()]);
+      onClose();
+    } catch (err) {
+      errorMessage = String(err);
+    }
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -148,6 +154,10 @@
       </div>
     {/if}
   </div>
+
+  {#if errorMessage}
+    <div class="dialog-error">{errorMessage}</div>
+  {/if}
 
   <div class="dialog-warning">{m.clean_dialog_warning()}</div>
 
@@ -286,6 +296,16 @@
     height: 100px;
     color: var(--text-secondary);
     font-size: 13px;
+  }
+
+  .dialog-error {
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: var(--accent-red, #f85149);
+    background: rgba(248, 81, 73, 0.1);
+    border-radius: 4px;
+    word-break: break-word;
   }
 
   .dialog-warning {
