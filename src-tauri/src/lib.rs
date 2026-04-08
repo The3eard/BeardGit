@@ -158,6 +158,8 @@ pub fn run() {
             app_core::commands::get_rebase_commits,
             app_core::commands::start_interactive_rebase,
             app_core::commands::get_reflog,
+            app_core::commands::clean_dry_run,
+            app_core::commands::clean_paths,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

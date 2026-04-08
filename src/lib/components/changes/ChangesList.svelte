@@ -3,7 +3,10 @@
   import * as m from "$lib/paraglide/messages";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
+  import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
+  import { cleanPaths } from "$lib/api/tauri";
+  import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
 
   let {
     files,
@@ -27,6 +30,8 @@
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
   let contextMenuFile = $state<string | null>(null);
+  let showDeleteConfirm = $state(false);
+  let deleteTargetPath = $state<string | null>(null);
 
   function statusIcon(status: string): string {
     switch (status) {
@@ -87,7 +92,28 @@
       },
     });
 
+    // Delete option for untracked files in the unstaged list
+    const file = files.find(f => f.path === filePath);
+    if (!isStaged && file && file.status === "new") {
+      items.push({ separator: true });
+      items.push({
+        label: m.changes_menu_delete_file(),
+        action: () => {
+          deleteTargetPath = filePath;
+          showDeleteConfirm = true;
+        },
+      });
+    }
+
     return items;
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTargetPath) return;
+    await cleanPaths([deleteTargetPath]);
+    showDeleteConfirm = false;
+    deleteTargetPath = null;
+    await Promise.all([refreshStatuses(), refreshDiffs()]);
   }
 
   function openContextMenu(e: MouseEvent, filePath: string) {
@@ -142,6 +168,16 @@
   visible={contextMenuVisible}
   onClose={() => (contextMenuVisible = false)}
 />
+
+{#if showDeleteConfirm && deleteTargetPath}
+  <ConfirmDialog
+    title={m.changes_menu_delete_confirm_title()}
+    message={m.changes_menu_delete_confirm_message({ path: deleteTargetPath })}
+    destructive={true}
+    onConfirm={handleConfirmDelete}
+    onCancel={() => { showDeleteConfirm = false; deleteTargetPath = null; }}
+  />
+{/if}
 
 <style>
   .changes-list { display: flex; flex-direction: column; }

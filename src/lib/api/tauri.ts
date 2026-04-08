@@ -22,6 +22,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, CleanItem } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -511,4 +512,23 @@ export async function startInteractiveRebase(baseOid: string, actions: RebaseAct
 /** Get the HEAD reflog entries, limited to the given count (default 100). */
 export async function getReflog(limit?: number): Promise<ReflogEntry[]> {
   return invoke<ReflogEntry[]>("get_reflog", { limit: limit ?? null });
+// Clean (untracked file removal)
+// ---------------------------------------------------------------------------
+
+/** Preview untracked/ignored files that would be removed by git clean. */
+export async function cleanDryRun(
+  includeDirectories: boolean,
+  includeIgnored: boolean,
+  onlyIgnored: boolean,
+): Promise<CleanItem[]> {
+  return invoke<CleanItem[]>("clean_dry_run", {
+    includeDirectories,
+    includeIgnored,
+    onlyIgnored,
+  });
+}
+
+/** Permanently remove the specified paths from the working directory. */
+export async function cleanPaths(paths: string[]): Promise<number> {
+  return invoke<number>("clean_paths", { paths });
 }

@@ -19,6 +19,7 @@
 //! - [`error`] — unified error type
 
 pub mod blame;
+pub mod clean;
 pub mod cli;
 pub mod commits;
 pub mod conflict;
@@ -36,6 +37,7 @@ pub mod staging;
 pub mod worktree;
 
 pub use blame::{BlameLine, FileHistoryEntry};
+pub use clean::CleanItem;
 pub use cli::{CommitStats, GitCliResult, StashEntry, TagInfo};
 pub use commits::CommitInfo;
 pub use conflict::{ConflictFileContents, ConflictState, ConflictStatus};

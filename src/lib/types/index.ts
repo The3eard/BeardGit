@@ -331,6 +331,17 @@ export interface WorktreeInfo {
   is_locked: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Clean
+// ---------------------------------------------------------------------------
+
+/** An untracked item that would be removed by git clean. */
+export interface CleanItem {
+  path: string;
+  is_directory: boolean;
+  is_ignored: boolean;
+}
+
 // ── Theme types ──────────────────────────────────────────────────────
 
 export interface ThemeMeta {

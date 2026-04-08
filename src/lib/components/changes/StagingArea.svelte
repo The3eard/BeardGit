@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fileStatuses, stageFiles, unstageFiles, stageAll, unstageAll, commit, commitMessage, refreshStatuses, refreshDiffs } from "../../stores/changes";
   import ChangesList from "./ChangesList.svelte";
+  import CleanDialog from "./CleanDialog.svelte";
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { amendCommit, getHeadMessage } from "$lib/api/tauri";
@@ -24,6 +25,8 @@
 
   let staged = $derived($fileStatuses.filter(f => f.is_staged));
   let unstaged = $derived($fileStatuses.filter(f => !f.is_staged));
+  let hasUntracked = $derived(unstaged.some(f => f.status === "new"));
+  let showCleanDialog = $state(false);
 
   async function handleAmendToggle() {
     if (isAmend) {
@@ -93,6 +96,18 @@
     onFileClick={(path) => onFileClick?.(path, false)}
     onNavigate={onNavigate}
   />
+
+  {#if hasUntracked}
+    <div class="clean-row">
+      <button class="clean-btn" onclick={() => showCleanDialog = true}>
+        {m.clean_button()}
+      </button>
+    </div>
+  {/if}
+
+  {#if showCleanDialog}
+    <CleanDialog onClose={() => showCleanDialog = false} />
+  {/if}
 </div>
 
 <style>
@@ -129,5 +144,22 @@
   .amend-toggle input[type="checkbox"] {
     margin: 0;
     accent-color: var(--accent-blue);
+  }
+  .clean-row {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+  }
+  .clean-btn {
+    padding: 4px 12px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .clean-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
   }
 </style>
