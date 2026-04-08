@@ -176,6 +176,17 @@ fn parse_stat_summary(output: &str) -> CommitStats {
     }
 }
 
+/// Apply Windows-specific process creation flags to hide the console window.
+#[cfg(target_os = "windows")]
+fn configure_no_window(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(0x08000000);
+}
+
+/// No-op on non-Windows platforms.
+#[cfg(not(target_os = "windows"))]
+fn configure_no_window(_cmd: &mut Command) {}
+
 impl Repository {
     /// Run a git command in the repository directory.
     ///
@@ -184,13 +195,7 @@ impl Repository {
     pub fn git_cmd(&self, args: &[&str]) -> Result<GitCliResult, GitError> {
         let mut cmd = Command::new("git");
         cmd.args(args).current_dir(self.path());
-
-        // Suppress the console window that Windows shows for child processes.
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        }
+        configure_no_window(&mut cmd);
 
         let output = cmd.output().map_err(GitError::Io)?;
 
@@ -216,12 +221,7 @@ impl Repository {
         for (key, val) in env_vars {
             cmd.env(key, val);
         }
-
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        }
+        configure_no_window(&mut cmd);
 
         let output = cmd.output().map_err(GitError::Io)?;
 
