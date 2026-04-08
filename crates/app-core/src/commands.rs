@@ -1364,6 +1364,17 @@ fn get_active_project_path(state: &State<'_, AppState>) -> Result<PathBuf, Strin
     Ok(PathBuf::from(&slot.path))
 }
 
+/// Run a blocking closure on a dedicated thread and map errors to `String`.
+async fn run_blocking<T, F>(f: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    tokio::task::spawn_blocking(f)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// Fetch all updates from a remote as a background task.
 ///
 /// Spawns `git fetch <remote>` via the task manager and returns immediately
@@ -2150,12 +2161,11 @@ pub async fn list_mr_prs(
     state: State<'_, AppState>,
 ) -> Result<Vec<cli_provider::MrPr>, String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || {
+    run_blocking(move || {
         cli.list_mr_prs(state_filter, limit.unwrap_or(30))
             .map_err(|e| e.to_string())
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Get detailed info about a single MR/PR.
@@ -2165,9 +2175,7 @@ pub async fn get_mr_pr_detail(
     state: State<'_, AppState>,
 ) -> Result<cli_provider::MrPrDetail, String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || cli.get_mr_pr_detail(number).map_err(|e| e.to_string()))
-        .await
-        .map_err(|e| e.to_string())?
+    run_blocking(move || cli.get_mr_pr_detail(number).map_err(|e| e.to_string())).await
 }
 
 /// Get the changed files in a MR/PR.
@@ -2177,9 +2185,7 @@ pub async fn get_mr_pr_diff(
     state: State<'_, AppState>,
 ) -> Result<Vec<cli_provider::MrPrDiffFile>, String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || cli.get_mr_pr_diff(number).map_err(|e| e.to_string()))
-        .await
-        .map_err(|e| e.to_string())?
+    run_blocking(move || cli.get_mr_pr_diff(number).map_err(|e| e.to_string())).await
 }
 
 // ---------------------------------------------------------------------------
@@ -3069,12 +3075,11 @@ pub async fn create_mr_pr(
     state: State<'_, AppState>,
 ) -> Result<cli_provider::MrPr, String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || {
+    run_blocking(move || {
         cli.create_mr_pr(&source, &target, &title, &body, draft, &labels, &reviewers)
             .map_err(|e| e.to_string())
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Edit a MR/PR's title and/or description.
@@ -3086,12 +3091,11 @@ pub async fn edit_mr_pr(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || {
+    run_blocking(move || {
         cli.edit_mr_pr(number, title.as_deref(), body.as_deref())
             .map_err(|e| e.to_string())
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Merge a MR/PR with the given strategy.
@@ -3102,21 +3106,18 @@ pub async fn merge_mr_pr(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || {
+    run_blocking(move || {
         cli.merge_mr_pr(number, strategy)
             .map_err(|e| e.to_string())
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Close a MR/PR without merging.
 #[tauri::command]
 pub async fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || cli.close_mr_pr(number).map_err(|e| e.to_string()))
-        .await
-        .map_err(|e| e.to_string())?
+    run_blocking(move || cli.close_mr_pr(number).map_err(|e| e.to_string())).await
 }
 
 // ---------------------------------------------------------------------------
@@ -3127,9 +3128,7 @@ pub async fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), 
 #[tauri::command]
 pub async fn approve_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || cli.approve_mr_pr(number).map_err(|e| e.to_string()))
-        .await
-        .map_err(|e| e.to_string())?
+    run_blocking(move || cli.approve_mr_pr(number).map_err(|e| e.to_string())).await
 }
 
 /// Request changes on a MR/PR with a comment body.
@@ -3143,12 +3142,11 @@ pub async fn request_changes_mr_pr(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || {
+    run_blocking(move || {
         cli.request_changes(number, &body)
             .map_err(|e| e.to_string())
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Add a general comment to a MR/PR.
@@ -3159,9 +3157,7 @@ pub async fn add_mr_pr_comment(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || cli.add_comment(number, &body).map_err(|e| e.to_string()))
-        .await
-        .map_err(|e| e.to_string())?
+    run_blocking(move || cli.add_comment(number, &body).map_err(|e| e.to_string())).await
 }
 
 /// Add an inline comment on a specific file and line of a MR/PR diff.
@@ -3174,10 +3170,9 @@ pub async fn add_mr_pr_inline_comment(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
-    tokio::task::spawn_blocking(move || {
+    run_blocking(move || {
         cli.add_inline_comment(number, &path, line, &body)
             .map_err(|e| e.to_string())
     })
     .await
-    .map_err(|e| e.to_string())?
 }
