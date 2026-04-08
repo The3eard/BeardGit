@@ -25,6 +25,8 @@
   import type { SearchTag } from "../../search/types";
   import type { GraphViewport as GraphViewportType } from "../../types";
   import { graphFilters, filterGraphRemote } from "../../search/graph-provider";
+  import { mrPrByBranch } from "../../stores/mr-pr";
+  import { activeProvider } from "../../stores/provider";
   import * as m from "$lib/paraglide/messages";
 
   // Column visibility state
@@ -170,6 +172,8 @@
         $selectedGroup,
         hoveredGroup,
         hoveredRow,
+        $mrPrByBranch,
+        $activeProvider?.kind === "github",
       );
     } else {
       renderGraph(
@@ -189,6 +193,8 @@
         $selectedGroup,
         hoveredGroup,
         hoveredRow,
+        $mrPrByBranch,
+        $activeProvider?.kind === "github",
       );
     }
   }

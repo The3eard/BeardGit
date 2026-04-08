@@ -180,9 +180,18 @@ pub fn run() {
             app_core::commands::submodule_abs_path,
             app_core::commands::is_cli_authenticated,
             app_core::commands::cli_login,
+            // MR/PR management
             app_core::commands::list_mr_prs,
             app_core::commands::get_mr_pr_detail,
             app_core::commands::get_mr_pr_diff,
+            app_core::commands::create_mr_pr,
+            app_core::commands::edit_mr_pr,
+            app_core::commands::merge_mr_pr,
+            app_core::commands::close_mr_pr,
+            app_core::commands::approve_mr_pr,
+            app_core::commands::request_changes_mr_pr,
+            app_core::commands::add_mr_pr_comment,
+            app_core::commands::add_mr_pr_inline_comment,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

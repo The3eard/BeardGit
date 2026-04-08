@@ -11,7 +11,7 @@
  * - `computeMetrics` — calculates pixel dimensions from lane/row counts
  */
 
-import type { LayoutNode, LaneSegment, MergeCurve, GraphTheme } from "../../types";
+import type { LayoutNode, LaneSegment, MergeCurve, GraphTheme, MrPr } from "../../types";
 import { formatRelativeTimeUnix } from "../../utils/time";
 import { hashString as _hashString } from "../../utils/ref-colors";
 
@@ -106,14 +106,54 @@ function withAlpha(color: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// ── MR/PR badge drawing ────────────────────────────────────────────────
+
+/**
+ * Draw a MR/PR badge pill on the graph canvas.
+ *
+ * Returns the total width consumed so subsequent badges can be offset.
+ */
+function drawMrPrBadge(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  number: number,
+  isGitHub: boolean,
+): number {
+  const text = isGitHub ? `PR #${number}` : `MR !${number}`;
+  const padding = 4;
+  ctx.font = "10px 'SF Mono', 'Fira Code', 'Consolas', monospace";
+  const width = ctx.measureText(text).width + padding * 2;
+  const height = 14;
+
+  // Draw pill background — purple tint
+  ctx.fillStyle = "rgba(137, 87, 229, 0.2)";
+  ctx.beginPath();
+  roundRect(ctx, x, y - height / 2, width, height, 3);
+  ctx.fill();
+
+  // Draw border
+  ctx.strokeStyle = "rgba(163, 113, 247, 0.4)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Draw text
+  ctx.fillStyle = "#a371f7";
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.fillText(text, x + padding, y);
+
+  return width + 4; // total width consumed including gap
+}
+
 // ── Main render ─────────────────────────────────────────────────────────
 
 /**
  * Main graph render function — paints the entire visible viewport.
  *
  * Draws in order: HEAD lane tint, lane segments (with sync-state line styles),
- * merge curves, commit nodes, ref badges, and text columns (summary, author,
- * date, SHA). Supports group-based dimming for branch focus.
+ * merge curves, commit nodes, ref badges, MR/PR badges, and text columns
+ * (summary, author, date, SHA). Supports group-based dimming for branch focus.
  */
 export function renderGraph(
   ctx: CanvasRenderingContext2D,
@@ -132,6 +172,8 @@ export function renderGraph(
   selectedGroup: number | null = null,
   hoveredGroup: number | null = null,
   hoveredRow: number | null = null,
+  mrPrByBranch: Map<string, MrPr> = new Map(),
+  isGitHubProvider: boolean = false,
 ): void {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -501,6 +543,24 @@ export function renderGraph(
       }
 
       ctx.restore();
+    }
+
+    // ── MR/PR badges (after ref badges, before summary) ──
+    if (mrPrByBranch.size > 0 && node.refs.length > 0) {
+      for (const ref of node.refs) {
+        const branchName = formatRef(ref);
+        const mrPr = mrPrByBranch.get(branchName);
+        if (mrPr && currentX + 60 < messageEndX) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(textX, rowTop, messageEndX - textX, ROW_HEIGHT);
+          ctx.clip();
+          const badgeW = drawMrPrBadge(ctx, currentX, y, mrPr.number, isGitHubProvider);
+          currentX += badgeW;
+          ctx.restore();
+          break; // only one MR/PR badge per commit
+        }
+      }
     }
 
     // ── Commit summary (clipped to remaining message area) ──

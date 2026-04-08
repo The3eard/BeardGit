@@ -1,15 +1,99 @@
+<!--
+  MrPrDetail — detail panel for a selected merge request / pull request.
+
+  Shows summary, description, labels, changed files, comments, and
+  action buttons for merge/close/approve/request-changes/comment.
+-->
 <script lang="ts">
   import {
     mrPrDetail,
     mrPrDetailLoading,
     mrPrDiffFiles,
+    mergeMrPr,
+    closeMrPr,
+    approveMrPr,
+    requestChangesMrPr,
+    addMrPrComment,
   } from "../../stores/mr-pr";
   import { activeProvider } from "../../stores/provider";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as m from "$lib/paraglide/messages";
+  import ConfirmDialog from "../common/ConfirmDialog.svelte";
 
   let isGitHub = $derived($activeProvider?.kind === "github");
   let selectMessage = $derived(isGitHub ? m.mrpr_select_github() : m.mrpr_select());
+
+  // Merge/close confirmation state
+  let showMergeConfirm = $state(false);
+  let mergeStrategy = $state("merge");
+  let showCloseConfirm = $state(false);
+  let actionError = $state("");
+
+  // Comment input state
+  let commentBody = $state("");
+  let commentSubmitting = $state(false);
+
+  async function handleMerge() {
+    const detail = $mrPrDetail;
+    if (!detail) return;
+    try {
+      actionError = "";
+      await mergeMrPr(detail.summary.number, mergeStrategy);
+    } catch (e) {
+      actionError = m.mrpr_merge_failed({ error: String(e) });
+    }
+    showMergeConfirm = false;
+  }
+
+  async function handleClose() {
+    const detail = $mrPrDetail;
+    if (!detail) return;
+    try {
+      actionError = "";
+      await closeMrPr(detail.summary.number);
+    } catch (e) {
+      actionError = m.mrpr_close_failed({ error: String(e) });
+    }
+    showCloseConfirm = false;
+  }
+
+  async function handleApprove() {
+    const detail = $mrPrDetail;
+    if (!detail) return;
+    try {
+      actionError = "";
+      await approveMrPr(detail.summary.number);
+    } catch (e) {
+      actionError = String(e);
+    }
+  }
+
+  async function handleRequestChanges() {
+    const detail = $mrPrDetail;
+    if (!detail || !commentBody.trim()) return;
+    try {
+      actionError = "";
+      await requestChangesMrPr(detail.summary.number, commentBody.trim());
+      commentBody = "";
+    } catch (e) {
+      actionError = String(e);
+    }
+  }
+
+  async function handleAddComment() {
+    const detail = $mrPrDetail;
+    if (!detail || !commentBody.trim()) return;
+    commentSubmitting = true;
+    try {
+      actionError = "";
+      await addMrPrComment(detail.summary.number, commentBody.trim());
+      commentBody = "";
+    } catch (e) {
+      actionError = String(e);
+    } finally {
+      commentSubmitting = false;
+    }
+  }
 </script>
 
 {#if $mrPrDetailLoading}
@@ -44,7 +128,7 @@
         <span class="merge-status not-mergeable">{m.mrpr_not_mergeable()}</span>
       {/if}
 
-      <span class="review-badge">
+      <span class="review-badge" class:approved={detail.review_status === "approved"} class:changes-requested={detail.review_status === "changes_requested"}>
         {#if detail.review_status === "approved"}
           {m.mrpr_status_approved()}
         {:else if detail.review_status === "changes_requested"}
@@ -54,6 +138,28 @@
         {/if}
       </span>
     </div>
+
+    <!-- Action buttons for open MR/PRs -->
+    {#if detail.summary.state === "open"}
+      <div class="detail-actions">
+        <button class="approve-btn" onclick={handleApprove}>{m.mrpr_approve()}</button>
+        <div class="merge-group">
+          <select class="merge-select" bind:value={mergeStrategy}>
+            <option value="merge">{m.mrpr_merge()}</option>
+            <option value="squash">{m.mrpr_merge_squash()}</option>
+            <option value="rebase">{m.mrpr_merge_rebase()}</option>
+          </select>
+          <button class="merge-btn" onclick={() => { showMergeConfirm = true; }}>
+            {mergeStrategy === "squash" ? m.mrpr_merge_squash() : mergeStrategy === "rebase" ? m.mrpr_merge_rebase() : m.mrpr_merge()}
+          </button>
+        </div>
+        <button class="close-btn" onclick={() => { showCloseConfirm = true; }}>{m.mrpr_close()}</button>
+      </div>
+    {/if}
+
+    {#if actionError}
+      <p class="error-msg">{actionError}</p>
+    {/if}
 
     {#if detail.body}
       <div class="section">
@@ -109,9 +215,10 @@
             <div class="comment">
               <div class="comment-header">
                 <span class="comment-author">{comment.author}</span>
-                <span class="comment-date"
-                  >{new Date(comment.created_at).toLocaleString()}</span
-                >
+                <span class="comment-date">{new Date(comment.created_at).toLocaleString()}</span>
+                {#if comment.path}
+                  <span class="comment-file">{comment.path}{comment.line ? `:${comment.line}` : ""}</span>
+                {/if}
               </div>
               <div class="comment-body">{comment.body}</div>
             </div>
@@ -119,7 +226,56 @@
         </div>
       </div>
     {/if}
+
+    <!-- Comment input area -->
+    {#if detail.summary.state === "open"}
+      <div class="section comment-input-section">
+        <textarea
+          class="comment-textarea"
+          placeholder={m.mrpr_comment_placeholder()}
+          bind:value={commentBody}
+          rows="3"
+        ></textarea>
+        <div class="comment-actions">
+          <button
+            class="btn-comment"
+            disabled={!commentBody.trim() || commentSubmitting}
+            onclick={handleAddComment}
+          >
+            {m.mrpr_add_comment()}
+          </button>
+          <button
+            class="btn-request-changes"
+            disabled={!commentBody.trim()}
+            onclick={handleRequestChanges}
+          >
+            {m.mrpr_request_changes()}
+          </button>
+        </div>
+      </div>
+    {/if}
   </div>
+{/if}
+
+{#if showMergeConfirm && $mrPrDetail}
+  <ConfirmDialog
+    title={m.mrpr_merge()}
+    message={m.mrpr_merge_confirm({ target: $mrPrDetail.summary.target_branch })}
+    confirmLabel={m.mrpr_merge()}
+    onConfirm={handleMerge}
+    onCancel={() => { showMergeConfirm = false; }}
+  />
+{/if}
+
+{#if showCloseConfirm && $mrPrDetail}
+  <ConfirmDialog
+    title={m.mrpr_close()}
+    message={isGitHub ? m.mrpr_close_confirm_github() : m.mrpr_close_confirm()}
+    confirmLabel={m.mrpr_close()}
+    destructive
+    onConfirm={handleClose}
+    onCancel={() => { showCloseConfirm = false; }}
+  />
 {/if}
 
 <style>
@@ -176,7 +332,7 @@
     align-items: center;
     font-size: 12px;
     color: var(--text-secondary);
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border);
   }
@@ -202,9 +358,103 @@
     color: var(--accent-red);
   }
 
+  .review-badge {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+  }
+
+  .review-badge.approved {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--accent-green);
+  }
+
+  .review-badge.changes-requested {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--accent-red);
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .approve-btn {
+    padding: 5px 12px;
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--accent-green);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .approve-btn:hover { background: rgba(63, 185, 80, 0.25); }
+
+  .merge-group {
+    display: flex;
+    gap: 0;
+  }
+
+  .merge-select {
+    padding: 5px 6px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px 0 0 4px;
+    font-size: 10px;
+    cursor: pointer;
+    appearance: none;
+    max-width: 80px;
+  }
+
+  .merge-btn {
+    padding: 5px 12px;
+    background: var(--accent-blue);
+    color: #fff;
+    border: 1px solid var(--accent-blue);
+    border-radius: 0 4px 4px 0;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .merge-btn:hover { opacity: 0.9; }
+
+  .close-btn {
+    padding: 5px 12px;
+    background: rgba(248, 81, 73, 0.1);
+    color: var(--accent-red);
+    border: 1px solid rgba(248, 81, 73, 0.3);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    margin-left: auto;
+  }
+
+  .close-btn:hover { background: rgba(248, 81, 73, 0.2); }
+
+  .error-msg {
+    margin: 0 0 12px;
+    padding: 6px 10px;
+    background: rgba(248, 81, 73, 0.1);
+    border: 1px solid rgba(248, 81, 73, 0.3);
+    border-radius: 4px;
+    color: var(--accent-red);
+    font-size: 12px;
+  }
+
   .section {
     margin-bottom: 16px;
   }
+
   .section-title {
     margin: 0 0 8px;
     font-size: 12px;
@@ -226,6 +476,7 @@
     flex-wrap: wrap;
     gap: 4px;
   }
+
   .label-tag {
     padding: 2px 8px;
     border-radius: 12px;
@@ -237,12 +488,14 @@
   .file-list {
     font-size: 12px;
   }
+
   .file-row {
     display: flex;
     gap: 6px;
     padding: 3px 0;
     align-items: center;
   }
+
   .file-status {
     width: 14px;
     text-align: center;
@@ -281,6 +534,7 @@
     gap: 8px;
     margin-bottom: 4px;
     font-size: 11px;
+    flex-wrap: wrap;
   }
   .comment-author {
     font-weight: 600;
@@ -289,10 +543,67 @@
   .comment-date {
     color: var(--text-secondary);
   }
+  .comment-file {
+    font-family: var(--font-mono);
+    color: var(--accent-blue);
+    font-size: 10px;
+  }
   .comment-body {
     font-size: 12px;
     color: var(--text-primary);
     white-space: pre-wrap;
     line-height: 1.4;
   }
+
+  .comment-input-section {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+
+  .comment-textarea {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 50px;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+  }
+
+  .comment-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .btn-comment {
+    padding: 5px 12px;
+    background: var(--accent-blue);
+    color: #fff;
+    border: 1px solid var(--accent-blue);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .btn-comment:hover { opacity: 0.9; }
+  .btn-comment:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-request-changes {
+    padding: 5px 12px;
+    background: rgba(248, 81, 73, 0.1);
+    color: var(--accent-red);
+    border: 1px solid rgba(248, 81, 73, 0.3);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .btn-request-changes:hover { background: rgba(248, 81, 73, 0.2); }
+  .btn-request-changes:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

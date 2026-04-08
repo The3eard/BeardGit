@@ -8,7 +8,9 @@ pub mod auth;
 pub mod detail;
 pub mod error;
 pub mod list;
+pub mod review;
 pub mod types;
+pub mod write;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -80,6 +82,46 @@ impl CliProvider {
     ) -> Result<T, CliError> {
         let stdout = self.run(args)?;
         serde_json::from_str(&stdout).map_err(|e| CliError::JsonError(e.to_string()))
+    }
+
+    /// Run a CLI command with stdin input.
+    pub(crate) fn run_with_stdin(&self, args: &[&str], stdin_data: &str) -> Result<String, CliError> {
+        use std::io::Write;
+        use std::process::Stdio;
+
+        if !self.binary_path.exists() && !Self::is_path_binary(&self.binary_path) {
+            return Err(CliError::BinaryNotFound(
+                self.binary_path.display().to_string(),
+            ));
+        }
+
+        let mut cmd = Command::new(&self.binary_path);
+        cmd.args(args)
+            .current_dir(&self.repo_path)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000);
+        }
+
+        let mut child = cmd.spawn()?;
+
+        if let Some(ref mut stdin) = child.stdin {
+            stdin.write_all(stdin_data.as_bytes())?;
+        }
+
+        let output = child.wait_with_output()?;
+
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            Err(CliError::CommandFailed(stderr))
+        }
     }
 
     /// Check if a path refers to a binary name resolvable on PATH (no directory component).

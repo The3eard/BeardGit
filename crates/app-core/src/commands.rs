@@ -3032,3 +3032,117 @@ fn extract_origin_url(repo: &git_engine::Repository) -> Option<String> {
     let url = remote.url()?.to_string();
     Some(url)
 }
+
+// ---------------------------------------------------------------------------
+// MR/PR management — write operations (create, edit, merge, close)
+// ---------------------------------------------------------------------------
+
+/// Create a new MR/PR.
+///
+/// Creates a merge request (GitLab) or pull request (GitHub) with the given
+/// metadata. Returns the newly created MR/PR summary.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub fn create_mr_pr(
+    source: String,
+    target: String,
+    title: String,
+    body: String,
+    draft: bool,
+    labels: Vec<String>,
+    reviewers: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<cli_provider::MrPr, String> {
+    let cli = build_cli_provider(&state)?;
+    cli.create_mr_pr(&source, &target, &title, &body, draft, &labels, &reviewers)
+        .map_err(|e| e.to_string())
+}
+
+/// Edit a MR/PR's title and/or description.
+#[tauri::command]
+pub fn edit_mr_pr(
+    number: u64,
+    title: Option<String>,
+    body: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let cli = build_cli_provider(&state)?;
+    cli.edit_mr_pr(number, title.as_deref(), body.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+/// Merge a MR/PR with the given strategy.
+///
+/// Strategy must be one of `"merge"`, `"squash"`, or `"rebase"`.
+#[tauri::command]
+pub fn merge_mr_pr(
+    number: u64,
+    strategy: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let cli = build_cli_provider(&state)?;
+    let strat = match strategy.as_str() {
+        "squash" => cli_provider::MergeStrategy::Squash,
+        "rebase" => cli_provider::MergeStrategy::Rebase,
+        _ => cli_provider::MergeStrategy::Merge,
+    };
+    cli.merge_mr_pr(number, strat).map_err(|e| e.to_string())
+}
+
+/// Close a MR/PR without merging.
+#[tauri::command]
+pub fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+    let cli = build_cli_provider(&state)?;
+    cli.close_mr_pr(number).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// MR/PR management — review operations (approve, request changes, comment)
+// ---------------------------------------------------------------------------
+
+/// Approve a MR/PR.
+#[tauri::command]
+pub fn approve_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+    let cli = build_cli_provider(&state)?;
+    cli.approve_mr_pr(number).map_err(|e| e.to_string())
+}
+
+/// Request changes on a MR/PR with a comment body.
+///
+/// On GitHub this submits a "request changes" review. On GitLab it posts
+/// a comment (GitLab has no direct "request changes" concept).
+#[tauri::command]
+pub fn request_changes_mr_pr(
+    number: u64,
+    body: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let cli = build_cli_provider(&state)?;
+    cli.request_changes(number, &body)
+        .map_err(|e| e.to_string())
+}
+
+/// Add a general comment to a MR/PR.
+#[tauri::command]
+pub fn add_mr_pr_comment(
+    number: u64,
+    body: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let cli = build_cli_provider(&state)?;
+    cli.add_comment(number, &body).map_err(|e| e.to_string())
+}
+
+/// Add an inline comment on a specific file and line of a MR/PR diff.
+#[tauri::command]
+pub fn add_mr_pr_inline_comment(
+    number: u64,
+    path: String,
+    line: u64,
+    body: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let cli = build_cli_provider(&state)?;
+    cli.add_inline_comment(number, &path, line, &body)
+        .map_err(|e| e.to_string())
+}

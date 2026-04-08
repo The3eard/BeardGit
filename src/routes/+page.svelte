@@ -814,33 +814,6 @@
     min-height: 0;
   }
 
-  .wip-placeholder {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: var(--text-secondary);
-  }
-
-  .wip-icon {
-    font-size: 48px;
-    opacity: 0.5;
-  }
-
-  .wip-placeholder h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0;
-  }
-
-  .wip-placeholder p {
-    font-size: 13px;
-    margin: 0;
-  }
-
   .task-panel-resize-handle {
     height: 4px;
     background: var(--border);

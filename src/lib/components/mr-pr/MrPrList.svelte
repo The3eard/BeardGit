@@ -1,3 +1,7 @@
+<!--
+  MrPrList — list of merge requests / pull requests with filter tabs
+  and a "New MR/PR" create button.
+-->
 <script lang="ts">
   import {
     mrPrList,
@@ -10,6 +14,9 @@
   import { activeProvider } from "../../stores/provider";
   import * as m from "$lib/paraglide/messages";
   import type { MrPrState } from "../../types";
+  import CreateMrPrDialog from "./CreateMrPrDialog.svelte";
+
+  let showCreateDialog = $state(false);
 
   $effect(() => {
     refreshMrPrList();
@@ -53,6 +60,9 @@
 <div class="mrpr-list-container">
   <div class="list-header">
     <h2 class="list-title">{title}</h2>
+    <button class="action-btn" onclick={() => { showCreateDialog = true; }}>
+      {isGitHub ? m.mrpr_create_github() : m.mrpr_create()}
+    </button>
   </div>
 
   <div class="filter-tabs">
@@ -97,6 +107,10 @@
   {/if}
 </div>
 
+{#if showCreateDialog}
+  <CreateMrPrDialog onClose={() => { showCreateDialog = false; }} />
+{/if}
+
 <style>
   .mrpr-list-container {
     display: flex;
@@ -106,6 +120,9 @@
   }
 
   .list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 12px 16px 0;
   }
 
@@ -114,6 +131,21 @@
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
+  }
+
+  .action-btn {
+    padding: 4px 10px;
+    background: var(--accent-blue);
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .action-btn:hover {
+    opacity: 0.9;
   }
 
   .filter-tabs {

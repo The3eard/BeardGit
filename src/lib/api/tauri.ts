@@ -671,3 +671,46 @@ export async function getMrPrDetail(number: number): Promise<MrPrDetail> {
 export async function getMrPrDiff(number: number): Promise<MrPrDiffFile[]> {
   return invoke<MrPrDiffFile[]>("get_mr_pr_diff", { number });
 }
+
+/** Create a new MR/PR. */
+export async function createMrPr(
+  source: string, target: string, title: string, body: string,
+  draft: boolean, labels: string[], reviewers: string[]
+): Promise<MrPr> {
+  return invoke<MrPr>("create_mr_pr", { source, target, title, body, draft, labels, reviewers });
+}
+
+/** Edit a MR/PR. */
+export async function editMrPr(number: number, title?: string, body?: string): Promise<void> {
+  return invoke<void>("edit_mr_pr", { number, title: title ?? null, body: body ?? null });
+}
+
+/** Merge a MR/PR. */
+export async function mergeMrPr(number: number, strategy: string): Promise<void> {
+  return invoke<void>("merge_mr_pr", { number, strategy });
+}
+
+/** Close a MR/PR. */
+export async function closeMrPr(number: number): Promise<void> {
+  return invoke<void>("close_mr_pr", { number });
+}
+
+/** Approve a MR/PR. */
+export async function approveMrPr(number: number): Promise<void> {
+  return invoke<void>("approve_mr_pr", { number });
+}
+
+/** Request changes on a MR/PR. */
+export async function requestChangesMrPr(number: number, body: string): Promise<void> {
+  return invoke<void>("request_changes_mr_pr", { number, body });
+}
+
+/** Add a general comment to a MR/PR. */
+export async function addMrPrComment(number: number, body: string): Promise<void> {
+  return invoke<void>("add_mr_pr_comment", { number, body });
+}
+
+/** Add an inline comment on a specific file and line. */
+export async function addMrPrInlineComment(number: number, path: string, line: number, body: string): Promise<void> {
+  return invoke<void>("add_mr_pr_inline_comment", { number, path, line, body });
+}
