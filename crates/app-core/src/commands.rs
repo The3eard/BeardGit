@@ -2145,19 +2145,13 @@ fn build_cli_provider(state: &State<'_, AppState>) -> Result<cli_provider::CliPr
 /// List merge requests / pull requests.
 #[tauri::command]
 pub async fn list_mr_prs(
-    state_filter: Option<String>,
+    state_filter: Option<cli_provider::MrPrState>,
     limit: Option<u32>,
     state: State<'_, AppState>,
 ) -> Result<Vec<cli_provider::MrPr>, String> {
     let cli = build_cli_provider(&state)?;
     tokio::task::spawn_blocking(move || {
-        let filter = state_filter.as_deref().and_then(|s| match s {
-            "open" => Some(cli_provider::MrPrState::Open),
-            "closed" => Some(cli_provider::MrPrState::Closed),
-            "merged" => Some(cli_provider::MrPrState::Merged),
-            _ => None,
-        });
-        cli.list_mr_prs(filter, limit.unwrap_or(30))
+        cli.list_mr_prs(state_filter, limit.unwrap_or(30))
             .map_err(|e| e.to_string())
     })
     .await
@@ -3101,22 +3095,16 @@ pub async fn edit_mr_pr(
 }
 
 /// Merge a MR/PR with the given strategy.
-///
-/// Strategy must be one of `"merge"`, `"squash"`, or `"rebase"`.
 #[tauri::command]
 pub async fn merge_mr_pr(
     number: u64,
-    strategy: String,
+    strategy: cli_provider::MergeStrategy,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cli = build_cli_provider(&state)?;
     tokio::task::spawn_blocking(move || {
-        let strat = match strategy.as_str() {
-            "squash" => cli_provider::MergeStrategy::Squash,
-            "rebase" => cli_provider::MergeStrategy::Rebase,
-            _ => cli_provider::MergeStrategy::Merge,
-        };
-        cli.merge_mr_pr(number, strat).map_err(|e| e.to_string())
+        cli.merge_mr_pr(number, strategy)
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
