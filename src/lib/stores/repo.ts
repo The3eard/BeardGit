@@ -14,6 +14,7 @@ import { checkStatus as checkProviderStatus } from "./provider";
 import { refreshStatuses, refreshDiffs } from "./changes";
 import { refreshConflictStatus } from "./conflict";
 import { refreshUserEmails } from "./graph";
+import { refreshSubmodules } from "./submodules";
 
 export const repoInfo = writable<RepoInfo | null>(null);
 export const branches = writable<BranchInfo[]>([]);
@@ -42,6 +43,7 @@ export async function registerWatcher() {
       await refreshStatuses();
       refreshDiffs();
       refreshConflictStatus();
+      refreshSubmodules();
     }, 300);
   });
 }

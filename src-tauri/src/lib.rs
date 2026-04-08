@@ -172,6 +172,12 @@ pub fn run() {
             app_core::commands::create_working_tree_patch,
             app_core::commands::preview_patch,
             app_core::commands::apply_patch,
+            app_core::commands::list_submodules,
+            app_core::commands::init_submodule,
+            app_core::commands::update_submodule,
+            app_core::commands::update_all_submodules,
+            app_core::commands::deinit_submodule,
+            app_core::commands::submodule_abs_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

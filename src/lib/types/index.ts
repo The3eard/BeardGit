@@ -493,6 +493,20 @@ export interface ReflogEntry {
   author: string;
   email: string;
   timestamp: number;
+// Submodules
+// ---------------------------------------------------------------------------
+
+/** Status of a submodule relative to the superproject. */
+export type SubmoduleStatus = "uninitialized" | "clean" | "outdated" | "dirty";
+
+/** Information about a single submodule. */
+export interface SubmoduleInfo {
+  name: string;
+  path: string;
+  url: string;
+  oid: string | null;
+  registered_oid: string;
+  status: SubmoduleStatus;
 }
 
 /** Describes which hunks/lines the user selected for staging/unstaging. */

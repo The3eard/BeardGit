@@ -16,6 +16,7 @@
     { label: m.sidebar_stashes(), icon: "\uF187", id: "stashes" },
     { label: m.sidebar_worktrees(), icon: "\uE728", id: "worktrees" },
     { label: m.sidebar_reflog(), icon: "\uF1DA", id: "reflog" },
+    { label: m.sidebar_submodules(), icon: "\uF1E6", id: "submodules" },
   ];
 
   const providerItems: NavItem[] = [

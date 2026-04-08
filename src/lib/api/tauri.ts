@@ -25,6 +25,7 @@ import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo,
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, CleanItem } from "../types";
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ConfigEntry, ConfigScope } from "../types";
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, PatchPreview } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, SubmoduleInfo } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -596,4 +597,35 @@ export async function previewPatch(path: string): Promise<PatchPreview> {
 /** Apply a patch file. Set threeWay=true for 3-way merge fallback. */
 export async function applyPatch(path: string, threeWay: boolean): Promise<string> {
   return invoke<string>("apply_patch", { path, threeWay });
+// Submodules
+// ---------------------------------------------------------------------------
+
+/** List all submodules in the active repository. */
+export async function listSubmodules(): Promise<SubmoduleInfo[]> {
+  return invoke<SubmoduleInfo[]>("list_submodules");
+}
+
+/** Initialize a submodule. */
+export async function initSubmodule(path: string): Promise<void> {
+  return invoke<void>("init_submodule", { path });
+}
+
+/** Update a single submodule (background task). */
+export async function updateSubmodule(path: string): Promise<TaskId> {
+  return invoke<TaskId>("update_submodule", { path });
+}
+
+/** Update all submodules (background task). */
+export async function updateAllSubmodules(): Promise<TaskId> {
+  return invoke<TaskId>("update_all_submodules");
+}
+
+/** Deinitialize a submodule. */
+export async function deinitSubmodule(path: string, force: boolean): Promise<void> {
+  return invoke<void>("deinit_submodule", { path, force });
+}
+
+/** Get the absolute filesystem path of a submodule. */
+export async function submoduleAbsPath(submodulePath: string): Promise<string> {
+  return invoke<string>("submodule_abs_path", { submodulePath });
 }

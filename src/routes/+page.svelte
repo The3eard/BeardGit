@@ -28,6 +28,7 @@
   import TagView from "$lib/components/tags/TagView.svelte";
   import BranchView from "$lib/components/branches/BranchView.svelte";
   import WorktreeList from "$lib/components/worktrees/WorktreeList.svelte";
+  import SubmoduleList from "$lib/components/submodules/SubmoduleList.svelte";
   import BlameView from "$lib/components/blame/BlameView.svelte";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
@@ -529,6 +530,8 @@
             {/if}
           </div>
         </div>
+      {:else if activeView === "submodules"}
+        <SubmoduleList />
       {:else if activeView === "blame"}
         <BlameView onNavigateBack={(view) => { activeView = view; }} />
       {:else if activeView === "merge-requests"}

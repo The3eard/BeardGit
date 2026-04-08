@@ -17,6 +17,7 @@
 //! - [`cli`] — shell-out wrapper for git CLI operations
 //! - [`interactive_rebase`] — pre-planned interactive rebase via `GIT_SEQUENCE_EDITOR`
 //! - [`worktree`] — list, create, and remove linked worktrees
+//! - [`submodule`] — list, init, update, and deinit submodules
 //! - [`error`] — unified error type
 
 pub mod blame;
@@ -38,6 +39,7 @@ pub mod remote;
 pub mod repository;
 pub mod reset;
 pub mod staging;
+pub mod submodule;
 pub mod worktree;
 
 pub use blame::{BlameLine, FileHistoryEntry};
@@ -54,4 +56,5 @@ pub use reflog::ReflogEntry;
 pub use patch::{PatchPreview, PatchStat};
 pub use repository::{BranchInfo, RepoStatus, Repository, StatusSummary};
 pub use staging::FileStatus;
+pub use submodule::{SubmoduleInfo, SubmoduleStatus};
 pub use worktree::WorktreeInfo;
