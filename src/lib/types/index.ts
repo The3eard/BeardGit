@@ -502,3 +502,23 @@ export interface HunkSelection {
   /** If null, the entire hunk is selected. Otherwise inclusive 0-based line ranges within the hunk. */
   line_ranges: [number, number][] | null;
 }
+
+// ---------------------------------------------------------------------------
+// Patch management
+// ---------------------------------------------------------------------------
+
+/** Per-file diff statistics from a patch. */
+export interface PatchStat {
+  path: string;
+  insertions: number;
+  deletions: number;
+}
+
+/** Preview result for a patch file before applying. */
+export interface PatchPreview {
+  applies_cleanly: boolean;
+  stats: PatchStat[];
+  total_files: number;
+  total_insertions: number;
+  total_deletions: number;
+}

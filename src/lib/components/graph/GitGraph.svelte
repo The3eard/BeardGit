@@ -16,7 +16,8 @@
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
-  import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns } from "../../api/tauri";
+  import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns, createCommitPatches } from "../../api/tauri";
+  import { save } from "@tauri-apps/plugin-dialog";
   import RebaseEditor from "../rebase/RebaseEditor.svelte";
   import { debounce } from "../../utils/debounce";
   import SearchBar from "../common/SearchBar.svelte";
@@ -389,6 +390,25 @@
       {
         label: m.graph_copy_message(),
         action: () => navigator.clipboard.writeText(node.summary),
+      },
+      {
+        label: m.patch_create_commit(),
+        action: async () => {
+          try {
+            const dir = await save({
+              title: m.patch_save_dialog_title(),
+              defaultPath: `${shortOid}.patch`,
+              filters: [{ name: "Patch", extensions: ["patch", "diff"] }],
+            });
+            if (!dir) return;
+            // save() returns the full file path; format-patch needs a directory
+            const sep = dir.includes("/") ? "/" : "\\";
+            const parentDir = dir.substring(0, dir.lastIndexOf(sep)) || ".";
+            await createCommitPatches([node.oid], parentDir);
+          } catch (err) {
+            alert(m.patch_create_failed({ error: String(err) }));
+          }
+        },
       },
       { label: "", action: () => {}, separator: true },
       {

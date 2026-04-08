@@ -4,7 +4,8 @@
   import CleanDialog from "./CleanDialog.svelte";
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
-  import { amendCommit, getHeadMessage } from "$lib/api/tauri";
+  import { amendCommit, getHeadMessage, createWorkingTreePatch, savePatchToFile } from "$lib/api/tauri";
+  import { save } from "@tauri-apps/plugin-dialog";
 
   let {
     onFileClick,
@@ -17,6 +18,8 @@
   let message = $state("");
   let isAmend = $state(false);
   let savedMessage = $state("");
+  let showPatchDialog = $state(false);
+  let patchStagedOnly = $state(true);
 
   onMount(async () => {
     await refreshStatuses();
@@ -39,6 +42,22 @@
     } else {
       message = savedMessage;
       savedMessage = '';
+    }
+  }
+
+  async function handleCreatePatch() {
+    try {
+      const patchText = await createWorkingTreePatch(patchStagedOnly);
+      const filePath = await save({
+        title: m.patch_save_dialog_title(),
+        defaultPath: "changes.patch",
+        filters: [{ name: "Patch", extensions: ["patch", "diff"] }],
+      });
+      if (!filePath) return;
+      await savePatchToFile(filePath, patchText);
+      showPatchDialog = false;
+    } catch (err) {
+      alert(m.patch_create_failed({ error: String(err) }));
     }
   }
 
@@ -75,17 +94,43 @@
       bind:value={message}
       onkeydown={(e) => { if (e.key === 'Enter' && e.metaKey) handleCommit(); }}
     ></textarea>
-    <button
-      class="commit-btn"
-      disabled={!message.trim() || (!isAmend && staged.length === 0)}
-      onclick={handleCommit}
-    >
-      {isAmend
-        ? m.staging_amend_button()
-        : staged.length === 1
-          ? m.staging_commit_button_one({ count: String(staged.length) })
-          : m.staging_commit_button({ count: String(staged.length) })}
-    </button>
+    <div class="commit-actions-row">
+      <button
+        class="commit-btn"
+        disabled={!message.trim() || (!isAmend && staged.length === 0)}
+        onclick={handleCommit}
+      >
+        {isAmend
+          ? m.staging_amend_button()
+          : staged.length === 1
+            ? m.staging_commit_button_one({ count: String(staged.length) })
+            : m.staging_commit_button({ count: String(staged.length) })}
+      </button>
+      <button class="patch-btn" onclick={() => { showPatchDialog = true; }}>
+        {m.patch_create_changes()}
+      </button>
+    </div>
+
+    {#if showPatchDialog}
+      <div class="patch-source-dialog">
+        <label class="radio-label">
+          <input type="radio" bind:group={patchStagedOnly} value={true} />
+          {m.patch_staged_only()}
+        </label>
+        <label class="radio-label">
+          <input type="radio" bind:group={patchStagedOnly} value={false} />
+          {m.patch_all_changes()}
+        </label>
+        <div class="patch-dialog-actions">
+          <button class="patch-btn" onclick={handleCreatePatch}>
+            {m.patch_create_changes()}
+          </button>
+          <button class="patch-btn secondary" onclick={() => { showPatchDialog = false; }}>
+            {m.patch_cancel()}
+          </button>
+        </div>
+      </div>
+    {/if}
   </div>
 
   <ChangesList
@@ -161,5 +206,39 @@
   .clean-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
+  .commit-actions-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .patch-btn {
+    padding: 4px 12px; border-radius: 4px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    color: var(--text-primary); font-size: 12px; cursor: pointer;
+  }
+  .patch-btn:hover { background: rgba(255,255,255,0.1); }
+  .patch-btn.secondary { opacity: 0.7; }
+  .patch-source-dialog {
+    padding: 8px 12px;
+    background: var(--bg-toolbar);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-top: 4px;
+  }
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .patch-dialog-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: flex-end;
   }
 </style>

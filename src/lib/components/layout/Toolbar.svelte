@@ -1,12 +1,18 @@
 <script lang="ts">
   import { activeProject } from "$lib/stores/projects";
   import { repoInfo } from "$lib/stores/repo";
-  import { fetchRemote, pullRemote, pushRemote } from "$lib/api/tauri";
+  import { fetchRemote, pullRemote, pushRemote, previewPatch, applyPatch } from "$lib/api/tauri";
+  import { open } from "@tauri-apps/plugin-dialog";
+  import PatchPreviewDialog from "../patch/PatchPreviewDialog.svelte";
+  import type { PatchPreview } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
 
   let fetchInProgress = $state(false);
   let pullInProgress = $state(false);
   let pushInProgress = $state(false);
+  let patchPreview = $state<PatchPreview | null>(null);
+  let patchPath = $state("");
+  let applyInProgress = $state(false);
 
   async function handleFetch() {
     if (fetchInProgress) return;
@@ -35,6 +41,36 @@
       await pushRemote("origin", $repoInfo.head_branch);
     } finally {
       pushInProgress = false;
+    }
+  }
+
+  async function handleApplyPatch() {
+    try {
+      const selected = await open({
+        title: m.patch_open_dialog_title(),
+        filters: [{ name: "Patch", extensions: ["patch", "diff"] }],
+        multiple: false,
+      });
+      if (!selected) return;
+      const filePath = typeof selected === "string" ? selected : selected;
+      patchPath = filePath;
+      patchPreview = await previewPatch(filePath);
+    } catch (err) {
+      alert(m.patch_apply_failed({ error: String(err) }));
+    }
+  }
+
+  async function handleConfirmApply(threeWay: boolean) {
+    if (applyInProgress) return;
+    applyInProgress = true;
+    try {
+      await applyPatch(patchPath, threeWay);
+      patchPreview = null;
+      patchPath = "";
+    } catch (err) {
+      alert(m.patch_apply_failed({ error: String(err) }));
+    } finally {
+      applyInProgress = false;
     }
   }
 </script>
@@ -70,9 +106,25 @@
       >
         {m.toolbar_push()}
       </button>
+      <button
+        class="toolbar-btn action-btn"
+        title={m.patch_apply()}
+        onclick={handleApplyPatch}
+      >
+        {m.patch_apply()}
+      </button>
     {/if}
   </div>
 </header>
+
+{#if patchPreview}
+  <PatchPreviewDialog
+    preview={patchPreview}
+    patchPath={patchPath}
+    onApply={handleConfirmApply}
+    onClose={() => { patchPreview = null; }}
+  />
+{/if}
 
 <style>
   .toolbar {

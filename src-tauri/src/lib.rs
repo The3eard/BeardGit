@@ -167,6 +167,11 @@ pub fn run() {
             app_core::commands::read_gitignore,
             app_core::commands::write_gitignore,
             app_core::commands::add_gitignore_pattern,
+            app_core::commands::save_patch_to_file,
+            app_core::commands::create_commit_patches,
+            app_core::commands::create_working_tree_patch,
+            app_core::commands::preview_patch,
+            app_core::commands::apply_patch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

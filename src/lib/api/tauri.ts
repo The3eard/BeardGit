@@ -24,6 +24,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry } from "../types";
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, CleanItem } from "../types";
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ConfigEntry, ConfigScope } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, PatchPreview } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -569,4 +570,30 @@ export async function writeGitignore(content: string): Promise<void> {
 /** Add a single pattern to the repository's .gitignore file. */
 export async function addGitignorePattern(pattern: string): Promise<void> {
   return invoke<void>("add_gitignore_pattern", { pattern });
+// Patch management
+// ---------------------------------------------------------------------------
+
+/** Save raw patch text to a file on disk. */
+export async function savePatchToFile(path: string, content: string): Promise<void> {
+  return invoke<void>("save_patch_to_file", { path, content });
+}
+
+/** Create .patch files from commits via git format-patch. */
+export async function createCommitPatches(oids: string[], outputDir: string): Promise<string[]> {
+  return invoke<string[]>("create_commit_patches", { oids, outputDir });
+}
+
+/** Create a patch from working tree changes (staged or all). */
+export async function createWorkingTreePatch(stagedOnly: boolean): Promise<string> {
+  return invoke<string>("create_working_tree_patch", { stagedOnly });
+}
+
+/** Preview a patch file: stats + clean-apply check. */
+export async function previewPatch(path: string): Promise<PatchPreview> {
+  return invoke<PatchPreview>("preview_patch", { path });
+}
+
+/** Apply a patch file. Set threeWay=true for 3-way merge fallback. */
+export async function applyPatch(path: string, threeWay: boolean): Promise<string> {
+  return invoke<string>("apply_patch", { path, threeWay });
 }
