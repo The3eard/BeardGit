@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tasks, selectedOutput, collapsePanel, closePanel } from "../../stores/tasks";
+  import { sortedTasks, selectedOutput, collapsePanel, closePanel } from "../../stores/tasks";
   import { ansiToHtml } from "../../utils/ansi";
   import TaskList from "./TaskList.svelte";
   import * as m from "$lib/paraglide/messages";
@@ -33,7 +33,7 @@
       </div>
     </div>
     <div class="panel-list">
-      <TaskList tasks={$tasks} />
+      <TaskList tasks={$sortedTasks} />
     </div>
   </div>
 

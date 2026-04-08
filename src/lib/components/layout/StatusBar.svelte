@@ -1,7 +1,7 @@
 <script lang="ts">
   import { repoInfo, branches } from "../../stores/repo";
   import { activeProvider } from "../../stores/provider";
-  import { runningTasks, hasRunningTasks, tasks, togglePopover } from "../../stores/tasks";
+  import { runningTasks, hasRunningTasks, tasks, togglePopover, hasHistory } from "../../stores/tasks";
   import { isInConflict, conflictStateLabel } from "../../stores/conflict";
   import * as m from "$lib/paraglide/messages";
 
@@ -56,6 +56,13 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <span class="task-indicator task-failed" onclick={togglePopover}>
         <span class="nf">{"\uF00D"}</span> {m.tasks_failed({ count: String(failedCount) })}
+      </span>
+    {:else if $hasHistory}
+      <span class="status-separator">|</span>
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <span class="task-indicator task-idle" onclick={togglePopover}>
+        <span class="nf">{"\uF46A"}</span> {m.tasks_history()}
       </span>
     {/if}
 
@@ -163,6 +170,10 @@
 
   .task-failed {
     color: var(--accent-red);
+  }
+
+  .task-idle {
+    color: var(--text-secondary);
   }
 
   .task-spinner {

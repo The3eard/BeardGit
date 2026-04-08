@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { tasks, selectedOutput, expandPanel, closePanel } from "../../stores/tasks";
+  import { sortedTasks, selectedOutput, expandPanel, closePanel, selectTask, panelMode } from "../../stores/tasks";
   import { ansiToHtml } from "../../utils/ansi";
   import TaskList from "./TaskList.svelte";
   import * as m from "$lib/paraglide/messages";
+  import type { TaskId } from "../../types";
 
   let popoverEl: HTMLDivElement | undefined = $state();
 
@@ -10,6 +11,11 @@
     if (popoverEl && !popoverEl.contains(e.target as Node)) {
       closePanel();
     }
+  }
+
+  function handleTaskClick(taskId: TaskId) {
+    selectTask(taskId);
+    expandPanel();
   }
 
   let previewLines = $derived(
@@ -27,7 +33,7 @@
   <div class="popover-header">
     <div class="header-left">
       <span class="header-title">{m.tasks_title()}</span>
-      <span class="header-badge">{$tasks.length}</span>
+      <span class="header-badge">{$sortedTasks.length}</span>
     </div>
     <div class="header-actions">
       <button class="icon-btn" onclick={expandPanel} title={m.tasks_expand_tooltip()}>{"\uEA67"}</button>
@@ -35,7 +41,7 @@
     </div>
   </div>
 
-  <TaskList tasks={$tasks} />
+  <TaskList tasks={$sortedTasks} onTaskClick={handleTaskClick} />
 
   {#if previewHtml}
     <div class="output-preview">
@@ -50,7 +56,7 @@
     bottom: 28px;
     left: 8px;
     width: min(360px, 90vw);
-    max-height: min(320px, 50vh);
+    max-height: min(400px, 50vh);
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 8px;

@@ -52,6 +52,12 @@ pub struct TaskHandle {
     pub started_at: Option<Instant>,
     pub finished_at: Option<Instant>,
     pub output: Vec<OutputLine>,
+    /// The full command string (program + args) for display purposes.
+    pub command: String,
+    /// Wall-clock time when the task was started, as milliseconds since Unix epoch.
+    pub started_at_ms: Option<u64>,
+    /// Process exit code, captured after the child process terminates.
+    pub exit_code: Option<i32>,
 }
 
 /// Serializable subset of a task sent to the frontend via events.
@@ -63,6 +69,12 @@ pub struct TaskInfo {
     pub cancellable: bool,
     /// Wall-clock seconds since the task started, or `None` if not yet started.
     pub elapsed_secs: Option<f64>,
+    /// The full command string (program + args) for display purposes.
+    pub command: String,
+    /// Wall-clock time when the task was started, as milliseconds since Unix epoch.
+    pub started_at_ms: Option<u64>,
+    /// Process exit code, captured after the child process terminates.
+    pub exit_code: Option<i32>,
 }
 
 /// Payload for the `task-output` Tauri event.
@@ -101,6 +113,9 @@ impl TaskHandle {
             status: self.status.clone(),
             cancellable: self.cancellable,
             elapsed_secs,
+            command: self.command.clone(),
+            started_at_ms: self.started_at_ms,
+            exit_code: self.exit_code,
         }
     }
 }

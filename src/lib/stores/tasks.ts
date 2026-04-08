@@ -42,6 +42,23 @@ export const selectedOutput = derived(
   ([$output, $id]) => ($id !== null ? $output.get($id) ?? [] : [])
 );
 
+/** Tasks sorted: running first, then by most recent start time (newest first). */
+export const sortedTasks = derived(tasks, ($tasks) => {
+  return [...$tasks].sort((a, b) => {
+    // Running tasks always come first
+    const aRunning = a.status.state === "running" ? 0 : 1;
+    const bRunning = b.status.state === "running" ? 0 : 1;
+    if (aRunning !== bRunning) return aRunning - bRunning;
+    // Then sort by start time descending (most recent first)
+    const aTime = a.started_at_ms ?? 0;
+    const bTime = b.started_at_ms ?? 0;
+    return bTime - aTime;
+  });
+});
+
+/** True when there are any tasks in history (running, completed, or failed). */
+export const hasHistory = derived(tasks, ($tasks) => $tasks.length > 0);
+
 // Lifecycle
 let unlisteners: UnlistenFn[] = [];
 let outputRafPending = false;

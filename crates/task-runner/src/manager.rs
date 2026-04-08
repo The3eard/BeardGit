@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Instant;
+use std::time::{Instant, SystemTime};
 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -62,6 +62,18 @@ impl TaskManager {
     ) -> TaskId {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
 
+        // Build displayable command string from program + args.
+        let command_str = if args.is_empty() {
+            command.to_string()
+        } else {
+            format!("{} {}", command, args.join(" "))
+        };
+
+        let started_at_ms = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .ok()
+            .map(|d| d.as_millis() as u64);
+
         let handle = TaskHandle {
             id,
             label: label.clone(),
@@ -70,6 +82,9 @@ impl TaskManager {
             started_at: Some(Instant::now()),
             finished_at: None,
             output: Vec::new(),
+            command: command_str,
+            started_at_ms,
+            exit_code: None,
         };
 
         {
@@ -145,6 +160,12 @@ impl TaskManager {
                     && t.is_cancelled()
                 {
                     let _ = child.kill().await;
+                    {
+                        let mut tasks = manager.tasks.lock().await;
+                        if let Some(handle) = tasks.iter_mut().find(|t| t.id == id) {
+                            handle.exit_code = Some(-1);
+                        }
+                    }
                     manager.finish_task(id, TaskStatus::Cancelled).await;
                     return;
                 }
@@ -167,6 +188,12 @@ impl TaskManager {
                         }
                     } => {
                         let _ = child.kill().await;
+                        {
+                            let mut tasks = manager.tasks.lock().await;
+                            if let Some(handle) = tasks.iter_mut().find(|t| t.id == id) {
+                                handle.exit_code = Some(-1);
+                            }
+                        }
                         manager.finish_task(id, TaskStatus::Cancelled).await;
                         return;
                     }
@@ -223,11 +250,21 @@ impl TaskManager {
                 }
             };
 
+            let code = exit_status.code();
+
             let final_status = if exit_status.success() {
                 TaskStatus::Completed
             } else {
                 TaskStatus::Failed { error: stderr_text }
             };
+
+            // Store exit code on the handle before finishing.
+            {
+                let mut tasks = manager.tasks.lock().await;
+                if let Some(handle) = tasks.iter_mut().find(|t| t.id == id) {
+                    handle.exit_code = code;
+                }
+            }
 
             manager.finish_task(id, final_status).await;
         });

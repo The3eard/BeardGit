@@ -1,38 +1,45 @@
 <script lang="ts">
   import type { TaskInfo, TaskId } from "../../types";
   import { cancelTask, selectTask, selectedTaskId } from "../../stores/tasks";
+  import { formatRelativeTimeMs } from "../../utils/time";
   import * as m from "$lib/paraglide/messages";
 
-  let { tasks }: { tasks: TaskInfo[] } = $props();
+  let { tasks, onTaskClick }: { tasks: TaskInfo[]; onTaskClick?: (id: TaskId) => void } = $props();
 
-  function statusIcon(task: TaskInfo): string {
+  function statusColor(task: TaskInfo): string {
     switch (task.status.state) {
-      case "queued": return "\uF017";   // nf-fa-clock_o
-      case "running": return "";
-      case "completed": return "\uF00C"; // nf-fa-check
-      case "failed": return "\uF00D";    // nf-fa-times
-      case "cancelled": return "\uEA76"; // nf-cod-close
+      case "running": return "var(--accent-orange)";
+      case "completed": return "var(--accent-green)";
+      case "failed": return "var(--accent-red)";
+      case "cancelled": return "var(--text-secondary)";
+      default: return "var(--text-secondary)";
     }
   }
 
-  function formatElapsed(secs: number | null): string {
+  function formatDuration(secs: number | null): string {
     if (secs === null) return "";
-    return m.tasks_elapsed({ secs: secs.toFixed(1) });
+    if (secs < 60) return `${secs.toFixed(1)}s`;
+    const mins = Math.floor(secs / 60);
+    const remainSecs = (secs % 60).toFixed(0);
+    return `${mins}m ${remainSecs}s`;
   }
 
-  function statusTitle(task: TaskInfo): string {
-    switch (task.status.state) {
-      case "queued": return m.tasks_status_queued();
-      case "running": return m.tasks_status_running();
-      case "completed": return m.tasks_status_completed();
-      case "failed": return m.tasks_status_failed();
-      case "cancelled": return m.tasks_status_cancelled();
-    }
+  function formatTimeAgo(ms: number | null): string {
+    if (ms === null) return "";
+    return formatRelativeTimeMs(ms);
   }
 
   function handleCancel(e: MouseEvent, taskId: TaskId) {
     e.stopPropagation();
     cancelTask(taskId);
+  }
+
+  function handleClick(task: TaskInfo) {
+    if (onTaskClick) {
+      onTaskClick(task.id);
+    } else {
+      selectTask(task.id);
+    }
   }
 </script>
 
@@ -41,26 +48,33 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="task-row"
+      class="task-card"
       class:selected={$selectedTaskId === task.id}
-      onclick={() => selectTask(task.id)}
+      onclick={() => handleClick(task)}
     >
-      <span class="task-icon" title={statusTitle(task)} class:running={task.status.state === "running"} class:completed={task.status.state === "completed"} class:failed={task.status.state === "failed"} class:cancelled={task.status.state === "cancelled"}>
-        {#if task.status.state === "running"}
-          <span class="task-spinner-small"></span>
-        {:else}
-          {statusIcon(task)}
-        {/if}
-      </span>
-      <div class="task-info">
-        <span class="task-label">{task.label}</span>
-        <span class="task-meta">{formatElapsed(task.elapsed_secs)}</span>
+      <div class="card-status-bar" style="background: {statusColor(task)}"></div>
+      <div class="card-content">
+        <div class="card-line-1">
+          <span class="card-label">{task.label}</span>
+          {#if task.cancellable && task.status.state === "running"}
+            <button class="cancel-btn" onclick={(e) => handleCancel(e, task.id)}>
+              {m.tasks_cancel()}
+            </button>
+          {/if}
+        </div>
+        <div class="card-line-2">
+          <span class="card-command" title={task.command}>{task.command}</span>
+          <span class="card-meta">
+            {#if task.elapsed_secs !== null}
+              <span>{formatDuration(task.elapsed_secs)}</span>
+            {/if}
+            {#if task.started_at_ms !== null}
+              <span class="card-separator">&middot;</span>
+              <span>{formatTimeAgo(task.started_at_ms)}</span>
+            {/if}
+          </span>
+        </div>
       </div>
-      {#if task.cancellable && task.status.state === "running"}
-        <button class="cancel-btn" onclick={(e) => handleCancel(e, task.id)}>
-          {m.tasks_cancel()}
-        </button>
-      {/if}
     </div>
   {:else}
     <div class="empty">{m.tasks_no_tasks()}</div>
@@ -71,67 +85,85 @@
   .task-list {
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    flex: 1;
   }
 
-  .task-row {
+  .task-card {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
     cursor: pointer;
     transition: background 0.1s;
   }
 
-  .task-row:hover {
+  .task-card:hover {
     background: rgba(255, 255, 255, 0.04);
   }
 
-  .task-row.selected {
+  .task-card.selected {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .task-icon {
-    font-size: 12px;
-    font-family: var(--font-icons);
+  .card-status-bar {
+    width: 3px;
     flex-shrink: 0;
-    width: 16px;
-    text-align: center;
+    border-radius: 2px;
+    margin: 4px 0 4px 6px;
   }
 
-  .task-icon.completed { color: var(--accent-green); }
-  .task-icon.failed { color: var(--accent-red); }
-  .task-icon.cancelled { color: var(--text-secondary); }
-  .task-icon.running { color: var(--accent-orange); }
-
-  .task-info {
+  .card-content {
     flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .card-line-1 {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
-    min-width: 0;
   }
 
-  .task-label {
+  .card-label {
     color: var(--text-primary);
     font-size: 12px;
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .task-row:not(.selected):not(:hover) .task-label {
+  .card-line-2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .card-command {
     color: var(--text-secondary);
+    font-size: 10px;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
   }
 
-  .task-row.selected .task-label,
-  .task-row:has(.running) .task-label {
-    color: var(--text-primary);
-  }
-
-  .task-meta {
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     color: var(--text-secondary);
     font-size: 10px;
     flex-shrink: 0;
+  }
+
+  .card-separator {
+    opacity: 0.5;
   }
 
   .cancel-btn {
@@ -156,19 +188,5 @@
     color: var(--text-secondary);
     font-size: 12px;
     font-style: italic;
-  }
-
-  .task-spinner-small {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border: 1.5px solid currentColor;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
   }
 </style>

@@ -222,6 +222,9 @@ export interface TaskInfo {
   status: TaskStatus;
   cancellable: boolean;
   elapsed_secs: number | null;
+  command: string;
+  started_at_ms: number | null;
+  exit_code: number | null;
 }
 
 export interface TaskOutputLine {
