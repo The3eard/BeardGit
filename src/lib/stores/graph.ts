@@ -130,6 +130,65 @@ export async function refreshUserEmails() {
   }
 }
 
+/** Move selection to the next commit (down) in the graph. */
+export function graphNavigateDown(): void {
+  const oid = get(selectedOid);
+  const vp = get(viewport);
+  if (!vp) return;
+  const nodes = vp.nodes;
+  if (!oid) {
+    if (nodes.length > 0) {
+      selectedOid.set(nodes[0].oid);
+    }
+    return;
+  }
+  const idx = nodes.findIndex((n) => n.oid === oid);
+  if (idx >= 0 && idx < nodes.length - 1) {
+    selectedOid.set(nodes[idx + 1].oid);
+  }
+}
+
+/** Move selection to the previous commit (up) in the graph. */
+export function graphNavigateUp(): void {
+  const oid = get(selectedOid);
+  const vp = get(viewport);
+  if (!vp) return;
+  const nodes = vp.nodes;
+  if (!oid) {
+    if (nodes.length > 0) {
+      selectedOid.set(nodes[nodes.length - 1].oid);
+    }
+    return;
+  }
+  const idx = nodes.findIndex((n) => n.oid === oid);
+  if (idx > 0) {
+    selectedOid.set(nodes[idx - 1].oid);
+  }
+}
+
+/** Jump selection to the first commit in the graph. */
+export function graphNavigateFirst(): void {
+  loadViewport(0).then(() => {
+    const vp = get(viewport);
+    if (vp && vp.nodes.length > 0) {
+      selectedOid.set(vp.nodes[0].oid);
+    }
+  });
+}
+
+/** Jump selection to the last commit in the graph. */
+export function graphNavigateLast(): void {
+  const vp = get(viewport);
+  if (!vp) return;
+  const lastOffset = Math.max(0, vp.total_count - 50);
+  loadViewport(lastOffset).then(() => {
+    const newVp = get(viewport);
+    if (newVp && newVp.nodes.length > 0) {
+      selectedOid.set(newVp.nodes[newVp.nodes.length - 1].oid);
+    }
+  });
+}
+
 /** Reset all graph selection/detail state. Called on repo switch. */
 export function clearGraphState() {
   viewport.set(null);

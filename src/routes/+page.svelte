@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import TabBar from "$lib/components/layout/TabBar.svelte";
   import Sidebar from "$lib/components/layout/Sidebar.svelte";
@@ -14,7 +14,7 @@
   import PipelineDetail from "$lib/components/pipeline/PipelineDetail.svelte";
   import JobLog from "$lib/components/pipeline/JobLog.svelte";
   import { repoInfo, isLoading, error } from "$lib/stores/repo";
-  import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit } from "$lib/stores/graph";
+  import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit, graphNavigateDown, graphNavigateUp, graphNavigateFirst, graphNavigateLast } from "$lib/stores/graph";
   import type { RawDiffContent } from "$lib/stores/graph";
   import { selectedCiRun, jobLog } from "$lib/stores/provider";
   import type { ThemeData } from "$lib/types";
@@ -22,7 +22,7 @@
   import TaskPopover from "$lib/components/tasks/TaskPopover.svelte";
   import TaskPanel from "$lib/components/tasks/TaskPanel.svelte";
   import { panelMode } from "$lib/stores/tasks";
-  import { initProjects, openFolderAsProject, activeProject } from "$lib/stores/projects";
+  import { initProjects, openFolderAsProject, activeProject, switchToNextTab, switchToPrevTab, closeActiveTab } from "$lib/stores/projects";
   import StashView from "$lib/components/stash/StashView.svelte";
   import ConflictToolbar from "$lib/components/conflict/ConflictToolbar.svelte";
   import TagView from "$lib/components/tags/TagView.svelte";
@@ -36,6 +36,12 @@
   import type { FileDiff } from "$lib/types";
   import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
+  import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
+  import { expandPanel as expandTaskPanel } from "$lib/stores/tasks";
+  import { refreshStatuses } from "$lib/stores/changes";
+  import * as api from "$lib/api/tauri";
+  import { get } from "svelte/store";
+  import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
 
   let activeView = $state("graph");
   let selectedDiff = $state<RawDiffContent | null>(null);
@@ -48,6 +54,7 @@
     return diffs.find(d => d.path === selectedStagingFile!.filename) ?? null;
   });
   let showJobLog = $state(false);
+  let registeredShortcutIds: string[] = [];
   let diffPanelHeight = $state(250);
   let pipelineSidebarWidth = $state(360);
   let taskPanelHeight = $state(200);
@@ -133,6 +140,181 @@
     await listenThemeChanges();
 
     initProjects();
+
+    // --- Keyboard shortcuts ---
+    const viewMap = ["graph", "changes", "branches", "tags", "stashes", "worktrees"];
+    const navShortcuts = viewMap.map((view, i) => ({
+      id: `nav.${view}`,
+      keys: { mod: true, key: String(i + 1) },
+      label: `Go to ${view.charAt(0).toUpperCase() + view.slice(1)}`,
+      category: "Navigation",
+      action: () => handleNavigate(view),
+    }));
+    navShortcuts.push({
+      id: "nav.settings",
+      keys: { mod: true, key: "," },
+      label: m.sidebar_settings(),
+      category: "Navigation",
+      action: () => handleNavigate("settings"),
+    });
+
+    const tabShortcuts = [
+      {
+        id: "tab.next",
+        keys: { mod: true, key: "Tab" },
+        label: "Next tab",
+        category: "Tabs",
+        action: () => { switchToNextTab(); },
+      },
+      {
+        id: "tab.prev",
+        keys: { mod: true, shift: true, key: "Tab" },
+        label: "Previous tab",
+        category: "Tabs",
+        action: () => { switchToPrevTab(); },
+      },
+      {
+        id: "tab.close",
+        keys: { mod: true, key: "w" },
+        label: m.tab_close(),
+        category: "Tabs",
+        action: () => { closeActiveTab(); },
+      },
+    ];
+
+    const gitShortcuts = [
+      {
+        id: "git.fetch",
+        keys: { mod: true, shift: true, key: "F" },
+        label: m.toolbar_fetch(),
+        category: "Git",
+        action: async () => {
+          try { await api.fetchRemote("origin"); } catch { /* toolbar shows error */ }
+        },
+      },
+      {
+        id: "git.pull",
+        keys: { mod: true, shift: true, key: "L" },
+        label: m.toolbar_pull(),
+        category: "Git",
+        action: async () => {
+          const info = get(repoInfo);
+          if (!info?.head_branch) return;
+          try { await api.pullRemote("origin", info.head_branch); } catch { /* handled */ }
+        },
+      },
+      {
+        id: "git.push",
+        keys: { mod: true, shift: true, key: "P" },
+        label: m.toolbar_push(),
+        category: "Git",
+        action: async () => {
+          const info = get(repoInfo);
+          if (!info?.head_branch) return;
+          try { await api.pushRemote("origin", info.head_branch); } catch { /* handled */ }
+        },
+      },
+      {
+        id: "git.stageAll",
+        keys: { mod: true, shift: true, key: "S" },
+        label: m.changes_stage_all(),
+        category: "Git",
+        action: async () => {
+          try { await api.stageAll(); await refreshStatuses(); } catch { /* handled */ }
+        },
+      },
+      {
+        id: "git.unstageAll",
+        keys: { mod: true, shift: true, key: "U" },
+        label: m.changes_unstage_all(),
+        category: "Git",
+        action: async () => {
+          try { await api.unstageAll(); await refreshStatuses(); } catch { /* handled */ }
+        },
+      },
+    ];
+
+    const graphShortcuts = [
+      {
+        id: "graph.down",
+        keys: { key: "j" },
+        label: "Next commit",
+        category: "Graph",
+        action: () => graphNavigateDown(),
+      },
+      {
+        id: "graph.up",
+        keys: { key: "k" },
+        label: "Previous commit",
+        category: "Graph",
+        action: () => graphNavigateUp(),
+      },
+      {
+        id: "graph.first",
+        keys: { key: "Home" },
+        label: "First commit",
+        category: "Graph",
+        action: () => graphNavigateFirst(),
+      },
+      {
+        id: "graph.last",
+        keys: { key: "End" },
+        label: "Last commit",
+        category: "Graph",
+        action: () => graphNavigateLast(),
+      },
+      {
+        id: "graph.search",
+        keys: { key: "/" },
+        label: "Search commits",
+        category: "Graph",
+        action: () => {
+          document.querySelector<HTMLInputElement>('.search-bar input')?.focus();
+        },
+      },
+      {
+        id: "graph.searchMod",
+        keys: { mod: true, key: "f" },
+        label: "Search commits",
+        category: "Graph",
+        action: () => {
+          document.querySelector<HTMLInputElement>('.search-bar input')?.focus();
+        },
+      },
+    ];
+
+    const utilShortcuts = [
+      {
+        id: "util.cheatSheet",
+        keys: { key: "?" },
+        label: "Show keyboard shortcuts",
+        category: "General",
+        action: () => toggleCheatSheet(),
+      },
+      {
+        id: "util.tasks",
+        keys: { mod: true, shift: true, key: "T" },
+        label: m.tasks_title(),
+        category: "General",
+        action: () => expandTaskPanel(),
+      },
+    ];
+
+    const allShortcutIds = [
+      ...navShortcuts,
+      ...tabShortcuts,
+      ...gitShortcuts,
+      ...graphShortcuts,
+      ...utilShortcuts,
+    ];
+    registerShortcuts(allShortcutIds);
+    registeredShortcutIds = allShortcutIds.map((s) => s.id);
+  });
+
+  onDestroy(() => {
+    if (registeredShortcutIds.length > 0) {
+      unregisterShortcuts(registeredShortcutIds);
+    }
   });
 
   function handleNavigate(view: string) {
@@ -352,6 +534,7 @@
     <TaskPopover />
   {/if}
 
+  <ShortcutOverlay />
   <StatusBar />
 </div>
 

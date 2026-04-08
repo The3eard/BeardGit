@@ -7,7 +7,7 @@
  * keep lightweight metadata only.
  */
 
-import { writable, derived } from "svelte/store";
+import { writable, derived, get } from "svelte/store";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { ProjectInfo } from "../types";
 import {
@@ -186,4 +186,29 @@ export async function initProjects() {
     const idx = activeIdx !== null && activeIdx < projects.length ? activeIdx : 0;
     await switchProjectTab(idx);
   }
+}
+
+/** Switch to the next project tab (wraps around). */
+export async function switchToNextTab(): Promise<void> {
+  const list = get(openProjects);
+  const idx = get(activeProjectIndex);
+  if (list.length <= 1 || idx < 0) return;
+  const next = (idx + 1) % list.length;
+  await switchProjectTab(next);
+}
+
+/** Switch to the previous project tab (wraps around). */
+export async function switchToPrevTab(): Promise<void> {
+  const list = get(openProjects);
+  const idx = get(activeProjectIndex);
+  if (list.length <= 1 || idx < 0) return;
+  const prev = (idx - 1 + list.length) % list.length;
+  await switchProjectTab(prev);
+}
+
+/** Close the currently active tab. */
+export async function closeActiveTab(): Promise<void> {
+  const idx = get(activeProjectIndex);
+  if (idx < 0) return;
+  await closeProjectTab(idx);
 }

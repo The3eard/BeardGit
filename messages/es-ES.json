@@ -304,5 +304,11 @@
   "rebase_start": "Iniciar Rebase",
   "rebase_cancel": "Cancelar",
   "rebase_commits_count": "{count} commits",
-  "graph_interactive_rebase": "Rebase interactivo desde aquí"
+  "graph_interactive_rebase": "Rebase interactivo desde aquí",
+  "shortcuts_title": "Atajos de teclado",
+  "shortcuts_category_navigation": "Navegación",
+  "shortcuts_category_tabs": "Pestañas",
+  "shortcuts_category_git": "Git",
+  "shortcuts_category_graph": "Gráfico",
+  "shortcuts_category_general": "General"
 }

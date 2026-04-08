@@ -5,6 +5,7 @@
   import { initLocale } from "$lib/stores/locale";
   import { initTaskStore, cleanupTaskStore } from "$lib/stores/tasks";
   import { initUiScale } from "$lib/stores/theme";
+  import { initShortcutListener } from "$lib/stores/shortcuts";
   let { children } = $props();
 
   // Disable default browser context menu globally
@@ -20,7 +21,11 @@
     initUiScale();
     tryAutoConnect();
     initTaskStore();
-    return () => cleanupTaskStore();
+    const cleanupShortcuts = initShortcutListener();
+    return () => {
+      cleanupTaskStore();
+      cleanupShortcuts();
+    };
   });
 </script>
 
