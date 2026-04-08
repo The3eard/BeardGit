@@ -107,3 +107,13 @@ export async function doMergeBranch(name: string) {
   await apiMerge(name);
   await refreshBranches();
 }
+
+/** Reset all branch selection/detail state. Called on repo switch. */
+export function clearBranchState() {
+  selectedBranchName.set(null);
+  selectedBranchCommits.set([]);
+  loadingDetail.set(false);
+  branchFileDiff.set(null);
+  branchSelectedCommit.set(null);
+  branchSelectedFiles.set([]);
+}

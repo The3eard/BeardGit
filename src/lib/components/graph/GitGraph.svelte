@@ -12,11 +12,11 @@
   import { get } from "svelte/store";
   import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails } from "../../stores/graph";
   import { repoInfo } from "../../stores/repo";
-  import { renderGraph, hitTest, graphHitTest, ROW_HEIGHT, DEFAULT_COLUMNS, DEFAULT_GRAPH_THEME, type GraphColumn } from "./graph-renderer";
+  import { renderGraph, hitTest, graphHitTest, getResizeTarget, ROW_HEIGHT, DEFAULT_COLUMNS, DEFAULT_GRAPH_THEME, type GraphColumn } from "./graph-renderer";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
-  import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit, rebaseBranch } from "../../api/tauri";
+  import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns } from "../../api/tauri";
   import RebaseEditor from "../rebase/RebaseEditor.svelte";
   import { debounce } from "../../utils/debounce";
   import SearchBar from "../common/SearchBar.svelte";
@@ -28,11 +28,26 @@
 
   // Column visibility state
   let columns = $state<GraphColumn[]>(DEFAULT_COLUMNS.map(c => ({ ...c })));
+  // Stored DPR used for current canvas backing store — keeps draw() consistent with resizeCanvas()
+  let canvasDpr = $state(window.devicePixelRatio || 1);
   let showColumnMenu = $state(false);
   let columnToggleEl: HTMLDivElement | undefined = $state();
 
+  // Row hover state
+  let hoveredRow = $state<number | null>(null);
+
+  // Column resize state
+  let resizingCol = $state<number>(-1);
+  let resizeStartX = $state(0);
+  let resizeStartWidth = $state(0);
+
   function toggleColumn(id: string) {
     columns = columns.map(c => c.id === id ? { ...c, visible: !c.visible } : c);
+    persistColumns();
+  }
+
+  function persistColumns() {
+    setGraphColumns(columns.map(c => ({ id: c.id, width: c.width, visible: c.visible })));
   }
 
   let canvas: HTMLCanvasElement;
@@ -116,19 +131,19 @@
 
     const activeVp = filteredViewport ?? $viewport;
     if (!activeVp || filteredNodes.length === 0) {
-      ctx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+      ctx.clearRect(0, 0, canvas.width / canvasDpr, canvas.height / canvasDpr);
       ctx.fillStyle = "#888888";
-      ctx.font = "13px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = "14px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const msg = searchLoading ? m.graph_searching() : isFiltering ? m.graph_no_matching() : m.graph_no_commits();
-      ctx.fillText(msg, (canvas.width / window.devicePixelRatio) / 2, (canvas.height / window.devicePixelRatio) / 2);
+      ctx.fillText(msg, (canvas.width / canvasDpr) / 2, (canvas.height / canvasDpr) / 2);
       ctx.textAlign = "left";
       return;
     }
 
-    const canvasW = canvas.width / window.devicePixelRatio;
-    const canvasH = canvas.height / window.devicePixelRatio;
+    const canvasW = canvas.width / canvasDpr;
+    const canvasH = canvas.height / canvasDpr;
 
     const graphTheme = $activeTheme ? buildGraphTheme($activeTheme) : DEFAULT_GRAPH_THEME;
 
@@ -153,6 +168,7 @@
         $userEmails,
         $selectedGroup,
         hoveredGroup,
+        hoveredRow,
       );
     } else {
       renderGraph(
@@ -171,6 +187,7 @@
         $userEmails,
         $selectedGroup,
         hoveredGroup,
+        hoveredRow,
       );
     }
   }
@@ -178,11 +195,16 @@
   function resizeCanvas() {
     if (!canvas || !container) return;
     const dpr = window.devicePixelRatio || 1;
+    canvasDpr = dpr;
     const rect = container.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
+    // Round to integer physical pixels to avoid subpixel blurriness
+    const pxWidth = Math.round(rect.width * dpr);
+    const pxHeight = Math.round(rect.height * dpr);
+    canvas.width = pxWidth;
+    canvas.height = pxHeight;
+    // Derive CSS size from rounded physical pixels for exact alignment
+    canvas.style.width = `${pxWidth / dpr}px`;
+    canvas.style.height = `${pxHeight / dpr}px`;
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
@@ -222,28 +244,87 @@
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    // Handle active resize drag
+    if (resizingCol >= 0) {
+      const delta = resizeStartX - e.clientX;  // moving left = wider
+      const visibleCols = columns.filter(c => c.visible);
+      const col = visibleCols[resizingCol];
+      if (col) {
+        const newWidth = Math.max(50, resizeStartWidth + delta);
+        columns = columns.map(c => c.id === col.id ? { ...c, width: newWidth } : c);
+      }
+      return;
+    }
+
+    // Track hovered row from mouse Y position
     const activeVp = filteredViewport ?? $viewport;
+    const currentOffset = filteredViewport ? filteredOffset : (activeVp?.offset ?? 0);
+    const newHoveredRow = Math.floor(y / ROW_HEIGHT) + currentOffset;
+    const prevHovered = hoveredRow;
+    hoveredRow = (activeVp && activeVp.nodes.length > 0) ? newHoveredRow : null;
+
+    // Check for resize cursor
+    const canvasW = canvas.width / canvasDpr;
+    const resizeTarget = getResizeTarget(x, columns, canvasW);
+    if (resizeTarget >= 0) {
+      canvas.style.cursor = "col-resize";
+      hoveredGroup = null;
+      if (hoveredRow !== prevHovered) draw();
+      return;
+    }
+
     if (!activeVp || activeVp.nodes.length === 0) {
       hoveredGroup = null;
       canvas.style.cursor = "default";
       return;
     }
 
-    const currentOffset = filteredViewport ? filteredOffset : activeVp.offset;
     const activeNodes = displayNodes;
     const activeSegments = activeVp.lane_segments ?? [];
 
     const hit = graphHitTest(x, y, currentOffset, activeNodes, activeVp.visible_lane_count ?? activeVp.total_lane_count, activeSegments);
 
-    if (hit.type === "node") {
-      canvas.style.cursor = "pointer";
-      hoveredGroup = null;
-    } else if (hit.type === "segment" && hit.groupId !== undefined) {
-      canvas.style.cursor = "pointer";
+    if (hit.type === "segment" && hit.groupId !== undefined) {
       hoveredGroup = hit.groupId;
     } else {
-      canvas.style.cursor = "default";
       hoveredGroup = null;
+    }
+    canvas.style.cursor = "default";
+
+    if (hoveredRow !== prevHovered) draw();
+  }
+
+  function handleMouseLeave() {
+    if (hoveredRow !== null) {
+      hoveredRow = null;
+      draw();
+    }
+    hoveredGroup = null;
+  }
+
+  function handleMouseDown(e: MouseEvent) {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const canvasW = canvas.width / canvasDpr;
+
+    const resizeTarget = getResizeTarget(x, columns, canvasW);
+    if (resizeTarget >= 0) {
+      e.preventDefault();
+      resizingCol = resizeTarget;
+      resizeStartX = e.clientX;
+      const visibleCols = columns.filter(c => c.visible);
+      resizeStartWidth = visibleCols[resizeTarget].width;
+
+      const onMouseUp = () => {
+        resizingCol = -1;
+        persistColumns();
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+      };
+
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
     }
   }
 
@@ -474,7 +555,32 @@
     const resizeObserver = new ResizeObserver(() => debouncedResize());
     resizeObserver.observe(container);
 
+    // Re-render canvas when DPI changes (e.g. moving window between screens)
+    let dprQuery: MediaQueryList;
+    function watchDpr() {
+      dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      dprQuery.addEventListener("change", onDprChange, { once: true });
+    }
+    function onDprChange() {
+      resizeCanvas();
+      watchDpr(); // re-register for the new DPR value
+    }
+    watchDpr();
+
     window.addEventListener("click", handleWindowClick);
+
+    // Load persisted column config, merging with defaults for new columns
+    getGraphColumns().then(saved => {
+      if (saved.length > 0) {
+        const merged = DEFAULT_COLUMNS.map(def => {
+          const s = saved.find(c => c.id === def.id);
+          return s ? { ...def, width: s.width, visible: s.visible } : { ...def };
+        });
+        columns = merged;
+      }
+    }).catch(() => {
+      // Use defaults on error
+    });
 
     if ($repoInfo) {
       loadViewport(0);
@@ -482,6 +588,7 @@
 
     return () => {
       resizeObserver.disconnect();
+      dprQuery.removeEventListener("change", onDprChange);
       window.removeEventListener("click", handleWindowClick);
     };
   });
@@ -558,6 +665,8 @@
       onwheel={handleWheel}
       onclick={handleClick}
       onmousemove={handleMouseMove}
+      onmouseleave={handleMouseLeave}
+      onmousedown={handleMouseDown}
       oncontextmenu={handleContextMenu}
     ></canvas>
   </div>

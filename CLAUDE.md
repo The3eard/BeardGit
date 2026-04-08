@@ -2,7 +2,7 @@
 
 ## Current State
 
-**v0.1.0** — MVP complete. Theme system (4 built-in + user TOML themes, OS auto-detection). CI/CD verified cross-platform.
+**v0.1.2** — Phase 2 complete. CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase (interactive + non-interactive), 3-way merge editor, resizable graph columns, 14 built-in themes with OS auto-switch pairing. CI/CD verified cross-platform.
 
 ## Project Overview
 

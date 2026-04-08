@@ -82,3 +82,15 @@ export async function openBlame(path: string, oid?: string): Promise<void> {
     loadFileHistory(path),
   ]);
 }
+
+/** Reset all blame/history state. Called on repo switch. */
+export function clearBlameState() {
+  blamePath.set(null);
+  blameOid.set(null);
+  blameLines.set([]);
+  blameLoading.set(false);
+  blameError.set(null);
+  fileHistoryEntries.set([]);
+  fileHistoryLoading.set(false);
+  blameActiveTab.set('blame');
+}

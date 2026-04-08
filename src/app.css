@@ -84,6 +84,9 @@ code, pre, .diff-content {
 html, body {
   height: 100%;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   /* Disable default browser context menu — we use custom menus */
   -webkit-user-select: none;
   user-select: none;

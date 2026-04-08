@@ -198,3 +198,15 @@ export async function doDeleteTag(name: string) {
 export async function doPushTag(tagName: string | null, remote: string) {
   return apiPushTag(tagName, remote);
 }
+
+/** Reset all tag selection/detail state. Called on repo switch. */
+export function clearTagState() {
+  tags.set([]);
+  selectedTagName.set(null);
+  selectedCommitInfo.set(null);
+  selectedCommitStats.set(null);
+  selectedCommitFiles.set(null);
+  loadingDetail.set(false);
+  tagFilter.set("");
+  hasMoreTags.set(false);
+}

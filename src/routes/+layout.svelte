@@ -31,7 +31,6 @@
 
 <style>
   div {
-    height: 100vh;
     display: contents;
   }
 </style>

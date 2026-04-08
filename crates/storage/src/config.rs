@@ -31,6 +31,17 @@ pub struct SavedProvider {
     pub instance_url: String,
 }
 
+/// Persisted graph column configuration (visibility + width).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphColumnConfig {
+    /// Column identifier (e.g. "author", "date", "email", "sha").
+    pub id: String,
+    /// Column pixel width.
+    pub width: u32,
+    /// Whether the column is visible.
+    pub visible: bool,
+}
+
 /// Persistent application settings stored in `~/.config/beardgit/settings.json`.
 ///
 /// ## Migration
@@ -81,6 +92,10 @@ pub struct AppConfig {
     #[serde(default = "default_ui_scale")]
     pub ui_scale: u32,
 
+    /// Persisted graph column layout (visibility and widths).
+    #[serde(default)]
+    pub graph_columns: Vec<GraphColumnConfig>,
+
     // -- Legacy fields (read during migration, never written) --
     /// Legacy Plan 5 field. Migrated to `providers` vec.
     #[serde(default, skip_serializing)]
@@ -107,6 +122,7 @@ impl Default for AppConfig {
             open_projects: Vec::new(),
             active_project_index: None,
             ui_scale: default_ui_scale(),
+            graph_columns: Vec::new(),
             provider_kind: None,
             provider_instance_url: None,
             gitlab_instance_url: None,

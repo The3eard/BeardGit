@@ -2,7 +2,7 @@
 
 ## Phase 2: Core Workflows — Complete
 
-### v0.1.2 (Plans 3–4)
+### v0.1.2 (Plans 3–4 + Graph Columns + Fixes)
 
 **Hunk + Line-Level Staging**
 
@@ -29,6 +29,29 @@
 - [x] get_conflict_file_contents reads ours/theirs/base from libgit2 index
 - [x] write_resolved_file writes + stages + removes conflict entries
 
+**Graph Columns**
+
+- [x] Resizable columns via drag (min 50px, persisted to settings.json)
+- [x] Email column (hidden by default)
+- [x] SHA column hidden by default
+- [x] Column visibility + widths persisted across sessions
+
+**Theme Improvements**
+
+- [x] 10 new built-in themes (14 total: 10 dark, 4 light)
+- [x] Complementary theme pairing for OS auto-switch
+
+**Bug Fixes**
+
+- [x] Fixed stale detail panels on repo tab switch (graph, branches, tags, stashes, blame, worktrees)
+- [x] Conflict status refreshed on repo tab switch
+- [x] Removed Repository settings section (deferred to gh/glab CLI integration)
+
+**CI/CD**
+
+- [x] Release pipeline auto-syncs version from git tag
+- [x] Windows MSI: strips non-numeric pre-release suffixes
+
 ### v0.1.1 (Plans 1–2)
 
 **CodeMirror 6 Editor Engine**
@@ -45,10 +68,6 @@
 - [x] Amend last commit via toggle in staging area (pre-fills HEAD message)
 - [x] Reset (soft/mixed/hard) from graph context menu with mode-specific warnings
 - [x] Worktree management: list, create, remove with sidebar + tab integration
-
-**Remote Management**
-
-- [x] Settings > Repository section: list, rename, remove remotes
 
 **Theme System Improvements**
 
@@ -161,18 +180,10 @@ All Phase 1 features are implemented and tested.
 
 ## Next Steps
 
-### Phase 2: Core Workflows (remaining)
-
-- 3-way merge editor (CodeMirror 6, IntelliJ-style 3-column layout)
-- Hunk + line-level staging
-- Blame + file history
-- Rebase (non-interactive)
-- Interactive rebase
-
 ### Phase 3: Power Features + CLI Integration
 
-- glab / gh CLI for MR/PR operations and OAuth
-- info popup for process clicking in the process in the statusbar. History of the last 10 processes with their command, start time, duration, and exit code.
+- glab / gh CLI for MR/PR operations, OAuth, and remote management
+- Info popup for process clicking in the statusbar. History of the last 10 processes with their command, start time, duration, and exit code.
 - Submodules
 - Reflog viewer
 - Bisect
@@ -180,7 +191,6 @@ All Phase 1 features are implemented and tested.
 - Patch management
 - Config viewer/editor
 - Gitignore management
-- Remote add (via CLI integration)
 
 ### Phase 4: Developer Experience
 

@@ -10,7 +10,7 @@ pub mod error;
 pub mod theme;
 
 pub use commits_cache::CachedCommit;
-pub use config::AppConfig;
+pub use config::{AppConfig, GraphColumnConfig};
 pub use database::Database;
 pub use error::StorageError;
 pub use theme::{Theme, ThemeError, ThemeMeta};

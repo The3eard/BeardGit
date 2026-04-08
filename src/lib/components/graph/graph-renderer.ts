@@ -65,8 +65,9 @@ export interface GraphColumn {
 
 export const DEFAULT_COLUMNS: GraphColumn[] = [
   { id: "author", label: "Author", width: 130, visible: true },
-  { id: "date", label: "Date", width: 100, visible: true },
-  { id: "sha", label: "SHA", width: 65, visible: true },
+  { id: "date",   label: "Date",   width: 100, visible: true },
+  { id: "email",  label: "Email",  width: 160, visible: false },
+  { id: "sha",    label: "SHA",    width: 65,  visible: false },
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -130,6 +131,7 @@ export function renderGraph(
   userEmails: string[] = [],
   selectedGroup: number | null = null,
   hoveredGroup: number | null = null,
+  hoveredRow: number | null = null,
 ): void {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -165,6 +167,16 @@ export function renderGraph(
   // Calculate right-side columns total width
   const visibleCols = columns.filter((c) => c.visible);
   const rightColumnsWidth = visibleCols.reduce((sum, c) => sum + c.width, 0) + visibleCols.length * 12;
+
+  // Draw hover highlight
+  if (hoveredRow !== null) {
+    const hoveredNode = nodes.find((n) => n.row === hoveredRow);
+    if (hoveredNode && hoveredNode.oid !== selectedOid) {
+      const y = rowY(hoveredRow, offset);
+      ctx.fillStyle = withAlpha(theme.foreground, 0.04);
+      ctx.fillRect(0, y - ROW_HEIGHT / 2, canvasWidth, ROW_HEIGHT);
+    }
+  }
 
   // Draw selection highlight
   if (selectedOid) {
@@ -464,7 +476,7 @@ export function renderGraph(
       ctx.rect(textX, rowTop, messageEndX - textX, ROW_HEIGHT);
       ctx.clip();
 
-      ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.textBaseline = "middle";
 
       for (const ref of node.refs) {
@@ -504,8 +516,8 @@ export function renderGraph(
       const isMyCommit = userEmails.length > 0 &&
         (userEmails.includes(node.email.toLowerCase()) || userEmails.includes(node.author.toLowerCase()));
       ctx.font = isMyCommit
-        ? `bold 12px -apple-system, BlinkMacSystemFont, sans-serif`
-        : `12px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ? `bold 13px -apple-system, BlinkMacSystemFont, sans-serif`
+        : `13px -apple-system, BlinkMacSystemFont, sans-serif`;
       ctx.fillStyle = isSelected ? "#ffffff" : theme.textPrimary;
       ctx.textBaseline = "middle";
       ctx.textAlign = "left";
@@ -524,12 +536,12 @@ export function renderGraph(
 
       let text = "";
       let style = isSelected ? theme.textPrimary : theme.textSecondary;
-      let font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+      let font = "12px -apple-system, BlinkMacSystemFont, sans-serif";
 
       switch (col.id) {
         case "sha":
           text = node.oid.substring(0, 7);
-          font = "11px 'SF Mono', 'Fira Code', 'Consolas', monospace";
+          font = "12px 'SF Mono', 'Fira Code', 'Consolas', monospace";
           style = isSelected ? theme.textPrimary : theme.textSha;
           break;
         case "author":
@@ -537,6 +549,9 @@ export function renderGraph(
           break;
         case "date":
           text = node.timestamp ? formatRelativeTimeUnix(node.timestamp) : "";
+          break;
+        case "email":
+          text = node.email || "";
           break;
       }
 
@@ -660,4 +675,38 @@ export function graphHitTest(
   }
 
   return { type: "empty" };
+}
+
+/**
+ * Check if a mouse X position is near a column separator for resize.
+ * Returns the index into the visible columns array of the column whose
+ * left edge is being dragged, or -1 if not near any separator.
+ */
+export function getResizeTarget(
+  mouseX: number,
+  columns: GraphColumn[],
+  canvasWidth: number,
+): number {
+  const RESIZE_ZONE = 4;
+  const COL_GAP = 12;
+  const visibleCols = columns.filter(c => c.visible);
+
+  // Build column positions right-to-left (same as renderGraph)
+  let x = canvasWidth;
+  const positions: { startX: number; colIndex: number }[] = [];
+  for (let i = visibleCols.length - 1; i >= 0; i--) {
+    const startX = x - visibleCols[i].width;
+    positions.unshift({ startX, colIndex: i });
+    x = startX - COL_GAP;
+  }
+
+  // Check if mouse is near the separator line (midpoint of gap before column)
+  for (const pos of positions) {
+    const sepX = pos.startX - COL_GAP / 2;
+    if (Math.abs(mouseX - sepX) <= RESIZE_ZONE) {
+      return pos.colIndex;
+    }
+  }
+
+  return -1;
 }

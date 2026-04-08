@@ -56,7 +56,7 @@
   }
 </script>
 
-<div class="tab-bar">
+<div class="tab-bar" data-tauri-drag-region>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="tabs-scroll" bind:this={tabsRef} onwheel={handleWheel}>
     {#each $openProjects as project, i}
@@ -116,7 +116,6 @@
     user-select: none;
     padding: 0 8px;
     gap: 4px;
-    -webkit-app-region: drag;
   }
 
   .tabs-scroll {
@@ -127,7 +126,6 @@
     flex: 1;
     min-width: 0;
     scrollbar-width: none;
-    -webkit-app-region: no-drag;
   }
 
   .tabs-scroll::-webkit-scrollbar {
@@ -139,7 +137,6 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    -webkit-app-region: no-drag;
   }
 
   .add-btn {
@@ -169,7 +166,6 @@
     gap: 4px;
     flex-shrink: 0;
     margin-left: auto;
-    -webkit-app-region: no-drag;
   }
 
   .action-btn {

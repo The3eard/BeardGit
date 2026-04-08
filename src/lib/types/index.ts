@@ -448,6 +448,13 @@ export interface RebaseAction {
 // Hunk-level staging
 // ---------------------------------------------------------------------------
 
+/** Persisted graph column setting — matches Rust `GraphColumnConfig`. */
+export interface GraphColumnConfig {
+  id: string;
+  width: number;
+  visible: boolean;
+}
+
 /** Describes which hunks/lines the user selected for staging/unstaging. */
 export interface HunkSelection {
   /** Index into the FileDiff.hunks array. */

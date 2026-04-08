@@ -39,3 +39,9 @@ export async function deleteWorktree(path: string, force: boolean) {
   await removeWorktree(path, force);
   await refreshWorktrees();
 }
+
+/** Reset worktree state. Called on repo switch. */
+export function clearWorktreeState() {
+  worktrees.set([]);
+  worktreeLoading.set(false);
+}

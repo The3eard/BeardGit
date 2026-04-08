@@ -1,5 +1,6 @@
 import { writable, get } from "svelte/store";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { ThemeData, GraphTheme } from "../types";
 import { getTheme, getUiScale } from "../api/tauri";
 import { DEFAULT_GRAPH_THEME } from "../components/graph/graph-renderer";
@@ -123,14 +124,15 @@ export async function listenThemeChanges(): Promise<void> {
   });
 }
 
-export function applyUiScale(percent: number): void {
-  document.documentElement.style.zoom = `${percent}%`;
+export async function applyUiScale(percent: number): Promise<void> {
+  const scaleFactor = percent / 100;
+  await getCurrentWebview().setZoom(scaleFactor);
 }
 
 export async function initUiScale(): Promise<void> {
   try {
     const scale = await getUiScale();
-    applyUiScale(scale);
+    await applyUiScale(scale);
   } catch {
     // Default to 100%
   }

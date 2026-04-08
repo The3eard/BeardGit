@@ -66,3 +66,10 @@ export async function doStashDrop(index: number) {
   await apiStashDrop(index);
   await loadStashes();
 }
+
+/** Reset all stash selection/detail state. Called on repo switch. */
+export function clearStashState() {
+  stashes.set([]);
+  selectedStashIndex.set(null);
+  selectedStashDiff.set(null);
+}

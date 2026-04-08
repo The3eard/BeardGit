@@ -2046,6 +2046,28 @@ pub fn set_ui_scale(scale: u32, state: State<'_, AppState>) -> Result<(), String
 }
 
 // ---------------------------------------------------------------------------
+// Graph columns
+// ---------------------------------------------------------------------------
+
+/// Return the persisted graph column configuration.
+#[tauri::command]
+pub fn get_graph_columns(state: State<'_, AppState>) -> Vec<storage::GraphColumnConfig> {
+    let config = state.config.lock().unwrap();
+    config.graph_columns.clone()
+}
+
+/// Persist graph column configuration (visibility + widths).
+#[tauri::command]
+pub fn set_graph_columns(
+    columns: Vec<storage::GraphColumnConfig>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut config = state.config.lock().unwrap();
+    config.graph_columns = columns;
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // User identity
 // ---------------------------------------------------------------------------
 

@@ -129,3 +129,18 @@ export async function refreshUserEmails() {
     userEmails.set([]);
   }
 }
+
+/** Reset all graph selection/detail state. Called on repo switch. */
+export function clearGraphState() {
+  viewport.set(null);
+  selectedOid.set(null);
+  selectedCommit.set(null);
+  selectedCommitFiles.set([]);
+  selectedRef.set(null);
+  refFiles.set(null);
+  loadingRefFiles.set(false);
+  fileDiffPanel.set(null);
+  loadingFileDiff.set(false);
+  selectedGroup.set(null);
+  graphOffset.set(0);
+}

@@ -145,6 +145,8 @@ pub fn run() {
             app_core::commands::resolve_startup_theme,
             app_core::commands::get_ui_scale,
             app_core::commands::set_ui_scale,
+            app_core::commands::get_graph_columns,
+            app_core::commands::set_graph_columns,
             app_core::task_commands::get_tasks,
             app_core::task_commands::get_task_output,
             app_core::task_commands::cancel_task,

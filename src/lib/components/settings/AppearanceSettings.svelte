@@ -50,7 +50,7 @@
     const select = e.target as HTMLSelectElement;
     const scale = parseInt(select.value, 10);
     uiScale = scale;
-    applyUiScale(scale);
+    await applyUiScale(scale);
     await setUiScale(scale);
   }
 </script>

@@ -34,8 +34,14 @@ import {
   loadingDetail,
 } from "./provider";
 import { refreshStatuses } from "./changes";
-import { refreshUserEmails } from "./graph";
+import { refreshUserEmails, clearGraphState } from "./graph";
 import * as m from "$lib/paraglide/messages";
+import { clearBranchState } from "./branches";
+import { clearTagState } from "./tags";
+import { clearStashState } from "./stashes";
+import { clearBlameState } from "./blame";
+import { clearWorktreeState } from "./worktrees";
+import { refreshConflictStatus } from "./conflict";
 
 export const openProjects = writable<ProjectInfo[]>([]);
 /** Index of the currently active tab (-1 if none). */
@@ -105,6 +111,15 @@ export async function closeProjectTab(index: number) {
 /// the frontend stores directly — avoiding a redundant second `open_repo` call.
 export async function switchProjectTab(index: number) {
   stopAllPolling();
+
+  // Clear stale state from previous project
+  clearGraphState();
+  clearBranchState();
+  clearTagState();
+  clearStashState();
+  clearBlameState();
+  clearWorktreeState();
+
   isLoading.set(true);
   try {
     const info = await apiSwitchProject(index);
@@ -137,6 +152,7 @@ export async function switchProjectTab(index: number) {
 
     await refreshStatuses();
     await refreshUserEmails();
+    await refreshConflictStatus();
 
     // Re-register the watcher listener for the newly active repo.
     await registerWatcher();

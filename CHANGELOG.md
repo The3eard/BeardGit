@@ -2,6 +2,29 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased]
+
+**Windows DPI & Zoom Fixes**
+
+- Replaced CSS `zoom` with Tauri native `webview.setZoom()` — fixes blurry fonts and layout overflow at >100% UI scale on Windows
+- Added `-webkit-font-smoothing: antialiased` and `text-rendering: optimizeLegibility` for crisper text rendering
+- Canvas graph now detects DPI changes when moving between screens and re-renders at the correct resolution
+- Fixed canvas backing store using non-integer dimensions causing subpixel blurriness at fractional DPR values
+- Stored canvas DPR consistently across resize and draw calls to prevent scale mismatches
+
+**Graph UX Improvements**
+
+- Row hover highlight on graph view (subtle transparent overlay)
+- Standard cursor on graph rows instead of pointer hand
+- Increased graph canvas font sizes by 1px across all text elements (badges, summary, columns)
+- Fixed column resize hit zone misaligned with separator lines (was offset by 6px)
+
+**Tauri Native Migration**
+
+- Replaced `-webkit-app-region: drag` CSS with `data-tauri-drag-region` HTML attribute in Toolbar and TabBar
+- Added `core:webview:allow-set-webview-zoom` capability permission
+- Removed unnecessary `height: 100vh` from layout wrapper with `display: contents`
+
 ## [0.1.2] - 2026-04-07
 
 **Hunk + Line-Level Staging**
@@ -45,10 +68,18 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 - Activated during any conflict operation (merge, rebase, cherry-pick, revert)
 - Backend: `get_conflict_file_contents` reads ours/theirs/base from libgit2 index stages
 
-**10 New Built-in Themes**
+**Graph Columns**
+
+- Resizable columns — drag column separators to adjust width (min 50px), persisted across sessions
+- New Email column (hidden by default) showing commit author email
+- SHA column now hidden by default (toggleable from Columns dropdown)
+- Column visibility and widths persisted to settings.json via new Tauri commands
+
+**10 New Built-in Themes + Complementary Pairing**
 
 - Dracula, One Dark Pro, Catppuccin Mocha, Catppuccin Latte, Nord, Tokyo Night, Solarized Dark, Solarized Light, Gruvbox Dark, Monokai Pro
 - Total: 14 built-in themes (10 dark, 4 light)
+- Complementary theme pairing for OS auto-switch — each theme maps to a light/dark counterpart so toggling OS appearance picks the right pair (e.g., Catppuccin Mocha ↔ Catppuccin Latte)
 
 **Performance**
 
@@ -65,9 +96,20 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 **Bug Fixes**
 
+- Fixed stale detail panels when switching repository tabs — graph, branch, tag, stash, blame, and worktree state now fully cleared on tab switch
+- Conflict status now refreshed on repo tab switch
 - Branch commit list not taking full available width (missing `min-width: 0`)
 - Diff close button hidden when file path is too long (added overflow handling + `flex-shrink: 0`)
 - npm security audit: resolved high-severity vite vulnerability, overrode cookie to ^0.7.0 (0 vulnerabilities)
+
+**Settings**
+
+- Removed Repository section (remote management) — will return with gh/glab CLI integration
+
+**CI/CD**
+
+- Release pipeline auto-syncs version from git tag — no manual version bumps needed
+- Strips non-numeric pre-release suffixes for Windows MSI compatibility (e.g., `v0.1.2-beta` → `0.1.2`)
 
 ---
 

@@ -39,7 +39,7 @@
   }
 </script>
 
-<header class="toolbar">
+<header class="toolbar" data-tauri-drag-region>
   <div class="toolbar-left">
     <!-- Repo name and branch are now in the tab bar -->
   </div>
@@ -85,7 +85,6 @@
     justify-content: space-between;
     padding: 0 12px;
     gap: 8px;
-    -webkit-app-region: drag;
     user-select: none;
   }
 
@@ -93,14 +92,12 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    -webkit-app-region: no-drag;
   }
 
   .toolbar-right {
     display: flex;
     align-items: center;
     gap: 4px;
-    -webkit-app-region: no-drag;
   }
 
   .toolbar-btn {

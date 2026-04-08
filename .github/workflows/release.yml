@@ -65,6 +65,37 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Sync version from git tag
+        shell: bash
+        run: |
+          # Extract version from tag (strip leading 'v')
+          RAW_VERSION="${GITHUB_REF_NAME#v}"
+
+          # Windows MSI requires numeric-only pre-release identifiers.
+          # Strip non-numeric suffixes like "-beta", "-alpha", "-rc" for
+          # the Tauri/Cargo version while keeping the full tag for the
+          # GitHub release name.
+          VERSION=$(echo "$RAW_VERSION" | sed 's/-[^0-9].*//')
+          echo "Tag version: $RAW_VERSION → Build version: $VERSION"
+
+          # Update src-tauri/tauri.conf.json and package.json using node (cross-platform)
+          node -e "
+            const fs = require('fs');
+            const v = '$VERSION';
+            for (const f of ['src-tauri/tauri.conf.json', 'package.json']) {
+              const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+              j.version = v;
+              fs.writeFileSync(f, JSON.stringify(j, null, 2) + '\n');
+            }
+          "
+
+          # Update Cargo.toml workspace version
+          sed -i.bak 's/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml && rm -f Cargo.toml.bak
+
+          echo "Versions updated:"
+          grep '"version"' src-tauri/tauri.conf.json package.json
+          grep '^version' Cargo.toml
+
       - name: Build and publish release
         uses: tauri-apps/tauri-action@v0
         env:
