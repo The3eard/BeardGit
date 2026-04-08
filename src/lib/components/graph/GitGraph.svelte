@@ -622,6 +622,7 @@
     }
 
     return () => {
+      if (drawRafId !== null) cancelAnimationFrame(drawRafId);
       resizeObserver.disconnect();
       dprQuery.removeEventListener("change", onDprChange);
       window.removeEventListener("click", handleWindowClick);
@@ -640,11 +641,7 @@
     filteredOffset;
     searchLoading;
     hoveredGroup;
-    if (drawRafId !== null) cancelAnimationFrame(drawRafId);
-    drawRafId = requestAnimationFrame(() => {
-      drawRafId = null;
-      draw();
-    });
+    scheduleDraw();
   });
 
   $effect(() => {

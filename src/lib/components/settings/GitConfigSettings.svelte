@@ -380,7 +380,7 @@
     padding: 6px 16px;
     font-size: 12px;
     color: var(--accent-red, #f85149);
-    background: rgba(248, 81, 73, 0.1);
+    background: var(--overlay-accent-red);
     border-bottom: 1px solid var(--border);
     word-break: break-word;
   }

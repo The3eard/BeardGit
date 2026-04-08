@@ -2086,24 +2086,20 @@ pub async fn cli_login(
     let url_ref = instance_url.clone();
 
     // Run login on blocking thread (opens browser, waits for user)
-    let binary_clone = binary.clone();
-    let url_clone = url_ref.clone();
-    tokio::task::spawn_blocking(move || {
-        cli_provider::auth::start_cli_login(&binary_clone, provider_kind, url_clone.as_deref())
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
+    {
+        let binary = binary.clone();
+        let url = url_ref.clone();
+        tokio::task::spawn_blocking(move || {
+            cli_provider::auth::start_cli_login(&binary, provider_kind, url.as_deref())
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    }
 
     // Extract token (also blocking — runs a subprocess)
-    let binary_for_token = binary.clone();
-    let url_for_token = url_ref.clone();
     let token = tokio::task::spawn_blocking(move || {
-        cli_provider::auth::extract_cli_token(
-            &binary_for_token,
-            provider_kind,
-            url_for_token.as_deref(),
-        )
+        cli_provider::auth::extract_cli_token(&binary, provider_kind, url_ref.as_deref())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -3149,6 +3145,9 @@ pub async fn approve_mr_pr(number: u64, state: State<'_, AppState>) -> Result<()
 }
 
 /// Request changes on a MR/PR with a comment body.
+///
+/// On GitHub this submits a "request changes" review. On GitLab it posts
+/// a comment (GitLab has no direct "request changes" concept).
 #[tauri::command]
 pub async fn request_changes_mr_pr(
     number: u64,

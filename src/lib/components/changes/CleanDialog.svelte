@@ -303,7 +303,7 @@
     margin-bottom: 4px;
     font-size: 12px;
     color: var(--accent-red, #f85149);
-    background: rgba(248, 81, 73, 0.1);
+    background: var(--overlay-accent-red);
     border-radius: 4px;
     word-break: break-word;
   }
