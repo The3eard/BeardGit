@@ -6,6 +6,7 @@
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
   import { cleanPaths } from "$lib/api/tauri";
+  import { addGitignorePattern } from "$lib/api/tauri";
   import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
 
   let {
@@ -51,6 +52,48 @@
       case "renamed": return "var(--accent-purple)";
       default: return "var(--text-secondary)";
     }
+  }
+
+  /** Generate smart gitignore pattern suggestions from a file path. */
+  function buildGitignorePatterns(filePath: string): { label: string; pattern: string }[] {
+    const patterns: { label: string; pattern: string }[] = [];
+    const parts = filePath.split("/");
+    const filename = parts[parts.length - 1];
+    const extIdx = filename.lastIndexOf(".");
+    const ext = extIdx > 0 ? filename.substring(extIdx + 1) : null;
+
+    // 1. Ignore by filename (anywhere in repo)
+    patterns.push({
+      label: m.gitignore_menu_filename({ name: filename }),
+      pattern: filename,
+    });
+
+    // 2. Ignore by extension
+    if (ext) {
+      patterns.push({
+        label: m.gitignore_menu_extension({ ext }),
+        pattern: `*.${ext}`,
+      });
+    }
+
+    // 3. Ignore exact path
+    if (parts.length > 1) {
+      patterns.push({
+        label: m.gitignore_menu_path(),
+        pattern: filePath,
+      });
+    }
+
+    // 4. Ignore parent directory (if file is nested)
+    if (parts.length > 1) {
+      const dir = parts[0];
+      patterns.push({
+        label: m.gitignore_menu_directory({ dir }),
+        pattern: `${dir}/`,
+      });
+    }
+
+    return patterns;
   }
 
   function buildContextMenuItems(filePath: string): MenuItem[] {
@@ -103,6 +146,22 @@
           showDeleteConfirm = true;
         },
       });
+    // Untracked file actions: gitignore patterns
+    if (!isStaged) {
+      const file = files.find(f => f.path === filePath);
+      if (file && file.status === "new") {
+        items.push({ separator: true });
+        const patterns = buildGitignorePatterns(filePath);
+        for (const p of patterns) {
+          items.push({
+            label: p.label,
+            action: async () => {
+              await addGitignorePattern(p.pattern);
+              await Promise.all([refreshStatuses(), refreshDiffs()]);
+            },
+          });
+        }
+      }
     }
 
     return items;

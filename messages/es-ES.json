@@ -347,5 +347,16 @@
   "config_global_badge": "todos los repos",
   "config_system_section": "Config del sistema (solo lectura)",
   "config_empty": "No se encontraron entradas de configuracion",
-  "config_loading": "Cargando configuracion..."
+  "config_loading": "Cargando configuracion...",
+  "gitignore_menu_title": "Agregar a .gitignore",
+  "gitignore_menu_filename": "Ignorar \"{name}\"",
+  "gitignore_menu_extension": "Ignorar *.{ext}",
+  "gitignore_menu_path": "Ignorar ruta exacta",
+  "gitignore_menu_directory": "Ignorar {dir}/",
+  "settings_gitignore": ".gitignore",
+  "gitignore_editor_save": "Guardar",
+  "gitignore_editor_revert": "Revertir",
+  "gitignore_editor_empty": "No hay archivo .gitignore. Empieza a escribir para crear uno.",
+  "gitignore_editor_saved": "Guardado",
+  "gitignore_editor_unsaved": "Cambios sin guardar"
 }

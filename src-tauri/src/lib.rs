@@ -164,6 +164,9 @@ pub fn run() {
             app_core::commands::set_config,
             app_core::commands::unset_config,
             app_core::commands::add_config,
+            app_core::commands::read_gitignore,
+            app_core::commands::write_gitignore,
+            app_core::commands::add_gitignore_pattern,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

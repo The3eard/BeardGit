@@ -12,6 +12,7 @@
 //! - [`diff`] — diff working directory, index, and individual commits
 //! - [`conflict`] — conflict detection, status, and abort/continue operations
 //! - [`file_content`] — raw file content retrieval for CodeMirror diff views
+//! - [`gitignore`] — read, write, and append patterns to `.gitignore`
 //! - [`blame`] — per-line blame and file history with rename tracking
 //! - [`cli`] — shell-out wrapper for git CLI operations
 //! - [`interactive_rebase`] — pre-planned interactive rebase via `GIT_SEQUENCE_EDITOR`
@@ -27,6 +28,7 @@ pub mod conflict;
 pub mod diff;
 pub mod error;
 pub mod file_content;
+pub mod gitignore;
 pub mod hunk_staging;
 pub mod interactive_rebase;
 pub mod operations;

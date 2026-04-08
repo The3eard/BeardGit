@@ -553,4 +553,20 @@ export async function unsetConfig(scope: ConfigScope, key: string): Promise<void
 /** Add a new value for a config key at the given scope (multi-value append). */
 export async function addConfig(scope: ConfigScope, key: string, value: string): Promise<void> {
   return invoke<void>("add_config", { scope, key, value });
+// Gitignore management
+// ---------------------------------------------------------------------------
+
+/** Read the content of the repository's .gitignore file. */
+export async function readGitignore(): Promise<string> {
+  return invoke<string>("read_gitignore");
+}
+
+/** Write the full content of the repository's .gitignore file. */
+export async function writeGitignore(content: string): Promise<void> {
+  return invoke<void>("write_gitignore", { content });
+}
+
+/** Add a single pattern to the repository's .gitignore file. */
+export async function addGitignorePattern(pattern: string): Promise<void> {
+  return invoke<void>("add_gitignore_pattern", { pattern });
 }
