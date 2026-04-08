@@ -160,6 +160,10 @@ pub fn run() {
             app_core::commands::get_reflog,
             app_core::commands::clean_dry_run,
             app_core::commands::clean_paths,
+            app_core::commands::list_config,
+            app_core::commands::set_config,
+            app_core::commands::unset_config,
+            app_core::commands::add_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -340,6 +340,17 @@ export interface CleanItem {
   path: string;
   is_directory: boolean;
   is_ignored: boolean;
+// Git config
+// ---------------------------------------------------------------------------
+
+/** Scope of a git configuration entry. Matches Rust `ConfigScope`. */
+export type ConfigScope = "local" | "global" | "system";
+
+/** A single git configuration entry. Matches Rust `ConfigEntry`. */
+export interface ConfigEntry {
+  key: string;
+  value: string;
+  scope: ConfigScope;
 }
 
 // ── Theme types ──────────────────────────────────────────────────────

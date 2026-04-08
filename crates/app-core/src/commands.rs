@@ -2068,6 +2068,61 @@ pub fn set_graph_columns(
 }
 
 // ---------------------------------------------------------------------------
+// Git config
+// ---------------------------------------------------------------------------
+
+/// List all config entries at the given scope ("local", "global", or "system").
+#[tauri::command]
+pub fn list_config(
+    scope: git_engine::ConfigScope,
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::ConfigEntry>, String> {
+    with_active_repo(&state, |repo| {
+        repo.list_config(scope).map_err(|e| e.to_string())
+    })
+}
+
+/// Set a config key to a value at the given scope.
+#[tauri::command]
+pub fn set_config(
+    scope: git_engine::ConfigScope,
+    key: String,
+    value: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.set_config(scope, &key, &value)
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Remove a config key at the given scope.
+#[tauri::command]
+pub fn unset_config(
+    scope: git_engine::ConfigScope,
+    key: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.unset_config(scope, &key).map_err(|e| e.to_string())
+    })
+}
+
+/// Add a new value for a config key at the given scope (multi-value append).
+#[tauri::command]
+pub fn add_config(
+    scope: git_engine::ConfigScope,
+    key: String,
+    value: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.add_config(scope, &key, &value)
+            .map_err(|e| e.to_string())
+    })
+}
+
+// ---------------------------------------------------------------------------
 // User identity
 // ---------------------------------------------------------------------------
 

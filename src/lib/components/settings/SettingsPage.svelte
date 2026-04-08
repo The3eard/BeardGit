@@ -1,6 +1,7 @@
 <script lang="ts">
   import ProviderSetup from "../auth/ProviderSetup.svelte";
   import AppearanceSettings from "./AppearanceSettings.svelte";
+  import GitConfigSettings from "./GitConfigSettings.svelte";
   import * as m from "$lib/paraglide/messages";
 
   type SettingsSection = { labelKey: () => string; id: string; wip?: boolean };
@@ -8,6 +9,7 @@
   const sections: SettingsSection[] = [
     { labelKey: () => m.settings_connection(), id: "connection" },
     { labelKey: () => m.settings_appearance(), id: "appearance" },
+    { labelKey: () => m.settings_git_config(), id: "git-config" },
     { labelKey: () => m.settings_editor(), id: "editor", wip: true },
   ];
 
@@ -36,6 +38,8 @@
       <ProviderSetup />
     {:else if activeSection === "appearance"}
       <AppearanceSettings />
+    {:else if activeSection === "git-config"}
+      <GitConfigSettings />
     {:else}
       <div class="wip-section">
         <div class="wip-icon">&#128679;</div>

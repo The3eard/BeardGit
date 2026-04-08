@@ -23,6 +23,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry } from "../types";
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, CleanItem } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ConfigEntry, ConfigScope } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -531,4 +532,25 @@ export async function cleanDryRun(
 /** Permanently remove the specified paths from the working directory. */
 export async function cleanPaths(paths: string[]): Promise<number> {
   return invoke<number>("clean_paths", { paths });
+// Git config
+// ---------------------------------------------------------------------------
+
+/** List all config entries at the given scope. */
+export async function listConfig(scope: ConfigScope): Promise<ConfigEntry[]> {
+  return invoke<ConfigEntry[]>("list_config", { scope });
+}
+
+/** Set a config key to a value at the given scope. */
+export async function setConfig(scope: ConfigScope, key: string, value: string): Promise<void> {
+  return invoke<void>("set_config", { scope, key, value });
+}
+
+/** Remove a config key at the given scope. */
+export async function unsetConfig(scope: ConfigScope, key: string): Promise<void> {
+  return invoke<void>("unset_config", { scope, key });
+}
+
+/** Add a new value for a config key at the given scope (multi-value append). */
+export async function addConfig(scope: ConfigScope, key: string, value: string): Promise<void> {
+  return invoke<void>("add_config", { scope, key, value });
 }
