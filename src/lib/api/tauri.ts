@@ -21,11 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry } from "../types";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, CleanItem } from "../types";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ConfigEntry, ConfigScope } from "../types";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, PatchPreview } from "../types";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, SubmoduleInfo } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -515,6 +511,8 @@ export async function startInteractiveRebase(baseOid: string, actions: RebaseAct
 /** Get the HEAD reflog entries, limited to the given count (default 100). */
 export async function getReflog(limit?: number): Promise<ReflogEntry[]> {
   return invoke<ReflogEntry[]>("get_reflog", { limit: limit ?? null });
+}
+
 // Clean (untracked file removal)
 // ---------------------------------------------------------------------------
 
@@ -534,6 +532,8 @@ export async function cleanDryRun(
 /** Permanently remove the specified paths from the working directory. */
 export async function cleanPaths(paths: string[]): Promise<number> {
   return invoke<number>("clean_paths", { paths });
+}
+
 // Git config
 // ---------------------------------------------------------------------------
 
@@ -555,6 +555,8 @@ export async function unsetConfig(scope: ConfigScope, key: string): Promise<void
 /** Add a new value for a config key at the given scope (multi-value append). */
 export async function addConfig(scope: ConfigScope, key: string, value: string): Promise<void> {
   return invoke<void>("add_config", { scope, key, value });
+}
+
 // Gitignore management
 // ---------------------------------------------------------------------------
 
@@ -571,6 +573,8 @@ export async function writeGitignore(content: string): Promise<void> {
 /** Add a single pattern to the repository's .gitignore file. */
 export async function addGitignorePattern(pattern: string): Promise<void> {
   return invoke<void>("add_gitignore_pattern", { pattern });
+}
+
 // Patch management
 // ---------------------------------------------------------------------------
 
@@ -597,6 +601,8 @@ export async function previewPatch(path: string): Promise<PatchPreview> {
 /** Apply a patch file. Set threeWay=true for 3-way merge fallback. */
 export async function applyPatch(path: string, threeWay: boolean): Promise<string> {
   return invoke<string>("apply_patch", { path, threeWay });
+}
+
 // Submodules
 // ---------------------------------------------------------------------------
 

@@ -206,6 +206,7 @@
   .clean-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
+  }
   .commit-actions-row {
     display: flex;
     gap: 6px;

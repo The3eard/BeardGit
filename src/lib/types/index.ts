@@ -340,6 +340,8 @@ export interface CleanItem {
   path: string;
   is_directory: boolean;
   is_ignored: boolean;
+}
+
 // Git config
 // ---------------------------------------------------------------------------
 
@@ -493,6 +495,8 @@ export interface ReflogEntry {
   author: string;
   email: string;
   timestamp: number;
+}
+
 // Submodules
 // ---------------------------------------------------------------------------
 

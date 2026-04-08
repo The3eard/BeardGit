@@ -135,22 +135,18 @@
       },
     });
 
-    // Delete option for untracked files in the unstaged list
-    const file = files.find(f => f.path === filePath);
-    if (!isStaged && file && file.status === "new") {
-      items.push({ separator: true });
-      items.push({
-        label: m.changes_menu_delete_file(),
-        action: () => {
-          deleteTargetPath = filePath;
-          showDeleteConfirm = true;
-        },
-      });
-    // Untracked file actions: gitignore patterns
+    // Untracked file actions: delete + gitignore patterns
     if (!isStaged) {
       const file = files.find(f => f.path === filePath);
       if (file && file.status === "new") {
         items.push({ separator: true });
+        items.push({
+          label: m.changes_menu_delete_file(),
+          action: () => {
+            deleteTargetPath = filePath;
+            showDeleteConfirm = true;
+          },
+        });
         const patterns = buildGitignorePatterns(filePath);
         for (const p of patterns) {
           items.push({

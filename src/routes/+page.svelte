@@ -53,7 +53,6 @@
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
   import { expandPanel as expandTaskPanel } from "$lib/stores/tasks";
   import { refreshStatuses } from "$lib/stores/changes";
-  import * as api from "$lib/api/tauri";
   import { get } from "svelte/store";
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
 

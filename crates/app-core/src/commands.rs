@@ -2639,6 +2639,8 @@ pub async fn get_reflog(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
 // ---------------------------------------------------------------------------
 // Clean (untracked file removal)
 // ---------------------------------------------------------------------------
@@ -2653,6 +2655,10 @@ pub fn clean_dry_run(
 ) -> Result<Vec<git_engine::CleanItem>, String> {
     with_active_repo(&state, |repo| {
         repo.clean_dry_run(include_directories, include_ignored, only_ignored)
+            .map_err(|e| e.to_string())
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Patch management
 // ---------------------------------------------------------------------------
@@ -2668,6 +2674,10 @@ pub fn create_commit_patches(
 ) -> Result<Vec<String>, String> {
     with_active_repo(&state, |repo| {
         repo.create_commit_patches(&oids, &output_dir)
+            .map_err(|e| e.to_string())
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Submodules
 // ---------------------------------------------------------------------------
@@ -2714,6 +2724,10 @@ pub fn create_working_tree_patch(
 ) -> Result<String, String> {
     with_active_repo(&state, |repo| {
         repo.create_working_tree_patch(staged_only)
+            .map_err(|e| e.to_string())
+    })
+}
+
 /// Get the absolute filesystem path of a submodule.
 #[tauri::command]
 pub fn submodule_abs_path(
@@ -2733,6 +2747,9 @@ pub fn submodule_abs_path(
 pub fn clean_paths(paths: Vec<String>, state: State<'_, AppState>) -> Result<u32, String> {
     with_active_repo(&state, |repo| {
         repo.clean_paths(&paths).map_err(|e| e.to_string())
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Gitignore management
 // ---------------------------------------------------------------------------
@@ -2764,6 +2781,10 @@ pub fn write_gitignore(content: String, state: State<'_, AppState>) -> Result<()
 pub fn add_gitignore_pattern(pattern: String, state: State<'_, AppState>) -> Result<(), String> {
     with_active_repo(&state, |repo| {
         repo.add_gitignore_pattern(&pattern)
+            .map_err(|e| e.to_string())
+    })
+}
+
 /// Preview a patch file (stats and clean-apply check).
 #[tauri::command]
 pub fn preview_patch(
@@ -2797,6 +2818,8 @@ pub fn apply_patch(
         repo.apply_patch_file(&path, three_way)
             .map_err(|e| e.to_string())
     })
+}
+
 /// Update a single submodule (background task, returns TaskId).
 #[tauri::command]
 pub async fn update_submodule(
