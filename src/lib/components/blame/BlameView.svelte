@@ -253,14 +253,14 @@
     font-family: var(--font-icons);
     font-size: 14px;
     cursor: pointer;
-    padding: 4px;
+    padding: 2px 4px;
     border-radius: 4px;
     line-height: 1;
-    transition: background 0.1s;
+    display: flex;
+    align-items: center;
   }
 
   .close-btn:hover {
-    background: var(--bg-secondary);
     color: var(--text-primary);
   }
 

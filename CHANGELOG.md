@@ -2,6 +2,90 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [0.1.4] - 2026-04-09 — UI Polish, Layout Consistency & Bug Fixes
+
+**3-Way Merge Editor (IntelliJ-style)**
+
+- Full 3-panel layout: Theirs (Incoming) | Result | Ours (Current)
+- Custom 3-way diff engine with LCS-based line alignment and chunk classification
+- Non-conflicting changes auto-applied to the result on open
+- Conflict placeholder lines in center with accept/ignore buttons on each side
+- SVG bezier connector curves between panels linking conflict regions visually
+- Hybrid curves: filled bezier when sparse, thin connector lines when dense (> 4 conflicts)
+- Dynamic connector gap width (24px normal, 40px for many conflicts)
+- Color scheme: green (added), purple (conflict), blue (center placeholder), active highlight (brighter)
+- Chunk-aware scroll sync: center drives side panels based on line mapping, not proportional
+- Side panel wheel events redirected to center for consistent behavior
+- Smooth scroll animations on side panels during sync
+- SVG connectors update on scroll, accept/ignore, undo, and window resize
+- Undo support: Cmd/Ctrl+Z undoes accept/ignore operations, toolbar undo button
+- Toggle line numbers button (# icon) for all three panels
+- Prev/Next conflict navigation scrolls all panels aligned with active highlight
+- Mark Resolved button: grey when disabled, green when all conflicts resolved
+- Warning popup when resolving with conflict markers still present
+- Cancel button with red destructive styling
+- Syntax highlighting in all panels (language-aware via filename)
+
+**Merge Request / Pull Request Improvements**
+
+- List layout aligned with pipeline section pattern (3-column horizontal rows with state icon, title, time)
+- Removed filter tabs (Open/Closed/Merged/All), replaced with SearchBar state filter (default: state:open)
+- Added search/filter bar with state, author, branch, and label filters
+- Markdown rendering in descriptions and comments (snarkdown + allowlist-based XSS sanitizer, links open externally)
+- Redesigned merge action buttons: split-button with dropdown menu for merge strategy (merge/squash/rebase)
+- Added refresh button and "no provider" empty state
+- Provider readiness guard prevents empty list on startup
+
+**Layout Consistency**
+
+- Migrated Reflog view to SplitView (resizable sidebar, consistent with Tags/Stash/Branches/MR)
+- Migrated Pipelines view to SplitView (replaces custom resize logic in +page.svelte)
+- Pipeline job log pane is now resizable with a drag handle and has a close button
+- Standardized icon-only buttons across all views: 14px, no border, color-only hover (refresh, close, nav buttons)
+- Worktree, CommitDetail, DiffEditor, StagingDiffEditor, BlameView buttons all aligned
+- Tag push button uses green hover (from theme --accent-green) consistently in both list and detail
+- Worktree delete button: same color as others by default, red highlight on hover only
+- Graph header separator line now reaches full width (border on container, not SearchBar)
+
+**Git Config Editor**
+
+- Empty values show italic "empty" label in light grey instead of em dash
+- Clicking an empty field and typing nothing no longer saves an empty value
+- Tooltips use i18n keys instead of hardcoded English
+
+**Task System**
+
+- Task popover now appears correctly (fixed position + click-outside race condition)
+- Task output loaded from backend on selection (fixes empty output for completed tasks)
+- Panel output shows executed command at top ($ git fetch origin)
+- Three distinct empty states: "Select a task", "No output", output content
+- Correct NerdFont icons for expand/collapse/close buttons
+- Removed output preview from popover (kept in full panel only)
+
+**Authentication**
+
+- GitHub/GitLab CLI OAuth login disabled until ghostty terminal integration (PAT-only for now)
+- OAuth errors now shown to user instead of silent fallback to PAT
+
+**Keyboard Shortcuts**
+
+- `?` shortcut now works globally (even when editor is focused)
+- Fixed shift-key matching for shortcuts like `?` that inherently need Shift
+- Help overlay: Escape key closes the popup, larger fonts, bigger close button
+- Sidebar highlight syncs with keyboard navigation (Cmd+1-6)
+
+**Other Fixes**
+
+- Reflog empty-state message properly centered
+- Hardcoded hex colors replaced with theme variables (--accent-green, --accent-red) in tag buttons
+- Markdown sanitizer uses allowlist approach; links get target="_blank"
+- MR merge dropdown closes on click-outside
+- Conflict marker regex handles Windows \r\n line endings
+- MR filtered-empty state shows "No results match your filter" instead of generic message
+- MR and reflog state cleared on project switch (prevents stale data)
+- CreateMrPrDialog backdrop changed to button for a11y compliance
+- All svelte-check warnings resolved (0 errors, 0 warnings)
+
 ## [0.1.3] - 2026-04-08 — Phase 3: Power Features + CLI Integration
 
 **Task History Popup**

@@ -33,7 +33,7 @@
       mergeFile = path;
       mergeContents = contents;
     } catch {
-      // Silently fail — file may have been resolved externally.
+      // File may have been resolved externally.
     }
   }
 

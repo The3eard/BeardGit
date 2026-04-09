@@ -134,9 +134,12 @@
     color: var(--text-secondary);
     cursor: pointer;
     font-family: var(--font-icons);
-    font-size: 12px;
+    font-size: 14px;
     padding: 2px 4px;
+    border-radius: 4px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
   }
 
   .diff-close:hover {

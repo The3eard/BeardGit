@@ -486,13 +486,13 @@
 
   .action-push:hover {
     background: rgba(63, 185, 80, 0.15);
-    border-color: #3fb950;
-    color: #3fb950;
+    border-color: var(--accent-green);
+    color: var(--accent-green);
   }
 
   .action-delete:hover {
     background: rgba(248, 81, 73, 0.15);
-    border-color: #f85149;
-    color: #f85149;
+    border-color: var(--accent-red);
+    color: var(--accent-red);
   }
 </style>

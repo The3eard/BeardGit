@@ -15,6 +15,7 @@
   },
   "license": "CC-BY-NC-SA-4.0",
   "dependencies": {
+    "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-cpp": "^6.0.3",
     "@codemirror/lang-css": "^6.3.1",
     "@codemirror/lang-go": "^6.0.1",
@@ -36,7 +37,8 @@
     "@lezer/highlight": "^1.2.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "snarkdown": "^2.0.0"
   },
   "overrides": {
     "cookie": "^0.7.0"

@@ -19,6 +19,7 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as m from "$lib/paraglide/messages";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import { renderMarkdown } from "../../utils/markdown";
 
   let isGitHub = $derived($activeProvider?.kind === "github");
   let selectMessage = $derived(isGitHub ? m.mrpr_select_github() : m.mrpr_select());
@@ -26,7 +27,17 @@
   // Merge/close confirmation state
   let showMergeConfirm = $state(false);
   let mergeStrategy = $state("merge");
+  let showMergeDropdown = $state(false);
   let showCloseConfirm = $state(false);
+
+  // Close merge dropdown on outside click
+  function handleWindowClick(e: MouseEvent) {
+    if (!showMergeDropdown) return;
+    const target = e.target as HTMLElement;
+    if (!target.closest(".merge-group")) {
+      showMergeDropdown = false;
+    }
+  }
   let actionError = $state("");
 
   // Comment input state
@@ -96,6 +107,8 @@
   }
 </script>
 
+<svelte:window onclick={handleWindowClick} />
+
 {#if $mrPrDetailLoading}
   <div class="detail-empty">{m.mrpr_loading()}</div>
 {:else if !$mrPrDetail}
@@ -142,16 +155,19 @@
     <!-- Action buttons for open MR/PRs -->
     {#if detail.summary.state === "open"}
       <div class="detail-actions">
-        <button class="approve-btn" onclick={handleApprove}>{m.mrpr_approve()}</button>
+        <button class="action-btn-approve" onclick={handleApprove}>{m.mrpr_approve()}</button>
         <div class="merge-group">
-          <select class="merge-select" bind:value={mergeStrategy}>
-            <option value="merge">{m.mrpr_merge()}</option>
-            <option value="squash">{m.mrpr_merge_squash()}</option>
-            <option value="rebase">{m.mrpr_merge_rebase()}</option>
-          </select>
-          <button class="merge-btn" onclick={() => { showMergeConfirm = true; }}>
+          <button class="merge-btn-main" onclick={() => { showMergeConfirm = true; }}>
             {mergeStrategy === "squash" ? m.mrpr_merge_squash() : mergeStrategy === "rebase" ? m.mrpr_merge_rebase() : m.mrpr_merge()}
           </button>
+          <button class="merge-dropdown-trigger" onclick={() => showMergeDropdown = !showMergeDropdown}>{"\uF078"}</button>
+          {#if showMergeDropdown}
+            <div class="merge-dropdown-menu">
+              <button class:active={mergeStrategy === "merge"} onclick={() => { mergeStrategy = "merge"; showMergeDropdown = false; }}>{m.mrpr_merge()}</button>
+              <button class:active={mergeStrategy === "squash"} onclick={() => { mergeStrategy = "squash"; showMergeDropdown = false; }}>{m.mrpr_merge_squash()}</button>
+              <button class:active={mergeStrategy === "rebase"} onclick={() => { mergeStrategy = "rebase"; showMergeDropdown = false; }}>{m.mrpr_merge_rebase()}</button>
+            </div>
+          {/if}
         </div>
         <button class="close-btn" onclick={() => { showCloseConfirm = true; }}>{m.mrpr_close()}</button>
       </div>
@@ -164,7 +180,7 @@
     {#if detail.body}
       <div class="section">
         <h4 class="section-title">{m.mrpr_description()}</h4>
-        <div class="description-body">{detail.body}</div>
+        <div class="description-body">{@html renderMarkdown(detail.body)}</div>
       </div>
     {/if}
 
@@ -220,7 +236,7 @@
                   <span class="comment-file">{comment.path}{comment.line ? `:${comment.line}` : ""}</span>
                 {/if}
               </div>
-              <div class="comment-body">{comment.body}</div>
+              <div class="comment-body">{@html renderMarkdown(comment.body)}</div>
             </div>
           {/each}
         </div>
@@ -386,47 +402,94 @@
     border-bottom: 1px solid var(--border);
   }
 
-  .approve-btn {
-    padding: 5px 12px;
+  .action-btn-approve {
+    padding: 5px 14px;
     background: rgba(63, 185, 80, 0.15);
     color: var(--accent-green);
     border: 1px solid rgba(63, 185, 80, 0.3);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
+    font-weight: 500;
   }
 
-  .approve-btn:hover { background: rgba(63, 185, 80, 0.25); }
+  .action-btn-approve:hover {
+    background: rgba(63, 185, 80, 0.25);
+  }
 
   .merge-group {
     display: flex;
     gap: 0;
+    position: relative;
   }
 
-  .merge-select {
-    padding: 5px 6px;
-    background: var(--bg-primary);
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
-    border-radius: 4px 0 0 4px;
-    font-size: 10px;
-    cursor: pointer;
-    appearance: none;
-    max-width: 80px;
-  }
-
-  .merge-btn {
-    padding: 5px 12px;
+  .merge-btn-main {
+    padding: 5px 14px;
     background: var(--accent-blue);
     color: #fff;
     border: 1px solid var(--accent-blue);
-    border-radius: 0 4px 4px 0;
+    border-radius: 4px 0 0 4px;
     font-size: 11px;
     cursor: pointer;
     white-space: nowrap;
+    font-weight: 500;
   }
 
-  .merge-btn:hover { opacity: 0.9; }
+  .merge-btn-main:hover {
+    opacity: 0.9;
+  }
+
+  .merge-dropdown-trigger {
+    padding: 5px 8px;
+    background: var(--accent-blue);
+    color: #fff;
+    border: 1px solid var(--accent-blue);
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0 4px 4px 0;
+    font-family: var(--font-icons);
+    font-size: 9px;
+    cursor: pointer;
+  }
+
+  .merge-dropdown-trigger:hover {
+    opacity: 0.9;
+  }
+
+  .merge-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px;
+    min-width: 160px;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .merge-dropdown-menu button {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    border-radius: 4px;
+  }
+
+  .merge-dropdown-menu button:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .merge-dropdown-menu button.active {
+    color: var(--accent-blue);
+    font-weight: 600;
+  }
 
   .close-btn {
     padding: 5px 12px;
@@ -468,7 +531,81 @@
     font-size: 13px;
     color: var(--text-primary);
     line-height: 1.5;
-    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .description-body :global(h1),
+  .description-body :global(h2),
+  .description-body :global(h3) {
+    margin: 8px 0 4px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .description-body :global(h1) { font-size: 16px; }
+  .description-body :global(h2) { font-size: 14px; }
+  .description-body :global(h3) { font-size: 13px; }
+
+  .description-body :global(code) {
+    padding: 1px 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .description-body :global(pre) {
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 8px 0;
+  }
+
+  .description-body :global(pre code) {
+    padding: 0;
+    background: none;
+  }
+
+  .description-body :global(a) {
+    color: var(--accent-blue);
+    text-decoration: none;
+  }
+
+  .description-body :global(a:hover) {
+    text-decoration: underline;
+  }
+
+  .description-body :global(blockquote) {
+    margin: 8px 0;
+    padding: 4px 12px;
+    border-left: 3px solid var(--border);
+    color: var(--text-secondary);
+  }
+
+  .description-body :global(ul),
+  .description-body :global(ol) {
+    margin: 4px 0;
+    padding-left: 20px;
+  }
+
+  .description-body :global(li) {
+    margin: 2px 0;
+  }
+
+  .description-body :global(hr) {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 12px 0;
+  }
+
+  .description-body :global(img) {
+    max-width: 100%;
+    border-radius: 4px;
   }
 
   .label-list {
@@ -551,8 +688,22 @@
   .comment-body {
     font-size: 12px;
     color: var(--text-primary);
-    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
     line-height: 1.4;
+  }
+
+  .comment-body :global(code) {
+    padding: 1px 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .comment-body :global(a) {
+    color: var(--accent-blue);
+    text-decoration: none;
   }
 
   .comment-input-section {

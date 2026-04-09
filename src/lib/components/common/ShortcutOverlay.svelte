@@ -11,12 +11,18 @@
     }
   }
 
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === "Escape" || e.key === "?") {
-      e.preventDefault();
-      toggleCheatSheet();
+  // Listen for Escape to close the overlay when visible
+  $effect(() => {
+    if (!$showCheatSheet) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        toggleCheatSheet();
+      }
     }
-  }
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  });
 
   /** Group shortcuts by category. */
   let grouped = $derived.by(() => {
@@ -34,11 +40,13 @@
 
 {#if $showCheatSheet}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="overlay-backdrop" onclick={handleBackdrop} onkeydown={handleKeyDown}>
+  <div class="overlay-backdrop" onclick={handleBackdrop} onkeydown={() => {}} role="presentation">
     <div class="shortcut-overlay" bind:this={overlayEl}>
       <div class="overlay-header">
         <h2>{m.shortcuts_title()}</h2>
-        <button class="close-btn" onclick={toggleCheatSheet}>{"\uEA76"}</button>
+        <button class="close-btn" onclick={toggleCheatSheet}>
+          <span class="nf">{"\uF00D"}</span>
+        </button>
       </div>
       <div class="overlay-grid">
         {#each [...grouped.entries()] as [category, items]}
@@ -73,8 +81,8 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    width: min(640px, 90vw);
-    max-height: min(520px, 80vh);
+    width: min(720px, 90vw);
+    max-height: min(600px, 80vh);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -89,7 +97,7 @@
   }
 
   .overlay-header h2 {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     color: var(--text-primary);
     margin: 0;
@@ -99,16 +107,16 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 16px;
-    font-family: var(--font-icons);
+    font-size: 18px;
     cursor: pointer;
-    padding: 4px;
+    padding: 4px 6px;
     border-radius: 4px;
-    transition: background 0.1s;
+    display: flex;
+    align-items: center;
   }
 
   .close-btn:hover {
-    background: var(--overlay-hover);
+    color: var(--text-primary);
   }
 
   .overlay-grid {
@@ -124,13 +132,13 @@
   }
 
   .category-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--text-secondary);
-    margin: 0 0 6px;
-    padding-bottom: 4px;
+    color: var(--accent-blue);
+    margin: 0 0 8px;
+    padding-bottom: 6px;
     border-bottom: 1px solid var(--border);
   }
 
@@ -138,22 +146,23 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 3px 0;
+    padding: 4px 0;
+    gap: 12px;
   }
 
   .shortcut-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-primary);
   }
 
   .shortcut-keys {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-secondary);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 1px 6px;
+    padding: 2px 8px;
     white-space: nowrap;
   }
 </style>

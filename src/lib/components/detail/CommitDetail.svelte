@@ -229,11 +229,12 @@
     font-size: 14px;
     font-family: var(--font-icons);
     padding: 2px 4px;
-    border-radius: 3px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
   }
 
   .close-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
   }
 

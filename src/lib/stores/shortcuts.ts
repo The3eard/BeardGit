@@ -19,6 +19,8 @@ export interface Shortcut {
   category: string;
   /** Action to run when the shortcut fires. */
   action: () => void;
+  /** If true, fires even when an input/editor is focused. */
+  global?: boolean;
 }
 
 export interface ShortcutKeys {
@@ -105,9 +107,19 @@ function matchesKeys(e: KeyboardEvent, keys: ShortcutKeys): boolean {
   const modPressed = isMac ? e.metaKey : e.ctrlKey;
   if (keys.mod && !modPressed) return false;
   if (!keys.mod && modPressed) return false;
-  if ((keys.shift ?? false) !== e.shiftKey) return false;
   if ((keys.alt ?? false) !== e.altKey) return false;
-  return e.key === keys.key || e.key.toLowerCase() === keys.key.toLowerCase();
+
+  // Match the key value directly. For keys like "?" that inherently
+  // require Shift, e.key already contains "?" so we don't need to
+  // check e.shiftKey separately. Only enforce shift when explicitly set.
+  const keyMatches = e.key === keys.key || e.key.toLowerCase() === keys.key.toLowerCase();
+  if (!keyMatches) return false;
+
+  // If shift is explicitly required in the shortcut definition, check it.
+  // If not specified, allow the natural shift state (e.g. "?" needs shift).
+  if (keys.shift !== undefined && keys.shift !== e.shiftKey) return false;
+
+  return true;
 }
 
 /**
@@ -121,9 +133,10 @@ export function initShortcutListener(): () => void {
     for (const shortcut of list) {
       if (!matchesKeys(e, shortcut.keys)) continue;
 
-      // Bare-key shortcuts (no mod) only fire when no input focused
+      // Bare-key shortcuts (no mod) only fire when no input focused,
+      // unless marked as global (e.g. help shortcut).
       const hasModifier = shortcut.keys.mod || shortcut.keys.alt;
-      if (!hasModifier && isInputFocused()) continue;
+      if (!hasModifier && !shortcut.global && isInputFocused()) continue;
 
       e.preventDefault();
       e.stopPropagation();

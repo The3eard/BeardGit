@@ -91,6 +91,13 @@ export function clearMrPrDetail() {
   mrPrDiffFiles.set([]);
 }
 
+/** Clear all MR/PR state (e.g., on project switch). */
+export function clearMrPrState() {
+  mrPrList.set([]);
+  mrPrFilter.set("open");
+  clearMrPrDetail();
+}
+
 // ---------------------------------------------------------------------------
 // Write operations
 // ---------------------------------------------------------------------------

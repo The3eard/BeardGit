@@ -41,6 +41,8 @@ import { clearTagState } from "./tags";
 import { clearStashState } from "./stashes";
 import { clearBlameState } from "./blame";
 import { clearWorktreeState } from "./worktrees";
+import { clearMrPrState } from "./mr-pr";
+import { clearReflogState } from "./reflog";
 import { refreshConflictStatus } from "./conflict";
 
 export const openProjects = writable<ProjectInfo[]>([]);
@@ -119,6 +121,8 @@ export async function switchProjectTab(index: number) {
   clearStashState();
   clearBlameState();
   clearWorktreeState();
+  clearMrPrState();
+  clearReflogState();
 
   isLoading.set(true);
   try {

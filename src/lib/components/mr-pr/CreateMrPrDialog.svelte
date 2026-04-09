@@ -77,8 +77,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-<div class="backdrop" onclick={onClose} role="button" tabindex="-1"></div>
+<button class="backdrop" onclick={onClose} tabindex="-1" aria-label="Close dialog"></button>
 <div class="dialog" role="dialog" aria-modal="true" aria-label={dialogTitle}>
   <h3 class="dialog-title">{dialogTitle}</h3>
 

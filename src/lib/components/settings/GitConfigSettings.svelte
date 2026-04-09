@@ -90,6 +90,11 @@
 
   async function saveEdit() {
     if (!editingKey || !editingScope) return;
+    // Don't save empty values — treat as cancel
+    if (!editingValue.trim()) {
+      cancelEdit();
+      return;
+    }
     errorMessage = null;
     try {
       await setConfig(editingScope, editingKey, editingValue);
@@ -242,15 +247,15 @@
                   />
                 {/if}
               {:else if lv !== null}
-                <button class="value-btn" onclick={() => startEdit(key, "local", lv)} title="Click to edit">
+                <button class="value-btn" onclick={() => startEdit(key, "local", lv)} title={m.config_click_to_edit()}>
                   {lv}
                 </button>
                 <button class="unset-btn" onclick={() => unsetTarget = { key, scope: "local" }} title="Remove">
                   &#10005;
                 </button>
               {:else}
-                <button class="placeholder-btn" onclick={() => startAdd(key, "local")}>
-                  {m.config_no_value()}
+                <button class="placeholder-btn" onclick={() => startAdd(key, "local")} title={m.config_click_to_set()}>
+                  {m.config_empty_value()}
                 </button>
               {/if}
             </span>
@@ -284,15 +289,14 @@
                   />
                 {/if}
               {:else if gv !== null}
-                <button class="value-btn" onclick={() => startEdit(key, "global", gv)} title="Click to edit">
+                <button class="value-btn" onclick={() => startEdit(key, "global", gv)} title={m.config_click_to_edit()}>
                   {gv}
                 </button>
                 <button class="unset-btn" onclick={() => unsetTarget = { key, scope: "global" }} title="Remove">
                   &#10005;
                 </button>
               {:else}
-                <button class="placeholder-btn" onclick={() => startAdd(key, "global")}>
-                  {m.config_no_value()}
+                <button class="placeholder-btn" onclick={() => startAdd(key, "global")} title={m.config_click_to_set()}>
                 </button>
               {/if}
             </span>
@@ -512,14 +516,16 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: 11px;
+    font-style: italic;
     cursor: pointer;
     padding: 2px 4px;
-    opacity: 0.5;
+    opacity: 0.4;
+    border-radius: 3px;
   }
 
   .placeholder-btn:hover {
-    opacity: 1;
+    opacity: 0.8;
     color: var(--accent-blue);
   }
 

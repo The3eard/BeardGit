@@ -7,7 +7,6 @@
     disconnect,
     checkStatus,
   } from "../../stores/provider";
-  import { isCliAuthenticated, cliLogin } from "../../api/tauri";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import type { ProviderKind } from "../../types";
   import * as m from "$lib/paraglide/messages";
@@ -17,21 +16,14 @@
   let token = $state("");
   let showAddForm = $state(false);
 
-  let authMethod = $state<"oauth" | "pat">("oauth");
-  let cliAvailable = $state(true);
-  let oauthInProgress = $state(false);
+  // TODO: Re-enable CLI OAuth login after implementing ghostty terminal integration.
+  // The gh/glab CLI login requires an interactive terminal which a GUI app can't
+  // provide reliably. For now, only PAT auth is available.
+  let authMethod = $state<"pat">("pat");
+  let cliAvailable = $state(false);
 
   $effect(() => {
     checkStatus();
-  });
-
-  // Check CLI availability when provider changes
-  $effect(() => {
-    void selectedProvider;
-    isCliAuthenticated(selectedProvider).then(
-      () => { cliAvailable = true; },
-      () => { cliAvailable = false; authMethod = "pat"; },
-    );
   });
 
   function defaultUrl(kind: ProviderKind): string {
@@ -67,21 +59,6 @@
     }
   }
 
-  async function handleOAuthLogin() {
-    oauthInProgress = true;
-    providerError.set(null);
-    try {
-      const url = instanceUrl.trim() || undefined;
-      await cliLogin(selectedProvider, url);
-      showAddForm = false;
-      await checkStatus();
-    } catch {
-      // Fall back to PAT on error
-      authMethod = "pat";
-    } finally {
-      oauthInProgress = false;
-    }
-  }
 
   async function handleDisconnect(url: string) {
     await disconnect(url);
@@ -147,80 +124,18 @@
           type="button"
           class="provider-btn"
           class:active={selectedProvider === "gitlab"}
-          onclick={() => { selectedProvider = "gitlab"; instanceUrl = ""; authMethod = cliAvailable ? "oauth" : "pat"; }}
+          onclick={() => { selectedProvider = "gitlab"; instanceUrl = ""; }}
         >{m.provider_gitlab()}</button>
         <button
           type="button"
           class="provider-btn"
           class:active={selectedProvider === "github"}
-          onclick={() => { selectedProvider = "github"; instanceUrl = ""; authMethod = cliAvailable ? "oauth" : "pat"; }}
+          onclick={() => { selectedProvider = "github"; instanceUrl = ""; }}
         >{m.provider_github()}</button>
       </div>
 
-      {#if cliAvailable}
-        <div class="auth-method-toggle">
-          <button
-            type="button"
-            class="auth-method-btn"
-            class:active={authMethod === "oauth"}
-            onclick={() => { authMethod = "oauth"; }}
-          >
-            {m.provider_login_oauth()}
-          </button>
-          <button
-            type="button"
-            class="auth-method-btn"
-            class:active={authMethod === "pat"}
-            onclick={() => { authMethod = "pat"; }}
-          >
-            {m.provider_login_pat()}
-          </button>
-        </div>
-      {/if}
-
-      {#if authMethod === "oauth"}
-        <p class="oauth-desc">{m.provider_login_oauth_desc()}</p>
-
-        <label class="field">
-          <span class="field-label">
-            {m.provider_instance_url()}
-            <span class="field-hint" title={selectedProvider === 'github' ? m.provider_instance_hint_github() : m.provider_instance_hint_gitlab()}>?</span>
-          </span>
-          <input
-            type="text"
-            class="field-input"
-            bind:value={instanceUrl}
-            placeholder={selectedProvider === 'github' ? m.provider_instance_placeholder_github() : m.provider_instance_placeholder_gitlab()}
-            disabled={oauthInProgress}
-          />
-        </label>
-
-        {#if $providerError}
-          <div class="error-message">{$providerError}</div>
-        {/if}
-
-        <div class="form-actions">
-          <button
-            type="button"
-            class="btn btn-connect"
-            disabled={oauthInProgress}
-            onclick={handleOAuthLogin}
-          >
-            {oauthInProgress ? m.provider_logging_in() : m.provider_login_oauth()}
-          </button>
-
-          {#if showAddForm && $providerStatus.providers.length > 0}
-            <button
-              type="button"
-              class="btn btn-cancel"
-              onclick={() => { showAddForm = false; token = ""; instanceUrl = ""; }}
-            >
-              {m.provider_cancel()}
-            </button>
-          {/if}
-        </div>
-      {:else}
-        <form class="pat-form" onsubmit={handleConnect}>
+      <!-- TODO: Re-enable OAuth toggle after ghostty terminal integration -->
+      <form class="pat-form" onsubmit={handleConnect}>
           <label class="field">
             <span class="field-label">
               {m.provider_instance_url()}
@@ -279,7 +194,6 @@
             {/if}
           </div>
         </form>
-      {/if}
     </div>
   {/if}
 </div>
@@ -331,11 +245,6 @@
   .btn-add-provider { width: 100%; padding: 8px; background: none; border: 1px dashed var(--border); border-radius: 6px; color: var(--accent-blue); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
   .btn-add-provider:hover { background: rgba(88,166,255,0.06); }
 
-  .auth-method-toggle { display: flex; gap: 0; }
-  .auth-method-btn { flex: 1; padding: 8px; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
-  .auth-method-btn:first-child { border-radius: 6px 0 0 6px; }
-  .auth-method-btn:last-child { border-radius: 0 6px 6px 0; border-left: none; }
-  .auth-method-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(88,166,255,0.08); }
-  .oauth-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+  /* TODO: Re-enable auth-method-toggle, oauth-desc after ghostty integration */
   .pat-form { display: flex; flex-direction: column; gap: 16px; }
 </style>

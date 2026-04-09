@@ -2084,11 +2084,13 @@ pub async fn is_cli_authenticated(
 /// Start the CLI OAuth login flow and extract + store the token.
 ///
 /// This is a blocking call — the browser opens for OAuth, and this
-/// command waits until login completes. Run on `spawn_blocking`.
+/// command waits until login completes. Emits `oauth-device-code`
+/// event with the one-time code so the frontend can display it.
 #[tauri::command]
 pub async fn cli_login(
     kind: String,
     instance_url: Option<String>,
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<provider::ProviderUser, String> {
     let provider_kind = provider::ProviderKind::from_config_str(&kind)
@@ -2096,8 +2098,8 @@ pub async fn cli_login(
     let binary = resolve_cli_binary(&state, provider_kind)?;
     let url_ref = instance_url.clone();
 
-    // Run login on blocking thread (opens browser, waits for user)
-    {
+    // Start login process (captures device code, opens browser)
+    let process = {
         let binary = binary.clone();
         let url = url_ref.clone();
         tokio::task::spawn_blocking(move || {
@@ -2105,7 +2107,18 @@ pub async fn cli_login(
         })
         .await
         .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+    };
+
+    // Emit the device code to the frontend BEFORE waiting for OAuth
+    let _ = app.emit("oauth-device-code", &process.info);
+
+    // Now wait for OAuth completion (blocks until user finishes in browser)
+    {
+        tokio::task::spawn_blocking(move || process.wait())
+            .await
+            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())?;
     }
 
     // Extract token (also blocking — runs a subprocess)

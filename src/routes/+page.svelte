@@ -10,13 +10,10 @@
   import DiffEditor from "$lib/components/editor/DiffEditor.svelte";
   import StagingDiffEditor from "$lib/components/editor/StagingDiffEditor.svelte";
   import SettingsPage from "$lib/components/settings/SettingsPage.svelte";
-  import PipelineList from "$lib/components/pipeline/PipelineList.svelte";
-  import PipelineDetail from "$lib/components/pipeline/PipelineDetail.svelte";
-  import JobLog from "$lib/components/pipeline/JobLog.svelte";
+  import PipelineView from "$lib/components/pipeline/PipelineView.svelte";
   import { repoInfo, isLoading, error } from "$lib/stores/repo";
   import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit, graphNavigateDown, graphNavigateUp, graphNavigateFirst, graphNavigateLast } from "$lib/stores/graph";
   import type { RawDiffContent } from "$lib/stores/graph";
-  import { selectedCiRun, jobLog } from "$lib/stores/provider";
   import type { ThemeData } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import TaskPopover from "$lib/components/tasks/TaskPopover.svelte";
@@ -33,8 +30,7 @@
   import MrPrView from "$lib/components/mr-pr/MrPrView.svelte";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
-  import ReflogList from "$lib/components/reflog/ReflogList.svelte";
-  import ReflogDetail from "$lib/components/reflog/ReflogDetail.svelte";
+  import ReflogView from "$lib/components/reflog/ReflogView.svelte";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
   import {
@@ -68,32 +64,9 @@
     const diffs = selectedStagingFile.isStaged ? $stagedDiffs : $unstagedDiffs;
     return diffs.find(d => d.path === selectedStagingFile!.filename) ?? null;
   });
-  let showJobLog = $state(false);
   let registeredShortcutIds: string[] = [];
   let diffPanelHeight = $state(250);
-  let pipelineSidebarWidth = $state(360);
   let taskPanelHeight = $state(200);
-
-  function startResize(e: MouseEvent) {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = pipelineSidebarWidth;
-
-    function onMouseMove(e: MouseEvent) {
-      const delta = e.clientX - startX;
-      const minW = Math.max(280, window.innerWidth * 0.2);
-      const maxW = Math.min(600, window.innerWidth * 0.5);
-      pipelineSidebarWidth = Math.max(minW, Math.min(maxW, startWidth + delta));
-    }
-
-    function onMouseUp() {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    }
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  }
 
   function startDiffResize(e: MouseEvent) {
     e.preventDefault();
@@ -305,6 +278,7 @@
         label: "Show keyboard shortcuts",
         category: "General",
         action: () => toggleCheatSheet(),
+        global: true,
       },
       {
         id: "util.tasks",
@@ -340,11 +314,6 @@
     activeView = view;
     selectedDiff = null;
     selectedStagingFile = null;
-    showJobLog = false;
-  }
-
-  function handleJobSelect(_jobId: number) {
-    showJobLog = true;
   }
 
   function handleFileClick(path: string, staged: boolean) {
@@ -457,32 +426,14 @@
   <TabBar />
 
   <div class="main-area">
-    <Sidebar onNavigate={handleNavigate} />
+    <Sidebar onNavigate={handleNavigate} {activeView} />
 
     <div class="center-panel">
       <ConflictToolbar />
       {#if activeView === "settings"}
         <SettingsPage />
       {:else if activeView === "pipelines"}
-        <div class="pipelines-layout">
-          <div class="pipelines-sidebar" style="width: {pipelineSidebarWidth}px">
-            <PipelineList />
-          </div>
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="resize-handle" onmousedown={startResize}></div>
-          <div class="pipelines-main">
-            {#if showJobLog && $jobLog}
-              <div class="pipelines-detail">
-                <PipelineDetail onSelectJob={handleJobSelect} />
-              </div>
-              <div class="pipelines-log">
-                <JobLog />
-              </div>
-            {:else}
-              <PipelineDetail onSelectJob={handleJobSelect} />
-            {/if}
-          </div>
-        </div>
+        <PipelineView />
       {:else if activeView === "stashes"}
         <StashView />
       {:else if activeView === "tags"}
@@ -510,27 +461,11 @@
       {:else if activeView === "worktrees"}
         <WorktreeList />
       {:else if activeView === "reflog"}
-        <div class="reflog-layout">
-          <div class="reflog-sidebar">
-            <ReflogList
-              entries={$reflogEntries}
-              onContextMenu={handleReflogContextMenu}
-            />
-          </div>
-          <div class="reflog-main">
-            {#if $selectedReflogEntry}
-              <ReflogDetail
-                entry={$selectedReflogEntry}
-                onNavigateToGraph={(oid) => { navigateToCommit(oid); handleNavigate("graph"); }}
-                onNavigate={handleNavigate}
-              />
-            {:else}
-              <div class="no-diff">
-                <p>{m.reflog_select_entry()}</p>
-              </div>
-            {/if}
-          </div>
-        </div>
+        <ReflogView
+          onContextMenu={handleReflogContextMenu}
+          onNavigateToGraph={(oid) => { navigateToCommit(oid); handleNavigate("graph"); }}
+          onNavigate={handleNavigate}
+        />
       {:else if activeView === "submodules"}
         <SubmoduleList />
       {:else if activeView === "blame"}
@@ -768,53 +703,6 @@
     overflow: hidden;
   }
 
-  .pipelines-layout {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  .pipelines-sidebar {
-    min-width: min(280px, 30vw);
-    max-width: min(600px, 50vw);
-    border-right: 1px solid var(--border);
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-
-  .resize-handle {
-    width: 4px;
-    cursor: col-resize;
-    background: transparent;
-    transition: background 0.15s;
-    flex-shrink: 0;
-  }
-
-  .resize-handle:hover {
-    background: var(--accent-blue);
-  }
-
-  .pipelines-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-width: 0;
-  }
-
-  .pipelines-detail {
-    flex: 0 0 auto;
-    max-height: 45%;
-    overflow: auto;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .pipelines-log {
-    flex: 1;
-    overflow: hidden;
-    min-height: 0;
-  }
-
   .task-panel-resize-handle {
     height: 4px;
     background: var(--border);
@@ -902,22 +790,5 @@
     font-size: 13px;
   }
 
-  .reflog-layout {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
 
-  .reflog-sidebar {
-    width: clamp(280px, 30vw, 420px);
-    flex-shrink: 0;
-    border-right: 1px solid var(--border);
-    overflow: hidden;
-  }
-
-  .reflog-main {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-  }
 </style>

@@ -53,6 +53,12 @@ export function clearReflogSelection(): void {
   selectedReflogOid.set(null);
 }
 
+/** Clear all reflog state (e.g., on project switch). */
+export function clearReflogState(): void {
+  reflogEntries.set([]);
+  selectedReflogOid.set(null);
+}
+
 /** Debounced reflog loader to avoid rapid re-fetches on burst repo-changed events. */
 const debouncedLoadReflog = debounce(() => loadReflog(), 300);
 

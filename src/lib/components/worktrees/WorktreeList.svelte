@@ -162,16 +162,16 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 13px;
-    padding: 4px 6px;
+    font-size: 14px;
+    padding: 2px 4px;
     border-radius: 4px;
     cursor: pointer;
     font-family: var(--font-icons);
-    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
   }
 
   .action-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
     color: var(--text-primary);
   }
 
@@ -283,20 +283,19 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 12px;
-    padding: 4px 6px;
+    font-size: 14px;
+    padding: 2px 4px;
     border-radius: 4px;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
   }
 
   .wt-action-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
     color: var(--text-primary);
   }
 
   .wt-action-btn.destructive:hover {
-    background: rgba(248, 81, 73, 0.12);
-    color: #f85149;
+    color: var(--accent-red);
   }
 </style>

@@ -149,8 +149,25 @@ export async function cancelTask(taskId: TaskId): Promise<void> {
   await api.cancelTask(taskId);
 }
 
-export function selectTask(taskId: TaskId): void {
+export async function selectTask(taskId: TaskId): Promise<void> {
   selectedTaskId.set(taskId);
+
+  // If we don't have output locally (e.g. task ran before listener started,
+  // or events were missed), fetch it from the backend.
+  const currentOutput = get(taskOutput);
+  if (!currentOutput.has(taskId) || currentOutput.get(taskId)!.length === 0) {
+    try {
+      const lines = await api.getTaskOutput(taskId);
+      if (lines.length > 0) {
+        taskOutput.update((map) => {
+          map.set(taskId, lines);
+          return new Map(map);
+        });
+      }
+    } catch {
+      // Task might have been cleaned up — ignore
+    }
+  }
 }
 
 export function togglePopover(): void {

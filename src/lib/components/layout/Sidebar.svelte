@@ -4,7 +4,7 @@
   import { hasActiveProvider, activeProvider } from "../../stores/provider";
   import * as m from "$lib/paraglide/messages";
 
-  let { onNavigate }: { onNavigate?: (view: string) => void } = $props();
+  let { onNavigate, activeView = "graph" }: { onNavigate?: (view: string) => void; activeView?: string } = $props();
 
   type NavItem = { label: string; icon: string; id: string };
 
@@ -24,10 +24,7 @@
     { label: m.sidebar_merge_requests(), icon: "\uF407", id: "merge-requests" },
   ];
 
-  let activeNav = $state("graph");
-
   function handleNav(id: string) {
-    activeNav = id;
     onNavigate?.(id);
   }
 
@@ -40,7 +37,7 @@
     {#each navItems as item}
       <button
         class="nav-item"
-        class:active={activeNav === item.id}
+        class:active={activeView === item.id}
         onclick={() => handleNav(item.id)}
       >
         <span class="nav-icon">{item.icon}</span>
@@ -60,7 +57,7 @@
     {#each providerItems as item}
       <button
         class="nav-item"
-        class:active={activeNav === item.id}
+        class:active={activeView === item.id}
         onclick={() => handleNav(item.id)}
       >
         <span class="nav-icon">{item.icon}</span>
@@ -74,7 +71,7 @@
   <div class="nav-section">
     <button
       class="nav-item"
-      class:active={activeNav === "settings"}
+      class:active={activeView === "settings"}
       onclick={() => handleNav("settings")}
     >
       <span class="nav-icon">{"\uF013"}</span>

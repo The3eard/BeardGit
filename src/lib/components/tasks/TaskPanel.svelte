@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { sortedTasks, selectedOutput, collapsePanel, closePanel } from "../../stores/tasks";
+  import { sortedTasks, selectedOutput, selectedTask, collapsePanel, closePanel } from "../../stores/tasks";
   import { ansiToHtml } from "../../utils/ansi";
   import TaskList from "./TaskList.svelte";
   import * as m from "$lib/paraglide/messages";
@@ -11,6 +11,8 @@
       ? ansiToHtml($selectedOutput.map((l) => l.text).join("\n"))
       : null
   );
+
+  let taskCommand = $derived($selectedTask?.command ?? null);
 
   $effect(() => {
     if (outputHtml && logContainer) {
@@ -28,8 +30,12 @@
     <div class="panel-header">
       <span class="header-title">{m.tasks_title()}</span>
       <div class="header-actions">
-        <button class="icon-btn" onclick={collapsePanel} title={m.tasks_collapse_tooltip()}>{"\uEA67"}</button>
-        <button class="icon-btn close-btn" onclick={closePanel}>{"\uEA76"}</button>
+        <button class="panel-icon-btn" onclick={collapsePanel} title={m.tasks_collapse_tooltip()}>
+          <span class="nf">{"\uF066"}</span>
+        </button>
+        <button class="panel-icon-btn" onclick={closePanel} title="Close">
+          <span class="nf">{"\uF00D"}</span>
+        </button>
       </div>
     </div>
     <div class="panel-list">
@@ -41,10 +47,17 @@
     <div class="output-header">
       <span class="output-label">{m.tasks_output()}</span>
     </div>
+    {#if taskCommand}
+      <div class="output-command">
+        <span class="command-prompt">$</span> {taskCommand}
+      </div>
+    {/if}
     {#if outputHtml}
       <div class="output-content" bind:this={logContainer}>{@html outputHtml}</div>
+    {:else if $selectedTask}
+      <div class="output-empty">{m.tasks_no_output()}</div>
     {:else}
-      <div class="output-empty">{m.tasks_no_tasks()}</div>
+      <div class="output-empty">{m.tasks_select_task()}</div>
     {/if}
   </div>
 </div>
@@ -88,26 +101,20 @@
     gap: 6px;
   }
 
-  .icon-btn {
+  .panel-icon-btn {
     background: none;
-    border: 1px solid var(--border);
-    color: var(--accent-blue);
-    font-size: 13px;
-    font-family: var(--font-icons);
-    padding: 0 4px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: background 0.1s;
-    line-height: 1;
-  }
-
-  .icon-btn:hover {
-    background: var(--overlay-hover);
-  }
-
-  .close-btn {
-    color: var(--text-secondary);
     border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+  }
+
+  .panel-icon-btn:hover {
+    color: var(--text-primary);
   }
 
   .panel-list {
@@ -134,11 +141,27 @@
     font-size: 11px;
   }
 
+  .output-command {
+    padding: 6px 8px;
+    background: var(--bg-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent-blue);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    user-select: all;
+  }
+
+  .command-prompt {
+    color: var(--text-secondary);
+    margin-right: 4px;
+  }
+
   .output-content {
     flex: 1;
     padding: 8px;
     background: var(--bg-primary);
-    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     line-height: 1.5;
     color: var(--text-primary);

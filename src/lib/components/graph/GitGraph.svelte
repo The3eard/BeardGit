@@ -762,11 +762,13 @@
     align-items: center;
     background: var(--bg-secondary);
     padding-right: 8px;
+    border-bottom: 1px solid var(--border);
   }
 
   .graph-header :global(.search-bar) {
     flex: 1;
     min-width: 0;
+    border-bottom: none;
   }
 
   .column-toggle {

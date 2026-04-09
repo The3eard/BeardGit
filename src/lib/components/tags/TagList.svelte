@@ -332,15 +332,15 @@
   }
 
   .action-btn-push:hover {
-    background: rgba(88, 166, 255, 0.15);
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
+    background: rgba(63, 185, 80, 0.15);
+    border-color: var(--accent-green);
+    color: var(--accent-green);
   }
 
   .action-btn-danger:hover {
     background: rgba(248, 81, 73, 0.2);
-    border-color: #f85149;
-    color: #f85149;
+    border-color: var(--accent-red);
+    color: var(--accent-red);
   }
 
   .push-all-btn {
