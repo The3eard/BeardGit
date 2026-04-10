@@ -97,7 +97,8 @@ Three-layer design: **Rust Core** (10 crates) → **Tauri IPC** → **Svelte Fro
 
 | Crate | Purpose |
 |-------|---------|
-| `git-engine` | Git operations via libgit2 + bundled git CLI |
+| `git-engine` | Git operations — libgit2 for reads, system git CLI for writes (merge, rebase, push/pull) |
+| `cli-provider` | Wraps bundled `gh`/`glab` CLIs for MR/PR management, review, and comments |
 | `graph-builder` | Commit DAG construction, lane assignment, virtual scroll viewport |
 | `provider` | `CiProvider` trait, unified CI types (`CiRun`, `CiJob`, `CiStatus`), remote URL parser |
 | `gitlab-api` | GitLab REST v4 client implementing `CiProvider` |
@@ -129,6 +130,7 @@ Download the latest version from [GitHub Releases](https://github.com/The3eard/B
 
 ### Prerequisites
 
+- **Git 2.x+** — required at runtime for write operations (merge, rebase, push, pull, cherry-pick, stash). Install from [git-scm.com](https://git-scm.com) or your package manager.
 - **Rust** — install via [rustup](https://rustup.rs)
 - **Node.js 20+** — install from [nodejs.org](https://nodejs.org)
 
