@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { jobLog, loadingJobLog, jobLogUnavailable, stopJobLogPolling, activeProvider } from "../../stores/provider";
+  import { jobLog, loadingJobLog, jobLogUnavailable, selectedJobSteps, stopJobLogPolling, activeProvider } from "../../stores/provider";
   import { preprocessJobLog } from "../../api/tauri";
   import { activeTheme } from "../../stores/theme";
   import { acquire, release, updatePoolTheme } from "../terminal/pool";
   import type { PooledInstance } from "../terminal/pool";
   import { WebglAddon } from "@xterm/addon-webgl";
+  import JobSteps from "./JobSteps.svelte";
   import * as m from "$lib/paraglide/messages";
 
   let terminalContainer: HTMLDivElement | undefined = $state();
@@ -107,6 +108,8 @@
       </button>
     </div>
     <div class="log-terminal" bind:this={terminalContainer}></div>
+  {:else if $jobLogUnavailable && $selectedJobSteps && $selectedJobSteps.length > 0}
+    <JobSteps steps={$selectedJobSteps} />
   {:else if $jobLogUnavailable}
     <div class="log-unavailable">
       <span class="nf">{"\uF017"}</span>

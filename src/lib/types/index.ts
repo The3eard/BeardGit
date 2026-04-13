@@ -184,6 +184,13 @@ export interface CiRunDetail {
   stages: CiStage[];
 }
 
+export interface CiJobStep {
+  number: number;
+  name: string;
+  status: string;
+  duration: number | null;
+}
+
 export interface CiJob {
   id: number;
   name: string;
@@ -194,6 +201,7 @@ export interface CiJob {
   finished_at: string | null;
   web_url: string;
   allow_failure: boolean | null;
+  steps: CiJobStep[] | null;
 }
 
 export interface CiStage {

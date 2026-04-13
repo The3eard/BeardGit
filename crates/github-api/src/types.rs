@@ -70,6 +70,26 @@ pub struct WorkflowJob {
     pub completed_at: Option<String>,
     /// URL to the job in the GitHub UI.
     pub html_url: String,
+    /// Individual steps within this job.
+    #[serde(default)]
+    pub steps: Vec<WorkflowJobStep>,
+}
+
+/// A single step within a GitHub Actions workflow job.
+#[derive(Debug, Deserialize)]
+pub struct WorkflowJobStep {
+    /// Step number (1-based).
+    pub number: u32,
+    /// Human-readable step name.
+    pub name: String,
+    /// Lifecycle status: `"queued"`, `"in_progress"`, `"completed"`.
+    pub status: String,
+    /// Result when completed.
+    pub conclusion: Option<String>,
+    /// ISO 8601 timestamp when the step started.
+    pub started_at: Option<String>,
+    /// ISO 8601 timestamp when the step completed.
+    pub completed_at: Option<String>,
 }
 
 /// GitHub repository metadata as returned by `GET /repos/{owner}/{repo}`.

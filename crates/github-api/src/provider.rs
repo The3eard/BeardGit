@@ -10,8 +10,8 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use provider::{
-    CiFilters, CiJob, CiProvider, CiRun, CiRunDetail, CiStage, CiStatus, Project, ProviderError,
-    ProviderKind, ProviderUser,
+    CiFilters, CiJob, CiJobStep, CiProvider, CiRun, CiRunDetail, CiStage, CiStatus, Project,
+    ProviderError, ProviderKind, ProviderUser,
 };
 
 use crate::client::{ApiError, GitHubClient};
@@ -202,6 +202,19 @@ fn workflow_run_to_ci_run(r: types::WorkflowRun) -> CiRun {
 /// Convert a GitHub workflow job to a unified CI job.
 fn workflow_job_to_ci_job(j: types::WorkflowJob) -> CiJob {
     let duration = compute_duration(&j.started_at, &j.completed_at);
+    let steps: Vec<CiJobStep> = j
+        .steps
+        .into_iter()
+        .map(|s| {
+            let step_duration = compute_duration(&s.started_at, &s.completed_at);
+            CiJobStep {
+                number: s.number,
+                name: s.name,
+                status: normalize_github_status(&s.status, s.conclusion.as_deref()),
+                duration: step_duration,
+            }
+        })
+        .collect();
     CiJob {
         id: j.id,
         name: j.name,
@@ -212,6 +225,7 @@ fn workflow_job_to_ci_job(j: types::WorkflowJob) -> CiJob {
         finished_at: j.completed_at,
         web_url: j.html_url,
         allow_failure: None,
+        steps: if steps.is_empty() { None } else { Some(steps) },
     }
 }
 
@@ -371,6 +385,24 @@ mod tests {
             started_at: Some("2026-01-01T00:01:00Z".to_string()),
             completed_at: Some("2026-01-01T00:02:30Z".to_string()),
             html_url: "https://github.com/o/r/actions/runs/1/jobs/600".to_string(),
+            steps: vec![
+                types::WorkflowJobStep {
+                    number: 1,
+                    name: "Set up job".to_string(),
+                    status: "completed".to_string(),
+                    conclusion: Some("success".to_string()),
+                    started_at: Some("2026-01-01T00:01:00Z".to_string()),
+                    completed_at: Some("2026-01-01T00:01:05Z".to_string()),
+                },
+                types::WorkflowJobStep {
+                    number: 2,
+                    name: "Build".to_string(),
+                    status: "in_progress".to_string(),
+                    conclusion: None,
+                    started_at: Some("2026-01-01T00:01:05Z".to_string()),
+                    completed_at: None,
+                },
+            ],
         };
         let ci_job = workflow_job_to_ci_job(job);
         assert_eq!(ci_job.id, 600);
@@ -378,6 +410,15 @@ mod tests {
         assert!(ci_job.stage.is_none()); // GitHub has no stages
         assert_eq!(ci_job.status, CiStatus::Failed);
         assert_eq!(ci_job.duration, Some(90.0));
+        // Steps parsed correctly
+        let steps = ci_job.steps.unwrap();
+        assert_eq!(steps.len(), 2);
+        assert_eq!(steps[0].name, "Set up job");
+        assert_eq!(steps[0].status, CiStatus::Success);
+        assert_eq!(steps[0].duration, Some(5.0));
+        assert_eq!(steps[1].name, "Build");
+        assert_eq!(steps[1].status, CiStatus::Running);
+        assert!(steps[1].duration.is_none());
     }
 
     #[test]

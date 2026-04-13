@@ -192,6 +192,7 @@ fn gitlab_job_to_ci_job(j: types::Job) -> CiJob {
         finished_at: j.finished_at,
         web_url: j.web_url,
         allow_failure: j.allow_failure,
+        steps: None,
     }
 }
 

@@ -231,6 +231,25 @@ pub struct CiJob {
     pub web_url: String,
     /// Whether this job is allowed to fail without failing the run (GitLab only).
     pub allow_failure: Option<bool>,
+    /// Individual steps within this job (GitHub only, `None` for GitLab).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steps: Option<Vec<CiJobStep>>,
+}
+
+/// A single step within a CI/CD job (GitHub Actions only).
+///
+/// GitHub jobs are composed of steps that run sequentially. Each step
+/// has its own status, allowing real-time progress tracking for running jobs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CiJobStep {
+    /// Step number (1-based).
+    pub number: u32,
+    /// Human-readable step name.
+    pub name: String,
+    /// Normalized status.
+    pub status: CiStatus,
+    /// Wall-clock duration in seconds (`None` if not yet completed).
+    pub duration: Option<f64>,
 }
 
 // ---------------------------------------------------------------------------

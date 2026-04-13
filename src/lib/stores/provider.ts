@@ -31,6 +31,19 @@ export const loadingDetail = writable(false);
 export const jobLog = writable<string | null>(null);
 export const loadingJobLog = writable(false);
 export const jobLogUnavailable = writable(false);
+export const selectedJobId = writable<number | null>(null);
+export const selectedJobSteps = derived(
+  [selectedCiRun, selectedJobId],
+  ([$run, $jobId]) => {
+    if (!$run || !$jobId) return null;
+    for (const stage of $run.stages) {
+      for (const job of stage.jobs) {
+        if (job.id === $jobId) return job.steps ?? null;
+      }
+    }
+    return null;
+  }
+);
 export const isConnecting = writable(false);
 export const providerError = writable<string | null>(null);
 
@@ -162,6 +175,7 @@ export async function loadCiRunDetail(runId: number) {
   stopJobLogPolling();
   jobLog.set(null);
   jobLogUnavailable.set(false);
+  selectedJobId.set(null);
   try {
     const detail = await api.getCiRunDetail(runId);
     if (get(selectedCiRunId) !== runId) return;
@@ -181,6 +195,7 @@ export async function loadJobLog(jobId: number, jobStatus?: string) {
   loadingJobLog.set(true);
   jobLog.set(null);
   jobLogUnavailable.set(false);
+  selectedJobId.set(jobId);
   try {
     const log = await api.getJobLog(jobId);
     jobLog.set(log);
