@@ -10,10 +10,24 @@
 
   let terminalContainer: HTMLDivElement | undefined = $state();
   let pooledInstance: PooledInstance | null = $state(null);
+  let terminalOpened = $state(false);
 
   onMount(() => {
     pooledInstance = acquire();
-    if (terminalContainer && pooledInstance) {
+
+    return () => {
+      stopJobLogPolling();
+      if (pooledInstance) {
+        release(pooledInstance);
+        pooledInstance = null;
+        terminalOpened = false;
+      }
+    };
+  });
+
+  // Open terminal into container when the DOM element becomes available
+  $effect(() => {
+    if (terminalContainer && pooledInstance && !terminalOpened) {
       pooledInstance.terminal.open(terminalContainer);
       try {
         pooledInstance.terminal.loadAddon(new WebglAddon());
@@ -21,15 +35,8 @@
         // WebGL not available — fallback to canvas renderer
       }
       pooledInstance.fitAddon.fit();
+      terminalOpened = true;
     }
-
-    return () => {
-      stopJobLogPolling();
-      if (pooledInstance) {
-        release(pooledInstance);
-        pooledInstance = null;
-      }
-    };
   });
 
   let preprocessedLog = $state<string | null>(null);

@@ -11,12 +11,25 @@
   let outputContainer: HTMLDivElement | undefined = $state();
   let pooledInstance: PooledInstance | null = $state(null);
   let lastWrittenLength = $state(0);
+  let terminalOpened = $state(false);
 
   let taskCommand = $derived($selectedTask?.command ?? null);
 
   onMount(() => {
     pooledInstance = acquire();
-    if (outputContainer && pooledInstance) {
+
+    return () => {
+      if (pooledInstance) {
+        release(pooledInstance);
+        pooledInstance = null;
+        terminalOpened = false;
+      }
+    };
+  });
+
+  // Open terminal into container when the DOM element becomes available
+  $effect(() => {
+    if (outputContainer && pooledInstance && !terminalOpened) {
       pooledInstance.terminal.open(outputContainer);
       try {
         pooledInstance.terminal.loadAddon(new WebglAddon());
@@ -24,14 +37,8 @@
         // WebGL not available — fallback to canvas renderer
       }
       pooledInstance.fitAddon.fit();
+      terminalOpened = true;
     }
-
-    return () => {
-      if (pooledInstance) {
-        release(pooledInstance);
-        pooledInstance = null;
-      }
-    };
   });
 
   // Write output to terminal when selected task changes or new output arrives
