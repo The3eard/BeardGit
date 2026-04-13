@@ -108,8 +108,8 @@ export async function discardHunks(path: string, selections: HunkSelection[]): P
   return invoke<void>("discard_hunks", { path, selections });
 }
 
-export async function createCommit(message: string, name: string, email: string): Promise<string> {
-  return invoke<string>("create_commit", { message, name, email });
+export async function createCommit(message: string): Promise<string> {
+  return invoke<string>("create_commit", { message });
 }
 
 export async function createBranch(name: string): Promise<void> {

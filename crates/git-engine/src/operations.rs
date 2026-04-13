@@ -11,14 +11,12 @@ use crate::repository::Repository;
 
 impl Repository {
     /// Create a commit from the current index state.
-    pub fn create_commit(
-        &self,
-        message: &str,
-        name: &str,
-        email: &str,
-    ) -> Result<String, GitError> {
+    ///
+    /// Uses the repository's configured `user.name` and `user.email` from
+    /// git config for the author and committer signature.
+    pub fn create_commit(&self, message: &str) -> Result<String, GitError> {
         let repo = self.inner();
-        let sig = git2::Signature::now(name, email)?;
+        let sig = repo.signature()?;
         let mut index = repo.index()?;
         let tree_id = index.write_tree()?;
         let tree = repo.find_tree(tree_id)?;
@@ -78,6 +76,9 @@ mod tests {
     fn create_test_repo() -> (tempfile::TempDir, Repository) {
         let dir = tempfile::tempdir().unwrap();
         let git_repo = git2::Repository::init(dir.path()).unwrap();
+        let mut config = git_repo.config().unwrap();
+        config.set_str("user.name", "Test").unwrap();
+        config.set_str("user.email", "test@test.com").unwrap();
         let sig = git2::Signature::now("Test", "test@test.com").unwrap();
         let file_path = dir.path().join("file.txt");
         fs::write(&file_path, "content\n").unwrap();
@@ -98,9 +99,7 @@ mod tests {
         let (dir, repo) = create_test_repo();
         fs::write(dir.path().join("file.txt"), "updated\n").unwrap();
         repo.stage_files(&["file.txt".to_string()]).unwrap();
-        let oid = repo
-            .create_commit("Test commit", "Author", "author@test.com")
-            .unwrap();
+        let oid = repo.create_commit("Test commit").unwrap();
         assert!(!oid.is_empty());
         let commits = repo.walk_commits(10).unwrap();
         assert_eq!(commits.len(), 2);

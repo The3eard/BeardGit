@@ -574,15 +574,9 @@ pub fn discard_hunks(
 /// # Returns
 /// The OID of the newly created commit as a hex string.
 #[tauri::command]
-pub fn create_commit(
-    message: String,
-    name: String,
-    email: String,
-    state: State<'_, AppState>,
-) -> Result<String, String> {
+pub fn create_commit(message: String, state: State<'_, AppState>) -> Result<String, String> {
     with_active_repo(&state, |repo| {
-        repo.create_commit(&message, &name, &email)
-            .map_err(|e| e.to_string())
+        repo.create_commit(&message).map_err(|e| e.to_string())
     })
 }
 

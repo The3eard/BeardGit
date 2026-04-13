@@ -66,7 +66,7 @@
     if (isAmend) {
       await amendCommit(message);
     } else {
-      await commit(message, "Adolfo Fuentes", "adolfofuentes@metricool.com");
+      await commit(message);
     }
     message = "";
     isAmend = false;

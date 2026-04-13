@@ -269,15 +269,13 @@ mod tests {
         // Commit a change on the branch
         fs::write(dir.path().join("file.txt"), "branch version\n").unwrap();
         repo.stage_files(&["file.txt".to_string()]).unwrap();
-        repo.create_commit("Branch commit", "Test", "test@test.com")
-            .unwrap();
+        repo.create_commit("Branch commit").unwrap();
 
         // Switch back to master and make a conflicting change
         repo.checkout_branch("master").unwrap();
         fs::write(dir.path().join("file.txt"), "master version\n").unwrap();
         repo.stage_files(&["file.txt".to_string()]).unwrap();
-        repo.create_commit("Master commit", "Test", "test@test.com")
-            .unwrap();
+        repo.create_commit("Master commit").unwrap();
 
         // Attempt merge — should fail with conflict
         let result = repo.merge_branch("conflict-branch").unwrap();

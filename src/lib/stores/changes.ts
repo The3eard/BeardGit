@@ -60,8 +60,8 @@ export async function unstageAll() {
 }
 
 /** Create a commit, clear the message, and refresh statuses + diffs. */
-export async function commit(message: string, name: string, email: string) {
-  await apiCreateCommit(message, name, email);
+export async function commit(message: string) {
+  await apiCreateCommit(message);
   commitMessage.set("");
   await Promise.all([refreshStatuses(), refreshDiffs()]);
 }

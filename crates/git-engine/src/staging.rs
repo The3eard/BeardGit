@@ -27,6 +27,7 @@ impl Repository {
         let statuses = repo.statuses(Some(
             git2::StatusOptions::new()
                 .include_untracked(true)
+                .recurse_untracked_dirs(true)
                 .include_ignored(false)
                 .renames_head_to_index(true),
         ))?;

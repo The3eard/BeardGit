@@ -653,8 +653,7 @@ mod tests {
         repo.checkout_branch("feature").unwrap();
         fs::write(dir.path().join("feature.txt"), "feature work\n").unwrap();
         repo.stage_files(&["feature.txt".to_string()]).unwrap();
-        repo.create_commit("Feature commit", "Test", "test@test.com")
-            .unwrap();
+        repo.create_commit("Feature commit").unwrap();
         // Switch back and merge
         repo.checkout_branch("master").unwrap();
         let result = repo.merge_branch("feature").unwrap();
@@ -846,8 +845,7 @@ mod tests {
         std::fs::write(dir.path().join("new.txt"), "new content\n").unwrap();
         repo.stage_files(&["file.txt".to_string(), "new.txt".to_string()])
             .unwrap();
-        repo.create_commit("Second commit", "Test", "test@test.com")
-            .unwrap();
+        repo.create_commit("Second commit").unwrap();
 
         let result = repo.git_cmd(&["rev-parse", "HEAD"]).unwrap();
         let head_oid = result.stdout.trim();
