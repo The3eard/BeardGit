@@ -34,6 +34,45 @@
   let showDeleteConfirm = $state(false);
   let deleteTargetPath = $state<string | null>(null);
 
+  let selected = $state(new Set<string>());
+
+  let selectedCount = $derived(selected.size);
+  let allSelected = $derived(files.length > 0 && selected.size === files.length);
+  let someSelected = $derived(selected.size > 0 && selected.size < files.length);
+
+  function toggleFile(path: string) {
+    const next = new Set(selected);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    selected = next;
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      selected = new Set();
+    } else {
+      selected = new Set(files.map(f => f.path));
+    }
+  }
+
+  function stageSelected() {
+    const paths = [...selected];
+    selected = new Set();
+    onStage?.(paths);
+  }
+
+  function unstageSelected() {
+    const paths = [...selected];
+    selected = new Set();
+    onUnstage?.(paths);
+  }
+
+  // Clear selection when file list changes (after stage/unstage refresh)
+  $effect(() => {
+    files;
+    selected = new Set();
+  });
+
   function statusIcon(status: string): string {
     switch (status) {
       case "new": return "+";
@@ -182,36 +221,69 @@
 
 <div class="changes-list">
   <div class="list-header">
-    <span class="list-title">{title} ({files.length})</span>
+    <div class="header-left">
+      <input
+        type="checkbox"
+        class="select-all-checkbox"
+        checked={allSelected}
+        indeterminate={someSelected}
+        disabled={files.length === 0}
+        onclick={toggleAll}
+      />
+      <span class="list-title">{title} ({files.length})</span>
+    </div>
     {#if isStaged && onUnstage}
-      <button class="action-btn" onclick={() => onUnstage(files.map(f => f.path))}>
-        {m.changes_unstage_all()}
-      </button>
+      {#if selectedCount > 0}
+        <button class="action-btn" onclick={unstageSelected}>
+          {m.changes_unstage_selected({ count: String(selectedCount) })}
+        </button>
+      {:else}
+        <button class="action-btn" onclick={() => onUnstage(files.map(f => f.path))}>
+          {m.changes_unstage_all()}
+        </button>
+      {/if}
     {/if}
     {#if !isStaged && onStage}
-      <button class="action-btn" onclick={() => onStage(files.map(f => f.path))}>
-        {m.changes_stage_all()}
-      </button>
+      {#if selectedCount > 0}
+        <button class="action-btn" onclick={stageSelected}>
+          {m.changes_stage_selected({ count: String(selectedCount) })}
+        </button>
+      {:else}
+        <button class="action-btn" onclick={() => onStage(files.map(f => f.path))}>
+          {m.changes_stage_all()}
+        </button>
+      {/if}
     {/if}
   </div>
-  <div class="file-list">
+  <div class="file-list" role="list">
     {#each files as file}
-      <button
+      <div
         class="file-item"
-        onclick={() => onFileClick?.(file.path)}
+        role="listitem"
         oncontextmenu={(e) => openContextMenu(e, file.path)}
       >
-        <span class="status-icon" style="color: {statusColor(file.status)}">
-          {statusIcon(file.status)}
-        </span>
-        <span class="file-path">{file.path}</span>
+        <input
+          type="checkbox"
+          class="file-checkbox"
+          checked={selected.has(file.path)}
+          onclick={(e) => { e.stopPropagation(); toggleFile(file.path); }}
+        />
+        <button
+          class="file-btn"
+          onclick={() => onFileClick?.(file.path)}
+        >
+          <span class="status-icon" style="color: {statusColor(file.status)}">
+            {statusIcon(file.status)}
+          </span>
+          <span class="file-path">{file.path}</span>
+        </button>
         {#if isStaged && onUnstage}
           <span class="item-action" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); onUnstage([file.path]); }} onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onUnstage([file.path]); } }}>&#8722;</span>
         {/if}
         {#if !isStaged && onStage}
           <span class="item-action" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); onStage([file.path]); }} onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onStage([file.path]); } }}>+</span>
         {/if}
-      </button>
+      </div>
     {/each}
   </div>
 </div>
@@ -240,24 +312,41 @@
     display: flex; justify-content: space-between; align-items: center;
     padding: 6px 12px; border-bottom: 1px solid var(--border);
   }
+  .header-left {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .select-all-checkbox {
+    margin: 0;
+    accent-color: var(--accent-blue);
+    cursor: pointer;
+  }
   .list-title { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
   .action-btn {
     font-size: 10px; color: var(--accent-blue); background: none;
-    border: none; cursor: pointer; padding: 2px 6px;
+    border: none; cursor: pointer; padding: 2px 6px; white-space: nowrap;
   }
   .action-btn:hover { text-decoration: underline; }
   .file-list { overflow-y: auto; }
   .file-item {
-    display: flex; align-items: center; gap: 8px; padding: 4px 12px;
-    width: 100%; background: none; border: none; color: var(--text-primary);
-    font-size: 12px; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 4px; padding: 4px 12px;
+    width: 100%;
   }
   .file-item:hover { background: rgba(255,255,255,0.04); }
-  .status-icon { font-family: var(--font-mono); font-weight: bold; width: 12px; }
+  .file-checkbox {
+    margin: 0; flex-shrink: 0;
+    accent-color: var(--accent-blue);
+    cursor: pointer;
+  }
+  .file-btn {
+    display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;
+    background: none; border: none; color: var(--text-primary);
+    font-size: 12px; cursor: pointer; text-align: left; padding: 0;
+  }
+  .status-icon { font-family: var(--font-mono); font-weight: bold; width: 12px; flex-shrink: 0; }
   .file-path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item-action {
     opacity: 0; font-size: 14px; background: none; border: none; line-height: 1;
-    color: var(--accent-blue); cursor: pointer; padding: 0 4px;
+    color: var(--accent-blue); cursor: pointer; padding: 0 4px; flex-shrink: 0;
   }
   .file-item:hover .item-action { opacity: 1; }
 </style>
