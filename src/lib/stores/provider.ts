@@ -30,6 +30,7 @@ export const selectedCiRun = writable<CiRunDetail | null>(null);
 export const loadingDetail = writable(false);
 export const jobLog = writable<string | null>(null);
 export const loadingJobLog = writable(false);
+export const jobLogUnavailable = writable(false);
 export const isConnecting = writable(false);
 export const providerError = writable<string | null>(null);
 
@@ -81,7 +82,8 @@ export function startJobLogPolling(jobId: number) {
     try {
       const log = await api.getJobLog(jobId);
       jobLog.set(log);
-    } catch { /* ignore */ }
+      jobLogUnavailable.set(false);
+    } catch { /* ignore — will retry next tick */ }
   }, 3000);
 }
 
@@ -159,6 +161,7 @@ export async function loadCiRunDetail(runId: number) {
   stopCiRunDetailPolling();
   stopJobLogPolling();
   jobLog.set(null);
+  jobLogUnavailable.set(false);
   try {
     const detail = await api.getCiRunDetail(runId);
     if (get(selectedCiRunId) !== runId) return;
@@ -176,13 +179,19 @@ export async function loadCiRunDetail(runId: number) {
 export async function loadJobLog(jobId: number, jobStatus?: string) {
   stopJobLogPolling();
   loadingJobLog.set(true);
+  jobLog.set(null);
+  jobLogUnavailable.set(false);
   try {
     const log = await api.getJobLog(jobId);
     jobLog.set(log);
-    if (jobStatus === 'running' || jobStatus === 'queued' || jobStatus === 'pending') {
-      startJobLogPolling(jobId);
-    }
+  } catch {
+    // GitHub API returns error for running jobs — logs not yet available
+    jobLog.set(null);
+    jobLogUnavailable.set(true);
   } finally {
     loadingJobLog.set(false);
+  }
+  if (jobStatus === 'running' || jobStatus === 'queued' || jobStatus === 'pending') {
+    startJobLogPolling(jobId);
   }
 }

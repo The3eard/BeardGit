@@ -144,6 +144,7 @@
   "joblog_bottom": "Final",
   "joblog_bottom_title": "Ir al final",
   "joblog_empty": "Selecciona un job para ver su log",
+  "joblog_unavailable": "Logs aún no disponibles — reintentando automáticamente",
   "settings_title": "Configuración",
   "settings_connection": "Conexión",
   "settings_appearance": "Apariencia",

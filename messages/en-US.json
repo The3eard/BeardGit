@@ -144,6 +144,7 @@
   "joblog_bottom": "Bottom",
   "joblog_bottom_title": "Scroll to Bottom",
   "joblog_empty": "Select a job to view its log",
+  "joblog_unavailable": "Logs not yet available — retrying automatically",
   "settings_title": "Settings",
   "settings_connection": "Connection",
   "settings_appearance": "Appearance",

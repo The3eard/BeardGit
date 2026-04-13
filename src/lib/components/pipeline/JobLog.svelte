@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { jobLog, loadingJobLog, stopJobLogPolling, activeProvider } from "../../stores/provider";
+  import { jobLog, loadingJobLog, jobLogUnavailable, stopJobLogPolling, activeProvider } from "../../stores/provider";
   import { preprocessJobLog } from "../../api/tauri";
   import { activeTheme } from "../../stores/theme";
   import { acquire, release, updatePoolTheme } from "../terminal/pool";
@@ -107,6 +107,11 @@
       </button>
     </div>
     <div class="log-terminal" bind:this={terminalContainer}></div>
+  {:else if $jobLogUnavailable}
+    <div class="log-unavailable">
+      <span class="nf">{"\uF017"}</span>
+      <span>{m.joblog_unavailable()}</span>
+    </div>
   {:else}
     <div class="log-empty">{m.joblog_empty()}</div>
   {/if}
@@ -161,6 +166,17 @@
     gap: 12px;
     color: var(--text-secondary);
     font-size: 13px;
+  }
+
+  .log-unavailable {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-style: italic;
   }
 
   .log-empty {
