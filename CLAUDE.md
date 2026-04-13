@@ -2,7 +2,7 @@
 
 ## Current State
 
-**v0.1.4** — IntelliJ-style 3-way merge editor (custom diff engine, SVG bezier connectors, accept/ignore buttons, undo, conflict navigation), MR/PR search/filter/markdown, layout consistency (SplitView migration, icon standardization), task output fixes, keyboard shortcut improvements. Phase 3: task history popup, keyboard shortcuts, reflog viewer, clean, git config editor, gitignore management, patch management, submodules, MR/PR management with bundled gh/glab CLIs. Phase 2: CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase, resizable graph columns, 14 themes.
+**v0.1.6** — Interactive terminal tabs (unified tab model, + button popup, project-linked/standalone terminals, Cmd+T), sidebar collapse (icon-only mode, Cmd+B, persisted), recent projects fix. Phase 4A: terminal crate, xterm.js component, theme redesign (18 base colors), read-only migration. Phase 3: task history popup, keyboard shortcuts, reflog viewer, clean, git config editor, gitignore management, patch management, submodules, MR/PR management with bundled gh/glab CLIs. Phase 2: CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase, resizable graph columns, 14 themes.
 
 ## Project Overview
 

@@ -2,6 +2,53 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [0.1.6] — Interactive Terminal Tabs, Composite Tabs, Sidebar Collapse
+
+**Composite Segmented Tabs**
+
+- Project + linked terminal merge into a single segmented pill tab: `[● Repo | ⌨ Terminal]`
+- Each segment independently clickable, closeable (hover-only ✕), and middle-click closeable
+- Closing a segment reverts the composite to a simple tab (project-only or terminal-only)
+- Terminal opens in-place — project tab is promoted to composite, not a new tab at the end
+- Shell exit auto-removes the terminal segment, reverting to a simple project tab
+- Cmd+W closes the active segment of a composite tab (not the whole tab)
+- Standalone terminal tabs remain for "New terminal in ~" (not linked to any project)
+
+**Interactive Terminal Tabs**
+
+- Full interactive xterm.js terminal wired to Rust PTY backend (keyboard input, resize, base64 byte streaming)
+- Terminal split button in the actions area: left (terminal icon) opens terminal, right (chevron) opens dropdown
+- Dropdown options: "New terminal in ~", Claude Code, Codex, OpenCode — with official SVG brand logos and hardcoded brand colors (#d97757, #10a37f, #8b8b8b)
+- Claude logo uses official Anthropic symbol (CC0 public domain from Wikimedia Commons)
+- NerdFont icons render correctly in terminal (NerdFontSymbols added to xterm.js fontFamily)
+- Cmd+T shortcut to open a new terminal tab
+- Terminal tabs auto-close when the shell process exits
+- Fetch/Pull/Push buttons hidden when a terminal tab is active
+
+**Sidebar Collapse**
+
+- New collapse toggle button at bottom of sidebar with chevron icon
+- Collapsed mode: icon-only (44px width) with smooth 150ms CSS transition
+- Tooltips on hover when collapsed
+- Cmd+B keyboard shortcut to toggle
+- Collapse state persisted in AppConfig across restarts
+
+**Performance**
+
+- Graph viewport cached per project — instant tab switching with no loading spinner for the graph view
+- Auto-navigate to graph on project tab switch — prevents stale pipeline/changes data from previous project
+
+**Bug Fixes**
+
+- Fixed: recent projects list empty on first use — now populated when opening a project, not just when closing one
+- Fixed: unstaged file diff preview not loading after project tab switch (diffs now auto-refresh on file click)
+- Fixed: close button icons inconsistent — standardized to `\uF00D` (nf-fa-times) across all tabs and panels
+- Fixed: + button icon inconsistent — standardized to `\uF067` (nf-fa-plus)
+- Fixed: icons not vertically centered in Fetch/Pull/Push/Terminal action buttons
+- Fixed: tab close buttons oversized with circle hover — now smaller, highlight-only on hover
+- Fixed: + button popup not closing when clicking outside
+- Sidebar navigation from a terminal tab automatically switches to the most recent project tab
+
 ## [0.1.5] — Terminal Core + Theme Redesign
 
 **Terminal Core (xterm.js) + Theme Redesign**

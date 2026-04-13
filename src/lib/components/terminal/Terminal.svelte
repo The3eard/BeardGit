@@ -52,7 +52,7 @@
 
     terminal = new XTerm({
       theme: toXtermTheme(theme),
-      fontFamily: "'Fira Code', monospace",
+      fontFamily: "'Fira Code', 'NerdFontSymbols', monospace",
       fontSize,
       disableStdin: mode === "readonly",
       cursorBlink: mode === "interactive",

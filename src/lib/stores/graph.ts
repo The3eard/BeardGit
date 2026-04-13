@@ -37,6 +37,31 @@ export const loadingFileDiff = writable(false);
 
 const VIEWPORT_SIZE = 300;
 
+/**
+ * Per-project viewport cache for instant graph rendering on tab switch.
+ * Keyed by project path. Stores the last viewport + scroll offset.
+ */
+const viewportCache = new Map<string, { vp: GraphViewport; offset: number }>();
+
+/** Save current viewport to cache before switching away from a project. */
+export function cacheViewport(projectPath: string): void {
+  const vp = get(viewport);
+  if (vp && vp.nodes.length > 0) {
+    viewportCache.set(projectPath, { vp, offset: get(graphOffset) });
+  }
+}
+
+/** Restore cached viewport for instant rendering. Returns true if cache hit. */
+export function restoreCachedViewport(projectPath: string): boolean {
+  const cached = viewportCache.get(projectPath);
+  if (cached) {
+    viewport.set(cached.vp);
+    graphOffset.set(cached.offset);
+    return true;
+  }
+  return false;
+}
+
 export async function loadViewport(offset: number) {
   graphOffset.set(offset);
   const vp = await apiGetGraphViewport(offset, VIEWPORT_SIZE);
@@ -189,9 +214,10 @@ export function graphNavigateLast(): void {
   });
 }
 
-/** Reset all graph selection/detail state. Called on repo switch. */
+/** Reset all graph selection/detail state. Called on repo switch.
+ *  The viewport is NOT cleared — it's either restored from cache
+ *  or replaced when loadViewport() returns fresh data. */
 export function clearGraphState() {
-  viewport.set(null);
   selectedOid.set(null);
   selectedCommit.set(null);
   selectedCommitFiles.set([]);
@@ -201,5 +227,11 @@ export function clearGraphState() {
   fileDiffPanel.set(null);
   loadingFileDiff.set(false);
   selectedGroup.set(null);
+}
+
+/** Full reset including viewport (used when no cache is available). */
+export function resetGraphState() {
+  clearGraphState();
+  viewport.set(null);
   graphOffset.set(0);
 }

@@ -19,7 +19,7 @@
   import TaskPopover from "$lib/components/tasks/TaskPopover.svelte";
   import TaskPanel from "$lib/components/tasks/TaskPanel.svelte";
   import { panelMode } from "$lib/stores/tasks";
-  import { initProjects, openFolderAsProject, activeProject, switchToNextTab, switchToPrevTab, closeActiveTab } from "$lib/stores/projects";
+  import { initProjects, openFolderAsProject, activeProject, switchToNextTab, switchToPrevTab, closeActiveTab, switchToTab, onProjectSwitch } from "$lib/stores/projects";
   import StashView from "$lib/components/stash/StashView.svelte";
   import ConflictToolbar from "$lib/components/conflict/ConflictToolbar.svelte";
   import TagView from "$lib/components/tags/TagView.svelte";
@@ -30,6 +30,10 @@
   import MrPrView from "$lib/components/mr-pr/MrPrView.svelte";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
+  import TerminalView from "$lib/components/terminal/TerminalView.svelte";
+  import { initTerminalEvents } from "$lib/stores/terminal";
+  import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment } from "$lib/stores/tabs";
+  import { getSidebarCollapsed, setSidebarCollapsed } from "$lib/api/tauri";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
@@ -50,7 +54,7 @@
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
   import { expandPanel as expandTaskPanel } from "$lib/stores/tasks";
-  import { refreshStatuses } from "$lib/stores/changes";
+  import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
   import { get } from "svelte/store";
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
 
@@ -67,6 +71,7 @@
   let registeredShortcutIds: string[] = [];
   let diffPanelHeight = $state(250);
   let taskPanelHeight = $state(200);
+  let sidebarCollapsed = $state(false);
 
   function startDiffResize(e: MouseEvent) {
     e.preventDefault();
@@ -128,6 +133,20 @@
     await listenThemeChanges();
 
     initProjects();
+    initTerminalEvents();
+
+    try {
+      sidebarCollapsed = await getSidebarCollapsed();
+    } catch {
+      // Default to expanded
+    }
+
+    // Reset view to graph on project tab switch for instant responsiveness
+    onProjectSwitch(() => {
+      activeView = "graph";
+      selectedDiff = null;
+      selectedStagingFile = null;
+    });
 
     // --- Keyboard shortcuts ---
     const viewMap = ["graph", "changes", "branches", "tags", "stashes", "worktrees"];
@@ -167,6 +186,34 @@
         label: m.tab_close(),
         category: "Tabs",
         action: () => { closeActiveTab(); },
+      },
+      {
+        id: "ui.toggleSidebar",
+        keys: { mod: true, key: "b" },
+        label: m.sidebar_collapse(),
+        category: "UI",
+        action: () => handleToggleSidebar(),
+      },
+      {
+        id: "tab.newTerminal",
+        keys: { mod: true, key: "t" },
+        label: m.tab_terminal_here(),
+        category: "Tabs",
+        action: async () => {
+          const proj = get(activeProject);
+          if (proj) {
+            const name = proj.path.split("/").pop() ?? "Terminal";
+            await openTerminalTab(proj.path, `Terminal · ${name}`);
+          } else {
+            try {
+              const { homeDir } = await import("@tauri-apps/api/path");
+              const home = await homeDir();
+              await openTerminalTab(home, "Terminal");
+            } catch {
+              await openTerminalTab("/", "Terminal");
+            }
+          }
+        },
       },
     ];
 
@@ -306,8 +353,30 @@
     }
   });
 
-  function handleNavigate(view: string) {
-    // Store the previous view before switching so blame can navigate back.
+  async function handleNavigate(view: string) {
+    // If a terminal tab is active, switch to the last project tab first
+    const tab = get(activeTab);
+    if (tab?.kind === "terminal") {
+      const projIdx = findLastProjectTabIndex();
+      if (projIdx >= 0) {
+        await switchToTab(projIdx);
+        activeView = view;
+        selectedDiff = null;
+        selectedStagingFile = null;
+      }
+      return;
+    }
+
+    if (tab?.kind === "composite" && tab.activeSegment === "terminal") {
+      // Switch to project segment of the same composite tab
+      const idx = get(activeTabIndex);
+      switchSegment(idx, "project");
+      activeView = view;
+      selectedDiff = null;
+      selectedStagingFile = null;
+      return;
+    }
+
     if (view === "blame") {
       blamePreviousView.set(activeView);
     }
@@ -316,8 +385,18 @@
     selectedStagingFile = null;
   }
 
-  function handleFileClick(path: string, staged: boolean) {
+  function handleToggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+    setSidebarCollapsed(sidebarCollapsed);
+  }
+
+  async function handleFileClick(path: string, staged: boolean) {
     selectedStagingFile = { filename: path, isStaged: staged };
+    // Ensure diffs are loaded — they may be empty after a project switch
+    const diffs = staged ? get(stagedDiffs) : get(unstagedDiffs);
+    if (diffs.length === 0) {
+      await refreshDiffs();
+    }
   }
 
   async function handleBranchFileClick(path: string) {
@@ -426,11 +505,20 @@
   <TabBar />
 
   <div class="main-area">
-    <Sidebar onNavigate={handleNavigate} {activeView} />
+    <Sidebar
+      onNavigate={handleNavigate}
+      {activeView}
+      collapsed={sidebarCollapsed}
+      onToggleCollapse={handleToggleSidebar}
+    />
 
     <div class="center-panel">
       <ConflictToolbar />
-      {#if activeView === "settings"}
+      {#if $activeTab?.kind === "terminal"}
+        <TerminalView terminal={$activeTab.terminal} />
+      {:else if $activeTab?.kind === "composite" && $activeTab.activeSegment === "terminal"}
+        <TerminalView terminal={$activeTab.terminal} />
+      {:else if activeView === "settings"}
         <SettingsPage />
       {:else if activeView === "pipelines"}
         <PipelineView />

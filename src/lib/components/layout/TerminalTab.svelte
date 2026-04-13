@@ -1,46 +1,35 @@
 <script lang="ts">
-  import type { ProjectInfo } from "$lib/types";
+  import type { TerminalTabInfo } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
-    project: ProjectInfo;
+    terminal: TerminalTabInfo;
     isActive: boolean;
-    index: number;
-    onSwitch: (index: number) => void;
-    onClose: (index: number) => void;
+    onSwitch: () => void;
+    onClose: () => void;
   }
 
-  let { project, isActive, index, onSwitch, onClose }: Props = $props();
-
-  let statusColor = $derived(
-    isActive
-      ? "var(--accent-blue)"
-      : project.change_count > 0
-        ? "var(--accent-orange)"
-        : "var(--accent-green)"
-  );
+  let { terminal, isActive, onSwitch, onClose }: Props = $props();
 
   function handleClick() {
-    if (!isActive) {
-      onSwitch(index);
-    }
+    if (!isActive) onSwitch();
   }
 
   function handleClose(e: MouseEvent) {
     e.stopPropagation();
-    onClose(index);
+    onClose();
   }
 
   function handleMiddleClick(e: MouseEvent) {
     if (e.button === 1) {
       e.preventDefault();
-      onClose(index);
+      onClose();
     }
   }
 </script>
 
 <div
-  class="project-tab"
+  class="terminal-tab"
   class:active={isActive}
   onclick={handleClick}
   onauxclick={handleMiddleClick}
@@ -48,11 +37,9 @@
   role="tab"
   tabindex="0"
 >
-  <span class="status-dot" style="background: {statusColor}"></span>
-  <span class="tab-name">{project.name}</span>
-  {#if project.change_count > 0}
-    <span class="tab-badge">{project.change_count}</span>
-  {/if}
+  <span class="status-dot"></span>
+  <span class="terminal-icon">{"\uF489"}</span>
+  <span class="tab-name">{terminal.title}</span>
   <button
     class="tab-close"
     onclick={handleClose}
@@ -63,7 +50,7 @@
 </div>
 
 <style>
-  .project-tab {
+  .terminal-tab {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -79,11 +66,11 @@
     user-select: none;
   }
 
-  .project-tab:hover {
+  .terminal-tab:hover {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .project-tab.active {
+  .terminal-tab.active {
     background: rgba(255, 255, 255, 0.12);
   }
 
@@ -91,6 +78,14 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--accent-purple);
+  }
+
+  .terminal-icon {
+    font-family: var(--font-icons);
+    font-size: 13px;
+    color: var(--accent-purple);
     flex-shrink: 0;
   }
 
@@ -101,16 +96,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .tab-badge {
-    font-size: 10px;
-    background: var(--accent-orange);
-    color: #fff;
-    padding: 0 5px;
-    border-radius: 8px;
-    line-height: 16px;
-    flex-shrink: 0;
   }
 
   .tab-close {
@@ -130,7 +115,7 @@
     color: var(--text-primary);
   }
 
-  .project-tab:hover .tab-close {
+  .terminal-tab:hover .tab-close {
     display: inline;
   }
 </style>

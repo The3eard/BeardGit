@@ -204,6 +204,9 @@ pub fn run() {
             app_core::commands::request_changes_mr_pr,
             app_core::commands::add_mr_pr_comment,
             app_core::commands::add_mr_pr_inline_comment,
+            // Sidebar
+            app_core::commands::get_sidebar_collapsed,
+            app_core::commands::set_sidebar_collapsed,
             // Terminal
             app_core::terminal_commands::terminal_spawn,
             app_core::terminal_commands::terminal_write,

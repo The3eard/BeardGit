@@ -1,13 +1,11 @@
 /**
- * Projects store — multi-project tab management.
+ * Projects store — project-specific tab management.
  *
- * Manages opening, closing, and switching between project tabs.
- * Each tab is a separate git repository. Only the active tab has a
- * fully loaded repo/graph/watcher on the Rust side; background tabs
- * keep lightweight metadata only.
+ * Delegates tab lifecycle (add/remove/navigate) to the unified tabs store.
+ * Owns project-specific Rust IPC (open, close, switch) and state clearing.
  */
 
-import { writable, derived, get } from "svelte/store";
+import { derived, get } from "svelte/store";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { ProjectInfo } from "../types";
 import {
@@ -34,7 +32,7 @@ import {
   loadingDetail,
 } from "./provider";
 import { refreshStatuses } from "./changes";
-import { refreshUserEmails, clearGraphState } from "./graph";
+import { refreshUserEmails, clearGraphState, cacheViewport, restoreCachedViewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
 import { clearBranchState } from "./branches";
 import { clearTagState } from "./tags";
@@ -44,17 +42,64 @@ import { clearWorktreeState } from "./worktrees";
 import { clearMrPrState } from "./mr-pr";
 import { clearReflogState } from "./reflog";
 import { refreshConflictStatus } from "./conflict";
+import {
+  openTabs,
+  activeTabIndex,
+  activeTab,
+  activeProjectFromTab,
+  projectTabs,
+  addProjectTab,
+  removeTab,
+  syncProjectTabs,
+  tabIndexToProjectIndex,
+  projectIndexToTabIndex,
+  switchToNextTab as tabsNext,
+  switchToPrevTab as tabsPrev,
+  closeTerminalTab,
+  switchSegment,
+  closeTerminalSegment,
+  closeProjectSegment,
+} from "./tabs";
+import { writable } from "svelte/store";
 
-export const openProjects = writable<ProjectInfo[]>([]);
-/** Index of the currently active tab (-1 if none). */
-export const activeProjectIndex = writable<number>(-1);
+// Re-export for backward compatibility with components that read these.
+export { openTabs, activeTabIndex };
+export { switchSegment, closeTerminalSegment, closeProjectSegment };
+
+/** List of open projects derived from the unified tab array. */
+export const openProjects = derived(projectTabs, ($pt) =>
+  $pt.map((t) => t.project),
+);
+
+/** Index of the active project in the Rust-side projects vec, or -1. */
+export const activeProjectIndex = derived(
+  [openTabs, activeTabIndex],
+  ([$tabs, $idx]) => {
+    if ($idx < 0 || $idx >= $tabs.length) return -1;
+    if ($tabs[$idx].kind !== "project" && $tabs[$idx].kind !== "composite") return -1;
+    let pIdx = 0;
+    for (let i = 0; i < $idx; i++) {
+      if ($tabs[i].kind === "project" || $tabs[i].kind === "composite") pIdx++;
+    }
+    return pIdx;
+  },
+);
+
+/** The currently active project, or null if a terminal tab is active. */
+export const activeProject = activeProjectFromTab;
+
 export const addMenuOpen = writable(false);
 
-export const activeProject = derived(
-  [openProjects, activeProjectIndex],
-  ([$openProjects, $activeProjectIndex]) =>
-    $activeProjectIndex >= 0 ? $openProjects[$activeProjectIndex] ?? null : null
-);
+/**
+ * Callback invoked whenever we switch to a different project tab.
+ * +page.svelte uses this to reset activeView to "graph" for instant UX.
+ */
+let projectSwitchCallback: (() => void) | null = null;
+
+/** Register a callback to run on project tab switch. */
+export function onProjectSwitch(cb: () => void): void {
+  projectSwitchCallback = cb;
+}
 
 /** Build a starship-style title: project - branch [↑2 ↓1 +3 !2 ?1 ⚑1] */
 async function updateTitleBar(projName: string, branch: string) {
@@ -77,44 +122,59 @@ async function updateTitleBar(projName: string, branch: string) {
 export async function openProjectTab(path: string) {
   const info = await apiOpenProject(path);
 
-  // Find the index of the newly opened project
+  // Get updated project list from Rust to sync
   const projects = await apiGetOpenProjects();
-  const index = projects.findIndex((p) => p.path === path);
+  syncProjectTabs(projects);
 
-  openProjects.set(projects);
+  // If the project already has a tab, switch to it
+  const tabs = get(openTabs);
+  const existingIdx = tabs.findIndex(
+    (t) => t.kind === "project" && t.project.path === path,
+  );
 
-  if (index >= 0) {
-    await switchProjectTab(index);
+  if (existingIdx >= 0) {
+    await switchToTab(existingIdx);
+  } else {
+    // Add new tab
+    const tabIdx = addProjectTab(info);
+    await switchToTab(tabIdx);
   }
 }
 
-export async function closeProjectTab(index: number) {
-  await apiCloseProject(index);
+/** Switch to a tab by unified index. Handles project-specific loading. */
+export async function switchToTab(tabIndex: number) {
+  const tabs = get(openTabs);
+  if (tabIndex < 0 || tabIndex >= tabs.length) return;
 
-  const projects = await apiGetOpenProjects();
-  openProjects.set(projects);
+  const prevIdx = get(activeTabIndex);
+  const tab = tabs[tabIndex];
 
-  if (projects.length === 0) {
-    activeProjectIndex.set(-1);
-    getCurrentWindow().setTitle("BeardGit");
-    return;
-  }
+  // Set active index immediately for instant tab highlight
+  activeTabIndex.set(tabIndex);
 
-  // If the active tab was closed, switch to the new active
-  const activeIdx = await apiGetActiveProjectIndex();
-  if (activeIdx !== null && activeIdx >= 0) {
-    await switchProjectTab(activeIdx);
+  if (tab.kind === "project" || tab.kind === "composite") {
+    if (tabIndex !== prevIdx) {
+      projectSwitchCallback?.();
+    }
+    await activateProjectTab(tabIndex);
+  } else {
+    // Terminal tab — update title bar
+    getCurrentWindow().setTitle(`${tab.terminal.title} — BeardGit`);
   }
 }
 
-/// Switch to a project tab by index.
-///
-/// Calls `switch_project` (which fully loads the repo in Rust) then updates
-/// the frontend stores directly — avoiding a redundant second `open_repo` call.
-export async function switchProjectTab(index: number) {
+/** Full project activation: Rust switch + state refresh. */
+async function activateProjectTab(tabIndex: number) {
+  const projectIdx = tabIndexToProjectIndex(tabIndex);
+  if (projectIdx < 0) return;
+
+  // Cache the outgoing project's graph viewport for instant restore later
+  const prevProject = get(activeProjectFromTab);
+  if (prevProject) {
+    cacheViewport(prevProject.path);
+  }
+
   stopAllPolling();
-
-  // Clear stale state from previous project
   clearGraphState();
   clearBranchState();
   clearTagState();
@@ -124,18 +184,24 @@ export async function switchProjectTab(index: number) {
   clearMrPrState();
   clearReflogState();
 
-  isLoading.set(true);
-  try {
-    const info = await apiSwitchProject(index);
-    activeProjectIndex.set(index);
+  // Restore cached graph viewport instantly (no loading spinner for graph)
+  const tabs = get(openTabs);
+  const targetTab = tabs[tabIndex];
+  const targetPath = (targetTab?.kind === "project" || targetTab?.kind === "composite") ? targetTab.project.path : null;
+  const hasCachedGraph = targetPath ? restoreCachedViewport(targetPath) : false;
 
-    // switch_project already loaded the repo on the Rust side; set info directly.
+  // Only show loading spinner if we have no cached graph to display
+  if (!hasCachedGraph) {
+    isLoading.set(true);
+  }
+  try {
+    const info = await apiSwitchProject(projectIdx);
     repoInfo.set(info);
 
-    // Show branch name in the native title bar
-    // Update title bar: starship-style status
     const projects = await apiGetOpenProjects();
-    const proj = projects[index];
+    syncProjectTabs(projects);
+
+    const proj = projects[projectIdx];
     const projName = proj?.name ?? info.path.split("/").pop() ?? "";
     const branch = info.head_branch ?? "detached";
     await updateTitleBar(projName, branch);
@@ -146,7 +212,6 @@ export async function switchProjectTab(index: number) {
     await detectProject();
     await checkProviderStatus();
 
-    // Clear stale CI data from previous project
     ciRuns.set([]);
     selectedCiRun.set(null);
     selectedCiRunId.set(null);
@@ -157,11 +222,50 @@ export async function switchProjectTab(index: number) {
     await refreshStatuses();
     await refreshUserEmails();
     await refreshConflictStatus();
-
-    // Re-register the watcher listener for the newly active repo.
     await registerWatcher();
   } finally {
     isLoading.set(false);
+  }
+}
+
+export async function closeTab(tabIndex: number) {
+  const tabs = get(openTabs);
+  if (tabIndex < 0 || tabIndex >= tabs.length) return;
+
+  const tab = tabs[tabIndex];
+
+  if (tab.kind === "terminal") {
+    await closeTerminalTab(tab.terminal.sessionId);
+    return;
+  }
+
+  if (tab.kind === "composite") {
+    // Close terminal first (demotes to project), then close the project
+    await closeTerminalTab(tab.terminal.sessionId);
+  }
+
+  // Project tab (or demoted composite): close via Rust
+  const projectIdx = tabIndexToProjectIndex(tabIndex);
+  if (projectIdx < 0) return;
+
+  await apiCloseProject(projectIdx);
+
+  const newActiveIdx = removeTab(tabIndex);
+
+  const projects = await apiGetOpenProjects();
+  syncProjectTabs(projects);
+
+  if (get(openTabs).length === 0) {
+    activeTabIndex.set(-1);
+    getCurrentWindow().setTitle("BeardGit");
+    return;
+  }
+
+  activeTabIndex.set(newActiveIdx);
+  const newTabs = get(openTabs);
+  if (newActiveIdx >= 0 && newActiveIdx < newTabs.length &&
+      (newTabs[newActiveIdx].kind === "project" || newTabs[newActiveIdx].kind === "composite")) {
+    await activateProjectTab(newActiveIdx);
   }
 }
 
@@ -181,38 +285,71 @@ export function toggleAddMenu() {
 }
 
 export async function initProjects() {
-  // Restore persisted projects from config (lightweight metadata only)
   const projects = await apiRestoreProjects();
-  openProjects.set(projects);
+
+  // Seed the unified tab array with project tabs
+  const tabs = projects.map((p) => ({ kind: "project" as const, project: p }));
+  openTabs.set(tabs);
 
   if (projects.length > 0) {
     const activeIdx = await apiGetActiveProjectIndex();
-    const idx = activeIdx !== null && activeIdx < projects.length ? activeIdx : 0;
-    await switchProjectTab(idx);
+    const rustIdx = activeIdx !== null && activeIdx < projects.length ? activeIdx : 0;
+    const tabIdx = projectIndexToTabIndex(rustIdx);
+    await switchToTab(tabIdx >= 0 ? tabIdx : 0);
   }
 }
 
-/** Switch to the next project tab (wraps around). */
 export async function switchToNextTab(): Promise<void> {
-  const list = get(openProjects);
-  const idx = get(activeProjectIndex);
-  if (list.length <= 1 || idx < 0) return;
-  const next = (idx + 1) % list.length;
-  await switchProjectTab(next);
+  const prevTab = get(activeTab);
+  tabsNext();
+  const newTab = get(activeTab);
+  const newIdx = get(activeTabIndex);
+  if (newTab && (newTab.kind === "project" || newTab.kind === "composite")) {
+    const prevPath = prevTab?.kind === "project" ? prevTab.project.path :
+                     prevTab?.kind === "composite" ? prevTab.project.path : null;
+    const newPath = newTab.kind === "project" ? newTab.project.path : newTab.project.path;
+    if (prevPath !== newPath) {
+      await activateProjectTab(newIdx);
+    }
+  }
 }
 
-/** Switch to the previous project tab (wraps around). */
 export async function switchToPrevTab(): Promise<void> {
-  const list = get(openProjects);
-  const idx = get(activeProjectIndex);
-  if (list.length <= 1 || idx < 0) return;
-  const prev = (idx - 1 + list.length) % list.length;
-  await switchProjectTab(prev);
+  const prevTab = get(activeTab);
+  tabsPrev();
+  const newTab = get(activeTab);
+  const newIdx = get(activeTabIndex);
+  if (newTab && (newTab.kind === "project" || newTab.kind === "composite")) {
+    const prevPath = prevTab?.kind === "project" ? prevTab.project.path :
+                     prevTab?.kind === "composite" ? prevTab.project.path : null;
+    const newPath = newTab.kind === "project" ? newTab.project.path : newTab.project.path;
+    if (prevPath !== newPath) {
+      await activateProjectTab(newIdx);
+    }
+  }
 }
 
-/** Close the currently active tab. */
 export async function closeActiveTab(): Promise<void> {
-  const idx = get(activeProjectIndex);
+  const idx = get(activeTabIndex);
   if (idx < 0) return;
-  await closeProjectTab(idx);
+
+  const tabs = get(openTabs);
+  const tab = tabs[idx];
+
+  // For composite tabs, Cmd+W closes the active segment only
+  if (tab?.kind === "composite") {
+    if (tab.activeSegment === "terminal") {
+      await closeTerminalSegment(idx);
+    } else {
+      // Close project segment: demote to standalone terminal, close project in Rust
+      const projectIdx = tabIndexToProjectIndex(idx);
+      closeProjectSegment(idx);
+      if (projectIdx >= 0) {
+        await apiCloseProject(projectIdx);
+      }
+    }
+    return;
+  }
+
+  await closeTab(idx);
 }

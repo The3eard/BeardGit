@@ -33,34 +33,65 @@ Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with reco
 - [x] Direct xterm.js ITheme mapping from base colors
 - [x] Tauri commands + event bridge for terminal sessions
 
-### 4B — Interactive Terminal Tabs
+### 4B — Interactive Terminal Tabs + UI Improvements ✅
 
-- [ ] Terminal launcher button with dropdown (plain terminal initially)
-- [ ] Multi-tab terminal sessions, each bound to a project tab
-- [ ] Split management within same project — cross-project split auto-extracts to new tab
-- [ ] Project auto-detection: terminal navigating to another project path re-links to that project tab
-- [ ] Visual grouping: terminal tabs linked to their project tab
-- [ ] xterm.js features: splits, themes, ligatures (Fira Code), search, clickable URLs
+- [x] Terminal tabs as first-class tab type in the TabBar (unified tab model: project | terminal | composite)
+- [x] Composite segmented tabs: project + linked terminal merge into one pill `[● Repo | ⌨ Terminal]`
+- [x] Each segment independently clickable, closeable (hover-only ✕), and middle-click closeable
+- [x] Closing a segment reverts composite to simple tab (project-only or terminal-only)
+- [x] Terminal opens in-place: promoting project tab to composite, not appending at end
+- [x] Terminal label adapts: "Terminal", "Claude", "Codex", "OpenCode" with brand icons and hardcoded colors
+- [x] Terminal split button in actions area: left (icon) opens terminal, right (chevron) dropdown with options
+- [x] Dropdown: "New terminal in ~", Claude Code (#d97757), Codex (#10a37f), OpenCode (#8b8b8b) with SVG brand logos
+- [x] Standalone terminal tabs for "New terminal in ~" (not linked to any project)
+- [x] Full interactive xterm.js terminal wired to Rust PTY backend (keyboard input, resize, auto-close on shell exit)
+- [x] NerdFont icons render in terminal (NerdFontSymbols added to fontFamily)
+- [x] Sidebar collapse toggle (icon-only mode, 44px, smooth CSS transition, Cmd+B shortcut, persisted)
+- [x] Cmd+T shortcut to open new terminal tab, Cmd+W closes active segment
+- [x] Graph viewport cache: instant tab switching with cached graph data (no loading spinner)
+- [x] Auto-navigate to graph on project tab switch (instant, prevents stale pipeline/changes data)
+- [x] Fixed: recent projects list empty on first use
+- [x] Fixed: unstaged file diff preview not loading after tab switch
+- [x] Fixed: icon consistency (close ✕, plus +) and vertical centering in action buttons
+- [x] Fixed: + button popup click-outside closing
+
+#### Remaining (future)
+
+- [ ] Split management (multiple terminals per project)
+- [ ] Terminal process detection (auto-detect Claude/Codex running, update label dynamically)
+- [ ] Project auto-detection: terminal navigating to another project path re-links
 
 ---
 
 ## Phase 5: AI Integration
 
+Implementation in 3 waves. Wave 1 (5.1 + 5.2) fully specced and planned.
+
+### Wave 1: AiProvider Trait + Claude Code — specced, plan ready
+
 ### 5.1 — AiProvider Trait & Detection
 
-- [ ] New `ai-provider` crate with `AiProvider` trait (like `CiProvider`)
-- [ ] Trait methods: detect config, list sessions, list worktrees, get commit attribution, get config files
-- [ ] Null/empty default implementations for unsupported features per provider
-- [ ] Auto-detection: scan repo for `.claude/`, `.codex/`, `.opencode/`, `.aider*`
-- [ ] Config file reader: `CLAUDE.md`, `AGENTS.md`, `opencode.json`, `.aider.conf.yml`
+- [ ] New `ai-provider` crate with `AiProvider` trait (7 capability groups, sync, command-building)
+- [ ] Shared types: `AiProviderKind`, `AiSession`, `AiWorktree`, `AiConfigFile`, `ExecuteOptions`
+- [ ] Two-phase detection: binary scan on startup (PATH), repo scan on tab switch (`.claude/`, `.codex/`)
+- [ ] Default implementations return empty/None/NotSupported — providers override what they support
+- [ ] Trait covers: identity, detection, headless execution, specialized actions, interactive launch, session/worktree introspection, config/attribution
 
 ### 5.2 — Claude Code (First Provider)
 
-- [ ] Implement `AiProvider` for Claude Code
-- [ ] Terminal launcher dropdown gains "Terminal with Claude Code" option
-- [ ] Detect `.claude/worktrees/` — list, status (active/orphaned/clean), cleanup
-- [ ] Parse `worktree-*` branch naming convention
-- [ ] Read `.claude/settings.json`, agents, skills, rules
+- [ ] New `claude-code` crate implementing `AiProvider` for Claude Code CLI
+- [ ] Detection: `which claude`, `claude --version`, scan `.claude/` + `CLAUDE.md`
+- [ ] Headless execution: `claude --print` via TaskManager (commit msg, review, analysis, PR description, PR review)
+- [ ] Interactive launch: spawn `claude` in terminal tab via TerminalManager
+- [ ] Worktree support: `claude --worktree`, `git worktree list` cross-ref, `worktree-*` branch convention
+- [ ] Session introspection: parse `~/.claude/sessions/*.json`, PID liveness checks
+- [ ] Config discovery: settings.json (user/project/local), agents/*.md, skills/*/SKILL.md, CLAUDE.md hierarchy
+- [ ] Commit attribution: `Authored-by:` footer, `Co-authored-by:` trailer, author name patterns
+- [ ] 14 Tauri commands in `app-core/ai_commands.rs` (detection, actions, launch, introspection)
+- [ ] Frontend: `ai.ts` store, AI action buttons in staging/MR views, terminal launcher dropdown
+- [ ] Output via existing task viewer (same UX as git fetch/push)
+
+### Wave 2: UI Views + Attribution
 
 ### 5.3 — AI Worktree Sidebar
 
@@ -72,7 +103,7 @@ Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with reco
 ### 5.4 — AI Commit Attribution
 
 - [ ] Detect AI-authored commits by patterns per provider
-  - `Authored-by:` footers, `Co-authored-by:` trailers, `(aider)` in author name
+  - `Authored-by:` footers, `Co-authored-by:` trailers, author name matching
 - [ ] AI badge/icon on graph commits (distinct from CI/MR badges)
 - [ ] Filter: show only AI-generated or only human-generated commits
 - [ ] Stats in project overview: percentage of AI-authored commits in last N commits
@@ -89,12 +120,13 @@ Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with reco
 - [ ] Per session: tool name, worktree, branch, terminal tab link, recent activity
 - [ ] Quick actions: focus terminal, open worktree in graph, stop session
 
+### Wave 3: Additional Providers
+
 ### 5.7 — Additional Provider Implementations
 
-- [ ] Codex CLI (`AiProvider` implementation)
-- [ ] OpenCode (`AiProvider` implementation)
-- [ ] Aider (`AiProvider` implementation)
-- [ ] Each wired to terminal launcher dropdown
+- [ ] Codex CLI (`AiProvider` implementation — `codex exec`, TOML config, SQLite sessions)
+- [ ] OpenCode (`AiProvider` implementation — `-p` flag, JSON config, SQLite sessions)
+- [ ] Each wired to terminal launcher dropdown and all AI action buttons
 
 ---
 

@@ -3,6 +3,7 @@
   import type { RecentRepo } from "$lib/types";
   import { getRecentRepos } from "$lib/api/tauri";
   import { openProjectTab, openFolderAsProject, addMenuOpen } from "$lib/stores/projects";
+  import { get } from "svelte/store";
   import * as m from "$lib/paraglide/messages";
 
   let recentRepos = $state<RecentRepo[]>([]);
@@ -35,9 +36,11 @@
   }
 
   function handleClickOutside(e: MouseEvent) {
-    if (menuRef && !menuRef.contains(e.target as Node)) {
-      addMenuOpen.set(false);
-    }
+    if (!get(addMenuOpen)) return;
+    // Ignore clicks on the + button itself (it toggles via its own handler)
+    const target = e.target as HTMLElement;
+    if (target.closest(".add-button-wrapper")) return;
+    addMenuOpen.set(false);
   }
 
   onMount(() => {
@@ -53,7 +56,8 @@
 {#if $addMenuOpen}
   <div class="add-menu" bind:this={menuRef}>
     <button class="menu-item" onclick={handleOpenFolder}>
-      {m.tab_add_open_folder()}
+      <span class="menu-icon">{"\uF07C"}</span>
+      <span>{m.tab_add_open_folder()}</span>
     </button>
 
     <div class="menu-divider"></div>
@@ -65,7 +69,8 @@
     {:else}
       {#each recentRepos as repo}
         <button class="menu-item" onclick={() => handleRecentClick(repo.path)} title={repo.path}>
-          {repo.name}
+          <span class="menu-icon">{"\uF07C"}</span>
+          <span>{repo.name}</span>
         </button>
       {/each}
     {/if}
@@ -76,7 +81,7 @@
   .add-menu {
     position: absolute;
     top: 100%;
-    right: 0;
+    left: 0;
     z-index: 100;
     min-width: 200px;
     max-width: 320px;
@@ -89,7 +94,9 @@
   }
 
   .menu-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     width: 100%;
     text-align: left;
     padding: 6px 12px;
@@ -105,6 +112,15 @@
 
   .menu-item:hover {
     background: rgba(255, 255, 255, 0.06);
+  }
+
+  .menu-icon {
+    font-family: var(--font-icons);
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+    color: var(--accent-blue);
   }
 
   .menu-divider {

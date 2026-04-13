@@ -109,7 +109,7 @@
       {/if}
       {#if onClose}
         <button class="close-btn" onclick={() => onClose!()}>
-          {"\uEA76"}
+          {"\uF00D"}
         </button>
       {/if}
     </div>

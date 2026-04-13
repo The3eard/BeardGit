@@ -715,6 +715,18 @@ export async function addMrPrInlineComment(number: number, path: string, line: n
   return invoke<void>("add_mr_pr_inline_comment", { number, path, line, body });
 }
 
+// ── Sidebar ─────────────────────────────────────────────────────────
+
+/** Get persisted sidebar collapsed state. */
+export async function getSidebarCollapsed(): Promise<boolean> {
+  return invoke<boolean>("get_sidebar_collapsed");
+}
+
+/** Persist sidebar collapsed state. */
+export async function setSidebarCollapsed(collapsed: boolean): Promise<void> {
+  return invoke<void>("set_sidebar_collapsed", { collapsed });
+}
+
 // ── Terminal ──────────────────────────────────────────────────────────
 
 /** Spawn a new terminal session in the given directory. */

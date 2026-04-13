@@ -43,9 +43,21 @@ Built with Tauri v2 (Rust) and Svelte 5. Native performance. Cross-platform. Han
 ### Multi-Project Tabs
 
 - Open multiple repositories simultaneously as tabs.
+- **Composite tabs** — a project and its terminal share one segmented tab, saving space and showing the relationship at a glance.
 - Lazy loading — inactive tabs do not consume resources.
+- **Graph viewport cache** — switching between project tabs is instant; the graph renders from cache while fresh data loads in the background.
 - Tab state persists across app restarts.
 - Starship-style title bar showing project name, current branch, and a live status summary (ahead/behind counts, staged/unstaged/untracked/conflicted/stash indicators).
+
+### Integrated Terminal
+
+- **Composite segmented tabs** — project and linked terminal merge into one pill tab `[● Repo | ⌨ Terminal]`. Each segment is independently clickable and closeable.
+- **In-place promotion** — opening a terminal from a project promotes the tab to composite; no new tab at the end.
+- **Terminal split button** — left half opens terminal in project dir, right half dropdown with: "New terminal in ~", Claude Code, Codex, OpenCode (with official brand SVG logos and colors).
+- **Standalone terminals** — "New terminal in ~" opens an independent terminal tab.
+- **Full PTY** — powered by xterm.js with WebGL rendering, connected to a Rust PTY backend via `portable-pty`. NerdFont icons render natively.
+- **Keyboard shortcuts** — Cmd+T to open terminal, Cmd+W to close active segment, Cmd+Tab/Cmd+Shift+Tab for tab navigation.
+- **Auto-close** — terminal segment auto-removes when the shell process exits, reverting to a simple project tab.
 
 ### Background Task System
 
@@ -73,6 +85,7 @@ Built with Tauri v2 (Rust) and Svelte 5. Native performance. Cross-platform. Han
 - Fira Code (variable, with ligatures) for all monospace content.
 - Symbols Nerd Font Mono for icons throughout the interface.
 - Responsive layout using viewport-relative sizing; minimum window size 900x600.
+- **Collapsible sidebar** — toggle between full (icon + label) and icon-only mode (Cmd+B). State persists across restarts.
 - Shared component library: `SplitView`, `FileChangeList`, `CommitDetail`, `ConfirmDialog`, `ContextMenu`.
 - Right-click context menus on branches, tags, and commits.
 - Filesystem watcher auto-refreshes statuses and diffs when files change on disk.
@@ -84,7 +97,7 @@ Built with Tauri v2 (Rust) and Svelte 5. Native performance. Cross-platform. Han
 | Layer | Technology |
 |-------|-----------|
 | Shell | Tauri v2 |
-| Backend | Rust (10 crates), libgit2, SQLite |
+| Backend | Rust (11 crates), libgit2, SQLite |
 | Frontend | Svelte 5, TypeScript, Canvas 2D, Vite |
 | i18n | Paraglide.js v2 |
 | CI | GitHub Actions |
@@ -93,7 +106,7 @@ Built with Tauri v2 (Rust) and Svelte 5. Native performance. Cross-platform. Han
 
 ## Architecture
 
-Three-layer design: **Rust Core** (10 crates) → **Tauri IPC** → **Svelte Frontend**
+Three-layer design: **Rust Core** (11 crates) → **Tauri IPC** → **Svelte Frontend**
 
 | Crate | Purpose |
 |-------|---------|
@@ -106,6 +119,7 @@ Three-layer design: **Rust Core** (10 crates) → **Tauri IPC** → **Svelte Fro
 | `auth` | PAT validation for GitLab and GitHub, AES-256-GCM encrypted credential store |
 | `storage` | SQLite via rusqlite, JSON config, TOML theme loader |
 | `task-runner` | Background task manager, `TaskEventSink` trait, async spawn/cancel with output streaming |
+| `terminal` | PTY session manager via `portable-pty`, cross-platform shell detection, byte-oriented output |
 | `watcher` | Debounced filesystem events via the `notify` crate |
 | `app-core` | Tauri command handlers, event emitters, `AppState` |
 

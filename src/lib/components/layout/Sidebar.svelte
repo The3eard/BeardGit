@@ -4,7 +4,17 @@
   import { hasActiveProvider, activeProvider } from "../../stores/provider";
   import * as m from "$lib/paraglide/messages";
 
-  let { onNavigate, activeView = "graph" }: { onNavigate?: (view: string) => void; activeView?: string } = $props();
+  let {
+    onNavigate,
+    activeView = "graph",
+    collapsed = false,
+    onToggleCollapse,
+  }: {
+    onNavigate?: (view: string) => void;
+    activeView?: string;
+    collapsed?: boolean;
+    onToggleCollapse?: () => void;
+  } = $props();
 
   type NavItem = { label: string; icon: string; id: string };
 
@@ -31,51 +41,74 @@
   let changeCount = $derived($fileStatuses.length);
 </script>
 
-<aside class="sidebar">
+<aside class="sidebar" class:collapsed>
   <nav class="nav-section">
-    <div class="section-label">{m.sidebar_navigation()}</div>
+    {#if !collapsed}
+      <div class="section-label">{m.sidebar_navigation()}</div>
+    {/if}
     {#each navItems as item}
       <button
         class="nav-item"
         class:active={activeView === item.id}
         onclick={() => handleNav(item.id)}
+        title={collapsed ? item.label : undefined}
       >
         <span class="nav-icon">{item.icon}</span>
-        <span class="nav-label">{item.label}</span>
-        {#if item.id === "changes" && changeCount > 0}
-          <span class="nav-badge">{changeCount}</span>
+        {#if !collapsed}
+          <span class="nav-label">{item.label}</span>
+          {#if item.id === "changes" && changeCount > 0}
+            <span class="nav-badge">{changeCount}</span>
+          {/if}
         {/if}
       </button>
     {/each}
   </nav>
 
   <nav class="nav-section">
-    <div class="section-label">
-      <span class="provider-status-dot" class:connected={$hasActiveProvider}></span>
-      {$activeProvider?.kind === 'github' ? m.provider_github() : m.provider_gitlab()}
-    </div>
+    {#if !collapsed}
+      <div class="section-label">
+        <span class="provider-status-dot" class:connected={$hasActiveProvider}></span>
+        {$activeProvider?.kind === 'github' ? m.provider_github() : m.provider_gitlab()}
+      </div>
+    {/if}
     {#each providerItems as item}
       <button
         class="nav-item"
         class:active={activeView === item.id}
         onclick={() => handleNav(item.id)}
+        title={collapsed ? item.label : undefined}
       >
         <span class="nav-icon">{item.icon}</span>
-        <span class="nav-label">{item.label}</span>
+        {#if !collapsed}
+          <span class="nav-label">{item.label}</span>
+        {/if}
       </button>
     {/each}
   </nav>
 
   <div class="spacer"></div>
 
-  <div class="nav-section">
+  <div class="nav-section bottom-section">
     <button
       class="nav-item"
       class:active={activeView === "settings"}
       onclick={() => handleNav("settings")}
+      title={collapsed ? m.sidebar_settings() : undefined}
     >
       <span class="nav-icon">{"\uF013"}</span>
-      <span class="nav-label">{m.sidebar_settings()}</span>
+      {#if !collapsed}
+        <span class="nav-label">{m.sidebar_settings()}</span>
+      {/if}
+    </button>
+    <button
+      class="nav-item collapse-btn"
+      onclick={onToggleCollapse}
+      title={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
+    >
+      <span class="nav-icon">{collapsed ? "\uF054" : "\uF053"}</span>
+      {#if !collapsed}
+        <span class="nav-label">{m.sidebar_collapse()}</span>
+      {/if}
     </button>
   </div>
 </aside>
@@ -91,6 +124,11 @@
     flex-direction: column;
     overflow-y: auto;
     user-select: none;
+    transition: width 150ms ease;
+  }
+
+  .sidebar.collapsed {
+    width: 44px;
   }
 
   .nav-section {
@@ -102,6 +140,11 @@
     border-bottom: none;
   }
 
+  .bottom-section {
+    border-top: 1px solid var(--border);
+    border-bottom: none;
+  }
+
   .section-label {
     padding: 4px 16px 6px;
     font-size: 11px;
@@ -109,6 +152,8 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
+    overflow: hidden;
+    white-space: nowrap;
   }
 
   .nav-item {
@@ -124,6 +169,13 @@
     cursor: pointer;
     text-align: left;
     transition: background 0.15s;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .sidebar.collapsed .nav-item {
+    justify-content: center;
+    padding: 6px 0;
   }
 
   .nav-item:hover {
@@ -145,10 +197,13 @@
     color: var(--text-secondary);
     font-size: 14px;
     font-family: var(--font-icons);
+    flex-shrink: 0;
   }
 
   .nav-label {
     flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .nav-badge {
@@ -178,5 +233,9 @@
 
   .spacer {
     flex: 1;
+  }
+
+  .collapse-btn .nav-icon {
+    font-size: 12px;
   }
 </style>

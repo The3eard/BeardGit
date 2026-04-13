@@ -96,6 +96,10 @@ pub struct AppConfig {
     #[serde(default)]
     pub graph_columns: Vec<GraphColumnConfig>,
 
+    /// Whether the sidebar is collapsed to icon-only mode.
+    #[serde(default)]
+    pub sidebar_collapsed: bool,
+
     // -- Legacy fields (read during migration, never written) --
     /// Legacy Plan 5 field. Migrated to `providers` vec.
     #[serde(default, skip_serializing)]
@@ -123,6 +127,7 @@ impl Default for AppConfig {
             active_project_index: None,
             ui_scale: default_ui_scale(),
             graph_columns: Vec::new(),
+            sidebar_collapsed: false,
             provider_kind: None,
             provider_instance_url: None,
             gitlab_instance_url: None,

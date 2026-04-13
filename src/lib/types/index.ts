@@ -625,3 +625,18 @@ export interface MrPrDiffFile {
   deletions: number;
   patch: string | null;
 }
+
+// ── Tabs ─────────────────────────────────────────────────────────────
+
+/** Metadata for a terminal tab. */
+export interface TerminalTabInfo {
+  sessionId: number;
+  title: string;
+  cwd: string;
+}
+
+/** Discriminated union for all tab types. */
+export type Tab =
+  | { kind: "project"; project: ProjectInfo }
+  | { kind: "terminal"; terminal: TerminalTabInfo }
+  | { kind: "composite"; project: ProjectInfo; terminal: TerminalTabInfo; activeSegment: "project" | "terminal" };

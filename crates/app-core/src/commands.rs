@@ -1031,6 +1031,8 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
             config.open_projects.push(path.clone());
         }
         config.recent_repos.retain(|r| r != &path);
+        config.recent_repos.insert(0, path.clone());
+        config.recent_repos.truncate(20);
         config.save(&state.config_path).map_err(|e| e.to_string())?;
     }
 
@@ -3178,4 +3180,19 @@ pub async fn add_mr_pr_inline_comment(
             .map_err(|e| e.to_string())
     })
     .await
+}
+
+/// Get the persisted sidebar collapsed state.
+#[tauri::command]
+pub fn get_sidebar_collapsed(state: State<'_, AppState>) -> Result<bool, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(config.sidebar_collapsed)
+}
+
+/// Persist sidebar collapsed state.
+#[tauri::command]
+pub fn set_sidebar_collapsed(collapsed: bool, state: State<'_, AppState>) -> Result<(), String> {
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.sidebar_collapsed = collapsed;
+    config.save(&state.config_path).map_err(|e| e.to_string())
 }
