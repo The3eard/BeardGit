@@ -2,6 +2,34 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased]
+
+**Auto-Update System**
+
+- Tauri updater plugin checks GitHub Releases for updates on app launch
+- Two-step update flow: toast notification → Download → Restart (non-disruptive)
+- Download progress shown in toast with percentage
+- Updater signing keys configured in CI release workflow
+
+**Toast Notifications**
+
+- Reusable toast notification system (bottom-right, max 3, stackable)
+- Types: success, error, warning, info with auto-dismiss
+- Used by auto-updater, extensible for future notifications
+
+**Multi-File Selection in Changes**
+
+- Per-file checkboxes in both staged and unstaged file lists
+- Select All header checkbox with indeterminate state
+- Header action swaps contextually: Stage All / Stage Selected (N) and Unstage All / Unstage Selected (N)
+- Selection clears on refresh
+
+**Bug Fixes**
+
+- Commits now use git config identity (user.name/user.email) instead of hardcoded author
+- Untracked directories show individual files instead of collapsed folder entry (recurse_untracked_dirs)
+- README prerequisites and architecture table accuracy fixes
+
 ## [0.1.4] - 2026-04-09 — UI Polish, Layout Consistency & Bug Fixes
 
 **3-Way Merge Editor (IntelliJ-style)**

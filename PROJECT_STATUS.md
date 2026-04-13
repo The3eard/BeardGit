@@ -1,276 +1,143 @@
 # BeardGit — Project Status
 
-## Phase 3: Power Features + CLI Integration — Complete (v0.1.3)
+## Completed
 
-### Task History Popup
+### MVP (v0.1.0)
 
-- [x] Enriched TaskInfo with command, started_at_ms, exit_code
-- [x] Always-clickable status bar task area (history icon when idle)
-- [x] Two-line card popup with colored status bars, sorted running-first
+Canvas-based git graph (100K+ commits), staging area, branch/tag/stash management, fetch/pull/push as background tasks, GitLab + GitHub CI integration with ANSI log viewer, multi-project tabs with persistence, encrypted credential store, filesystem watcher, i18n (en/es), 4 TOML themes, custom app icon, Fira Code + Nerd Font icons.
 
-### Keyboard Shortcuts
+### Phase 2: Core Workflows (v0.1.1–v0.1.2)
 
-- [x] Central shortcut registry with platform-aware modifiers (⌘/Ctrl)
-- [x] ~20 shortcuts: view navigation, tab management, git ops, graph nav
-- [x] Cheat sheet overlay via `?` key
+CodeMirror 6 diff engine with syntax highlighting (16 languages), hunk/line-level staging, blame with gutter annotations, file history with rename detection, revert/amend/reset, worktree management, non-interactive + interactive rebase, 3-way merge editor, resizable graph columns, complementary theme pairing, 14 themes (10 dark, 4 light), UI scale setting, all CLI commands non-blocking.
 
-### Reflog Viewer
+### Phase 3: Power Features + CLI Integration (v0.1.3–v0.1.4)
 
-- [x] New sidebar view with action-specific icons
-- [x] Detail panel reusing CommitDetail + Show in Graph
-- [x] Context menu with recovery actions (checkout, branch, reset)
+Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with recovery actions, clean with preview dialog, git config editor (local/global), gitignore management (context menu + CodeMirror editor), patch create/apply, submodule management with open-as-tab, MR/PR management via cli-provider crate (CRUD, review, comments, graph badges), IntelliJ-style merge editor v3 (custom diff engine, SVG bezier connectors, accept/ignore, undo, conflict navigation), auto-update system with toast notifications, multi-file selection with checkboxes, SplitView migration, performance audit fixes.
 
-### Clean
+---
 
-- [x] Dry-run preview with filter toggles (dirs, ignored, only-ignored)
-- [x] Per-file checkboxes with select all, destructive warnings
-- [x] Per-file delete from untracked file context menu
+## Phase 4: Terminal Foundation (libghostty)
 
-### Git Config Editor
+### 4.1 — Core Integration
 
-- [x] Two-column table (Local + Global) in Settings
-- [x] Dropdown selectors for known enum keys, free text for others
-- [x] Add/unset entries, filter by key, collapsible system section
+- [ ] Embed libghostty as a Rust crate with Tauri plugin bridge
+- [ ] New `terminal` crate (isolated from Tauri, reusable library)
+- [ ] Terminal rendering surface in Svelte (native view or webview bridge)
+- [ ] Shell detection and configuration (zsh, bash, fish, powershell)
 
-### Gitignore Management
+### 4.2 — Interactive Terminal Tabs
 
-- [x] Quick "Add to .gitignore" from context menu with smart patterns
-- [x] Full CodeMirror editor in Settings with save/revert
+- [ ] Terminal launcher button with dropdown (plain terminal initially)
+- [ ] Multi-tab terminal sessions, each bound to a project tab
+- [ ] Split management within same project — cross-project split auto-extracts to new tab
+- [ ] Project auto-detection: terminal navigating to another project path re-links to that project tab
+- [ ] Visual grouping: terminal tabs linked to their project tab
+- [ ] Full libghostty features: splits, themes, ligatures (Fira Code)
 
-### Patch Management
+### 4.3 — Read-Only Terminal Views
 
-- [x] Create patches from commits (graph) and working tree (changes)
-- [x] Apply with dry-run preview + three-way merge fallback
+- [ ] Read-only terminal renderer (ANSI colors, same libghostty engine, input disabled)
+- [ ] Replace task popup with read-only terminal views for git command output
+- [ ] Replace CI log viewer with read-only terminal views for pipeline results
+- [ ] Unified ANSI rendering everywhere (retire custom `ansi.ts` parser)
 
-### Submodules
+### 4.4 — Terminal Theme Bridge
 
-- [x] Sidebar view with status badges (uninit/clean/outdated/dirty)
-- [x] Init, update (background task), deinit operations
-- [x] Open submodule as full project tab
+- [ ] Sync BeardGit TOML themes to libghostty terminal themes
+- [ ] Dark/light auto-switch follows OS preference (existing complementary pairing)
 
-### MR/PR Management
+---
 
-- [x] New cli-provider crate wrapping bundled gh/glab CLIs (MIT)
-- [x] CLI OAuth primary auth flow + PAT fallback
-- [x] Full CRUD: list, view, create, edit, merge, close
-- [x] Code review: approve, request changes, inline comments
-- [x] MR/PR badges on graph commits
-- [ ] Download and bundle gh/glab binaries in CI pipeline
+## Phase 5: AI Integration
+
+### 5.1 — AiProvider Trait & Detection
+
+- [ ] New `ai-provider` crate with `AiProvider` trait (like `CiProvider`)
+- [ ] Trait methods: detect config, list sessions, list worktrees, get commit attribution, get config files
+- [ ] Null/empty default implementations for unsupported features per provider
+- [ ] Auto-detection: scan repo for `.claude/`, `.codex/`, `.opencode/`, `.aider*`
+- [ ] Config file reader: `CLAUDE.md`, `AGENTS.md`, `opencode.json`, `.aider.conf.yml`
+
+### 5.2 — Claude Code (First Provider)
+
+- [ ] Implement `AiProvider` for Claude Code
+- [ ] Terminal launcher dropdown gains "Terminal with Claude Code" option
+- [ ] Detect `.claude/worktrees/` — list, status (active/orphaned/clean), cleanup
+- [ ] Parse `worktree-*` branch naming convention
+- [ ] Read `.claude/settings.json`, agents, skills, rules
+
+### 5.3 — AI Worktree Sidebar
+
+- [ ] New sidebar section per project: AI worktrees grouped under their project tab
+- [ ] Status badges: active session, changes pending, clean, orphaned
+- [ ] Click to navigate to worktree's terminal tab
+- [ ] Context menu: open in graph, cleanup worktree + branch, open in new project tab
+
+### 5.4 — AI Commit Attribution
+
+- [ ] Detect AI-authored commits by patterns per provider
+  - `Authored-by:` footers, `Co-authored-by:` trailers, `(aider)` in author name
+- [ ] AI badge/icon on graph commits (distinct from CI/MR badges)
+- [ ] Filter: show only AI-generated or only human-generated commits
+- [ ] Stats in project overview: percentage of AI-authored commits in last N commits
+
+### 5.5 — Config Viewer
+
+- [ ] Read-only panel showing AI config files for current repo
+- [ ] Tabs per detected tool: CLAUDE.md, AGENTS.md, opencode.json
+- [ ] Syntax-highlighted with CodeMirror (reuse existing editor engine)
+
+### 5.6 — Session Dashboard
+
+- [ ] Cross-project view: all active AI sessions across all open project tabs
+- [ ] Per session: tool name, worktree, branch, terminal tab link, recent activity
+- [ ] Quick actions: focus terminal, open worktree in graph, stop session
+
+### 5.7 — Additional Provider Implementations
+
+- [ ] Codex CLI (`AiProvider` implementation)
+- [ ] OpenCode (`AiProvider` implementation)
+- [ ] Aider (`AiProvider` implementation)
+- [ ] Each wired to terminal launcher dropdown
+
+---
+
+## Phase 6: Git Completion & Code Quality
+
+### 6.1 — Bisect (Visual Workflow)
+
+- [ ] Visual bisect UI: mark good/bad commits in graph
+- [ ] Step-by-step guided workflow with current test commit highlighted
+- [ ] Auto-bisect option (run command per step)
+- [ ] Bisect log and reset
+
+### 6.2 — Bundle gh/glab Binaries
+
+- [ ] Download platform-specific gh/glab binaries in CI build pipeline
+- [ ] Ship bundled with app (macOS arm64/x64, Linux x64, Windows x64)
+- [ ] gh/glab OAuth flows run inside interactive terminal tabs
 - [ ] Auto-update bundled CLIs with app updates
 
-### Audit Fixes
+### 6.3 — Code Quality
 
-- [x] All CLI commands async with spawn_blocking
-- [x] Canvas draw batched with requestAnimationFrame
-- [x] Shared utilities: shortOid, configure_no_window, run_blocking
-- [x] GitError::CliError variant, enum-typed MR/PR params
-- [x] Error handling in CleanDialog and GitConfigSettings
+- [ ] Split `commands.rs` (~3148 lines) into feature-based modules
+- [ ] Extract generic `<List>` component (~1500 LOC savings across 8 components)
+- [ ] Extract shared dialog CSS to `src/lib/styles/dialog.css`
+- [ ] Extract store `fetchIntoStore` helper
+- [ ] CLI provider JSON parsing deduplication (GitHub/GitLab parsers)
 
----
+### 6.4 — Infrastructure
 
-## Phase 2: Core Workflows — Complete
+- [ ] Crash reporting / telemetry (opt-in)
+- [ ] Auto-update scope: app + libgit2 + git + gh + glab (extend existing updater)
 
-### v0.1.2 (Plans 3–4 + Graph Columns + Fixes)
+### 6.5 — E2E Testing Infrastructure
 
-**Hunk + Line-Level Staging**
-
-- [x] Stage/unstage/discard individual hunks or specific lines
-- [x] StagingDiffEditor with per-hunk and per-line checkboxes
-- [x] Backend patch builder → `git apply --cached`
-
-**Blame + File History**
-
-- [x] Blame view with per-line gutter annotations (author, OID, relative date)
-- [x] File history panel with `git log --follow` and rename detection
-- [x] Right-click any file → "Blame" / "File History"
-
-**Rebase**
-
-- [x] Non-interactive rebase from branch + graph context menus
-- [x] Interactive rebase: visual commit editor with drag-to-reorder + actions (pick/squash/fixup/edit/drop)
-- [x] GIT_SEQUENCE_EDITOR injection for todo list
-
-**3-Way Merge Editor**
-
-- [x] CodeMirror unifiedMergeView with inline accept/reject per chunk
-- [x] Conflict toolbar shows clickable file list → opens merge editor
-- [x] get_conflict_file_contents reads ours/theirs/base from libgit2 index
-- [x] write_resolved_file writes + stages + removes conflict entries
-
-**Graph Columns**
-
-- [x] Resizable columns via drag (min 50px, persisted to settings.json)
-- [x] Email column (hidden by default)
-- [x] SHA column hidden by default
-- [x] Column visibility + widths persisted across sessions
-
-**Theme Improvements**
-
-- [x] 10 new built-in themes (14 total: 10 dark, 4 light)
-- [x] Complementary theme pairing for OS auto-switch
-
-**Bug Fixes**
-
-- [x] Fixed stale detail panels on repo tab switch (graph, branches, tags, stashes, blame, worktrees)
-- [x] Conflict status refreshed on repo tab switch
-- [x] Removed Repository settings section (deferred to gh/glab CLI integration)
-
-**CI/CD**
-
-- [x] Release pipeline auto-syncs version from git tag
-- [x] Windows MSI: strips non-numeric pre-release suffixes
-
-### v0.1.1 (Plans 1–2)
-
-**CodeMirror 6 Editor Engine**
-
-- [x] Replaced custom diff viewer with CodeMirror 6 (syntax highlighting, 16 languages)
-- [x] Side-by-side diff with collapsed unchanged regions (@codemirror/merge)
-- [x] Line numbers in all editor and diff views
-- [x] Language auto-detection from file extension with lazy-loaded grammars
-- [x] Theme bridge: TOML themes → CodeMirror extensions (chrome + syntax tokens)
-
-**Core Git Operations**
-
-- [x] Revert commits from graph context menu with confirmation
-- [x] Amend last commit via toggle in staging area (pre-fills HEAD message)
-- [x] Reset (soft/mixed/hard) from graph context menu with mode-specific warnings
-- [x] Worktree management: list, create, remove with sidebar + tab integration
-
-**Theme System Improvements**
-
-- [x] Simplified TOML themes: only [meta] + [colors] required (14 lines)
-- [x] Graph, editor, syntax colors auto-derived from 12 base colors
-- [x] Optional [graph] and [editor] overrides for fine-tuning
-
-**UI Improvements**
-
-- [x] UI Scale setting (80%–150%) in Settings > Appearance
-- [x] Ref badges rotate through accent colors (hash-based)
-
-**Performance & Windows Fixes**
-
-- [x] All 22 CLI-backed commands non-blocking (async + spawn_blocking)
-- [x] CREATE_NO_WINDOW flag on Windows (no CMD flash)
-
----
-
-## MVP (v0.1.0) — Complete
-
-All Phase 1 features are implemented and tested.
-
-### Completed Features
-
-**Git Graph**
-
-- [x] Visual commit graph with canvas rendering (100K+ commits via virtual scroll)
-- [x] Lane-segment + merge-curve architecture
-- [x] Sync-state-aware line styles: thick (pushed), thin (local-only), dashed (fetched)
-- [x] Lane recycling at MAX_LANES=8 cap with arrow indicators
-- [x] Author bold — your commits shown in bold
-- [x] HEAD branch highlighting — thicker line + subtle background tint
-- [x] Lane click selection and hover feedback
-- [x] Clickable parent OIDs in commit detail
-- [x] Collapsible linear chains (runs of 3+ linear commits)
-- [x] Configurable columns (author, date) with resize
-
-**Git Operations**
-
-- [x] Staging area with file-level stage/unstage and commit
-- [x] Branch management: create, delete, checkout, merge, cherry-pick
-- [x] Branch view with folder tree, commit history, context menu, and inline commit detail panel
-- [x] Stash management: push, pop, apply, drop, per-file apply, diff preview
-- [x] Tag management: paginated list, create (annotated + lightweight), delete, push
-- [x] Fetch, Pull, Push as background tasks with live output streaming
-- [x] Auto-refresh graph and branches after remote operations complete
-- [x] Conflict detection: MERGING / REBASING / CHERRY-PICKING / REVERTING state
-- [x] ConflictToolbar with Abort/Continue actions and conflict marker highlighting
-
-**Diff Viewer**
-
-- [x] Side-by-side file diff panel with word-level diff highlighting and vertical resize handle
-- [x] Clickable ref badges on merge commits showing changed files
-- [x] Right-click context menu on changed files (stage, unstage, copy path)
-- [x] Reusable CommitDetail component (used in graph, branch, and tag views)
-
-**CI Pipeline Integration**
-
-- [x] Multi-provider support: GitLab REST v4 + GitHub REST API via CiProvider trait
-- [x] Unified pipeline list with real-time polling (15s list, 10s detail, 3s job logs)
-- [x] Job log viewer with full ANSI color rendering (256-color, true-color, bold/dim/italic/underline)
-- [x] CI log preprocessing — strips timestamps, stream codes, section markers; adds line numbers
-- [x] Server-side filtering by branch, source, and status
-- [x] Auto-detect provider from git remote URL
-
-**Multi-Project Tabs**
-
-- [x] Open multiple repos as tabs with lazy loading
-- [x] Tab persistence across app restarts
-- [x] Starship-style title bar with git status summary (project - branch [↑↓+!?])
-- [x] Lightweight metadata for background tabs (branch, change count)
-
-**Background Task System**
-
-- [x] task-runner crate with async spawn/cancel and output streaming via TaskEventSink trait
-- [x] Status bar indicator with running/failed states
-- [x] Task popover for quick glance, expandable panel for full log viewer
-- [x] Filesystem watcher with debounced auto-refresh on repo-changed events
-
-**Authentication**
-
-- [x] Encrypted credential storage (AES-256-GCM, machine-derived key)
-- [x] PAT validation for GitLab and GitHub
-- [x] Multi-provider auto-reconnect on app startup
-
-**Internationalization**
-
-- [x] English (en-US) and Spanish (es-ES) via Paraglide.js v2
-- [x] Compile-time typed message functions
-- [x] Language selector in Settings > Appearance
-
-**Storage**
-
-- [x] SQLite database with versioned schema
-- [x] JSON config with multi-provider migration support
-- [x] TOML theme system (built-in + user-installed)
-
-**UI/UX**
-
-- [x] Custom app icon (BeardGit glasses + beard + git diamond)
-- [x] Pill-shaped tabs merged into toolbar bar
-- [x] Fira Code monospace font with ligatures
-- [x] Symbols Nerd Font Mono for icons throughout the UI
-- [x] Responsive viewport-relative layouts with clamp()/min()
-- [x] Minimum window size 900x600
-- [x] Shared components: SplitView, FileChangeList, CommitDetail, ConfirmDialog, SearchBar, ContextMenu
-
----
-
-## Next Steps
-
-### Phase 3 Remaining
-
-- Bisect (visual bisect workflow)
-- Bundle gh/glab binaries in CI build pipeline per platform
-- Auto-update bundled CLIs with app updates
-
-### Phase 4: Developer Experience
-
-- Embedded terminal (libghostty)
-- Full theme system (CodeMirror + libghostty theme support)
-
-### Infrastructure
-
-- Auto-update system (tauri-plugin-updater) — update app, libgit, git, gh, glab
-- Crash reporting / telemetry (opt-in)
-
-### Code Quality (Deferred from Audit)
-
-- Split `commands.rs` (3148 lines) into feature-based modules
-- Extract generic `<List>` component (saves ~1500 LOC across 8 components)
-- Extract shared dialog CSS to `src/lib/styles/dialog.css`
-- Extract store `fetchIntoStore` helper
-- CLI provider JSON parsing deduplication (GitHub/GitLab parsers)
+- [ ] `tauri-driver` + Playwright/WebdriverIO for webview automation
+- [ ] Test harness that launches the app against a fixture repo
+- [ ] Golden path tests: open repo, navigate views, stage/commit, run terminal, launch AI session
+- [ ] CI integration: headless E2E suite on build pipeline
+- [ ] Regression suite: one test per major feature (graph, branches, merge editor, terminal, AI)
 
 ---
 
