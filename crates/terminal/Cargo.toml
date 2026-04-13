@@ -1,0 +1,10 @@
+[package]
+name = "terminal"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+portable-pty = "0.8"
+tokio = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

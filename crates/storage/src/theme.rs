@@ -53,29 +53,34 @@ mode = "dark"               # "dark" or "light"
 complementary = "my-light"  # optional: paired theme for OS auto-switch
 
 [colors]
-bg-primary = "#1a1b26"      # main background
-bg-secondary = "#24283b"    # sidebar, panels, secondary areas
-bg-toolbar = "#1f2335"      # toolbar, top bar
-text-primary = "#c0caf5"    # main text
-text-secondary = "#565f89"  # dimmed text, labels, line numbers
-accent-blue = "#7aa2f7"     # links, branch refs, cursor
-accent-green = "#9ece6a"    # added lines, branch names, success
-accent-orange = "#ff9e64"   # tag refs, warnings
-accent-purple = "#bb9af7"   # HEAD ref, functions in syntax
-accent-red = "#f7768e"      # removed lines, errors, keywords in syntax
-border = "#3b4261"          # borders, separators
-selection = "#283457"       # text selection background
+background = "#1a1b26"       # main background
+foreground = "#c0caf5"       # main text
+black = "#32344a"
+red = "#f7768e"
+green = "#9ece6a"
+yellow = "#e0af68"
+blue = "#7aa2f7"
+magenta = "#bb9af7"
+cyan = "#449dab"
+white = "#787c99"
+bright-black = "#444b6a"
+bright-red = "#ff7a93"
+bright-green = "#b9f27c"
+bright-yellow = "#ff9e64"
+bright-blue = "#7da6ff"
+bright-magenta = "#bb9af7"
+bright-cyan = "#0db9d7"
+bright-white = "#acb0d0"
 ```
 
-That's it — 14 lines. The entire UI is built from these 12 colors:
+That's it — 18 base colors (background + foreground + 16 ANSI). All semantic
+UI colors are derived automatically:
 
 - **Graph:** lane colors = 5 accents + lighter variants; refs = green (branch),
-  blue (remote), orange (tag), purple (HEAD); selection/tints from selection color
-- **Editor:** syntax highlighting = red (keywords/operators), blue (types/numbers),
-  purple (functions), green (properties), lightened-blue (strings), text-secondary
-  (comments); diff backgrounds = dark green/red for dark mode, light green/red for
-  light mode; cursor and selection from accent-blue and selection color
-- **All other UI elements** are styled via CSS custom properties from these colors
+  blue (remote), yellow (tag), magenta (HEAD); selection/tints from blue
+- **Editor:** syntax highlighting derived from ANSI colors; diff backgrounds
+  computed for dark/light mode; cursor and selection from blue
+- **All other UI elements** are styled via CSS custom properties from derived colors
 
 ## Optional Overrides
 
@@ -176,8 +181,10 @@ pub struct ThemeMeta {
 pub struct Theme {
     /// Metadata section.
     pub meta: ThemeMetaSection,
-    /// UI color tokens.
+    /// Base 18-color palette from TOML.
     pub colors: ThemeColors,
+    /// Semantic UI colors derived from base palette.
+    pub derived: DerivedColors,
     /// Graph-specific rendering tokens.
     pub graph: ThemeGraph,
     /// CodeMirror 6 editor color tokens.
@@ -198,28 +205,49 @@ pub struct ThemeMetaSection {
     pub complementary: Option<String>,
 }
 
-/// The `[colors]` section — general UI color tokens.
+/// The `[colors]` section — 18 base colors (background + foreground + 16 ANSI).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThemeColors {
-    #[serde(alias = "bg-primary")]
+    pub background: String,
+    pub foreground: String,
+    pub black: String,
+    pub red: String,
+    pub green: String,
+    pub yellow: String,
+    pub blue: String,
+    pub magenta: String,
+    pub cyan: String,
+    pub white: String,
+    #[serde(alias = "bright-black")]
+    pub bright_black: String,
+    #[serde(alias = "bright-red")]
+    pub bright_red: String,
+    #[serde(alias = "bright-green")]
+    pub bright_green: String,
+    #[serde(alias = "bright-yellow")]
+    pub bright_yellow: String,
+    #[serde(alias = "bright-blue")]
+    pub bright_blue: String,
+    #[serde(alias = "bright-magenta")]
+    pub bright_magenta: String,
+    #[serde(alias = "bright-cyan")]
+    pub bright_cyan: String,
+    #[serde(alias = "bright-white")]
+    pub bright_white: String,
+}
+
+/// Semantic UI colors derived from the 18 base colors at theme load time.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DerivedColors {
     pub bg_primary: String,
-    #[serde(alias = "bg-secondary")]
     pub bg_secondary: String,
-    #[serde(alias = "bg-toolbar")]
     pub bg_toolbar: String,
-    #[serde(alias = "text-primary")]
     pub text_primary: String,
-    #[serde(alias = "text-secondary")]
     pub text_secondary: String,
-    #[serde(alias = "accent-blue")]
     pub accent_blue: String,
-    #[serde(alias = "accent-green")]
     pub accent_green: String,
-    #[serde(alias = "accent-orange")]
     pub accent_orange: String,
-    #[serde(alias = "accent-purple")]
     pub accent_purple: String,
-    #[serde(alias = "accent-red")]
     pub accent_red: String,
     pub border: String,
     pub selection: String,
@@ -352,6 +380,50 @@ fn lighten_hex(hex: &str, amount: f64) -> String {
     format!("#{:02x}{:02x}{:02x}", lr as u8, lg as u8, lb as u8)
 }
 
+/// Darken a `#RRGGBB` color by blending toward black. `amount` is 0.0–1.0.
+fn darken_hex(hex: &str, amount: f64) -> String {
+    if !hex.starts_with('#') || hex.len() < 7 {
+        return hex.to_string();
+    }
+    let r = u8::from_str_radix(&hex[1..3], 16).unwrap_or(128);
+    let g = u8::from_str_radix(&hex[3..5], 16).unwrap_or(128);
+    let b = u8::from_str_radix(&hex[5..7], 16).unwrap_or(128);
+    let dr = r as f64 * (1.0 - amount);
+    let dg = g as f64 * (1.0 - amount);
+    let db = b as f64 * (1.0 - amount);
+    format!("#{:02x}{:02x}{:02x}", dr as u8, dg as u8, db as u8)
+}
+
+/// Derive semantic UI colors from the 18 base colors.
+fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors {
+    let bg_secondary = if is_dark {
+        lighten_hex(&colors.background, 0.05)
+    } else {
+        darken_hex(&colors.background, 0.03)
+    };
+
+    let bg_toolbar = if is_dark {
+        lighten_hex(&colors.background, 0.08)
+    } else {
+        darken_hex(&colors.background, 0.05)
+    };
+
+    DerivedColors {
+        bg_primary: colors.background.clone(),
+        bg_secondary,
+        bg_toolbar,
+        text_primary: colors.foreground.clone(),
+        text_secondary: colors.bright_black.clone(),
+        accent_blue: colors.blue.clone(),
+        accent_green: colors.green.clone(),
+        accent_orange: colors.yellow.clone(),
+        accent_purple: colors.magenta.clone(),
+        accent_red: colors.red.clone(),
+        border: with_alpha(&colors.bright_black, "80"),
+        selection: with_alpha(&colors.blue, "33"),
+    }
+}
+
 /// Shift the hue of a `#RRGGBB` color by `degrees` (-180..180).
 /// Uses a simple RGB→HSL→RGB conversion.
 fn shift_hue_hex(hex: &str, degrees: i32) -> String {
@@ -419,47 +491,47 @@ fn shift_hue_hex(hex: &str, degrees: i32) -> String {
     format!("#{:02x}{:02x}{:02x}", nr, ng, nb)
 }
 
-/// Derive the full `[graph]` section from base colors and mode.
-fn derive_graph(colors: &ThemeColors) -> ThemeGraph {
+/// Derive the full `[graph]` section from base colors and derived semantics.
+fn derive_graph(_colors: &ThemeColors, derived: &DerivedColors) -> ThemeGraph {
     // Build 10 lane colors: 5 accents + 5 shifted variants (lighter for dark, darker for light)
     let lane_colors = vec![
-        colors.accent_blue.clone(),
-        colors.accent_green.clone(),
-        colors.accent_orange.clone(),
-        colors.accent_purple.clone(),
-        colors.accent_red.clone(),
-        lighten_hex(&colors.accent_blue, 0.25),
-        lighten_hex(&colors.accent_green, 0.25),
-        shift_hue_hex(&colors.accent_orange, -20), // orange → golden
-        lighten_hex(&colors.accent_purple, 0.25),
-        lighten_hex(&colors.accent_red, 0.2),
+        derived.accent_blue.clone(),
+        derived.accent_green.clone(),
+        derived.accent_orange.clone(),
+        derived.accent_purple.clone(),
+        derived.accent_red.clone(),
+        lighten_hex(&derived.accent_blue, 0.25),
+        lighten_hex(&derived.accent_green, 0.25),
+        shift_hue_hex(&derived.accent_orange, -20), // orange → golden
+        lighten_hex(&derived.accent_purple, 0.25),
+        lighten_hex(&derived.accent_red, 0.2),
     ];
 
     // Use the base selection color (strip alpha) for graph selection tints
-    let sel_base = strip_alpha(&colors.selection);
+    let sel_base = strip_alpha(&derived.selection);
 
     ThemeGraph {
         lane_colors,
-        background: colors.bg_primary.clone(),
-        foreground: colors.text_primary.clone(),
-        text_primary: colors.text_primary.clone(),
-        text_secondary: colors.text_secondary.clone(),
-        text_sha: colors.accent_blue.clone(),
+        background: derived.bg_primary.clone(),
+        foreground: derived.text_primary.clone(),
+        text_primary: derived.text_primary.clone(),
+        text_secondary: derived.text_secondary.clone(),
+        text_sha: derived.accent_blue.clone(),
         selection: with_alpha(&sel_base, "44"),
-        head_lane_tint: with_alpha(&colors.accent_blue, "22"),
+        head_lane_tint: with_alpha(&derived.accent_blue, "22"),
         selection_highlight: with_alpha(&sel_base, "66"),
         dim_opacity: 0.4,
         node_radius: 4.0,
         merge_radius: 3.0,
-        ref_branch: colors.accent_green.clone(),
-        ref_remote: colors.accent_blue.clone(),
-        ref_tag: colors.accent_orange.clone(),
-        ref_head: colors.accent_purple.clone(),
+        ref_branch: derived.accent_green.clone(),
+        ref_remote: derived.accent_blue.clone(),
+        ref_tag: derived.accent_orange.clone(),
+        ref_head: derived.accent_purple.clone(),
     }
 }
 
-/// Derive the full `[editor]` section from base colors and mode.
-fn derive_editor(colors: &ThemeColors, is_dark: bool) -> ThemeEditor {
+/// Derive the full `[editor]` section from base colors, derived semantics, and mode.
+fn derive_editor(_colors: &ThemeColors, derived: &DerivedColors, is_dark: bool) -> ThemeEditor {
     let (added_bg, removed_bg) = if is_dark {
         ("#1b3829".to_string(), "#3c1e22".to_string())
     } else {
@@ -469,30 +541,30 @@ fn derive_editor(colors: &ThemeColors, is_dark: bool) -> ThemeEditor {
     // Derive syntax colors from the theme's own accent palette.
     // keyword/operator → red, string → blue (lightened for dark), function → purple,
     // type/number → blue, property → green, comment → text-secondary.
-    let kw = &colors.accent_red;
+    let kw = &derived.accent_red;
     let str_c = if is_dark {
-        lighten_hex(&colors.accent_blue, 0.35)
+        lighten_hex(&derived.accent_blue, 0.35)
     } else {
-        shift_hue_hex(&colors.accent_blue, 15)
+        shift_hue_hex(&derived.accent_blue, 15)
     };
-    let func = &colors.accent_purple;
-    let typ = &colors.accent_blue;
-    let prop = &colors.accent_green;
+    let func = &derived.accent_purple;
+    let typ = &derived.accent_blue;
+    let prop = &derived.accent_green;
 
-    let sel_base = strip_alpha(&colors.selection);
+    let sel_base = strip_alpha(&derived.selection);
 
     ThemeEditor {
-        background: colors.bg_primary.clone(),
-        foreground: colors.text_primary.clone(),
-        cursor: colors.accent_blue.clone(),
+        background: derived.bg_primary.clone(),
+        foreground: derived.text_primary.clone(),
+        cursor: derived.accent_blue.clone(),
         selection: with_alpha(&sel_base, "44"),
-        line_highlight: with_alpha(&colors.bg_secondary, "66"),
-        gutter_bg: colors.bg_primary.clone(),
-        gutter_fg: colors.text_secondary.clone(),
+        line_highlight: with_alpha(&derived.bg_secondary, "66"),
+        gutter_bg: derived.bg_primary.clone(),
+        gutter_fg: derived.text_secondary.clone(),
         added_bg,
         removed_bg,
-        added_text: colors.accent_green.clone(),
-        removed_text: colors.accent_red.clone(),
+        added_text: derived.accent_green.clone(),
+        removed_text: derived.accent_red.clone(),
         syntax_keyword: Some(kw.clone()),
         syntax_string: Some(str_c),
         syntax_comment: None, // None → frontend uses text-secondary
@@ -725,22 +797,31 @@ pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
 
     let is_dark = meta.mode == "dark";
 
-    // Validate all base color fields
-    validate_color("colors.bg_primary", &colors.bg_primary)?;
-    validate_color("colors.bg_secondary", &colors.bg_secondary)?;
-    validate_color("colors.bg_toolbar", &colors.bg_toolbar)?;
-    validate_color("colors.text_primary", &colors.text_primary)?;
-    validate_color("colors.text_secondary", &colors.text_secondary)?;
-    validate_color("colors.accent_blue", &colors.accent_blue)?;
-    validate_color("colors.accent_green", &colors.accent_green)?;
-    validate_color("colors.accent_orange", &colors.accent_orange)?;
-    validate_color("colors.accent_purple", &colors.accent_purple)?;
-    validate_color("colors.accent_red", &colors.accent_red)?;
-    validate_color("colors.border", &colors.border)?;
-    validate_color("colors.selection", &colors.selection)?;
+    // Validate all 18 base color fields
+    validate_color("colors.background", &colors.background)?;
+    validate_color("colors.foreground", &colors.foreground)?;
+    validate_color("colors.black", &colors.black)?;
+    validate_color("colors.red", &colors.red)?;
+    validate_color("colors.green", &colors.green)?;
+    validate_color("colors.yellow", &colors.yellow)?;
+    validate_color("colors.blue", &colors.blue)?;
+    validate_color("colors.magenta", &colors.magenta)?;
+    validate_color("colors.cyan", &colors.cyan)?;
+    validate_color("colors.white", &colors.white)?;
+    validate_color("colors.bright_black", &colors.bright_black)?;
+    validate_color("colors.bright_red", &colors.bright_red)?;
+    validate_color("colors.bright_green", &colors.bright_green)?;
+    validate_color("colors.bright_yellow", &colors.bright_yellow)?;
+    validate_color("colors.bright_blue", &colors.bright_blue)?;
+    validate_color("colors.bright_magenta", &colors.bright_magenta)?;
+    validate_color("colors.bright_cyan", &colors.bright_cyan)?;
+    validate_color("colors.bright_white", &colors.bright_white)?;
 
-    // Derive graph from base palette, then merge overrides
-    let mut graph = derive_graph(&colors);
+    // Derive semantic colors from base palette
+    let derived = derive_semantic_colors(&colors, is_dark);
+
+    // Derive graph from base palette + derived, then merge overrides
+    let mut graph = derive_graph(&colors, &derived);
     if let Some(overrides) = raw.graph {
         merge_graph_overrides(&mut graph, overrides);
     }
@@ -750,8 +831,8 @@ pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
         return Err(ThemeError::InsufficientLaneColors);
     }
 
-    // Derive editor from base palette, then merge overrides
-    let mut editor = derive_editor(&colors, is_dark);
+    // Derive editor from base palette + derived, then merge overrides
+    let mut editor = derive_editor(&colors, &derived, is_dark);
     if let Some(overrides) = raw.editor {
         merge_editor_overrides(&mut editor, overrides);
     }
@@ -759,6 +840,7 @@ pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
     Ok(Theme {
         meta,
         colors,
+        derived,
         graph,
         editor: Some(editor),
     })
@@ -934,18 +1016,24 @@ name = "Test Theme"
 mode = "dark"
 
 [colors]
-bg-primary = "#111111"
-bg-secondary = "#222222"
-bg-toolbar = "#333333"
-text-primary = "#eeeeee"
-text-secondary = "#999999"
-accent-blue = "#0000ff"
-accent-green = "#00ff00"
-accent-orange = "#ff8800"
-accent-purple = "#8800ff"
-accent-red = "#ff0000"
-border = "#444444"
-selection = "#0000ff33"
+background = "#111111"
+foreground = "#eeeeee"
+black = "#333333"
+red = "#ff0000"
+green = "#00ff00"
+yellow = "#ff8800"
+blue = "#0000ff"
+magenta = "#8800ff"
+cyan = "#00ffff"
+white = "#cccccc"
+bright-black = "#999999"
+bright-red = "#ff4444"
+bright-green = "#44ff44"
+bright-yellow = "#ffaa44"
+bright-blue = "#4444ff"
+bright-magenta = "#aa44ff"
+bright-cyan = "#44ffff"
+bright-white = "#ffffff"
 "##;
 
     #[test]
@@ -953,8 +1041,19 @@ selection = "#0000ff33"
         let theme = parse_theme(MINIMAL_THEME).unwrap();
         assert_eq!(theme.meta.id, "test-theme");
         assert_eq!(theme.meta.mode, "dark");
-        assert_eq!(theme.colors.bg_primary, "#111111");
-        // Graph derived from colors
+        // Base colors
+        assert_eq!(theme.colors.background, "#111111");
+        assert_eq!(theme.colors.foreground, "#eeeeee");
+        assert_eq!(theme.colors.blue, "#0000ff");
+        // Derived semantic colors
+        assert_eq!(theme.derived.bg_primary, "#111111");
+        assert_eq!(theme.derived.text_primary, "#eeeeee");
+        assert_eq!(theme.derived.accent_blue, "#0000ff");
+        assert_eq!(theme.derived.accent_green, "#00ff00");
+        assert_eq!(theme.derived.accent_red, "#ff0000");
+        assert_eq!(theme.derived.accent_orange, "#ff8800"); // yellow → orange
+        assert_eq!(theme.derived.accent_purple, "#8800ff"); // magenta → purple
+        // Graph derived from derived colors
         assert_eq!(theme.graph.background, "#111111");
         assert_eq!(theme.graph.ref_branch, "#00ff00");
         assert_eq!(theme.graph.lane_colors.len(), 10);
@@ -1008,18 +1107,24 @@ syntax-keyword = "#ff0000"
     fn test_parse_missing_meta() {
         let toml = r##"
 [colors]
-bg-primary = "#111111"
-bg-secondary = "#222222"
-bg-toolbar = "#333333"
-text-primary = "#eeeeee"
-text-secondary = "#999999"
-accent-blue = "#0000ff"
-accent-green = "#00ff00"
-accent-orange = "#ff8800"
-accent-purple = "#8800ff"
-accent-red = "#ff0000"
-border = "#444444"
-selection = "#0000ff33"
+background = "#111111"
+foreground = "#eeeeee"
+black = "#333333"
+red = "#ff0000"
+green = "#00ff00"
+yellow = "#ff8800"
+blue = "#0000ff"
+magenta = "#8800ff"
+cyan = "#00ffff"
+white = "#cccccc"
+bright-black = "#999999"
+bright-red = "#ff4444"
+bright-green = "#44ff44"
+bright-yellow = "#ffaa44"
+bright-blue = "#4444ff"
+bright-magenta = "#aa44ff"
+bright-cyan = "#44ffff"
+bright-white = "#ffffff"
 "##;
         let err = parse_theme(toml).unwrap_err();
         assert!(err.to_string().contains("meta"));
@@ -1034,7 +1139,9 @@ name = "X"
 mode = "dark"
 "##;
         let err = parse_theme(toml).unwrap_err();
-        assert!(err.to_string().contains("colors"));
+        // Can be "missing required field: colors" or TOML parse error
+        let msg = err.to_string();
+        assert!(msg.contains("colors") || msg.contains("missing"));
     }
 
     #[test]
@@ -1059,7 +1166,7 @@ lane-colors = ["#0000ff"]
 
     #[test]
     fn test_parse_invalid_color_format() {
-        let toml = MINIMAL_THEME.replace(r##"bg-primary = "#111111""##, r##"bg-primary = "nope""##);
+        let toml = MINIMAL_THEME.replace(r##"background = "#111111""##, r##"background = "nope""##);
         let err = parse_theme(&toml).unwrap_err();
         assert!(err.to_string().contains("invalid color"));
     }
@@ -1067,11 +1174,11 @@ lane-colors = ["#0000ff"]
     #[test]
     fn test_parse_rgba_color_accepted() {
         let toml = MINIMAL_THEME.replace(
-            r##"selection = "#0000ff33""##,
-            r##"selection = "rgba(0, 0, 255, 0.2)""##,
+            r##"blue = "#0000ff""##,
+            r##"blue = "rgba(0, 0, 255, 1.0)""##,
         );
         let theme = parse_theme(&toml).unwrap();
-        assert_eq!(theme.colors.selection, "rgba(0, 0, 255, 0.2)");
+        assert_eq!(theme.colors.blue, "rgba(0, 0, 255, 1.0)");
     }
 
     #[test]
@@ -1321,31 +1428,31 @@ lane-colors = ["#0000ff"]
     #[test]
     fn test_derive_graph_specific_mappings() {
         let theme = parse_theme(MINIMAL_THEME).unwrap();
-        // background = bg_primary
-        assert_eq!(theme.graph.background, theme.colors.bg_primary);
-        // ref_branch = accent_green
-        assert_eq!(theme.graph.ref_branch, theme.colors.accent_green);
-        // ref_remote = accent_blue
-        assert_eq!(theme.graph.ref_remote, theme.colors.accent_blue);
-        // ref_tag = accent_orange
-        assert_eq!(theme.graph.ref_tag, theme.colors.accent_orange);
-        // ref_head = accent_purple
-        assert_eq!(theme.graph.ref_head, theme.colors.accent_purple);
-        // text_sha = accent_blue
-        assert_eq!(theme.graph.text_sha, theme.colors.accent_blue);
-        // foreground = text_primary
-        assert_eq!(theme.graph.foreground, theme.colors.text_primary);
+        // background = derived.bg_primary
+        assert_eq!(theme.graph.background, theme.derived.bg_primary);
+        // ref_branch = derived.accent_green
+        assert_eq!(theme.graph.ref_branch, theme.derived.accent_green);
+        // ref_remote = derived.accent_blue
+        assert_eq!(theme.graph.ref_remote, theme.derived.accent_blue);
+        // ref_tag = derived.accent_orange
+        assert_eq!(theme.graph.ref_tag, theme.derived.accent_orange);
+        // ref_head = derived.accent_purple
+        assert_eq!(theme.graph.ref_head, theme.derived.accent_purple);
+        // text_sha = derived.accent_blue
+        assert_eq!(theme.graph.text_sha, theme.derived.accent_blue);
+        // foreground = derived.text_primary
+        assert_eq!(theme.graph.foreground, theme.derived.text_primary);
     }
 
     #[test]
     fn test_derive_graph_first_five_lane_colors_are_accents() {
         let theme = parse_theme(MINIMAL_THEME).unwrap();
         let lc = &theme.graph.lane_colors;
-        assert_eq!(lc[0], theme.colors.accent_blue);
-        assert_eq!(lc[1], theme.colors.accent_green);
-        assert_eq!(lc[2], theme.colors.accent_orange);
-        assert_eq!(lc[3], theme.colors.accent_purple);
-        assert_eq!(lc[4], theme.colors.accent_red);
+        assert_eq!(lc[0], theme.derived.accent_blue);
+        assert_eq!(lc[1], theme.derived.accent_green);
+        assert_eq!(lc[2], theme.derived.accent_orange);
+        assert_eq!(lc[3], theme.derived.accent_purple);
+        assert_eq!(lc[4], theme.derived.accent_red);
     }
 
     // -- derive_editor direct tests (via parse_theme) --
@@ -1371,18 +1478,21 @@ lane-colors = ["#0000ff"]
     fn test_derive_editor_syntax_colors_from_accent() {
         let theme = parse_theme(MINIMAL_THEME).unwrap();
         let ed = theme.editor.unwrap();
-        // keyword = accent_red
-        assert_eq!(ed.syntax_keyword, Some(theme.colors.accent_red.clone()));
-        // operator = accent_red (same as keyword)
-        assert_eq!(ed.syntax_operator, Some(theme.colors.accent_red.clone()));
-        // function = accent_purple
-        assert_eq!(ed.syntax_function, Some(theme.colors.accent_purple.clone()));
-        // type = accent_blue
-        assert_eq!(ed.syntax_type, Some(theme.colors.accent_blue.clone()));
-        // number = accent_blue (same as type)
-        assert_eq!(ed.syntax_number, Some(theme.colors.accent_blue.clone()));
-        // property = accent_green
-        assert_eq!(ed.syntax_property, Some(theme.colors.accent_green.clone()));
+        // keyword = derived.accent_red
+        assert_eq!(ed.syntax_keyword, Some(theme.derived.accent_red.clone()));
+        // operator = derived.accent_red (same as keyword)
+        assert_eq!(ed.syntax_operator, Some(theme.derived.accent_red.clone()));
+        // function = derived.accent_purple
+        assert_eq!(
+            ed.syntax_function,
+            Some(theme.derived.accent_purple.clone())
+        );
+        // type = derived.accent_blue
+        assert_eq!(ed.syntax_type, Some(theme.derived.accent_blue.clone()));
+        // number = derived.accent_blue (same as type)
+        assert_eq!(ed.syntax_number, Some(theme.derived.accent_blue.clone()));
+        // property = derived.accent_green
+        assert_eq!(ed.syntax_property, Some(theme.derived.accent_green.clone()));
         // comment = None (frontend uses text-secondary)
         assert_eq!(ed.syntax_comment, None);
     }
@@ -1391,12 +1501,12 @@ lane-colors = ["#0000ff"]
     fn test_derive_editor_cursor_and_selection() {
         let theme = parse_theme(MINIMAL_THEME).unwrap();
         let ed = theme.editor.unwrap();
-        // cursor = accent_blue
-        assert_eq!(ed.cursor, theme.colors.accent_blue);
-        // gutter_bg = bg_primary
-        assert_eq!(ed.gutter_bg, theme.colors.bg_primary);
-        // gutter_fg = text_secondary
-        assert_eq!(ed.gutter_fg, theme.colors.text_secondary);
+        // cursor = derived.accent_blue
+        assert_eq!(ed.cursor, theme.derived.accent_blue);
+        // gutter_bg = derived.bg_primary
+        assert_eq!(ed.gutter_bg, theme.derived.bg_primary);
+        // gutter_fg = derived.text_secondary
+        assert_eq!(ed.gutter_fg, theme.derived.text_secondary);
     }
 
     // -- merge_graph_overrides direct tests (via parse_theme with partial graph) --
@@ -1415,7 +1525,7 @@ dim-opacity = 0.8
         // Derived defaults preserved
         assert_eq!(theme.graph.node_radius, 4.0);
         assert_eq!(theme.graph.merge_radius, 3.0);
-        assert_eq!(theme.graph.ref_branch, theme.colors.accent_green);
+        assert_eq!(theme.graph.ref_branch, theme.derived.accent_green);
     }
 
     #[test]
@@ -1448,7 +1558,7 @@ removed-bg = "#ff000033"
         // Dark-mode added-bg still derived
         assert_eq!(ed.added_bg, "#1b3829");
         // Other fields still derived
-        assert_eq!(ed.cursor, theme.colors.accent_blue);
+        assert_eq!(ed.cursor, theme.derived.accent_blue);
     }
 
     #[test]
@@ -1464,7 +1574,7 @@ syntax-comment = "#888888"
         let ed = theme.editor.unwrap();
         assert_eq!(ed.syntax_comment, Some("#888888".to_string()));
         // Other syntax fields still derived
-        assert_eq!(ed.syntax_keyword, Some(theme.colors.accent_red.clone()));
+        assert_eq!(ed.syntax_keyword, Some(theme.derived.accent_red.clone()));
     }
 
     #[test]

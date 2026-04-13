@@ -23,3 +23,5 @@ tokio = { workspace = true }
 dirs = "6"
 rayon = "1"
 watcher = { path = "../watcher" }
+terminal = { path = "../terminal" }
+base64 = "0.22"

@@ -16,7 +16,7 @@
   let token = $state("");
   let showAddForm = $state(false);
 
-  // TODO: Re-enable CLI OAuth login after implementing ghostty terminal integration.
+  // TODO: Re-enable CLI OAuth login after implementing terminal integration (xterm.js).
   // The gh/glab CLI login requires an interactive terminal which a GUI app can't
   // provide reliably. For now, only PAT auth is available.
   let authMethod = $state<"pat">("pat");
@@ -134,7 +134,7 @@
         >{m.provider_github()}</button>
       </div>
 
-      <!-- TODO: Re-enable OAuth toggle after ghostty terminal integration -->
+      <!-- TODO: Re-enable OAuth toggle after terminal integration (xterm.js) -->
       <form class="pat-form" onsubmit={handleConnect}>
           <label class="field">
             <span class="field-label">
@@ -245,6 +245,6 @@
   .btn-add-provider { width: 100%; padding: 8px; background: none; border: 1px dashed var(--border); border-radius: 6px; color: var(--accent-blue); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
   .btn-add-provider:hover { background: rgba(88,166,255,0.06); }
 
-  /* TODO: Re-enable auth-method-toggle, oauth-desc after ghostty integration */
+  /* TODO: Re-enable auth-method-toggle, oauth-desc after terminal integration (xterm.js) */
   .pat-form { display: flex; flex-direction: column; gap: 16px; }
 </style>

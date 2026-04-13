@@ -9,13 +9,13 @@ function buildGraphTheme(theme: ThemeData): GraphTheme {
     currentLine: g.selection,
     selection: g.selection,
     foreground: g.foreground,
-    comment: theme.colors.text_secondary,
-    red: theme.colors.accent_red,
-    orange: theme.colors.accent_orange,
-    yellow: theme.colors.accent_orange,
-    green: theme.colors.accent_green,
-    cyan: theme.colors.accent_blue,
-    purple: theme.colors.accent_purple,
+    comment: theme.derived.text_secondary,
+    red: theme.derived.accent_red,
+    orange: theme.derived.accent_orange,
+    yellow: theme.derived.accent_orange,
+    green: theme.derived.accent_green,
+    cyan: theme.derived.accent_blue,
+    purple: theme.derived.accent_purple,
     pink: g.ref_head,
     laneColors: g.lane_colors,
     headLaneTint: g.head_lane_tint,
@@ -54,6 +54,26 @@ function computeOverlays(mode: string): Record<string, string> {
 const MOCK_THEME: ThemeData = {
   meta: { id: "dracula", name: "Dracula", mode: "dark", complementary: null },
   colors: {
+    background: "#282a36",
+    foreground: "#f8f8f2",
+    black: "#21222c",
+    red: "#ff5555",
+    green: "#50fa7b",
+    yellow: "#f1fa8c",
+    blue: "#6272a4",
+    magenta: "#bd93f9",
+    cyan: "#8be9fd",
+    white: "#f8f8f2",
+    bright_black: "#6272a4",
+    bright_red: "#ff6e6e",
+    bright_green: "#69ff94",
+    bright_yellow: "#ffffa5",
+    bright_blue: "#d6acff",
+    bright_magenta: "#ff92df",
+    bright_cyan: "#a4ffff",
+    bright_white: "#ffffff",
+  },
+  derived: {
     bg_primary: "#282a36",
     bg_secondary: "#21222c",
     bg_toolbar: "#191a21",
@@ -114,15 +134,15 @@ describe("buildGraphTheme", () => {
     });
   });
 
-  it("uses colors section for named colors", () => {
+  it("uses derived section for named colors", () => {
     const result = buildGraphTheme(MOCK_THEME);
 
-    expect(result.red).toBe(MOCK_THEME.colors.accent_red);
-    expect(result.green).toBe(MOCK_THEME.colors.accent_green);
-    expect(result.cyan).toBe(MOCK_THEME.colors.accent_blue);
-    expect(result.purple).toBe(MOCK_THEME.colors.accent_purple);
-    expect(result.orange).toBe(MOCK_THEME.colors.accent_orange);
-    expect(result.comment).toBe(MOCK_THEME.colors.text_secondary);
+    expect(result.red).toBe(MOCK_THEME.derived.accent_red);
+    expect(result.green).toBe(MOCK_THEME.derived.accent_green);
+    expect(result.cyan).toBe(MOCK_THEME.derived.accent_blue);
+    expect(result.purple).toBe(MOCK_THEME.derived.accent_purple);
+    expect(result.orange).toBe(MOCK_THEME.derived.accent_orange);
+    expect(result.comment).toBe(MOCK_THEME.derived.text_secondary);
   });
 
   it("maps background and foreground from graph section", () => {

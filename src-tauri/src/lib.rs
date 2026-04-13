@@ -29,6 +29,13 @@ pub fn run() {
             let task_manager = std::sync::Arc::new(task_runner::TaskManager::new(sink));
             app.manage(task_manager);
 
+            let terminal_sink = std::sync::Arc::new(
+                app_core::terminal_sink::TauriTerminalSink::new(app.handle().clone()),
+            );
+            let terminal_manager =
+                std::sync::Arc::new(terminal::TerminalManager::new(terminal_sink));
+            app.manage(terminal_manager);
+
             // Listen for OS theme changes and re-emit resolved theme when auto is enabled.
             let main_window = app.get_webview_window("main");
             if let Some(window) = main_window {
@@ -197,6 +204,11 @@ pub fn run() {
             app_core::commands::request_changes_mr_pr,
             app_core::commands::add_mr_pr_comment,
             app_core::commands::add_mr_pr_inline_comment,
+            // Terminal
+            app_core::terminal_commands::terminal_spawn,
+            app_core::terminal_commands::terminal_write,
+            app_core::terminal_commands::terminal_resize,
+            app_core::terminal_commands::terminal_kill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

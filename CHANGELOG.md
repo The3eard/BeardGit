@@ -4,6 +4,22 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased]
 
+**Terminal Core (xterm.js) + Theme Redesign**
+
+- New `terminal` Rust crate with PTY lifecycle management via `portable-pty`
+- Cross-platform shell detection (zsh/bash on Unix, powershell/cmd on Windows)
+- `TerminalManager` with spawn, write, resize, kill, kill_all operations
+- Tauri commands and event bridge for terminal sessions (base64-encoded byte streaming)
+- Reusable `<Terminal>` Svelte component (xterm.js with WebGL, fit, web-links, search addons)
+- Read-only xterm.js instance pool (max 3: 2 visible + 1 warm) for zero-lag view switching
+- TaskPanel output migrated from manual ANSI-to-HTML to xterm.js read-only terminal
+- JobLog (CI pipeline logs) migrated from manual ANSI-to-HTML to xterm.js read-only terminal
+- Theme system redesigned: 18 base colors (background + foreground + 16 ANSI) replace 12 semantic colors
+- All 14 TOML themes updated with explicit ANSI color palettes
+- Semantic UI colors now auto-derived from base palette (DerivedColors struct)
+- Direct xterm.js ITheme mapping from base colors (no derivation needed for terminal)
+- Retired `ansi.ts` (250+ lines) — replaced by native xterm.js rendering + lightweight `stripAnsi()` utility
+
 **Auto-Update System**
 
 - Tauri updater plugin checks GitHub Releases for updates on app launch
@@ -92,7 +108,7 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 **Authentication**
 
-- GitHub/GitLab CLI OAuth login disabled until ghostty terminal integration (PAT-only for now)
+- GitHub/GitLab CLI OAuth login disabled until terminal integration (PAT-only for now)
 - OAuth errors now shown to user instead of silent fallback to PAT
 
 **Keyboard Shortcuts**

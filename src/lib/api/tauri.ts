@@ -714,3 +714,36 @@ export async function addMrPrComment(number: number, body: string): Promise<void
 export async function addMrPrInlineComment(number: number, path: string, line: number, body: string): Promise<void> {
   return invoke<void>("add_mr_pr_inline_comment", { number, path, line, body });
 }
+
+// ── Terminal ──────────────────────────────────────────────────────────
+
+/** Spawn a new terminal session in the given directory. */
+export async function terminalSpawn(
+  cwd: string,
+  cols: number,
+  rows: number,
+): Promise<number> {
+  return invoke<number>("terminal_spawn", { cwd, cols, rows });
+}
+
+/** Write input bytes to a terminal session (base64-encoded). */
+export async function terminalWrite(
+  id: number,
+  data: string,
+): Promise<void> {
+  return invoke<void>("terminal_write", { id, data });
+}
+
+/** Resize a terminal session. */
+export async function terminalResize(
+  id: number,
+  cols: number,
+  rows: number,
+): Promise<void> {
+  return invoke<void>("terminal_resize", { id, cols, rows });
+}
+
+/** Kill a terminal session. */
+export async function terminalKill(id: number): Promise<void> {
+  return invoke<void>("terminal_kill", { id });
+}

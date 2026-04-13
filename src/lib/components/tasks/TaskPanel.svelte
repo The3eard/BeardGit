@@ -1,27 +1,81 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { sortedTasks, selectedOutput, selectedTask, collapsePanel, closePanel } from "../../stores/tasks";
-  import { ansiToHtml } from "../../utils/ansi";
+  import { activeTheme } from "../../stores/theme";
+  import { acquire, release, updatePoolTheme } from "../terminal/pool";
+  import type { PooledInstance } from "../terminal/pool";
+  import { WebglAddon } from "@xterm/addon-webgl";
   import TaskList from "./TaskList.svelte";
   import * as m from "$lib/paraglide/messages";
 
-  let logContainer: HTMLDivElement | undefined = $state();
-
-  let outputHtml = $derived(
-    $selectedOutput.length > 0
-      ? ansiToHtml($selectedOutput.map((l) => l.text).join("\n"))
-      : null
-  );
+  let outputContainer: HTMLDivElement | undefined = $state();
+  let pooledInstance: PooledInstance | null = $state(null);
+  let lastWrittenLength = $state(0);
 
   let taskCommand = $derived($selectedTask?.command ?? null);
 
-  $effect(() => {
-    if (outputHtml && logContainer) {
-      requestAnimationFrame(() => {
-        if (logContainer) {
-          logContainer.scrollTop = logContainer.scrollHeight;
-        }
-      });
+  onMount(() => {
+    pooledInstance = acquire();
+    if (outputContainer && pooledInstance) {
+      pooledInstance.terminal.open(outputContainer);
+      try {
+        pooledInstance.terminal.loadAddon(new WebglAddon());
+      } catch {
+        // WebGL not available — fallback to canvas renderer
+      }
+      pooledInstance.fitAddon.fit();
     }
+
+    return () => {
+      if (pooledInstance) {
+        release(pooledInstance);
+        pooledInstance = null;
+      }
+    };
+  });
+
+  // Write output to terminal when selected task changes or new output arrives
+  $effect(() => {
+    const output = $selectedOutput;
+    if (!pooledInstance) return;
+
+    if (output.length === 0) {
+      pooledInstance.terminal.clear();
+      pooledInstance.terminal.reset();
+      lastWrittenLength = 0;
+      return;
+    }
+
+    // Full rewrite on task switch (selectedTask changed)
+    if (lastWrittenLength > output.length) {
+      pooledInstance.terminal.clear();
+      pooledInstance.terminal.reset();
+      lastWrittenLength = 0;
+    }
+
+    // Write only new lines (incremental)
+    const newLines = output.slice(lastWrittenLength);
+    if (newLines.length > 0) {
+      const text = newLines.map((l) => l.text).join("\r\n") + "\r\n";
+      pooledInstance.terminal.write(text);
+      lastWrittenLength = output.length;
+    }
+  });
+
+  // Update theme
+  $effect(() => {
+    const theme = $activeTheme;
+    if (theme) updatePoolTheme(theme);
+  });
+
+  // Auto-fit on container resize
+  $effect(() => {
+    if (!outputContainer || !pooledInstance) return;
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(() => pooledInstance?.fitAddon.fit());
+    });
+    observer.observe(outputContainer);
+    return () => observer.disconnect();
   });
 </script>
 
@@ -52,10 +106,8 @@
         <span class="command-prompt">$</span> {taskCommand}
       </div>
     {/if}
-    {#if outputHtml}
-      <div class="output-content" bind:this={logContainer}>{@html outputHtml}</div>
-    {:else if $selectedTask}
-      <div class="output-empty">{m.tasks_no_output()}</div>
+    {#if $selectedTask}
+      <div class="output-terminal" bind:this={outputContainer}></div>
     {:else}
       <div class="output-empty">{m.tasks_select_task()}</div>
     {/if}
@@ -157,18 +209,10 @@
     margin-right: 4px;
   }
 
-  .output-content {
+  .output-terminal {
     flex: 1;
-    padding: 8px;
+    overflow: hidden;
     background: var(--bg-primary);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    line-height: 1.5;
-    color: var(--text-primary);
-    white-space: pre-wrap;
-    overflow-y: auto;
-    -webkit-user-select: text;
-    user-select: text;
   }
 
   .output-empty {

@@ -2,13 +2,34 @@
   import { onMount } from "svelte";
   import { jobLog, loadingJobLog, stopJobLogPolling, activeProvider } from "../../stores/provider";
   import { preprocessJobLog } from "../../api/tauri";
-  import { ansiToHtml } from "../../utils/ansi";
+  import { activeTheme } from "../../stores/theme";
+  import { acquire, release, updatePoolTheme } from "../terminal/pool";
+  import type { PooledInstance } from "../terminal/pool";
+  import { WebglAddon } from "@xterm/addon-webgl";
   import * as m from "$lib/paraglide/messages";
 
-  let logContainer: HTMLDivElement | undefined = $state();
+  let terminalContainer: HTMLDivElement | undefined = $state();
+  let pooledInstance: PooledInstance | null = $state(null);
 
   onMount(() => {
-    return () => stopJobLogPolling();
+    pooledInstance = acquire();
+    if (terminalContainer && pooledInstance) {
+      pooledInstance.terminal.open(terminalContainer);
+      try {
+        pooledInstance.terminal.loadAddon(new WebglAddon());
+      } catch {
+        // WebGL not available — fallback to canvas renderer
+      }
+      pooledInstance.fitAddon.fit();
+    }
+
+    return () => {
+      stopJobLogPolling();
+      if (pooledInstance) {
+        release(pooledInstance);
+        pooledInstance = null;
+      }
+    };
   });
 
   let preprocessedLog = $state<string | null>(null);
@@ -25,28 +46,41 @@
     }
   });
 
-  let htmlLog = $derived(preprocessedLog ? ansiToHtml(preprocessedLog) : null);
-
+  // Write log to terminal when preprocessed log changes
   $effect(() => {
-    if (htmlLog && logContainer) {
-      requestAnimationFrame(() => {
-        if (logContainer) {
-          logContainer.scrollTop = logContainer.scrollHeight;
-        }
-      });
+    if (!pooledInstance) return;
+    if (preprocessedLog) {
+      pooledInstance.terminal.clear();
+      pooledInstance.terminal.reset();
+      pooledInstance.terminal.write(preprocessedLog);
+    } else {
+      pooledInstance.terminal.clear();
+      pooledInstance.terminal.reset();
     }
   });
 
+  // Update theme
+  $effect(() => {
+    const theme = $activeTheme;
+    if (theme) updatePoolTheme(theme);
+  });
+
+  // Auto-fit on container resize
+  $effect(() => {
+    if (!terminalContainer || !pooledInstance) return;
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(() => pooledInstance?.fitAddon.fit());
+    });
+    observer.observe(terminalContainer);
+    return () => observer.disconnect();
+  });
+
   function scrollToTop() {
-    if (logContainer) {
-      logContainer.scrollTop = 0;
-    }
+    pooledInstance?.terminal.scrollToTop();
   }
 
   function scrollToBottom() {
-    if (logContainer) {
-      logContainer.scrollTop = logContainer.scrollHeight;
-    }
+    pooledInstance?.terminal.scrollToBottom();
   }
 </script>
 
@@ -56,7 +90,7 @@
       <div class="spinner"></div>
       <span>{m.joblog_loading()}</span>
     </div>
-  {:else if htmlLog}
+  {:else if preprocessedLog}
     <div class="log-toolbar">
       <button class="log-nav-btn" onclick={scrollToTop} title={m.joblog_top_title()}>
         <span class="nf">{"\uF062"}</span> {m.joblog_top()}
@@ -65,7 +99,7 @@
         <span class="nf">{"\uF063"}</span> {m.joblog_bottom()}
       </button>
     </div>
-    <div class="log-content" bind:this={logContainer}>{@html htmlLog}</div>
+    <div class="log-terminal" bind:this={terminalContainer}></div>
   {:else}
     <div class="log-empty">{m.joblog_empty()}</div>
   {/if}
@@ -105,19 +139,10 @@
     color: var(--text-primary);
   }
 
-  .log-content {
+  .log-terminal {
     flex: 1;
-    padding: 12px 16px;
+    overflow: hidden;
     background: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-    font-size: 12px;
-    line-height: 1.6;
-    white-space: pre-wrap;
-    overflow-y: auto;
-    margin: 0;
-    -webkit-user-select: text;
-    user-select: text;
   }
 
   .log-loading {

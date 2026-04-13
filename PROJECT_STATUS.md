@@ -16,35 +16,31 @@ Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with reco
 
 ---
 
-## Phase 4: Terminal Foundation (libghostty)
+## Phase 4: Terminal Foundation (xterm.js)
 
-### 4.1 — Core Integration
+### 4A — Terminal Core + Read-Only Views + Theme Bridge ✅
 
-- [ ] Embed libghostty as a Rust crate with Tauri plugin bridge
-- [ ] New `terminal` crate (isolated from Tauri, reusable library)
-- [ ] Terminal rendering surface in Svelte (native view or webview bridge)
-- [ ] Shell detection and configuration (zsh, bash, fish, powershell)
+- [x] Rust PTY manager crate (`portable-pty`, shell spawn, read/write)
+- [x] New `terminal` crate (isolated from Tauri, reusable library)
+- [x] xterm.js Svelte component (WebGL addon, fit addon, web-links, search addons)
+- [x] Shell detection and configuration (zsh, bash, powershell)
+- [x] Read-only xterm.js instance pool (2 visible + 1 warm)
+- [x] TaskPanel output migrated to xterm.js read-only terminal
+- [x] CI JobLog migrated to xterm.js read-only terminal
+- [x] Retired `ansi.ts` parser — replaced by native xterm.js rendering
+- [x] Theme system redesigned: 18 base colors (bg + fg + 16 ANSI) with derived semantics
+- [x] All 14 TOML themes updated with explicit ANSI palettes
+- [x] Direct xterm.js ITheme mapping from base colors
+- [x] Tauri commands + event bridge for terminal sessions
 
-### 4.2 — Interactive Terminal Tabs
+### 4B — Interactive Terminal Tabs
 
 - [ ] Terminal launcher button with dropdown (plain terminal initially)
 - [ ] Multi-tab terminal sessions, each bound to a project tab
 - [ ] Split management within same project — cross-project split auto-extracts to new tab
 - [ ] Project auto-detection: terminal navigating to another project path re-links to that project tab
 - [ ] Visual grouping: terminal tabs linked to their project tab
-- [ ] Full libghostty features: splits, themes, ligatures (Fira Code)
-
-### 4.3 — Read-Only Terminal Views
-
-- [ ] Read-only terminal renderer (ANSI colors, same libghostty engine, input disabled)
-- [ ] Replace task popup with read-only terminal views for git command output
-- [ ] Replace CI log viewer with read-only terminal views for pipeline results
-- [ ] Unified ANSI rendering everywhere (retire custom `ansi.ts` parser)
-
-### 4.4 — Terminal Theme Bridge
-
-- [ ] Sync BeardGit TOML themes to libghostty terminal themes
-- [ ] Dark/light auto-switch follows OS preference (existing complementary pairing)
+- [ ] xterm.js features: splits, themes, ligatures (Fira Code), search, clickable URLs
 
 ---
 

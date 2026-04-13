@@ -14,13 +14,13 @@ export function buildGraphTheme(theme: ThemeData): GraphTheme {
     currentLine: g.selection,
     selection: g.selection,
     foreground: g.foreground,
-    comment: theme.colors.text_secondary,
-    red: theme.colors.accent_red,
-    orange: theme.colors.accent_orange,
-    yellow: theme.colors.accent_orange,
-    green: theme.colors.accent_green,
-    cyan: theme.colors.accent_blue,
-    purple: theme.colors.accent_purple,
+    comment: theme.derived.text_secondary,
+    red: theme.derived.accent_red,
+    orange: theme.derived.accent_orange,
+    yellow: theme.derived.accent_orange,
+    green: theme.derived.accent_green,
+    cyan: theme.derived.accent_blue,
+    purple: theme.derived.accent_purple,
     pink: g.ref_head,
     laneColors: g.lane_colors,
     headLaneTint: g.head_lane_tint,
@@ -57,20 +57,20 @@ function computeOverlays(mode: string): Record<string, string> {
 
 export function applyTheme(theme: ThemeData): void {
   const el = document.documentElement.style;
-  const c = theme.colors;
+  const d = theme.derived;
 
-  el.setProperty("--bg-primary", c.bg_primary);
-  el.setProperty("--bg-secondary", c.bg_secondary);
-  el.setProperty("--bg-toolbar", c.bg_toolbar);
-  el.setProperty("--text-primary", c.text_primary);
-  el.setProperty("--text-secondary", c.text_secondary);
-  el.setProperty("--accent-blue", c.accent_blue);
-  el.setProperty("--accent-green", c.accent_green);
-  el.setProperty("--accent-orange", c.accent_orange);
-  el.setProperty("--accent-purple", c.accent_purple);
-  el.setProperty("--accent-red", c.accent_red);
-  el.setProperty("--border", c.border);
-  el.setProperty("--selection", c.selection);
+  el.setProperty("--bg-primary", d.bg_primary);
+  el.setProperty("--bg-secondary", d.bg_secondary);
+  el.setProperty("--bg-toolbar", d.bg_toolbar);
+  el.setProperty("--text-primary", d.text_primary);
+  el.setProperty("--text-secondary", d.text_secondary);
+  el.setProperty("--accent-blue", d.accent_blue);
+  el.setProperty("--accent-green", d.accent_green);
+  el.setProperty("--accent-orange", d.accent_orange);
+  el.setProperty("--accent-purple", d.accent_purple);
+  el.setProperty("--accent-red", d.accent_red);
+  el.setProperty("--border", d.border);
+  el.setProperty("--selection", d.selection);
   el.setProperty("--theme-mode", theme.meta.mode);
 
   const overlays = computeOverlays(theme.meta.mode);

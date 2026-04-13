@@ -364,7 +364,28 @@ export interface ThemeMeta {
   complementary: string | null;
 }
 
-export interface ThemeColors {
+export interface ThemeBaseColors {
+  background: string;
+  foreground: string;
+  black: string;
+  red: string;
+  green: string;
+  yellow: string;
+  blue: string;
+  magenta: string;
+  cyan: string;
+  white: string;
+  bright_black: string;
+  bright_red: string;
+  bright_green: string;
+  bright_yellow: string;
+  bright_blue: string;
+  bright_magenta: string;
+  bright_cyan: string;
+  bright_white: string;
+}
+
+export interface DerivedColors {
   bg_primary: string;
   bg_secondary: string;
   bg_toolbar: string;
@@ -422,7 +443,8 @@ export interface ThemeEditorData {
 
 export interface ThemeData {
   meta: ThemeMeta;
-  colors: ThemeColors;
+  colors: ThemeBaseColors;
+  derived: DerivedColors;
   graph: ThemeGraphData;
   editor: ThemeEditorData | null;
 }

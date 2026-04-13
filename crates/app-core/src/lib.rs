@@ -9,3 +9,5 @@ pub mod commands;
 pub mod event_sink;
 pub mod state;
 pub mod task_commands;
+pub mod terminal_commands;
+pub mod terminal_sink;
