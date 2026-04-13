@@ -2,7 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [Unreleased]
+## [0.1.5] — Terminal Core + Theme Redesign
 
 **Terminal Core (xterm.js) + Theme Redesign**
 
