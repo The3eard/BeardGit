@@ -26,7 +26,7 @@
     };
   });
 
-  // Open terminal into container when the DOM element becomes available
+  // Open terminal into container once (container is always in DOM)
   $effect(() => {
     if (terminalContainer && pooledInstance && !terminalOpened) {
       pooledInstance.terminal.open(terminalContainer);
@@ -83,6 +83,15 @@
     return () => observer.disconnect();
   });
 
+  // Determine which overlay to show (null = show terminal)
+  let overlayState = $derived.by(() => {
+    if ($loadingJobLog) return "loading";
+    if (preprocessedLog) return null; // show terminal
+    if ($jobLogUnavailable && $selectedJobSteps && $selectedJobSteps.length > 0) return "steps";
+    if ($jobLogUnavailable) return "unavailable";
+    return "empty";
+  });
+
   function scrollToTop() {
     pooledInstance?.terminal.scrollToTop();
   }
@@ -93,12 +102,7 @@
 </script>
 
 <div class="job-log">
-  {#if $loadingJobLog}
-    <div class="log-loading">
-      <div class="spinner"></div>
-      <span>{m.joblog_loading()}</span>
-    </div>
-  {:else if preprocessedLog}
+  {#if overlayState === null}
     <div class="log-toolbar">
       <button class="log-nav-btn" onclick={scrollToTop} title={m.joblog_top_title()}>
         <span class="nf">{"\uF062"}</span> {m.joblog_top()}
@@ -107,17 +111,36 @@
         <span class="nf">{"\uF063"}</span> {m.joblog_bottom()}
       </button>
     </div>
-    <div class="log-terminal" bind:this={terminalContainer}></div>
-  {:else if $jobLogUnavailable && $selectedJobSteps && $selectedJobSteps.length > 0}
-    <JobSteps steps={$selectedJobSteps} />
-  {:else if $jobLogUnavailable}
-    <div class="log-unavailable">
-      <span class="nf">{"\uF017"}</span>
-      <span>{m.joblog_unavailable()}</span>
-    </div>
-  {:else}
-    <div class="log-empty">{m.joblog_empty()}</div>
   {/if}
+
+  <div class="log-body">
+    <!-- Terminal container is ALWAYS in the DOM — never destroyed/recreated -->
+    <div
+      class="log-terminal"
+      class:hidden={overlayState !== null}
+      bind:this={terminalContainer}
+    ></div>
+
+    {#if overlayState === "loading"}
+      <div class="log-overlay">
+        <div class="spinner"></div>
+        <span>{m.joblog_loading()}</span>
+      </div>
+    {:else if overlayState === "steps"}
+      <div class="log-overlay-fill">
+        <JobSteps steps={$selectedJobSteps ?? []} />
+      </div>
+    {:else if overlayState === "unavailable"}
+      <div class="log-overlay">
+        <span class="nf">{"\uF017"}</span>
+        <span>{m.joblog_unavailable()}</span>
+      </div>
+    {:else if overlayState === "empty"}
+      <div class="log-overlay">
+        <span>{m.joblog_empty()}</span>
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -154,14 +177,26 @@
     color: var(--text-primary);
   }
 
-  .log-terminal {
+  .log-body {
     flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .log-terminal {
+    width: 100%;
+    height: 100%;
     overflow: hidden;
     background: var(--bg-primary);
   }
 
-  .log-loading {
-    flex: 1;
+  .log-terminal.hidden {
+    visibility: hidden;
+  }
+
+  .log-overlay {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -169,26 +204,14 @@
     gap: 12px;
     color: var(--text-secondary);
     font-size: 13px;
+    font-style: italic;
+    background: var(--bg-primary);
   }
 
-  .log-unavailable {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: var(--text-secondary);
-    font-size: 13px;
-    font-style: italic;
-  }
-
-  .log-empty {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-secondary);
-    font-size: 13px;
-    font-style: italic;
+  .log-overlay-fill {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-primary);
+    overflow: hidden;
   }
 </style>
