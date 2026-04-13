@@ -15,8 +15,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
         .manage(app_core::state::AppState::new())
         .setup(|app| {
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+
             use tauri::Manager as _;
             let sink = std::sync::Arc::new(app_core::event_sink::TauriEventSink::new(
                 app.handle().clone(),

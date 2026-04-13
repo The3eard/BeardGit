@@ -11,6 +11,8 @@
     "opener:default",
     "dialog:default",
     "dialog:allow-open",
-    "core:webview:allow-set-webview-zoom"
+    "core:webview:allow-set-webview-zoom",
+    "updater:default",
+    "process:default"
   ]
 }

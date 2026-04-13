@@ -6,6 +6,8 @@
   import { initTaskStore, cleanupTaskStore } from "$lib/stores/tasks";
   import { initUiScale } from "$lib/stores/theme";
   import { initShortcutListener } from "$lib/stores/shortcuts";
+  import { checkForAppUpdate } from "$lib/stores/updater";
+  import ToastContainer from "$lib/components/ui/ToastContainer.svelte";
   let { children } = $props();
 
   // Disable default browser context menu globally
@@ -21,6 +23,7 @@
     initUiScale();
     tryAutoConnect();
     initTaskStore();
+    checkForAppUpdate();
     const cleanupShortcuts = initShortcutListener();
     return () => {
       cleanupTaskStore();
@@ -33,6 +36,8 @@
 <div oncontextmenu={handleContextMenu}>
   {@render children()}
 </div>
+
+<ToastContainer />
 
 <style>
   div {

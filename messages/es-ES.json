@@ -476,5 +476,12 @@
   "mrpr_approve_success": "Aprobada",
   "mrpr_review_submitted": "Revision enviada",
   "mrpr_no_filter_results": "Ningun resultado coincide con tu filtro",
-  "mrpr_search_placeholder": "Filtrar merge requests..."
+  "mrpr_search_placeholder": "Filtrar merge requests...",
+  "toast_dismiss": "Cerrar",
+  "update_available": "BeardGit {version} está disponible",
+  "update_download": "Descargar",
+  "update_downloading": "Descargando actualización… {percent}%",
+  "update_ready": "Actualización lista para instalar",
+  "update_restart": "Reiniciar",
+  "update_error": "Error al buscar actualizaciones"
 }
