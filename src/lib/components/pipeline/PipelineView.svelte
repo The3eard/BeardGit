@@ -10,7 +10,7 @@
   import PipelineList from "./PipelineList.svelte";
   import PipelineDetail from "./PipelineDetail.svelte";
   import JobLog from "./JobLog.svelte";
-  import { loadCiRuns, jobLog, jobLogUnavailable, selectedJobSteps } from "../../stores/provider";
+  import { loadCiRuns } from "../../stores/provider";
 
   let showJobLog = $state(false);
   let detailHeight = $state(250);
@@ -56,7 +56,7 @@
   {/snippet}
   {#snippet right()}
     <div class="pipeline-right">
-      {#if showJobLog && ($jobLog || $jobLogUnavailable || ($selectedJobSteps && $selectedJobSteps.length > 0))}
+      {#if showJobLog}
         <div class="pipelines-detail" style="height: {detailHeight}px">
           <PipelineDetail onSelectJob={handleJobSelect} />
         </div>

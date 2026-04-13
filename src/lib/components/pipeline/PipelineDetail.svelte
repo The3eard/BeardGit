@@ -38,9 +38,9 @@
   async function handleJobClick(job: CiJob) {
     selectedJobId = job.id;
     loadingJobId = job.id;
+    onSelectJob?.(job.id);
     try {
       await loadJobLog(job.id, job.status);
-      onSelectJob?.(job.id);
     } finally {
       loadingJobId = null;
     }
