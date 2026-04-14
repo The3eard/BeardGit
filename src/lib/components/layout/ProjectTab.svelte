@@ -149,7 +149,6 @@
   }
 
   .tab-close {
-    display: none;
     background: none;
     border: none;
     color: var(--text-secondary);
@@ -159,13 +158,11 @@
     padding: 0;
     line-height: 1;
     flex-shrink: 0;
+    opacity: 0.5;
   }
 
   .tab-close:hover {
     color: var(--text-primary);
-  }
-
-  .project-tab:hover .tab-close {
-    display: inline;
+    opacity: 1;
   }
 </style>

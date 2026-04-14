@@ -27,10 +27,11 @@
   onMount(() => {
     onTerminalOutput(terminal.sessionId, handleOutput);
 
-    // Report initial dimensions to backend
+    // Report initial dimensions to backend and focus
     const xtermInstance = terminalComponent?.getTerminal();
     if (xtermInstance) {
       terminalResize(terminal.sessionId, xtermInstance.cols, xtermInstance.rows);
+      xtermInstance.focus();
 
       // Listen for resize events from xterm
       xtermInstance.onResize(({ cols, rows }) => {
@@ -42,9 +43,19 @@
   onDestroy(() => {
     offTerminalOutput(terminal.sessionId);
   });
+
+  function handleClick() {
+    terminalComponent?.getTerminal()?.focus();
+  }
 </script>
 
-<div class="terminal-view">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<div
+  class="terminal-view"
+  onclick={handleClick}
+  style:background={$activeTheme?.colors.background ?? 'var(--bg-primary)'}
+>
   {#if $activeTheme}
     <Terminal
       bind:this={terminalComponent}
@@ -57,9 +68,9 @@
 
 <style>
   .terminal-view {
+    flex: 1;
     width: 100%;
-    height: 100%;
+    min-height: 0;
     overflow: hidden;
-    background: var(--bg-primary);
   }
 </style>

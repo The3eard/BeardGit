@@ -32,7 +32,7 @@
   import { blamePreviousView } from "$lib/stores/blame";
   import TerminalView from "$lib/components/terminal/TerminalView.svelte";
   import { initTerminalEvents } from "$lib/stores/terminal";
-  import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment } from "$lib/stores/tabs";
+  import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment, openTabs } from "$lib/stores/tabs";
   import { getSidebarCollapsed, setSidebarCollapsed } from "$lib/api/tauri";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
@@ -512,17 +512,26 @@
       onToggleCollapse={handleToggleSidebar}
     />
 
-    <div class="center-panel">
+    <div class="center-panel" style:background={($activeTab?.kind === "terminal" || ($activeTab?.kind === "composite" && $activeTab?.activeSegment === "terminal")) ? $activeTheme?.colors.background : undefined}>
       <ConflictToolbar />
-      {#if $activeTab?.kind === "terminal"}
-        {#key $activeTab.terminal.sessionId}
-          <TerminalView terminal={$activeTab.terminal} />
-        {/key}
-      {:else if $activeTab?.kind === "composite" && $activeTab.activeSegment === "terminal"}
-        {#key $activeTab.terminal.sessionId}
-          <TerminalView terminal={$activeTab.terminal} />
-        {/key}
-      {:else if activeView === "settings"}
+      <div class="content-wrapper">
+        <!-- Persistent terminal layer: always mounted, shown/hidden via visibility.
+             Uses absolute positioning so terminals keep full dimensions when hidden.
+             Keyed by sessionId so Svelte never destroys/recreates on tab reorder. -->
+        {#each $openTabs as tab, i (tab.kind === "terminal" ? `t-${tab.terminal.sessionId}` : tab.kind === "composite" && tab.terminal ? `c-${tab.terminal.sessionId}` : `skip-${i}`)}
+          {#if tab.kind === "terminal"}
+            <div class="terminal-persist" class:visible={i === $activeTabIndex} style:background={$activeTheme?.colors.background}>
+              <TerminalView terminal={tab.terminal} />
+            </div>
+          {:else if tab.kind === "composite" && tab.terminal}
+            <div class="terminal-persist" class:visible={i === $activeTabIndex && tab.activeSegment === "terminal"} style:background={$activeTheme?.colors.background}>
+              <TerminalView terminal={tab.terminal} />
+            </div>
+          {/if}
+        {/each}
+        {#if $activeTab?.kind === "terminal" || ($activeTab?.kind === "composite" && $activeTab.activeSegment === "terminal")}
+          <!-- Terminal is showing via persistent layer above -->
+        {:else if activeView === "settings"}
         <SettingsPage />
       {:else if activeView === "pipelines"}
         <PipelineView />
@@ -637,6 +646,7 @@
           <button class="open-btn" onclick={openFolderAsProject}>{m.app_open_repo()}</button>
         </div>
       {/if}
+      </div><!-- /content-wrapper -->
       {#if $panelMode === "panel"}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="task-panel-resize-handle" onmousedown={startTaskPanelResize}></div>
@@ -708,6 +718,29 @@
     display: flex;
     flex: 1;
     overflow: hidden;
+  }
+
+  .content-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .terminal-persist {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    visibility: hidden;
+    z-index: 0;
+  }
+
+  .terminal-persist.visible {
+    visibility: visible;
+    z-index: 10;
   }
 
   .center-panel {

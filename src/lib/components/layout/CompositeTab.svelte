@@ -100,7 +100,7 @@
 <div class="composite-tab" role="tab" tabindex="0" onmouseenter={handleMouseEnter} onmouseleave={handleMouseLeave}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="segment"
+    class="segment segment-left"
     class:active={isActiveTab && activeSegment === "project"}
     class:dimmed={isActiveTab && activeSegment !== "project"}
     onclick={handleProjectClick}
@@ -121,7 +121,7 @@
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="segment"
+    class="segment segment-right"
     class:active={isActiveTab && activeSegment === "terminal"}
     class:dimmed={isActiveTab && activeSegment !== "terminal"}
     onclick={handleTerminalClick}
@@ -152,11 +152,11 @@
     position: relative;
   }
 
-  .segment:first-child {
+  .segment-left {
     border-radius: 14px 0 0 14px;
   }
 
-  .segment:last-of-type {
+  .segment-right {
     border-radius: 0 14px 14px 0;
   }
 
@@ -229,7 +229,6 @@
   }
 
   .tab-close {
-    display: none;
     background: none;
     border: none;
     color: var(--text-secondary);
@@ -239,13 +238,11 @@
     padding: 0;
     line-height: 1;
     flex-shrink: 0;
+    opacity: 0.5;
   }
 
   .tab-close:hover {
     color: var(--text-primary);
-  }
-
-  .composite-tab:hover .tab-close {
-    display: inline;
+    opacity: 1;
   }
 </style>

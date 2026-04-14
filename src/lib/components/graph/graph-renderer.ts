@@ -257,15 +257,15 @@ export function renderGraph(
     if (isHovered) {
       // Hovered lane: thicker + brighter line (the line itself glows)
       ctx.lineWidth = 3.5;
-      ctx.setLineDash(seg.sync_state === "RemoteOnly" ? [4, 3] : []);
+      ctx.setLineDash(seg.sync_state === "RemoteOnly" ? [4, 3] : seg.sync_state === "LocalOnly" ? [6, 3] : []);
     } else if (isHeadLane) {
       ctx.lineWidth = 3;
-      ctx.setLineDash(seg.sync_state === "RemoteOnly" ? [4, 3] : []);
+      ctx.setLineDash(seg.sync_state === "RemoteOnly" ? [4, 3] : seg.sync_state === "LocalOnly" ? [6, 3] : []);
     } else {
       switch (seg.sync_state) {
         case "LocalOnly":
-          ctx.lineWidth = 1.2;
-          ctx.setLineDash([]);
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 3]);
           break;
         case "RemoteOnly":
           ctx.lineWidth = 1.2;

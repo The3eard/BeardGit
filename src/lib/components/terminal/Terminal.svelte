@@ -123,7 +123,7 @@
   }
 </script>
 
-<div class="terminal-container" bind:this={containerEl}></div>
+<div class="terminal-container" bind:this={containerEl} style:background={theme.colors.background}></div>
 
 <style>
   .terminal-container {
@@ -133,7 +133,11 @@
   }
 
   .terminal-container :global(.xterm) {
-    padding: 4px;
+    height: 100%;
+  }
+
+  .terminal-container :global(.xterm .xterm-screen),
+  .terminal-container :global(.xterm .xterm-scrollable-element) {
     height: 100%;
   }
 </style>
