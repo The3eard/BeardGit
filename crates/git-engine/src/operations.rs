@@ -36,6 +36,17 @@ impl Repository {
         Ok(())
     }
 
+    /// Create a new branch at a specific commit.
+    pub fn create_branch_at(&self, name: &str, oid: &str) -> Result<(), GitError> {
+        let repo = self.inner();
+        let obj = repo.revparse_single(oid)?;
+        let commit = obj
+            .peel_to_commit()
+            .map_err(|_| GitError::Git(git2::Error::from_str("not a commit")))?;
+        repo.branch(name, &commit, false)?;
+        Ok(())
+    }
+
     /// Delete a local branch by name.
     pub fn delete_branch(&self, name: &str) -> Result<(), GitError> {
         let repo = self.inner();
@@ -50,6 +61,18 @@ impl Repository {
         let obj = repo.revparse_single(&format!("refs/heads/{name}"))?;
         repo.checkout_tree(&obj, None)?;
         repo.set_head(&format!("refs/heads/{name}"))?;
+        Ok(())
+    }
+
+    /// Checkout a specific commit (detached HEAD).
+    pub fn checkout_detached(&self, oid: &str) -> Result<(), GitError> {
+        let repo = self.inner();
+        let obj = repo.revparse_single(oid)?;
+        let commit = obj
+            .peel_to_commit()
+            .map_err(|_| GitError::Git(git2::Error::from_str("not a commit")))?;
+        repo.checkout_tree(commit.as_object(), None)?;
+        repo.set_head_detached(commit.id())?;
         Ok(())
     }
 
@@ -131,6 +154,35 @@ mod tests {
     fn test_get_current_branch() {
         let (_dir, repo) = create_test_repo();
         let branch = repo.get_current_branch().unwrap();
+        assert!(branch.is_some());
+    }
+
+    #[test]
+    fn test_create_branch_at_commit() {
+        let (dir, repo) = create_test_repo();
+        let first_commits = repo.walk_commits(1).unwrap();
+        let first_oid = &first_commits[0].oid;
+
+        // Create a second commit
+        fs::write(dir.path().join("file.txt"), "updated\n").unwrap();
+        repo.stage_files(&["file.txt".to_string()]).unwrap();
+        repo.create_commit("Second commit").unwrap();
+
+        // Create branch at the first commit
+        repo.create_branch_at("old-branch", first_oid).unwrap();
+        let branches = repo.branches().unwrap();
+        assert!(branches.iter().any(|b| b.name == "old-branch"));
+    }
+
+    #[test]
+    fn test_checkout_detached() {
+        let (_dir, repo) = create_test_repo();
+        let commits = repo.walk_commits(1).unwrap();
+        let oid = &commits[0].oid;
+
+        repo.checkout_detached(oid).unwrap();
+        let branch = repo.get_current_branch().unwrap();
+        // Detached HEAD — branch name is the oid, not a branch ref
         assert!(branch.is_some());
     }
 }

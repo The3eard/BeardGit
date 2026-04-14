@@ -116,6 +116,14 @@ export async function createBranch(name: string): Promise<void> {
   return invoke("create_branch", { name });
 }
 
+export async function createBranchAt(name: string, oid: string): Promise<void> {
+  return invoke("create_branch_at", { name, oid });
+}
+
+export async function checkoutDetached(oid: string): Promise<void> {
+  return invoke("checkout_detached", { oid });
+}
+
 export async function deleteBranch(name: string): Promise<void> {
   return invoke("delete_branch", { name });
 }
@@ -637,6 +645,16 @@ export async function updateAllSubmodules(): Promise<TaskId> {
 /** Deinitialize a submodule. */
 export async function deinitSubmodule(path: string, force: boolean): Promise<void> {
   return invoke<void>("deinit_submodule", { path, force });
+}
+
+/** Add a new submodule to the repository. */
+export async function addSubmodule(url: string, path: string): Promise<void> {
+  return invoke<void>("add_submodule", { url, path });
+}
+
+/** Remove a submodule completely (deinit + rm). */
+export async function removeSubmodule(path: string): Promise<void> {
+  return invoke<void>("remove_submodule", { path });
 }
 
 /** Get the absolute filesystem path of a submodule. */

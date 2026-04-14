@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ReflogEntry } from "../../types";
-  import { selectedReflogOid, selectReflogEntry } from "../../stores/reflog";
+  import { selectedReflogIndex, selectReflogEntry, loadReflog, reflogLoading } from "../../stores/reflog";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
   import * as m from "$lib/paraglide/messages";
@@ -10,7 +10,7 @@
     onContextMenu,
   }: {
     entries: ReflogEntry[];
-    onContextMenu?: (e: MouseEvent, entry: ReflogEntry) => void;
+    onContextMenu?: (e: MouseEvent, entry: ReflogEntry, index: number) => void;
   } = $props();
 
   /** Map reflog action to a display icon and color. */
@@ -35,21 +35,30 @@
     }
   }
 
+  function handleRefresh() {
+    loadReflog();
+  }
 </script>
 
 <div class="reflog-list">
   <div class="list-header">
     <h3>{m.reflog_title()}</h3>
+    <button
+      class="refresh-btn nf"
+      disabled={$reflogLoading}
+      onclick={handleRefresh}
+      title="Refresh"
+    >{$reflogLoading ? "\uF110" : "\uF021"}</button>
   </div>
   <div class="list-content">
-    {#each entries as entry (entry.oid + entry.timestamp)}
+    {#each entries as entry, i (entry.oid + entry.timestamp + i)}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="reflog-row"
-        class:selected={$selectedReflogOid === entry.oid}
-        onclick={() => selectReflogEntry(entry.oid)}
-        oncontextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, entry); }}
+        class:selected={$selectedReflogIndex === i}
+        onclick={() => selectReflogEntry(i)}
+        oncontextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, entry, i); }}
       >
         <span
           class="action-icon nf"
@@ -88,6 +97,9 @@
     padding: 12px 16px 8px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .list-header h3 {
@@ -95,6 +107,27 @@
     font-weight: 600;
     color: var(--text-primary);
     margin: 0;
+  }
+
+  .refresh-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.1s, color 0.1s;
+  }
+
+  .refresh-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+  }
+
+  .refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   .list-content {

@@ -14,6 +14,8 @@ import {
   updateSubmodule as apiUpdate,
   updateAllSubmodules as apiUpdateAll,
   deinitSubmodule as apiDeinit,
+  addSubmodule as apiAdd,
+  removeSubmodule as apiRemove,
   submoduleAbsPath as apiAbsPath,
 } from "../api/tauri";
 
@@ -55,6 +57,18 @@ export async function updateAllSubmodules(): Promise<TaskId> {
 /** Deinitialize a submodule and refresh the list. */
 export async function deinitSubmodule(path: string, force: boolean): Promise<void> {
   await apiDeinit(path, force);
+  await refreshSubmodules();
+}
+
+/** Add a new submodule and refresh the list. */
+export async function addSubmodule(url: string, path: string): Promise<void> {
+  await apiAdd(url, path);
+  await refreshSubmodules();
+}
+
+/** Remove a submodule completely and refresh the list. */
+export async function removeSubmodule(path: string): Promise<void> {
+  await apiRemove(path);
   await refreshSubmodules();
 }
 

@@ -4,6 +4,30 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased] — Phase 5.1 + 5.2: AI Provider Integration
 
+**Reflog Section Overhaul**
+
+- Fixed broken "Create Branch" context menu action — was creating branch at HEAD instead of at the reflog entry's commit. New `create_branch_at(name, oid)` backend operation
+- Fixed misleading "Checkout" action — was performing `reset --mixed` (destructive). New `checkout_detached(oid)` backend operation for proper detached HEAD checkout
+- Fixed selection model — `selectedReflogOid` used just the OID which is not unique across reflog entries (e.g., two checkouts to same branch). Switched to index-based selection
+- Removed duplicate `repo-changed` listeners — both SplitView and a separate `$effect` were setting up listeners causing double loads. SplitView now handles lifecycle exclusively
+- Added action buttons to detail pane: Checkout, Create Branch, Reset (dropdown with Soft/Mixed/Hard), Copy SHA
+- Added refresh button to list header
+- Context menu actions now refresh the reflog list after operations
+- Selection cleared when navigating away to prevent stale state on return
+- File diff panel: clicking a file in the reflog commit detail now shows a resizable diff editor below (same pattern as branches view)
+
+**Submodule Management — Add & Remove**
+
+- New "Add Submodule" button in header — opens inline form with URL and path inputs
+- New `add_submodule(url, path)` backend operation (`git submodule add`)
+- New "Remove Submodule" in right-click context menu with confirmation dialog
+- New `remove_submodule(path)` backend operation (`git submodule deinit -f` + `git rm -f`)
+- Empty state no longer blocks the "Add Submodule" button — users can add submodules from an empty section
+
+**SplitView Fix**
+
+- Added `width: 100%` to `.split-view` — fixes intermittent issue where the right pane didn't reach the container edge in flex layouts
+
 **AI Provider Architecture**
 
 - New `ai-provider` crate: `AiProvider` trait with 17 methods across 7 capability groups (identity, detection, headless execution, specialized actions, interactive launch, session/worktree introspection, config/attribution)

@@ -2,7 +2,7 @@
 
 ## Current State
 
-**v0.1.7-dev** — Phase 5.1+5.2: AI provider integration (AiProvider trait, claude-code crate, 14 Tauri commands, frontend store + action buttons, terminal dropdown launches claude binary with brand icons in tabs). Phase 4B: interactive terminal tabs (unified tab model, composite tabs, Cmd+T), sidebar collapse. Phase 4A: terminal crate, xterm.js component, theme redesign (18 base colors), read-only migration. Phase 3: task history popup, keyboard shortcuts, reflog viewer, clean, git config editor, gitignore management, patch management, submodules, MR/PR management with bundled gh/glab CLIs. Phase 2: CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase, resizable graph columns, 14 themes.
+**v0.1.7-dev** — Phase 5.1+5.2: AI provider integration (AiProvider trait, claude-code crate, 14 Tauri commands, frontend store + action buttons, terminal dropdown launches claude binary with brand icons in tabs). Reflog overhaul (action buttons, fixed checkout/branch/selection bugs, file diff panel, lifecycle cleanup). Submodule add/remove support. Phase 4B: interactive terminal tabs (unified tab model, composite tabs, Cmd+T), sidebar collapse. Phase 4A: terminal crate, xterm.js component, theme redesign (18 base colors), read-only migration. Phase 3: task history popup, keyboard shortcuts, reflog viewer, clean, git config editor, gitignore management, patch management, submodules, MR/PR management with bundled gh/glab CLIs. Phase 2: CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase, resizable graph columns, 14 themes.
 
 ## Project Overview
 

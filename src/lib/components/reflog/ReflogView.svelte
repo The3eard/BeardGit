@@ -13,10 +13,12 @@
     onContextMenu,
     onNavigateToGraph,
     onNavigate,
+    onFileClick,
   }: {
-    onContextMenu: (e: MouseEvent, entry: ReflogEntry) => void;
+    onContextMenu: (e: MouseEvent, entry: ReflogEntry, index: number) => void;
     onNavigateToGraph: (oid: string) => void;
     onNavigate: (view: string) => void;
+    onFileClick?: (path: string) => void;
   } = $props();
 </script>
 
@@ -30,6 +32,7 @@
         entry={$selectedReflogEntry}
         {onNavigateToGraph}
         {onNavigate}
+        {onFileClick}
       />
     {:else}
       <div class="no-diff">

@@ -38,11 +38,10 @@
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
   import {
-    reflogEntries,
-    selectedReflogEntry,
     loadReflog,
-    initReflogWatcher,
-    cleanupReflogWatcher,
+    clearReflogSelection,
+    reflogFileDiff,
+    selectedReflogEntry as selectedReflogEntryStore,
   } from "$lib/stores/reflog";
   import type { ReflogEntry } from "$lib/types";
   import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
@@ -416,13 +415,29 @@
     }
   }
 
+  async function handleReflogFileClick(path: string) {
+    const entry = get(selectedReflogEntryStore);
+    if (!entry) return;
+    try {
+      const detail = await api.getCommitDetail(entry.oid);
+      const parentOid = detail.parents?.[0] ?? null;
+      const [oldContent, newContent] = await Promise.all([
+        parentOid ? getFileAtCommit(parentOid, path).catch(() => "") : Promise.resolve(""),
+        getFileAtCommit(entry.oid, path).catch(() => ""),
+      ]);
+      reflogFileDiff.set({ oldContent, newContent, filename: path });
+    } catch {
+      reflogFileDiff.set(null);
+    }
+  }
+
   // ── Reflog context menu ────────────────────────────────────────────
   let reflogCtxVisible = $state(false);
   let reflogCtxX = $state(0);
   let reflogCtxY = $state(0);
   let reflogCtxEntry = $state<ReflogEntry | null>(null);
 
-  function handleReflogContextMenu(e: MouseEvent, entry: ReflogEntry) {
+  function handleReflogContextMenu(e: MouseEvent, entry: ReflogEntry, _index: number) {
     reflogCtxEntry = entry;
     reflogCtxX = e.clientX;
     reflogCtxY = e.clientY;
@@ -442,8 +457,11 @@
         label: m.graph_checkout({ sha: shortOid(entry.oid) }),
         action: async () => {
           try {
-            await api.resetToCommit(entry.oid, "mixed");
-          } catch { /* handled */ }
+            await api.checkoutDetached(entry.oid);
+            await loadReflog();
+          } catch (e) {
+            console.error("Checkout failed:", e);
+          }
         },
       },
       {
@@ -452,10 +470,10 @@
           const name = prompt(m.graph_branch_name_prompt());
           if (!name) return;
           try {
-            await api.createBranch(name);
-            await api.resetToCommit(entry.oid, "soft");
-          } catch (err) {
-            console.error("Failed to create branch at reflog entry:", err);
+            await api.createBranchAt(name, entry.oid);
+            await loadReflog();
+          } catch (e) {
+            console.error("Create branch failed:", e);
           }
         },
       },
@@ -464,7 +482,7 @@
         label: m.graph_reset_soft(),
         action: async () => {
           if (confirm(m.graph_reset_confirm_soft({ sha: shortOid(entry.oid) }))) {
-            try { await api.resetToCommit(entry.oid, "soft"); } catch { /* handled */ }
+            try { await api.resetToCommit(entry.oid, "soft"); await loadReflog(); } catch { /* handled */ }
           }
         },
       },
@@ -472,7 +490,7 @@
         label: m.graph_reset_mixed(),
         action: async () => {
           if (confirm(m.graph_reset_confirm_mixed({ sha: shortOid(entry.oid) }))) {
-            try { await api.resetToCommit(entry.oid, "mixed"); } catch { /* handled */ }
+            try { await api.resetToCommit(entry.oid, "mixed"); await loadReflog(); } catch { /* handled */ }
           }
         },
       },
@@ -480,7 +498,7 @@
         label: m.graph_reset_hard(),
         action: async () => {
           if (confirm(m.graph_reset_confirm_hard({ sha: shortOid(entry.oid) }))) {
-            try { await api.resetToCommit(entry.oid, "hard"); } catch { /* handled */ }
+            try { await api.resetToCommit(entry.oid, "hard"); await loadReflog(); } catch { /* handled */ }
           }
         },
       },
@@ -493,12 +511,11 @@
   }
 
   // ── Reflog lifecycle ───────────────────────────────────────────────
+  // SplitView handles initial load and repo-changed listener.
+  // We only need to clear selection when navigating away to prevent stale state.
   $effect(() => {
-    if (activeView === "reflog") {
-      loadReflog();
-      initReflogWatcher();
-    } else {
-      cleanupReflogWatcher();
+    if (activeView !== "reflog") {
+      clearReflogSelection();
     }
   });
 </script>
@@ -564,11 +581,30 @@
       {:else if activeView === "worktrees"}
         <WorktreeList />
       {:else if activeView === "reflog"}
-        <ReflogView
-          onContextMenu={handleReflogContextMenu}
-          onNavigateToGraph={(oid) => { navigateToCommit(oid); handleNavigate("graph"); }}
-          onNavigate={handleNavigate}
-        />
+        <div class="branch-layout">
+          <div class="branch-main">
+            <ReflogView
+              onContextMenu={handleReflogContextMenu}
+              onNavigateToGraph={(oid) => { navigateToCommit(oid); handleNavigate("graph"); }}
+              onNavigate={handleNavigate}
+              onFileClick={handleReflogFileClick}
+            />
+          </div>
+          {#if $reflogFileDiff}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
+            <div class="diff-panel" style="height: {diffPanelHeight}px">
+              <DiffEditor
+                oldContent={$reflogFileDiff.oldContent}
+                newContent={$reflogFileDiff.newContent}
+                filename={$reflogFileDiff.filename}
+                editorTheme={$activeTheme?.editor}
+                isDark={$activeTheme?.meta.mode !== 'light'}
+                onClose={() => reflogFileDiff.set(null)}
+              />
+            </div>
+          {/if}
+        </div>
       {:else if activeView === "submodules"}
         <SubmoduleList />
       {:else if activeView === "blame"}

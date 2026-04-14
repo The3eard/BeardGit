@@ -125,6 +125,36 @@ impl Repository {
         }
     }
 
+    /// Add a new submodule to the repository.
+    ///
+    /// Equivalent to `git submodule add <url> <path>`.
+    pub fn add_submodule(&self, url: &str, path: &str) -> Result<(), GitError> {
+        let result = self.git_cmd(&["submodule", "add", url, path])?;
+        if result.success {
+            Ok(())
+        } else {
+            Err(GitError::CliError(result.stderr))
+        }
+    }
+
+    /// Remove a submodule completely (deinit, remove from index, delete directory).
+    ///
+    /// Equivalent to `git submodule deinit -f <path> && git rm -f <path>`.
+    pub fn remove_submodule(&self, path: &str) -> Result<(), GitError> {
+        // Deinit first
+        let result = self.git_cmd(&["submodule", "deinit", "--force", path])?;
+        if !result.success {
+            return Err(GitError::CliError(result.stderr));
+        }
+        // Remove from index and working tree
+        let result = self.git_cmd(&["rm", "-f", path])?;
+        if result.success {
+            Ok(())
+        } else {
+            Err(GitError::CliError(result.stderr))
+        }
+    }
+
     /// Return the absolute path to a submodule's working directory.
     ///
     /// Resolves `<repo_root>/<submodule_path>` to an absolute path.

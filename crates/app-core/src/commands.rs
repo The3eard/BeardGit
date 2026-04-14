@@ -591,6 +591,34 @@ pub fn create_branch(name: String, state: State<'_, AppState>) -> Result<(), Str
     })
 }
 
+/// Create a new branch at a specific commit.
+///
+/// # Parameters
+/// - `name` – Name for the new branch.
+/// - `oid` – Commit OID where the branch should point.
+#[tauri::command]
+pub fn create_branch_at(
+    name: String,
+    oid: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.create_branch_at(&name, &oid)
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Checkout a specific commit (detached HEAD).
+///
+/// # Parameters
+/// - `oid` – Commit OID to checkout.
+#[tauri::command]
+pub fn checkout_detached(oid: String, state: State<'_, AppState>) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.checkout_detached(&oid).map_err(|e| e.to_string())
+    })
+}
+
 /// Delete a local branch by name.
 ///
 /// # Parameters
@@ -2900,6 +2928,29 @@ pub fn deinit_submodule(
     with_active_repo(&state, |repo| {
         repo.deinit_submodule(&path, force)
             .map_err(|e| e.to_string())
+    })
+}
+
+/// Add a new submodule to the repository.
+///
+/// # Parameters
+/// - `url` – Remote URL of the submodule repository.
+/// - `path` – Relative path where the submodule will be placed.
+#[tauri::command]
+pub fn add_submodule(url: String, path: String, state: State<'_, AppState>) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.add_submodule(&url, &path).map_err(|e| e.to_string())
+    })
+}
+
+/// Remove a submodule completely (deinit + rm).
+///
+/// # Parameters
+/// - `path` – Relative path of the submodule to remove.
+#[tauri::command]
+pub fn remove_submodule(path: String, state: State<'_, AppState>) -> Result<(), String> {
+    with_active_repo(&state, |repo| {
+        repo.remove_submodule(&path).map_err(|e| e.to_string())
     })
 }
 

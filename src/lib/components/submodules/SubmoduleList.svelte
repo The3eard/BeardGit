@@ -8,6 +8,8 @@
     updateSubmodule,
     updateAllSubmodules,
     deinitSubmodule,
+    addSubmodule,
+    removeSubmodule,
     getSubmoduleAbsPath,
   } from "../../stores/submodules";
   import { openProjectTab } from "../../stores/projects";
@@ -35,6 +37,36 @@
     message: string;
     onConfirm: () => void;
   } | null>(null);
+
+  // Add submodule form state
+  let showAddForm = $state(false);
+  let addUrl = $state("");
+  let addPath = $state("");
+  let addError = $state<string | null>(null);
+  let adding = $state(false);
+
+  async function handleAdd() {
+    if (!addUrl.trim() || !addPath.trim()) return;
+    adding = true;
+    addError = null;
+    try {
+      await addSubmodule(addUrl.trim(), addPath.trim());
+      showAddForm = false;
+      addUrl = "";
+      addPath = "";
+    } catch (err) {
+      addError = String(err);
+    } finally {
+      adding = false;
+    }
+  }
+
+  function cancelAdd() {
+    showAddForm = false;
+    addUrl = "";
+    addPath = "";
+    addError = null;
+  }
 
   function statusLabel(status: string): string {
     switch (status) {
@@ -147,6 +179,24 @@
 
     items.push({ separator: true });
     items.push({
+      label: m.submodule_remove(),
+      action: () => {
+        confirmProps = {
+          title: m.submodule_remove(),
+          message: m.submodule_remove_confirm({ name: sub.name }),
+          onConfirm: async () => {
+            try {
+              await removeSubmodule(sub.path);
+            } catch (err) {
+              alert(m.submodule_remove_failed({ error: String(err) }));
+            }
+            confirmProps = null;
+          },
+        };
+      },
+    });
+    items.push({ separator: true });
+    items.push({
       label: m.submodule_copy_path(),
       action: () => navigator.clipboard.writeText(sub.path),
     });
@@ -169,16 +219,47 @@
 <div class="submodule-view">
   <div class="header">
     <h2 class="title">{m.submodule_title()}</h2>
-    {#if $submodules.length > 0}
-      <button class="action-btn" onclick={handleUpdateAll}>
-        {m.submodule_update_all()}
+    <div class="header-actions">
+      {#if $submodules.length > 0}
+        <button class="action-btn" onclick={handleUpdateAll}>
+          {m.submodule_update_all()}
+        </button>
+      {/if}
+      <button class="action-btn action-btn-primary" onclick={() => { showAddForm = !showAddForm; }}>
+        {m.submodule_add()}
       </button>
-    {/if}
+    </div>
   </div>
+
+  {#if showAddForm}
+    <div class="add-form">
+      <input
+        type="text"
+        class="add-input"
+        placeholder={m.submodule_add_url_placeholder()}
+        bind:value={addUrl}
+      />
+      <input
+        type="text"
+        class="add-input"
+        placeholder={m.submodule_add_path_placeholder()}
+        bind:value={addPath}
+      />
+      {#if addError}
+        <div class="add-error">{addError}</div>
+      {/if}
+      <div class="add-actions">
+        <button class="action-btn action-btn-primary" onclick={handleAdd} disabled={adding || !addUrl.trim() || !addPath.trim()}>
+          {adding ? "Adding..." : m.submodule_add()}
+        </button>
+        <button class="action-btn" onclick={cancelAdd}>Cancel</button>
+      </div>
+    </div>
+  {/if}
 
   {#if $submodulesLoading}
     <div class="empty-state">{m.submodule_title()}...</div>
-  {:else if $submodules.length === 0}
+  {:else if $submodules.length === 0 && !showAddForm}
     <div class="empty-state">{m.submodule_empty()}</div>
   {:else}
     <div class="submodule-list">
@@ -258,8 +339,59 @@
     cursor: pointer;
   }
 
-  .action-btn:hover {
+  .action-btn:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.05);
+  }
+
+  .action-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .action-btn-primary {
+    color: var(--accent-blue);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .add-input {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+  }
+
+  .add-input::placeholder {
+    color: var(--text-secondary);
+  }
+
+  .add-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+  }
+
+  .add-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .add-error {
+    font-size: 11px;
+    color: var(--accent-red, #f85149);
   }
 
   .empty-state {
