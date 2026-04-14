@@ -277,6 +277,20 @@ export interface StatusSummary {
   stash_count: number;
 }
 
+/** Per-project cached git state for instant UI on switch. */
+export interface ProjectSnapshot {
+  path: string;
+  head_branch: string | null;
+  ahead: number;
+  behind: number;
+  staged: number;
+  unstaged: number;
+  untracked: number;
+  conflicted: number;
+  stash_count: number;
+  change_count: number;
+}
+
 export interface StashEntry {
   index: number;
   message: string;

@@ -1,6 +1,8 @@
 <script lang="ts">
-  import type { ProjectInfo, TerminalTabInfo } from "$lib/types";
+  import type { ProjectInfo, TerminalTabInfo, ProjectSnapshot } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
+  import TabTooltip from "./TabTooltip.svelte";
+  import { getSnapshotForHover } from "$lib/stores/project-cache";
 
   interface Props {
     project: ProjectInfo;
@@ -66,9 +68,36 @@
   let terminalLabel = $derived(
     terminal.title.includes(" · ") ? terminal.title.split(" · ")[0] : terminal.title
   );
+
+  let hoverSnapshot = $state<ProjectSnapshot | null>(null);
+  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+
+  function handleMouseEnter(e: MouseEvent) {
+    const target = e.currentTarget as HTMLElement;
+    hoverTimer = setTimeout(async () => {
+      const rect = target.getBoundingClientRect();
+      tooltipX = rect.left;
+      tooltipY = rect.bottom + 4;
+      try {
+        hoverSnapshot = await getSnapshotForHover(project.path);
+      } catch {
+        hoverSnapshot = null;
+      }
+    }, 300);
+  }
+
+  function handleMouseLeave() {
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+    hoverSnapshot = null;
+  }
 </script>
 
-<div class="composite-tab" role="tab" tabindex="0">
+<div class="composite-tab" role="tab" tabindex="0" onmouseenter={handleMouseEnter} onmouseleave={handleMouseLeave}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="segment"
@@ -105,6 +134,9 @@
       {"\uF00D"}
     </button>
   </div>
+  {#if hoverSnapshot}
+    <TabTooltip snapshot={hoverSnapshot} x={tooltipX} y={tooltipY} />
+  {/if}
 </div>
 
 <style>
@@ -113,10 +145,19 @@
     align-items: center;
     height: 28px;
     border-radius: 14px;
-    overflow: hidden;
+    overflow: visible;
     background: rgba(255, 255, 255, 0.04);
     flex-shrink: 0;
     user-select: none;
+    position: relative;
+  }
+
+  .segment:first-child {
+    border-radius: 14px 0 0 14px;
+  }
+
+  .segment:last-of-type {
+    border-radius: 0 14px 14px 0;
   }
 
   .segment {
@@ -147,8 +188,9 @@
 
   .divider {
     width: 1px;
-    height: 60%;
-    background: var(--border);
+    height: 100%;
+    background: var(--accent-blue);
+    opacity: 0.3;
     flex-shrink: 0;
   }
 
@@ -191,7 +233,7 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: 8px;
     font-family: var(--font-icons);
     cursor: pointer;
     padding: 0;

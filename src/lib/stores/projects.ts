@@ -32,6 +32,7 @@ import {
   loadingDetail,
 } from "./provider";
 import { refreshStatuses, clearChangesState } from "./changes";
+import { loadProjectSnapshot, saveCurrentSnapshot } from "./project-cache";
 import { refreshUserEmails, clearGraphState, cacheViewport, restoreCachedViewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
 import { clearBranchState } from "./branches";
@@ -192,11 +193,29 @@ async function activateProjectTab(tabIndex: number) {
   const targetPath = (targetTab?.kind === "project" || targetTab?.kind === "composite") ? targetTab.project.path : null;
   const hasCachedGraph = targetPath ? restoreCachedViewport(targetPath) : false;
 
-  // Set clean titlebar immediately (no stale status counts)
+  // Set clean titlebar immediately (no stale counts from previous project)
   const projName = (targetTab?.kind === "project" || targetTab?.kind === "composite")
     ? targetTab.project.name
     : "";
   getCurrentWindow().setTitle(`${projName} — BeardGit`);
+
+  // Load cached snapshot for instant titlebar with real data
+  if (targetPath) {
+    loadProjectSnapshot(targetPath).then((snapshot) => {
+      if (snapshot) {
+        const branch = snapshot.head_branch ?? "detached";
+        const parts: string[] = [];
+        if (snapshot.ahead > 0) parts.push(`↑${snapshot.ahead}`);
+        if (snapshot.behind > 0) parts.push(`↓${snapshot.behind}`);
+        if (snapshot.staged > 0) parts.push(`+${snapshot.staged}`);
+        if (snapshot.unstaged > 0) parts.push(`!${snapshot.unstaged}`);
+        if (snapshot.untracked > 0) parts.push(`?${snapshot.untracked}`);
+        if (snapshot.stash_count > 0) parts.push(`⚑${snapshot.stash_count}`);
+        const status = parts.length > 0 ? ` [${parts.join(" ")}]` : "";
+        getCurrentWindow().setTitle(`${projName} - ${branch}${status}`);
+      }
+    });
+  }
 
   // Only show loading spinner if we have no cached graph to display
   if (!hasCachedGraph) {
@@ -206,12 +225,12 @@ async function activateProjectTab(tabIndex: number) {
     const info = await apiSwitchProject(projectIdx);
     repoInfo.set(info);
 
-    // Title bar — fire-and-forget
-    const projName = (targetTab?.kind === "project" || targetTab?.kind === "composite")
+    // Title bar — fire-and-forget with real data
+    const realProjName = (targetTab?.kind === "project" || targetTab?.kind === "composite")
       ? targetTab.project.name
       : info.path.split("/").pop() ?? "";
     const branch = info.head_branch ?? "detached";
-    updateTitleBar(projName, branch);
+    updateTitleBar(realProjName, branch);
 
     // Independent fetches in parallel
     const [projects, branchList] = await Promise.all([
@@ -237,6 +256,11 @@ async function activateProjectTab(tabIndex: number) {
       refreshConflictStatus(),
       registerWatcher(),
     ]);
+
+    // Persist snapshot for next switch
+    if (targetPath) {
+      saveCurrentSnapshot(targetPath);
+    }
   } finally {
     isLoading.set(false);
   }

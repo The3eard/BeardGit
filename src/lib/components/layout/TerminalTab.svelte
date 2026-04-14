@@ -103,7 +103,7 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: 8px;
     font-family: var(--font-icons);
     cursor: pointer;
     padding: 0;

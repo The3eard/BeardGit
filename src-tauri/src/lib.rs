@@ -212,6 +212,9 @@ pub fn run() {
             app_core::terminal_commands::terminal_write,
             app_core::terminal_commands::terminal_resize,
             app_core::terminal_commands::terminal_kill,
+            // Project snapshot cache
+            app_core::commands::get_project_snapshot,
+            app_core::commands::save_project_snapshot,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

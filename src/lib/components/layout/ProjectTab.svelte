@@ -1,6 +1,8 @@
 <script lang="ts">
-  import type { ProjectInfo } from "$lib/types";
+  import type { ProjectInfo, ProjectSnapshot } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
+  import TabTooltip from "./TabTooltip.svelte";
+  import { getSnapshotForHover } from "$lib/stores/project-cache";
 
   interface Props {
     project: ProjectInfo;
@@ -37,6 +39,33 @@
       onClose(index);
     }
   }
+
+  let hoverSnapshot = $state<ProjectSnapshot | null>(null);
+  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+
+  function handleMouseEnter(e: MouseEvent) {
+    const target = e.currentTarget as HTMLElement;
+    hoverTimer = setTimeout(async () => {
+      const rect = target.getBoundingClientRect();
+      tooltipX = rect.left;
+      tooltipY = rect.bottom + 4;
+      try {
+        hoverSnapshot = await getSnapshotForHover(project.path);
+      } catch {
+        hoverSnapshot = null;
+      }
+    }, 300);
+  }
+
+  function handleMouseLeave() {
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+    hoverSnapshot = null;
+  }
 </script>
 
 <div
@@ -45,6 +74,8 @@
   onclick={handleClick}
   onauxclick={handleMiddleClick}
   onkeydown={(e) => { if (e.key === "Enter") handleClick(); }}
+  onmouseenter={handleMouseEnter}
+  onmouseleave={handleMouseLeave}
   role="tab"
   tabindex="0"
 >
@@ -60,6 +91,9 @@
   >
     {"\uF00D"}
   </button>
+  {#if hoverSnapshot}
+    <TabTooltip snapshot={hoverSnapshot} x={tooltipX} y={tooltipY} />
+  {/if}
 </div>
 
 <style>
@@ -77,6 +111,7 @@
     transition: background 0.15s;
     flex-shrink: 0;
     user-select: none;
+    position: relative;
   }
 
   .project-tab:hover {
@@ -118,7 +153,7 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: 8px;
     font-family: var(--font-icons);
     cursor: pointer;
     padding: 0;

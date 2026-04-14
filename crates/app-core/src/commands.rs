@@ -3196,3 +3196,21 @@ pub fn set_sidebar_collapsed(collapsed: bool, state: State<'_, AppState>) -> Res
     config.sidebar_collapsed = collapsed;
     config.save(&state.config_path).map_err(|e| e.to_string())
 }
+
+/// Load a project's cached snapshot for instant UI display.
+#[tauri::command]
+pub fn get_project_snapshot(path: String) -> Result<Option<storage::ProjectSnapshot>, String> {
+    let config_dir = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("beardgit");
+    storage::project_cache::load_snapshot(&config_dir, &path).map_err(|e| e.to_string())
+}
+
+/// Save a project's snapshot to the cache.
+#[tauri::command]
+pub fn save_project_snapshot(snapshot: storage::ProjectSnapshot) -> Result<(), String> {
+    let config_dir = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("beardgit");
+    storage::project_cache::save_snapshot(&config_dir, &snapshot).map_err(|e| e.to_string())
+}
