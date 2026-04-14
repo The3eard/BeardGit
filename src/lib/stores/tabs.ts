@@ -9,8 +9,8 @@
  */
 
 import { writable, derived, get } from "svelte/store";
-import type { Tab, ProjectInfo, TerminalTabInfo } from "../types";
-import { terminalSpawn, terminalKill } from "../api/tauri";
+import type { Tab, ProjectInfo, TerminalTabInfo, AiProviderKind } from "../types";
+import { terminalSpawn, terminalKill, aiLaunchInteractive } from "../api/tauri";
 import { onTerminalOutput, offTerminalOutput } from "./terminal";
 
 export const openTabs = writable<Tab[]>([]);
@@ -171,6 +171,47 @@ export async function openStandaloneTerminal(
   const sessionId = await terminalSpawn(cwd, 80, 24);
   const info: TerminalTabInfo = { sessionId, title, cwd };
   const tabs = get(openTabs);
+  const newTabs = [...tabs, { kind: "terminal" as const, terminal: info }];
+  openTabs.set(newTabs);
+  activeTabIndex.set(newTabs.length - 1);
+  return sessionId;
+}
+
+/**
+ * Launch an AI provider in a terminal tab via `ai_launch_interactive`.
+ * If cwd matches an open project tab, promotes it to composite in-place.
+ * Otherwise creates a standalone terminal tab. The tab stores the provider
+ * kind so the UI can show the brand icon.
+ */
+export async function openAiTerminalTab(
+  cwd: string,
+  title: string,
+  provider: AiProviderKind,
+): Promise<number> {
+  const sessionId = await aiLaunchInteractive(provider);
+  const info: TerminalTabInfo = { sessionId, title, cwd, provider };
+
+  const tabs = get(openTabs);
+  // Check if there's a simple project tab matching this cwd — promote to composite
+  const projectIdx = tabs.findIndex(
+    (t) => t.kind === "project" && t.project.path === cwd,
+  );
+
+  if (projectIdx >= 0) {
+    const projectTab = tabs[projectIdx] as Extract<Tab, { kind: "project" }>;
+    const newTabs = [...tabs];
+    newTabs[projectIdx] = {
+      kind: "composite",
+      project: projectTab.project,
+      terminal: info,
+      activeSegment: "terminal",
+    };
+    openTabs.set(newTabs);
+    activeTabIndex.set(projectIdx);
+    return sessionId;
+  }
+
+  // Standalone terminal tab at end
   const newTabs = [...tabs, { kind: "terminal" as const, terminal: info }];
   openTabs.set(newTabs);
   activeTabIndex.set(newTabs.length - 1);

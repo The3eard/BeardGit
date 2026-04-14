@@ -502,5 +502,12 @@
   "update_downloading": "Descargando actualización… {percent}%",
   "update_ready": "Actualización lista para instalar",
   "update_restart": "Reiniciar",
-  "update_error": "Error al buscar actualizaciones"
+  "update_error": "Error al buscar actualizaciones",
+  "ai_commit_message": "Mensaje de commit IA",
+  "ai_review": "Revisión IA",
+  "ai_analyze": "Analizar IA",
+  "ai_pr_description": "Descripción IA",
+  "ai_pr_review": "Revisión PR IA",
+  "ai_no_provider": "Sin herramientas IA detectadas",
+  "ai_tools": "Herramientas IA"
 }

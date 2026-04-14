@@ -1350,7 +1350,7 @@ pub fn get_remotes(state: State<'_, AppState>) -> Result<Vec<RemoteInfo>, String
 }
 
 /// Get the filesystem path of the active project.
-fn get_active_project_path(state: &State<'_, AppState>) -> Result<PathBuf, String> {
+pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<PathBuf, String> {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let active = state.active_index.lock().map_err(|e| e.to_string())?;
     let idx = active.ok_or_else(|| "No active project".to_string())?;

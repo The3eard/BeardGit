@@ -2,6 +2,58 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Phase 5.1 + 5.2: AI Provider Integration
+
+**AI Provider Architecture**
+
+- New `ai-provider` crate: `AiProvider` trait with 17 methods across 7 capability groups (identity, detection, headless execution, specialized actions, interactive launch, session/worktree introspection, config/attribution)
+- Shared types: `AiProviderKind`, `AiSession`, `AiWorktree`, `AiConfigFile`, `ExecuteOptions`, `AttributionPattern`
+- Trait builds `std::process::Command` objects without executing — execution delegated to `TaskManager` (headless) or `TerminalManager` (interactive)
+- Default implementations return empty/None/NotSupported — providers override what they support
+
+**Claude Code (First Provider)**
+
+- New `claude-code` crate implementing `AiProvider` for Claude Code CLI
+- Binary detection via `which` + version parsing from `claude --version`
+- Repo artifact detection (`.claude/` directory, `CLAUDE.md` file)
+- Headless command builder: `--print`, `--output-format`, `--model`, `--max-budget-usd`
+- Interactive launch: spawns `claude` binary directly in PTY terminal
+- Worktree support: `--worktree [name]` flag
+- Session introspection: parses `~/.claude/sessions/*.json`, PID liveness checks (`kill(pid, 0)` on Unix)
+- Worktree introspection: `git worktree list --porcelain` parser, filters `worktree-*` branches, status detection (Active/Clean/Orphaned)
+- Config discovery: user/project/local settings.json, `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`, CLAUDE.md hierarchy
+- Commit attribution: detects `Authored-by:` footer, `Co-authored-by:` trailer with Claude/Anthropic mention, author name matching
+
+**14 Tauri Commands**
+
+- Detection: `ai_get_providers`, `ai_get_repo_status`, `ai_refresh_detection`
+- Headless actions (via TaskManager): `ai_generate_commit_message`, `ai_analyze_code`, `ai_generate_pr_description`, `ai_review_code`, `ai_review_pr`
+- Interactive launch (via TerminalManager): `ai_launch_interactive`, `ai_launch_worktree`
+- Introspection: `ai_list_sessions`, `ai_list_worktrees`, `ai_cleanup_worktree`, `ai_get_config_files`
+
+**Frontend Integration**
+
+- TypeScript types matching all Rust structs (`AiProviderKind`, `AvailableAiProvider`, `RepoAiStatus`, `AiSession`, `AiWorktree`, `AiConfigFile`)
+- 14 IPC wrappers in `tauri.ts`
+- `ai.ts` store: provider detection, headless action wrappers with default provider resolution, derived stores (`hasAiProvider`, `defaultAiProvider`)
+- AI Commit Message button in staging area (conditionally rendered when provider detected)
+- Auto-detection of AI providers on app startup
+
+**Terminal AI Launch**
+
+- Terminal dropdown "Claude Code" now calls `ai_launch_interactive` — spawns the `claude` binary directly in PTY (Claude Code starts automatically)
+- Terminal tabs show Claude Code SVG brand icon (coral `#d97757`) instead of generic terminal icon
+- Brand-colored status dots: Claude (#d97757), Codex (#10a37f), OpenCode (#8b8b8b)
+- Same icon treatment in both standalone `TerminalTab` and composite tab terminal segments
+- `TerminalTabInfo` extended with optional `provider` field for brand identification
+
+**E2E Test Infrastructure**
+
+- Global vitest setup mocking `@tauri-apps/api/core`, `@tauri-apps/api/event`, `@tauri-apps/api/window`, `@tauri-apps/plugin-dialog`
+- Configurable `mockInvokeResponse()` helper for per-test IPC mocking
+- 6 E2E workflow test suites: repo-open, staging-commit, branch-ops, tag-ops, stash-ops, ai-provider
+- 103 new tests (149 total frontend tests, all passing)
+
 ## [0.1.6] — Interactive Terminal Tabs, Composite Tabs, Sidebar Collapse
 
 **Composite Segmented Tabs**

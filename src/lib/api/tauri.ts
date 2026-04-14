@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, ProjectSnapshot } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -766,4 +766,62 @@ export async function terminalResize(
 /** Kill a terminal session. */
 export async function terminalKill(id: number): Promise<void> {
   return invoke<void>("terminal_kill", { id });
+}
+
+// ─── AI Provider ───
+
+export async function aiGetProviders(): Promise<AvailableAiProvider[]> {
+  return invoke<AvailableAiProvider[]>("ai_get_providers");
+}
+
+export async function aiGetRepoStatus(): Promise<RepoAiStatus[]> {
+  return invoke<RepoAiStatus[]>("ai_get_repo_status");
+}
+
+export async function aiRefreshDetection(): Promise<void> {
+  return invoke<void>("ai_refresh_detection");
+}
+
+export async function aiGenerateCommitMessage(provider: string): Promise<TaskId> {
+  return invoke<TaskId>("ai_generate_commit_message", { provider });
+}
+
+export async function aiAnalyzeCode(provider: string, content: string, question: string): Promise<TaskId> {
+  return invoke<TaskId>("ai_analyze_code", { provider, content, question });
+}
+
+export async function aiGeneratePrDescription(provider: string): Promise<TaskId> {
+  return invoke<TaskId>("ai_generate_pr_description", { provider });
+}
+
+export async function aiReviewCode(provider: string, diff: string): Promise<TaskId> {
+  return invoke<TaskId>("ai_review_code", { provider, diff });
+}
+
+export async function aiReviewPr(provider: string, diff: string): Promise<TaskId> {
+  return invoke<TaskId>("ai_review_pr", { provider, diff });
+}
+
+export async function aiLaunchInteractive(provider: string): Promise<number> {
+  return invoke<number>("ai_launch_interactive", { provider });
+}
+
+export async function aiLaunchWorktree(provider: string, name?: string): Promise<number | null> {
+  return invoke<number | null>("ai_launch_worktree", { provider, name: name ?? null });
+}
+
+export async function aiListSessions(): Promise<AiSession[]> {
+  return invoke<AiSession[]>("ai_list_sessions");
+}
+
+export async function aiListWorktrees(): Promise<AiWorktree[]> {
+  return invoke<AiWorktree[]>("ai_list_worktrees");
+}
+
+export async function aiCleanupWorktree(provider: string, worktreePath: string): Promise<void> {
+  return invoke<void>("ai_cleanup_worktree", { provider, worktree_path: worktreePath });
+}
+
+export async function aiGetConfigFiles(): Promise<AiConfigFile[]> {
+  return invoke<AiConfigFile[]>("ai_get_config_files");
 }

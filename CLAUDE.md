@@ -2,7 +2,7 @@
 
 ## Current State
 
-**v0.1.6** — Interactive terminal tabs (unified tab model, + button popup, project-linked/standalone terminals, Cmd+T), sidebar collapse (icon-only mode, Cmd+B, persisted), recent projects fix. Phase 4A: terminal crate, xterm.js component, theme redesign (18 base colors), read-only migration. Phase 3: task history popup, keyboard shortcuts, reflog viewer, clean, git config editor, gitignore management, patch management, submodules, MR/PR management with bundled gh/glab CLIs. Phase 2: CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase, resizable graph columns, 14 themes.
+**v0.1.7-dev** — Phase 5.1+5.2: AI provider integration (AiProvider trait, claude-code crate, 14 Tauri commands, frontend store + action buttons, terminal dropdown launches claude binary with brand icons in tabs). Phase 4B: interactive terminal tabs (unified tab model, composite tabs, Cmd+T), sidebar collapse. Phase 4A: terminal crate, xterm.js component, theme redesign (18 base colors), read-only migration. Phase 3: task history popup, keyboard shortcuts, reflog viewer, clean, git config editor, gitignore management, patch management, submodules, MR/PR management with bundled gh/glab CLIs. Phase 2: CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase, resizable graph columns, 14 themes.
 
 ## Project Overview
 
@@ -24,7 +24,9 @@ Cross-platform desktop Git client with GitLab + GitHub CI integration. Tauri v2 
 | `task-runner` | Async background tasks with cancellation + streaming output |
 | `watcher` | Debounced filesystem events via `notify` (500ms, filters `.git/`) |
 | `cli-provider` | Wraps bundled `gh`/`glab` CLIs for MR/PR CRUD, review, comments |
-| `app-core` | ~100 Tauri commands, `AppState`, event bridge — **only crate coupled to Tauri** |
+| `ai-provider` | `AiProvider` trait, shared AI types — sync, command-building, no Tauri dep |
+| `claude-code` | Claude Code CLI implementation — detection, commands, sessions, worktrees, config, attribution |
+| `app-core` | ~114 Tauri commands, `AppState`, event bridge — **only crate coupled to Tauri** |
 
 **Frontend:** SPA with no file-based routing — all views switched via `activeView` state in `+page.svelte`. Stores in `src/lib/stores/`, IPC in `src/lib/api/tauri.ts`, types in `src/lib/types/index.ts`.
 

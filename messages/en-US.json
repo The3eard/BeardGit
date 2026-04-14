@@ -502,5 +502,12 @@
   "update_downloading": "Downloading update… {percent}%",
   "update_ready": "Update ready to install",
   "update_restart": "Restart",
-  "update_error": "Update check failed"
+  "update_error": "Update check failed",
+  "ai_commit_message": "AI Commit Message",
+  "ai_review": "AI Review",
+  "ai_analyze": "AI Analyze",
+  "ai_pr_description": "AI Description",
+  "ai_pr_review": "AI PR Review",
+  "ai_no_provider": "No AI tools detected",
+  "ai_tools": "AI Tools"
 }

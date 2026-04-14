@@ -215,6 +215,21 @@ pub fn run() {
             // Project snapshot cache
             app_core::commands::get_project_snapshot,
             app_core::commands::save_project_snapshot,
+            // AI provider
+            app_core::ai_commands::ai_get_providers,
+            app_core::ai_commands::ai_get_repo_status,
+            app_core::ai_commands::ai_refresh_detection,
+            app_core::ai_commands::ai_generate_commit_message,
+            app_core::ai_commands::ai_analyze_code,
+            app_core::ai_commands::ai_generate_pr_description,
+            app_core::ai_commands::ai_review_code,
+            app_core::ai_commands::ai_review_pr,
+            app_core::ai_commands::ai_launch_interactive,
+            app_core::ai_commands::ai_launch_worktree,
+            app_core::ai_commands::ai_list_sessions,
+            app_core::ai_commands::ai_list_worktrees,
+            app_core::ai_commands::ai_cleanup_worktree,
+            app_core::ai_commands::ai_get_config_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

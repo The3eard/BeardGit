@@ -12,7 +12,7 @@
     closeTerminalSegment,
     closeProjectSegment,
   } from "$lib/stores/projects";
-  import { openTabs, activeTabIndex, openTerminalTab, openStandaloneTerminal } from "$lib/stores/tabs";
+  import { openTabs, activeTabIndex, openTerminalTab, openStandaloneTerminal, openAiTerminalTab } from "$lib/stores/tabs";
   import { repoInfo } from "$lib/stores/repo";
   import { fetchRemote, pullRemote, pushRemote } from "$lib/api/tauri";
   import * as m from "$lib/paraglide/messages";
@@ -55,17 +55,17 @@
 
   async function handleTerminalClaude() {
     terminalMenuOpen = false;
-    await openTerminalTab(getActiveCwd(), `Claude · ${getActiveLabel()}`);
+    await openAiTerminalTab(getActiveCwd(), `Claude Code · ${getActiveLabel()}`, "claude_code");
   }
 
   async function handleTerminalCodex() {
     terminalMenuOpen = false;
-    await openTerminalTab(getActiveCwd(), `Codex · ${getActiveLabel()}`);
+    await openAiTerminalTab(getActiveCwd(), `Codex · ${getActiveLabel()}`, "codex");
   }
 
   async function handleTerminalOpenCode() {
     terminalMenuOpen = false;
-    await openTerminalTab(getActiveCwd(), `OpenCode · ${getActiveLabel()}`);
+    await openAiTerminalTab(getActiveCwd(), `OpenCode · ${getActiveLabel()}`, "open_code");
   }
 
   function handleTerminalMenuClickOutside(e: MouseEvent) {

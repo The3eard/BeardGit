@@ -65,31 +65,34 @@ Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with reco
 
 ## Phase 5: AI Integration
 
-Implementation in 3 waves. Wave 1 (5.1 + 5.2) fully specced and planned.
+Implementation in 3 waves. Wave 1 (5.1 + 5.2) complete.
 
-### Wave 1: AiProvider Trait + Claude Code — specced, plan ready
+### Wave 1: AiProvider Trait + Claude Code ✅
 
-### 5.1 — AiProvider Trait & Detection
+### 5.1 — AiProvider Trait & Detection ✅
 
-- [ ] New `ai-provider` crate with `AiProvider` trait (7 capability groups, sync, command-building)
-- [ ] Shared types: `AiProviderKind`, `AiSession`, `AiWorktree`, `AiConfigFile`, `ExecuteOptions`
-- [ ] Two-phase detection: binary scan on startup (PATH), repo scan on tab switch (`.claude/`, `.codex/`)
-- [ ] Default implementations return empty/None/NotSupported — providers override what they support
-- [ ] Trait covers: identity, detection, headless execution, specialized actions, interactive launch, session/worktree introspection, config/attribution
+- [x] New `ai-provider` crate with `AiProvider` trait (7 capability groups, sync, command-building)
+- [x] Shared types: `AiProviderKind`, `AiSession`, `AiWorktree`, `AiConfigFile`, `ExecuteOptions`
+- [x] Two-phase detection: binary scan on startup (PATH), repo scan on tab switch (`.claude/`, `.codex/`)
+- [x] Default implementations return empty/None/NotSupported — providers override what they support
+- [x] Trait covers: identity, detection, headless execution, specialized actions, interactive launch, session/worktree introspection, config/attribution
 
-### 5.2 — Claude Code (First Provider)
+### 5.2 — Claude Code (First Provider) ✅
 
-- [ ] New `claude-code` crate implementing `AiProvider` for Claude Code CLI
-- [ ] Detection: `which claude`, `claude --version`, scan `.claude/` + `CLAUDE.md`
-- [ ] Headless execution: `claude --print` via TaskManager (commit msg, review, analysis, PR description, PR review)
-- [ ] Interactive launch: spawn `claude` in terminal tab via TerminalManager
-- [ ] Worktree support: `claude --worktree`, `git worktree list` cross-ref, `worktree-*` branch convention
-- [ ] Session introspection: parse `~/.claude/sessions/*.json`, PID liveness checks
-- [ ] Config discovery: settings.json (user/project/local), agents/*.md, skills/*/SKILL.md, CLAUDE.md hierarchy
-- [ ] Commit attribution: `Authored-by:` footer, `Co-authored-by:` trailer, author name patterns
-- [ ] 14 Tauri commands in `app-core/ai_commands.rs` (detection, actions, launch, introspection)
-- [ ] Frontend: `ai.ts` store, AI action buttons in staging/MR views, terminal launcher dropdown
-- [ ] Output via existing task viewer (same UX as git fetch/push)
+- [x] New `claude-code` crate implementing `AiProvider` for Claude Code CLI
+- [x] Detection: `which claude`, `claude --version`, scan `.claude/` + `CLAUDE.md`
+- [x] Headless execution: `claude --print` via TaskManager (commit msg, review, analysis, PR description, PR review)
+- [x] Interactive launch: spawn `claude` in terminal tab via TerminalManager
+- [x] Worktree support: `claude --worktree`, `git worktree list` cross-ref, `worktree-*` branch convention
+- [x] Session introspection: parse `~/.claude/sessions/*.json`, PID liveness checks
+- [x] Config discovery: settings.json (user/project/local), agents/*.md, skills/*/SKILL.md, CLAUDE.md hierarchy
+- [x] Commit attribution: `Authored-by:` footer, `Co-authored-by:` trailer, author name patterns
+- [x] 14 Tauri commands in `app-core/ai_commands.rs` (detection, actions, launch, introspection)
+- [x] Frontend: `ai.ts` store, AI action buttons in staging view, terminal launcher wired to `ai_launch_interactive`
+- [x] Output via existing task viewer (same UX as git fetch/push)
+- [x] Terminal dropdown launches `claude` binary directly (auto-starts Claude Code)
+- [x] Brand icons (Claude SVG) in terminal tabs and composite tab segments
+- [x] E2E test suite for AI provider store (15 tests)
 
 ### Wave 2: UI Views + Attribution
 
@@ -159,9 +162,13 @@ Implementation in 3 waves. Wave 1 (5.1 + 5.2) fully specced and planned.
 - [ ] Crash reporting / telemetry (opt-in)
 - [ ] Auto-update scope: app + libgit2 + git + gh + glab (extend existing updater)
 
-### 6.5 — E2E Testing Infrastructure
+### 6.5 — E2E Testing Infrastructure (partial ✅)
 
-- [ ] `tauri-driver` + Playwright/WebdriverIO for webview automation
+- [x] Vitest setup with global IPC mocking (`@tauri-apps/api/core`, events, window, dialog)
+- [x] Configurable `mockInvokeResponse()` helper for per-test mock data
+- [x] 6 E2E workflow test suites: repo-open, staging-commit, branch-ops, tag-ops, stash-ops, ai-provider
+- [x] 149 total frontend tests (74 existing + 75 new E2E), all passing
+- [ ] `tauri-driver` + Playwright/WebdriverIO for full webview automation
 - [ ] Test harness that launches the app against a fixture repo
 - [ ] Golden path tests: open repo, navigate views, stage/commit, run terminal, launch AI session
 - [ ] CI integration: headless E2E suite on build pipeline

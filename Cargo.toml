@@ -12,6 +12,8 @@ members = [
     "crates/task-runner",
     "crates/cli-provider",
     "crates/terminal",
+    "crates/ai-provider",
+    "crates/claude-code",
     "src-tauri",
 ]
 resolver = "2"

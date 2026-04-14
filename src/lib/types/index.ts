@@ -647,6 +647,8 @@ export interface TerminalTabInfo {
   sessionId: number;
   title: string;
   cwd: string;
+  /** When set, the tab was launched by an AI provider (shows brand icon). */
+  provider?: AiProviderKind;
 }
 
 /** Discriminated union for all tab types. */
@@ -654,3 +656,43 @@ export type Tab =
   | { kind: "project"; project: ProjectInfo }
   | { kind: "terminal"; terminal: TerminalTabInfo }
   | { kind: "composite"; project: ProjectInfo; terminal: TerminalTabInfo; activeSegment: "project" | "terminal" };
+
+// ─── AI Provider Types ───
+
+export type AiProviderKind = "claude_code" | "codex" | "open_code";
+
+export interface AvailableAiProvider {
+  kind: AiProviderKind;
+  binary_path: string;
+  version: string | null;
+}
+
+export interface RepoAiStatus {
+  kind: AiProviderKind;
+  has_config: boolean;
+  session_count: number;
+  worktree_count: number;
+}
+
+export interface AiSession {
+  id: string;
+  provider: AiProviderKind;
+  cwd: string;
+  started_at: number | null;
+  kind: "interactive" | "headless";
+  is_active: boolean;
+}
+
+export interface AiWorktree {
+  path: string;
+  branch: string;
+  provider: AiProviderKind;
+  session_id: string | null;
+  status: "active" | "clean" | "orphaned";
+}
+
+export interface AiConfigFile {
+  path: string;
+  kind: "settings" | "instructions" | "agent" | "skill";
+  scope: "user" | "project" | "local";
+}

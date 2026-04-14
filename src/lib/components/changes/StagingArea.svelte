@@ -5,6 +5,7 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { amendCommit, getHeadMessage, createWorkingTreePatch, savePatchToFile } from "$lib/api/tauri";
+  import { hasAiProvider, aiGenerateCommitMessage } from "$lib/stores/ai";
   import { save } from "@tauri-apps/plugin-dialog";
 
   let {
@@ -95,6 +96,16 @@
       onkeydown={(e) => { if (e.key === 'Enter' && e.metaKey) handleCommit(); }}
     ></textarea>
     <div class="commit-actions-row">
+      {#if $hasAiProvider}
+        <button
+          class="ai-btn"
+          title={m.ai_commit_message()}
+          onclick={() => aiGenerateCommitMessage()}
+        >
+          <span class="ai-icon">{"\uf0eb"}</span>
+          {m.ai_commit_message()}
+        </button>
+      {/if}
       <button
         class="commit-btn"
         disabled={!message.trim() || (!isAmend && staged.length === 0)}
@@ -220,6 +231,15 @@
   }
   .patch-btn:hover { background: rgba(255,255,255,0.1); }
   .patch-btn.secondary { opacity: 0.7; }
+  .ai-btn {
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 4px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    color: var(--text-secondary); font-size: 12px; cursor: pointer;
+    margin-right: auto;
+  }
+  .ai-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+  .ai-icon { font-family: var(--font-icons); font-size: 12px; }
   .patch-source-dialog {
     padding: 8px 12px;
     background: var(--bg-toolbar);

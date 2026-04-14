@@ -7,6 +7,7 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use ai_provider::AvailableAiProvider;
 use auth::CredentialStore;
 use git_engine::Repository;
 use graph_builder::GraphLayout;
@@ -82,6 +83,8 @@ pub struct AppState {
     /// (determined by matching the repo's remote URL).
     /// `None` if no repo is open or no provider matches.
     pub active_provider_index: Mutex<Option<usize>>,
+    /// Detected AI providers (populated at startup and on refresh).
+    pub ai_providers: Mutex<Vec<AvailableAiProvider>>,
 }
 
 impl Default for AppState {
@@ -114,6 +117,7 @@ impl AppState {
             credential_store,
             providers: Mutex::new(Vec::new()),
             active_provider_index: Mutex::new(None),
+            ai_providers: Mutex::new(Vec::new()),
         }
     }
 }

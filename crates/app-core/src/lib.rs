@@ -5,6 +5,7 @@
 //! `graph-builder`, `gitlab-api`, `auth`, and `storage` into the IPC surface
 //! consumed by the Svelte frontend.
 
+pub mod ai_commands;
 pub mod commands;
 pub mod event_sink;
 pub mod state;
