@@ -515,9 +515,13 @@
     <div class="center-panel">
       <ConflictToolbar />
       {#if $activeTab?.kind === "terminal"}
-        <TerminalView terminal={$activeTab.terminal} />
+        {#key $activeTab.terminal.sessionId}
+          <TerminalView terminal={$activeTab.terminal} />
+        {/key}
       {:else if $activeTab?.kind === "composite" && $activeTab.activeSegment === "terminal"}
-        <TerminalView terminal={$activeTab.terminal} />
+        {#key $activeTab.terminal.sessionId}
+          <TerminalView terminal={$activeTab.terminal} />
+        {/key}
       {:else if activeView === "settings"}
         <SettingsPage />
       {:else if activeView === "pipelines"}

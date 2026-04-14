@@ -64,7 +64,7 @@ const debouncedLoadReflog = debounce(() => loadReflog(), 300);
 
 /** Start listening for repo changes to auto-refresh the reflog. */
 export async function initReflogWatcher(): Promise<void> {
-  if (unlisten) return;
+  cleanupReflogWatcher(); // always clean up before re-init
   unlisten = await listen("repo-changed", () => {
     debouncedLoadReflog();
   });

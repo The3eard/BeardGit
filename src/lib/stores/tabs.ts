@@ -163,6 +163,20 @@ export async function openTerminalTab(
   return sessionId;
 }
 
+/** Open a standalone terminal tab, always creating a new tab regardless of existing project tabs. */
+export async function openStandaloneTerminal(
+  cwd: string,
+  title: string,
+): Promise<number> {
+  const sessionId = await terminalSpawn(cwd, 80, 24);
+  const info: TerminalTabInfo = { sessionId, title, cwd };
+  const tabs = get(openTabs);
+  const newTabs = [...tabs, { kind: "terminal" as const, terminal: info }];
+  openTabs.set(newTabs);
+  activeTabIndex.set(newTabs.length - 1);
+  return sessionId;
+}
+
 /** Switch the active segment of a composite tab. */
 export function switchSegment(tabIndex: number, segment: "project" | "terminal"): void {
   openTabs.update((tabs) =>

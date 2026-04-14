@@ -28,6 +28,13 @@ export const stagedDiffs = writable<FileDiff[]>([]);
 /** Current commit message draft. Cleared after successful commit. */
 export const commitMessage = writable("");
 
+/** Clear all changes state (e.g., on project switch). */
+export function clearChangesState(): void {
+  fileStatuses.set([]);
+  unstagedDiffs.set([]);
+  stagedDiffs.set([]);
+}
+
 export async function refreshStatuses() {
   const statuses = await apiGetStatuses();
   fileStatuses.set(statuses);

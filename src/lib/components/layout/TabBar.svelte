@@ -12,7 +12,7 @@
     closeTerminalSegment,
     closeProjectSegment,
   } from "$lib/stores/projects";
-  import { openTabs, activeTabIndex, openTerminalTab } from "$lib/stores/tabs";
+  import { openTabs, activeTabIndex, openTerminalTab, openStandaloneTerminal } from "$lib/stores/tabs";
   import { repoInfo } from "$lib/stores/repo";
   import { fetchRemote, pullRemote, pushRemote } from "$lib/api/tauri";
   import * as m from "$lib/paraglide/messages";
@@ -87,19 +87,33 @@
   }
 
   async function handleTerminalClick() {
-    const proj = $activeProject;
-    if (proj) {
-      const name = proj.path.split("/").pop() ?? "Terminal";
-      await openTerminalTab(proj.path, `${m.tab_terminal()} · ${name}`);
-    } else {
-      try {
-        const { homeDir } = await import("@tauri-apps/api/path");
-        const home = await homeDir();
-        await openTerminalTab(home, m.tab_terminal());
-      } catch {
-        await openTerminalTab("/", m.tab_terminal());
-      }
+    const tab = $openTabs[$activeTabIndex];
+    const home = await getHomePath();
+
+    // Already viewing a terminal → open new standalone in ~
+    if (
+      tab?.kind === "terminal" ||
+      (tab?.kind === "composite" && tab.activeSegment === "terminal")
+    ) {
+      await openStandaloneTerminal(home, m.tab_terminal());
+      return;
     }
+
+    // Composite tab on project segment → switch to existing terminal
+    if (tab?.kind === "composite" && tab.activeSegment === "project") {
+      switchSegment($activeTabIndex, "terminal");
+      return;
+    }
+
+    // Project tab → promote to composite (linked terminal)
+    if (tab?.kind === "project") {
+      const name = tab.project.path.split("/").pop() ?? "Terminal";
+      await openTerminalTab(tab.project.path, `${m.tab_terminal()} · ${name}`);
+      return;
+    }
+
+    // No project context → standalone in ~
+    await openStandaloneTerminal(home, m.tab_terminal());
   }
 
   async function handleFetch() {

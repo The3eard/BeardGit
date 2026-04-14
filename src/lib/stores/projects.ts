@@ -31,7 +31,7 @@ import {
   hasMoreCiRuns,
   loadingDetail,
 } from "./provider";
-import { refreshStatuses } from "./changes";
+import { refreshStatuses, clearChangesState } from "./changes";
 import { refreshUserEmails, clearGraphState, cacheViewport, restoreCachedViewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
 import { clearBranchState } from "./branches";
@@ -149,6 +149,13 @@ export async function switchToTab(tabIndex: number) {
   const prevIdx = get(activeTabIndex);
   const tab = tabs[tabIndex];
 
+  // Cache outgoing project's graph BEFORE changing activeTabIndex
+  // (activeProjectFromTab derives from activeTabIndex, so must read first)
+  const prevProject = get(activeProjectFromTab);
+  if (prevProject) {
+    cacheViewport(prevProject.path);
+  }
+
   // Set active index immediately for instant tab highlight
   activeTabIndex.set(tabIndex);
 
@@ -168,12 +175,6 @@ async function activateProjectTab(tabIndex: number) {
   const projectIdx = tabIndexToProjectIndex(tabIndex);
   if (projectIdx < 0) return;
 
-  // Cache the outgoing project's graph viewport for instant restore later
-  const prevProject = get(activeProjectFromTab);
-  if (prevProject) {
-    cacheViewport(prevProject.path);
-  }
-
   stopAllPolling();
   clearGraphState();
   clearBranchState();
@@ -183,12 +184,19 @@ async function activateProjectTab(tabIndex: number) {
   clearWorktreeState();
   clearMrPrState();
   clearReflogState();
+  clearChangesState();
 
   // Restore cached graph viewport instantly (no loading spinner for graph)
   const tabs = get(openTabs);
   const targetTab = tabs[tabIndex];
   const targetPath = (targetTab?.kind === "project" || targetTab?.kind === "composite") ? targetTab.project.path : null;
   const hasCachedGraph = targetPath ? restoreCachedViewport(targetPath) : false;
+
+  // Set clean titlebar immediately (no stale status counts)
+  const projName = (targetTab?.kind === "project" || targetTab?.kind === "composite")
+    ? targetTab.project.name
+    : "";
+  getCurrentWindow().setTitle(`${projName} — BeardGit`);
 
   // Only show loading spinner if we have no cached graph to display
   if (!hasCachedGraph) {
@@ -198,20 +206,22 @@ async function activateProjectTab(tabIndex: number) {
     const info = await apiSwitchProject(projectIdx);
     repoInfo.set(info);
 
-    const projects = await apiGetOpenProjects();
-    syncProjectTabs(projects);
-
-    const proj = projects[projectIdx];
-    const projName = proj?.name ?? info.path.split("/").pop() ?? "";
+    // Title bar — fire-and-forget
+    const projName = (targetTab?.kind === "project" || targetTab?.kind === "composite")
+      ? targetTab.project.name
+      : info.path.split("/").pop() ?? "";
     const branch = info.head_branch ?? "detached";
-    await updateTitleBar(projName, branch);
+    updateTitleBar(projName, branch);
 
-    const branchList = await apiGetBranches();
+    // Independent fetches in parallel
+    const [projects, branchList] = await Promise.all([
+      apiGetOpenProjects(),
+      apiGetBranches(),
+    ]);
+    syncProjectTabs(projects);
     branches.set(branchList);
 
-    await detectProject();
-    await checkProviderStatus();
-
+    // Reset CI state
     ciRuns.set([]);
     selectedCiRun.set(null);
     selectedCiRunId.set(null);
@@ -219,10 +229,14 @@ async function activateProjectTab(tabIndex: number) {
     hasMoreCiRuns.set(false);
     loadingDetail.set(false);
 
-    await refreshStatuses();
-    await refreshUserEmails();
-    await refreshConflictStatus();
-    await registerWatcher();
+    // Provider + status refreshes in parallel
+    await Promise.all([
+      detectProject().then(() => checkProviderStatus()),
+      refreshStatuses(),
+      refreshUserEmails(),
+      refreshConflictStatus(),
+      registerWatcher(),
+    ]);
   } finally {
     isLoading.set(false);
   }
