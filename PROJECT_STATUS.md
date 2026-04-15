@@ -110,21 +110,13 @@ Implementation in 3 waves. Wave 1 (5.1 + 5.2) complete.
 - [ ] Click to navigate to worktree's terminal tab
 - [ ] Context menu: open in graph, cleanup worktree + branch, open in new project tab
 
-### 5.4 — AI Commit Attribution
-
-- [ ] Detect AI-authored commits by patterns per provider
-  - `Authored-by:` footers, `Co-authored-by:` trailers, author name matching
-- [ ] AI badge/icon on graph commits (distinct from CI/MR badges)
-- [ ] Filter: show only AI-generated or only human-generated commits
-- [ ] Stats in project overview: percentage of AI-authored commits in last N commits
-
-### 5.5 — Config Viewer
+### 5.4 — Config Viewer
 
 - [ ] Read-only panel showing AI config files for current repo
 - [ ] Tabs per detected tool: CLAUDE.md, AGENTS.md, opencode.json
 - [ ] Syntax-highlighted with CodeMirror (reuse existing editor engine)
 
-### 5.6 — Session Dashboard
+### 5.5 — Session Dashboard
 
 - [ ] Cross-project view: all active AI sessions across all open project tabs
 - [ ] Per session: tool name, worktree, branch, terminal tab link, recent activity
