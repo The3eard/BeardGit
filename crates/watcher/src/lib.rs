@@ -2,27 +2,57 @@
 //!
 //! [`RepoWatcher`] wraps `notify` and `notify-debouncer-mini` to watch a
 //! repository directory for changes and call a user-provided callback after a
-//! brief quiet period. Events inside the `.git` directory are intentionally
-//! ignored so that background git operations (e.g. index writes) do not
-//! trigger spurious refreshes of the UI.
+//! brief quiet period. Most events inside `.git/` are filtered out to avoid
+//! spurious refreshes, but changes to `.git/refs/` and `.git/HEAD` are allowed
+//! through so that external commits and branch switches are detected.
 
 use notify_debouncer_mini::new_debouncer;
 use std::path::Path;
 use std::sync::mpsc;
 use std::time::Duration;
 
+/// Check whether a filesystem event is relevant for UI refresh.
+///
+/// Working-tree changes (outside `.git/`) are always relevant. Inside `.git/`,
+/// only `refs/` subtree and the `HEAD` file are relevant — these change on
+/// commits, branch creation/deletion, and checkouts.
+fn is_relevant_event(event: &notify_debouncer_mini::DebouncedEvent) -> bool {
+    let path = &event.path;
+    let components: Vec<_> = path.components().collect();
+
+    // Find the .git component index
+    let git_idx = components.iter().position(|c| c.as_os_str() == ".git");
+
+    let Some(idx) = git_idx else {
+        // Not inside .git/ — always relevant (working tree change)
+        return true;
+    };
+
+    // Inside .git/ — only allow refs/ and HEAD
+    let after_git: Vec<_> = components[idx + 1..].iter().collect();
+    match after_git.first() {
+        Some(c) if c.as_os_str() == "refs" => true,
+        Some(c) if c.as_os_str() == "HEAD" => true,
+        _ => false,
+    }
+}
+
 /// A live filesystem watcher that fires a callback whenever the working tree changes.
 ///
-/// The watcher debounces raw filesystem events with a 500 ms quiet window and
-/// filters out events originating from the `.git` directory. Drop the
-/// `RepoWatcher` to stop watching.
+/// The watcher debounces raw filesystem events with a 500 ms quiet window.
+/// Most `.git/` events are filtered out, but `.git/refs/` and `.git/HEAD`
+/// changes are allowed through so that external commits and branch switches
+/// trigger a UI refresh. Drop the `RepoWatcher` to stop watching.
 pub struct RepoWatcher {
     _debouncer: notify_debouncer_mini::Debouncer<notify::RecommendedWatcher>,
 }
 
 impl RepoWatcher {
     /// Start watching `repo_path` recursively and call `on_change` after each
-    /// debounced batch of non-`.git` events.
+    /// debounced batch of relevant events.
+    ///
+    /// Working-tree changes always fire. Inside `.git/`, only `refs/` and
+    /// `HEAD` changes fire (external commits, branch switches).
     ///
     /// Returns an error if the underlying OS watcher cannot be initialised or
     /// if `repo_path` cannot be watched.
@@ -40,9 +70,7 @@ impl RepoWatcher {
         std::thread::spawn(move || {
             while let Ok(result) = rx.recv() {
                 if let Ok(events) = result {
-                    let relevant = events
-                        .iter()
-                        .any(|e| !e.path.components().any(|c| c.as_os_str() == ".git"));
+                    let relevant = events.iter().any(is_relevant_event);
                     if relevant {
                         on_change();
                     }

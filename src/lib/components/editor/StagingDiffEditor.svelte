@@ -342,7 +342,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 12px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
     gap: 8px;
@@ -374,6 +374,7 @@
     border-radius: 4px;
     display: flex;
     align-items: center;
+    transition: color 0.15s ease;
   }
 
   .close-btn:hover {
@@ -391,17 +392,31 @@
 
   .stats {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     font-size: 11px;
     font-family: 'Fira Code', var(--font-mono), monospace;
   }
 
-  .stat-add { color: var(--accent-green); }
-  .stat-del { color: var(--accent-red); }
+  .stat-add {
+    color: var(--accent-green);
+    background: var(--overlay-accent-green);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .stat-del {
+    color: var(--accent-red);
+    background: var(--overlay-accent-red);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
 
   .selection-info {
     font-size: 11px;
-    color: var(--text-secondary);
+    color: var(--accent-blue);
+    background: var(--overlay-accent-blue);
+    padding: 2px 8px;
+    border-radius: 4px;
     white-space: nowrap;
   }
 
@@ -414,15 +429,16 @@
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
   }
 
   .header-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--overlay-hover);
     color: var(--text-primary);
   }
 
   .header-btn:disabled {
-    opacity: 0.4;
+    opacity: 0.35;
     cursor: not-allowed;
   }
 
@@ -430,15 +446,20 @@
     border: none;
     font-size: 11px;
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-weight: 500;
     white-space: nowrap;
+    transition: opacity 0.15s ease, transform 0.1s ease;
   }
 
   .action-btn:disabled {
-    opacity: 0.4;
+    opacity: 0.35;
     cursor: not-allowed;
+  }
+
+  .action-btn:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   .stage-btn {
@@ -446,21 +467,21 @@
     color: #fff;
   }
 
-  .stage-btn:hover:not(:disabled) { opacity: 0.9; }
+  .stage-btn:hover:not(:disabled) { opacity: 0.85; }
 
   .unstage-btn {
     background: var(--accent-orange);
     color: #fff;
   }
 
-  .unstage-btn:hover:not(:disabled) { opacity: 0.9; }
+  .unstage-btn:hover:not(:disabled) { opacity: 0.85; }
 
   .discard-btn {
     background: var(--accent-red);
     color: #fff;
   }
 
-  .discard-btn:hover:not(:disabled) { opacity: 0.9; }
+  .discard-btn:hover:not(:disabled) { opacity: 0.85; }
 
   /* ── Hunk list ──────────────────────────────────────────── */
 
@@ -477,8 +498,8 @@
   .hunk-header {
     display: flex;
     align-items: center;
-    padding: 4px 12px;
-    background: rgba(255, 255, 255, 0.03);
+    padding: 6px 12px;
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
   }
 
@@ -516,14 +537,16 @@
     display: flex;
     align-items: stretch;
     min-height: 20px;
+    border-left: 3px solid transparent;
+    transition: border-color 0.1s ease;
   }
 
   .line-added {
-    background: var(--diff-added-bg, rgba(63, 185, 80, 0.15));
+    background: var(--diff-added-bg, rgba(63, 185, 80, 0.1));
   }
 
   .line-removed {
-    background: var(--diff-removed-bg, rgba(248, 81, 73, 0.15));
+    background: var(--diff-removed-bg, rgba(248, 81, 73, 0.1));
   }
 
   .line-context {
@@ -531,8 +554,19 @@
   }
 
   .line-selected {
-    outline: 1px solid var(--accent-blue);
-    outline-offset: -1px;
+    border-left-color: var(--accent-blue);
+  }
+
+  .line-selected.line-added {
+    background: rgba(63, 185, 80, 0.18);
+  }
+
+  .line-selected.line-removed {
+    background: rgba(248, 81, 73, 0.18);
+  }
+
+  .line-selected.line-context {
+    background: var(--overlay-accent-blue);
   }
 
   .line-checkbox-cell {
@@ -554,11 +588,12 @@
     font-family: 'Fira Code', var(--font-mono), monospace;
     min-width: 40px;
     text-align: right;
-    padding: 0 4px;
+    padding: 0 6px;
     user-select: none;
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    opacity: 0.6;
   }
 
   .origin {
@@ -566,6 +601,7 @@
     text-align: center;
     font-family: 'Fira Code', var(--font-mono), monospace;
     font-size: 12px;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;

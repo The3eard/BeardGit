@@ -71,6 +71,7 @@
   let registeredShortcutIds: string[] = [];
   let diffPanelHeight = $state(250);
   let taskPanelHeight = $state(200);
+  let changesSidebarWidth = $state(320);
   let sidebarCollapsed = $state(false);
 
   function startDiffResize(e: MouseEvent) {
@@ -83,6 +84,25 @@
       const container = document.querySelector('.graph-with-diff') as HTMLElement;
       const maxH = container ? container.clientHeight * 0.6 : 500;
       diffPanelHeight = Math.max(150, Math.min(maxH, startHeight + delta));
+    }
+
+    function onMouseUp() {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    }
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
+
+  function startChangesSidebarResize(e: MouseEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = changesSidebarWidth;
+
+    function onMouseMove(e: MouseEvent) {
+      const delta = e.clientX - startX;
+      changesSidebarWidth = Math.max(240, Math.min(600, startWidth + delta));
     }
 
     function onMouseUp() {
@@ -624,9 +644,11 @@
       {:else if $repoInfo}
         {#if activeView === "changes"}
           <div class="changes-layout">
-            <div class="changes-sidebar">
+            <div class="changes-sidebar" style="width: {changesSidebarWidth}px">
               <StagingArea onFileClick={handleFileClick} onNavigate={handleNavigate} />
             </div>
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="changes-resize-handle" onmousedown={startChangesSidebarResize}></div>
             <div class="changes-diff">
               {#if selectedStagingDiff && selectedStagingFile}
                 <StagingDiffEditor
@@ -854,11 +876,21 @@
   }
 
   .changes-sidebar {
-    width: clamp(240px, 22vw, 360px);
-    min-width: 0;
     flex-shrink: 0;
-    border-right: 1px solid var(--border);
     overflow: hidden;
+  }
+
+  .changes-resize-handle {
+    width: 4px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+  }
+
+  .changes-resize-handle:hover {
+    background: var(--accent-blue);
   }
 
   .changes-diff {
@@ -946,11 +978,15 @@
 
   .no-diff {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
     color: var(--text-secondary);
     font-size: 13px;
+    font-style: italic;
+    opacity: 0.5;
+    gap: 8px;
   }
 
 

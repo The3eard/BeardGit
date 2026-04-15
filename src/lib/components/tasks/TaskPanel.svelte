@@ -12,6 +12,7 @@
   let pooledInstance: PooledInstance | null = $state(null);
   let lastWrittenLength = $state(0);
   let terminalOpened = $state(false);
+  let userScrolledUp = $state(false);
 
   let taskCommand = $derived($selectedTask?.command ?? null);
 
@@ -38,6 +39,13 @@
       }
       pooledInstance.fitAddon.fit();
       terminalOpened = true;
+
+      // Track user scroll: detect when user scrolls away from bottom
+      pooledInstance.terminal.onScroll(() => {
+        if (!pooledInstance) return;
+        const buf = pooledInstance.terminal.buffer.active;
+        userScrolledUp = buf.viewportY < buf.baseY;
+      });
     }
   });
 
@@ -50,6 +58,7 @@
       pooledInstance.terminal.clear();
       pooledInstance.terminal.reset();
       lastWrittenLength = 0;
+      userScrolledUp = false;
       return;
     }
 
@@ -58,13 +67,23 @@
       pooledInstance.terminal.clear();
       pooledInstance.terminal.reset();
       lastWrittenLength = 0;
+      userScrolledUp = false;
     }
 
     // Write only new lines (incremental)
     const newLines = output.slice(lastWrittenLength);
     if (newLines.length > 0) {
+      const term = pooledInstance.terminal;
+      const savedViewport = userScrolledUp ? term.buffer.active.viewportY : -1;
+
       const text = newLines.map((l) => l.text).join("\r\n") + "\r\n";
-      pooledInstance.terminal.write(text);
+      term.write(text, () => {
+        // Callback fires after write is fully processed.
+        // If user had scrolled up, restore their position.
+        if (savedViewport >= 0) {
+          term.scrollToLine(savedViewport);
+        }
+      });
       lastWrittenLength = output.length;
     }
   });

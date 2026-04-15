@@ -83,16 +83,6 @@
     }
   }
 
-  function statusColor(status: string): string {
-    switch (status) {
-      case "new": return "var(--accent-green)";
-      case "modified": return "var(--accent-orange)";
-      case "deleted": return "var(--accent-red)";
-      case "renamed": return "var(--accent-purple)";
-      default: return "var(--text-secondary)";
-    }
-  }
-
   /** Generate smart gitignore pattern suggestions from a file path. */
   function buildGitignorePatterns(filePath: string): { label: string; pattern: string }[] {
     const patterns: { label: string; pattern: string }[] = [];
@@ -230,7 +220,8 @@
         disabled={files.length === 0}
         onclick={toggleAll}
       />
-      <span class="list-title">{title} ({files.length})</span>
+      <span class="list-title">{title}</span>
+      <span class="file-count">{files.length}</span>
     </div>
     {#if isStaged && onUnstage}
       {#if selectedCount > 0}
@@ -272,7 +263,7 @@
           class="file-btn"
           onclick={() => onFileClick?.(file.path)}
         >
-          <span class="status-icon" style="color: {statusColor(file.status)}">
+          <span class="status-badge status-{file.status}">
             {statusIcon(file.status)}
           </span>
           <span class="file-path">{file.path}</span>
@@ -307,46 +298,168 @@
 {/if}
 
 <style>
-  .changes-list { display: flex; flex-direction: column; }
+  .changes-list {
+    display: flex;
+    flex-direction: column;
+  }
+
   .list-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 6px 12px; border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
   }
+
   .header-left {
-    display: flex; align-items: center; gap: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
+
   .select-all-checkbox {
     margin: 0;
     accent-color: var(--accent-blue);
     cursor: pointer;
   }
-  .list-title { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .list-title {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+
+  .file-count {
+    font-size: 10px;
+    color: var(--text-secondary);
+    background: var(--overlay-hover);
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-variant-numeric: tabular-nums;
+    min-width: 18px;
+    text-align: center;
+  }
+
   .action-btn {
-    font-size: 10px; color: var(--accent-blue); background: none;
-    border: none; cursor: pointer; padding: 2px 6px; white-space: nowrap;
+    font-size: 10px;
+    color: var(--accent-blue);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    transition: background 0.15s ease;
   }
-  .action-btn:hover { text-decoration: underline; }
-  .file-list { overflow-y: auto; }
+
+  .action-btn:hover {
+    background: var(--overlay-accent-blue);
+  }
+
+  .file-list {
+    overflow-y: auto;
+  }
+
   .file-item {
-    display: flex; align-items: center; gap: 4px; padding: 4px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 12px;
     width: 100%;
+    border-left: 2px solid transparent;
+    transition: background 0.1s ease, border-color 0.1s ease;
   }
-  .file-item:hover { background: rgba(255,255,255,0.04); }
+
+  .file-item:hover {
+    background: var(--overlay-hover);
+    border-left-color: var(--accent-blue);
+  }
+
   .file-checkbox {
-    margin: 0; flex-shrink: 0;
+    margin: 0;
+    flex-shrink: 0;
     accent-color: var(--accent-blue);
     cursor: pointer;
   }
+
   .file-btn {
-    display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;
-    background: none; border: none; color: var(--text-primary);
-    font-size: 12px; cursor: pointer; text-align: left; padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    padding: 2px 0;
   }
-  .status-icon { font-family: var(--font-mono); font-weight: bold; width: 12px; flex-shrink: 0; }
-  .file-path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .status-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .status-new {
+    color: var(--accent-green);
+    background: var(--overlay-accent-green);
+  }
+
+  .status-modified {
+    color: var(--accent-orange);
+    background: var(--overlay-accent-orange);
+  }
+
+  .status-deleted {
+    color: var(--accent-red);
+    background: var(--overlay-accent-red);
+  }
+
+  .status-renamed {
+    color: var(--accent-purple);
+    background: var(--overlay-accent-purple);
+  }
+
+  .file-path {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .item-action {
-    opacity: 0; font-size: 14px; background: none; border: none; line-height: 1;
-    color: var(--accent-blue); cursor: pointer; padding: 0 4px; flex-shrink: 0;
+    opacity: 0;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--overlay-hover);
+    border: none;
+    border-radius: 4px;
+    line-height: 1;
+    color: var(--accent-blue);
+    cursor: pointer;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    transition: opacity 0.15s ease, background 0.15s ease;
   }
-  .file-item:hover .item-action { opacity: 1; }
+
+  .file-item:hover .item-action {
+    opacity: 1;
+  }
+
+  .item-action:hover {
+    background: var(--overlay-accent-blue);
+  }
 </style>
