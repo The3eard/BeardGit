@@ -14,6 +14,10 @@ CodeMirror 6 diff engine with syntax highlighting (16 languages), hunk/line-leve
 
 Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with recovery actions, clean with preview dialog, git config editor (local/global), gitignore management (context menu + CodeMirror editor), patch create/apply, submodule management with open-as-tab, MR/PR management via cli-provider crate (CRUD, review, comments, graph badges), IntelliJ-style merge editor v3 (custom diff engine, SVG bezier connectors, accept/ignore, undo, conflict navigation), auto-update system with toast notifications, multi-file selection with checkboxes, SplitView migration, performance audit fixes.
 
+### Phase 5 Wave 1: AI Provider Integration (v0.1.7)
+
+`AiProvider` trait (17 methods, 7 capability groups), `claude-code` crate (first provider), 16 Tauri commands, AI provider settings UI (detect/select/persist default), AI button validation (toast on no changes), Changes section redesign (pinned commit box, toolbar icons, overflow menu), reflog overhaul (action buttons, index-based selection, file diff panel), submodule add/remove, tab hover tooltips with snapshot cache, folder/badge color refresh, E2E test infrastructure (6 suites, 149 tests).
+
 ---
 
 ## Phase 4: Terminal Foundation (xterm.js)
@@ -93,6 +97,9 @@ Implementation in 3 waves. Wave 1 (5.1 + 5.2) complete.
 - [x] Terminal dropdown launches `claude` binary directly (auto-starts Claude Code)
 - [x] Brand icons (Claude SVG) in terminal tabs and composite tab segments
 - [x] E2E test suite for AI provider store (15 tests)
+- [x] AI Provider settings UI: detect installed providers, select default, persist preference
+- [x] AI button validation: toast warnings when no staged changes (commit) or no changes (review)
+- [x] `preferred_ai_provider` config field + `ai_get/set_preferred_provider` Tauri commands
 
 ### Wave 2: UI Views + Attribution
 

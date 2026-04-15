@@ -2,31 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [Unreleased] — Phase 5.1 + 5.2: AI Provider Integration
-
-**Reflog Section Overhaul**
-
-- Fixed broken "Create Branch" context menu action — was creating branch at HEAD instead of at the reflog entry's commit. New `create_branch_at(name, oid)` backend operation
-- Fixed misleading "Checkout" action — was performing `reset --mixed` (destructive). New `checkout_detached(oid)` backend operation for proper detached HEAD checkout
-- Fixed selection model — `selectedReflogOid` used just the OID which is not unique across reflog entries (e.g., two checkouts to same branch). Switched to index-based selection
-- Removed duplicate `repo-changed` listeners — both SplitView and a separate `$effect` were setting up listeners causing double loads. SplitView now handles lifecycle exclusively
-- Added action buttons to detail pane: Checkout, Create Branch, Reset (dropdown with Soft/Mixed/Hard), Copy SHA
-- Added refresh button to list header
-- Context menu actions now refresh the reflog list after operations
-- Selection cleared when navigating away to prevent stale state on return
-- File diff panel: clicking a file in the reflog commit detail now shows a resizable diff editor below (same pattern as branches view)
-
-**Submodule Management — Add & Remove**
-
-- New "Add Submodule" button in header — opens inline form with URL and path inputs
-- New `add_submodule(url, path)` backend operation (`git submodule add`)
-- New "Remove Submodule" in right-click context menu with confirmation dialog
-- New `remove_submodule(path)` backend operation (`git submodule deinit -f` + `git rm -f`)
-- Empty state no longer blocks the "Add Submodule" button — users can add submodules from an empty section
-
-**SplitView Fix**
-
-- Added `width: 100%` to `.split-view` — fixes intermittent issue where the right pane didn't reach the container edge in flex layouts
+## [0.1.7] — AI Provider Integration, Changes Redesign, UI Polish
 
 **AI Provider Architecture**
 
@@ -48,20 +24,28 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 - Config discovery: user/project/local settings.json, `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`, CLAUDE.md hierarchy
 - Commit attribution: detects `Authored-by:` footer, `Co-authored-by:` trailer with Claude/Anthropic mention, author name matching
 
-**14 Tauri Commands**
+**16 Tauri Commands**
 
 - Detection: `ai_get_providers`, `ai_get_repo_status`, `ai_refresh_detection`
 - Headless actions (via TaskManager): `ai_generate_commit_message`, `ai_analyze_code`, `ai_generate_pr_description`, `ai_review_code`, `ai_review_pr`
 - Interactive launch (via TerminalManager): `ai_launch_interactive`, `ai_launch_worktree`
 - Introspection: `ai_list_sessions`, `ai_list_worktrees`, `ai_cleanup_worktree`, `ai_get_config_files`
+- Preference: `ai_get_preferred_provider`, `ai_set_preferred_provider`
 
-**Frontend Integration**
+**AI Provider Settings**
 
-- TypeScript types matching all Rust structs (`AiProviderKind`, `AvailableAiProvider`, `RepoAiStatus`, `AiSession`, `AiWorktree`, `AiConfigFile`)
-- 14 IPC wrappers in `tauri.ts`
-- `ai.ts` store: provider detection, headless action wrappers with default provider resolution, derived stores (`hasAiProvider`, `defaultAiProvider`)
-- AI Commit Message button in staging area (conditionally rendered when provider detected)
-- Auto-detection of AI providers on app startup
+- New "AI Provider" section in Settings replacing the WIP "Editor" section
+- Shows all known providers (Claude Code, Codex, OpenCode) with detection status
+- Detected providers show version and "Detected" badge; unavailable ones are greyed out
+- Click to set default provider, click again to reset to auto-detect
+- Preference persisted in `AppConfig.preferred_ai_provider` across restarts
+- Refresh button to re-scan PATH for provider binaries
+
+**AI Button Validation**
+
+- AI Commit Message button now shows a warning toast when no staged changes exist
+- AI Code Review button now shows a warning toast when no changes exist at all
+- Previously both buttons silently triggered tasks with no input
 
 **Terminal AI Launch**
 
@@ -70,6 +54,52 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 - Brand-colored status dots: Claude (#d97757), Codex (#10a37f), OpenCode (#8b8b8b)
 - Same icon treatment in both standalone `TerminalTab` and composite tab terminal segments
 - `TerminalTabInfo` extended with optional `provider` field for brand identification
+
+**Changes Section Redesign**
+
+- Pinned commit box at bottom with toolbar row: amend toggle, AI buttons, overflow menu
+- AI Commit Message button (purple accent) with loading spinner; Code Review button (blue accent)
+- Overflow menu: Create Patch, Clean, History (reflog), Push — replacing scattered buttons
+- Commit message textarea with Cmd+Enter shortcut
+- Single commit button replacing separate stage+commit actions
+
+**Reflog Section Overhaul**
+
+- Fixed broken "Create Branch" context menu action — was creating branch at HEAD instead of at the reflog entry's commit. New `create_branch_at(name, oid)` backend operation
+- Fixed misleading "Checkout" action — was performing `reset --mixed` (destructive). New `checkout_detached(oid)` backend operation for proper detached HEAD checkout
+- Fixed selection model — `selectedReflogOid` used just the OID which is not unique across reflog entries. Switched to index-based selection
+- Removed duplicate `repo-changed` listeners — SplitView now handles lifecycle exclusively
+- Added action buttons to detail pane: Checkout, Create Branch, Reset (dropdown with Soft/Mixed/Hard), Copy SHA
+- Added refresh button to list header
+- Context menu actions now refresh the reflog list after operations
+- Selection cleared when navigating away to prevent stale state on return
+- File diff panel: clicking a file in the reflog commit detail now shows a resizable diff editor below
+
+**Submodule Management — Add & Remove**
+
+- New "Add Submodule" button in header — opens inline form with URL and path inputs
+- New `add_submodule(url, path)` backend operation (`git submodule add`)
+- New "Remove Submodule" in right-click context menu with confirmation dialog
+- New `remove_submodule(path)` backend operation (`git submodule deinit -f` + `git rm -f`)
+- Empty state no longer blocks the "Add Submodule" button
+
+**UI Polish**
+
+- Folder icons changed from orange to blue for better visual cohesion
+- Tab badge style changed from solid orange pill to subtle green tint with green text
+- Tab hover tooltips with project snapshot (branch, changes, last commit)
+- Project snapshot cache for instant tooltip display
+- Task panel command bar truncated to single line with ellipsis (fixes output being pushed off-screen by long AI commands)
+
+**Bug Fixes**
+
+- Fixed task panel output not visible when AI commands have long prompts (command bar had no max-height)
+- Fixed `width: 100%` missing on SplitView — right pane not reaching container edge in flex layouts
+- Fixed graph tooltip positioning and content
+- Fixed terminal resize on tab switch
+- Fixed project switch clearing stale data (reflog, conflict state, diffs)
+- Fixed unstaged file diff preview not loading after project tab switch
+- Removed gitignore editor component (functionality preserved via context menu)
 
 **E2E Test Infrastructure**
 
