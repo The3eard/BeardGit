@@ -525,5 +525,16 @@
   "ai_pr_description": "Descripción IA",
   "ai_pr_review": "Revisión PR IA",
   "ai_no_provider": "Sin herramientas IA detectadas",
-  "ai_tools": "Herramientas IA"
+  "ai_tools": "Herramientas IA",
+  "ai_no_staged_changes": "No hay cambios preparados para generar un mensaje de commit",
+  "ai_no_changes_to_review": "No hay cambios para revisar",
+  "ai_settings_title": "Proveedor IA",
+  "ai_settings_default_provider": "Proveedor predeterminado",
+  "ai_settings_no_providers": "No se detectaron herramientas IA en este sistema",
+  "ai_settings_detected": "Detectado",
+  "ai_settings_not_found": "No instalado",
+  "ai_settings_version": "Versión {version}",
+  "ai_settings_provider_claude": "Claude Code",
+  "ai_settings_provider_codex": "Codex",
+  "ai_settings_provider_opencode": "OpenCode"
 }

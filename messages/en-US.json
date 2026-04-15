@@ -525,5 +525,16 @@
   "ai_pr_description": "AI Description",
   "ai_pr_review": "AI PR Review",
   "ai_no_provider": "No AI tools detected",
-  "ai_tools": "AI Tools"
+  "ai_tools": "AI Tools",
+  "ai_no_staged_changes": "No staged changes to generate a commit message",
+  "ai_no_changes_to_review": "No changes to review",
+  "ai_settings_title": "AI Provider",
+  "ai_settings_default_provider": "Default Provider",
+  "ai_settings_no_providers": "No AI tools detected on this system",
+  "ai_settings_detected": "Detected",
+  "ai_settings_not_found": "Not installed",
+  "ai_settings_version": "Version {version}",
+  "ai_settings_provider_claude": "Claude Code",
+  "ai_settings_provider_codex": "Codex",
+  "ai_settings_provider_opencode": "OpenCode"
 }

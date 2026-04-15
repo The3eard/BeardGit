@@ -428,6 +428,26 @@ pub fn ai_cleanup_worktree(
     p.cleanup_worktree(worktree).map_err(|e| e.to_string())
 }
 
+// ─── Provider Preference ─────────────────────────────────────────────────────
+
+/// Return the preferred AI provider kind from settings, or `None` for auto-detect.
+#[tauri::command]
+pub fn ai_get_preferred_provider(state: State<'_, AppState>) -> Option<String> {
+    let config = state.config.lock().unwrap();
+    config.preferred_ai_provider.clone()
+}
+
+/// Set the preferred AI provider kind. Pass `None` to reset to auto-detect.
+#[tauri::command]
+pub fn ai_set_preferred_provider(
+    provider: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut config = state.config.lock().unwrap();
+    config.preferred_ai_provider = provider;
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
 /// List AI configuration files for all detected providers in the current repository.
 #[tauri::command]
 pub fn ai_get_config_files(state: State<'_, AppState>) -> Result<Vec<AiConfigFile>, String> {

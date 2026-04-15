@@ -2,7 +2,8 @@
   import ProviderSetup from "../auth/ProviderSetup.svelte";
   import AppearanceSettings from "./AppearanceSettings.svelte";
   import GitConfigSettings from "./GitConfigSettings.svelte";
-import * as m from "$lib/paraglide/messages";
+  import AiSettings from "./AiSettings.svelte";
+  import * as m from "$lib/paraglide/messages";
 
   type SettingsSection = { labelKey: () => string; id: string; wip?: boolean };
 
@@ -10,7 +11,7 @@ import * as m from "$lib/paraglide/messages";
     { labelKey: () => m.settings_connection(), id: "connection" },
     { labelKey: () => m.settings_appearance(), id: "appearance" },
     { labelKey: () => m.settings_git_config(), id: "git-config" },
-{ labelKey: () => m.settings_editor(), id: "editor", wip: true },
+    { labelKey: () => m.ai_settings_title(), id: "ai" },
   ];
 
   let activeSection = $state("connection");
@@ -40,6 +41,8 @@ import * as m from "$lib/paraglide/messages";
       <AppearanceSettings />
     {:else if activeSection === "git-config"}
       <GitConfigSettings />
+    {:else if activeSection === "ai"}
+      <AiSettings />
     {:else}
       <div class="wip-section">
         <div class="wip-icon">&#128679;</div>

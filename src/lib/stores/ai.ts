@@ -12,14 +12,20 @@ import type { AvailableAiProvider, RepoAiStatus, AiProviderKind } from "$lib/typ
 
 export const aiProviders = writable<AvailableAiProvider[]>([]);
 export const repoAiStatus = writable<RepoAiStatus[]>([]);
+export const preferredAiProvider = writable<AiProviderKind | null>(null);
 
 /** Whether at least one AI provider is installed. */
 export const hasAiProvider = derived(aiProviders, (p) => p.length > 0);
 
-/** The first detected provider kind, used as default. */
+/** The effective default provider — preferred if available, otherwise first detected. */
 export const defaultAiProvider = derived(
-  aiProviders,
-  (p): AiProviderKind | null => (p.length > 0 ? p[0].kind : null),
+  [aiProviders, preferredAiProvider],
+  ([providers, preferred]): AiProviderKind | null => {
+    if (preferred && providers.some((p) => p.kind === preferred)) {
+      return preferred;
+    }
+    return providers.length > 0 ? providers[0].kind : null;
+  },
 );
 
 // ─── Detection ───
@@ -29,6 +35,18 @@ export async function detectAiProviders(): Promise<void> {
   await api.aiRefreshDetection();
   const providers = await api.aiGetProviders();
   aiProviders.set(providers);
+}
+
+/** Load the preferred AI provider from persisted config. */
+export async function loadPreferredProvider(): Promise<void> {
+  const pref = await api.aiGetPreferredProvider();
+  preferredAiProvider.set(pref as AiProviderKind | null);
+}
+
+/** Set and persist the preferred AI provider. Pass `null` to reset to auto-detect. */
+export async function setPreferredProvider(provider: AiProviderKind | null): Promise<void> {
+  await api.aiSetPreferredProvider(provider);
+  preferredAiProvider.set(provider);
 }
 
 /** Refresh AI status for the current repo. */
@@ -100,6 +118,10 @@ function resolveDefaultProvider(): string {
   const providers = get(aiProviders);
   if (providers.length === 0) {
     throw new Error("No AI provider detected");
+  }
+  const preferred = get(preferredAiProvider);
+  if (preferred && providers.some((p) => p.kind === preferred)) {
+    return preferred;
   }
   return providers[0].kind;
 }

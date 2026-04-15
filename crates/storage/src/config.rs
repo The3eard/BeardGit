@@ -100,6 +100,11 @@ pub struct AppConfig {
     #[serde(default)]
     pub sidebar_collapsed: bool,
 
+    /// Preferred AI provider kind (e.g. `"claude_code"`, `"codex"`, `"open_code"`).
+    /// `None` means "use first detected".
+    #[serde(default)]
+    pub preferred_ai_provider: Option<String>,
+
     // -- Legacy fields (read during migration, never written) --
     /// Legacy Plan 5 field. Migrated to `providers` vec.
     #[serde(default, skip_serializing)]
@@ -128,6 +133,7 @@ impl Default for AppConfig {
             ui_scale: default_ui_scale(),
             graph_columns: Vec::new(),
             sidebar_collapsed: false,
+            preferred_ai_provider: None,
             provider_kind: None,
             provider_instance_url: None,
             gitlab_instance_url: None,

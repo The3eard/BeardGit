@@ -140,8 +140,9 @@
 
   .tab-badge {
     font-size: 10px;
-    background: var(--accent-orange);
-    color: #fff;
+    background: var(--overlay-accent-green);
+    color: var(--accent-green);
+    font-weight: 600;
     padding: 0 5px;
     border-radius: 8px;
     line-height: 16px;

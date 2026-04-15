@@ -843,3 +843,11 @@ export async function aiCleanupWorktree(provider: string, worktreePath: string):
 export async function aiGetConfigFiles(): Promise<AiConfigFile[]> {
   return invoke<AiConfigFile[]>("ai_get_config_files");
 }
+
+export async function aiGetPreferredProvider(): Promise<string | null> {
+  return invoke<string | null>("ai_get_preferred_provider");
+}
+
+export async function aiSetPreferredProvider(provider: string | null): Promise<void> {
+  return invoke<void>("ai_set_preferred_provider", { provider });
+}

@@ -234,6 +234,8 @@ pub fn run() {
             app_core::ai_commands::ai_list_worktrees,
             app_core::ai_commands::ai_cleanup_worktree,
             app_core::ai_commands::ai_get_config_files,
+            app_core::ai_commands::ai_get_preferred_provider,
+            app_core::ai_commands::ai_set_preferred_provider,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

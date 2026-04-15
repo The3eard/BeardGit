@@ -6,6 +6,7 @@
   import * as m from "$lib/paraglide/messages";
   import { amendCommit, getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote } from "$lib/api/tauri";
   import { hasAiProvider, aiGenerateCommitMessage, aiReviewCode } from "$lib/stores/ai";
+  import { addToast } from "$lib/stores/toast";
   import { repoInfo } from "$lib/stores/repo";
   import { taskOutput, selectTask, expandPanel } from "$lib/stores/tasks";
   import { stripAnsi } from "$lib/utils/strip-ansi";
@@ -78,6 +79,10 @@
   }
 
   async function handleAiCommitMessage() {
+    if (staged.length === 0) {
+      addToast({ message: m.ai_no_staged_changes(), type: "warning" });
+      return;
+    }
     aiCommitLoading = true;
     try {
       const taskId = await aiGenerateCommitMessage();
@@ -121,6 +126,10 @@
   }
 
   async function handleCodeReview() {
+    if ($fileStatuses.length === 0) {
+      addToast({ message: m.ai_no_changes_to_review(), type: "warning" });
+      return;
+    }
     try {
       const diff = await createWorkingTreePatch(false);
       const taskId = await aiReviewCode(diff);

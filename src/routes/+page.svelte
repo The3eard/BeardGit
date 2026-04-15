@@ -56,7 +56,7 @@
   import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
   import { get } from "svelte/store";
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
-  import { detectAiProviders } from "$lib/stores/ai";
+  import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
 
   let activeView = $state("graph");
   let selectedDiff = $state<RawDiffContent | null>(null);
@@ -155,6 +155,7 @@
     initProjects();
     initTerminalEvents();
     detectAiProviders();
+    loadPreferredProvider();
 
     try {
       sidebarCollapsed = await getSidebarCollapsed();

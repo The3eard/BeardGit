@@ -128,8 +128,8 @@
       <span class="output-label">{m.tasks_output()}</span>
     </div>
     {#if taskCommand}
-      <div class="output-command">
-        <span class="command-prompt">$</span> {taskCommand}
+      <div class="output-command" title={taskCommand}>
+        <span class="command-prompt">$</span> <span class="command-text">{taskCommand}</span>
       </div>
     {/if}
     {#if $selectedTask}
@@ -220,6 +220,8 @@
   }
 
   .output-command {
+    display: flex;
+    align-items: center;
     padding: 6px 8px;
     background: var(--bg-primary);
     font-family: var(--font-mono);
@@ -227,12 +229,21 @@
     color: var(--accent-blue);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-    user-select: all;
+    max-height: 28px;
+    overflow: hidden;
   }
 
   .command-prompt {
     color: var(--text-secondary);
     margin-right: 4px;
+    flex-shrink: 0;
+  }
+
+  .command-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    user-select: all;
   }
 
   .output-terminal {

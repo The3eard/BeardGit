@@ -103,8 +103,8 @@
   .folder-icon {
     font-size: 13px;
     flex-shrink: 0;
-    color: var(--accent-orange, #f0883e);
-    opacity: 0.8;
+    color: var(--accent-blue);
+    opacity: 0.7;
   }
 
   .folder-name {
