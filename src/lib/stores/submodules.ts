@@ -18,6 +18,7 @@ import {
   removeSubmodule as apiRemove,
   submoduleAbsPath as apiAbsPath,
 } from "../api/tauri";
+import { fetchIntoStore } from "../utils/store-helpers";
 
 /** List of submodules in the active repository. */
 export const submodules = writable<SubmoduleInfo[]>([]);
@@ -27,15 +28,7 @@ export const submodulesLoading = writable(false);
 
 /** Fetch the submodule list from the backend. */
 export async function refreshSubmodules() {
-  submodulesLoading.set(true);
-  try {
-    const list = await apiList();
-    submodules.set(list);
-  } catch {
-    submodules.set([]);
-  } finally {
-    submodulesLoading.set(false);
-  }
+  await fetchIntoStore(submodules, submodulesLoading, () => apiList(), []);
 }
 
 /** Initialize a submodule and refresh the list. */

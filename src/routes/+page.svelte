@@ -32,11 +32,12 @@
   import { blamePreviousView } from "$lib/stores/blame";
   import TerminalView from "$lib/components/terminal/TerminalView.svelte";
   import { initTerminalEvents } from "$lib/stores/terminal";
-  import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment, openTabs } from "$lib/stores/tabs";
+  import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment, openTabs, getActiveTerminalSegment, getCompositeTerminals } from "$lib/stores/tabs";
   import { getSidebarCollapsed, setSidebarCollapsed } from "$lib/api/tauri";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
   import AiConfigEditor from "$lib/components/ai-config/AiConfigEditor.svelte";
   import AiSessionList from "$lib/components/ai-sessions/AiSessionList.svelte";
+  import BisectWorkflow from "$lib/components/bisect/BisectWorkflow.svelte";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
   import {
@@ -391,10 +392,10 @@
       return;
     }
 
-    if (tab?.kind === "composite" && tab.activeSegment === "terminal") {
+    if (tab?.kind === "composite" && tab.activeSegmentIndex >= 0) {
       // Switch to project segment of the same composite tab
       const idx = get(activeTabIndex);
-      switchSegment(idx, "project");
+      switchSegment(idx, -1);
       activeView = view;
       selectedDiff = null;
       selectedStagingFile = null;
@@ -554,24 +555,28 @@
       onToggleCollapse={handleToggleSidebar}
     />
 
-    <div class="center-panel" style:background={($activeTab?.kind === "terminal" || ($activeTab?.kind === "composite" && $activeTab?.activeSegment === "terminal")) ? $activeTheme?.colors.background : undefined}>
+    <div class="center-panel" style:background={($activeTab?.kind === "terminal" || ($activeTab?.kind === "composite" && $activeTab.activeSegmentIndex >= 0 && $activeTab.segments[$activeTab.activeSegmentIndex]?.type === "terminal")) ? $activeTheme?.colors.background : undefined}>
       <ConflictToolbar />
       <div class="content-wrapper">
         <!-- Persistent terminal layer: always mounted, shown/hidden via visibility.
              Uses absolute positioning so terminals keep full dimensions when hidden.
              Keyed by sessionId so Svelte never destroys/recreates on tab reorder. -->
-        {#each $openTabs as tab, i (tab.kind === "terminal" ? `t-${tab.terminal.sessionId}` : tab.kind === "composite" && tab.terminal ? `c-${tab.terminal.sessionId}` : `skip-${i}`)}
+        {#each $openTabs as tab, i}
           {#if tab.kind === "terminal"}
             <div class="terminal-persist" class:visible={i === $activeTabIndex} style:background={$activeTheme?.colors.background}>
               <TerminalView terminal={tab.terminal} />
             </div>
-          {:else if tab.kind === "composite" && tab.terminal}
-            <div class="terminal-persist" class:visible={i === $activeTabIndex && tab.activeSegment === "terminal"} style:background={$activeTheme?.colors.background}>
-              <TerminalView terminal={tab.terminal} />
-            </div>
+          {:else if tab.kind === "composite"}
+            {#each tab.segments as segment, si (segment.type === "terminal" ? `c${i}-t-${segment.info.sessionId}` : `c${i}-skip-${si}`)}
+              {#if segment.type === "terminal"}
+                <div class="terminal-persist" class:visible={i === $activeTabIndex && tab.activeSegmentIndex === si} style:background={$activeTheme?.colors.background}>
+                  <TerminalView terminal={segment.info} />
+                </div>
+              {/if}
+            {/each}
           {/if}
         {/each}
-        {#if $activeTab?.kind === "terminal" || ($activeTab?.kind === "composite" && $activeTab.activeSegment === "terminal")}
+        {#if $activeTab?.kind === "terminal" || ($activeTab?.kind === "composite" && $activeTab.activeSegmentIndex >= 0 && $activeTab.segments[$activeTab.activeSegmentIndex]?.type === "terminal")}
           <!-- Terminal is showing via persistent layer above -->
         {:else if activeView === "settings"}
         <SettingsPage />
@@ -630,6 +635,8 @@
         </div>
       {:else if activeView === "submodules"}
         <SubmoduleList />
+      {:else if activeView === "bisect"}
+        <BisectWorkflow />
       {:else if activeView === "ai-config"}
         <AiConfigEditor />
       {:else if activeView === "ai-sessions"}

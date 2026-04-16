@@ -54,7 +54,25 @@ describe("aiSessions store", () => {
   it("filterSessionsByProject returns only matching sessions", () => {
     const filtered = filterSessionsByProject(mockSessions, "/repo");
     expect(filtered).toHaveLength(2);
-    expect(filtered.every((s) => s.cwd === "/repo")).toBe(true);
+    expect(filtered.every((s) => s.cwd.startsWith("/repo"))).toBe(true);
+  });
+
+  it("filterSessionsByProject normalizes trailing slashes", () => {
+    const sessionsWithSlash: AiSession[] = [
+      { id: "s4", provider: "claude_code", cwd: "/repo/", started_at: 3000, kind: "interactive", is_active: true },
+    ];
+    const filtered = filterSessionsByProject(sessionsWithSlash, "/repo");
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].id).toBe("s4");
+  });
+
+  it("filterSessionsByProject matches subdirectory sessions", () => {
+    const sessionsWithSubdir: AiSession[] = [
+      { id: "s5", provider: "claude_code", cwd: "/repo/worktree-1", started_at: 4000, kind: "interactive", is_active: true },
+    ];
+    const filtered = filterSessionsByProject(sessionsWithSubdir, "/repo");
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].id).toBe("s5");
   });
 
   it("sorts active sessions before ended", () => {

@@ -58,14 +58,15 @@ import {
   switchToPrevTab as tabsPrev,
   closeTerminalTab,
   switchSegment,
-  closeTerminalSegment,
+  closeSegment,
   closeProjectSegment,
+  getCompositeTerminals,
 } from "./tabs";
 import { writable } from "svelte/store";
 
 // Re-export for backward compatibility with components that read these.
 export { openTabs, activeTabIndex };
-export { switchSegment, closeTerminalSegment, closeProjectSegment };
+export { switchSegment, closeSegment, closeProjectSegment };
 
 /** List of open projects derived from the unified tab array. */
 export const openProjects = derived(projectTabs, ($pt) =>
@@ -165,7 +166,7 @@ export async function switchToTab(tabIndex: number) {
       projectSwitchCallback?.();
     }
     await activateProjectTab(tabIndex);
-  } else {
+  } else if (tab.kind === "terminal") {
     // Terminal tab — update title bar
     getCurrentWindow().setTitle(`${tab.terminal.title} — BeardGit`);
   }
@@ -278,8 +279,11 @@ export async function closeTab(tabIndex: number) {
   }
 
   if (tab.kind === "composite") {
-    // Close terminal first (demotes to project), then close the project
-    await closeTerminalTab(tab.terminal.sessionId);
+    // Close all terminal segments first (demotes to project), then close the project
+    const terminals = getCompositeTerminals(tab);
+    for (const t of terminals) {
+      await closeTerminalTab(t.sessionId);
+    }
   }
 
   // Project tab (or demoted composite): close via Rust
@@ -376,10 +380,11 @@ export async function closeActiveTab(): Promise<void> {
 
   // For composite tabs, Cmd+W closes the active segment only
   if (tab?.kind === "composite") {
-    if (tab.activeSegment === "terminal") {
-      await closeTerminalSegment(idx);
+    if (tab.activeSegmentIndex >= 0) {
+      // Close the active linked segment
+      await closeSegment(idx, tab.activeSegmentIndex);
     } else {
-      // Close project segment: demote to standalone terminal, close project in Rust
+      // Project segment active: demote to standalone terminal(s), close project in Rust
       const projectIdx = tabIndexToProjectIndex(idx);
       closeProjectSegment(idx);
       if (projectIdx >= 0) {

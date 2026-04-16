@@ -209,6 +209,7 @@
   <ConfirmDialog
     title={m.ai_config_discard()}
     message={m.ai_config_discard_confirm()}
+    confirmLabel={m.ai_config_discard_btn()}
     destructive={true}
     onConfirm={handleDiscardConfirm}
     onCancel={handleDiscardCancel}

@@ -17,6 +17,7 @@
   const { defaultScope, onClose }: Props = $props();
 
   let kind = $state<"agent" | "skill" | "prompt">("agent");
+  // svelte-ignore state_referenced_locally — intentional: scope is initialized from prop then mutated locally
   let scope = $state(defaultScope);
   let name = $state("");
   let error = $state("");
@@ -61,8 +62,8 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-<div class="backdrop" onclick={onClose} role="button" tabindex="-1"></div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="backdrop" onclick={onClose} onkeydown={handleKeydown} role="presentation"></div>
 <div class="dialog" role="dialog" aria-modal="true" aria-label={m.ai_config_create_title()}>
   <h3 class="dialog-title">{m.ai_config_create_title()}</h3>
 
@@ -127,33 +128,11 @@
 </div>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-  }
+  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions, .btn, .btn-cancel, .btn-create */
 
   .dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px 24px;
     min-width: 360px;
     max-width: 440px;
-    z-index: 1000;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  }
-
-  .dialog-title {
-    margin: 0 0 16px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
   }
 
   .field {
@@ -245,42 +224,6 @@
   }
 
   .dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
     margin-top: 4px;
-  }
-
-  .btn {
-    padding: 6px 16px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    transition: background 0.15s;
-  }
-
-  .btn-cancel {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-primary);
-  }
-
-  .btn-cancel:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .btn-create {
-    background: var(--accent-blue);
-    color: #fff;
-    border-color: var(--accent-blue);
-  }
-
-  .btn-create:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .btn-create:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
   }
 </style>

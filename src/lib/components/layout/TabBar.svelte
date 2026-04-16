@@ -8,11 +8,8 @@
     switchToTab,
     closeTab,
     toggleAddMenu,
-    switchSegment,
-    closeTerminalSegment,
-    closeProjectSegment,
   } from "$lib/stores/projects";
-  import { openTabs, activeTabIndex, openTerminalTab, openStandaloneTerminal, openAiTerminalTab } from "$lib/stores/tabs";
+  import { openTabs, activeTabIndex, openTerminalTab, openStandaloneTerminal, openAiTerminalTab, switchSegment, closeSegment, closeProjectSegment, getActiveTerminalSegment } from "$lib/stores/tabs";
   import { repoInfo } from "$lib/stores/repo";
   import { aiProviders } from "$lib/stores/ai";
   import type { AiProviderKind } from "$lib/types";
@@ -93,31 +90,18 @@
 
   async function handleTerminalClick() {
     const tab = $openTabs[$activeTabIndex];
+
+    // Project or composite tab → always add a new terminal to the composite
+    if (tab?.kind === "project" || tab?.kind === "composite") {
+      const cwd = tab.project.path;
+      const name = cwd.split("/").pop() ?? "Terminal";
+      await openTerminalTab(cwd, `${m.tab_terminal()} · ${name}`);
+      return;
+    }
+
+    // Standalone terminal tab or no tabs → open in ~ via dropdown only
+    // (this path is reached only from standalone terminal tabs with no project)
     const home = await getHomePath();
-
-    // Already viewing a terminal → open new standalone in ~
-    if (
-      tab?.kind === "terminal" ||
-      (tab?.kind === "composite" && tab.activeSegment === "terminal")
-    ) {
-      await openStandaloneTerminal(home, m.tab_terminal());
-      return;
-    }
-
-    // Composite tab on project segment → switch to existing terminal
-    if (tab?.kind === "composite" && tab.activeSegment === "project") {
-      switchSegment($activeTabIndex, "terminal");
-      return;
-    }
-
-    // Project tab → promote to composite (linked terminal)
-    if (tab?.kind === "project") {
-      const name = tab.project.path.split("/").pop() ?? "Terminal";
-      await openTerminalTab(tab.project.path, `${m.tab_terminal()} · ${name}`);
-      return;
-    }
-
-    // No project context → standalone in ~
     await openStandaloneTerminal(home, m.tab_terminal());
   }
 
@@ -174,11 +158,11 @@
       {:else if tab.kind === "composite"}
         <CompositeTab
           project={tab.project}
-          terminal={tab.terminal}
-          activeSegment={tab.activeSegment}
+          segments={tab.segments}
+          activeSegmentIndex={tab.activeSegmentIndex}
           isActiveTab={i === $activeTabIndex}
-          onSwitchSegment={(segment) => {
-            switchSegment(i, segment);
+          onSwitchSegment={(segmentIndex) => {
+            switchSegment(i, segmentIndex);
             if (i !== $activeTabIndex) switchToTab(i);
           }}
           onCloseProject={async () => {
@@ -189,7 +173,7 @@
               await closeProject(projectIdx);
             }
           }}
-          onCloseTerminal={() => closeTerminalSegment(i)}
+          onCloseSegment={(segmentIndex) => closeSegment(i, segmentIndex)}
         />
       {/if}
     {/each}

@@ -57,21 +57,9 @@
 </div>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-  }
+  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions */
 
   .dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1000;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 20px;
     min-width: 400px;
@@ -83,10 +71,8 @@
   }
 
   .dialog-title {
-    margin: 0 0 12px;
+    margin-bottom: 12px;
     font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary);
   }
 
   .patch-file-name {
@@ -154,12 +140,6 @@
 
   .deletions {
     color: var(--accent-red);
-  }
-
-  .dialog-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
   }
 
   .action-btn {

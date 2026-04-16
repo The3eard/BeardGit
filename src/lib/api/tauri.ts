@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -676,6 +676,21 @@ export async function cliLogin(kind: string, instanceUrl?: string): Promise<Prov
   return invoke<ProviderUser>("cli_login", { kind, instanceUrl: instanceUrl ?? null });
 }
 
+/** Check auth status for both gh and glab CLIs. */
+export async function cliCheckAuthStatus(): Promise<CliAuthStatus[]> {
+  return invoke<CliAuthStatus[]>("cli_check_auth_status");
+}
+
+/** Get the shell command to launch an interactive auth flow. */
+export async function cliGetAuthCommand(tool: string): Promise<string> {
+  return invoke<string>("cli_get_auth_command", { tool });
+}
+
+/** Get the shell command to log out of a CLI tool. */
+export async function cliGetLogoutCommand(tool: string): Promise<string> {
+  return invoke<string>("cli_get_logout_command", { tool });
+}
+
 // ---------------------------------------------------------------------------
 // MR/PR management
 // ---------------------------------------------------------------------------
@@ -862,4 +877,63 @@ export async function aiWriteConfigFile(path: string, content: string): Promise<
 
 export async function aiCreateConfigFile(kind: string, scope: string, name: string): Promise<AiConfigFile> {
   return invoke<AiConfigFile>("ai_create_config_file", { kind, scope, name });
+}
+
+// ─── Bisect ─────────────────────────────────────────────────────────
+
+/** Start a bisect session, optionally providing bad and good commits. */
+export async function bisectStart(bad?: string, good?: string): Promise<string> {
+  return invoke<string>("bisect_start", { bad: bad ?? null, good: good ?? null });
+}
+
+/** Mark a commit (or current HEAD) as good. */
+export async function bisectGood(commit?: string): Promise<string> {
+  return invoke<string>("bisect_good", { commit: commit ?? null });
+}
+
+/** Mark a commit (or current HEAD) as bad. */
+export async function bisectBad(commit?: string): Promise<string> {
+  return invoke<string>("bisect_bad", { commit: commit ?? null });
+}
+
+/** Skip the current commit. */
+export async function bisectSkip(): Promise<string> {
+  return invoke<string>("bisect_skip");
+}
+
+/** Reset (end) the bisect session. */
+export async function bisectReset(): Promise<string> {
+  return invoke<string>("bisect_reset");
+}
+
+/** Get the current bisect session state. */
+export async function bisectGetState(): Promise<BisectState> {
+  return invoke<BisectState>("bisect_get_state");
+}
+
+/** Get the bisect log. */
+export async function bisectGetLog(): Promise<string> {
+  return invoke<string>("bisect_get_log");
+}
+
+/** Run an automated bisect with a test command. */
+export async function bisectRunAuto(testCommand: string): Promise<string> {
+  return invoke<string>("bisect_run_auto", { testCommand });
+}
+
+// ─── Debug / Logging ────────────────────────────────────────────────
+
+/** Get debug information (version, OS, git version, log path). */
+export async function getDebugInfo(): Promise<DebugInfo> {
+  return invoke<DebugInfo>("get_debug_info");
+}
+
+/** Get the log file directory path. */
+export async function getLogPath(): Promise<string> {
+  return invoke<string>("get_log_path");
+}
+
+/** Open the log directory in the system file manager. */
+export async function openLogDirectory(): Promise<void> {
+  return invoke<void>("open_log_directory");
 }

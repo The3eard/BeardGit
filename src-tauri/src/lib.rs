@@ -18,6 +18,9 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(app_core::state::AppState::new())
         .setup(|app| {
+            // Initialize structured file logging (best-effort — don't crash if it fails)
+            storage::logging::init_logging().ok();
+
             #[cfg(desktop)]
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -239,6 +242,21 @@ pub fn run() {
             app_core::ai_commands::ai_create_config_file,
             app_core::ai_commands::ai_get_preferred_provider,
             app_core::ai_commands::ai_set_preferred_provider,
+            // Bisect
+            app_core::commands::bisect_start,
+            app_core::commands::bisect_good,
+            app_core::commands::bisect_bad,
+            app_core::commands::bisect_skip,
+            app_core::commands::bisect_reset,
+            app_core::commands::bisect_get_state,
+            app_core::commands::bisect_get_log,
+            app_core::commands::bisect_run_auto,
+            app_core::commands::cli_check_auth_status,
+            app_core::commands::cli_get_auth_command,
+            app_core::commands::cli_get_logout_command,
+            app_core::commands::get_debug_info,
+            app_core::commands::get_log_path,
+            app_core::commands::open_log_directory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

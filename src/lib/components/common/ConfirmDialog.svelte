@@ -57,33 +57,15 @@
 </div>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-  }
+  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions, .btn, .btn-cancel, .btn-confirm */
 
   .dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px 24px;
     min-width: 320px;
     max-width: 420px;
-    z-index: 1000;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   }
 
   .dialog-title {
-    margin: 0 0 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
+    margin-bottom: 8px;
   }
 
   .dialog-detail {
@@ -106,46 +88,8 @@
     line-height: 1.4;
   }
 
-  .dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
-
-  .btn {
-    padding: 6px 16px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    transition: background 0.15s;
-  }
-
-  .btn-cancel {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-primary);
-  }
-
-  .btn-cancel:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .btn-confirm {
-    background: var(--accent-blue);
-    color: #fff;
-    border-color: var(--accent-blue);
-  }
-
-  .btn-confirm:hover {
-    opacity: 0.9;
-  }
-
   .btn-confirm.destructive {
-    background: #f85149;
-    border-color: #f85149;
-  }
-
-  .btn-confirm.destructive:hover {
-    opacity: 0.9;
+    background: var(--accent-red, #f85149);
+    border-color: var(--accent-red, #f85149);
   }
 </style>

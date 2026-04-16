@@ -124,8 +124,12 @@
           </div>
           <div class="session-actions">
             {#if session.is_active && session.kind === "interactive"}
-              <button class="session-action-btn" title="Focus">
-                <span class="nf">{"\uF120"}</span>
+              <button
+                class="session-action-btn external"
+                disabled
+                title={m.ai_sessions_external_terminal()}
+              >
+                <span class="external-label">{m.ai_sessions_external()}</span>
               </button>
             {:else if session.is_active && session.kind === "headless"}
               <button class="session-action-btn" title="Output">
@@ -399,5 +403,20 @@
 
   .session-action-btn.dismiss:hover {
     color: var(--accent-red);
+  }
+
+  .session-action-btn.external {
+    cursor: default;
+    opacity: 0.5;
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .external-label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-secondary);
   }
 </style>

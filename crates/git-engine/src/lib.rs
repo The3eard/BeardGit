@@ -20,6 +20,7 @@
 //! - [`submodule`] — list, init, update, and deinit submodules
 //! - [`error`] — unified error type
 
+pub mod bisect;
 pub mod blame;
 pub mod clean;
 pub mod cli;
@@ -42,6 +43,7 @@ pub mod staging;
 pub mod submodule;
 pub mod worktree;
 
+pub use bisect::BisectState;
 pub use blame::{BlameLine, FileHistoryEntry};
 pub use clean::CleanItem;
 pub use cli::{CommitStats, GitCliResult, StashEntry, TagInfo};

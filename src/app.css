@@ -1,6 +1,7 @@
 @import "@xterm/xterm/css/xterm.css";
 @import "./lib/styles/list.css";
 @import "./lib/styles/detail.css";
+@import "./lib/styles/dialog.css";
 
 /* Monospace — Fira Code with ligatures */
 @font-face {

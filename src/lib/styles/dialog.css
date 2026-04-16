@@ -1,0 +1,93 @@
+/* Shared dialog styles — used by ConfirmDialog, CleanDialog, CreateMrPrDialog,
+   CreateWorktreeDialog, CreateConfigDialog, PatchPreviewDialog, TagCreateDialog */
+
+/* Full-screen backdrop overlay */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+/* Centered dialog card */
+.dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  z-index: 1000;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Dialog title */
+.dialog-title {
+  margin: 0 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Action button row — right-aligned */
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Base button */
+.btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: background 0.15s, opacity 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cancel / secondary button */
+.btn-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Primary / confirm button */
+.btn-primary,
+.btn-confirm,
+.btn-create {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-confirm:hover:not(:disabled),
+.btn-create:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Destructive action button */
+.btn-destructive {
+  background: var(--accent-red, #f85149);
+  color: #fff;
+  border-color: var(--accent-red, #f85149);
+}
+
+.btn-destructive:hover:not(:disabled) {
+  opacity: 0.9;
+}

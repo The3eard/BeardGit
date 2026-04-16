@@ -8,6 +8,7 @@
 import { writable, get } from "svelte/store";
 import * as api from "$lib/api/tauri";
 import type { AiConfigFile } from "$lib/types";
+import { fetchIntoStore } from "$lib/utils/store-helpers";
 
 // ─── State ───
 
@@ -30,15 +31,7 @@ export const configLoading = writable(false);
 
 /** Fetch all AI config files from the backend. */
 export async function loadConfigFiles(): Promise<void> {
-  configLoading.set(true);
-  try {
-    const files = await api.aiGetConfigFiles();
-    configFiles.set(files);
-  } catch {
-    configFiles.set([]);
-  } finally {
-    configLoading.set(false);
-  }
+  await fetchIntoStore(configFiles, configLoading, () => api.aiGetConfigFiles(), []);
 }
 
 /** Open a file in the editor. Reads content from backend. */

@@ -26,8 +26,9 @@
     { label: m.sidebar_stashes(), icon: "\uF187", id: "stashes" },
     { label: m.sidebar_worktrees(), icon: "\uE728", id: "worktrees" },
     { label: m.sidebar_reflog(), icon: "\uF1DA", id: "reflog" },
+    { label: m.sidebar_bisect(), icon: "\uF002", id: "bisect" },
     { label: m.sidebar_submodules(), icon: "\uF1E6", id: "submodules" },
-    { label: m.sidebar_ai_config(), icon: "\uF544", id: "ai-config" },
+    { label: m.sidebar_ai_config(), icon: "\uF085", id: "ai-config" },
     { label: m.sidebar_ai_sessions(), icon: "\uF489", id: "ai-sessions" },
   ];
 
@@ -54,6 +55,7 @@
         class:active={activeView === item.id}
         onclick={() => handleNav(item.id)}
         title={collapsed ? item.label : undefined}
+        data-testid="nav-{item.id}"
       >
         <span class="nav-icon">{item.icon}</span>
         {#if !collapsed}
@@ -79,6 +81,7 @@
         class:active={activeView === item.id}
         onclick={() => handleNav(item.id)}
         title={collapsed ? item.label : undefined}
+        data-testid="nav-{item.id}"
       >
         <span class="nav-icon">{item.icon}</span>
         {#if !collapsed}
@@ -96,6 +99,7 @@
       class:active={activeView === "settings"}
       onclick={() => handleNav("settings")}
       title={collapsed ? m.sidebar_settings() : undefined}
+      data-testid="nav-settings"
     >
       <span class="nav-icon">{"\uF013"}</span>
       {#if !collapsed}

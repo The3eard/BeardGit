@@ -1,0 +1,167 @@
+//! Graph viewport, commit search, and commit detail commands.
+
+use graph_builder::{Dag, GraphCommit, GraphLayout};
+use tauri::State;
+
+use super::helpers::*;
+use crate::state::AppState;
+
+/// Return a paginated slice of the commit graph for virtual-scroll rendering.
+///
+/// # Parameters
+/// - `offset` – Zero-based row index of the first commit to include.
+/// - `limit`  – Maximum number of rows to return.
+///
+/// # Returns
+/// A [`GraphViewport`] containing the layout nodes for the requested window.
+#[tauri::command]
+pub async fn get_graph_viewport(
+    offset: usize,
+    limit: usize,
+    state: State<'_, AppState>,
+) -> Result<GraphViewport, String> {
+    // Extract the viewport result while holding the lock briefly.
+    // The layout itself is not Clone/Send, so we compute the viewport
+    // slice synchronously (it's array filtering, not DAG computation).
+    let (result, total_lane_count) = {
+        let projects = state.projects.lock().map_err(|e| e.to_string())?;
+        let active = state.active_index.lock().map_err(|e| e.to_string())?;
+        let idx = active.ok_or_else(|| "No active project".to_string())?;
+        let slot = projects
+            .get(idx)
+            .ok_or("Active project index out of bounds")?;
+        let layout = slot.layout.as_ref().ok_or("No repository open")?;
+        let total_lane_count = layout.lane_count;
+        let result = layout.viewport(offset, limit);
+        (result, total_lane_count)
+    };
+
+    Ok(GraphViewport {
+        nodes: result.nodes,
+        lane_segments: result.lane_segments,
+        merge_curves: result.merge_curves,
+        total_count: result.total_count,
+        offset: result.offset,
+        visible_lane_count: result.visible_lane_count,
+        total_lane_count,
+        head_lane: result.head_lane,
+    })
+}
+
+/// Look up a commit's row index in the cached graph layout.
+///
+/// Returns `None` if the commit is not found in the currently loaded graph.
+/// This is used by the frontend to scroll the graph viewport to a specific
+/// commit (e.g. when navigating from a clickable parent OID).
+#[tauri::command]
+pub fn get_commit_row(oid: String, state: State<'_, AppState>) -> Result<Option<usize>, String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let active = state.active_index.lock().map_err(|e| e.to_string())?;
+    let idx = active.ok_or_else(|| "No active project".to_string())?;
+    let slot = projects
+        .get(idx)
+        .ok_or("Active project index out of bounds")?;
+    let layout = slot.layout.as_ref().ok_or("No repository open")?;
+    Ok(layout.nodes.iter().find(|n| n.oid == oid).map(|n| n.row))
+}
+
+/// Search commits using server-side filters and return a graph viewport.
+///
+/// All filters are optional and combined with AND semantics on the Rust side
+/// via `walk_commits_filtered`. Returns a full-viewport result (offset = 0)
+/// because the filtered set is typically small enough to display at once.
+///
+/// # Parameters
+/// - `branch`    – Only include commits reachable from this branch.
+/// - `author`    – Substring match against the commit author name.
+/// - `message`   – Substring match against the commit summary.
+/// - `sha`       – Prefix match against the commit OID.
+/// - `max_count` – Upper bound on results (defaults to 200).
+#[tauri::command]
+pub async fn search_commits(
+    branch: Option<String>,
+    author: Option<String>,
+    message: Option<String>,
+    sha: Option<String>,
+    max_count: Option<usize>,
+    state: State<'_, AppState>,
+) -> Result<GraphViewport, String> {
+    let repo_path = get_active_project_path(&state)?;
+
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+
+        let commits = repo
+            .walk_commits_filtered(
+                max_count.unwrap_or(200),
+                branch.as_deref(),
+                author.as_deref(),
+                message.as_deref(),
+                sha.as_deref(),
+            )
+            .map_err(|e| e.to_string())?;
+
+        // Build graph from filtered commits
+        let graph_commits: Vec<GraphCommit> = commits
+            .iter()
+            .map(|c| GraphCommit {
+                oid: c.oid.clone(),
+                parents: c.parents.clone(),
+                timestamp: c.timestamp,
+                refs: c.refs.clone(),
+                summary: c.summary.clone(),
+                author: c.author.clone(),
+                email: c.email.clone(),
+            })
+            .collect();
+
+        let dag = Dag::build(&graph_commits);
+        let layout = GraphLayout::compute(&dag);
+        let vp = layout.viewport(0, graph_commits.len());
+
+        Ok(GraphViewport {
+            nodes: vp.nodes,
+            lane_segments: vp.lane_segments,
+            merge_curves: vp.merge_curves,
+            total_count: vp.total_count,
+            offset: 0,
+            visible_lane_count: vp.visible_lane_count,
+            total_lane_count: layout.lane_count,
+            head_lane: vp.head_lane,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Fetch full metadata for a single commit by its OID.
+///
+/// # Parameters
+/// - `oid` – Full or abbreviated commit SHA.
+///
+/// # Returns
+/// [`git_engine::CommitInfo`] with author, message, parents, and diff stats.
+#[tauri::command]
+pub fn get_commit_detail(
+    oid: String,
+    state: State<'_, AppState>,
+) -> Result<git_engine::CommitInfo, String> {
+    with_active_repo(&state, |repo| {
+        repo.get_commit(&oid).map_err(|e| e.to_string())
+    })
+}
+
+/// Return diff statistics for a single commit.
+#[tauri::command]
+pub async fn get_commit_stats(
+    oid: String,
+    state: State<'_, AppState>,
+) -> Result<git_engine::CommitStats, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.commit_stats(&oid).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}

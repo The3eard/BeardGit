@@ -25,6 +25,7 @@ tauri = { version = "2", features = [] }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 dirs = "6"
+open = "5"
 rayon = "1"
 watcher = { path = "../watcher" }
 terminal = { path = "../terminal" }

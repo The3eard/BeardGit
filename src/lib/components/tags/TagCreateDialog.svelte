@@ -119,6 +119,9 @@
 </div>
 
 <style>
+  /* dialog.css provides: .dialog-title, .btn, .btn-cancel, .btn-primary */
+  /* This dialog uses .dialog-backdrop + .dialog-card (flex-centered), not the standard .backdrop + .dialog */
+
   .dialog-backdrop {
     position: fixed;
     inset: 0;
@@ -147,9 +150,6 @@
 
   .dialog-title {
     margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
   }
 
   .dialog-body {
@@ -251,42 +251,6 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-  }
-
-  .btn {
-    padding: 6px 16px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    transition: background 0.15s, opacity 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn-cancel {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-primary);
-  }
-
-  .btn-cancel:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .btn-primary {
-    background: var(--accent-blue);
-    color: #fff;
-    border-color: var(--accent-blue);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    opacity: 0.9;
   }
 
   .spinner--small {

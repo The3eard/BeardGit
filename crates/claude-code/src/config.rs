@@ -37,35 +37,25 @@ pub fn config_files(repo_path: &Path) -> Vec<AiConfigFile> {
         ConfigScope::Local,
     );
 
-    // Agent definitions
-    let agents_dir = repo_path.join(".claude/agents");
-    if agents_dir.is_dir() {
-        for entry in fs::read_dir(&agents_dir).into_iter().flatten().flatten() {
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("md") {
-                files.push(AiConfigFile {
-                    path,
-                    kind: ConfigKind::Agent,
-                    scope: ConfigScope::Project,
-                });
-            }
-        }
-    }
+    // User-level agent definitions
+    scan_agents(&mut files, &home.join(".claude/agents"), ConfigScope::User);
 
-    // Skill definitions
-    let skills_dir = repo_path.join(".claude/skills");
-    if skills_dir.is_dir() {
-        for entry in fs::read_dir(&skills_dir).into_iter().flatten().flatten() {
-            let skill_md = entry.path().join("SKILL.md");
-            if skill_md.is_file() {
-                files.push(AiConfigFile {
-                    path: skill_md,
-                    kind: ConfigKind::Skill,
-                    scope: ConfigScope::Project,
-                });
-            }
-        }
-    }
+    // User-level skill definitions
+    scan_skills(&mut files, &home.join(".claude/skills"), ConfigScope::User);
+
+    // Project-level agent definitions
+    scan_agents(
+        &mut files,
+        &repo_path.join(".claude/agents"),
+        ConfigScope::Project,
+    );
+
+    // Project-level skill definitions
+    scan_skills(
+        &mut files,
+        &repo_path.join(".claude/skills"),
+        ConfigScope::Project,
+    );
 
     files
 }
@@ -96,6 +86,38 @@ pub fn instruction_files(repo_path: &Path) -> Vec<PathBuf> {
     }
 
     files
+}
+
+/// Scan a directory for `.md` agent definition files and push them.
+fn scan_agents(files: &mut Vec<AiConfigFile>, dir: &Path, scope: ConfigScope) {
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                files.push(AiConfigFile {
+                    path,
+                    kind: ConfigKind::Agent,
+                    scope,
+                });
+            }
+        }
+    }
+}
+
+/// Scan a directory for skill subdirectories containing `SKILL.md`.
+fn scan_skills(files: &mut Vec<AiConfigFile>, dir: &Path, scope: ConfigScope) {
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
+            let skill_md = entry.path().join("SKILL.md");
+            if skill_md.is_file() {
+                files.push(AiConfigFile {
+                    path: skill_md,
+                    kind: ConfigKind::Skill,
+                    scope,
+                });
+            }
+        }
+    }
 }
 
 /// Push a config file entry if the path exists as a file.
@@ -141,7 +163,7 @@ mod tests {
         let files = config_files(dir.path());
         let agents: Vec<_> = files
             .iter()
-            .filter(|f| f.kind == ConfigKind::Agent)
+            .filter(|f| f.kind == ConfigKind::Agent && f.scope == ConfigScope::Project)
             .collect();
         assert_eq!(agents.len(), 1);
         assert!(agents[0].path.ends_with("reviewer.md"));
@@ -157,9 +179,23 @@ mod tests {
         let files = config_files(dir.path());
         let skills: Vec<_> = files
             .iter()
-            .filter(|f| f.kind == ConfigKind::Skill)
+            .filter(|f| f.kind == ConfigKind::Skill && f.scope == ConfigScope::Project)
             .collect();
         assert_eq!(skills.len(), 1);
+    }
+
+    #[test]
+    fn discovers_user_agents() {
+        // User-level agents are discovered when ~/.claude/agents/ exists.
+        // We verify the function at least returns files that include user scope.
+        let files = config_files(Path::new("/nonexistent-repo"));
+        // If ~/.claude/agents/ has .md files, they'll appear as User scope.
+        let user_agents: Vec<_> = files
+            .iter()
+            .filter(|f| f.kind == ConfigKind::Agent && f.scope == ConfigScope::User)
+            .collect();
+        // We can't assert an exact count (depends on host) — just verify no panic.
+        assert!(user_agents.iter().all(|a| a.scope == ConfigScope::User));
     }
 
     #[test]

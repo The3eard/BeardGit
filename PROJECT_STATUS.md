@@ -14,164 +14,86 @@ CodeMirror 6 diff engine with syntax highlighting (16 languages), hunk/line-leve
 
 Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with recovery actions, clean with preview dialog, git config editor (local/global), gitignore management (context menu + CodeMirror editor), patch create/apply, submodule management with open-as-tab, MR/PR management via cli-provider crate (CRUD, review, comments, graph badges), IntelliJ-style merge editor v3 (custom diff engine, SVG bezier connectors, accept/ignore, undo, conflict navigation), auto-update system with toast notifications, multi-file selection with checkboxes, SplitView migration, performance audit fixes.
 
-### Phase 5 Wave 1: AI Provider Integration (v0.1.7)
+### Phase 4: Terminal Foundation (xterm.js) ✅
 
-`AiProvider` trait (17 methods, 7 capability groups), `claude-code` crate (first provider), 16 Tauri commands, AI provider settings UI (detect/select/persist default), AI button validation (toast on no changes), Changes section redesign (pinned commit box, toolbar icons, overflow menu), reflog overhaul (action buttons, index-based selection, file diff panel), submodule add/remove, tab hover tooltips with snapshot cache, folder/badge color refresh, E2E test infrastructure (6 suites, 149 tests).
+**4A — Terminal Core + Read-Only Views + Theme Bridge:** Rust PTY manager crate, xterm.js Svelte component (WebGL, fit, web-links, search addons), shell detection (zsh/bash/powershell), read-only instance pool, TaskPanel + CI JobLog migrated to xterm.js, theme system redesigned (18 base colors + 16 ANSI), 14 TOML themes updated, Tauri commands + event bridge.
 
----
+**4B — Interactive Terminal Tabs + UI Improvements:** Unified tab model (project | terminal | composite), composite segmented tabs, terminal split button + dropdown with AI provider entries (Claude/Codex/OpenCode brand icons), standalone terminals, NerdFont in terminal, sidebar collapse (Cmd+B), Cmd+T/Cmd+W shortcuts, graph viewport cache, auto-navigate on tab switch.
 
-## Phase 4: Terminal Foundation (xterm.js)
+### Phase 5: AI Integration ✅
 
-### 4A — Terminal Core + Read-Only Views + Theme Bridge ✅
+**Wave 1 — AiProvider Trait + Claude Code (v0.1.7):** `AiProvider` trait (17 methods, 7 capability groups), `claude-code` crate, 16 Tauri commands, AI provider settings UI, AI button validation, Changes section redesign, reflog overhaul, submodule add/remove, tab tooltips, E2E test infrastructure (6 suites, 149 tests).
 
-- [x] Rust PTY manager crate (`portable-pty`, shell spawn, read/write)
-- [x] New `terminal` crate (isolated from Tauri, reusable library)
-- [x] xterm.js Svelte component (WebGL addon, fit addon, web-links, search addons)
-- [x] Shell detection and configuration (zsh, bash, powershell)
-- [x] Read-only xterm.js instance pool (2 visible + 1 warm)
-- [x] TaskPanel output migrated to xterm.js read-only terminal
-- [x] CI JobLog migrated to xterm.js read-only terminal
-- [x] Retired `ansi.ts` parser — replaced by native xterm.js rendering
-- [x] Theme system redesigned: 18 base colors (bg + fg + 16 ANSI) with derived semantics
-- [x] All 14 TOML themes updated with explicit ANSI palettes
-- [x] Direct xterm.js ITheme mapping from base colors
-- [x] Tauri commands + event bridge for terminal sessions
+**Wave 2 — UI Views:** Worktree section enriched with AI badges + context menu (EnrichedWorktree join), AI Config Editor (dual file tree project/user, editable CodeMirror, create dialog for agents/skills/prompts, 3 new Tauri commands with path validation), AI Sessions view (project-scoped session list, file watcher on ~/.claude/sessions/, auto-refresh via events).
 
-### 4B — Interactive Terminal Tabs + UI Improvements ✅
+**Wave 3 — Additional Providers:** `codex` crate (detection, commands, TOML config, attribution), `opencode` crate (detection, commands, JSON config, attribution), both wired into make_provider factory, dynamic terminal dropdown (only detected providers), Codex brand color #ffffff.
 
-- [x] Terminal tabs as first-class tab type in the TabBar (unified tab model: project | terminal | composite)
-- [x] Composite segmented tabs: project + linked terminal merge into one pill `[● Repo | ⌨ Terminal]`
-- [x] Each segment independently clickable, closeable (hover-only ✕), and middle-click closeable
-- [x] Closing a segment reverts composite to simple tab (project-only or terminal-only)
-- [x] Terminal opens in-place: promoting project tab to composite, not appending at end
-- [x] Terminal label adapts: "Terminal", "Claude", "Codex", "OpenCode" with brand icons and hardcoded colors
-- [x] Terminal split button in actions area: left (icon) opens terminal, right (chevron) dropdown with options
-- [x] Dropdown: "New terminal in ~", Claude Code (#d97757), Codex (#10a37f), OpenCode (#8b8b8b) with SVG brand logos
-- [x] Standalone terminal tabs for "New terminal in ~" (not linked to any project)
-- [x] Full interactive xterm.js terminal wired to Rust PTY backend (keyboard input, resize, auto-close on shell exit)
-- [x] NerdFont icons render in terminal (NerdFontSymbols added to fontFamily)
-- [x] Sidebar collapse toggle (icon-only mode, 44px, smooth CSS transition, Cmd+B shortcut, persisted)
-- [x] Cmd+T shortcut to open new terminal tab, Cmd+W closes active segment
-- [x] Graph viewport cache: instant tab switching with cached graph data (no loading spinner)
-- [x] Auto-navigate to graph on project tab switch (instant, prevents stale pipeline/changes data)
-- [x] Fixed: recent projects list empty on first use
-- [x] Fixed: unstaged file diff preview not loading after tab switch
-- [x] Fixed: icon consistency (close ✕, plus +) and vertical centering in action buttons
-- [x] Fixed: + button popup click-outside closing
+### Phase 6: Git Completion & Code Quality ✅
 
-#### Remaining (future)
+**6.3 — Code Quality:** Split `commands.rs` (3267 lines, 139 commands) into 24 feature-based modules under `commands/`, shared dialog CSS extracted to `dialog.css`, `fetchIntoStore` utility extracted from repeated store patterns.
 
-- [ ] Split management (multiple terminals per project)
-- [ ] Terminal process detection (auto-detect Claude/Codex running, update label dynamically)
-- [ ] Project auto-detection: terminal navigating to another project path re-links
+**6.1 — Bisect (Visual Workflow):** `git-engine` bisect module (8 operations via system git CLI), 8 Tauri commands, `bisect.ts` store, BisectWorkflow component (good/bad/skip controls, auto-bisect with test command, bisect log display), AutoBisectDialog.
+
+**6.2 — CLI Auth + Integration:** CLI auth status detection for gh/glab, 3 Tauri commands, CliAuthSection settings component with authenticate/logout buttons via interactive terminal, unified settings page (Token Auth + CLI Auth).
+
+**6.4 — Error Logging + Debug UX:** `tracing`-based structured file logging with daily rotation, platform-specific log directories, debug info collection, ErrorDialog component with copy-error and open-log actions, 3 Tauri commands.
+
+**6.5 — E2E Testing Infrastructure:** WebdriverIO + tauri-driver config, 3 fixture repo setup scripts, sidebar/graph page objects, data-testid attributes, 2 initial test specs.
+
+**Composite Tab Upgrade:** Multi-segment composite tabs (N terminals + worktrees per project), fixed segment ordering (Project → Worktrees → AI Terminals → Terminals), terminal button always adds to composite, `+` button and dropdown for adding segments.
 
 ---
 
-## Phase 5: AI Integration
+## Phase 7: Polish, Performance & Remaining Items
 
-Implementation in 3 waves. Wave 1 (5.1 + 5.2) complete.
+All undone items from previous phases consolidated here.
 
-### Wave 1: AiProvider Trait + Claude Code ✅
+### 7.1 — Terminal Enhancements
 
-### 5.1 — AiProvider Trait & Detection ✅
+- [ ] Terminal cwd auto-detection: OSC 7 shell integration, terminal navigating to a project path auto-links to composite tab
+- [ ] Terminal process detection: auto-detect Claude/Codex running in terminal, update label dynamically
+- [ ] Split terminal panes: multiple xterm.js instances in split layout within one tab segment
 
-- [x] New `ai-provider` crate with `AiProvider` trait (7 capability groups, sync, command-building)
-- [x] Shared types: `AiProviderKind`, `AiSession`, `AiWorktree`, `AiConfigFile`, `ExecuteOptions`
-- [x] Two-phase detection: binary scan on startup (PATH), repo scan on tab switch (`.claude/`, `.codex/`)
-- [x] Default implementations return empty/None/NotSupported — providers override what they support
-- [x] Trait covers: identity, detection, headless execution, specialized actions, interactive launch, session/worktree introspection, config/attribution
-
-### 5.2 — Claude Code (First Provider) ✅
-
-- [x] New `claude-code` crate implementing `AiProvider` for Claude Code CLI
-- [x] Detection: `which claude`, `claude --version`, scan `.claude/` + `CLAUDE.md`
-- [x] Headless execution: `claude --print` via TaskManager (commit msg, review, analysis, PR description, PR review)
-- [x] Interactive launch: spawn `claude` in terminal tab via TerminalManager
-- [x] Worktree support: `claude --worktree`, `git worktree list` cross-ref, `worktree-*` branch convention
-- [x] Session introspection: parse `~/.claude/sessions/*.json`, PID liveness checks
-- [x] Config discovery: settings.json (user/project/local), agents/*.md, skills/*/SKILL.md, CLAUDE.md hierarchy
-- [x] Commit attribution: `Authored-by:` footer, `Co-authored-by:` trailer, author name patterns
-- [x] 14 Tauri commands in `app-core/ai_commands.rs` (detection, actions, launch, introspection)
-- [x] Frontend: `ai.ts` store, AI action buttons in staging view, terminal launcher wired to `ai_launch_interactive`
-- [x] Output via existing task viewer (same UX as git fetch/push)
-- [x] Terminal dropdown launches `claude` binary directly (auto-starts Claude Code)
-- [x] Brand icons (Claude SVG) in terminal tabs and composite tab segments
-- [x] E2E test suite for AI provider store (15 tests)
-- [x] AI Provider settings UI: detect installed providers, select default, persist preference
-- [x] AI button validation: toast warnings when no staged changes (commit) or no changes (review)
-- [x] `preferred_ai_provider` config field + `ai_get/set_preferred_provider` Tauri commands
-
-### Wave 2: UI Views + Attribution
-
-### 5.3 — AI Worktree Sidebar
-
-- [ ] New sidebar section per project: AI worktrees grouped under their project tab
-- [ ] Status badges: active session, changes pending, clean, orphaned
-- [ ] Click to navigate to worktree's terminal tab
-- [ ] Context menu: open in graph, cleanup worktree + branch, open in new project tab
-
-### 5.4 — Config Viewer
-
-- [ ] Read-only panel showing AI config files for current repo
-- [ ] Tabs per detected tool: CLAUDE.md, AGENTS.md, opencode.json
-- [ ] Syntax-highlighted with CodeMirror (reuse existing editor engine)
-
-### 5.5 — Session Dashboard
-
-- [ ] Cross-project view: all active AI sessions across all open project tabs
-- [ ] Per session: tool name, worktree, branch, terminal tab link, recent activity
-- [ ] Quick actions: focus terminal, open worktree in graph, stop session
-
-### Wave 3: Additional Providers
-
-### 5.7 — Additional Provider Implementations
-
-- [ ] Codex CLI (`AiProvider` implementation — `codex exec`, TOML config, SQLite sessions)
-- [ ] OpenCode (`AiProvider` implementation — `-p` flag, JSON config, SQLite sessions)
-- [ ] Each wired to terminal launcher dropdown and all AI action buttons
-
----
-
-## Phase 6: Git Completion & Code Quality
-
-### 6.1 — Bisect (Visual Workflow)
-
-- [ ] Visual bisect UI: mark good/bad commits in graph
-- [ ] Step-by-step guided workflow with current test commit highlighted
-- [ ] Auto-bisect option (run command per step)
-- [ ] Bisect log and reset
-
-### 6.2 — Bundle gh/glab Binaries
+### 7.2 — CLI Binary Bundling
 
 - [ ] Download platform-specific gh/glab binaries in CI build pipeline
 - [ ] Ship bundled with app (macOS arm64/x64, Linux x64, Windows x64)
-- [ ] gh/glab OAuth flows run inside interactive terminal tabs
 - [ ] Auto-update bundled CLIs with app updates
+- [ ] Fallback to system binaries when bundled not available
 
-### 6.3 — Code Quality
+### 7.3 — Code Quality (Remaining)
 
-- [ ] Split `commands.rs` (~3148 lines) into feature-based modules
-- [ ] Extract generic `<List>` component (~1500 LOC savings across 8 components)
-- [ ] Extract shared dialog CSS to `src/lib/styles/dialog.css`
-- [ ] Extract store `fetchIntoStore` helper
-- [ ] CLI provider JSON parsing deduplication (GitHub/GitLab parsers)
+- [ ] Extract generic `<List>` component (~1500 LOC savings across 11 components)
+- [ ] Extract store `fetchIntoStore` to remaining stores (branches, tags, stashes, reflog, mr-pr)
+- [ ] CLI provider JSON parsing deduplication (GitHub/GitLab shared parser)
 
-### 6.4 — Infrastructure
+### 7.4 — E2E Testing Expansion
 
-- [ ] Crash reporting / telemetry (opt-in)
-- [ ] Auto-update scope: app + libgit2 + git + gh + glab (extend existing updater)
-
-### 6.5 — E2E Testing Infrastructure (partial ✅)
-
-- [x] Vitest setup with global IPC mocking (`@tauri-apps/api/core`, events, window, dialog)
-- [x] Configurable `mockInvokeResponse()` helper for per-test mock data
-- [x] 6 E2E workflow test suites: repo-open, staging-commit, branch-ops, tag-ops, stash-ops, ai-provider
-- [x] 149 total frontend tests (74 existing + 75 new E2E), all passing
-- [ ] `tauri-driver` + Playwright/WebdriverIO for full webview automation
-- [ ] Test harness that launches the app against a fixture repo
-- [ ] Golden path tests: open repo, navigate views, stage/commit, run terminal, launch AI session
-- [ ] CI integration: headless E2E suite on build pipeline
+- [ ] `tauri-driver` + WebdriverIO full integration (headless app launch)
+- [ ] Golden path tests: open repo → navigate → stage/commit → terminal → AI session
+- [ ] CI integration: headless E2E suite on build pipeline (xvfb-run on Linux)
 - [ ] Regression suite: one test per major feature (graph, branches, merge editor, terminal, AI)
+
+### 7.5 — Infrastructure
+
+- [ ] Auto-update scope: extend to bundled gh/glab binaries (after 7.2)
+- [ ] Error logging: add `tracing` instrumentation to git write operations (push/pull/fetch/commit/merge/rebase)
+- [ ] Log rotation cleanup: auto-purge logs older than 7 days
+
+### 7.6 — UI Polish & Bug Fixes
+
+- [ ] AI Sessions "Focus" button: wire to actual terminal tab when session has a linked BeardGit terminal
+- [ ] Bisect graph integration: highlight good/bad/current commits with colored overlays in canvas graph
+- [ ] Bisect context menu: right-click commit in graph → "Mark as good" / "Mark as bad"
+- [ ] AI Config Editor: file watcher for live reload when external editor modifies config files
+- [ ] Worktree "Open in graph": navigate graph view to worktree's branch
+- [ ] Worktree "Lock/Unlock": wire the context menu stub actions
+
+### 7.7 — Performance
+
+- [ ] Profile and optimize large repo graph rendering (100K+ commits)
+- [ ] Terminal instance pooling: recycle xterm.js instances for closed terminals
+- [ ] Lazy-load CodeMirror languages (only load grammar when file type first encountered)
 
 ---
 

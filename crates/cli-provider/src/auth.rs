@@ -13,6 +13,118 @@ use provider::ProviderKind;
 use crate::configure_no_window;
 use crate::error::CliError;
 
+// ─── Auth Status Detection ──────────────────────────────────────────────────
+
+/// Authentication status for a CLI tool (`gh` or `glab`).
+///
+/// Used by the settings UI to show whether each CLI is installed and
+/// authenticated, along with the logged-in username when available.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CliAuthStatus {
+    /// CLI tool name (`"gh"` or `"glab"`).
+    pub tool: String,
+    /// Whether the CLI binary was found (bundled or on PATH).
+    pub installed: bool,
+    /// Whether the user is authenticated.
+    pub authenticated: bool,
+    /// Username if authenticated (parsed from status output).
+    pub username: Option<String>,
+    /// Error message if the check failed.
+    pub error: Option<String>,
+}
+
+/// Check `gh auth status` and return structured auth info.
+///
+/// The binary path should be resolved via `resolve_cli_binary` so bundled
+/// binaries are preferred over PATH.
+pub fn check_gh_auth_status(binary_path: &Path) -> CliAuthStatus {
+    let mut cmd = Command::new(binary_path);
+    cmd.args(["auth", "status"]);
+    configure_no_window(&mut cmd);
+
+    match cmd.output() {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let combined = format!("{stdout}{stderr}");
+            let authenticated = output.status.success();
+            // gh outputs: "Logged in to github.com account USERNAME ..."
+            let username = combined
+                .lines()
+                .find(|l| l.contains("Logged in to"))
+                .and_then(|l| l.split("account ").nth(1))
+                .map(|s| s.split_whitespace().next().unwrap_or("").to_string())
+                .filter(|s| !s.is_empty());
+            CliAuthStatus {
+                tool: "gh".into(),
+                installed: true,
+                authenticated,
+                username,
+                error: None,
+            }
+        }
+        Err(e) => CliAuthStatus {
+            tool: "gh".into(),
+            installed: true,
+            authenticated: false,
+            username: None,
+            error: Some(e.to_string()),
+        },
+    }
+}
+
+/// Check `glab auth status` and return structured auth info.
+///
+/// The binary path should be resolved via `resolve_cli_binary` so bundled
+/// binaries are preferred over PATH.
+pub fn check_glab_auth_status(binary_path: &Path) -> CliAuthStatus {
+    let mut cmd = Command::new(binary_path);
+    cmd.args(["auth", "status"]);
+    configure_no_window(&mut cmd);
+
+    match cmd.output() {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let combined = format!("{stdout}{stderr}");
+            // glab may exit 0 or print "Logged in" even on non-zero
+            let authenticated = output.status.success() || combined.contains("Logged in");
+            // glab outputs: "Logged in to gitlab.com as USERNAME ..."
+            let username = combined
+                .lines()
+                .find(|l| l.contains("Logged in"))
+                .and_then(|l| l.split("as ").nth(1))
+                .map(|s| s.split_whitespace().next().unwrap_or("").to_string())
+                .filter(|s| !s.is_empty());
+            CliAuthStatus {
+                tool: "glab".into(),
+                installed: true,
+                authenticated,
+                username,
+                error: None,
+            }
+        }
+        Err(e) => CliAuthStatus {
+            tool: "glab".into(),
+            installed: true,
+            authenticated: false,
+            username: None,
+            error: Some(e.to_string()),
+        },
+    }
+}
+
+/// Build a `CliAuthStatus` for a tool whose binary was not found.
+pub fn not_installed_status(tool: &str) -> CliAuthStatus {
+    CliAuthStatus {
+        tool: tool.into(),
+        installed: false,
+        authenticated: false,
+        username: None,
+        error: None,
+    }
+}
+
 /// Check if the CLI is already authenticated.
 ///
 /// Returns `true` if `gh auth status` / `glab auth status` exits 0.

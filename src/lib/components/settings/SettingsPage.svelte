@@ -3,6 +3,7 @@
   import AppearanceSettings from "./AppearanceSettings.svelte";
   import GitConfigSettings from "./GitConfigSettings.svelte";
   import AiSettings from "./AiSettings.svelte";
+  import CliAuthSection from "./CliAuthSection.svelte";
   import * as m from "$lib/paraglide/messages";
 
   type SettingsSection = { labelKey: () => string; id: string; wip?: boolean };
@@ -36,7 +37,13 @@
 
   <div class="settings-content">
     {#if activeSection === "connection"}
-      <ProviderSetup />
+      <div class="auth-section">
+        <h3 class="auth-section-title">{m.settings_token_auth()}</h3>
+        <ProviderSetup />
+      </div>
+      <div class="auth-section">
+        <CliAuthSection />
+      </div>
     {:else if activeSection === "appearance"}
       <AppearanceSettings />
     {:else if activeSection === "git-config"}
@@ -118,6 +125,21 @@
     flex: 1;
     overflow-y: auto;
     padding: 0;
+  }
+
+  .auth-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .auth-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-secondary);
+    padding: 16px 48px 0;
+    margin: 0;
   }
 
   .wip-section {

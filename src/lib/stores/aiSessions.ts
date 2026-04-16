@@ -22,13 +22,24 @@ export const sessionsLoading = writable(false);
 
 /**
  * Filter sessions by project path and sort: active first, then by start time descending.
+ *
+ * Normalizes trailing slashes before comparing so that symlink resolution or
+ * minor path differences don't cause mismatches. Also includes sessions whose
+ * cwd is a subdirectory of the project (e.g. worktree paths).
  */
 export function filterSessionsByProject(
   allSessions: AiSession[],
   projectPath: string,
 ): AiSession[] {
+  const normalizedProject = projectPath.replace(/\/+$/, "");
   return allSessions
-    .filter((s) => s.cwd === projectPath)
+    .filter((s) => {
+      const normalizedCwd = s.cwd.replace(/\/+$/, "");
+      return (
+        normalizedCwd === normalizedProject ||
+        normalizedCwd.startsWith(normalizedProject + "/")
+      );
+    })
     .sort((a, b) => {
       if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
       return (b.started_at ?? 0) - (a.started_at ?? 0);

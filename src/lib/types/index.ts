@@ -647,6 +647,17 @@ export interface MrPrDiffFile {
   patch: string | null;
 }
 
+// ── CLI Auth ─────────────────────────────────────────────────────────
+
+/** Authentication status for a CLI tool (gh or glab). */
+export interface CliAuthStatus {
+  tool: string;
+  installed: boolean;
+  authenticated: boolean;
+  username: string | null;
+  error: string | null;
+}
+
 // ── Tabs ─────────────────────────────────────────────────────────────
 
 /** Metadata for a terminal tab. */
@@ -658,11 +669,16 @@ export interface TerminalTabInfo {
   provider?: AiProviderKind;
 }
 
+/** A segment linked to a project in a composite tab. */
+export type LinkedSegment =
+  | { type: "terminal"; info: TerminalTabInfo }
+  | { type: "worktree"; path: string; branch: string };
+
 /** Discriminated union for all tab types. */
 export type Tab =
   | { kind: "project"; project: ProjectInfo }
   | { kind: "terminal"; terminal: TerminalTabInfo }
-  | { kind: "composite"; project: ProjectInfo; terminal: TerminalTabInfo; activeSegment: "project" | "terminal" };
+  | { kind: "composite"; project: ProjectInfo; segments: LinkedSegment[]; activeSegmentIndex: number };
 
 // ─── AI Provider Types ───
 
@@ -702,4 +718,30 @@ export interface AiConfigFile {
   path: string;
   kind: "settings" | "instructions" | "agent" | "skill";
   scope: "user" | "project" | "local";
+}
+
+// ---------------------------------------------------------------------------
+// Bisect
+// ---------------------------------------------------------------------------
+
+/** Current state of a git bisect session. */
+export interface BisectState {
+  active: boolean;
+  current_commit: string | null;
+  steps_remaining: number | null;
+  good_commits: string[];
+  bad_commits: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Debug / Logging
+// ---------------------------------------------------------------------------
+
+/** Debug information for error reports. */
+export interface DebugInfo {
+  app_version: string;
+  os: string;
+  arch: string;
+  git_version: string | null;
+  log_path: string;
 }

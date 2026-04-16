@@ -5,11 +5,13 @@
  * (which calls Rust IPC). Terminal tabs are frontend-only state that
  * spawn/kill PTY sessions via tauri.ts.
  *
- * Composite tabs merge a project + linked terminal into one segmented tab.
+ * Composite tabs merge a project + N linked segments (terminals, AI
+ * terminals, worktrees) into one segmented tab. Segments are always
+ * sorted: Worktrees → AI Terminals → Regular Terminals.
  */
 
 import { writable, derived, get } from "svelte/store";
-import type { Tab, ProjectInfo, TerminalTabInfo, AiProviderKind } from "../types";
+import type { Tab, ProjectInfo, TerminalTabInfo, LinkedSegment, AiProviderKind } from "../types";
 import { terminalSpawn, terminalKill, aiLaunchInteractive } from "../api/tauri";
 import { onTerminalOutput, offTerminalOutput } from "./terminal";
 
@@ -72,6 +74,39 @@ export function tabIndexToProjectIndex(tabIndex: number): number {
   return pIdx;
 }
 
+/**
+ * Sort segments in canonical order:
+ * 1. Worktrees first
+ * 2. AI terminals second (terminal with provider)
+ * 3. Regular terminals last
+ */
+function sortSegments(segments: LinkedSegment[]): LinkedSegment[] {
+  return [...segments].sort((a, b) => {
+    const order = (s: LinkedSegment) => {
+      if (s.type === "worktree") return 0;
+      if (s.type === "terminal" && s.info.provider) return 1;
+      return 2;
+    };
+    return order(a) - order(b);
+  });
+}
+
+/**
+ * Find the new index of a segment after sorting, given its identity before sort.
+ * Used to update activeSegmentIndex after a sort mutation.
+ */
+function findSegmentIndex(segments: LinkedSegment[], segment: LinkedSegment): number {
+  return segments.findIndex((s) => {
+    if (s.type === "terminal" && segment.type === "terminal") {
+      return s.info.sessionId === segment.info.sessionId;
+    }
+    if (s.type === "worktree" && segment.type === "worktree") {
+      return s.path === segment.path;
+    }
+    return false;
+  });
+}
+
 /** Insert a project tab at the end and return its unified index. */
 export function addProjectTab(project: ProjectInfo): number {
   const tabs = get(openTabs);
@@ -112,8 +147,9 @@ export function syncProjectTabs(projects: ProjectInfo[]): void {
   );
 }
 
-/** Open a new terminal tab. If cwd matches an open project tab, promote it
- *  to composite in-place. Otherwise create a standalone terminal tab.
+/** Open a new terminal tab. If cwd matches an open project tab, promote to
+ *  composite in-place. If cwd matches a composite, add a new terminal segment.
+ *  Otherwise create a standalone terminal tab.
  *  Returns the session ID. */
 export async function openTerminalTab(
   cwd: string,
@@ -121,6 +157,7 @@ export async function openTerminalTab(
 ): Promise<number> {
   const sessionId = await terminalSpawn(cwd, 80, 24);
   const info: TerminalTabInfo = { sessionId, title, cwd };
+  const segment: LinkedSegment = { type: "terminal", info };
 
   const tabs = get(openTabs);
   // Check if there's a simple project tab matching this cwd — promote to composite
@@ -130,30 +167,35 @@ export async function openTerminalTab(
 
   if (projectIdx >= 0) {
     const projectTab = tabs[projectIdx] as Extract<Tab, { kind: "project" }>;
+    const segments = sortSegments([segment]);
     const newTabs = [...tabs];
     newTabs[projectIdx] = {
       kind: "composite",
       project: projectTab.project,
-      terminal: info,
-      activeSegment: "terminal",
+      segments,
+      activeSegmentIndex: findSegmentIndex(segments, segment),
     };
     openTabs.set(newTabs);
     activeTabIndex.set(projectIdx);
     return sessionId;
   }
 
-  // Also check if there's already a composite tab for this project (already has terminal)
+  // Check if there's already a composite tab for this project — add a new segment
   const compositeIdx = tabs.findIndex(
     (t) => t.kind === "composite" && t.project.path === cwd,
   );
   if (compositeIdx >= 0) {
-    // Already has a terminal — just switch to its terminal segment
-    switchSegment(compositeIdx, "terminal");
+    const composite = tabs[compositeIdx] as Extract<Tab, { kind: "composite" }>;
+    const newSegments = sortSegments([...composite.segments, segment]);
+    const newTabs = [...tabs];
+    newTabs[compositeIdx] = {
+      ...composite,
+      segments: newSegments,
+      activeSegmentIndex: findSegmentIndex(newSegments, segment),
+    };
+    openTabs.set(newTabs);
     activeTabIndex.set(compositeIdx);
-    // Kill the new session since we don't need it
-    try { await terminalKill(sessionId); } catch { /* ok */ }
-    const existing = tabs[compositeIdx] as Extract<Tab, { kind: "composite" }>;
-    return existing.terminal.sessionId;
+    return sessionId;
   }
 
   // No matching project — standalone terminal tab at end
@@ -180,6 +222,7 @@ export async function openStandaloneTerminal(
 /**
  * Launch an AI provider in a terminal tab via `ai_launch_interactive`.
  * If cwd matches an open project tab, promotes it to composite in-place.
+ * If cwd matches a composite, adds a new AI terminal segment.
  * Otherwise creates a standalone terminal tab. The tab stores the provider
  * kind so the UI can show the brand icon.
  */
@@ -190,6 +233,7 @@ export async function openAiTerminalTab(
 ): Promise<number> {
   const sessionId = await aiLaunchInteractive(provider);
   const info: TerminalTabInfo = { sessionId, title, cwd, provider };
+  const segment: LinkedSegment = { type: "terminal", info };
 
   const tabs = get(openTabs);
   // Check if there's a simple project tab matching this cwd — promote to composite
@@ -199,15 +243,34 @@ export async function openAiTerminalTab(
 
   if (projectIdx >= 0) {
     const projectTab = tabs[projectIdx] as Extract<Tab, { kind: "project" }>;
+    const segments = sortSegments([segment]);
     const newTabs = [...tabs];
     newTabs[projectIdx] = {
       kind: "composite",
       project: projectTab.project,
-      terminal: info,
-      activeSegment: "terminal",
+      segments,
+      activeSegmentIndex: findSegmentIndex(segments, segment),
     };
     openTabs.set(newTabs);
     activeTabIndex.set(projectIdx);
+    return sessionId;
+  }
+
+  // Check if there's already a composite tab for this project — add a new segment
+  const compositeIdx = tabs.findIndex(
+    (t) => t.kind === "composite" && t.project.path === cwd,
+  );
+  if (compositeIdx >= 0) {
+    const composite = tabs[compositeIdx] as Extract<Tab, { kind: "composite" }>;
+    const newSegments = sortSegments([...composite.segments, segment]);
+    const newTabs = [...tabs];
+    newTabs[compositeIdx] = {
+      ...composite,
+      segments: newSegments,
+      activeSegmentIndex: findSegmentIndex(newSegments, segment),
+    };
+    openTabs.set(newTabs);
+    activeTabIndex.set(compositeIdx);
     return sessionId;
   }
 
@@ -218,40 +281,146 @@ export async function openAiTerminalTab(
   return sessionId;
 }
 
-/** Switch the active segment of a composite tab. */
-export function switchSegment(tabIndex: number, segment: "project" | "terminal"): void {
+/**
+ * Add a worktree segment to the project tab matching `projectPath`.
+ * Promotes to composite if it's a simple project tab.
+ */
+export function addWorktreeSegment(
+  projectPath: string,
+  worktreePath: string,
+  branch: string,
+): void {
+  const segment: LinkedSegment = { type: "worktree", path: worktreePath, branch };
+  const tabs = get(openTabs);
+
+  // Check composite first
+  const compositeIdx = tabs.findIndex(
+    (t) => t.kind === "composite" && t.project.path === projectPath,
+  );
+  if (compositeIdx >= 0) {
+    const composite = tabs[compositeIdx] as Extract<Tab, { kind: "composite" }>;
+    const newSegments = sortSegments([...composite.segments, segment]);
+    const newTabs = [...tabs];
+    newTabs[compositeIdx] = {
+      ...composite,
+      segments: newSegments,
+      activeSegmentIndex: findSegmentIndex(newSegments, segment),
+    };
+    openTabs.set(newTabs);
+    activeTabIndex.set(compositeIdx);
+    return;
+  }
+
+  // Check simple project tab
+  const projectIdx = tabs.findIndex(
+    (t) => t.kind === "project" && t.project.path === projectPath,
+  );
+  if (projectIdx >= 0) {
+    const projectTab = tabs[projectIdx] as Extract<Tab, { kind: "project" }>;
+    const segments = sortSegments([segment]);
+    const newTabs = [...tabs];
+    newTabs[projectIdx] = {
+      kind: "composite",
+      project: projectTab.project,
+      segments,
+      activeSegmentIndex: findSegmentIndex(segments, segment),
+    };
+    openTabs.set(newTabs);
+    activeTabIndex.set(projectIdx);
+  }
+}
+
+/**
+ * Switch the active segment of a composite tab.
+ * -1 = project segment, 0..N = index into segments array.
+ */
+export function switchSegment(tabIndex: number, segmentIndex: number): void {
   openTabs.update((tabs) =>
     tabs.map((tab, i) => {
       if (i !== tabIndex || tab.kind !== "composite") return tab;
-      return { ...tab, activeSegment: segment };
+      return { ...tab, activeSegmentIndex: segmentIndex };
     }),
   );
 }
 
-/** Close the terminal segment of a composite tab, reverting to simple project tab. */
-export async function closeTerminalSegment(tabIndex: number): Promise<void> {
+/**
+ * Close a segment at the given index from a composite tab.
+ * Kills the terminal session if it's a terminal segment.
+ * If no segments remain, demotes to simple project tab.
+ */
+export async function closeSegment(tabIndex: number, segmentIndex: number): Promise<void> {
   const tabs = get(openTabs);
   const tab = tabs[tabIndex];
   if (!tab || tab.kind !== "composite") return;
+  if (segmentIndex < 0 || segmentIndex >= tab.segments.length) return;
 
-  try {
-    await terminalKill(tab.terminal.sessionId);
-  } catch { /* already dead */ }
-  offTerminalOutput(tab.terminal.sessionId);
+  const segment = tab.segments[segmentIndex];
 
+  // Kill terminal session if applicable
+  if (segment.type === "terminal") {
+    try {
+      await terminalKill(segment.info.sessionId);
+    } catch { /* already dead */ }
+    offTerminalOutput(segment.info.sessionId);
+  }
+
+  const newSegments = tab.segments.filter((_, idx) => idx !== segmentIndex);
   const newTabs = [...tabs];
-  newTabs[tabIndex] = { kind: "project", project: tab.project };
+
+  if (newSegments.length === 0) {
+    // Demote to simple project tab
+    newTabs[tabIndex] = { kind: "project", project: tab.project };
+  } else {
+    // Adjust activeSegmentIndex
+    let newActiveIdx = tab.activeSegmentIndex;
+    if (tab.activeSegmentIndex === segmentIndex) {
+      // Closed the active segment — switch to project
+      newActiveIdx = -1;
+    } else if (tab.activeSegmentIndex > segmentIndex) {
+      // Active segment shifted left
+      newActiveIdx = tab.activeSegmentIndex - 1;
+    }
+    newTabs[tabIndex] = {
+      ...tab,
+      segments: newSegments,
+      activeSegmentIndex: newActiveIdx,
+    };
+  }
+
   openTabs.set(newTabs);
 }
 
-/** Close the project segment of a composite tab, reverting to standalone terminal tab. */
+/**
+ * Close the project segment of a composite tab, reverting to standalone terminal tab(s).
+ * If the composite has exactly one terminal segment, demotes to a standalone terminal tab.
+ * If it has multiple segments, only terminals are kept as standalone tabs.
+ */
 export function closeProjectSegment(tabIndex: number): void {
   const tabs = get(openTabs);
   const tab = tabs[tabIndex];
   if (!tab || tab.kind !== "composite") return;
 
+  // Collect all terminal segments — worktrees are dropped when project closes
+  const terminalSegments = tab.segments.filter(
+    (s): s is Extract<LinkedSegment, { type: "terminal" }> => s.type === "terminal",
+  );
+
   const newTabs = [...tabs];
-  newTabs[tabIndex] = { kind: "terminal", terminal: tab.terminal };
+
+  if (terminalSegments.length === 1) {
+    // Single terminal — demote to standalone terminal tab
+    newTabs[tabIndex] = { kind: "terminal", terminal: terminalSegments[0].info };
+  } else if (terminalSegments.length > 1) {
+    // Multiple terminals — replace with first terminal, add rest as standalone tabs
+    newTabs[tabIndex] = { kind: "terminal", terminal: terminalSegments[0].info };
+    for (let j = 1; j < terminalSegments.length; j++) {
+      newTabs.splice(tabIndex + j, 0, { kind: "terminal", terminal: terminalSegments[j].info });
+    }
+  } else {
+    // No terminals — just remove the composite, leaving nothing (remove the tab)
+    newTabs.splice(tabIndex, 1);
+  }
+
   openTabs.set(newTabs);
 }
 
@@ -264,14 +433,34 @@ export async function closeTerminalTab(sessionId: number): Promise<void> {
 
   const tabs = get(openTabs);
 
-  // Check composite tabs — demote to project
-  const compositeIdx = tabs.findIndex(
-    (t) => t.kind === "composite" && t.terminal.sessionId === sessionId,
-  );
-  if (compositeIdx >= 0) {
-    const tab = tabs[compositeIdx] as Extract<Tab, { kind: "composite" }>;
+  // Check composite tabs — find the segment with this session and close it
+  for (let i = 0; i < tabs.length; i++) {
+    const tab = tabs[i];
+    if (tab.kind !== "composite") continue;
+    const segIdx = tab.segments.findIndex(
+      (s) => s.type === "terminal" && s.info.sessionId === sessionId,
+    );
+    if (segIdx < 0) continue;
+
+    const newSegments = tab.segments.filter((_, idx) => idx !== segIdx);
     const newTabs = [...tabs];
-    newTabs[compositeIdx] = { kind: "project", project: tab.project };
+
+    if (newSegments.length === 0) {
+      // Demote to project
+      newTabs[i] = { kind: "project", project: tab.project };
+    } else {
+      let newActiveIdx = tab.activeSegmentIndex;
+      if (tab.activeSegmentIndex === segIdx) {
+        newActiveIdx = -1;
+      } else if (tab.activeSegmentIndex > segIdx) {
+        newActiveIdx = tab.activeSegmentIndex - 1;
+      }
+      newTabs[i] = {
+        ...tab,
+        segments: newSegments,
+        activeSegmentIndex: newActiveIdx,
+      };
+    }
     openTabs.set(newTabs);
     return;
   }
@@ -290,15 +479,34 @@ export async function closeTerminalTab(sessionId: number): Promise<void> {
 export function removeTerminalTabBySession(sessionId: number): void {
   const tabs = get(openTabs);
 
-  // Check composite tabs — demote to project
-  const compositeIdx = tabs.findIndex(
-    (t) => t.kind === "composite" && t.terminal.sessionId === sessionId,
-  );
-  if (compositeIdx >= 0) {
+  // Check composite tabs — remove the segment
+  for (let i = 0; i < tabs.length; i++) {
+    const tab = tabs[i];
+    if (tab.kind !== "composite") continue;
+    const segIdx = tab.segments.findIndex(
+      (s) => s.type === "terminal" && s.info.sessionId === sessionId,
+    );
+    if (segIdx < 0) continue;
+
     offTerminalOutput(sessionId);
-    const tab = tabs[compositeIdx] as Extract<Tab, { kind: "composite" }>;
+    const newSegments = tab.segments.filter((_, idx) => idx !== segIdx);
     const newTabs = [...tabs];
-    newTabs[compositeIdx] = { kind: "project", project: tab.project };
+
+    if (newSegments.length === 0) {
+      newTabs[i] = { kind: "project", project: tab.project };
+    } else {
+      let newActiveIdx = tab.activeSegmentIndex;
+      if (tab.activeSegmentIndex === segIdx) {
+        newActiveIdx = -1;
+      } else if (tab.activeSegmentIndex > segIdx) {
+        newActiveIdx = tab.activeSegmentIndex - 1;
+      }
+      newTabs[i] = {
+        ...tab,
+        segments: newSegments,
+        activeSegmentIndex: newActiveIdx,
+      };
+    }
     openTabs.set(newTabs);
     return;
   }
@@ -341,4 +549,25 @@ export function findLastProjectTabIndex(): number {
     if (tabs[i].kind === "project" || tabs[i].kind === "composite") return i;
   }
   return -1;
+}
+
+/**
+ * Get all terminal TerminalTabInfo instances from a composite tab's segments.
+ * Useful for iterating over terminals when closing a composite.
+ */
+export function getCompositeTerminals(tab: Extract<Tab, { kind: "composite" }>): TerminalTabInfo[] {
+  return tab.segments
+    .filter((s): s is Extract<LinkedSegment, { type: "terminal" }> => s.type === "terminal")
+    .map((s) => s.info);
+}
+
+/**
+ * Check if a composite tab's active segment is a terminal.
+ * Returns the TerminalTabInfo if so, null otherwise.
+ */
+export function getActiveTerminalSegment(tab: Extract<Tab, { kind: "composite" }>): TerminalTabInfo | null {
+  if (tab.activeSegmentIndex < 0 || tab.activeSegmentIndex >= tab.segments.length) return null;
+  const seg = tab.segments[tab.activeSegmentIndex];
+  if (seg.type === "terminal") return seg.info;
+  return null;
 }

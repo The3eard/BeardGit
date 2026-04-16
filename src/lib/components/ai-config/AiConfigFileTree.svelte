@@ -132,7 +132,7 @@
       case "instructions":
         return "\uF15C";
       case "agent":
-        return "\uF544";
+        return "\uF007";
       case "skill":
         return "\uF005";
       default:
