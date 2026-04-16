@@ -2,7 +2,7 @@
 
 ## Current State
 
-**v0.1.7** — Phase 5 Wave 1: AI provider integration (AiProvider trait, claude-code crate, 16 Tauri commands, frontend store + action buttons + settings UI + provider preference, terminal dropdown launches claude binary with brand icons in tabs). Changes section redesign (pinned commit box, toolbar icons, overflow menu). AI button validation (toast on no changes). Reflog overhaul (action buttons, fixed checkout/branch/selection bugs, file diff panel, lifecycle cleanup). Submodule add/remove. Tab tooltips with snapshot cache. E2E test infrastructure (6 suites, 149 tests). Phase 4B: interactive terminal tabs (unified tab model, composite tabs, Cmd+T), sidebar collapse. Phase 4A: terminal crate, xterm.js component, theme redesign (18 base colors), read-only migration. Phase 3: task history popup, keyboard shortcuts, reflog viewer, clean, git config editor, gitignore management, patch management, submodules, MR/PR management with bundled gh/glab CLIs. Phase 2: CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase, resizable graph columns, 14 themes.
+**v0.1.8** — Phase 6: git bisect (visual workflow + auto-bisect), CLI auth (gh/glab status + terminal login), commands.rs split into 29 modules, structured error logging (tracing + daily rotation + ErrorDialog), E2E testing (WebdriverIO + tauri-driver), composite tab upgrade (multi-segment). Phase 5 Waves 2-3: AI Config Editor (dual file tree, CodeMirror, create dialog), AI Sessions (project-scoped, file watcher), AI Worktree enrichment (badges, cleanup), Codex + OpenCode provider crates, dynamic terminal dropdown. Phase 5 Wave 1: AiProvider trait, claude-code crate, 16 Tauri commands, AI settings UI, Changes section redesign, reflog overhaul, submodule add/remove, tab tooltips, E2E test infrastructure (6 suites, 149 tests). Phase 4B: interactive terminal tabs, composite tabs, sidebar collapse. Phase 4A: terminal crate, xterm.js, theme redesign (18 base colors). Phase 3: task history, keyboard shortcuts, reflog, clean, git config editor, gitignore, patches, submodules, MR/PR management. Phase 2: CodeMirror 6 diffs, hunk/line staging, blame + file history, rebase, 14 themes.
 
 ## Project Overview
 
@@ -23,10 +23,12 @@ Cross-platform desktop Git client with GitLab + GitHub CI integration. Tauri v2 
 | `storage` | SQLite (commits cache) + JSON config + TOML themes |
 | `task-runner` | Async background tasks with cancellation + streaming output |
 | `watcher` | Debounced filesystem events via `notify` (500ms, filters `.git/`) |
-| `cli-provider` | Wraps bundled `gh`/`glab` CLIs for MR/PR CRUD, review, comments |
+| `cli-provider` | Wraps bundled `gh`/`glab` CLIs for MR/PR CRUD, review, comments + CLI auth status/login |
 | `ai-provider` | `AiProvider` trait, shared AI types — sync, command-building, no Tauri dep |
 | `claude-code` | Claude Code CLI implementation — detection, commands, sessions, worktrees, config, attribution |
-| `app-core` | ~114 Tauri commands, `AppState`, event bridge — **only crate coupled to Tauri** |
+| `codex` | Codex CLI `AiProvider` implementation — detection, commands, TOML config discovery |
+| `opencode` | OpenCode CLI `AiProvider` implementation — detection, commands, JSON config discovery |
+| `app-core` | ~179 Tauri commands (29 modules), `AppState`, event bridge — **only crate coupled to Tauri** |
 
 **Frontend:** SPA with no file-based routing — all views switched via `activeView` state in `+page.svelte`. Stores in `src/lib/stores/`, IPC in `src/lib/api/tauri.ts`, types in `src/lib/types/index.ts`.
 

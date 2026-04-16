@@ -24,11 +24,11 @@ Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with reco
 
 **Wave 1 — AiProvider Trait + Claude Code (v0.1.7):** `AiProvider` trait (17 methods, 7 capability groups), `claude-code` crate, 16 Tauri commands, AI provider settings UI, AI button validation, Changes section redesign, reflog overhaul, submodule add/remove, tab tooltips, E2E test infrastructure (6 suites, 149 tests).
 
-**Wave 2 — UI Views:** Worktree section enriched with AI badges + context menu (EnrichedWorktree join), AI Config Editor (dual file tree project/user, editable CodeMirror, create dialog for agents/skills/prompts, 3 new Tauri commands with path validation), AI Sessions view (project-scoped session list, file watcher on ~/.claude/sessions/, auto-refresh via events).
+**Wave 2 — UI Views (v0.1.8):** Worktree section enriched with AI badges + context menu (EnrichedWorktree join), AI Config Editor (dual file tree project/user, editable CodeMirror, create dialog for agents/skills/prompts, 3 new Tauri commands with path validation), AI Sessions view (project-scoped session list, file watcher on ~/.claude/sessions/, auto-refresh via events).
 
-**Wave 3 — Additional Providers:** `codex` crate (detection, commands, TOML config, attribution), `opencode` crate (detection, commands, JSON config, attribution), both wired into make_provider factory, dynamic terminal dropdown (only detected providers), Codex brand color #ffffff.
+**Wave 3 — Additional Providers (v0.1.8):** `codex` crate (detection, commands, TOML config, attribution), `opencode` crate (detection, commands, JSON config, attribution), both wired into make_provider factory, dynamic terminal dropdown (only detected providers), Codex brand color #ffffff.
 
-### Phase 6: Git Completion & Code Quality ✅
+### Phase 6: Git Completion & Code Quality (v0.1.8) ✅
 
 **6.3 — Code Quality:** Split `commands.rs` (3267 lines, 139 commands) into 24 feature-based modules under `commands/`, shared dialog CSS extracted to `dialog.css`, `fetchIntoStore` utility extracted from repeated store patterns.
 

@@ -2,6 +2,83 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [0.1.8] — Bisect, CLI Auth, AI Views, Multi-Provider, Code Quality
+
+**Git Bisect**
+
+- Visual bisect workflow with good/bad/skip controls and progress indicator
+- Auto-bisect mode: provide a test command, BeardGit runs `git bisect run` and reports the culprit
+- New `git-engine` bisect module with full lifecycle (start, good, bad, skip, reset, log)
+- 8 new Tauri commands, dedicated store, 2 Svelte components (BisectWorkflow, AutoBisectDialog)
+
+**CLI Auth (gh/glab)**
+
+- `gh auth status` and `glab auth status` detection — shows CLI login state in Settings
+- Terminal-based login flow: "Login with CLI" opens interactive `gh auth login` / `glab auth login` in a PTY tab
+- Unified Authentication settings page combining Token Auth and CLI Auth sections
+- New `cli-provider` auth module with status parsing and terminal login commands
+
+**AI Config Editor**
+
+- Dual file tree (project-scoped + user-scoped) showing all AI config files
+- Editable CodeMirror pane for settings.json, agents, skills, and CLAUDE.md files
+- Create Config dialog for adding new agent/skill/settings files
+- 3 new Tauri commands: `ai_get_config_content`, `ai_save_config_content`, `ai_create_config_file`
+
+**AI Sessions**
+
+- Project-scoped session list showing active and recent Claude Code sessions
+- File watcher on `~/.claude/sessions/` with auto-refresh on changes
+- Session metadata: model, start time, duration, token usage, status (active/completed)
+
+**AI Worktree Enrichment**
+
+- `EnrichedWorktree` type combining git worktree data with AI provider status
+- AI badges on worktrees created by Claude Code / Codex / OpenCode
+- Context menu with cleanup action for orphaned AI worktrees
+
+**Codex & OpenCode Providers**
+
+- New `codex` crate: full `AiProvider` implementation with binary detection, command building, and config discovery
+- New `opencode` crate: full `AiProvider` implementation with binary detection, command building, and config discovery
+- Both wired into `app-core` provider factory with automatic detection
+- Dynamic terminal dropdown: only shows providers detected on the system
+- Codex brand color corrected (#10a37f → #ffffff)
+
+**Structured Error Logging**
+
+- Structured file logging via `tracing` with `tracing-appender` daily rotation
+- Logs written to `~/.local/share/com.beardgit.app/logs/` (platform-appropriate data dir)
+- New `ErrorDialog` component with copy-error-to-clipboard and open-log-file actions
+- All dialogs (Confirm, Clean, CreateMrPr, PatchPreview, TagCreate, CreateWorktree) upgraded with error display
+
+**Composite Tab Upgrade**
+
+- Multi-segment tabs: N terminals + worktrees per project in a single composite tab
+- Fixed segment ordering: Project → Worktrees → AI Terminals → Terminals
+- Terminal button always adds to the active project's composite tab instead of creating standalone tabs
+
+**Code Quality — commands.rs Split**
+
+- Split monolithic `commands.rs` (3,267 LOC) into 24 feature-based modules under `commands/`
+- Modules: advanced, bisect, branch, ci, clean, cli_auth, commit, config, conflict, diff, gitignore, graph, helpers, logging, mod, mr_pr, patch, project, provider_auth, reflog, remote, repository, settings, staging, stash, submodule, tag, theme, worktree
+- Extracted shared `dialog.css` (93 lines) replacing duplicated dialog styles across 7 components
+- New `fetchIntoStore` utility for consistent store-loading patterns
+
+**E2E Test Infrastructure**
+
+- WebdriverIO + `tauri-driver` configuration for end-to-end testing
+- Fixture repo setup script (`e2e/fixtures/setup.sh`) for reproducible test environments
+- Page objects: `sidebar.page.ts`, `graph.page.ts`
+- Initial specs: `app-launch.spec.ts`, `navigation.spec.ts`
+
+**Bug Fixes & Polish**
+
+- AI Config file tree correctly distinguishes project vs user scope
+- AI Sessions auto-cleanup on component destroy (watcher unsubscribe)
+- CreateConfigDialog validates file paths and prevents duplicates
+- Store helpers centralized with `fetchIntoStore` reducing boilerplate across stores
+
 ## [0.1.7] — AI Provider Integration, Changes Redesign, UI Polish
 
 **AI Provider Architecture**

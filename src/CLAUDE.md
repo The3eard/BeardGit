@@ -102,7 +102,7 @@ When modifying a Rust IPC struct, **always update the TypeScript type** in the s
 
 1. **CSS custom properties** on `:root` for all theme values — dynamically written by `theme.ts` at runtime
 2. **Scoped `<style>` blocks** per component — each component owns its styles
-3. **Shared CSS** in `src/lib/styles/` — imported by list/detail components (`list.css`, `detail.css`)
+3. **Shared CSS** in `src/lib/styles/` — imported by list/detail/dialog components (`list.css`, `detail.css`, `dialog.css`)
 4. **Global CSS** in `src/app.css` — resets, fonts, scrollbars, utility classes
 
 ### Fonts

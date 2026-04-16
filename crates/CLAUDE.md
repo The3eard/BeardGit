@@ -18,7 +18,8 @@
 - `tag_cache: Mutex<Option<Vec<TagInfo>>>` — lazy-populated, invalidated on create/delete
 - Multiple `impl Repository` blocks spread across modules, sharing struct definition in `repository.rs`
 - `String::from_utf8_lossy` on git CLI output — binary output is silently mangled
-- Error type: `GitError` — `Git(git2::Error)`, `RepoNotFound(String)`, `Io(io::Error)`
+- `bisect` module: full git bisect lifecycle (start, good, bad, skip, reset, log) via system git CLI
+- Error type: `GitError` — `Git(git2::Error)`, `RepoNotFound(String)`, `CliError(String)`, `Io(io::Error)`
 
 ### `graph-builder`
 - **Pure computation** — no I/O, no async, no platform code. Only depends on `serde`
@@ -55,6 +56,7 @@
 - Built-in themes compiled via `include_str!()`: `github_dark/light.toml`, `gitlab_dark/light.toml`
 - `AppConfig` has **three-tier migration** for legacy provider formats (pre-Plan5, Plan5, current). Legacy fields use `#[serde(default, skip_serializing)]`
 - `AppConfig::load` returns `Default::default()` when file missing — safe startup
+- `logging` module: structured file logging via `tracing` + `tracing-appender` with daily rotation, platform-specific log directories, debug info collection
 - Error type: `StorageError` — `Sqlite`, `Io`, `Json` (all `#[from]`)
 
 ### `task-runner`
@@ -67,12 +69,23 @@
 - Error type: `TaskError` — `NotFound`, `NotRunning`, `NotCancellable`, `Io`
 
 ### `watcher`
-- Single-file crate (~57 lines), single struct `RepoWatcher`
-- `.git/` events explicitly filtered out to prevent spurious refreshes
-- Debounce hardcoded at 500ms
+- `RepoWatcher`: debounced filesystem events via `notify` (500ms), `.git/` filtered out
+- `AiSessionWatcher`: watches `~/.claude/sessions/` for session file changes, emits events for AI Sessions view
 - Uses `std::sync::mpsc` + `std::thread::spawn` (NOT tokio) — OS thread for event loop
-- Drop semantics = shutdown (dropping `RepoWatcher` stops watching)
+- Drop semantics = shutdown (dropping watcher stops watching)
 - `notify::RecommendedWatcher` is platform-auto-selected (kqueue/inotify/ReadDirectoryChangesW)
+
+### `codex`
+- `AiProvider` implementation for Codex CLI
+- Binary detection via `which codex`, version parsing from `codex --version`
+- Command building for headless execution and interactive terminal launch
+- Config discovery: `codex.toml`, `~/.config/codex/` settings
+
+### `opencode`
+- `AiProvider` implementation for OpenCode CLI
+- Binary detection via `which opencode`, version parsing from `opencode --version`
+- Command building for headless execution and interactive terminal launch
+- Config discovery: `opencode.json`, `~/.config/opencode/` settings
 
 ## Error Handling by Layer
 
