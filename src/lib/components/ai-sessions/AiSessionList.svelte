@@ -1,3 +1,8 @@
+<!--
+  AiSessionList — list of AI coding assistant sessions for the current
+  project (interactive + headless). Swaps the outer shell for <List>
+  while keeping session-specific row markup, styles, and lifecycle.
+-->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import {
@@ -12,6 +17,7 @@
   import { formatRelativeTimeUnix } from "../../utils/time";
   import type { AiSession, AiProviderKind } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
+  import List from "../common/List.svelte";
 
   /** Display name per AI provider. */
   const PROVIDER_NAME: Record<AiProviderKind, string> = {
@@ -56,131 +62,100 @@
     const path = $repoInfo?.path;
     refreshSessions(path);
   }
+
+  function getKey(session: AiSession): string {
+    return session.id;
+  }
 </script>
 
-<div class="session-list">
-  <!-- Header -->
-  <div class="list-header">
-    <div class="header-left">
-      <span class="list-title">{m.sidebar_ai_sessions().toUpperCase()}</span>
-      {#if $sessions.length > 0}
-        <span class="count-badge">{$sessions.length}</span>
-      {/if}
-    </div>
-    <div class="header-actions">
-      <button
-        class="action-btn nf"
-        onclick={handleRefresh}
-        disabled={$sessionsLoading}
-        title="Refresh"
-      >
-        {$sessionsLoading ? "\uF110" : "\uF021"}
-      </button>
-    </div>
-  </div>
-
-  <!-- List -->
-  <div class="list-items">
-    {#if $sessionsLoading && $sessions.length === 0}
-      <div class="list-loading">
-        <div class="spinner"></div>
-      </div>
-    {:else if $sessions.length === 0}
-      <div class="empty-state">
-        <span class="empty-icon nf">{"\uF489"}</span>
-        <span class="empty-text">{m.ai_sessions_empty()}</span>
-        <span class="empty-hint">{m.ai_sessions_empty_hint()}</span>
-      </div>
-    {:else}
-      {#each $sessions as session (session.id)}
-        {@const providerColor = PROVIDER_COLORS[session.provider] ?? "#888"}
-        <div
-          class="session-item"
-          class:active={session.is_active}
-          class:ended={!session.is_active}
-          style="--provider-color: {providerColor}"
-        >
-          <div class="session-icon" style="background: {providerColor}">
-            <span class="icon-initial">{PROVIDER_INITIALS[session.provider] ?? "?"}</span>
-          </div>
-          <div class="session-info">
-            <div class="session-row-top">
-              <span class="session-provider">{PROVIDER_NAME[session.provider] ?? session.provider}</span>
-              {#if session.is_active}
-                <span class="session-badge active">ACTIVE</span>
-              {:else}
-                <span class="session-badge ended">ENDED</span>
-              {/if}
-              <span class="session-badge kind" class:headless={session.kind === "headless"}>
-                {session.kind}
-              </span>
-            </div>
-            <div class="session-row-bottom">
-              <span class="session-cwd">{shortCwd(session.cwd)}</span>
-              {#if session.started_at}
-                <span class="session-time">{formatRelativeTimeUnix(session.started_at)}</span>
-              {/if}
-            </div>
-          </div>
-          <div class="session-actions">
-            {#if session.is_active && session.kind === "interactive"}
-              <button
-                class="session-action-btn external"
-                disabled
-                title={m.ai_sessions_external_terminal()}
-              >
-                <span class="external-label">{m.ai_sessions_external()}</span>
-              </button>
-            {:else if session.is_active && session.kind === "headless"}
-              <button class="session-action-btn" title="Output">
-                <span class="nf">{"\uF15C"}</span>
-              </button>
-            {:else}
-              <button
-                class="session-action-btn dismiss"
-                onclick={() => dismissSession(session.id)}
-                title="Dismiss"
-              >
-                <span class="nf">{"\uF00D"}</span>
-              </button>
-            {/if}
-          </div>
-        </div>
-      {/each}
+<List
+  items={$sessions}
+  loading={$sessionsLoading}
+  title={m.sidebar_ai_sessions()}
+  selectedKey={null}
+  {getKey}
+  onRefresh={handleRefresh}
+>
+  {#snippet headerActions()}
+    {#if $sessions.length > 0}
+      <span class="count-badge">{$sessions.length}</span>
     {/if}
-  </div>
-</div>
+    <button
+      class="refresh-btn nf"
+      onclick={handleRefresh}
+      disabled={$sessionsLoading}
+      title="Refresh"
+    >
+      {$sessionsLoading ? "\uF110" : "\uF021"}
+    </button>
+  {/snippet}
+
+  {#snippet emptyState()}
+    <div class="empty-state">
+      <span class="empty-icon nf">{"\uF489"}</span>
+      <span class="empty-text">{m.ai_sessions_empty()}</span>
+      <span class="empty-hint">{m.ai_sessions_empty_hint()}</span>
+    </div>
+  {/snippet}
+
+  {#snippet row({ item }: { item: AiSession; selected: boolean })}
+    {@const providerColor = PROVIDER_COLORS[item.provider] ?? "#888"}
+    <div
+      class="session-item"
+      class:active={item.is_active}
+      class:ended={!item.is_active}
+      style="--provider-color: {providerColor}"
+    >
+      <div class="session-icon" style="background: {providerColor}">
+        <span class="icon-initial">{PROVIDER_INITIALS[item.provider] ?? "?"}</span>
+      </div>
+      <div class="session-info">
+        <div class="session-row-top">
+          <span class="session-provider">{PROVIDER_NAME[item.provider] ?? item.provider}</span>
+          {#if item.is_active}
+            <span class="session-badge active">ACTIVE</span>
+          {:else}
+            <span class="session-badge ended">ENDED</span>
+          {/if}
+          <span class="session-badge kind" class:headless={item.kind === "headless"}>
+            {item.kind}
+          </span>
+        </div>
+        <div class="session-row-bottom">
+          <span class="session-cwd">{shortCwd(item.cwd)}</span>
+          {#if item.started_at}
+            <span class="session-time">{formatRelativeTimeUnix(item.started_at)}</span>
+          {/if}
+        </div>
+      </div>
+      <div class="session-actions">
+        {#if item.is_active && item.kind === "interactive"}
+          <button
+            class="session-action-btn external"
+            disabled
+            title={m.ai_sessions_external_terminal()}
+          >
+            <span class="external-label">{m.ai_sessions_external()}</span>
+          </button>
+        {:else if item.is_active && item.kind === "headless"}
+          <button class="session-action-btn" title="Output">
+            <span class="nf">{"\uF15C"}</span>
+          </button>
+        {:else}
+          <button
+            class="session-action-btn dismiss"
+            onclick={() => dismissSession(item.id)}
+            title="Dismiss"
+          >
+            <span class="nf">{"\uF00D"}</span>
+          </button>
+        {/if}
+      </div>
+    </div>
+  {/snippet}
+</List>
 
 <style>
-  .session-list {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .list-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px 8px;
-    flex-shrink: 0;
-  }
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .list-title {
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-  }
-
   .count-badge {
     font-size: 10px;
     background: var(--accent-blue);
@@ -190,45 +165,6 @@
     min-width: 16px;
     text-align: center;
     line-height: 16px;
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 4px;
-  }
-
-  .action-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 14px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: var(--font-icons);
-    display: flex;
-    align-items: center;
-  }
-
-  .action-btn:hover {
-    color: var(--text-primary);
-  }
-
-  .action-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
-  .list-items {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .list-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
   }
 
   /* ─── Empty state ─── */
@@ -268,13 +204,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
+    width: 100%;
+    padding: 8px 0;
     transition: background 0.1s;
-  }
-
-  .session-item:hover {
-    background: rgba(255, 255, 255, 0.03);
   }
 
   .session-item.active {

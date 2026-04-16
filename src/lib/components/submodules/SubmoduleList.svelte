@@ -16,6 +16,7 @@
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import List from "../common/List.svelte";
   import * as m from "$lib/paraglide/messages";
   import type { SubmoduleInfo } from "../../types";
   import { shortOid } from "../../utils/git";
@@ -214,87 +215,100 @@
   async function handleUpdateAll() {
     await updateAllSubmodules();
   }
+
+  function getKey(sub: SubmoduleInfo): string {
+    return sub.path;
+  }
+
+  function handleDoubleClick(sub: SubmoduleInfo) {
+    if (sub.status !== "uninitialized") {
+      handleOpenInTab(sub);
+    }
+  }
 </script>
 
-<div class="submodule-view">
-  <div class="header">
-    <h2 class="title">{m.submodule_title()}</h2>
-    <div class="header-actions">
-      {#if $submodules.length > 0}
-        <button class="action-btn" onclick={handleUpdateAll}>
-          {m.submodule_update_all()}
-        </button>
-      {/if}
-      <button class="action-btn action-btn-primary" onclick={() => { showAddForm = !showAddForm; }}>
-        {m.submodule_add()}
+<List
+  items={$submodules}
+  loading={$submodulesLoading}
+  title={m.submodule_title()}
+  selectedKey={null}
+  {getKey}
+  emptyMessage={m.submodule_empty()}
+  onDoubleClick={handleDoubleClick}
+  onContextMenu={handleContextMenu}
+>
+  {#snippet headerActions()}
+    {#if $submodules.length > 0}
+      <button class="action-btn" onclick={handleUpdateAll}>
+        {m.submodule_update_all()}
       </button>
-    </div>
-  </div>
+    {/if}
+    <button
+      class="action-btn action-btn-primary"
+      onclick={() => {
+        showAddForm = !showAddForm;
+      }}
+    >
+      {m.submodule_add()}
+    </button>
+  {/snippet}
 
-  {#if showAddForm}
-    <div class="add-form">
-      <input
-        type="text"
-        class="add-input"
-        placeholder={m.submodule_add_url_placeholder()}
-        bind:value={addUrl}
-      />
-      <input
-        type="text"
-        class="add-input"
-        placeholder={m.submodule_add_path_placeholder()}
-        bind:value={addPath}
-      />
-      {#if addError}
-        <div class="add-error">{addError}</div>
-      {/if}
-      <div class="add-actions">
-        <button class="action-btn action-btn-primary" onclick={handleAdd} disabled={adding || !addUrl.trim() || !addPath.trim()}>
-          {adding ? "Adding..." : m.submodule_add()}
-        </button>
-        <button class="action-btn" onclick={cancelAdd}>Cancel</button>
+  {#snippet afterHeader()}
+    {#if showAddForm}
+      <div class="add-form">
+        <input
+          type="text"
+          class="add-input"
+          placeholder={m.submodule_add_url_placeholder()}
+          bind:value={addUrl}
+        />
+        <input
+          type="text"
+          class="add-input"
+          placeholder={m.submodule_add_path_placeholder()}
+          bind:value={addPath}
+        />
+        {#if addError}
+          <div class="add-error">{addError}</div>
+        {/if}
+        <div class="add-actions">
+          <button
+            class="action-btn action-btn-primary"
+            onclick={handleAdd}
+            disabled={adding || !addUrl.trim() || !addPath.trim()}
+          >
+            {adding ? "Adding..." : m.submodule_add()}
+          </button>
+          <button class="action-btn" onclick={cancelAdd}>Cancel</button>
+        </div>
       </div>
-    </div>
-  {/if}
+    {/if}
+  {/snippet}
 
-  {#if $submodulesLoading}
-    <div class="empty-state">{m.submodule_title()}...</div>
-  {:else if $submodules.length === 0 && !showAddForm}
-    <div class="empty-state">{m.submodule_empty()}</div>
-  {:else}
-    <div class="submodule-list">
-      {#each $submodules as sub}
-        <button
-          class="submodule-row"
-          oncontextmenu={(e) => handleContextMenu(e, sub)}
-          ondblclick={() => {
-            if (sub.status !== "uninitialized") handleOpenInTab(sub);
-          }}
-        >
-          <div class="sub-info">
-            <span class="sub-path">{sub.path}</span>
-            <span class="sub-url">{sub.url}</span>
-          </div>
-          <div class="sub-meta">
-            {#if sub.oid}
-              <span class="sub-sha">{shortOid(sub.oid)}</span>
-            {/if}
-            <span class="status-badge" style="color: {statusColor(sub.status)}">
-              {statusLabel(sub.status)}
-            </span>
-          </div>
-        </button>
-      {/each}
+  {#snippet row({ item })}
+    <div class="sub-info">
+      <span class="sub-path">{item.path}</span>
+      <span class="sub-url">{item.url}</span>
     </div>
-  {/if}
-</div>
+    <div class="sub-meta">
+      {#if item.oid}
+        <span class="sub-sha">{shortOid(item.oid)}</span>
+      {/if}
+      <span class="status-badge" style="color: {statusColor(item.status)}">
+        {statusLabel(item.status)}
+      </span>
+    </div>
+  {/snippet}
+</List>
 
 <ContextMenu
   items={contextMenuItems}
   x={contextMenuX}
   y={contextMenuY}
   visible={contextMenuVisible}
-  onClose={() => { contextMenuVisible = false; }}
+  onClose={() => {
+    contextMenuVisible = false;
+  }}
 />
 
 {#if confirmProps}
@@ -302,33 +316,13 @@
     title={confirmProps.title}
     message={confirmProps.message}
     onConfirm={confirmProps.onConfirm}
-    onCancel={() => { confirmProps = null; }}
+    onCancel={() => {
+      confirmProps = null;
+    }}
   />
 {/if}
 
 <style>
-  .submodule-view {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .title {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
   .action-btn {
     padding: 4px 10px;
     background: none;
@@ -350,11 +344,6 @@
 
   .action-btn-primary {
     color: var(--accent-blue);
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 6px;
   }
 
   .add-form {
@@ -392,36 +381,6 @@
   .add-error {
     font-size: 11px;
     color: var(--accent-red, #f85149);
-  }
-
-  .empty-state {
-    padding: 32px 16px;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
-
-  .submodule-list {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .submodule-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 8px 16px;
-    background: none;
-    border: none;
-    border-bottom: 1px solid var(--border);
-    color: var(--text-primary);
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .submodule-row:hover {
-    background: rgba(255, 255, 255, 0.03);
   }
 
   .sub-info {

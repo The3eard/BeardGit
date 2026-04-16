@@ -2,6 +2,7 @@
   import { debounce } from "../../utils/debounce";
   import ContextMenu from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import List from "../common/List.svelte";
   import BranchTreeNode from "./BranchTreeNode.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import type { BranchTreeNode as TreeNode } from "./branch-tree";
@@ -145,35 +146,34 @@
     filterValue = "";
     refreshBranches();
   }
+
+  // Required by List type signature but unused — trees are rendered via customContent.
+  function getKey(_item: BranchInfo): string {
+    return "";
+  }
 </script>
 
-<div class="branch-list">
-  <!-- Header -->
-  <div class="list-header">
-    <span class="list-title">BRANCHES</span>
-    <button
-      class="refresh-btn nf"
-      onclick={handleRefresh}
-      disabled={$branchesLoading}
-      title="Refresh"
-    >
-      {$branchesLoading ? "\uF110" : "\uF021"}
-    </button>
-  </div>
+<List
+  items={[] as BranchInfo[]}
+  loading={$branchesLoading}
+  title="BRANCHES"
+  selectedKey={$selectedBranchName}
+  {getKey}
+  onRefresh={handleRefresh}
+>
+  {#snippet afterHeader()}
+    <div class="filter-row">
+      <input
+        type="text"
+        class="filter-input"
+        placeholder="Filter branches…"
+        value={filterInput}
+        oninput={(e) => onFilterInput(e.currentTarget.value)}
+      />
+    </div>
+  {/snippet}
 
-  <!-- Filter input -->
-  <div class="filter-row">
-    <input
-      type="text"
-      class="filter-input"
-      placeholder="Filter branches…"
-      value={filterInput}
-      oninput={(e) => onFilterInput(e.currentTarget.value)}
-    />
-  </div>
-
-  <!-- Branch tree -->
-  <div class="list-items">
+  {#snippet customContent()}
     <!-- LOCAL section -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -241,8 +241,8 @@
         {/each}
       {/if}
     {/if}
-  </div>
-</div>
+  {/snippet}
+</List>
 
 <ContextMenu
   items={menuItems}
@@ -285,46 +285,6 @@
 {/if}
 
 <style>
-  .branch-list {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .list-header {
-    flex-shrink: 0;
-  }
-
-  .list-title {
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-  }
-
-  .filter-row {
-    padding: 8px;
-    flex-shrink: 0;
-  }
-
-  .filter-input {
-    width: 100%;
-    padding: 5px 8px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-size: 12px;
-    outline: none;
-    box-sizing: border-box;
-  }
-
-  .filter-input:focus {
-    border-color: var(--accent-blue);
-  }
-
   .section-header {
     display: flex;
     align-items: center;
@@ -370,19 +330,5 @@
     background: rgba(255, 255, 255, 0.06);
     padding: 1px 6px;
     border-radius: 10px;
-  }
-
-  .list-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-  }
-
-  .list-empty {
-    padding: 12px 16px;
-    font-size: 11px;
-    color: var(--text-secondary);
-    font-style: italic;
   }
 </style>

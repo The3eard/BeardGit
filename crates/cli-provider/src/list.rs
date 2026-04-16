@@ -2,6 +2,7 @@
 
 use crate::CliProvider;
 use crate::error::CliError;
+use crate::parsers::{GITHUB_FIELDS, GITLAB_FIELDS, parse_mr_pr};
 use crate::types::{MrPr, MrPrState};
 use provider::ProviderKind;
 
@@ -47,47 +48,10 @@ impl CliProvider {
         let raw: Vec<serde_json::Value> =
             serde_json::from_str(&stdout).map_err(|e| CliError::JsonError(e.to_string()))?;
 
-        let mut results = Vec::with_capacity(raw.len());
-        for item in raw {
-            results.push(MrPr {
-                number: item["number"].as_u64().unwrap_or(0),
-                title: item["title"].as_str().unwrap_or("").to_string(),
-                state: match item["state"].as_str().unwrap_or("") {
-                    "OPEN" => MrPrState::Open,
-                    "CLOSED" => MrPrState::Closed,
-                    "MERGED" => MrPrState::Merged,
-                    _ => MrPrState::Open,
-                },
-                author: item["author"]["login"].as_str().unwrap_or("").to_string(),
-                source_branch: item["headRefName"].as_str().unwrap_or("").to_string(),
-                target_branch: item["baseRefName"].as_str().unwrap_or("").to_string(),
-                url: item["url"].as_str().unwrap_or("").to_string(),
-                draft: item["isDraft"].as_bool().unwrap_or(false),
-                labels: item["labels"]
-                    .as_array()
-                    .map(|a| {
-                        a.iter()
-                            .filter_map(|v| v["name"].as_str().map(|s| s.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-                reviewers: item["reviewRequests"]
-                    .as_array()
-                    .map(|a| {
-                        a.iter()
-                            .filter_map(|v| v["login"].as_str().map(|s| s.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-                created_at: item["createdAt"].as_str().unwrap_or("").to_string(),
-                updated_at: item["updatedAt"].as_str().unwrap_or("").to_string(),
-                additions: item["additions"].as_u64(),
-                deletions: item["deletions"].as_u64(),
-                changed_files: item["changedFiles"].as_u64(),
-            });
-        }
-
-        Ok(results)
+        Ok(raw
+            .iter()
+            .map(|item| parse_mr_pr(item, &GITHUB_FIELDS))
+            .collect())
     }
 
     /// List GitLab merge requests via `glab mr list -F json`.
@@ -106,50 +70,9 @@ impl CliProvider {
         let raw: Vec<serde_json::Value> =
             serde_json::from_str(&stdout).map_err(|e| CliError::JsonError(e.to_string()))?;
 
-        let mut results = Vec::with_capacity(raw.len());
-        for item in raw {
-            results.push(MrPr {
-                number: item["iid"].as_u64().unwrap_or(0),
-                title: item["title"].as_str().unwrap_or("").to_string(),
-                state: match item["state"].as_str().unwrap_or("") {
-                    "opened" => MrPrState::Open,
-                    "closed" => MrPrState::Closed,
-                    "merged" => MrPrState::Merged,
-                    _ => MrPrState::Open,
-                },
-                author: item["author"]["username"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string(),
-                source_branch: item["source_branch"].as_str().unwrap_or("").to_string(),
-                target_branch: item["target_branch"].as_str().unwrap_or("").to_string(),
-                url: item["web_url"].as_str().unwrap_or("").to_string(),
-                draft: item["draft"].as_bool().unwrap_or(false)
-                    || item["work_in_progress"].as_bool().unwrap_or(false),
-                labels: item["labels"]
-                    .as_array()
-                    .map(|a| {
-                        a.iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-                reviewers: item["reviewers"]
-                    .as_array()
-                    .map(|a| {
-                        a.iter()
-                            .filter_map(|v| v["username"].as_str().map(|s| s.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-                created_at: item["created_at"].as_str().unwrap_or("").to_string(),
-                updated_at: item["updated_at"].as_str().unwrap_or("").to_string(),
-                additions: None, // GitLab list doesn't include stats
-                deletions: None,
-                changed_files: None,
-            });
-        }
-
-        Ok(results)
+        Ok(raw
+            .iter()
+            .map(|item| parse_mr_pr(item, &GITLAB_FIELDS))
+            .collect())
     }
 }

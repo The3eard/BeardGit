@@ -4,6 +4,7 @@
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import CreateWorktreeDialog from "./CreateWorktreeDialog.svelte";
+  import List from "../common/List.svelte";
   import {
     worktrees,
     worktreeLoading,
@@ -106,100 +107,102 @@
     menuY = e.clientY;
     menuVisible = true;
   }
+
+  function getKey(wt: EnrichedWorktree): string {
+    return wt.path;
+  }
 </script>
 
-<div class="worktree-list">
-  <!-- Header -->
-  <div class="list-header">
-    <span class="list-title">{m.sidebar_worktrees().toUpperCase()}</span>
-    <div class="header-actions">
-      <button
-        class="action-btn nf"
-        onclick={() => (showCreateDialog = true)}
-        title={m.worktree_create()}
-      >
-        {"\uF067"}
-      </button>
-      <button
-        class="action-btn nf"
-        onclick={() => refreshWorktrees()}
-        disabled={$worktreeLoading}
-        title="Refresh"
-      >
-        {$worktreeLoading ? "\uF110" : "\uF021"}
-      </button>
-    </div>
-  </div>
+<List
+  items={$worktrees}
+  loading={$worktreeLoading}
+  title={m.sidebar_worktrees().toUpperCase()}
+  selectedKey={null}
+  {getKey}
+  emptyMessage={m.worktree_list_empty()}
+  onRefresh={refreshWorktrees}
+  onContextMenu={handleContextMenu}
+>
+  {#snippet headerActions()}
+    <button
+      class="action-btn nf"
+      onclick={() => (showCreateDialog = true)}
+      title={m.worktree_create()}
+    >
+      {"\uF067"}
+    </button>
+    <button
+      class="action-btn nf"
+      onclick={() => refreshWorktrees()}
+      disabled={$worktreeLoading}
+      title="Refresh"
+    >
+      {$worktreeLoading ? "\uF110" : "\uF021"}
+    </button>
+  {/snippet}
 
-  <!-- List -->
-  <div class="list-items">
-    {#if $worktreeLoading && $worktrees.length === 0}
-      <div class="list-loading">
-        <div class="spinner"></div>
-      </div>
-    {:else if $worktrees.length === 0}
-      <div class="list-empty">{m.worktree_list_empty()}</div>
-    {:else}
-      {#each $worktrees as wt (wt.path)}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="worktree-item"
-          class:ai-active={wt.ai_status === "active"}
-          style={wt.ai_provider ? `--ai-color: ${PROVIDER_COLOR[wt.ai_provider]}` : ""}
-          oncontextmenu={(e) => handleContextMenu(e, wt)}
-        >
-          <div class="wt-info">
-            <div class="wt-branch-row">
-              <span class="wt-branch" class:main={wt.is_main}>
-                {wt.branch ?? "detached"}
-              </span>
-              {#if wt.is_main}
-                <span class="wt-badge main">{m.worktree_current()}</span>
-              {/if}
-              {#if wt.is_locked}
-                <span class="wt-badge locked">{m.worktree_locked()}</span>
-              {/if}
-              {#if wt.ai_provider}
-                <span
-                  class="wt-badge ai"
-                  style="--badge-color: {PROVIDER_COLOR[wt.ai_provider]}"
-                >
-                  {PROVIDER_NAME[wt.ai_provider]}
-                </span>
-              {/if}
-              {#if wt.ai_status === "active"}
-                <span class="wt-badge ai-status active">ACTIVE</span>
-              {:else if wt.ai_status === "clean"}
-                <span class="wt-badge ai-status clean">CLEAN</span>
-              {:else if wt.ai_status === "orphaned"}
-                <span class="wt-badge ai-status orphaned">ORPHANED</span>
-              {/if}
-            </div>
-            <div class="wt-path" title={wt.path}>{shortPath(wt.path)}</div>
-          </div>
-          <div class="wt-actions">
-            {#if !wt.is_main}
-              <button
-                class="wt-action-btn"
-                onclick={() => handleOpenInTab(wt.path)}
-                title={m.worktree_open_tab()}
-              >
-                <span class="nf">{"\uF08E"}</span>
-              </button>
-              <button
-                class="wt-action-btn destructive"
-                onclick={() => handleRemove(wt.path)}
-                title={m.worktree_remove()}
-              >
-                <span class="nf">{"\uF1F8"}</span>
-              </button>
-            {/if}
-          </div>
+  {#snippet row({ item })}
+    <div
+      class="worktree-row"
+      class:ai-active={item.ai_status === "active"}
+      style={item.ai_provider ? `--ai-color: ${PROVIDER_COLOR[item.ai_provider]}` : ""}
+    >
+      <div class="wt-info">
+        <div class="wt-branch-row">
+          <span class="wt-branch" class:main={item.is_main}>
+            {item.branch ?? "detached"}
+          </span>
+          {#if item.is_main}
+            <span class="wt-badge main">{m.worktree_current()}</span>
+          {/if}
+          {#if item.is_locked}
+            <span class="wt-badge locked">{m.worktree_locked()}</span>
+          {/if}
+          {#if item.ai_provider}
+            <span
+              class="wt-badge ai"
+              style="--badge-color: {PROVIDER_COLOR[item.ai_provider]}"
+            >
+              {PROVIDER_NAME[item.ai_provider]}
+            </span>
+          {/if}
+          {#if item.ai_status === "active"}
+            <span class="wt-badge ai-status active">ACTIVE</span>
+          {:else if item.ai_status === "clean"}
+            <span class="wt-badge ai-status clean">CLEAN</span>
+          {:else if item.ai_status === "orphaned"}
+            <span class="wt-badge ai-status orphaned">ORPHANED</span>
+          {/if}
         </div>
-      {/each}
-    {/if}
-  </div>
-</div>
+        <div class="wt-path" title={item.path}>{shortPath(item.path)}</div>
+      </div>
+      <div class="wt-actions">
+        {#if !item.is_main}
+          <button
+            class="wt-action-btn"
+            onclick={(e: MouseEvent) => {
+              e.stopPropagation();
+              handleOpenInTab(item.path);
+            }}
+            title={m.worktree_open_tab()}
+          >
+            <span class="nf">{"\uF08E"}</span>
+          </button>
+          <button
+            class="wt-action-btn destructive"
+            onclick={(e: MouseEvent) => {
+              e.stopPropagation();
+              handleRemove(item.path);
+            }}
+            title={m.worktree_remove()}
+          >
+            <span class="nf">{"\uF1F8"}</span>
+          </button>
+        {/if}
+      </div>
+    </div>
+  {/snippet}
+</List>
 
 {#if showCreateDialog && $repoInfo}
   <CreateWorktreeDialog
@@ -229,34 +232,6 @@
 />
 
 <style>
-  .worktree-list {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .list-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px 8px;
-    flex-shrink: 0;
-  }
-
-  .list-title {
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 4px;
-  }
-
   .action-btn {
     background: none;
     border: none;
@@ -279,40 +254,18 @@
     cursor: default;
   }
 
-  .list-items {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .list-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-  }
-
-  .list-empty {
-    padding: 12px 16px;
-    font-size: 11px;
-    color: var(--text-secondary);
-    font-style: italic;
-  }
-
-  .worktree-item {
+  .worktree-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.1s;
+    width: 100%;
   }
 
-  .worktree-item:hover {
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  .worktree-item.ai-active {
+  /* Extend the ai-active tint to cover the full list row padding */
+  .worktree-row.ai-active {
     background: color-mix(in srgb, var(--ai-color) 4%, transparent);
+    margin: -8px -12px;
+    padding: 8px 12px;
   }
 
   .wt-info {
@@ -399,7 +352,7 @@
     transition: opacity 0.15s;
   }
 
-  .worktree-item:hover .wt-actions {
+  :global(.list-row:hover) .wt-actions {
     opacity: 1;
   }
 

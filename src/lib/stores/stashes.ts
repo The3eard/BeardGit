@@ -16,18 +16,20 @@ import {
   stashPop as apiStashPop,
   stashDrop as apiStashDrop,
 } from "../api/tauri";
+import { fetchIntoStore } from "../utils/store-helpers";
 
 export const stashes = writable<StashEntry[]>([]);
+export const stashesLoading = writable(false);
 export const selectedStashIndex = writable<number | null>(null);
 export const selectedStashDiff = writable<FileDiff[] | null>(null);
 
 /** Refresh the stash entry list. Clears selection if the selected stash was dropped. */
 export async function loadStashes() {
-  const entries = await apiStashEntries();
-  stashes.set(entries);
+  await fetchIntoStore(stashes, stashesLoading, apiStashEntries, []);
 
   // If selected stash no longer exists, clear selection
   const selected = get(selectedStashIndex);
+  const entries = get(stashes);
   if (selected !== null && !entries.some((e) => e.index === selected)) {
     selectedStashIndex.set(null);
     selectedStashDiff.set(null);

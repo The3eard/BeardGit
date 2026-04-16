@@ -183,11 +183,9 @@ fn filter_hunk_lines(hunk: &DiffHunkInfo, ranges: &[(usize, usize)]) -> Vec<Diff
                 // Context lines are always included.
                 result.push(line.clone());
             }
-            '+' => {
-                if is_selected {
-                    result.push(line.clone());
-                }
-                // Non-selected additions are simply omitted.
+            // Selected additions are kept; non-selected additions are omitted.
+            '+' if is_selected => {
+                result.push(line.clone());
             }
             '-' => {
                 if is_selected {

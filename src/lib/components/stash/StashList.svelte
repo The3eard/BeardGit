@@ -2,6 +2,7 @@
   import * as m from "$lib/paraglide/messages";
   import { stashes, selectedStashIndex, doStashPush, doStashApply, doStashPop, doStashDrop, selectStash } from "../../stores/stashes";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import List from "../common/List.svelte";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
 
@@ -28,10 +29,32 @@
       handleCancelStash();
     }
   }
+
+  function getKey(entry: { index: number }): string {
+    return String(entry.index);
+  }
+
+  let selectedKey = $derived(
+    $selectedStashIndex !== null && $stashes.some((s) => s.index === $selectedStashIndex)
+      ? String($selectedStashIndex)
+      : null,
+  );
+
+  function handleSelect(entry: { index: number }) {
+    selectStash(entry.index);
+  }
 </script>
 
-<div class="stash-list">
-  <div class="stash-list-header">
+<List
+  items={$stashes}
+  loading={false}
+  title="STASHES"
+  {selectedKey}
+  {getKey}
+  emptyMessage={m.stash_empty()}
+  onSelect={handleSelect}
+>
+  {#snippet headerActions()}
     {#if showStashInput}
       <div class="stash-input-row">
         <input
@@ -41,67 +64,51 @@
           bind:value={stashMessage}
           onkeydown={handleStashKeydown}
         />
-        <button class="btn btn-small btn-confirm" onclick={handleStashPush}>✓</button>
-        <button class="btn btn-small btn-cancel" onclick={handleCancelStash}>✕</button>
+        <button class="btn btn-small btn-confirm" onclick={handleStashPush}>&#x2713;</button>
+        <button class="btn btn-small btn-cancel" onclick={handleCancelStash}>&#x2715;</button>
       </div>
     {:else}
       <button class="btn btn-stash" onclick={() => (showStashInput = true)}>
         {m.stash_button()}
       </button>
     {/if}
-  </div>
+  {/snippet}
 
-  <div class="stash-items">
-    {#if $stashes.length === 0}
-      <div class="stash-empty">
-        <p>{m.stash_empty()}</p>
+  {#snippet row({ item })}
+    <div class="stash-content">
+      <div class="stash-top">
+        <span class="stash-message">{item.message || `stash@{${item.index}}`}</span>
+        <span class="stash-time">{formatRelativeTimeUnix(item.timestamp)}</span>
       </div>
-    {:else}
-      {#each $stashes as entry (entry.index)}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="stash-row"
-          class:selected={$selectedStashIndex === entry.index}
-          onclick={() => selectStash(entry.index)}
-          onkeydown={(e) => { if (e.key === 'Enter') selectStash(entry.index); }}
-          role="button"
-          tabindex="0"
-        >
-          <div class="stash-top">
-            <span class="stash-message">{entry.message || `stash@{${entry.index}}`}</span>
-            <span class="stash-time">{formatRelativeTimeUnix(entry.timestamp)}</span>
-          </div>
-          <div class="stash-bottom-container">
-            <div class="stash-bottom">
-              <span class="stash-branch">{m.stash_on_branch({ branch: entry.branch })}</span>
-              <span class="stash-oid">{shortOid(entry.oid)}</span>
-            </div>
-            <div class="stash-bottom-hover">
-              <div class="stash-actions">
-                <button
-                  class="action-btn action-btn-apply"
-                  title={m.stash_apply()}
-                  onclick={(e: MouseEvent) => { e.stopPropagation(); doStashApply(entry.index); }}
-                >{m.stash_apply()}</button>
-                <button
-                  class="action-btn action-btn-pop"
-                  title={m.stash_pop()}
-                  onclick={(e: MouseEvent) => { e.stopPropagation(); doStashPop(entry.index); }}
-                >{m.stash_pop()}</button>
-                <button
-                  class="action-btn action-btn-danger"
-                  title={m.stash_drop()}
-                  onclick={(e: MouseEvent) => { e.stopPropagation(); confirmDrop = entry.index; }}
-                >{m.stash_drop()}</button>
-              </div>
-              <span class="stash-oid">{shortOid(entry.oid)}</span>
-            </div>
-          </div>
+      <div class="stash-bottom-container">
+        <div class="stash-bottom">
+          <span class="stash-branch">{m.stash_on_branch({ branch: item.branch })}</span>
+          <span class="stash-oid">{shortOid(item.oid)}</span>
         </div>
-      {/each}
-    {/if}
-  </div>
-</div>
+        <div class="stash-bottom-hover">
+          <div class="stash-actions">
+            <button
+              class="action-btn action-btn-apply"
+              title={m.stash_apply()}
+              onclick={(e: MouseEvent) => { e.stopPropagation(); doStashApply(item.index); }}
+            >{m.stash_apply()}</button>
+            <button
+              class="action-btn action-btn-pop"
+              title={m.stash_pop()}
+              onclick={(e: MouseEvent) => { e.stopPropagation(); doStashPop(item.index); }}
+            >{m.stash_pop()}</button>
+            <button
+              class="action-btn action-btn-danger"
+              title={m.stash_drop()}
+              onclick={(e: MouseEvent) => { e.stopPropagation(); confirmDrop = item.index; }}
+            >{m.stash_drop()}</button>
+          </div>
+          <span class="stash-oid">{shortOid(item.oid)}</span>
+        </div>
+      </div>
+    </div>
+  {/snippet}
+</List>
 
 {#if confirmDrop !== null}
   {@const dropEntry = $stashes.find((e) => e.index === confirmDrop)}
@@ -112,6 +119,7 @@
     confirmLabel={m.stash_drop()}
     destructive={true}
     onConfirm={() => {
+      // svelte-ignore state_referenced_locally
       doStashDrop(confirmDrop!);
       confirmDrop = null;
     }}
@@ -120,32 +128,11 @@
 {/if}
 
 <style>
-  .stash-list {
+  .stash-content {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .stash-list-header {
-    padding: 8px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .btn-stash {
+    gap: 3px;
     width: 100%;
-    padding: 6px 12px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .btn-stash:hover {
-    background: rgba(255, 255, 255, 0.1);
   }
 
   .stash-input-row {
@@ -183,40 +170,19 @@
     background: rgba(255, 255, 255, 0.1);
   }
 
-  .stash-items {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .stash-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
-
-  .stash-row {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    width: 100%;
-    padding: 8px 12px;
-    background: none;
-    border: none;
-    border-bottom: 1px solid var(--border);
+  .btn-stash {
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
     color: var(--text-primary);
+    border-radius: 6px;
+    font-size: 12px;
     cursor: pointer;
-    text-align: left;
+    transition: background 0.15s;
   }
 
-  .stash-row:hover {
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  .stash-row.selected {
-    background: rgba(88, 166, 255, 0.08);
+  .btn-stash:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .stash-top {
@@ -258,11 +224,11 @@
     visibility: hidden;
   }
 
-  .stash-row:hover .stash-bottom {
+  :global(.list-row:hover) .stash-bottom {
     visibility: hidden;
   }
 
-  .stash-row:hover .stash-bottom-hover {
+  :global(.list-row:hover) .stash-bottom-hover {
     visibility: visible;
   }
 

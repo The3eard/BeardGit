@@ -20,6 +20,7 @@ import {
   deleteTag as apiDeleteTag,
   pushTag as apiPushTag,
 } from "../api/tauri";
+import { fetchPageIntoStore } from "../utils/store-helpers";
 
 // ---------------------------------------------------------------------------
 // List state
@@ -71,47 +72,39 @@ export const filteredTags = derived(
 // ---------------------------------------------------------------------------
 
 export async function refreshTags() {
-  tagsLoading.set(true);
   currentPage = 1;
-  try {
-    const list = await listTagsPaginated(PAGE_SIZE, 1);
-    tags.set(list);
-    preFilterSnapshot = list;
-    hasMoreTags.set(list.length >= PAGE_SIZE);
+  await fetchPageIntoStore(
+    tags,
+    tagsLoading,
+    hasMoreTags,
+    0,
+    () => listTagsPaginated(PAGE_SIZE, 1),
+    PAGE_SIZE,
+  );
+  preFilterSnapshot = get(tags);
 
-    // Clear selection if tag no longer exists
-    const name = get(selectedTagName);
-    if (name && !list.some((t) => t.name === name)) {
-      selectedTagName.set(null);
-      selectedCommitInfo.set(null);
-      selectedCommitStats.set(null);
-      selectedCommitFiles.set(null);
-      loadingDetail.set(false);
-    }
-  } catch {
-    tags.set([]);
-    hasMoreTags.set(false);
-  } finally {
-    tagsLoading.set(false);
+  // Clear selection if tag no longer exists
+  const name = get(selectedTagName);
+  if (name && !get(tags).some((t) => t.name === name)) {
+    selectedTagName.set(null);
+    selectedCommitInfo.set(null);
+    selectedCommitStats.set(null);
+    selectedCommitFiles.set(null);
+    loadingDetail.set(false);
   }
 }
 
 export async function loadMoreTags() {
   currentPage++;
-  try {
-    const list = await listTagsPaginated(PAGE_SIZE, currentPage);
-    if (list.length > 0) {
-      const current = get(tags);
-      const merged = [...current, ...list];
-      tags.set(merged);
-      preFilterSnapshot = merged;
-      hasMoreTags.set(list.length >= PAGE_SIZE);
-    } else {
-      hasMoreTags.set(false);
-    }
-  } catch {
-    hasMoreTags.set(false);
-  }
+  await fetchPageIntoStore(
+    tags,
+    tagsLoading,
+    hasMoreTags,
+    currentPage - 1, // > 0 triggers append
+    () => listTagsPaginated(PAGE_SIZE, currentPage),
+    PAGE_SIZE,
+  );
+  preFilterSnapshot = get(tags);
 }
 
 /** Backend fallback when client-side filter yields no results. */

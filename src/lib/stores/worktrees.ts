@@ -15,6 +15,7 @@ import {
   aiCleanupWorktree,
 } from "$lib/api/tauri";
 import type { WorktreeInfo, AiWorktree, EnrichedWorktree } from "$lib/types";
+import { fetchIntoStore } from "$lib/utils/store-helpers";
 
 /** All worktrees for the active repository, enriched with AI data. */
 export const worktrees = writable<EnrichedWorktree[]>([]);
@@ -55,18 +56,18 @@ export function enrichWorktrees(
 
 /** Fetch worktrees from both git and AI backends, merge, and update store. */
 export async function refreshWorktrees() {
-  worktreeLoading.set(true);
-  try {
-    const [gitList, aiList] = await Promise.all([
-      listWorktrees(),
-      aiListWorktrees().catch(() => [] as AiWorktree[]),
-    ]);
-    worktrees.set(enrichWorktrees(gitList, aiList));
-  } catch {
-    worktrees.set([]);
-  } finally {
-    worktreeLoading.set(false);
-  }
+  await fetchIntoStore(
+    worktrees,
+    worktreeLoading,
+    async () => {
+      const [gitList, aiList] = await Promise.all([
+        listWorktrees(),
+        aiListWorktrees().catch(() => [] as AiWorktree[]),
+      ]);
+      return enrichWorktrees(gitList, aiList);
+    },
+    [],
+  );
 }
 
 /** Create a new linked worktree and refresh the list. */

@@ -8,6 +8,7 @@ pub mod auth;
 pub mod detail;
 pub mod error;
 pub mod list;
+pub mod parsers;
 pub mod review;
 pub mod types;
 pub mod write;

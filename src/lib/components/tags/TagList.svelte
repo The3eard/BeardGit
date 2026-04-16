@@ -17,14 +17,17 @@
   } from "../../stores/tags";
   import TagCreateDialog from "./TagCreateDialog.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import List from "../common/List.svelte";
   import { formatRelativeTime } from "../../utils/time";
   import { debounce } from "../../utils/debounce";
+  import type { TagInfo } from "../../types";
 
   let loadingMore = $state(false);
   let showCreateDialog = $state(false);
   let confirmDelete = $state<string | null>(null);
   let filterValue = $state("");
   let searchingBackend = $state(false);
+
   const debouncedBackendSearch = debounce(async (value: string) => {
     if (value.length >= 2 && $filteredTags.length === 0) {
       searchingBackend = true;
@@ -59,108 +62,110 @@
     tagFilter.set("");
     refreshTags();
   }
+
+  function getKey(tag: TagInfo): string {
+    return tag.name;
+  }
+
+  function handleSelect(tag: TagInfo) {
+    selectTag(tag.name);
+  }
 </script>
 
-<div class="tag-list">
-  <div class="list-header">
-    <span class="list-title">{m.tags_title()}</span>
-    <div class="header-actions">
-      <button class="btn-create" onclick={() => (showCreateDialog = true)}>
-        {m.tags_create_button()}
-      </button>
-      <button
-        class="refresh-btn nf"
-        onclick={handleRefresh}
-        disabled={$tagsLoading}
-        title="Refresh"
-      >
-        {$tagsLoading ? "\uF110" : "\uF021"}
-      </button>
-    </div>
-  </div>
+<List
+  items={$filteredTags}
+  loading={$tagsLoading}
+  title={m.tags_title()}
+  selectedKey={$selectedTagName}
+  {getKey}
+  emptyMessage={m.tags_empty()}
+  onSelect={handleSelect}
+>
+  {#snippet headerActions()}
+    <button class="btn-create" onclick={() => (showCreateDialog = true)}>
+      {m.tags_create_button()}
+    </button>
+    <button
+      class="refresh-btn nf"
+      onclick={handleRefresh}
+      disabled={$tagsLoading}
+      title="Refresh"
+    >
+      {$tagsLoading ? "\uF110" : "\uF021"}
+    </button>
+  {/snippet}
 
-  <div class="filter-row">
-    <input
-      type="text"
-      class="filter-input"
-      placeholder={m.tags_filter_placeholder()}
-      bind:value={filterValue}
-      oninput={handleFilterInput}
-    />
-  </div>
+  {#snippet afterHeader()}
+    <div class="filter-row">
+      <input
+        type="text"
+        class="filter-input"
+        placeholder={m.tags_filter_placeholder()}
+        bind:value={filterValue}
+        oninput={handleFilterInput}
+      />
+    </div>
+  {/snippet}
 
-  {#if $tagsLoading && $tags.length === 0}
-    <div class="list-loading">
-      <div class="spinner"></div>
-      <span>{m.tags_title()}...</span>
-    </div>
-  {:else if $filteredTags.length === 0 && !searchingBackend}
-    <div class="list-empty">
-      {m.tags_empty()}
-    </div>
-  {:else if searchingBackend}
-    <div class="list-loading">
-      <div class="spinner"></div>
-      <span>{m.tags_no_results_searching()}</span>
-    </div>
-  {:else}
-    <div class="list-items">
-      {#each $filteredTags as tag (tag.name)}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="tag-row"
-          class:selected={$selectedTagName === tag.name}
-          onclick={() => selectTag(tag.name)}
-          onkeydown={(e) => { if (e.key === "Enter") selectTag(tag.name); }}
-          role="button"
-          tabindex="0"
-        >
-          <div class="tag-top">
-            <span class="tag-name">{tag.name}</span>
-            <span class="tag-time">
-              {tag.date ? formatRelativeTime(tag.date) : ""}
-            </span>
-          </div>
-          <div class="tag-bottom-container">
-            <div class="tag-bottom">
-              {#if tag.annotated}
-                <span class="tag-badge-annotated">{m.tags_badge_annotated()}</span>
-              {/if}
-              <span class="tag-oid">{tag.commit_oid.slice(0, 8)}</span>
-            </div>
-            <div class="tag-bottom-hover">
-              <div class="tag-actions">
-                <button
-                  class="action-btn action-btn-push"
-                  onclick={(e: MouseEvent) => { e.stopPropagation(); doPushTag(tag.name, "origin"); }}
-                >{m.tags_action_push()}</button>
-                <button
-                  class="action-btn action-btn-danger"
-                  onclick={(e: MouseEvent) => { e.stopPropagation(); confirmDelete = tag.name; }}
-                >{m.tags_action_delete()}</button>
-              </div>
-              <span class="tag-oid">{tag.commit_oid.slice(0, 8)}</span>
-            </div>
-          </div>
-        </div>
-      {/each}
+  {#snippet emptyState()}
+    {#if searchingBackend}
+      <div class="list-loading">
+        <div class="spinner"></div>
+        <span>{m.tags_no_results_searching()}</span>
+      </div>
+    {:else}
+      <div class="list-empty">{m.tags_empty()}</div>
+    {/if}
+  {/snippet}
 
-      {#if $hasMoreTags && !filterValue}
-        <button class="load-more-btn" onclick={handleLoadMore} disabled={loadingMore}>
-          {#if loadingMore}
-            <div class="spinner"></div>
-          {:else}
-            {m.tags_load_more({ count: String($tags.length) })}
+  {#snippet row({ item })}
+    <div class="tag-content">
+      <div class="tag-top">
+        <span class="tag-name">{item.name}</span>
+        <span class="tag-time">
+          {item.date ? formatRelativeTime(item.date) : ""}
+        </span>
+      </div>
+      <div class="tag-bottom-container">
+        <div class="tag-bottom">
+          {#if item.annotated}
+            <span class="tag-badge-annotated">{m.tags_badge_annotated()}</span>
           {/if}
-        </button>
-      {/if}
-
-      <button class="push-all-btn" onclick={() => doPushTag(null, "origin")}>
-        {m.tags_push_all_button()}
-      </button>
+          <span class="tag-oid">{item.commit_oid.slice(0, 8)}</span>
+        </div>
+        <div class="tag-bottom-hover">
+          <div class="tag-actions">
+            <button
+              class="action-btn action-btn-push"
+              onclick={(e: MouseEvent) => { e.stopPropagation(); doPushTag(item.name, "origin"); }}
+            >{m.tags_action_push()}</button>
+            <button
+              class="action-btn action-btn-danger"
+              onclick={(e: MouseEvent) => { e.stopPropagation(); confirmDelete = item.name; }}
+            >{m.tags_action_delete()}</button>
+          </div>
+          <span class="tag-oid">{item.commit_oid.slice(0, 8)}</span>
+        </div>
+      </div>
     </div>
-  {/if}
-</div>
+  {/snippet}
+
+  {#snippet footer()}
+    {#if $hasMoreTags && !filterValue}
+      <button class="load-more-btn" onclick={handleLoadMore} disabled={loadingMore}>
+        {#if loadingMore}
+          <div class="spinner"></div>
+        {:else}
+          {m.tags_load_more({ count: String($tags.length) })}
+        {/if}
+      </button>
+    {/if}
+
+    <button class="push-all-btn" onclick={() => doPushTag(null, "origin")}>
+      {m.tags_push_all_button()}
+    </button>
+  {/snippet}
+</List>
 
 {#if showCreateDialog}
   <TagCreateDialog onClose={() => (showCreateDialog = false)} />
@@ -183,27 +188,6 @@
 {/if}
 
 <style>
-  .tag-list {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .list-title {
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
   .btn-create {
     padding: 3px 10px;
     background: rgba(88, 166, 255, 0.1);
@@ -220,46 +204,11 @@
     background: rgba(88, 166, 255, 0.18);
   }
 
-  .filter-row {
-    padding: 8px;
-  }
-
-  .filter-input {
-    width: 100%;
-    padding: 5px 8px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-size: 12px;
-    outline: none;
-    box-sizing: border-box;
-  }
-
-  .filter-input:focus {
-    border-color: var(--accent-blue);
-  }
-
-  .tag-row {
+  .tag-content {
     display: flex;
     flex-direction: column;
     gap: 3px;
     width: 100%;
-    padding: 8px 12px;
-    background: none;
-    border: none;
-    border-bottom: 1px solid var(--border);
-    color: var(--text-primary);
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .tag-row:hover {
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  .tag-row.selected {
-    background: rgba(88, 166, 255, 0.08);
   }
 
   .tag-top {
@@ -302,11 +251,11 @@
     visibility: hidden;
   }
 
-  .tag-row:hover .tag-bottom {
+  :global(.list-row:hover) .tag-bottom {
     visibility: hidden;
   }
 
-  .tag-row:hover .tag-bottom-hover {
+  :global(.list-row:hover) .tag-bottom-hover {
     visibility: visible;
   }
 

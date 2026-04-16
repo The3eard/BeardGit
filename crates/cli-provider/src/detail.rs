@@ -2,7 +2,10 @@
 
 use crate::CliProvider;
 use crate::error::CliError;
-use crate::types::{MrPr, MrPrComment, MrPrDetail, MrPrDiffFile, MrPrState, ReviewStatus};
+use crate::parsers::{
+    GITHUB_FIELDS, GITLAB_FIELDS, parse_github_comment, parse_gitlab_comment, parse_mr_pr,
+};
+use crate::types::{MrPrDetail, MrPrDiffFile, ReviewStatus};
 use provider::ProviderKind;
 
 impl CliProvider {
@@ -25,42 +28,7 @@ impl CliProvider {
             "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,body,mergeable,reviewDecision,additions,deletions,changedFiles,comments",
         ])?;
 
-        let summary = MrPr {
-            number: raw["number"].as_u64().unwrap_or(0),
-            title: raw["title"].as_str().unwrap_or("").to_string(),
-            state: match raw["state"].as_str().unwrap_or("") {
-                "OPEN" => MrPrState::Open,
-                "CLOSED" => MrPrState::Closed,
-                "MERGED" => MrPrState::Merged,
-                _ => MrPrState::Open,
-            },
-            author: raw["author"]["login"].as_str().unwrap_or("").to_string(),
-            source_branch: raw["headRefName"].as_str().unwrap_or("").to_string(),
-            target_branch: raw["baseRefName"].as_str().unwrap_or("").to_string(),
-            url: raw["url"].as_str().unwrap_or("").to_string(),
-            draft: raw["isDraft"].as_bool().unwrap_or(false),
-            labels: raw["labels"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v["name"].as_str().map(|s| s.to_string()))
-                        .collect()
-                })
-                .unwrap_or_default(),
-            reviewers: raw["reviewRequests"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v["login"].as_str().map(|s| s.to_string()))
-                        .collect()
-                })
-                .unwrap_or_default(),
-            created_at: raw["createdAt"].as_str().unwrap_or("").to_string(),
-            updated_at: raw["updatedAt"].as_str().unwrap_or("").to_string(),
-            additions: raw["additions"].as_u64(),
-            deletions: raw["deletions"].as_u64(),
-            changed_files: raw["changedFiles"].as_u64(),
-        };
+        let summary = parse_mr_pr(&raw, &GITHUB_FIELDS);
 
         let review_status = match raw["reviewDecision"].as_str().unwrap_or("") {
             "APPROVED" => ReviewStatus::Approved,
@@ -71,19 +39,7 @@ impl CliProvider {
 
         let comments = raw["comments"]
             .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .map(|c| MrPrComment {
-                        id: c["id"].as_u64().unwrap_or(0),
-                        author: c["author"]["login"].as_str().unwrap_or("").to_string(),
-                        body: c["body"].as_str().unwrap_or("").to_string(),
-                        created_at: c["createdAt"].as_str().unwrap_or("").to_string(),
-                        path: None,
-                        line: None,
-                        is_review: false,
-                    })
-                    .collect()
-            })
+            .map(|arr| arr.iter().map(parse_github_comment).collect())
             .unwrap_or_default();
 
         let mergeable = match raw["mergeable"].as_str().unwrap_or("") {
@@ -106,58 +62,11 @@ impl CliProvider {
         let num_str = number.to_string();
         let raw: serde_json::Value = self.run_json(&["mr", "view", &num_str, "-F", "json"])?;
 
-        let summary = MrPr {
-            number: raw["iid"].as_u64().unwrap_or(0),
-            title: raw["title"].as_str().unwrap_or("").to_string(),
-            state: match raw["state"].as_str().unwrap_or("") {
-                "opened" => MrPrState::Open,
-                "closed" => MrPrState::Closed,
-                "merged" => MrPrState::Merged,
-                _ => MrPrState::Open,
-            },
-            author: raw["author"]["username"].as_str().unwrap_or("").to_string(),
-            source_branch: raw["source_branch"].as_str().unwrap_or("").to_string(),
-            target_branch: raw["target_branch"].as_str().unwrap_or("").to_string(),
-            url: raw["web_url"].as_str().unwrap_or("").to_string(),
-            draft: raw["draft"].as_bool().unwrap_or(false),
-            labels: raw["labels"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                        .collect()
-                })
-                .unwrap_or_default(),
-            reviewers: raw["reviewers"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v["username"].as_str().map(|s| s.to_string()))
-                        .collect()
-                })
-                .unwrap_or_default(),
-            created_at: raw["created_at"].as_str().unwrap_or("").to_string(),
-            updated_at: raw["updated_at"].as_str().unwrap_or("").to_string(),
-            additions: None,
-            deletions: None,
-            changed_files: None,
-        };
+        let summary = parse_mr_pr(&raw, &GITLAB_FIELDS);
 
         let comments = raw["notes"]
             .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .map(|c| MrPrComment {
-                        id: c["id"].as_u64().unwrap_or(0),
-                        author: c["author"]["username"].as_str().unwrap_or("").to_string(),
-                        body: c["body"].as_str().unwrap_or("").to_string(),
-                        created_at: c["created_at"].as_str().unwrap_or("").to_string(),
-                        path: c["position"]["new_path"].as_str().map(|s| s.to_string()),
-                        line: c["position"]["new_line"].as_u64(),
-                        is_review: c["type"].as_str() == Some("DiffNote"),
-                    })
-                    .collect()
-            })
+            .map(|arr| arr.iter().map(parse_gitlab_comment).collect())
             .unwrap_or_default();
 
         let merge_status = raw["merge_status"].as_str().unwrap_or("");

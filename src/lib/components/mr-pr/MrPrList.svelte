@@ -13,9 +13,10 @@
   } from "../../stores/mr-pr";
   import { activeProvider, hasActiveProvider } from "../../stores/provider";
   import * as m from "$lib/paraglide/messages";
-  import type { MrPrState } from "../../types";
+  import type { MrPr, MrPrState } from "../../types";
   import CreateMrPrDialog from "./CreateMrPrDialog.svelte";
   import SearchBar from "../common/SearchBar.svelte";
+  import List from "../common/List.svelte";
   import type { SearchTag } from "../../search/types";
   import { mrFilters, filterMrPrLocal } from "../../search/mr-provider";
 
@@ -23,7 +24,6 @@
   let loading = $state(false);
   let initialized = false;
 
-  // Initialize with default "state:open" tag
   let searchTags = $state<SearchTag[]>([{
     id: `init-${Date.now()}`,
     type: "state",
@@ -33,7 +33,6 @@
 
   let filteredList = $derived(filterMrPrLocal($mrPrList, searchTags));
 
-  /** Extract state filter from tags and sync with mrPrFilter store. */
   function syncStateFilter(tags: SearchTag[]) {
     const stateTag = tags.find(t => t.type === "state");
     const stateValue = stateTag?.value.toLowerCase();
@@ -50,7 +49,6 @@
     fetchList();
   }
 
-  // Wait for provider to be ready, then fetch
   $effect(() => {
     if ($hasActiveProvider && !initialized) {
       initialized = true;
@@ -58,7 +56,6 @@
     }
   });
 
-  // Re-fetch when filter changes (skip initial — handled by provider effect)
   $effect(() => {
     void $mrPrFilter;
     if (initialized) {
@@ -77,12 +74,16 @@
   let title = $derived(isGitHub ? m.mrpr_title_github() : m.mrpr_title());
   let emptyMessage = $derived(isGitHub ? m.mrpr_empty_github() : m.mrpr_empty());
 
-  function handleSelect(number: number) {
-    loadMrPrDetail(number);
+  function getKey(item: MrPr): string {
+    return String(item.number);
   }
 
-  function refresh() {
-    fetchList();
+  let selectedKey = $derived(
+    $selectedMrPrNumber !== null ? String($selectedMrPrNumber) : null,
+  );
+
+  function handleSelect(item: MrPr) {
+    loadMrPrDetail(item.number);
   }
 
   function formatDate(iso: string): string {
@@ -98,109 +99,79 @@
   }
 </script>
 
-<div class="mrpr-list-container">
-  <div class="list-header">
-    <span class="list-title">{title}</span>
-    <div class="header-actions">
-      <button class="action-btn" onclick={() => { showCreateDialog = true; }}>
-        {isGitHub ? m.mrpr_create_github() : m.mrpr_create()}
-      </button>
-      <button class="refresh-btn nf" onclick={refresh} disabled={loading} title="Refresh">
-        {loading ? "\uF110" : "\uF021"}
-      </button>
+<List
+  items={!$hasActiveProvider ? [] : filteredList}
+  loading={$mrPrListLoading}
+  {title}
+  {selectedKey}
+  {getKey}
+  {emptyMessage}
+  onSelect={handleSelect}
+  onRefresh={fetchList}
+>
+  {#snippet headerActions()}
+    <button class="action-btn-create" onclick={() => { showCreateDialog = true; }}>
+      {isGitHub ? m.mrpr_create_github() : m.mrpr_create()}
+    </button>
+    <button class="refresh-btn nf" onclick={fetchList} disabled={loading} title="Refresh">
+      {loading ? "\uF110" : "\uF021"}
+    </button>
+  {/snippet}
+
+  {#snippet afterHeader()}
+    <SearchBar
+      filters={mrFilters}
+      bind:tags={searchTags}
+      placeholder={m.mrpr_search_placeholder()}
+      onSearch={handleSearch}
+    />
+  {/snippet}
+
+  {#snippet emptyState()}
+    {#if !$hasActiveProvider}
+      <div class="empty-state">{m.mrpr_no_provider()}</div>
+    {:else if $mrPrList.length > 0 && filteredList.length === 0}
+      <div class="empty-state">{m.mrpr_no_filter_results()}</div>
+    {:else}
+      <div class="empty-state">{emptyMessage}</div>
+    {/if}
+  {/snippet}
+
+  {#snippet row({ item })}
+    <div class="row-status">
+      {#if item.state === "merged"}
+        <span class="state-icon state-icon--merged nf">&#xF126;</span>
+      {:else if item.state === "closed"}
+        <span class="state-icon state-icon--closed nf">&#xF00D;</span>
+      {:else}
+        <span class="state-icon state-icon--open nf">&#xF41E;</span>
+      {/if}
     </div>
-  </div>
-
-  <SearchBar
-    filters={mrFilters}
-    bind:tags={searchTags}
-    placeholder={m.mrpr_search_placeholder()}
-    onSearch={handleSearch}
-  />
-
-  {#if $mrPrListLoading}
-    <div class="empty-state">{m.mrpr_loading()}</div>
-  {:else if !$hasActiveProvider}
-    <div class="empty-state">{m.mrpr_no_provider()}</div>
-  {:else if $mrPrList.length === 0}
-    <div class="empty-state">{emptyMessage}</div>
-  {:else if filteredList.length === 0}
-    <div class="empty-state">{m.mrpr_no_filter_results()}</div>
-  {:else}
-    <div class="list-scroll">
-      {#each filteredList as item}
-        <button
-          class="mrpr-row"
-          class:selected={$selectedMrPrNumber === item.number}
-          onclick={() => handleSelect(item.number)}
-        >
-          <div class="row-status">
-            {#if item.state === "merged"}
-              <span class="state-icon state-icon--merged nf">&#xF126;</span>
-            {:else if item.state === "closed"}
-              <span class="state-icon state-icon--closed nf">&#xF00D;</span>
-            {:else}
-              <span class="state-icon state-icon--open nf">&#xF41E;</span>
-            {/if}
-          </div>
-
-          <div class="row-center">
-            <div class="row-title">
-              <span class="mrpr-number">#{item.number}</span>
-              <span class="mrpr-title-text">{item.title}</span>
-              {#if item.draft}
-                <span class="draft-badge">{m.mrpr_draft()}</span>
-              {/if}
-            </div>
-            <div class="row-meta">
-              <span class="mrpr-branch">{item.source_branch}</span>
-              <span class="mrpr-author">{item.author}</span>
-            </div>
-          </div>
-
-          <div class="row-time">
-            {formatDate(item.created_at)}
-          </div>
-        </button>
-      {/each}
+    <div class="row-center">
+      <div class="row-title">
+        <span class="mrpr-number">#{item.number}</span>
+        <span class="mrpr-title-text">{item.title}</span>
+        {#if item.draft}
+          <span class="draft-badge">{m.mrpr_draft()}</span>
+        {/if}
+      </div>
+      <div class="row-meta">
+        <span class="mrpr-branch">{item.source_branch}</span>
+        <span class="mrpr-author">{item.author}</span>
+      </div>
     </div>
-  {/if}
-</div>
+    <div class="row-time">
+      {formatDate(item.created_at)}
+    </div>
+  {/snippet}
+</List>
 
 {#if showCreateDialog}
   <CreateMrPrDialog onClose={() => { showCreateDialog = false; }} />
 {/if}
 
 <style>
-  .mrpr-list-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .list-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-  }
-
-  .list-title {
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .action-btn {
+  .action-btn-create {
     padding: 4px 10px;
     background: var(--accent-blue);
     color: #ffffff;
@@ -211,44 +182,15 @@
     white-space: nowrap;
   }
 
-  .action-btn:hover {
+  .action-btn-create:hover {
     opacity: 0.9;
   }
-
-
 
   .empty-state {
     padding: 32px 16px;
     text-align: center;
     color: var(--text-secondary);
     font-size: 13px;
-  }
-
-  .list-scroll {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .mrpr-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    width: 100%;
-    padding: 10px 12px;
-    background: none;
-    border: none;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    text-align: left;
-    color: var(--text-primary);
-  }
-
-  .mrpr-row:hover {
-    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
-  }
-
-  .mrpr-row.selected {
-    background: color-mix(in srgb, var(--accent-blue) 8%, transparent);
   }
 
   .row-status {
@@ -264,17 +206,9 @@
     font-family: var(--font-icons);
   }
 
-  .state-icon--open {
-    color: var(--accent-green);
-  }
-
-  .state-icon--merged {
-    color: var(--accent-purple);
-  }
-
-  .state-icon--closed {
-    color: var(--accent-red);
-  }
+  .state-icon--open { color: var(--accent-green); }
+  .state-icon--merged { color: var(--accent-purple); }
+  .state-icon--closed { color: var(--accent-red); }
 
   .row-center {
     flex: 1;

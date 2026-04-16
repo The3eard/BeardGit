@@ -3,6 +3,7 @@
   import { selectedReflogIndex, selectReflogEntry, loadReflog, reflogLoading } from "../../stores/reflog";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
+  import List from "../common/List.svelte";
   import * as m from "$lib/paraglide/messages";
 
   let {
@@ -35,123 +36,68 @@
     }
   }
 
+  /** Derive a stable key from entry (oid + timestamp + index in entries array). */
+  function getKey(entry: ReflogEntry): string {
+    const idx = entries.indexOf(entry);
+    return `${entry.oid}-${entry.timestamp}-${idx}`;
+  }
+
+  let selectedKey = $derived(
+    $selectedReflogIndex !== null && entries[$selectedReflogIndex]
+      ? getKey(entries[$selectedReflogIndex])
+      : null,
+  );
+
+  function handleSelect(entry: ReflogEntry) {
+    const idx = entries.indexOf(entry);
+    if (idx >= 0) selectReflogEntry(idx);
+  }
+
+  function handleContextMenu(e: MouseEvent, entry: ReflogEntry) {
+    const idx = entries.indexOf(entry);
+    if (idx >= 0) onContextMenu?.(e, entry, idx);
+  }
+
   function handleRefresh() {
     loadReflog();
   }
 </script>
 
-<div class="reflog-list">
-  <div class="list-header">
-    <h3>{m.reflog_title()}</h3>
-    <button
-      class="refresh-btn nf"
-      disabled={$reflogLoading}
-      onclick={handleRefresh}
-      title="Refresh"
-    >{$reflogLoading ? "\uF110" : "\uF021"}</button>
-  </div>
-  <div class="list-content">
-    {#each entries as entry, i (entry.oid + entry.timestamp + i)}
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="reflog-row"
-        class:selected={$selectedReflogIndex === i}
-        onclick={() => selectReflogEntry(i)}
-        oncontextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, entry, i); }}
-      >
-        <span
-          class="action-icon nf"
-          style="color: {actionStyle(entry.action).color}"
-        >{actionStyle(entry.action).icon}</span>
-        <div class="entry-info">
-          <div class="entry-line-1">
-            <span class="entry-action">{entry.action}</span>
-            <span class="entry-summary">{entry.summary}</span>
-          </div>
-          <div class="entry-line-2">
-            <span class="entry-oids">
-              <span class="oid">{shortOid(entry.prev_oid)}</span>
-              <span class="oid-arrow">{"\u2192"}</span>
-              <span class="oid">{shortOid(entry.oid)}</span>
-            </span>
-            <span class="entry-time">{formatRelativeTimeUnix(entry.timestamp)}</span>
-          </div>
-        </div>
+<List
+  items={entries}
+  loading={$reflogLoading}
+  title={m.reflog_title()}
+  {selectedKey}
+  {getKey}
+  emptyMessage={m.reflog_empty()}
+  onSelect={handleSelect}
+  onRefresh={handleRefresh}
+  onContextMenu={handleContextMenu}
+>
+  {#snippet row({ item }: { item: ReflogEntry; selected: boolean })}
+    {@const style = actionStyle(item.action)}
+    <span
+      class="action-icon nf"
+      style="color: {style.color}"
+    >{style.icon}</span>
+    <div class="entry-info">
+      <div class="entry-line-1">
+        <span class="entry-action">{item.action}</span>
+        <span class="entry-summary">{item.summary}</span>
       </div>
-    {:else}
-      <div class="empty">{m.reflog_empty()}</div>
-    {/each}
-  </div>
-</div>
+      <div class="entry-line-2">
+        <span class="entry-oids">
+          <span class="oid">{shortOid(item.prev_oid)}</span>
+          <span class="oid-arrow">{"\u2192"}</span>
+          <span class="oid">{shortOid(item.oid)}</span>
+        </span>
+        <span class="entry-time">{formatRelativeTimeUnix(item.timestamp)}</span>
+      </div>
+    </div>
+  {/snippet}
+</List>
 
 <style>
-  .reflog-list {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .list-header {
-    padding: 12px 16px 8px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .list-header h3 {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0;
-  }
-
-  .refresh-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 13px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    transition: background 0.1s, color 0.1s;
-  }
-
-  .refresh-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-primary);
-  }
-
-  .refresh-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-
-  .list-content {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .reflog-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 6px 16px;
-    cursor: pointer;
-    transition: background 0.1s;
-  }
-
-  .reflog-row:hover {
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .reflog-row.selected {
-    background: rgba(88, 166, 255, 0.1);
-  }
-
   .action-icon {
     font-size: 14px;
     width: 18px;
@@ -220,12 +166,5 @@
     font-size: 10px;
     color: var(--text-secondary);
     flex-shrink: 0;
-  }
-
-  .empty {
-    padding: 24px;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 13px;
   }
 </style>

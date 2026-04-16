@@ -6,6 +6,7 @@ import { writable, derived } from "svelte/store";
 import type { ReflogEntry } from "../types";
 import type { RawDiffContent } from "./graph";
 import * as api from "../api/tauri";
+import { fetchIntoStore } from "../utils/store-helpers";
 
 /** All loaded reflog entries (most recent first). */
 export const reflogEntries = writable<ReflogEntry[]>([]);
@@ -30,16 +31,7 @@ export const reflogFileDiff = writable<RawDiffContent | null>(null);
 
 /** Load reflog entries from the backend. */
 export async function loadReflog(limit = 100): Promise<void> {
-  reflogLoading.set(true);
-  try {
-    const entries = await api.getReflog(limit);
-    reflogEntries.set(entries);
-  } catch (e) {
-    console.error("Failed to load reflog:", e);
-    reflogEntries.set([]);
-  } finally {
-    reflogLoading.set(false);
-  }
+  await fetchIntoStore(reflogEntries, reflogLoading, () => api.getReflog(limit), []);
 }
 
 /** Select a reflog entry by its index. */

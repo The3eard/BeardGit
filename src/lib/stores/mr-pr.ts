@@ -20,6 +20,7 @@ import {
   requestChangesMrPr as apiRequestChanges,
   addMrPrComment as apiAddComment,
 } from "../api/tauri";
+import { fetchIntoStore } from "../utils/store-helpers";
 
 /** Current filter tab: open, closed, merged, or all. */
 export const mrPrFilter = writable<MrPrState | "all">("open");
@@ -55,17 +56,9 @@ export const mrPrByBranch = derived(mrPrList, ($list) => {
 
 /** Fetch the MR/PR list with the current filter. */
 export async function refreshMrPrList() {
-  mrPrListLoading.set(true);
-  try {
-    const currentFilter = get(mrPrFilter);
-    const filter = currentFilter !== "all" ? currentFilter : undefined;
-    const list = await apiList(filter, 50);
-    mrPrList.set(list);
-  } catch {
-    mrPrList.set([]);
-  } finally {
-    mrPrListLoading.set(false);
-  }
+  const currentFilter = get(mrPrFilter);
+  const filter = currentFilter !== "all" ? currentFilter : undefined;
+  await fetchIntoStore(mrPrList, mrPrListLoading, () => apiList(filter, 50), []);
 }
 
 /** Load detail + diff for a specific MR/PR. */

@@ -17,6 +17,7 @@ import {
   deleteBranch as apiDelete,
   mergeBranch as apiMerge,
 } from "../api/tauri";
+import { fetchListIntoStore } from "../utils/store-helpers";
 
 export const branches = writable<BranchInfo[]>([]);
 export const branchesLoading = writable(false);
@@ -53,20 +54,18 @@ export const selectedBranchInfo = derived(
 );
 
 export async function refreshBranches() {
-  branchesLoading.set(true);
-  try {
-    const list = await apiBranches();
-    branches.set(list);
-    const name = get(selectedBranchName);
-    if (name && !list.some((b) => b.name === name)) {
-      selectedBranchName.set(null);
-      selectedBranchCommits.set([]);
-      loadingDetail.set(false);
-    }
-  } catch {
-    branches.set([]);
-  } finally {
-    branchesLoading.set(false);
+  await fetchListIntoStore(
+    branches,
+    branchesLoading,
+    selectedBranchName,
+    apiBranches,
+    [],
+    (b) => b.name,
+  );
+  // If selection was cleared, also clear dependent state
+  if (get(selectedBranchName) === null) {
+    selectedBranchCommits.set([]);
+    loadingDetail.set(false);
   }
 }
 
