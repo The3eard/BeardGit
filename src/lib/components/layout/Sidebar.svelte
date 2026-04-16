@@ -27,6 +27,8 @@
     { label: m.sidebar_worktrees(), icon: "\uE728", id: "worktrees" },
     { label: m.sidebar_reflog(), icon: "\uF1DA", id: "reflog" },
     { label: m.sidebar_submodules(), icon: "\uF1E6", id: "submodules" },
+    { label: m.sidebar_ai_config(), icon: "\uF544", id: "ai-config" },
+    { label: m.sidebar_ai_sessions(), icon: "\uF489", id: "ai-sessions" },
   ];
 
   const providerItems: NavItem[] = [

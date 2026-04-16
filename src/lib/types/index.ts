@@ -353,6 +353,13 @@ export interface WorktreeInfo {
   is_locked: boolean;
 }
 
+/** WorktreeInfo enriched with AI provider data when the worktree was created by an AI tool. */
+export interface EnrichedWorktree extends WorktreeInfo {
+  ai_provider: AiProviderKind | null;
+  ai_status: "active" | "clean" | "orphaned" | null;
+  ai_session_id: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Clean
 // ---------------------------------------------------------------------------

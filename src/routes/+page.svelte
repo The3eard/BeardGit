@@ -35,6 +35,8 @@
   import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment, openTabs } from "$lib/stores/tabs";
   import { getSidebarCollapsed, setSidebarCollapsed } from "$lib/api/tauri";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
+  import AiConfigEditor from "$lib/components/ai-config/AiConfigEditor.svelte";
+  import AiSessionList from "$lib/components/ai-sessions/AiSessionList.svelte";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
   import {
@@ -628,6 +630,10 @@
         </div>
       {:else if activeView === "submodules"}
         <SubmoduleList />
+      {:else if activeView === "ai-config"}
+        <AiConfigEditor />
+      {:else if activeView === "ai-sessions"}
+        <AiSessionList />
       {:else if activeView === "blame"}
         <BlameView onNavigateBack={(view) => { activeView = view; }} />
       {:else if activeView === "merge-requests"}

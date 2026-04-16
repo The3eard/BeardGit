@@ -1,10 +1,16 @@
-//! Debounced filesystem watcher for git repository working trees.
+//! Debounced filesystem watchers for BeardGit.
 //!
-//! [`RepoWatcher`] wraps `notify` and `notify-debouncer-mini` to watch a
-//! repository directory for changes and call a user-provided callback after a
-//! brief quiet period. Most events inside `.git/` are filtered out to avoid
-//! spurious refreshes, but changes to `.git/refs/` and `.git/HEAD` are allowed
-//! through so that external commits and branch switches are detected.
+//! [`RepoWatcher`] watches a git repository working tree for changes and calls
+//! a user-provided callback after a brief quiet period. Most events inside
+//! `.git/` are filtered out to avoid spurious refreshes, but changes to
+//! `.git/refs/` and `.git/HEAD` are allowed through so that external commits
+//! and branch switches are detected.
+//!
+//! [`AiSessionWatcher`] watches AI provider session directories (e.g.
+//! `~/.claude/sessions/`) and fires on any change, without filtering.
+
+mod ai_sessions;
+pub use ai_sessions::AiSessionWatcher;
 
 use notify_debouncer_mini::new_debouncer;
 use std::path::Path;

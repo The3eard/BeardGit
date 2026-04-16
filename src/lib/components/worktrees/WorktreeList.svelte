@@ -1,15 +1,45 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import ContextMenu from "../common/ContextMenu.svelte";
+  import type { MenuItem } from "../common/ContextMenu.svelte";
   import CreateWorktreeDialog from "./CreateWorktreeDialog.svelte";
-  import { worktrees, worktreeLoading, refreshWorktrees, deleteWorktree } from "../../stores/worktrees";
+  import {
+    worktrees,
+    worktreeLoading,
+    refreshWorktrees,
+    deleteWorktree,
+    cleanupAiWorktree,
+  } from "../../stores/worktrees";
   import { openProjectTab } from "../../stores/projects";
   import { repoInfo } from "../../stores/repo";
+  import type { EnrichedWorktree } from "$lib/types";
+  import type { AiProviderKind } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
+
+  /** Display name per AI provider. */
+  const PROVIDER_NAME: Record<AiProviderKind, string> = {
+    claude_code: "Claude",
+    codex: "Codex",
+    open_code: "OpenCode",
+  };
+
+  /** Badge color per AI provider. */
+  const PROVIDER_COLOR: Record<AiProviderKind, string> = {
+    claude_code: "#d97706",
+    codex: "#22c55e",
+    open_code: "#6366f1",
+  };
 
   let showCreateDialog = $state(false);
   let confirmRemovePath = $state<string | null>(null);
   let forceRemove = $state(false);
+
+  // Context menu state
+  let menuVisible = $state(false);
+  let menuX = $state(0);
+  let menuY = $state(0);
+  let menuItems = $state<MenuItem[]>([]);
 
   onMount(() => {
     refreshWorktrees();
@@ -35,6 +65,46 @@
   function shortPath(fullPath: string): string {
     const parts = fullPath.replace(/\\/g, "/").split("/");
     return parts.slice(-2).join("/");
+  }
+
+  /** Build context menu items for a worktree. */
+  function handleContextMenu(e: MouseEvent, wt: EnrichedWorktree) {
+    e.preventDefault();
+
+    const items: MenuItem[] = [
+      { label: m.worktree_open_graph(), action: () => {} },
+      { label: m.worktree_open_tab(), action: () => handleOpenInTab(wt.path) },
+      { separator: true },
+      {
+        label: wt.is_locked ? m.worktree_unlock() : m.worktree_lock(),
+        action: () => {},
+      },
+      {
+        label: m.worktree_remove(),
+        action: () => handleRemove(wt.path),
+        disabled: wt.is_main,
+      },
+    ];
+
+    // AI-specific items
+    if (wt.ai_provider) {
+      items.push({ separator: true });
+      if (wt.ai_status === "active") {
+        items.push({
+          label: m.worktree_focus_terminal(),
+          action: () => {},
+        });
+      }
+      items.push({
+        label: m.worktree_cleanup(),
+        action: () => cleanupAiWorktree(wt.ai_provider!, wt.path),
+      });
+    }
+
+    menuItems = items;
+    menuX = e.clientX;
+    menuY = e.clientY;
+    menuVisible = true;
   }
 </script>
 
@@ -71,7 +141,13 @@
       <div class="list-empty">{m.worktree_list_empty()}</div>
     {:else}
       {#each $worktrees as wt (wt.path)}
-        <div class="worktree-item">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="worktree-item"
+          class:ai-active={wt.ai_status === "active"}
+          style={wt.ai_provider ? `--ai-color: ${PROVIDER_COLOR[wt.ai_provider]}` : ""}
+          oncontextmenu={(e) => handleContextMenu(e, wt)}
+        >
           <div class="wt-info">
             <div class="wt-branch-row">
               <span class="wt-branch" class:main={wt.is_main}>
@@ -82,6 +158,21 @@
               {/if}
               {#if wt.is_locked}
                 <span class="wt-badge locked">{m.worktree_locked()}</span>
+              {/if}
+              {#if wt.ai_provider}
+                <span
+                  class="wt-badge ai"
+                  style="--badge-color: {PROVIDER_COLOR[wt.ai_provider]}"
+                >
+                  {PROVIDER_NAME[wt.ai_provider]}
+                </span>
+              {/if}
+              {#if wt.ai_status === "active"}
+                <span class="wt-badge ai-status active">ACTIVE</span>
+              {:else if wt.ai_status === "clean"}
+                <span class="wt-badge ai-status clean">CLEAN</span>
+              {:else if wt.ai_status === "orphaned"}
+                <span class="wt-badge ai-status orphaned">ORPHANED</span>
               {/if}
             </div>
             <div class="wt-path" title={wt.path}>{shortPath(wt.path)}</div>
@@ -128,6 +219,14 @@
     onCancel={() => (confirmRemovePath = null)}
   />
 {/if}
+
+<ContextMenu
+  items={menuItems}
+  x={menuX}
+  y={menuY}
+  visible={menuVisible}
+  onClose={() => (menuVisible = false)}
+/>
 
 <style>
   .worktree-list {
@@ -212,6 +311,10 @@
     background: rgba(255, 255, 255, 0.03);
   }
 
+  .worktree-item.ai-active {
+    background: color-mix(in srgb, var(--ai-color) 4%, transparent);
+  }
+
   .wt-info {
     flex: 1;
     min-width: 0;
@@ -221,6 +324,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-wrap: wrap;
   }
 
   .wt-branch {
@@ -255,6 +359,26 @@
   .wt-badge.locked {
     background: rgba(210, 153, 34, 0.15);
     color: var(--accent-orange);
+  }
+
+  .wt-badge.ai {
+    background: color-mix(in srgb, var(--badge-color) 15%, transparent);
+    color: var(--badge-color);
+  }
+
+  .wt-badge.ai-status.active {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--accent-green);
+  }
+
+  .wt-badge.ai-status.orphaned {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--accent-red);
+  }
+
+  .wt-badge.ai-status.clean {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent-blue);
   }
 
   .wt-path {

@@ -1,0 +1,12 @@
+[package]
+name = "opencode"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ai-provider = { path = "../ai-provider" }
+which = "7"
+dirs = "6"
+
+[dev-dependencies]
+tempfile = "3"

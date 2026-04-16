@@ -7,7 +7,7 @@
   /** All known provider kinds (for display even when not installed). */
   const ALL_KINDS: { kind: AiProviderKind; label: () => string; icon: string; color: string }[] = [
     { kind: "claude_code", label: () => m.ai_settings_provider_claude(), icon: "\uF135", color: "#d97757" },
-    { kind: "codex", label: () => m.ai_settings_provider_codex(), icon: "\uF121", color: "#10a37f" },
+    { kind: "codex", label: () => m.ai_settings_provider_codex(), icon: "\uF121", color: "#ffffff" },
     { kind: "open_code", label: () => m.ai_settings_provider_opencode(), icon: "\uF489", color: "#8b8b8b" },
   ];
 

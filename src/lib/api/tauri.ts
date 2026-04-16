@@ -851,3 +851,15 @@ export async function aiGetPreferredProvider(): Promise<string | null> {
 export async function aiSetPreferredProvider(provider: string | null): Promise<void> {
   return invoke<void>("ai_set_preferred_provider", { provider });
 }
+
+export async function aiReadConfigFile(path: string): Promise<string> {
+  return invoke<string>("ai_read_config_file", { path });
+}
+
+export async function aiWriteConfigFile(path: string, content: string): Promise<void> {
+  return invoke<void>("ai_write_config_file", { path, content });
+}
+
+export async function aiCreateConfigFile(kind: string, scope: string, name: string): Promise<AiConfigFile> {
+  return invoke<AiConfigFile>("ai_create_config_file", { kind, scope, name });
+}

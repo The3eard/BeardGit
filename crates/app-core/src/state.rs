@@ -85,6 +85,10 @@ pub struct AppState {
     pub active_provider_index: Mutex<Option<usize>>,
     /// Detected AI providers (populated at startup and on refresh).
     pub ai_providers: Mutex<Vec<AvailableAiProvider>>,
+    /// Filesystem watcher for AI session directories. Started once after the
+    /// first successful provider detection and kept alive for the process
+    /// lifetime. `None` if no provider has been detected yet.
+    pub ai_session_watcher: Mutex<Option<watcher::AiSessionWatcher>>,
 }
 
 impl Default for AppState {
@@ -118,6 +122,7 @@ impl AppState {
             providers: Mutex::new(Vec::new()),
             active_provider_index: Mutex::new(None),
             ai_providers: Mutex::new(Vec::new()),
+            ai_session_watcher: Mutex::new(None),
         }
     }
 }
