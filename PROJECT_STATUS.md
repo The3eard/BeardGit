@@ -97,6 +97,34 @@ All undone items from previous phases consolidated here.
 
 ---
 
+## Future Considerations (Post-1.0)
+
+### CLI-only authentication (retire PAT + REST API path)
+
+**Idea:** Currently BeardGit uses two parallel paths — (1) CLI wrappers (`gh`/`glab`) via the `cli-provider` crate for MR/PR operations, and (2) REST API clients (`gitlab-api`/`github-api`) with PAT auth via the `auth` crate for CI pipeline integration. Long-term, a CLI-only path would simplify the auth surface and remove duplicated logic.
+
+**Pros:**
+- Single auth flow (`gh auth login` / `glab auth login`); no PAT screen
+- OAuth short-lived tokens > long-lived PATs (better security)
+- Drop `reqwest`/`rustls-tls` deps, simplify or remove `gitlab-api`/`github-api`/`auth` crates
+- CLIs expose full feature parity with REST (runs, logs, triggers, releases, issues)
+
+**Cons:**
+- Hard dependency on CLI binaries being available (Phase 7.2 bundling must be rock-solid)
+- Subprocess overhead on CI polling (~6 spawns/min per active project) vs direct HTTPS
+- Log streaming needs rework (CLI returns complete output; current REST integration is byte-level)
+- Rewriting `CiProvider` trait implementations as CLI wrappers is non-trivial
+- User migration friction (existing PAT users need to re-auth via CLI OAuth)
+
+**Plan:** Deferred until after Phase 8. Revisit when:
+1. Phase 7.2 bundling confirmed stable across all platforms
+2. Real-world polling performance measured on bundled CLIs
+3. `ForgeProvider` trait (Phase 8.1) has proven the CLI abstraction
+
+When done, this becomes a dedicated phase (likely Phase 11 or 12) focused on CI REST-to-CLI migration, followed by removal of the PAT auth path.
+
+---
+
 ## Branch Strategy
 
 - `main` — stable releases

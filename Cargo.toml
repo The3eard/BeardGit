@@ -11,6 +11,7 @@ members = [
     "crates/provider",
     "crates/task-runner",
     "crates/cli-provider",
+    "crates/forge-provider",
     "crates/terminal",
     "crates/ai-provider",
     "crates/claude-code",

@@ -1,6 +1,39 @@
-//! Shared MR/PR types returned to the frontend.
+//! Shared types returned by [`ForgeProvider`][crate::ForgeProvider] operations.
+//!
+//! All types here are serde-serializable and stable across the IPC boundary.
+//! The snake_case serde representation is chosen so that TypeScript consumers
+//! can use identical field names.
 
 use serde::{Deserialize, Serialize};
+
+// ─── Identity ───────────────────────────────────────────────────────────────
+
+/// Which forge a provider instance speaks to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ForgeKind {
+    /// `github.com` or GitHub Enterprise.
+    GitHub,
+    /// `gitlab.com` or self-hosted GitLab.
+    GitLab,
+}
+
+/// High-level authentication signal for a provider.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ForgeAuthStatus {
+    /// Authenticated — operations should succeed.
+    Authenticated {
+        /// Username of the authenticated user when known.
+        username: Option<String>,
+    },
+    /// Not authenticated (no token, no CLI login).
+    NotAuthenticated,
+    /// Could not determine status (e.g. CLI binary missing).
+    Unknown,
+}
+
+// ─── MR/PR ──────────────────────────────────────────────────────────────────
 
 /// State of a merge request or pull request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,16 +104,19 @@ pub struct MrPrDetail {
     /// Markdown body/description.
     pub body: String,
     /// Comments (general + inline).
-    pub comments: Vec<MrPrComment>,
+    pub comments: Vec<Comment>,
     /// Aggregated review status.
     pub review_status: ReviewStatus,
     /// Whether the MR/PR can be merged (no conflicts, checks pass).
     pub mergeable: Option<bool>,
 }
 
-/// A comment on a MR/PR (general or inline).
+/// A comment on a MR/PR, issue, or release (general or inline).
+///
+/// Renamed from `MrPrComment` in 8.1 so it can be shared across all forge
+/// resources that have comment threads (issues in 8.3, releases in 8.5).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MrPrComment {
+pub struct Comment {
     /// Unique comment ID.
     pub id: u64,
     /// Author username.
@@ -124,4 +160,43 @@ pub enum MergeStrategy {
     Squash,
     /// Rebase commits onto target branch.
     Rebase,
+}
+
+/// Filter for [`crate::ForgeProvider::list_mr_prs`].
+///
+/// Added in 8.1 to replace the bare `(Option<MrPrState>, u32)` tuple the
+/// current CLI impl uses. Future sub-phases will extend it with author,
+/// label, and text filters.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MrPrFilter {
+    /// Restrict to a single state (Open/Closed/Merged); `None` means any.
+    pub state: Option<MrPrState>,
+}
+
+/// Input payload for [`crate::ForgeProvider::create_mr_pr`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateMrPrInput {
+    /// Source branch name.
+    pub source: String,
+    /// Target branch name.
+    pub target: String,
+    /// Title for the new MR/PR.
+    pub title: String,
+    /// Markdown description/body.
+    pub body: String,
+    /// Whether to open as draft.
+    pub draft: bool,
+    /// Labels to apply on creation.
+    pub labels: Vec<String>,
+    /// Reviewers (usernames) to request on creation.
+    pub reviewers: Vec<String>,
+}
+
+/// Fields to change on an existing MR/PR via [`crate::ForgeProvider::edit_mr_pr`].
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EditMrPrPatch {
+    /// New title (leave `None` to keep current title).
+    pub title: Option<String>,
+    /// New body (leave `None` to keep current body).
+    pub body: Option<String>,
 }

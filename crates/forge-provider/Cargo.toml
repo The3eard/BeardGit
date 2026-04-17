@@ -1,14 +1,16 @@
 [package]
-name = "cli-provider"
+name = "forge-provider"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "CLI-based provider operations for gh and glab"
+description = "Forge provider trait and shared types (GitHub, GitLab, future forges)"
+
+[features]
+mock = []
 
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 provider = { path = "../provider" }
-forge-provider = { path = "../forge-provider" }

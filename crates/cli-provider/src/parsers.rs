@@ -5,7 +5,7 @@
 
 use serde_json::Value;
 
-use crate::types::{MrPr, MrPrComment, MrPrState};
+use forge_provider::{Comment, MrPr, MrPrState};
 
 /// Field name mapping for provider-specific JSON keys.
 pub struct MrPrFieldMap {
@@ -162,9 +162,9 @@ fn parse_string_array(value: &Value, field: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Parse a JSON comment into `MrPrComment` for GitHub.
-pub fn parse_github_comment(c: &Value) -> MrPrComment {
-    MrPrComment {
+/// Parse a JSON comment into `Comment` for GitHub.
+pub fn parse_github_comment(c: &Value) -> Comment {
+    Comment {
         id: c["id"].as_u64().unwrap_or(0),
         author: c["author"]["login"].as_str().unwrap_or("").to_string(),
         body: c["body"].as_str().unwrap_or("").to_string(),
@@ -175,9 +175,9 @@ pub fn parse_github_comment(c: &Value) -> MrPrComment {
     }
 }
 
-/// Parse a JSON note into `MrPrComment` for GitLab.
-pub fn parse_gitlab_comment(c: &Value) -> MrPrComment {
-    MrPrComment {
+/// Parse a JSON note into `Comment` for GitLab.
+pub fn parse_gitlab_comment(c: &Value) -> Comment {
+    Comment {
         id: c["id"].as_u64().unwrap_or(0),
         author: c["author"]["username"].as_str().unwrap_or("").to_string(),
         body: c["body"].as_str().unwrap_or("").to_string(),

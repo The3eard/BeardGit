@@ -333,13 +333,15 @@ pub(super) fn resolve_cli_binary(
         .map_err(|_| format!("{binary_name} not found. Install it or check your PATH."))
 }
 
-/// Build a [`CliProvider`] from the current application state.
+/// Build an [`Arc<dyn ForgeProvider>`] from the current application state.
 ///
 /// Resolves the active provider's kind, the CLI binary path, and the active
-/// project's filesystem path.
-pub(super) fn build_cli_provider(
+/// project's filesystem path, then constructs the concrete `GitHubCli` /
+/// `GitLabCli` and erases it behind the trait. Downstream command modules
+/// only see the trait object.
+pub(super) fn build_forge_provider(
     state: &State<'_, AppState>,
-) -> Result<cli_provider::CliProvider, String> {
+) -> Result<std::sync::Arc<dyn forge_provider::ForgeProvider>, String> {
     let kind = {
         let providers = state.providers.lock().map_err(|e| e.to_string())?;
         let active_idx = state
@@ -354,5 +356,14 @@ pub(super) fn build_cli_provider(
     let cwd = get_active_project_path(state)?;
     let binary = resolve_cli_binary(state, kind)?;
 
-    Ok(cli_provider::CliProvider::new(kind, binary, cwd))
+    let provider: std::sync::Arc<dyn forge_provider::ForgeProvider> = match kind {
+        provider::ProviderKind::GitHub => {
+            std::sync::Arc::new(cli_provider::GitHubCli::new(binary, cwd))
+        }
+        provider::ProviderKind::GitLab => {
+            std::sync::Arc::new(cli_provider::GitLabCli::new(binary, cwd))
+        }
+    };
+
+    Ok(provider)
 }

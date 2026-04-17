@@ -13,6 +13,7 @@ gitlab-api = { path = "../gitlab-api" }
 github-api = { path = "../github-api" }
 task-runner = { path = "../task-runner" }
 cli-provider = { path = "../cli-provider" }
+forge-provider = { path = "../forge-provider" }
 ai-provider = { path = "../ai-provider" }
 claude-code = { path = "../claude-code" }
 codex = { path = "../codex" }
