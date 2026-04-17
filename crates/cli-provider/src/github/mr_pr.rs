@@ -30,9 +30,7 @@ impl GitHubCli {
         if let Some(s) = state_str {
             args.extend(["--state", s]);
         }
-        let stdout = self.run(&args)?;
-        let raw: Vec<serde_json::Value> =
-            serde_json::from_str(&stdout).map_err(|e| ForgeError::Cli(format!("json: {e}")))?;
+        let raw: Vec<serde_json::Value> = self.run_json(&args)?;
         Ok(raw.iter().map(|i| parse_mr_pr(i, &GITHUB_FIELDS)).collect())
     }
 
