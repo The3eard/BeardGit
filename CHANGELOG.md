@@ -2,6 +2,76 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [0.1.9] — Forge Integration, Bundled CLIs, Refactor, E2E, Performance
+
+The largest release since the MVP. Two full feature cuts, a pipeline rewrite, and a deep architecture pass — all shipped together.
+
+### Forge Integration (Phase 8)
+
+Full daily-dev-workflow parity with GitHub and GitLab web UIs, behind a clean provider abstraction.
+
+**MR/PR Enhancements (8.2)** — 11 new forge methods. Add/remove labels and reviewers post-creation, mark draft ↔ ready, reopen closed MR/PRs, resolve / unresolve GitLab discussion threads, and check out an MR/PR branch locally via `TaskManager`-streamed CLI output. The detail panel gains `LabelPicker`, `ReviewerPicker`, draft toggle, reopen button, per-comment resolve controls, and a "Checkout locally" action.
+
+**Issues (8.3)** — Complete issue management as a new sidebar vertical. List / get / create / edit / close / reopen / comment plus assignees, labels, and milestones via 13 new trait methods. New `IssueView`, `IssueList`, `IssueDetail`, `CreateIssueDialog`, `AssigneePicker`, `MilestonePicker` components. Generic shared `LabelPicker` and `Xrefs` components plus a new `xrefs.ts` utility that auto-links `#NNN`, `!MMM`, `@user`, and short SHAs inside any text body.
+
+**CI/CD Control (8.4)** — Actions on top of the existing Pipelines view. Trigger, retry, retry-failed-only, per-job retry, cancel, and list-workflows via six new `CiProvider` methods implemented over reqwest. `PipelineList` gets a "Run Workflow" button and row context menu; `PipelineDetail` gains action buttons and per-job retry. New `TriggerWorkflowDialog` with dynamic input form. GitHub PAT `workflow` scope hint surfaced in provider setup.
+
+**Releases (8.5)** — Release management as its own vertical. 9 new trait methods including asset upload that streams via `TaskManager` for non-blocking progress. New `ReleaseView`, `ReleaseList`, `ReleaseDetail`, `CreateReleaseDialog`, `AssetUploadProgress` components plus an atomic `create_tag_and_release` flow that pushes the tag and creates the release in one streamed task. The cross-reference parser is extended to recognise release tags against a live tag cache.
+
+**ForgeProvider Trait (8.1)** — New `forge-provider` crate extracts the `ForgeProvider` trait and shared types (`MrPr`, `Issue`, `Release`, `Label`, `User`, `Milestone`, `Comment`, …) with a `ForgeError` enum. `cli-provider` split into `GitHubCli` and `GitLabCli` structs each implementing the trait. `build_forge_provider(AppState) → Arc<dyn ForgeProvider>`. Zero user-visible change; foundation for 8.2–8.5.
+
+### Bundled CLI Binaries (Phase 7.2)
+
+BeardGit now ships `gh` (v2.62.0) and `glab` (v1.46.1) as Tauri sidecars on macOS arm64/x64, Linux x64, and Windows x64 — no manual install required. `scripts/download-cli-binaries.js` pulls pinned binaries from the official release URLs; the Build and Release pipelines fetch the matrix-specific target before `tauri-action`. `resolve_cli_binary()` checks the sidecar location first and falls back to the system PATH, so existing installations keep working. Validated end-to-end across all four platforms.
+
+### Terminal Enhancements (Phase 7.1)
+
+- **OSC 7 cwd auto-detection** — terminals emit their current working directory on every prompt; when the cwd matches an open project path, the terminal tab auto-links to that project's composite tab.
+- **AI provider auto-detection** — a lightweight polling loop detects when a terminal launches `claude`, `codex`, or `opencode` and updates the tab label plus brand icon dynamically.
+
+### UI Polish & Bug Fixes (Phase 7.6)
+
+- **Bisect graph integration** — good/bad/current/skipped commits get colored overlays in the canvas graph; right-click a commit for "Mark as good / bad / skip".
+- **Worktree lock / unlock** — full `git worktree lock` / `unlock` wired through `git-engine` with context menu controls.
+- **Worktree "Open in graph"** — navigates the graph view to the worktree's branch.
+- **AI Config Editor live reload** — new `watcher::ai_config` module picks up external edits to `settings.json`, `agents/*.md`, `skills/*/SKILL.md`, and `CLAUDE.md` files; the editor refreshes without losing in-progress changes.
+- **AI Sessions "Focus"** — focuses the linked terminal tab if the session has one; otherwise launches `claude --resume <sessionId>` in a new PTY terminal.
+
+### Infrastructure (Phase 7.5)
+
+- **Log rotation** — `storage::logging::purge_old_logs()` auto-removes `beardgit.log.*` files older than 7 days on startup (async, non-blocking).
+- **Tracing on git writes** — 41 `#[instrument]` spans on `git-engine` write operations (bisect / operations / conflict / reset / clean / remote / worktree / submodule / interactive_rebase). Sensitive fields (commit bodies, PR descriptions, PAT tokens) excluded via `skip(...)`.
+- **Tracing on Tauri commands** — 80 `#[instrument(name = "cmd::…")]` spans across 19 command modules. Hierarchical names make log grepping trivial.
+
+### Performance (Phase 7.7)
+
+- **Graph render profiler** — six `performance.mark` pairs around the render loop plus a dev-only FPS overlay toggled with `Ctrl+Shift+P`. Measurement infrastructure for future optimisations without runtime overhead in production bundles.
+- **Interactive terminal pool** — 3-deep `xterm.js` instance pool recycles terminals across tab open/close. Faster tab spawn, lower GC pressure.
+- **CodeMirror language cache** — module-level `Map<string, Extension>` short-circuits repeated dynamic imports per file extension. Second-and-subsequent opens of a language are instant.
+
+### Code Quality (Phase 7.3)
+
+The remaining items from Phase 6.3 plus anything picked up along the way. Generic `<List>` component now backs 10 consumers (Branch / Tag / Stash / Reflog / MrPr / Worktree / Submodule / Release / Issue / AiSession). `fetchIntoStore` / `fetchListIntoStore` / `fetchPageIntoStore` helpers consumed by 10 stores. Two residual `serde_json::from_str` call sites in `cli-provider/src/{github,gitlab}/mr_pr.rs` swapped for the shared `run_json` helper.
+
+### E2E Testing (Phase 7.4 + follow-up)
+
+Full WebdriverIO + `tauri-driver` suite covering every major vertical. 9 spec files, ~53 tests: app-launch, navigation, golden-path, and regression suites for graph / branches / staging / terminal / bisect / settings. 6 new page objects, data-testid attributes across the UI, and a Linux `e2e-tests` job in `ci.yml`. Follow-up pass in the same release cycle fixed every layer end-to-end: ESM `__dirname` shim for wdio v9, specs glob resolution, tauri-driver hostname/port, workspace-root binary path, `VITE_BEARDGIT_E2E` frontend hook, and switching to `tauri build --debug --no-bundle` so the frontend actually embeds. A new Docker harness (`e2e/Dockerfile` + `npm run e2e:docker`) lets macOS contributors run the full suite locally in ~1–2 min per iteration.
+
+### Provider Architecture Cleanup (Phase 9)
+
+Pure refactor. `provider/lib.rs` (883 LOC of trait + types + kind + error) split into `traits.rs` / `types.rs` / `kind.rs` / `error.rs` / `http_helpers.rs` / `mock.rs`; `lib.rs` is now 43 LOC of re-exports. `cli-provider/src/{github,gitlab}.rs` (~800 LOC each) converted to directory modules with per-vertical submodules (`mr_pr`, `labels`, `reviewers`, `lifecycle`, `discussions`, `checkout`, `issues`, `releases`). The `impl ForgeProvider` block stays in `mod.rs` as pure delegation to feature-scoped methods — no file exceeds 400 LOC. A CI grep guard in `ci.yml` enforces that `provider` and `forge-provider` never import `reqwest`, `tokio`, `tauri`, or `hyper`. Shared HTTP primitives (`api_error`, `retry_after_secs`, `trim_base_url`) extracted into `provider::http_helpers` and consumed by both `gitlab-api` and `github-api`. `crates/CLAUDE.md` refreshed with the new layout and an "Adding a new forge capability" walkthrough.
+
+### Security
+
+- `npm audit --audit-level=moderate` clean. Override added for `serialize-javascript` (wdio transitive dep) that upstream hadn't patched yet.
+
+### Tooling
+
+- `npm run e2e:docker` (plus `:rebuild` and `:shell`) — one-command local E2E.
+- `e2e/README.md` documents the happy-path authoring pattern so test authors have a template.
+
+---
+
 ## [0.1.8] — Bisect, CLI Auth, AI Views, Multi-Provider, Code Quality
 
 **Git Bisect**
