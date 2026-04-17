@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/The3eard/BeardGit/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/The3eard/BeardGit?color=58a6ff&labelColor=0d1117&style=for-the-badge"></a>
+  <a href="https://github.com/The3eard/BeardGit/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/The3eard/BeardGit?include_prereleases&color=58a6ff&labelColor=0d1117&style=for-the-badge"></a>
   <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-58a6ff?style=for-the-badge&labelColor=0d1117"></a>
   <a href="https://github.com/The3eard/BeardGit/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/The3eard/BeardGit/ci.yml?branch=main&label=CI&style=for-the-badge&labelColor=0d1117"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-58a6ff?style=for-the-badge&labelColor=0d1117">
