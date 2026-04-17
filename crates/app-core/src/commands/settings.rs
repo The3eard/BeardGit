@@ -67,6 +67,49 @@ pub fn set_sidebar_collapsed(collapsed: bool, state: State<'_, AppState>) -> Res
     config.save(&state.config_path).map_err(|e| e.to_string())
 }
 
+// ─── AI background settings (Phase 10) ───────────────────────────────────
+
+/// Serialisable view of the AI background settings.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AiBackgroundSettings {
+    /// Override for the worktree root (None = use default).
+    pub worktree_root: Option<String>,
+    /// Concurrent-run cap (1+).
+    pub concurrency_cap: u32,
+    /// Pass the provider's permission-skip flag.
+    pub auto_accept_permissions: bool,
+}
+
+/// Read current AI background settings from config.
+#[tauri::command]
+pub fn ai_background_get_settings(
+    state: State<'_, AppState>,
+) -> Result<AiBackgroundSettings, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(AiBackgroundSettings {
+        worktree_root: config.ai_worktree_root.clone(),
+        concurrency_cap: config.ai_background_concurrency_cap,
+        auto_accept_permissions: config.ai_prompt_auto_accept,
+    })
+}
+
+/// Persist AI background settings. `concurrency_cap` is clamped to at
+/// least 1.
+#[tauri::command]
+pub fn ai_background_set_settings(
+    settings: AiBackgroundSettings,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.ai_worktree_root = settings
+        .worktree_root
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    config.ai_background_concurrency_cap = settings.concurrency_cap.max(1);
+    config.ai_prompt_auto_accept = settings.auto_accept_permissions;
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
 /// Load a project's cached snapshot for instant UI display.
 #[tauri::command]
 pub fn get_project_snapshot(path: String) -> Result<Option<storage::ProjectSnapshot>, String> {

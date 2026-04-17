@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ai_provider::{
-    AiConfigFile, AiError, AiProvider, AiProviderKind, AttributionMatch, AttributionPattern,
-    ConfigKind, ConfigScope, ExecuteOptions,
+    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AttributionMatch,
+    AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
 };
 
 /// AI provider for the Codex CLI.
@@ -91,6 +91,20 @@ impl AiProvider for CodexProvider {
             .as_ref()
             .ok_or_else(|| AiError::BinaryNotFound("codex".into()))?;
         commands::build_interactive_cmd(binary, cwd)
+    }
+
+    /// Codex doesn't have a `--skill` flag; skill and saved-prompt content is
+    /// expected to already be inlined in `input.prompt` by the coordinator.
+    fn launch_background(&self, input: AiBackgroundRunInput) -> Result<Command, AiError> {
+        let binary = self
+            .binary
+            .as_ref()
+            .ok_or_else(|| AiError::BinaryNotFound("codex".into()))?;
+        Ok(commands::build_background_command(binary, &input))
+    }
+
+    fn background_uses_stdin_prompt(&self) -> bool {
+        false
     }
 
     // ─── Configuration Discovery ───

@@ -12,9 +12,12 @@ use auth::CredentialStore;
 use git_engine::Repository;
 use graph_builder::GraphLayout;
 use provider::{ProviderKind, ProviderUser};
+use std::sync::Arc;
 use storage::config::AppConfig;
 use storage::database::Database;
 use watcher::RepoWatcher;
+
+use crate::ai_background::AiBackgroundCoordinator;
 
 /// A single authenticated provider connection held in application state.
 ///
@@ -92,6 +95,10 @@ pub struct AppState {
     /// Filesystem watcher for AI config directories (`.claude/` in project
     /// and home). `None` if no watcher has been started.
     pub ai_config_watcher: Mutex<Option<watcher::AiConfigWatcher>>,
+    /// Shared coordinator for AI background runs. Populated in
+    /// `src-tauri/src/lib.rs` during `.setup()` because it needs an
+    /// `Arc<TaskManager>` and an `AppHandle` for the event sink.
+    pub ai_background_coordinator: Mutex<Option<Arc<AiBackgroundCoordinator>>>,
 }
 
 impl Default for AppState {
@@ -127,6 +134,7 @@ impl AppState {
             ai_providers: Mutex::new(Vec::new()),
             ai_session_watcher: Mutex::new(None),
             ai_config_watcher: Mutex::new(None),
+            ai_background_coordinator: Mutex::new(None),
         }
     }
 }

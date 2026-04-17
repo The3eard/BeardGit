@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ai_provider::{
-    AiConfigFile, AiError, AiProvider, AiProviderKind, AttributionMatch, AttributionPattern,
-    ConfigKind, ConfigScope, ExecuteOptions,
+    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AttributionMatch,
+    AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
 };
 
 /// AI provider for the OpenCode CLI.
@@ -78,6 +78,20 @@ impl AiProvider for OpenCodeProvider {
 
     fn build_interactive_cmd(&self, cwd: &Path) -> Result<Command, AiError> {
         commands::build_interactive_cmd(self, cwd)
+    }
+
+    /// OpenCode has no `--skill` or `--prompt-file` flag; the coordinator
+    /// must inline saved-prompt content into `input.prompt` before calling.
+    fn launch_background(&self, input: AiBackgroundRunInput) -> Result<Command, AiError> {
+        let binary = self
+            .binary
+            .as_ref()
+            .ok_or_else(|| AiError::BinaryNotFound("opencode".into()))?;
+        Ok(commands::build_background_command(binary, &input))
+    }
+
+    fn background_uses_stdin_prompt(&self) -> bool {
+        false
     }
 
     fn config_files(&self, repo_path: &Path) -> Vec<AiConfigFile> {

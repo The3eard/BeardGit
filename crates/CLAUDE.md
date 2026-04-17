@@ -105,6 +105,14 @@
 - Command building for headless execution and interactive terminal launch
 - Config discovery: `codex.toml`, `~/.config/codex/` settings
 
+### `app-core::ai_background`
+- `AiBackgroundCoordinator` manages headless AI runs in dedicated worktrees (Phase 10)
+- Shares `TaskManager` with the rest of the app; owns its own session registry and FIFO concurrency queue (cap configurable via `AppConfig.ai_background_concurrency_cap`)
+- `AiBackgroundEventSink` trait keeps the coordinator testable without a Tauri handle. `TauriAiBackgroundEventSink` emits `ai-background-status` (on every status transition) and `ai-background-output` (on every captured line). `TauriEventSink` bridges `TaskKind::AiBackground` events into the coordinator so lifecycle transitions update the registry.
+- Worktree path default: `<repo>/.beardgit/ai-worktrees/<slug>` on branch `ai/<provider>/<slug>` (slug derived from prompt, collision-avoiding). `AppConfig.ai_worktree_root` overrides the root; absolute or repo-relative.
+- Six Tauri commands in `commands/ai_background.rs`: start / cancel / list / get / discard_worktree / open_terminal. Two more in `commands/settings.rs`: get/set for the three AI background settings.
+- `provider_factory` injection point lets unit tests swap in a stub provider for queue-dispatch coverage.
+
 ### `opencode`
 - `AiProvider` implementation for OpenCode CLI
 - Binary detection via `which opencode`, version parsing from `opencode --version`

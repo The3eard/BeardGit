@@ -23,6 +23,29 @@ pub enum TaskStatus {
     Cancelled,
 }
 
+/// Discriminator for the *kind* of task that's running.
+///
+/// Internally tagged with `"kind"` so new variants are additive — the
+/// frontend task panel can branch on `kind` to render task-type-specific UI
+/// (progress badges, worktree path, session id, etc.) without breaking older
+/// clients that don't know the new variants.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TaskKind {
+    /// Generic shell task (default — used by `TaskManager::spawn`).
+    #[default]
+    Generic,
+    /// Headless AI background run launched from the AI background dialog.
+    ///
+    /// Payload is carried alongside so the task panel can jump straight to
+    /// the associated session.
+    AiBackground {
+        session_id: String,
+        provider: String,
+        worktree_path: String,
+    },
+}
+
 /// Which output stream a line came from.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -58,6 +81,8 @@ pub struct TaskHandle {
     pub started_at_ms: Option<u64>,
     /// Process exit code, captured after the child process terminates.
     pub exit_code: Option<i32>,
+    /// Which task category this is — generic shell task or an AI background run.
+    pub kind: TaskKind,
 }
 
 /// Serializable subset of a task sent to the frontend via events.
@@ -75,6 +100,8 @@ pub struct TaskInfo {
     pub started_at_ms: Option<u64>,
     /// Process exit code, captured after the child process terminates.
     pub exit_code: Option<i32>,
+    /// Which task category this is — generic shell task or an AI background run.
+    pub task_kind: TaskKind,
 }
 
 /// Payload for the `task-output` Tauri event.
@@ -116,6 +143,7 @@ impl TaskHandle {
             command: self.command.clone(),
             started_at_ms: self.started_at_ms,
             exit_code: self.exit_code,
+            task_kind: self.kind.clone(),
         }
     }
 }

@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use ai_provider::{AiError, AiProvider, ExecuteOptions, OutputFormat};
+use ai_provider::{AiBackgroundRunInput, AiError, AiProvider, ExecuteOptions, OutputFormat};
 
 /// Build a headless execution command with `--print`.
 pub fn build_execute_command(
@@ -66,6 +66,56 @@ pub fn build_worktree_cmd(
         cmd.arg(n);
     }
     Some(cmd)
+}
+
+/// Build a headless **background** command used by the AI background
+/// coordinator.
+///
+/// Flags applied:
+/// - `--print` — non-TTY, single-shot mode
+/// - `--output-format json-stream` — line-delimited events for streaming
+/// - `--dangerously-skip-permissions` — only when
+///   `input.auto_accept_permissions` is `true`. Default off; users opt in.
+/// - `--skill <name>` — when a skill is selected
+/// - `--resume <id>` — when a session id is provided
+///
+/// The prompt itself is NOT added as an argument — it is piped on stdin by
+/// the coordinator. If `saved_prompt_path` is set, callers read its contents
+/// and concatenate before feeding stdin.
+pub fn build_background_command(
+    provider: &dyn AiProvider,
+    input: &AiBackgroundRunInput,
+) -> Result<Command, AiError> {
+    let binary = provider
+        .detect_binary()
+        .ok_or_else(|| AiError::BinaryNotFound(provider.binary_name().into()))?;
+    Ok(build_background_command_from_binary(&binary, input))
+}
+
+/// Same as [`build_background_command`] but without running `detect_binary`.
+/// Used by unit tests and by callers that already know the executable path.
+pub fn build_background_command_from_binary(
+    binary: &Path,
+    input: &AiBackgroundRunInput,
+) -> Command {
+    let mut cmd = Command::new(binary);
+    cmd.current_dir(&input.worktree_path);
+    cmd.arg("--print");
+    cmd.arg("--output-format").arg("stream-json");
+    // Verbose is required alongside stream-json in non-interactive mode so
+    // Claude emits incremental events instead of buffering the whole response.
+    cmd.arg("--verbose");
+
+    if input.auto_accept_permissions {
+        cmd.arg("--dangerously-skip-permissions");
+    }
+    if let Some(skill) = input.skill.as_deref() {
+        cmd.arg("--skill").arg(skill);
+    }
+    if let Some(session_id) = input.resume_session_id.as_deref() {
+        cmd.arg("--resume").arg(session_id);
+    }
+    cmd
 }
 
 /// Build a command from a known binary path (for testing without detection).
@@ -250,6 +300,64 @@ mod tests {
         let debug = get_command_debug(&cmd);
         assert!(debug.contains("--worktree"));
         assert!(debug.contains("my-feature"));
+    }
+
+    #[test]
+    fn background_command_has_print_and_streamjson() {
+        let input = AiBackgroundRunInput {
+            provider: ai_provider::AiProviderKind::ClaudeCode,
+            worktree_path: PathBuf::from("/tmp/wt/run-1"),
+            prompt: "anything".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            auto_accept_permissions: false,
+        };
+        let cmd = build_background_command_from_binary(&PathBuf::from("/usr/bin/claude"), &input);
+        let d = get_command_debug(&cmd);
+        assert!(d.contains("--print"));
+        assert!(d.contains("--output-format"));
+        assert!(d.contains("stream-json"));
+        assert!(d.contains("--verbose"));
+        // Prompt is piped via stdin — must NOT appear in argv.
+        assert!(!d.contains("anything"));
+        // Auto-accept defaults OFF.
+        assert!(!d.contains("--dangerously-skip-permissions"));
+    }
+
+    #[test]
+    fn background_command_auto_accept_adds_skip_perm_flag() {
+        let input = AiBackgroundRunInput {
+            provider: ai_provider::AiProviderKind::ClaudeCode,
+            worktree_path: PathBuf::from("/tmp/wt/run-2"),
+            prompt: "".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            auto_accept_permissions: true,
+        };
+        let cmd = build_background_command_from_binary(&PathBuf::from("/usr/bin/claude"), &input);
+        let d = get_command_debug(&cmd);
+        assert!(d.contains("--dangerously-skip-permissions"));
+    }
+
+    #[test]
+    fn background_command_with_skill_and_resume() {
+        let input = AiBackgroundRunInput {
+            provider: ai_provider::AiProviderKind::ClaudeCode,
+            worktree_path: PathBuf::from("/tmp/wt/run-3"),
+            prompt: "".into(),
+            skill: Some("code-review".into()),
+            saved_prompt_path: None,
+            resume_session_id: Some("sess-42".into()),
+            auto_accept_permissions: false,
+        };
+        let cmd = build_background_command_from_binary(&PathBuf::from("/usr/bin/claude"), &input);
+        let d = get_command_debug(&cmd);
+        assert!(d.contains("--skill"));
+        assert!(d.contains("code-review"));
+        assert!(d.contains("--resume"));
+        assert!(d.contains("sess-42"));
     }
 
     #[test]

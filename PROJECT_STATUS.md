@@ -70,6 +70,17 @@ Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with reco
 
 **7.7 — Performance:** Graph render profiling via `graph-perf.ts` — 6 `performance.mark` pairs around the render loop, dev-only FPS overlay toggled with `Ctrl+Shift+P`. Interactive xterm.js instance pool (3 deep) recycles terminals across tab open/close to reduce GC pressure. CodeMirror language cache short-circuits repeated dynamic imports per file extension.
 
+### Phase 10: AI Background Worktree ✅
+
+One-shot, headless AI runs in an isolated worktree — no terminal tab required.
+- **Spec / plan:** `docs/superpowers/specs/2026-04-17-ai-background-worktree.md` + `docs/superpowers/plans/2026-04-17-phase10-ai-background-worktree.md`
+- **Dialog (3 entry points):** tab-bar button, `AI Sessions` header "+ New run" button, and `Cmd+Shift+A` global shortcut all open the same `CreateBackgroundRunDialog.svelte`. Dialog supports free-text prompts, saved prompts from `.claude/prompts/`, and skill invocations from `.claude/skills/`.
+- **Headless coordinator:** `app-core::ai_background::AiBackgroundCoordinator` creates a worktree at `<repo>/.beardgit/ai-worktrees/<slug>` on a new branch `ai/<provider>/<slug>`, inlines any saved-prompt/skill content into the prompt, spawns the provider via `TaskManager` (with stdin piping for Claude Code's JSON stream mode), and registers the session in a live registry. Configurable concurrency cap queues excess runs.
+- **Providers:** all three (`claude-code` / `codex` / `opencode`) implement the new `AiProvider::launch_background` method — Claude uses `--print --output-format stream-json --verbose` with stdin; Codex uses `codex exec -p`; OpenCode uses `opencode run -p`. `--dangerously-skip-permissions` (and its Codex equivalent) is gated behind a new `ai_prompt_auto_accept` setting, default off.
+- **UI:** new `BackgroundRunStatusBadge`, `BackgroundRunTranscript`, and `AiSessionDetail` components. AI Sessions sidebar merges background runs (sorted first, with status pill) ahead of provider-reported sessions. Session detail exposes `Open terminal here` (disabled with tooltip while running), `Switch to worktree tab`, `Discard worktree`, and a transcript viewer with copy-to-clipboard.
+- **Settings:** `Settings → AI Provider` gains worktree-root override, concurrency-cap slider, and the auto-accept toggle. All settings persist via two new Tauri commands.
+- **Tests:** 13 new Rust tests (coordinator lifecycle, concurrency cap, queue cancellation, slug derivation, worktree-root resolution, stdin piping, AiBackground TaskKind); 7 vitest cases for the store. All 266 frontend tests + full Rust workspace pass.
+
 ### Phase 9: Provider Architecture Cleanup ✅
 
 Pure refactor, zero user-visible change.

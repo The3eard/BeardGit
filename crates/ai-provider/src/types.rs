@@ -27,6 +27,12 @@ impl AiProviderKind {
 }
 
 /// A detected AI session for a repository.
+///
+/// Optional fields (`worktree_path`, `background_status`, `task_id`) are
+/// populated only for background runs launched via
+/// [`launch_background`](crate::AiProvider::launch_background). Sessions
+/// discovered from provider storage (e.g. Claude Code's session files) leave
+/// these as `None`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiSession {
     pub id: String,
@@ -35,6 +41,17 @@ pub struct AiSession {
     pub started_at: Option<u64>,
     pub kind: SessionKind,
     pub is_active: bool,
+    /// Worktree path for background runs. `None` for ordinary provider
+    /// sessions detected on disk.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worktree_path: Option<PathBuf>,
+    /// Live status for background runs. `None` for regular sessions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_status: Option<AiBackgroundRunStatus>,
+    /// The [`task_runner::TaskId`] this session is attached to, encoded as
+    /// `u64` to keep `ai-provider` free of a `task-runner` dependency.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<u64>,
 }
 
 /// Whether a session was interactive (REPL) or headless (single-shot).
@@ -142,6 +159,83 @@ pub struct AvailableAiProvider {
     pub version: Option<String>,
 }
 
+/// Input for launching a headless AI background run in a fresh worktree.
+///
+/// Produced by [`AiProvider::launch_background`](crate::AiProvider::launch_background).
+/// All paths are absolute.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiBackgroundRunInput {
+    /// Which AI provider should run the prompt.
+    pub provider: AiProviderKind,
+    /// Absolute path to the freshly-created worktree where the command runs.
+    pub worktree_path: PathBuf,
+    /// Free-text prompt. Concatenated with the saved prompt content when both
+    /// are provided (the free text acts as the user task on top of the template).
+    pub prompt: String,
+    /// Optional skill name to invoke via the provider's `--skill` flag.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skill: Option<String>,
+    /// Optional path to a saved prompt file whose contents should be prefixed
+    /// to the free-text prompt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub saved_prompt_path: Option<PathBuf>,
+    /// Optional session ID to resume (Claude Code `--resume`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resume_session_id: Option<String>,
+    /// When true, pass the provider's permission-skip flag where supported
+    /// (e.g. Claude Code's `--dangerously-skip-permissions`). Default: false.
+    #[serde(default)]
+    pub auto_accept_permissions: bool,
+}
+
+/// Lifecycle state of a background run, internally tagged by `state`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum AiBackgroundRunStatus {
+    /// Waiting in the concurrency queue.
+    Queued,
+    /// Process spawned and emitting output.
+    Running,
+    /// Process exited normally.
+    Completed {
+        exit_code: i32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        token_usage: Option<AiTokenUsage>,
+    },
+    /// Process failed to spawn or emitted a non-zero exit.
+    Failed { message: String },
+    /// User cancelled the run.
+    Cancelled,
+}
+
+impl AiBackgroundRunStatus {
+    /// Whether the run is still occupying a concurrency slot.
+    pub fn is_running(&self) -> bool {
+        matches!(self, Self::Running)
+    }
+
+    /// Whether the run has reached a terminal state.
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            Self::Completed { .. } | Self::Failed { .. } | Self::Cancelled
+        )
+    }
+}
+
+/// Token usage and cost tallies reported by a provider.
+///
+/// Populated opportunistically — if a provider's headless output doesn't
+/// include usage info, this will be `None` in the surrounding
+/// [`AiBackgroundRunStatus::Completed`] variant.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AiTokenUsage {
+    pub input: u64,
+    pub output: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total_cost_usd: Option<f64>,
+}
+
 /// Per-repo AI status returned to the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepoAiStatus {
@@ -208,6 +302,117 @@ mod tests {
         let decoded: AvailableAiProvider = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.kind, AiProviderKind::ClaudeCode);
         assert_eq!(decoded.version.as_deref(), Some("2.1.104"));
+    }
+
+    #[test]
+    fn background_input_roundtrip() {
+        let input = AiBackgroundRunInput {
+            provider: AiProviderKind::ClaudeCode,
+            worktree_path: "/tmp/.beardgit/ai-worktrees/feat".into(),
+            prompt: "refactor logger".into(),
+            skill: Some("review".into()),
+            saved_prompt_path: None,
+            resume_session_id: None,
+            auto_accept_permissions: true,
+        };
+        let json = serde_json::to_string(&input).unwrap();
+        let decoded: AiBackgroundRunInput = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.prompt, "refactor logger");
+        assert_eq!(decoded.skill.as_deref(), Some("review"));
+        assert!(decoded.auto_accept_permissions);
+    }
+
+    #[test]
+    fn background_status_completed_serializes_with_state_tag() {
+        let status = AiBackgroundRunStatus::Completed {
+            exit_code: 0,
+            token_usage: Some(AiTokenUsage {
+                input: 10,
+                output: 20,
+                total_cost_usd: Some(0.0025),
+            }),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("\"state\":\"completed\""));
+        assert!(json.contains("\"exit_code\":0"));
+        assert!(json.contains("\"token_usage\""));
+
+        let decoded: AiBackgroundRunStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, status);
+    }
+
+    #[test]
+    fn background_status_queued_running_failed_cancelled() {
+        for (status, expected_tag) in [
+            (AiBackgroundRunStatus::Queued, "queued"),
+            (AiBackgroundRunStatus::Running, "running"),
+            (
+                AiBackgroundRunStatus::Failed {
+                    message: "boom".into(),
+                },
+                "failed",
+            ),
+            (AiBackgroundRunStatus::Cancelled, "cancelled"),
+        ] {
+            let json = serde_json::to_string(&status).unwrap();
+            assert!(
+                json.contains(&format!("\"state\":\"{expected_tag}\"")),
+                "expected state={expected_tag}, got {json}"
+            );
+            let decoded: AiBackgroundRunStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(decoded, status);
+        }
+    }
+
+    #[test]
+    fn background_status_is_running_and_is_terminal() {
+        assert!(AiBackgroundRunStatus::Running.is_running());
+        assert!(!AiBackgroundRunStatus::Queued.is_running());
+        assert!(
+            AiBackgroundRunStatus::Completed {
+                exit_code: 0,
+                token_usage: None,
+            }
+            .is_terminal()
+        );
+        assert!(
+            AiBackgroundRunStatus::Failed {
+                message: "x".into(),
+            }
+            .is_terminal()
+        );
+        assert!(AiBackgroundRunStatus::Cancelled.is_terminal());
+        assert!(!AiBackgroundRunStatus::Running.is_terminal());
+    }
+
+    #[test]
+    fn token_usage_roundtrip() {
+        let usage = AiTokenUsage {
+            input: 1_000,
+            output: 2_000,
+            total_cost_usd: Some(0.12),
+        };
+        let json = serde_json::to_string(&usage).unwrap();
+        let decoded: AiTokenUsage = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, usage);
+    }
+
+    #[test]
+    fn ai_session_backward_compatible_without_new_fields() {
+        // Old session JSON that pre-dates background-run fields should still
+        // deserialize — the new optional fields default to None via #[serde(default)].
+        let json = r#"{
+            "id": "s1",
+            "provider": "claude_code",
+            "cwd": "/tmp/repo",
+            "started_at": null,
+            "kind": "headless",
+            "is_active": false
+        }"#;
+        let session: AiSession = serde_json::from_str(json).unwrap();
+        assert!(session.worktree_path.is_none());
+        assert!(session.background_status.is_none());
+        assert!(session.task_id.is_none());
     }
 
     #[test]

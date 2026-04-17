@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use ai_provider::{AiError, AiProvider, ExecuteOptions};
+use ai_provider::{AiBackgroundRunInput, AiError, AiProvider, ExecuteOptions};
 
 /// Build a headless execution command using `opencode -p <prompt>`.
 pub fn build_execute_command(
@@ -40,6 +40,20 @@ pub fn build_interactive_cmd(provider: &dyn AiProvider, cwd: &Path) -> Result<Co
     let mut cmd = Command::new(binary);
     cmd.current_dir(cwd);
     Ok(cmd)
+}
+
+/// Build a **headless background** OpenCode command.
+///
+/// OpenCode accepts the prompt via `-p <text>` in its non-interactive mode
+/// (`opencode run`). As of this writing there's no first-class `--skill` flag
+/// or `--prompt-file` — skill/saved-prompt content is inlined into
+/// `input.prompt` at the coordinator layer.
+pub fn build_background_command(binary: &Path, input: &AiBackgroundRunInput) -> Command {
+    let mut cmd = Command::new(binary);
+    cmd.current_dir(&input.worktree_path);
+    cmd.arg("run");
+    cmd.arg("-p").arg(&input.prompt);
+    cmd
 }
 
 /// Build a headless execute command from a known binary path (for testing).
@@ -124,6 +138,24 @@ mod tests {
         );
         let debug = debug_cmd(&cmd);
         assert!(debug.contains("--verbose"));
+    }
+
+    #[test]
+    fn background_command_has_run_p_and_prompt() {
+        let input = AiBackgroundRunInput {
+            provider: ai_provider::AiProviderKind::OpenCode,
+            worktree_path: PathBuf::from("/tmp/wt/run-1"),
+            prompt: "bump version".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            auto_accept_permissions: false,
+        };
+        let cmd = build_background_command(&PathBuf::from("/usr/bin/opencode"), &input);
+        let d = debug_cmd(&cmd);
+        assert!(d.contains("run"));
+        assert!(d.contains("\"-p\""));
+        assert!(d.contains("bump version"));
     }
 
     #[test]

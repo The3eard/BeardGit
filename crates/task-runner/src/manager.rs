@@ -12,7 +12,22 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 use crate::sink::TaskEventSink;
-use crate::types::{OutputLine, Stream, TaskError, TaskHandle, TaskId, TaskInfo, TaskStatus};
+use crate::types::{
+    OutputLine, Stream, TaskError, TaskHandle, TaskId, TaskInfo, TaskKind, TaskStatus,
+};
+
+/// Options accepted by [`TaskManager::spawn_with_options`].
+pub struct SpawnOptions<'a> {
+    pub label: String,
+    pub command: &'a str,
+    pub args: &'a [&'a str],
+    pub cwd: &'a std::path::Path,
+    pub cancellable: bool,
+    pub kind: TaskKind,
+    /// Optional stdin payload — written to the child's stdin then closed.
+    /// Used by AI providers that read prompts from stdin (Claude Code).
+    pub stdin: Option<String>,
+}
 
 /// Manages background tasks, their lifecycle, output, and cancellation.
 pub struct TaskManager {
@@ -50,8 +65,9 @@ impl TaskManager {
 
     /// Spawn a CLI command as a background task. Returns `TaskId` immediately.
     ///
-    /// The spawned tokio task holds an `Arc<Self>` so the manager stays alive
-    /// for the duration of the subprocess.
+    /// Convenience wrapper around [`Self::spawn_with_options`] that uses
+    /// [`TaskKind::Generic`] and no stdin payload. Existing call sites keep
+    /// their simple 6-argument form.
     pub async fn spawn(
         self: &Arc<Self>,
         label: String,
@@ -60,6 +76,34 @@ impl TaskManager {
         cwd: &Path,
         cancellable: bool,
     ) -> TaskId {
+        self.spawn_with_options(SpawnOptions {
+            label,
+            command,
+            args,
+            cwd,
+            cancellable,
+            kind: TaskKind::Generic,
+            stdin: None,
+        })
+        .await
+    }
+
+    /// Spawn a CLI command as a background task with explicit [`TaskKind`]
+    /// and optional stdin payload.
+    ///
+    /// Returns `TaskId` immediately. The spawned tokio task holds an
+    /// `Arc<Self>` so the manager stays alive for the duration of the
+    /// subprocess.
+    pub async fn spawn_with_options(self: &Arc<Self>, options: SpawnOptions<'_>) -> TaskId {
+        let SpawnOptions {
+            label,
+            command,
+            args,
+            cwd,
+            cancellable,
+            kind,
+            stdin,
+        } = options;
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
 
         // Build displayable command string from program + args.
@@ -85,6 +129,7 @@ impl TaskManager {
             command: command_str,
             started_at_ms,
             exit_code: None,
+            kind,
         };
 
         {
@@ -108,12 +153,16 @@ impl TaskManager {
         };
         self.sink.on_task_started(info).await;
 
-        // Build the child process with piped stdout and stderr.
+        // Build the child process with piped stdout, stderr, and (optionally) stdin.
         let mut cmd = Command::new(command);
         cmd.args(args)
             .current_dir(cwd)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
+
+        if stdin.is_some() {
+            cmd.stdin(std::process::Stdio::piped());
+        }
 
         // Suppress the console window on Windows.
         #[cfg(target_os = "windows")]
@@ -134,6 +183,29 @@ impl TaskManager {
                 return id;
             }
         };
+
+        // Write the stdin payload (if any) then close the pipe so the child
+        // sees EOF and proceeds.
+        if let Some(payload) = stdin
+            && let Some(mut child_stdin) = child.stdin.take()
+        {
+            use tokio::io::AsyncWriteExt;
+            // Best-effort — if the child died early or closed stdin, fail
+            // the task rather than leaving it stuck.
+            if let Err(e) = child_stdin.write_all(payload.as_bytes()).await {
+                self.finish_task(
+                    id,
+                    TaskStatus::Failed {
+                        error: format!("failed to write prompt on stdin: {e}"),
+                    },
+                )
+                .await;
+                let _ = child.kill().await;
+                return id;
+            }
+            // Drop closes stdin explicitly.
+            drop(child_stdin);
+        }
 
         let stdout = child.stdout.take().expect("stdout piped");
         let stderr = child.stderr.take().expect("stderr piped");
@@ -602,6 +674,84 @@ mod tests {
     }
 
     // ── 7 ─────────────────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_spawn_with_stdin_payload() {
+        let (manager, events) = new_manager();
+        let cwd = std::env::temp_dir();
+
+        // `cat` echoes stdin to stdout — ideal for verifying the pipe.
+        let id = manager
+            .spawn_with_options(SpawnOptions {
+                label: "cat stdin".into(),
+                command: "cat",
+                args: &[],
+                cwd: &cwd,
+                cancellable: false,
+                kind: TaskKind::Generic,
+                stdin: Some("hello from stdin\nsecond line\n".into()),
+            })
+            .await;
+
+        wait_for(&events, |ev| {
+            ev.iter().any(|e| matches!(e, TaskEvent::Completed(_)))
+        })
+        .await;
+
+        let output = manager.get_output(id).await.expect("output present");
+        let texts: Vec<&str> = output.iter().map(|l| l.text.as_str()).collect();
+        assert!(
+            texts.iter().any(|t| t.contains("hello from stdin")),
+            "stdin not piped through: {texts:?}"
+        );
+        assert!(texts.iter().any(|t| t.contains("second line")));
+    }
+
+    #[tokio::test]
+    async fn test_spawn_with_ai_background_kind() {
+        let (manager, events) = new_manager();
+        let cwd = std::env::temp_dir();
+
+        let id = manager
+            .spawn_with_options(SpawnOptions {
+                label: "ai run".into(),
+                command: "sh",
+                args: &["-c", "echo ok"],
+                cwd: &cwd,
+                cancellable: false,
+                kind: TaskKind::AiBackground {
+                    session_id: "sess-1".into(),
+                    provider: "claude_code".into(),
+                    worktree_path: "/tmp/wt".into(),
+                },
+                stdin: None,
+            })
+            .await;
+
+        wait_for(&events, |ev| {
+            ev.iter().any(|e| matches!(e, TaskEvent::Completed(_)))
+        })
+        .await;
+
+        let info = manager
+            .list_tasks()
+            .await
+            .into_iter()
+            .find(|t| t.id == id)
+            .expect("task info present");
+        match info.task_kind {
+            TaskKind::AiBackground {
+                session_id,
+                provider,
+                worktree_path,
+            } => {
+                assert_eq!(session_id, "sess-1");
+                assert_eq!(provider, "claude_code");
+                assert_eq!(worktree_path, "/tmp/wt");
+            }
+            TaskKind::Generic => panic!("expected AiBackground kind"),
+        }
+    }
 
     #[tokio::test]
     async fn test_stderr_captured() {

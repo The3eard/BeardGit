@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -1204,6 +1204,50 @@ export async function aiWriteConfigFile(path: string, content: string): Promise<
 
 export async function aiCreateConfigFile(kind: string, scope: string, name: string): Promise<AiConfigFile> {
   return invoke<AiConfigFile>("ai_create_config_file", { kind, scope, name });
+}
+
+// ─── AI Background Worktree ─────────────────────────────────────────
+
+/** Kick off a new headless AI run inside a freshly-created worktree. */
+export async function aiStartBackgroundRun(
+  request: StartBackgroundRunRequest,
+): Promise<StartBackgroundRunResponse> {
+  return invoke<StartBackgroundRunResponse>("ai_start_background_run", { request });
+}
+
+/** Request cancellation of a running or queued AI background session. */
+export async function aiCancelBackgroundRun(sessionId: string): Promise<void> {
+  return invoke<void>("ai_cancel_background_run", { sessionId });
+}
+
+/** List every known AI background run (queued, running, or terminal). */
+export async function aiListBackgroundRuns(): Promise<AiSession[]> {
+  return invoke<AiSession[]>("ai_list_background_runs");
+}
+
+/** Fetch a single background run by session id; `null` if not found. */
+export async function aiGetBackgroundRun(sessionId: string): Promise<AiSession | null> {
+  return invoke<AiSession | null>("ai_get_background_run", { sessionId });
+}
+
+/** Remove the worktree + branch created for a terminal-state background run. */
+export async function aiDiscardBackgroundRunWorktree(sessionId: string): Promise<void> {
+  return invoke<void>("ai_discard_background_run_worktree", { sessionId });
+}
+
+/** Attach a new PTY terminal to the worktree of a background run. */
+export async function aiOpenBackgroundTerminal(sessionId: string): Promise<number> {
+  return invoke<number>("ai_open_background_terminal", { sessionId });
+}
+
+/** Read persisted AI background settings. */
+export async function aiBackgroundGetSettings(): Promise<AiBackgroundSettings> {
+  return invoke<AiBackgroundSettings>("ai_background_get_settings");
+}
+
+/** Persist AI background settings (concurrency, worktree root, auto-accept). */
+export async function aiBackgroundSetSettings(settings: AiBackgroundSettings): Promise<void> {
+  return invoke<void>("ai_background_set_settings", { settings });
 }
 
 // ─── Bisect ─────────────────────────────────────────────────────────

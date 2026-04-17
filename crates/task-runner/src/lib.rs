@@ -8,6 +8,6 @@ pub mod manager;
 pub mod sink;
 pub mod types;
 
-pub use manager::TaskManager;
+pub use manager::{SpawnOptions, TaskManager};
 pub use sink::TaskEventSink;
 pub use types::*;

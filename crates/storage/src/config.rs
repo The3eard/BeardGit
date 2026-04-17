@@ -22,6 +22,10 @@ fn default_ui_scale() -> u32 {
     100
 }
 
+fn default_ai_background_concurrency_cap() -> u32 {
+    3
+}
+
 /// Persisted provider connection info for auto-reconnect on startup.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SavedProvider {
@@ -105,6 +109,24 @@ pub struct AppConfig {
     #[serde(default)]
     pub preferred_ai_provider: Option<String>,
 
+    /// Override for where AI background worktrees get created. When `None`,
+    /// defaults to `<repo>/.beardgit/ai-worktrees`. Can be absolute or
+    /// repo-relative. The coordinator creates parent directories as needed.
+    #[serde(default)]
+    pub ai_worktree_root: Option<String>,
+
+    /// Maximum number of concurrent AI background runs. Runs spawned past the
+    /// cap are queued and dispatched when a slot frees. Minimum: 1.
+    #[serde(default = "default_ai_background_concurrency_cap")]
+    pub ai_background_concurrency_cap: u32,
+
+    /// When true, pass the provider's permission-skip flag to headless AI
+    /// runs (e.g. Claude Code's `--dangerously-skip-permissions`). Default
+    /// `false` — users opt in explicitly because skipping permissions means
+    /// the agent can edit any file under the worktree without prompting.
+    #[serde(default)]
+    pub ai_prompt_auto_accept: bool,
+
     // -- Legacy fields (read during migration, never written) --
     /// Legacy Plan 5 field. Migrated to `providers` vec.
     #[serde(default, skip_serializing)]
@@ -134,6 +156,9 @@ impl Default for AppConfig {
             graph_columns: Vec::new(),
             sidebar_collapsed: false,
             preferred_ai_provider: None,
+            ai_worktree_root: None,
+            ai_background_concurrency_cap: default_ai_background_concurrency_cap(),
+            ai_prompt_auto_accept: false,
             provider_kind: None,
             provider_instance_url: None,
             gitlab_instance_url: None,
@@ -354,6 +379,51 @@ mod tests {
         let config = AppConfig::default();
         assert!(config.theme_auto);
         assert_eq!(config.theme, "github-dark");
+    }
+
+    #[test]
+    fn test_ai_background_defaults() {
+        let config = AppConfig::default();
+        assert!(config.ai_worktree_root.is_none());
+        assert_eq!(config.ai_background_concurrency_cap, 3);
+        assert!(!config.ai_prompt_auto_accept);
+    }
+
+    #[test]
+    fn test_legacy_config_gets_ai_background_defaults() {
+        // Old configs that pre-date Phase 10 must still load, with the
+        // AI background knobs falling back to defaults.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{"theme": "github-dark", "theme_auto": true}"#;
+        std::fs::write(&path, json).unwrap();
+
+        let config = AppConfig::load(&path).unwrap();
+        assert_eq!(config.ai_background_concurrency_cap, 3);
+        assert!(config.ai_worktree_root.is_none());
+        assert!(!config.ai_prompt_auto_accept);
+    }
+
+    #[test]
+    fn test_ai_background_settings_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        let config = AppConfig {
+            ai_worktree_root: Some("custom/ai-worktrees".into()),
+            ai_background_concurrency_cap: 5,
+            ai_prompt_auto_accept: true,
+            ..AppConfig::default()
+        };
+        config.save(&path).unwrap();
+
+        let loaded = AppConfig::load(&path).unwrap();
+        assert_eq!(
+            loaded.ai_worktree_root.as_deref(),
+            Some("custom/ai-worktrees")
+        );
+        assert_eq!(loaded.ai_background_concurrency_cap, 5);
+        assert!(loaded.ai_prompt_auto_accept);
     }
 
     #[test]

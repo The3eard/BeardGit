@@ -15,8 +15,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ai_provider::{
-    AiConfigFile, AiError, AiProvider, AiProviderKind, AiSession, AiWorktree, AttributionPattern,
-    ExecuteOptions,
+    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AiSession, AiWorktree,
+    AttributionPattern, ExecuteOptions,
 };
 
 /// AI provider for the Claude Code CLI.
@@ -70,6 +70,14 @@ impl AiProvider for ClaudeCodeProvider {
 
     fn build_interactive_cmd(&self, cwd: &Path) -> Result<Command, AiError> {
         commands::build_interactive_cmd(self, cwd)
+    }
+
+    fn launch_background(&self, input: AiBackgroundRunInput) -> Result<Command, AiError> {
+        commands::build_background_command(self, &input)
+    }
+
+    fn background_uses_stdin_prompt(&self) -> bool {
+        true
     }
 
     fn build_worktree_cmd(&self, cwd: &Path, name: Option<&str>) -> Option<Command> {

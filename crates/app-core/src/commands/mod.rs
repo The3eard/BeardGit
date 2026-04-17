@@ -8,6 +8,7 @@
 mod helpers;
 
 mod advanced;
+mod ai_background;
 mod bisect;
 mod branch;
 mod ci;
@@ -39,6 +40,7 @@ mod worktree;
 
 // Re-export all public items so the rest of the crate sees a flat namespace.
 pub use advanced::*;
+pub use ai_background::*;
 pub use bisect::*;
 pub use branch::*;
 pub use ci::*;

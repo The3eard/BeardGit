@@ -867,6 +867,63 @@ export interface AiSession {
   started_at: number | null;
   kind: "interactive" | "headless";
   is_active: boolean;
+  /** Worktree path for background runs — absent for file-backed sessions. */
+  worktree_path?: string | null;
+  /** Present only for background runs. */
+  background_status?: AiBackgroundRunStatus | null;
+  /** `TaskId` of the spawned provider process (background runs only). */
+  task_id?: number | null;
+}
+
+/** Lifecycle state of an AI background run. Discriminated on `state`. */
+export type AiBackgroundRunStatus =
+  | { state: "queued" }
+  | { state: "running" }
+  | {
+      state: "completed";
+      exit_code: number;
+      token_usage?: AiTokenUsage | null;
+    }
+  | { state: "failed"; message: string }
+  | { state: "cancelled" };
+
+/** Token tallies where the provider reports them. */
+export interface AiTokenUsage {
+  input: number;
+  output: number;
+  total_cost_usd?: number | null;
+}
+
+/** Request payload for `ai_start_background_run`. */
+export interface StartBackgroundRunRequest {
+  provider: AiProviderKind;
+  base_branch: string;
+  prompt: string;
+  skill?: string | null;
+  saved_prompt_path?: string | null;
+  resume_session_id?: string | null;
+  worktree_slug_override?: string | null;
+}
+
+/** Response from `ai_start_background_run`. */
+export interface StartBackgroundRunResponse {
+  session_id: string;
+  task_id: number | null;
+  worktree_path: string;
+  status: AiBackgroundRunStatus;
+}
+
+/** Payload for the `ai-background-output` Tauri event. */
+export interface AiBackgroundOutputEvent {
+  session_id: string;
+  line: string;
+}
+
+/** Settings card for the AI background feature. */
+export interface AiBackgroundSettings {
+  worktree_root: string | null;
+  concurrency_cap: number;
+  auto_accept_permissions: boolean;
 }
 
 export interface AiWorktree {

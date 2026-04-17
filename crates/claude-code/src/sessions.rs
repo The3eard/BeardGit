@@ -71,6 +71,9 @@ pub fn list_sessions(repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
                 _ => SessionKind::Headless,
             },
             is_active,
+            worktree_path: None,
+            background_status: None,
+            task_id: None,
         });
     }
 

@@ -64,6 +64,27 @@ impl Repository {
         }
     }
 
+    /// Create a new linked worktree at `path` on a brand-new branch derived
+    /// from a specific `base` revision.
+    ///
+    /// Equivalent to `git worktree add -b <new_branch> <path> <base>` —
+    /// handy when `base` should be pinned (e.g. the current head branch for
+    /// an AI background run) rather than using the default HEAD.
+    #[instrument(skip(self), fields(path = %path, new_branch = %new_branch, base = %base))]
+    pub fn create_worktree_at(
+        &self,
+        path: &str,
+        new_branch: &str,
+        base: &str,
+    ) -> Result<(), GitError> {
+        let result = self.git_cmd(&["worktree", "add", "-b", new_branch, path, base])?;
+        if result.success {
+            Ok(())
+        } else {
+            Err(GitError::CliError(result.stderr))
+        }
+    }
+
     /// Remove a linked worktree at `path`.
     ///
     /// Set `force` to `true` to remove a worktree that has uncommitted changes
@@ -300,6 +321,30 @@ mod tests {
         assert_eq!(wts.len(), 1);
         assert!(wts[0].is_main);
         assert!(!wts[0].head_oid.is_empty());
+    }
+
+    #[test]
+    fn test_create_worktree_at_explicit_base() {
+        let (tmp, _git_repo) = create_test_repo();
+        let repo = Repository::open(tmp.path()).unwrap();
+
+        // Capture the initial commit's branch so we have a stable base ref.
+        let head = repo.list_worktrees().unwrap()[0].branch.clone().unwrap();
+
+        let wt_path = tmp.path().join("worktree-at");
+        repo.create_worktree_at(wt_path.to_str().unwrap(), "ai/run-1", &head)
+            .unwrap();
+
+        let wts = repo.list_worktrees().unwrap();
+        let new_wt = wts
+            .iter()
+            .find(|w| w.branch.as_deref() == Some("ai/run-1"))
+            .expect("new worktree must appear");
+        assert!(
+            new_wt.path.ends_with("worktree-at"),
+            "worktree path should end with 'worktree-at': {}",
+            new_wt.path
+        );
     }
 
     #[test]

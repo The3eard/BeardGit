@@ -12,6 +12,7 @@
   import { openTabs, activeTabIndex, openTerminalTab, openStandaloneTerminal, openAiTerminalTab, switchSegment, closeSegment, closeProjectSegment, getActiveTerminalSegment } from "$lib/stores/tabs";
   import { repoInfo } from "$lib/stores/repo";
   import { aiProviders } from "$lib/stores/ai";
+  import { requestOpenCreateBackgroundRunDialog } from "$lib/stores/aiBackground";
   import type { AiProviderKind } from "$lib/types";
   import { fetchRemote, pullRemote, pushRemote } from "$lib/api/tauri";
   import * as m from "$lib/paraglide/messages";
@@ -185,6 +186,15 @@
   </div>
 
   <div class="actions">
+    {#if $aiProviders.length > 0}
+      <button
+        class="action-btn ai-bg-btn"
+        title={m.ai_background_tab_button_tooltip()}
+        onclick={() => requestOpenCreateBackgroundRunDialog()}
+      >
+        <span class="nf">{"\uE7B6"}</span>
+      </button>
+    {/if}
     <div class="terminal-split" bind:this={terminalMenuRef}>
       <button
         class="action-btn terminal-left"

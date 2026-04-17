@@ -5,15 +5,46 @@
  * Auto-refreshes via Tauri event bridge (ai-sessions-changed) and terminal lifecycle events.
  */
 
-import { writable } from "svelte/store";
+import { writable, derived } from "svelte/store";
 import { listen } from "@tauri-apps/api/event";
 import * as api from "$lib/api/tauri";
 import type { AiSession } from "$lib/types";
+import { aiBackgroundRuns } from "./aiBackground";
 
 // ─── State ───
 
-/** AI sessions filtered to the current project. */
+/** AI sessions filtered to the current project (provider-reported). */
 export const sessions = writable<AiSession[]>([]);
+
+/**
+ * Merged view: background runs (sorted first) followed by provider-reported
+ * sessions. Dedupes by id so a session that exists in both lists is shown
+ * once. Consumers reading "sessions for the sidebar" should pull from this.
+ */
+export const mergedSessions = derived(
+  [sessions, aiBackgroundRuns],
+  ([$sessions, $bg]) => {
+    const bgList = Array.from($bg.values());
+    // Most-recent background run first, Queued/Running before terminal states.
+    bgList.sort((a, b) => {
+      const aActive =
+        a.background_status?.state === "running" ||
+        a.background_status?.state === "queued"
+          ? 0
+          : 1;
+      const bActive =
+        b.background_status?.state === "running" ||
+        b.background_status?.state === "queued"
+          ? 0
+          : 1;
+      if (aActive !== bActive) return aActive - bActive;
+      return (b.started_at ?? 0) - (a.started_at ?? 0);
+    });
+    const seen = new Set(bgList.map((s) => s.id));
+    const tail = $sessions.filter((s) => !seen.has(s.id));
+    return [...bgList, ...tail];
+  },
+);
 
 /** True while loading sessions. */
 export const sessionsLoading = writable(false);

@@ -29,8 +29,31 @@ pub fn run() {
             let sink = std::sync::Arc::new(app_core::event_sink::TauriEventSink::new(
                 app.handle().clone(),
             ));
-            let task_manager = std::sync::Arc::new(task_runner::TaskManager::new(sink));
-            app.manage(task_manager);
+            let task_manager = std::sync::Arc::new(task_runner::TaskManager::new(sink.clone()));
+            app.manage(task_manager.clone());
+
+            // AI background coordinator: shares the task manager with the rest
+            // of the app and emits `ai-background-*` events through a
+            // Tauri-backed sink.
+            let ai_sink = std::sync::Arc::new(
+                app_core::event_sink::TauriAiBackgroundEventSink::new(app.handle().clone()),
+            );
+            let ai_coord =
+                std::sync::Arc::new(app_core::ai_background::AiBackgroundCoordinator::new(
+                    task_manager.clone(),
+                    ai_sink,
+                ));
+            // Let the TaskEventSink route AI background lifecycle events
+            // into the coordinator.
+            sink.install_ai_background_coordinator(ai_coord.clone());
+            // Stash the coordinator in AppState so commands can reach it.
+            {
+                let state: tauri::State<'_, app_core::state::AppState> = app.state();
+                *state
+                    .ai_background_coordinator
+                    .lock()
+                    .expect("coordinator mutex poisoned") = Some(ai_coord);
+            }
 
             let terminal_sink = std::sync::Arc::new(
                 app_core::terminal_sink::TauriTerminalSink::new(app.handle().clone()),
@@ -306,6 +329,15 @@ pub fn run() {
             app_core::ai_commands::ai_set_preferred_provider,
             app_core::ai_commands::ai_watch_config_dirs,
             app_core::ai_commands::ai_stop_config_watcher,
+            // Phase 10 — AI Background Worktree
+            app_core::commands::ai_start_background_run,
+            app_core::commands::ai_cancel_background_run,
+            app_core::commands::ai_list_background_runs,
+            app_core::commands::ai_get_background_run,
+            app_core::commands::ai_discard_background_run_worktree,
+            app_core::commands::ai_open_background_terminal,
+            app_core::commands::ai_background_get_settings,
+            app_core::commands::ai_background_set_settings,
             // Bisect
             app_core::commands::bisect_start,
             app_core::commands::bisect_good,

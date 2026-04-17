@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { aiProviders, preferredAiProvider, detectAiProviders, setPreferredProvider, loadPreferredProvider } from "$lib/stores/ai";
-  import type { AiProviderKind } from "$lib/types";
+  import type { AiBackgroundSettings, AiProviderKind } from "$lib/types";
+  import { aiBackgroundGetSettings, aiBackgroundSetSettings } from "$lib/api/tauri";
   import * as m from "$lib/paraglide/messages";
 
   /** All known provider kinds (for display even when not installed). */
@@ -12,11 +13,41 @@
   ];
 
   let refreshing = $state(false);
+  let bgSettings = $state<AiBackgroundSettings>({
+    worktree_root: null,
+    concurrency_cap: 3,
+    auto_accept_permissions: false,
+  });
+  let bgSaving = $state(false);
+  let bgError = $state<string | null>(null);
 
   onMount(async () => {
     await detectAiProviders();
     await loadPreferredProvider();
+    try {
+      bgSettings = await aiBackgroundGetSettings();
+    } catch (e) {
+      bgError = String(e);
+    }
   });
+
+  async function saveBgSettings() {
+    bgSaving = true;
+    bgError = null;
+    try {
+      await aiBackgroundSetSettings({
+        worktree_root: bgSettings.worktree_root && bgSettings.worktree_root.trim().length > 0
+          ? bgSettings.worktree_root.trim()
+          : null,
+        concurrency_cap: Math.max(1, Math.floor(bgSettings.concurrency_cap)),
+        auto_accept_permissions: bgSettings.auto_accept_permissions,
+      });
+    } catch (e) {
+      bgError = String(e);
+    } finally {
+      bgSaving = false;
+    }
+  }
 
   async function handleRefresh() {
     refreshing = true;
@@ -87,6 +118,56 @@
 
   {#if $aiProviders.length === 0}
     <div class="empty-state">{m.ai_settings_no_providers()}</div>
+  {/if}
+</div>
+
+<div class="ai-card">
+  <h2 class="card-title">{m.settings_ai_background_heading()}</h2>
+
+  <div class="bg-field">
+    <label class="field-label" for="bg-root">{m.settings_ai_worktree_root_label()}</label>
+    <input
+      id="bg-root"
+      class="field-input"
+      type="text"
+      placeholder=".beardgit/ai-worktrees"
+      value={bgSettings.worktree_root ?? ""}
+      oninput={(e) => { bgSettings.worktree_root = e.currentTarget.value; }}
+      onblur={saveBgSettings}
+    />
+    <p class="field-hint">{m.settings_ai_worktree_root_hint()}</p>
+  </div>
+
+  <div class="bg-field">
+    <label class="field-label" for="bg-cap">{m.settings_ai_concurrency_label()}</label>
+    <input
+      id="bg-cap"
+      class="field-input short"
+      type="number"
+      min="1"
+      max="32"
+      bind:value={bgSettings.concurrency_cap}
+      onblur={saveBgSettings}
+    />
+    <p class="field-hint">{m.settings_ai_concurrency_hint()}</p>
+  </div>
+
+  <div class="bg-field">
+    <label class="checkbox-label">
+      <input
+        type="checkbox"
+        bind:checked={bgSettings.auto_accept_permissions}
+        onchange={saveBgSettings}
+      />
+      <span>{m.settings_ai_auto_accept_label()}</span>
+    </label>
+    <p class="field-hint">{m.settings_ai_auto_accept_hint()}</p>
+  </div>
+
+  {#if bgError}
+    <p class="error-text">{bgError}</p>
+  {:else if bgSaving}
+    <p class="saving-text">…</p>
   {/if}
 </div>
 
@@ -172,5 +253,65 @@
     font-size: 12px;
     font-style: italic;
     margin-top: 16px;
+  }
+
+  .bg-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .field-input {
+    padding: 6px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    outline: none;
+    box-sizing: border-box;
+  }
+
+  .field-input.short {
+    max-width: 100px;
+  }
+
+  .field-input:focus {
+    border-color: var(--accent-blue);
+  }
+
+  .field-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .error-text {
+    color: #f85149;
+    font-size: 12px;
+  }
+
+  .saving-text {
+    color: var(--text-secondary);
+    font-size: 12px;
   }
 </style>

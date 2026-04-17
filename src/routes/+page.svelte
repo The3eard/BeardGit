@@ -39,7 +39,7 @@
   import { getSidebarCollapsed, setSidebarCollapsed } from "$lib/api/tauri";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
   import AiConfigEditor from "$lib/components/ai-config/AiConfigEditor.svelte";
-  import AiSessionList from "$lib/components/ai-sessions/AiSessionList.svelte";
+  import AiSessionsView from "$lib/components/ai-sessions/AiSessionsView.svelte";
   import BisectWorkflow from "$lib/components/bisect/BisectWorkflow.svelte";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
@@ -63,8 +63,21 @@
   import { get } from "svelte/store";
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
   import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
+  import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
+  import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
 
   let activeView = $state("graph");
+  let showAiBackgroundDialog = $state(false);
+
+  // Open the dialog whenever any entry point pings the shared signal store.
+  let lastDialogRequest = 0;
+  $effect(() => {
+    const next = $openCreateBackgroundRunDialogRequest;
+    if (next !== lastDialogRequest) {
+      lastDialogRequest = next;
+      if (next > 0) showAiBackgroundDialog = true;
+    }
+  });
   let selectedDiff = $state<RawDiffContent | null>(null);
   let selectedStagingFile = $state<{ filename: string; isStaged: boolean } | null>(null);
 
@@ -162,6 +175,8 @@
     initTerminalEvents();
     detectAiProviders();
     loadPreferredProvider();
+    startAiBackgroundListeners();
+    refreshAiBackgroundRuns().catch(() => {});
 
     try {
       sidebarCollapsed = await getSidebarCollapsed();
@@ -361,6 +376,14 @@
         label: m.tasks_title(),
         category: "General",
         action: () => expandTaskPanel(),
+      },
+      {
+        id: "ai.newBackgroundRun",
+        keys: { mod: true, shift: true, key: "A" },
+        label: m.ai_background_new_run_button(),
+        category: "AI",
+        action: () => { showAiBackgroundDialog = true; },
+        global: true,
       },
     ];
 
@@ -656,7 +679,7 @@
       {:else if activeView === "ai-config"}
         <AiConfigEditor />
       {:else if activeView === "ai-sessions"}
-        <AiSessionList />
+        <AiSessionsView />
       {:else if activeView === "blame"}
         <BlameView onNavigateBack={(view) => { activeView = view; }} />
       {:else if activeView === "merge-requests"}
@@ -788,6 +811,10 @@
 
   <ShortcutOverlay />
   <StatusBar />
+
+  {#if showAiBackgroundDialog}
+    <CreateBackgroundRunDialog onClose={() => (showAiBackgroundDialog = false)} />
+  {/if}
 
   {#if reflogCtxVisible && reflogCtxEntry}
     <ContextMenu

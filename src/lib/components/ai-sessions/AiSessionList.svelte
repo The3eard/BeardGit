@@ -6,13 +6,14 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import {
-    sessions,
+    mergedSessions,
     sessionsLoading,
     refreshSessions,
     dismissSession,
     startSessionListeners,
     stopSessionListeners,
   } from "../../stores/aiSessions";
+  import { activeBackgroundRunCount, selectedBackgroundSessionId, requestOpenCreateBackgroundRunDialog } from "../../stores/aiBackground";
   import { repoInfo } from "../../stores/repo";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { aiResumeSession } from "../../api/tauri";
@@ -20,6 +21,13 @@
   import type { AiSession, AiProviderKind } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import List from "../common/List.svelte";
+  import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
+
+  interface Props {
+    onSelectSession?: (session: AiSession) => void;
+  }
+
+  let { onSelectSession }: Props = $props();
 
   /** Display name per AI provider. */
   const PROVIDER_NAME: Record<AiProviderKind, string> = {
@@ -126,6 +134,17 @@
     }
   }
 
+  function openNewRunDialog() {
+    requestOpenCreateBackgroundRunDialog();
+  }
+
+  function handleSelect(session: AiSession) {
+    if (session.background_status) {
+      selectedBackgroundSessionId.set(session.id);
+    }
+    onSelectSession?.(session);
+  }
+
   async function handleResumeSession(session: AiSession) {
     try {
       const sessionId = await aiResumeSession(session.provider, session.id);
@@ -140,17 +159,27 @@
 </script>
 
 <List
-  items={$sessions}
+  items={$mergedSessions}
   loading={$sessionsLoading}
   title={m.sidebar_ai_sessions()}
-  selectedKey={null}
+  selectedKey={$selectedBackgroundSessionId}
   {getKey}
+  onSelect={handleSelect}
   onRefresh={handleRefresh}
 >
   {#snippet headerActions()}
-    {#if $sessions.length > 0}
-      <span class="count-badge">{$sessions.length}</span>
+    {#if $activeBackgroundRunCount > 0}
+      <span class="count-badge">{$activeBackgroundRunCount}</span>
+    {:else if $mergedSessions.length > 0}
+      <span class="count-badge">{$mergedSessions.length}</span>
     {/if}
+    <button
+      class="new-run-btn"
+      onclick={openNewRunDialog}
+      title={m.ai_background_tab_button_tooltip()}
+    >
+      + {m.ai_background_new_run_button()}
+    </button>
     <button
       class="refresh-btn nf"
       onclick={handleRefresh}
@@ -183,7 +212,9 @@
       <div class="session-info">
         <div class="session-row-top">
           <span class="session-provider">{PROVIDER_NAME[item.provider] ?? item.provider}</span>
-          {#if item.is_active}
+          {#if item.background_status}
+            <BackgroundRunStatusBadge status={item.background_status} compact />
+          {:else if item.is_active}
             <span class="session-badge active">ACTIVE</span>
           {:else}
             <span class="session-badge ended">ENDED</span>
@@ -247,6 +278,23 @@
     min-width: 16px;
     text-align: center;
     line-height: 16px;
+  }
+
+  .new-run-btn {
+    background: transparent;
+    border: 1px solid var(--accent-blue);
+    color: var(--accent-blue);
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .new-run-btn:hover {
+    background: color-mix(in srgb, var(--accent-blue) 14%, transparent);
   }
 
   /* ─── Empty state ─── */

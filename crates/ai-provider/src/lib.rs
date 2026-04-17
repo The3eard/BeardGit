@@ -131,6 +131,28 @@ pub trait AiProvider: Send + Sync {
         )
     }
 
+    /// Build a [`Command`] for a **headless background run** inside a
+    /// dedicated worktree.
+    ///
+    /// Default implementation returns [`AiError::NotSupported`]. Providers
+    /// override this with their own headless flag set (e.g. Claude Code's
+    /// `--print --output-format json-stream`). The caller is responsible for
+    /// spawning the process, streaming stdout/stderr, and writing the prompt
+    /// to stdin when the provider signals it reads prompts from stdin.
+    fn launch_background(&self, input: AiBackgroundRunInput) -> Result<Command, AiError> {
+        let _ = input;
+        Err(AiError::NotSupported)
+    }
+
+    /// Whether [`launch_background`](Self::launch_background) should pipe the
+    /// prompt on stdin (`true`) instead of passing it as a CLI flag (`false`).
+    ///
+    /// Default: `false` — most providers accept `--prompt` / `-p`. Claude Code
+    /// overrides to `true` because `--print <prompt>` truncates long strings.
+    fn background_uses_stdin_prompt(&self) -> bool {
+        false
+    }
+
     // ─── 5. Interactive Launch ───
 
     /// Build a [`Command`] to launch an interactive session in a terminal tab.
