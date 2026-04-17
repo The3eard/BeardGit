@@ -42,6 +42,16 @@ export const mrPrList = writable<MrPr[]>([]);
 /** Whether the list is loading. */
 export const mrPrListLoading = writable(false);
 
+/**
+ * Last error raised while fetching the MR/PR list. Null on success.
+ *
+ * The list fetch silently falls back to `[]` on IPC error so the UI
+ * doesn't crash, but that hid real failures (stale auth, CLI not found,
+ * 401 from the forge). MrPrList reads this store and renders the error
+ * message inline so users know *why* the list is empty.
+ */
+export const mrPrListError = writable<string | null>(null);
+
 /** Currently selected MR/PR number. */
 export const selectedMrPrNumber = writable<number | null>(null);
 
@@ -69,7 +79,17 @@ export const mrPrByBranch = derived(mrPrList, ($list) => {
 export async function refreshMrPrList() {
   const currentFilter = get(mrPrFilter);
   const filter = currentFilter !== "all" ? currentFilter : undefined;
-  await fetchIntoStore(mrPrList, mrPrListLoading, () => apiList(filter, 50), []);
+  mrPrListLoading.set(true);
+  try {
+    const data = await apiList(filter, 50);
+    mrPrList.set(data);
+    mrPrListError.set(null);
+  } catch (err) {
+    mrPrList.set([]);
+    mrPrListError.set(err instanceof Error ? err.message : String(err));
+  } finally {
+    mrPrListLoading.set(false);
+  }
 }
 
 /** Load detail + diff for a specific MR/PR. */

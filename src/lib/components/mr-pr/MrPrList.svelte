@@ -6,6 +6,7 @@
   import {
     mrPrList,
     mrPrListLoading,
+    mrPrListError,
     mrPrFilter,
     selectedMrPrNumber,
     refreshMrPrList,
@@ -130,6 +131,12 @@
   {#snippet emptyState()}
     {#if !$hasActiveProvider}
       <div class="empty-state">{m.mrpr_no_provider()}</div>
+    {:else if $mrPrListError}
+      <div class="empty-state empty-state--error">
+        <div class="error-title">{m.mrpr_error_title()}</div>
+        <pre class="error-message">{$mrPrListError}</pre>
+        <button class="retry-btn" onclick={fetchList}>{m.mrpr_error_retry()}</button>
+      </div>
     {:else if $mrPrList.length > 0 && filteredList.length === 0}
       <div class="empty-state">{m.mrpr_no_filter_results()}</div>
     {:else}
@@ -191,6 +198,50 @@
     text-align: center;
     color: var(--text-secondary);
     font-size: 13px;
+  }
+
+  .empty-state--error {
+    padding: 24px 16px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .error-title {
+    color: var(--accent-red, #f85149);
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .error-message {
+    margin: 0;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: var(--font-mono, monospace);
+    font-size: 11.5px;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 180px;
+    overflow: auto;
+  }
+
+  .retry-btn {
+    align-self: flex-start;
+    padding: 5px 12px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .retry-btn:hover {
+    background: var(--bg-hover);
   }
 
   .row-status {
