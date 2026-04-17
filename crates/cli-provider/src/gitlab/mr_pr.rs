@@ -90,21 +90,26 @@ impl GitLabCli {
         ])?;
         Ok(raw
             .iter()
-            .map(|f| MrPrDiffFile {
-                path: f["new_path"].as_str().unwrap_or("").to_string(),
-                old_path: Some(f["old_path"].as_str().unwrap_or("").to_string()),
-                status: if f["new_file"].as_bool().unwrap_or(false) {
-                    "added".to_string()
-                } else if f["deleted_file"].as_bool().unwrap_or(false) {
-                    "deleted".to_string()
-                } else if f["renamed_file"].as_bool().unwrap_or(false) {
-                    "renamed".to_string()
-                } else {
-                    "modified".to_string()
-                },
-                additions: 0,
-                deletions: 0,
-                patch: f["diff"].as_str().map(|s| s.to_string()),
+            .map(|f| {
+                let patch = f["diff"].as_str().map(|s| s.to_string());
+                let (additions, deletions) =
+                    patch.as_deref().map(count_patch_changes).unwrap_or((0, 0));
+                MrPrDiffFile {
+                    path: f["new_path"].as_str().unwrap_or("").to_string(),
+                    old_path: Some(f["old_path"].as_str().unwrap_or("").to_string()),
+                    status: if f["new_file"].as_bool().unwrap_or(false) {
+                        "added".to_string()
+                    } else if f["deleted_file"].as_bool().unwrap_or(false) {
+                        "deleted".to_string()
+                    } else if f["renamed_file"].as_bool().unwrap_or(false) {
+                        "renamed".to_string()
+                    } else {
+                        "modified".to_string()
+                    },
+                    additions,
+                    deletions,
+                    patch,
+                }
             })
             .collect())
     }
@@ -218,5 +223,77 @@ impl GitLabCli {
             &json_body.to_string(),
         )?;
         Ok(())
+    }
+}
+
+/// Count `+` / `-` lines in a unified diff hunk.
+///
+/// The GitLab `projects/:id/merge_requests/{n}/diffs` endpoint returns the
+/// raw patch text but no per-file additions/deletions counts (unlike
+/// `gh pr diff` which does). Parse it locally so the UI can show the
+/// `+N -N` badge on each changed file.
+///
+/// - `+` / `-` at the start of a content line → addition / deletion
+/// - `+++` / `---` are file-header markers — skip
+/// - `@@ ... @@` hunk headers (and everything else) contribute nothing
+fn count_patch_changes(patch: &str) -> (u64, u64) {
+    let mut additions: u64 = 0;
+    let mut deletions: u64 = 0;
+    for line in patch.lines() {
+        if line.starts_with("+++") || line.starts_with("---") {
+            continue;
+        }
+        match line.as_bytes().first() {
+            Some(b'+') => additions += 1,
+            Some(b'-') => deletions += 1,
+            _ => {}
+        }
+    }
+    (additions, deletions)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::count_patch_changes;
+
+    #[test]
+    fn counts_simple_hunk() {
+        let patch = "\
+@@ -1,3 +1,4 @@\n\
+ unchanged\n\
+-old line\n\
++new line one\n\
++new line two\n";
+        assert_eq!(count_patch_changes(patch), (2, 1));
+    }
+
+    #[test]
+    fn skips_file_headers() {
+        let patch = "\
+--- a/foo.txt\n\
++++ b/foo.txt\n\
+@@ -0,0 +1,2 @@\n\
++line a\n\
++line b\n";
+        assert_eq!(count_patch_changes(patch), (2, 0));
+    }
+
+    #[test]
+    fn handles_empty_patch() {
+        assert_eq!(count_patch_changes(""), (0, 0));
+    }
+
+    #[test]
+    fn counts_multiple_hunks() {
+        let patch = "\
+@@ -1,2 +1,1 @@\n\
+-old\n\
+-older\n\
++new\n\
+@@ -10,2 +10,3 @@\n\
+ context\n\
++added\n\
+-removed\n";
+        assert_eq!(count_patch_changes(patch), (2, 3));
     }
 }
