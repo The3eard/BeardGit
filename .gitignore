@@ -55,5 +55,8 @@ e2e/fixtures/simple-repo/
 e2e/fixtures/conflict-repo/
 e2e/fixtures/bisect-repo/
 
+# E2E test results (junit.xml, screenshots)
+e2e/results/
+
 # Bundled CLI binaries (downloaded by scripts/download-cli-binaries.js)
 src-tauri/binaries/

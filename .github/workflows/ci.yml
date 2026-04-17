@@ -92,3 +92,73 @@ jobs:
 
       - name: Run tests
         run: cargo test --workspace
+
+  e2e-tests:
+    name: E2E tests
+    runs-on: ubuntu-22.04
+    needs: [frontend-checks, rust-checks]
+    # Phase 7.4 — only run on main/beta pushes and PRs targeting those, to
+    # keep the heavy xvfb/tauri-driver job scoped to integration branches
+    # (matches the project's main/beta-only CI/build discipline).
+    if: >-
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta')) ||
+      (github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'beta'))
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            xvfb
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Download CLI binaries
+        # Tauri build script validates bundled sidecar paths; matches rust-checks.
+        run: node scripts/download-cli-binaries.js --target x86_64-unknown-linux-gnu
+
+      - name: Generate Paraglide messages
+        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri app (debug)
+        run: cargo build -p beardgit
+        env:
+          BEARDGIT_BUILD_TYPE: debug
+
+      - name: Run E2E tests
+        run: xvfb-run --auto-servernum npx wdio run e2e/wdio.conf.ts
+        env:
+          CI: true
+          BEARDGIT_BUILD_TYPE: debug
+
+      - name: Upload E2E results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: e2e/results/
+          retention-days: 7
+          if-no-files-found: ignore

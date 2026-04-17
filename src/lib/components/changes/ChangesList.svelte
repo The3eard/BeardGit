@@ -209,7 +209,7 @@
   }
 </script>
 
-<div class="changes-list">
+<div class="changes-list" data-testid={isStaged ? "changes-list-staged" : "changes-list-unstaged"}>
   <div class="list-header">
     <div class="header-left">
       <input
@@ -225,22 +225,22 @@
     </div>
     {#if isStaged && onUnstage}
       {#if selectedCount > 0}
-        <button class="action-btn" onclick={unstageSelected}>
+        <button class="action-btn" data-testid="unstage-selected-btn" onclick={unstageSelected}>
           {m.changes_unstage_selected({ count: String(selectedCount) })}
         </button>
       {:else}
-        <button class="action-btn" onclick={() => onUnstage(files.map(f => f.path))}>
+        <button class="action-btn" data-testid="unstage-all-btn" onclick={() => onUnstage(files.map(f => f.path))}>
           {m.changes_unstage_all()}
         </button>
       {/if}
     {/if}
     {#if !isStaged && onStage}
       {#if selectedCount > 0}
-        <button class="action-btn" onclick={stageSelected}>
+        <button class="action-btn" data-testid="stage-selected-btn" onclick={stageSelected}>
           {m.changes_stage_selected({ count: String(selectedCount) })}
         </button>
       {:else}
-        <button class="action-btn" onclick={() => onStage(files.map(f => f.path))}>
+        <button class="action-btn" data-testid="stage-all-btn" onclick={() => onStage(files.map(f => f.path))}>
           {m.changes_stage_all()}
         </button>
       {/if}
@@ -251,6 +251,7 @@
       <div
         class="file-item"
         role="listitem"
+        data-testid="file-row-{file.path.replace(/\//g, '-')}"
         oncontextmenu={(e) => openContextMenu(e, file.path)}
       >
         <input

@@ -69,10 +69,10 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="backdrop" onclick={onClose} onkeydown={(e) => { if (e.key === 'Escape') onClose(); }} role="presentation"></div>
-<div class="dialog" role="alertdialog" aria-modal="true" aria-label={title}>
+<div class="dialog" data-testid="dialog-error" role="alertdialog" aria-modal="true" aria-label={title}>
   <div class="dialog-header">
     <span class="error-icon">{"\uF0028"}</span>
-    <h3 class="dialog-title">{title}</h3>
+    <h3 class="dialog-title" data-testid="dialog-title">{title}</h3>
   </div>
 
   <p class="dialog-message">{message}</p>
@@ -99,7 +99,7 @@
       <span class="nf">{"\uF0C5"}</span>
       {copied ? m.error_dialog_copied() : m.error_dialog_copy()}
     </button>
-    <button class="btn btn-primary" onclick={onClose}>
+    <button class="btn btn-primary" data-testid="dialog-dismiss-btn" onclick={onClose}>
       {m.error_dialog_close()}
     </button>
   </div>

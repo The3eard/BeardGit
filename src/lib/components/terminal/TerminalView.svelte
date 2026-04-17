@@ -53,6 +53,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
   class="terminal-view"
+  data-testid="terminal-view"
   onclick={handleClick}
   style:background={$activeTheme?.colors.background ?? 'var(--bg-primary)'}
 >

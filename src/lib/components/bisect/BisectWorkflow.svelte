@@ -94,11 +94,11 @@
   });
 </script>
 
-<div class="bisect-view">
+<div class="bisect-view" data-testid="bisect-view">
   <div class="list-header">
     <h2 class="view-title">{m.sidebar_bisect()}</h2>
     {#if $bisectState.active}
-      <button class="icon-btn" title={m.bisect_reset()} onclick={handleReset}>
+      <button class="icon-btn" title={m.bisect_reset()} data-testid="bisect-reset-btn" onclick={handleReset}>
         {"\uF00D"}
       </button>
     {/if}
@@ -121,6 +121,7 @@
               type="text"
               placeholder="HEAD"
               bind:value={badCommit}
+              data-testid="bisect-bad-input"
             />
           </div>
           <div class="form-field">
@@ -131,9 +132,10 @@
               type="text"
               placeholder="SHA / ref"
               bind:value={goodCommit}
+              data-testid="bisect-good-input"
             />
           </div>
-          <button class="btn btn-primary start-btn" onclick={handleStart}>
+          <button class="btn btn-primary start-btn" data-testid="bisect-start-btn" onclick={handleStart}>
             {m.bisect_start()}
           </button>
         </div>
@@ -149,6 +151,7 @@
         <div class="action-buttons">
           <button
             class="btn btn-good"
+            data-testid="bisect-good-btn"
             onclick={handleGood}
             disabled={$bisectLoading}
           >
@@ -157,6 +160,7 @@
           </button>
           <button
             class="btn btn-bad"
+            data-testid="bisect-bad-btn"
             onclick={handleBad}
             disabled={$bisectLoading}
           >

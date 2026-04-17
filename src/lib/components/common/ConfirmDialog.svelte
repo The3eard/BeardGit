@@ -38,17 +38,18 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 <div class="backdrop" onclick={onCancel} onkeydown={(e) => { if (e.key === "Escape") onCancel(); }} role="button" tabindex="-1"></div>
-<div class="dialog" role="dialog" aria-modal="true" aria-label={title}>
-  <h3 class="dialog-title">{title}</h3>
+<div class="dialog" data-testid="dialog-confirm" role="dialog" aria-modal="true" aria-label={title}>
+  <h3 class="dialog-title" data-testid="dialog-title">{title}</h3>
   {#if detail}
     <p class="dialog-detail">{detail}</p>
   {/if}
   <p class="dialog-message">{message}</p>
   <div class="dialog-actions">
-    <button class="btn btn-cancel" onclick={onCancel}>{cancelLabel}</button>
+    <button class="btn btn-cancel" data-testid="dialog-cancel-btn" onclick={onCancel}>{cancelLabel}</button>
     <button
       class="btn btn-confirm"
       class:destructive
+      data-testid="dialog-confirm-btn"
       onclick={onConfirm}
     >
       {confirmLabel}

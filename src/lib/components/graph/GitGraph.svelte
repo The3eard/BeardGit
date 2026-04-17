@@ -713,13 +713,14 @@
   let totalCount = $derived(activeVpDerived?.total_count ?? 0);
 </script>
 
-<div class="git-graph">
+<div class="git-graph" data-testid="graph-container">
   <div class="graph-header">
     <SearchBar
       filters={graphFilters}
       bind:tags={graphSearchTags}
       placeholder={m.graph_search_placeholder()}
       onSearch={handleGraphSearch}
+      testId="graph-search"
     />
     <div class="column-toggle" bind:this={columnToggleEl}>
       <button class="columns-btn" onclick={() => showColumnMenu = !showColumnMenu}>
@@ -741,6 +742,7 @@
   <div class="graph-canvas-container" bind:this={container}>
     <canvas
       bind:this={canvas}
+      data-testid="graph-canvas"
       onwheel={handleWheel}
       onclick={handleClick}
       onmousemove={handleMouseMove}

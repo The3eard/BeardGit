@@ -8,11 +8,14 @@
     tags = $bindable([]),
     placeholder = m.search_placeholder(),
     onSearch,
+    testId,
   }: {
     filters: FilterDef[];
     tags: SearchTag[];
     placeholder?: string;
     onSearch: (tags: SearchTag[]) => void;
+    /** Optional data-testid for the search `<input>` (E2E hook). */
+    testId?: string;
   } = $props();
 
   let inputText = $state("");
@@ -80,6 +83,7 @@
       onkeydown={handleKeyDown}
       onfocus={handleFocus}
       onblur={handleBlur}
+      data-testid={testId}
     />
   </div>
   {#if showHints && filters.length > 0}

@@ -153,6 +153,7 @@
   }
 </script>
 
+<div class="branch-list" data-testid="branch-list">
 <List
   items={[] as BranchInfo[]}
   loading={$branchesLoading}
@@ -169,6 +170,7 @@
         placeholder="Filter branches…"
         value={filterInput}
         oninput={(e) => onFilterInput(e.currentTarget.value)}
+        data-testid="branch-filter"
       />
     </div>
   {/snippet}
@@ -243,6 +245,7 @@
     {/if}
   {/snippet}
 </List>
+</div>
 
 <ContextMenu
   items={menuItems}
@@ -285,6 +288,14 @@
 {/if}
 
 <style>
+  .branch-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+  }
+
   .section-header {
     display: flex;
     align-items: center;

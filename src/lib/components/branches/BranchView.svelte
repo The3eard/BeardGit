@@ -5,7 +5,18 @@
   import { refreshBranches } from "../../stores/branches";
 </script>
 
-<SplitView refreshFn={refreshBranches}>
-  {#snippet left()}<BranchList />{/snippet}
-  {#snippet right()}<BranchDetail />{/snippet}
-</SplitView>
+<div class="branch-view" data-testid="branch-view">
+  <SplitView refreshFn={refreshBranches}>
+    {#snippet left()}<BranchList />{/snippet}
+    {#snippet right()}<BranchDetail />{/snippet}
+  </SplitView>
+</div>
+
+<style>
+  .branch-view {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+</style>

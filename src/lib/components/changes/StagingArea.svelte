@@ -162,7 +162,7 @@
   }
 </script>
 
-<div class="staging-area">
+<div class="staging-area" data-testid="staging-area">
   <div class="file-lists">
     <ChangesList
       files={staged}
@@ -187,7 +187,7 @@
     <!-- Toolbar row: Amend + icon buttons + overflow -->
     <div class="commit-toolbar">
       <label class="amend-toggle">
-        <input type="checkbox" bind:checked={isAmend} onchange={handleAmendToggle} />
+        <input type="checkbox" bind:checked={isAmend} onchange={handleAmendToggle} data-testid="amend-toggle" />
         <span>{m.staging_amend_toggle()}</span>
       </label>
       <div class="toolbar-actions">
@@ -248,6 +248,7 @@
       placeholder={m.staging_commit_placeholder()}
       bind:value={message}
       onkeydown={(e) => { if (e.key === 'Enter' && e.metaKey) handleCommit(); }}
+      data-testid="commit-message"
     ></textarea>
 
     <!-- Single commit button -->
@@ -255,6 +256,7 @@
       class="commit-btn"
       disabled={!message.trim() || (!isAmend && staged.length === 0)}
       onclick={handleCommit}
+      data-testid="commit-btn"
     >
       {isAmend
         ? m.staging_amend_button()

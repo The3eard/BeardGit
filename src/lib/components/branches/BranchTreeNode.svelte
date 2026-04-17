@@ -60,6 +60,7 @@
     onkeydown={(e) => { if (e.key === "Enter") onSelect(node.fullPath); }}
     role="button"
     tabindex="0"
+    data-testid="branch-row-{node.fullPath.replace(/\//g, '-')}"
   >
     <span class="branch-icon nf">{"\uF418"}</span>
     <span class="branch-name" class:head-name={node.isHead}>{node.name}</span>

@@ -18,13 +18,14 @@
   let activeSection = $state("connection");
 </script>
 
-<div class="settings-page">
+<div class="settings-page" data-testid="settings-page">
   <nav class="settings-nav">
     <div class="nav-title">{m.settings_title()}</div>
     {#each sections as section}
       <button
         class="settings-nav-item"
         class:active={activeSection === section.id}
+        data-testid="settings-nav-{section.id}"
         onclick={() => activeSection = section.id}
       >
         {section.labelKey()}
@@ -35,7 +36,7 @@
     {/each}
   </nav>
 
-  <div class="settings-content">
+  <div class="settings-content" data-testid="settings-content">
     {#if activeSection === "connection"}
       <div class="auth-section">
         <h3 class="auth-section-title">{m.settings_token_auth()}</h3>
