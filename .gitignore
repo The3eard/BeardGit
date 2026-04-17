@@ -54,3 +54,6 @@ src/lib/paraglide/
 e2e/fixtures/simple-repo/
 e2e/fixtures/conflict-repo/
 e2e/fixtures/bisect-repo/
+
+# Bundled CLI binaries (downloaded by scripts/download-cli-binaries.js)
+src-tauri/binaries/

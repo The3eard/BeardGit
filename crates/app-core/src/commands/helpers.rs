@@ -293,14 +293,14 @@ pub(super) fn save_providers_to_config(state: &State<'_, AppState>) {
     let _ = config.save(&state.config_path);
 }
 
-/// Resolve the path to the CLI binary for a given provider.
+/// Build the installed sidecar filename for a given provider.
 ///
-/// Checks the app's bundled resources first, then falls back to PATH lookup.
-pub(super) fn resolve_cli_binary(
-    _state: &State<'_, AppState>,
-    kind: provider::ProviderKind,
-) -> Result<std::path::PathBuf, String> {
-    let binary_name = match kind {
+/// Although sidecars are authored on disk as `{base}-{target_triple}[.exe]`,
+/// Tauri's build script (`tauri-build::copy_binaries`) strips the triple
+/// when copying them into the target directory and the final app bundle.
+/// At runtime we therefore look for the plain `{base}[.exe]` filename.
+fn sidecar_binary_name(kind: provider::ProviderKind) -> &'static str {
+    match kind {
         provider::ProviderKind::GitHub => {
             if cfg!(target_os = "windows") {
                 "gh.exe"
@@ -315,22 +315,83 @@ pub(super) fn resolve_cli_binary(
                 "glab"
             }
         }
-    };
+    }
+}
 
-    // Look in the app's resource directory (bundled binaries)
-    let resource_path = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.join(binary_name)));
+/// Compute candidate filesystem paths where a sidecar binary might live.
+///
+/// Tauri places `externalBin` sidecars next to the main executable:
+/// - **macOS:** `Foo.app/Contents/MacOS/{name}` (same dir as the exe)
+/// - **Linux / Windows:** same directory as the executable
+/// - **Dev mode (`cargo tauri dev`):** `target/debug/{name}` alongside the exe
+///
+/// On macOS we also probe `Contents/Resources/{name}` for resilience against
+/// older Tauri versions and a dev-mode `binaries/` subdirectory fallback,
+/// but the next-to-exe location is authoritative.
+fn sidecar_candidate_paths(
+    exe_path: &std::path::Path,
+    sidecar_name: &str,
+) -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
 
-    if let Some(ref path) = resource_path
-        && path.exists()
-    {
-        return Ok(path.clone());
+    if let Some(exe_dir) = exe_path.parent() {
+        // Primary location: next to the main executable. This covers
+        // `cargo tauri dev` (target/debug), bundled .app on macOS
+        // (Contents/MacOS), Linux, and Windows.
+        paths.push(exe_dir.join(sidecar_name));
+
+        // macOS .app fallback: Contents/Resources (older Tauri layouts).
+        #[cfg(target_os = "macos")]
+        if let Some(contents) = exe_dir.parent() {
+            paths.push(contents.join("Resources").join(sidecar_name));
+        }
+
+        // Dev-mode `binaries/` subdirectory — defensive fallback if a
+        // local workflow places binaries there without running tauri-build.
+        paths.push(exe_dir.join("binaries").join(sidecar_name));
     }
 
-    // Fallback: check if it's on PATH
-    which::which(binary_name)
-        .map_err(|_| format!("{binary_name} not found. Install it or check your PATH."))
+    paths
+}
+
+/// Resolve the path to the CLI binary for a given provider.
+///
+/// Resolution order:
+/// 1. Bundled Tauri sidecar paths (candidate locations from
+///    [`sidecar_candidate_paths`])
+/// 2. System `PATH` lookup (plain `gh` / `glab`)
+///
+/// Sidecar binaries are authored as `{name}-{target_triple}[.exe]` but
+/// Tauri strips the triple when copying them, so at runtime the
+/// installed filename is the plain `{name}[.exe]`.
+pub(super) fn resolve_cli_binary(
+    _state: &State<'_, AppState>,
+    kind: provider::ProviderKind,
+) -> Result<std::path::PathBuf, String> {
+    let sidecar_name = sidecar_binary_name(kind);
+
+    // 1. Try bundled Tauri sidecar locations.
+    if let Ok(exe_path) = std::env::current_exe() {
+        for candidate in sidecar_candidate_paths(&exe_path, sidecar_name) {
+            if candidate.exists() {
+                return Ok(candidate);
+            }
+        }
+    }
+
+    // 2. Fallback: system PATH. Use the extensionless name on every OS —
+    // `which::which` handles `PATHEXT` resolution on Windows.
+    let plain_name = match kind {
+        provider::ProviderKind::GitHub => "gh",
+        provider::ProviderKind::GitLab => "glab",
+    };
+
+    which::which(plain_name).map_err(|_| {
+        format!(
+            "{plain_name} not found. Install it or check your PATH.\n\
+             Looked for bundled sidecar '{sidecar_name}' and system '{plain_name}'."
+        )
+    })
 }
 
 /// Build an [`Arc<dyn ForgeProvider>`] from the current application state.
@@ -366,4 +427,70 @@ pub(super) fn build_forge_provider(
     };
 
     Ok(provider)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sidecar_binary_name_github_is_plain() {
+        let name = sidecar_binary_name(provider::ProviderKind::GitHub);
+        if cfg!(target_os = "windows") {
+            assert_eq!(name, "gh.exe");
+        } else {
+            assert_eq!(name, "gh");
+        }
+    }
+
+    #[test]
+    fn sidecar_binary_name_gitlab_is_plain() {
+        let name = sidecar_binary_name(provider::ProviderKind::GitLab);
+        if cfg!(target_os = "windows") {
+            assert_eq!(name, "glab.exe");
+        } else {
+            assert_eq!(name, "glab");
+        }
+    }
+
+    #[test]
+    fn sidecar_paths_first_candidate_is_next_to_exe() {
+        let fake_exe = std::path::PathBuf::from("/app/beardgit");
+        let paths = sidecar_candidate_paths(&fake_exe, "gh");
+
+        // The first (authoritative) candidate must be next to the exe —
+        // this is where Tauri installs sidecars in every release layout.
+        assert_eq!(
+            paths.first(),
+            Some(&std::path::PathBuf::from("/app/gh")),
+            "expected next-to-exe to be the first candidate, got: {paths:?}"
+        );
+    }
+
+    #[test]
+    fn sidecar_paths_include_binaries_subdir_fallback() {
+        let fake_exe = std::path::PathBuf::from("/app/beardgit");
+        let paths = sidecar_candidate_paths(&fake_exe, "gh");
+
+        assert!(
+            paths
+                .iter()
+                .any(|p| p == std::path::Path::new("/app/binaries/gh")),
+            "expected binaries/ subdir path, got: {paths:?}"
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn sidecar_paths_include_macos_resources_fallback() {
+        let fake_exe = std::path::PathBuf::from("/App.app/Contents/MacOS/beardgit");
+        let paths = sidecar_candidate_paths(&fake_exe, "gh");
+
+        assert!(
+            paths
+                .iter()
+                .any(|p| p == std::path::Path::new("/App.app/Contents/Resources/gh")),
+            "expected Contents/Resources fallback, got: {paths:?}"
+        );
+    }
 }

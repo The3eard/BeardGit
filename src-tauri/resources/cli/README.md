@@ -1,24 +1,38 @@
 # CLI Binary Bundling
 
-This directory is the target for bundled `gh` (GitHub CLI) and `glab` (GitLab CLI) binaries.
+BeardGit bundles `gh` (GitHub CLI) and `glab` (GitLab CLI) as Tauri sidecars.
 
 ## How it works
 
-In CI (build.yml and release.yml), the `scripts/download-cli-tools.sh` (Unix) or
-`scripts/download-cli-tools.ps1` (Windows) script downloads the correct platform
-binaries before the Tauri build step.
+1. Versions are pinned in `cli-versions.json` at the repo root
+2. `scripts/download-cli-binaries.js` downloads platform-specific binaries
+3. Binaries are placed in `src-tauri/binaries/` with Tauri sidecar naming:
+   - `gh-{target_triple}` (e.g. `gh-aarch64-apple-darwin`)
+   - `glab-{target_triple}` (e.g. `glab-aarch64-apple-darwin`)
+4. `tauri.conf.json` declares them under `bundle.externalBin`
+5. At runtime, `resolve_cli_binary()` checks sidecar paths first, then system PATH
 
-The binaries are registered in `tauri.conf.json` under `bundle.resources` so Tauri
-includes them in the app bundle. At runtime, `resolve_cli_binary()` in
-`crates/app-core/src/commands.rs` looks for them next to the executable first, then
-falls back to the system PATH.
+## CI
+
+Both `build.yml` and `release.yml` run the download script before `tauri build`:
+
+```
+node scripts/download-cli-binaries.js --target ${{ matrix.target-triple }}
+```
 
 ## Local development
 
 During local development, `gh` and `glab` are resolved from your system PATH.
-You do NOT need to download binaries into this directory for dev mode.
+You do NOT need to download binaries into `src-tauri/binaries/` for dev mode.
 
-Install them via your package manager:
+To test the full bundled-sidecar resolution locally:
+
+```bash
+node scripts/download-cli-binaries.js
+npm run tauri dev
+```
+
+Install via your package manager for PATH-based development:
 
 ```bash
 # macOS
@@ -31,10 +45,7 @@ sudo apt install gh glab
 winget install GitHub.cli GitLab.Glab
 ```
 
-## CI download scripts
+## Updating CLI versions
 
-- `scripts/download-cli-tools.sh` — Unix (macOS, Linux)
-- `scripts/download-cli-tools.ps1` — Windows
-
-These scripts download specific versions of gh and glab for the target platform
-and place the binaries in `src-tauri/binaries/` for the Tauri build.
+Edit `cli-versions.json` and push. CI downloads the new versions automatically.
+No runtime auto-update — CLIs update with app releases.

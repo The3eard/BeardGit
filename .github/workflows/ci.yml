@@ -36,6 +36,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -49,6 +54,21 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
+
+      - name: Install npm dependencies
+        # Needed because the Tauri build script (invoked by cargo clippy /
+        # cargo test on the beardgit crate) compiles the frontend and resolves
+        # externalBin paths. Without node_modules the build fails before
+        # reaching clippy. Matches the setup in build.yml / release.yml.
+        run: npm ci
+
+      - name: Download CLI binaries
+        # Phase 7.2 — the Tauri build script validates `externalBin` sidecar
+        # paths declared in tauri.conf.json. If the binaries aren't on disk,
+        # the build fails with "resource path doesn't exist" before clippy
+        # / tests can run. Download the Linux x64 binaries for CI's ubuntu
+        # runner; production builds download per-matrix in build.yml.
+        run: node scripts/download-cli-binaries.js --target x86_64-unknown-linux-gnu
 
       - name: Check formatting
         run: cargo fmt --all -- --check

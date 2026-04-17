@@ -23,18 +23,22 @@ jobs:
             args: '--target aarch64-apple-darwin'
             label: macOS-arm64
             rust-targets: aarch64-apple-darwin
+            target-triple: aarch64-apple-darwin
           - platform: macos-latest
             args: '--target x86_64-apple-darwin'
             label: macOS-x64
             rust-targets: x86_64-apple-darwin
+            target-triple: x86_64-apple-darwin
           - platform: ubuntu-22.04
             args: ''
             label: Linux-x64
             rust-targets: ''
+            target-triple: x86_64-unknown-linux-gnu
           - platform: windows-latest
             args: ''
             label: Windows-x64
             rust-targets: ''
+            target-triple: x86_64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +99,9 @@ jobs:
           echo "Versions updated:"
           grep '"version"' src-tauri/tauri.conf.json package.json
           grep '^version' Cargo.toml
+
+      - name: Download CLI binaries
+        run: node scripts/download-cli-binaries.js --target ${{ matrix.target-triple }}
 
       - name: Build and publish release
         uses: tauri-apps/tauri-action@v0
