@@ -660,6 +660,58 @@ export interface Label {
   description: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Issues (Phase 8.3)
+// ---------------------------------------------------------------------------
+
+/** Open/closed lifecycle state for an issue. */
+export type IssueState = "open" | "closed";
+
+/** Open/closed lifecycle state for a milestone. */
+export type MilestoneState = "open" | "closed";
+
+/** A milestone. `id` is the provider-specific numeric identifier. */
+export interface Milestone {
+  id: number;
+  title: string;
+  state: MilestoneState;
+  /** ISO-8601 due date — `null` if no due date set. */
+  due_on: string | null;
+}
+
+/** Issue summary (list view). */
+export interface Issue {
+  number: number;
+  title: string;
+  state: IssueState;
+  author: string;
+  labels: Label[];
+  assignees: string[];
+  milestone: Milestone | null;
+  comments_count: number;
+  created_at: string;
+  updated_at: string;
+  url: string;
+}
+
+/** Full issue detail with body + comments. */
+export interface IssueDetail {
+  summary: Issue;
+  body: string;
+  /** Reuses the existing MrPrComment shape — structurally identical. */
+  comments: MrPrComment[];
+}
+
+/** Filter for [`listIssues`]. */
+export interface IssueFilter {
+  state?: IssueState;
+  author?: string;
+  assignee?: string;
+  label?: string;
+  milestone?: number;
+  text?: string;
+}
+
 /** Result of checking out a MR/PR branch locally. */
 export interface CheckoutResult {
   branch_name: string;

@@ -28,6 +28,8 @@
   import SubmoduleList from "$lib/components/submodules/SubmoduleList.svelte";
   import BlameView from "$lib/components/blame/BlameView.svelte";
   import MrPrView from "$lib/components/mr-pr/MrPrView.svelte";
+  import IssueView from "$lib/components/issues/IssueView.svelte";
+  import { activeViewStore } from "$lib/stores/navigation";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
   import TerminalView from "$lib/components/terminal/TerminalView.svelte";
@@ -542,6 +544,17 @@
       clearReflogSelection();
     }
   });
+
+  // ── Navigation store bridge ────────────────────────────────────────
+  // Mirror the local `activeView` into `activeViewStore` so cross-cutting
+  // components (e.g. <Xrefs>) can programmatically switch views.
+  $effect(() => {
+    activeViewStore.set(activeView);
+  });
+  $effect(() => {
+    const v = $activeViewStore;
+    if (v !== activeView) activeView = v;
+  });
 </script>
 
 <div class="app-shell">
@@ -645,6 +658,8 @@
         <BlameView onNavigateBack={(view) => { activeView = view; }} />
       {:else if activeView === "merge-requests"}
         <MrPrView />
+      {:else if activeView === "issues"}
+        <IssueView />
       {:else if $isLoading}
         <div class="welcome-screen">
           <div class="spinner spinner--large"></div>

@@ -1,0 +1,28 @@
+[
+  {
+    "iid": 42,
+    "title": "Crash on startup",
+    "state": "opened",
+    "author": { "username": "alice" },
+    "labels": ["bug"],
+    "assignees": [{ "username": "bob" }],
+    "milestone": { "id": 300, "iid": 3, "title": "v1.0", "state": "active", "due_date": null },
+    "user_notes_count": 5,
+    "created_at": "2026-04-01T10:00:00Z",
+    "updated_at": "2026-04-10T12:00:00Z",
+    "web_url": "https://gitlab.com/x/y/-/issues/42"
+  },
+  {
+    "iid": 41,
+    "title": "Typo in README",
+    "state": "closed",
+    "author": { "username": "carol" },
+    "labels": [],
+    "assignees": [],
+    "milestone": null,
+    "user_notes_count": 0,
+    "created_at": "2026-03-15T08:00:00Z",
+    "updated_at": "2026-03-16T08:00:00Z",
+    "web_url": "https://gitlab.com/x/y/-/issues/41"
+  }
+]

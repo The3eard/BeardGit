@@ -159,4 +159,81 @@ pub trait ForgeProvider: Send + Sync {
     fn list_labels(&self) -> Result<Vec<Label>, ForgeError> {
         Err(ForgeError::NotSupported)
     }
+
+    // ─── Issues (Phase 8.3) ────────────────────────────────────────────
+
+    /// 8.3 — list issues for the current repo with optional filters.
+    fn list_issues(&self, _filter: IssueFilter, _limit: u32) -> Result<Vec<Issue>, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — get full issue detail including body and comments.
+    fn get_issue(&self, _number: u64) -> Result<IssueDetail, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — create a new issue.
+    fn create_issue(&self, _input: CreateIssueInput) -> Result<Issue, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — edit an existing issue's title and/or body.
+    fn edit_issue(&self, _number: u64, _patch: EditIssuePatch) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — close an open issue.
+    fn close_issue(&self, _number: u64) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — reopen a closed issue.
+    fn reopen_issue(&self, _number: u64) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — post a general comment on an issue.
+    fn add_issue_comment(&self, _number: u64, _body: &str) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — add labels to an existing issue.
+    fn add_issue_labels(&self, _number: u64, _labels: &[String]) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — remove labels from an existing issue.
+    fn remove_issue_labels(&self, _number: u64, _labels: &[String]) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — add assignees to an existing issue.
+    fn add_issue_assignees(&self, _number: u64, _assignees: &[String]) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — remove assignees from an existing issue.
+    fn remove_issue_assignees(
+        &self,
+        _number: u64,
+        _assignees: &[String],
+    ) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — set (or clear) the milestone on an issue.
+    ///
+    /// Pass `None` to clear the milestone.
+    fn set_issue_milestone(
+        &self,
+        _number: u64,
+        _milestone_id: Option<u64>,
+    ) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.3 — list all milestones for the current repo (for picker UIs).
+    fn list_milestones(&self) -> Result<Vec<Milestone>, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
 }

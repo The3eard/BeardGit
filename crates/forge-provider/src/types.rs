@@ -247,7 +247,7 @@ pub struct CheckoutResult {
 ///
 /// Returned by [`crate::ForgeProvider::list_labels`] for populating the
 /// label picker UI.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Label {
     /// Label name (identifier — `add_mr_pr_labels` takes these).
     pub name: String,
@@ -255,6 +255,123 @@ pub struct Label {
     pub color: Option<String>,
     /// Optional human-readable description.
     pub description: Option<String>,
+}
+
+// ─── Issues (Phase 8.3) ─────────────────────────────────────────────────────
+
+/// Open/closed lifecycle state for an issue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IssueState {
+    /// Issue is currently open.
+    Open,
+    /// Issue has been closed.
+    Closed,
+}
+
+/// Open/closed lifecycle state for a milestone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MilestoneState {
+    /// Milestone is currently open/active.
+    Open,
+    /// Milestone is closed.
+    Closed,
+}
+
+/// A milestone as returned by the forge.
+///
+/// `id` is provider-specific — on GitHub it is the numeric milestone number;
+/// on GitLab it is the project-scoped `iid` (see Plan notes for rationale).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Milestone {
+    /// Provider-specific numeric identifier.
+    pub id: u64,
+    /// Milestone title.
+    pub title: String,
+    /// Open/closed state.
+    pub state: MilestoneState,
+    /// ISO-8601 due date — `None` if no due date set.
+    pub due_on: Option<String>,
+}
+
+/// Issue summary (list view).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Issue {
+    /// Numeric issue identifier (iid for GitLab, number for GitHub).
+    pub number: u64,
+    /// Issue title.
+    pub title: String,
+    /// Open/closed state.
+    pub state: IssueState,
+    /// Author username.
+    pub author: String,
+    /// Labels attached to the issue.
+    pub labels: Vec<Label>,
+    /// Assignee usernames.
+    pub assignees: Vec<String>,
+    /// Milestone, if any.
+    pub milestone: Option<Milestone>,
+    /// Number of comments/notes on the issue.
+    pub comments_count: u64,
+    /// ISO-8601 creation timestamp.
+    pub created_at: String,
+    /// ISO-8601 last updated timestamp.
+    pub updated_at: String,
+    /// Web URL to view the issue in a browser.
+    pub url: String,
+}
+
+/// Full issue detail including body and comments.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IssueDetail {
+    /// Summary fields (same shape as list).
+    pub summary: Issue,
+    /// Markdown body/description.
+    pub body: String,
+    /// Comments/notes on the issue.
+    pub comments: Vec<Comment>,
+}
+
+/// Filter criteria for listing issues. All fields optional — AND-composed.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct IssueFilter {
+    /// Restrict to a single state. `None` means any.
+    pub state: Option<IssueState>,
+    /// Filter by author username.
+    pub author: Option<String>,
+    /// Filter by assignee username.
+    pub assignee: Option<String>,
+    /// Filter by label name.
+    pub label: Option<String>,
+    /// Filter by milestone id.
+    pub milestone: Option<u64>,
+    /// Full-text search.
+    pub text: Option<String>,
+}
+
+/// Input for creating a new issue.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateIssueInput {
+    /// Issue title.
+    pub title: String,
+    /// Markdown body/description.
+    pub body: String,
+    /// Labels to apply on creation.
+    pub labels: Vec<String>,
+    /// Assignee usernames to set on creation.
+    pub assignees: Vec<String>,
+    /// Milestone id, if any.
+    pub milestone: Option<u64>,
+}
+
+/// Patch for editing an existing issue. Only `Some` fields are updated.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EditIssuePatch {
+    /// New title (leave `None` to keep current title).
+    pub title: Option<String>,
+    /// New body/description (leave `None` to keep current body).
+    pub body: Option<String>,
 }
 
 #[cfg(test)]
@@ -356,5 +473,78 @@ mod types_tests {
         assert!(c.resolvable.is_none());
         assert!(c.resolved.is_none());
         assert!(c.discussion_id.is_none());
+    }
+}
+
+#[cfg(test)]
+mod issue_type_tests {
+    use super::*;
+
+    #[test]
+    fn issue_state_serializes_lowercase() {
+        assert_eq!(
+            serde_json::to_string(&IssueState::Open).unwrap(),
+            "\"open\""
+        );
+        assert_eq!(
+            serde_json::to_string(&IssueState::Closed).unwrap(),
+            "\"closed\""
+        );
+    }
+
+    #[test]
+    fn milestone_state_serializes_lowercase() {
+        assert_eq!(
+            serde_json::to_string(&MilestoneState::Open).unwrap(),
+            "\"open\""
+        );
+        assert_eq!(
+            serde_json::to_string(&MilestoneState::Closed).unwrap(),
+            "\"closed\""
+        );
+    }
+
+    #[test]
+    fn issue_filter_default_is_all_none() {
+        let f = IssueFilter::default();
+        assert!(f.state.is_none());
+        assert!(f.author.is_none());
+        assert!(f.assignee.is_none());
+        assert!(f.label.is_none());
+        assert!(f.milestone.is_none());
+        assert!(f.text.is_none());
+    }
+
+    #[test]
+    fn edit_issue_patch_roundtrips() {
+        let p = EditIssuePatch {
+            title: Some("T".into()),
+            body: None,
+        };
+        let j = serde_json::to_string(&p).unwrap();
+        let back: EditIssuePatch = serde_json::from_str(&j).unwrap();
+        assert_eq!(back.title.as_deref(), Some("T"));
+        assert!(back.body.is_none());
+    }
+
+    #[test]
+    fn issue_serializes_snake_case_fields() {
+        let issue = Issue {
+            number: 1,
+            title: "T".into(),
+            state: IssueState::Open,
+            author: "alice".into(),
+            labels: vec![],
+            assignees: vec![],
+            milestone: None,
+            comments_count: 5,
+            created_at: "2026-04-01T10:00:00Z".into(),
+            updated_at: "2026-04-10T12:00:00Z".into(),
+            url: "https://x/y/issues/1".into(),
+        };
+        let json = serde_json::to_string(&issue).unwrap();
+        assert!(json.contains("\"comments_count\":5"));
+        assert!(json.contains("\"created_at\""));
+        assert!(json.contains("\"updated_at\""));
     }
 }

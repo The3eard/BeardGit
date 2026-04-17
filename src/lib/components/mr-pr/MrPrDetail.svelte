@@ -31,6 +31,7 @@
   import { onDestroy, onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import Xrefs from "../common/Xrefs.svelte";
   import { renderMarkdown } from "../../utils/markdown";
   import PillRow from "./PillRow.svelte";
   import LabelPicker from "./LabelPicker.svelte";
@@ -347,7 +348,9 @@
     {#if detail.body}
       <div class="section">
         <h4 class="section-title">{m.mrpr_description()}</h4>
-        <div class="description-body">{@html renderMarkdown(detail.body)}</div>
+        <div class="description-body">
+          <Xrefs text={detail.body} render={(t) => renderMarkdown(t)} />
+        </div>
       </div>
     {/if}
 
@@ -427,7 +430,9 @@
                   </button>
                 {/if}
               </div>
-              <div class="comment-body">{@html renderMarkdown(comment.body)}</div>
+              <div class="comment-body">
+                <Xrefs text={comment.body} render={(t) => renderMarkdown(t)} />
+              </div>
             </div>
           {/each}
         </div>

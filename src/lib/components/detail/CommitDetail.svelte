@@ -4,6 +4,7 @@
   import FileChangeList from "../common/FileChangeList.svelte";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
+  import Xrefs from "../common/Xrefs.svelte";
   import { hashString as _hashString } from "$lib/utils/ref-colors";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
   import { formatDateTime } from "../../utils/time";
@@ -119,7 +120,7 @@
     <div class="detail-section">
       <div class="commit-summary">{commit.summary}</div>
       {#if commit.body}
-        <div class="commit-body">{commit.body}</div>
+        <div class="commit-body"><Xrefs text={commit.body} /></div>
       {/if}
     </div>
 

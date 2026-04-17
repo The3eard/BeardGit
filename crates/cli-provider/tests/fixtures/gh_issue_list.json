@@ -1,0 +1,28 @@
+[
+  {
+    "number": 42,
+    "title": "Crash on startup",
+    "state": "OPEN",
+    "author": { "login": "alice" },
+    "labels": [{ "name": "bug", "color": "d73a4a", "description": "" }],
+    "assignees": [{ "login": "bob" }],
+    "milestone": { "number": 3, "title": "v1.0", "state": "OPEN", "dueOn": null },
+    "comments": 5,
+    "createdAt": "2026-04-01T10:00:00Z",
+    "updatedAt": "2026-04-10T12:00:00Z",
+    "url": "https://github.com/x/y/issues/42"
+  },
+  {
+    "number": 41,
+    "title": "Typo in README",
+    "state": "CLOSED",
+    "author": { "login": "carol" },
+    "labels": [],
+    "assignees": [],
+    "milestone": null,
+    "comments": 0,
+    "createdAt": "2026-03-15T08:00:00Z",
+    "updatedAt": "2026-03-16T08:00:00Z",
+    "url": "https://github.com/x/y/issues/41"
+  }
+]

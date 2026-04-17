@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -811,6 +811,128 @@ export async function listLabels(): Promise<Label[]> {
 /** Check out a MR/PR branch locally. Returns a task ID; the parsed result comes via the `mr-pr-checked-out` event. */
 export async function checkoutMrPrLocally(number: number): Promise<TaskId> {
   return invoke<TaskId>("checkout_mr_pr_locally", { number });
+}
+
+// ─── Issues (Phase 8.3) ──────────────────────────────────────────────
+
+/**
+ * List issues for the current repo, optionally filtered.
+ *
+ * All filter args except `limit` are optional; `state` accepts `"open"` or
+ * `"closed"` (omit for all states).
+ */
+export async function listIssues(
+  state?: IssueState,
+  author?: string,
+  assignee?: string,
+  label?: string,
+  milestone?: number,
+  text?: string,
+  limit: number = 50,
+): Promise<Issue[]> {
+  return invoke<Issue[]>("list_issues", {
+    stateFilter: state,
+    author,
+    assignee,
+    label,
+    milestone,
+    text,
+    limit,
+  });
+}
+
+/** Fetch full detail (body + comments) for a single issue. */
+export async function getIssue(number: number): Promise<IssueDetail> {
+  return invoke<IssueDetail>("get_issue", { number });
+}
+
+/** Create a new issue. Returns the created issue's summary. */
+export async function createIssue(
+  title: string,
+  body: string,
+  labels: string[],
+  assignees: string[],
+  milestone: number | null,
+): Promise<Issue> {
+  return invoke<Issue>("create_issue", {
+    title,
+    body,
+    labels,
+    assignees,
+    milestone,
+  });
+}
+
+/** Edit an issue's title and/or body. */
+export async function editIssue(
+  number: number,
+  title?: string,
+  body?: string,
+): Promise<void> {
+  return invoke<void>("edit_issue", { number, title, body });
+}
+
+/** Close an open issue. */
+export async function closeIssue(number: number): Promise<void> {
+  return invoke<void>("close_issue", { number });
+}
+
+/** Reopen a closed issue. */
+export async function reopenIssue(number: number): Promise<void> {
+  return invoke<void>("reopen_issue", { number });
+}
+
+/** Post a general comment on an issue. */
+export async function addIssueComment(
+  number: number,
+  body: string,
+): Promise<void> {
+  return invoke<void>("add_issue_comment", { number, body });
+}
+
+/** Add labels to an issue. */
+export async function addIssueLabels(
+  number: number,
+  labels: string[],
+): Promise<void> {
+  return invoke<void>("add_issue_labels", { number, labels });
+}
+
+/** Remove labels from an issue. */
+export async function removeIssueLabels(
+  number: number,
+  labels: string[],
+): Promise<void> {
+  return invoke<void>("remove_issue_labels", { number, labels });
+}
+
+/** Add assignees to an issue. */
+export async function addIssueAssignees(
+  number: number,
+  assignees: string[],
+): Promise<void> {
+  return invoke<void>("add_issue_assignees", { number, assignees });
+}
+
+/** Remove assignees from an issue. */
+export async function removeIssueAssignees(
+  number: number,
+  assignees: string[],
+): Promise<void> {
+  return invoke<void>("remove_issue_assignees", { number, assignees });
+}
+
+/** Set (or clear with `null`) the milestone on an issue. */
+export async function setIssueMilestone(
+  number: number,
+  milestoneId: number | null,
+): Promise<void> {
+  return invoke<void>("set_issue_milestone", { number, milestoneId });
+}
+
+/** List all milestones for the current repo. */
+export async function listMilestones(): Promise<Milestone[]> {
+  return invoke<Milestone[]>("list_milestones");
 }
 
 // ── Sidebar ─────────────────────────────────────────────────────────

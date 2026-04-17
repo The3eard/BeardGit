@@ -41,6 +41,7 @@ import { clearStashState } from "./stashes";
 import { clearBlameState } from "./blame";
 import { clearWorktreeState } from "./worktrees";
 import { clearMrPrState } from "./mr-pr";
+import { clearIssueState } from "./issues";
 import { clearReflogState } from "./reflog";
 import { refreshConflictStatus } from "./conflict";
 import {
@@ -185,6 +186,7 @@ async function activateProjectTab(tabIndex: number) {
   clearBlameState();
   clearWorktreeState();
   clearMrPrState();
+  clearIssueState();
   clearReflogState();
   clearChangesState();
 
