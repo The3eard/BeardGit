@@ -31,7 +31,7 @@ function resolveBinaryPath(): string {
 
 export const config: WebdriverIO.Config = {
   runner: "local",
-  specs: ["./e2e/specs/**/*.spec.ts"],
+  specs: [path.join(__dirname, "specs", "**", "*.spec.ts")],
   exclude: [],
 
   maxInstances: 1, // Tauri app is single-instance
