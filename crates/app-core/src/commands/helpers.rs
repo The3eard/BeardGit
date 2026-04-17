@@ -357,9 +357,18 @@ fn sidecar_candidate_paths(
 /// Resolve the path to the CLI binary for a given provider.
 ///
 /// Resolution order:
-/// 1. Bundled Tauri sidecar paths (candidate locations from
-///    [`sidecar_candidate_paths`])
-/// 2. System `PATH` lookup (plain `gh` / `glab`)
+/// 1. System `PATH` lookup (plain `gh` / `glab`) — picks up the user's
+///    already-installed + authenticated CLI when present.
+/// 2. Bundled Tauri sidecar paths (candidate locations from
+///    [`sidecar_candidate_paths`]) — used when the user has nothing on
+///    PATH so the app still works out of the box.
+///
+/// The PATH-first ordering is load-bearing. Users who already run
+/// `gh auth login` / `glab auth login` against a tool on their PATH
+/// expect BeardGit to reuse that session. Preferring the sidecar meant
+/// we'd shell out to an unauthenticated bundled binary and silently get
+/// empty MR/PR lists (401s parsed as "no results"). The sidecar is the
+/// fallback for users who don't install the CLIs themselves.
 ///
 /// Sidecar binaries are authored as `{name}-{target_triple}[.exe]` but
 /// Tauri strips the triple when copying them, so at runtime the
@@ -368,9 +377,19 @@ pub(super) fn resolve_cli_binary(
     _state: &State<'_, AppState>,
     kind: provider::ProviderKind,
 ) -> Result<std::path::PathBuf, String> {
-    let sidecar_name = sidecar_binary_name(kind);
+    // 1. Prefer a system-wide install so the user's existing auth is reused.
+    //    `which::which` handles `PATHEXT` resolution on Windows, so we pass
+    //    the extensionless name on every OS.
+    let plain_name = match kind {
+        provider::ProviderKind::GitHub => "gh",
+        provider::ProviderKind::GitLab => "glab",
+    };
+    if let Ok(path) = which::which(plain_name) {
+        return Ok(path);
+    }
 
-    // 1. Try bundled Tauri sidecar locations.
+    // 2. Fallback: bundled Tauri sidecar.
+    let sidecar_name = sidecar_binary_name(kind);
     if let Ok(exe_path) = std::env::current_exe() {
         for candidate in sidecar_candidate_paths(&exe_path, sidecar_name) {
             if candidate.exists() {
@@ -379,19 +398,10 @@ pub(super) fn resolve_cli_binary(
         }
     }
 
-    // 2. Fallback: system PATH. Use the extensionless name on every OS —
-    // `which::which` handles `PATHEXT` resolution on Windows.
-    let plain_name = match kind {
-        provider::ProviderKind::GitHub => "gh",
-        provider::ProviderKind::GitLab => "glab",
-    };
-
-    which::which(plain_name).map_err(|_| {
-        format!(
-            "{plain_name} not found. Install it or check your PATH.\n\
-             Looked for bundled sidecar '{sidecar_name}' and system '{plain_name}'."
-        )
-    })
+    Err(format!(
+        "{plain_name} not found. Install it (or authenticate it) and restart BeardGit.\n\
+         Looked for system '{plain_name}' and bundled sidecar '{sidecar_name}'."
+    ))
 }
 
 /// Build an [`Arc<dyn ForgeProvider>`] from the current application state.

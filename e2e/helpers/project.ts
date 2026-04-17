@@ -7,8 +7,17 @@
  * specs themselves.
  */
 
-/** Path roots — match `e2e/fixtures/setup.sh`. Resolved inside the container. */
-export const FIXTURE_ROOT = "/workspace/e2e/fixtures";
+import path from "node:path";
+
+/**
+ * Path to `e2e/fixtures/` on disk inside the machine running the app.
+ *
+ * Derived from `process.cwd()` rather than hardcoded so the same helper
+ * works in docker (/workspace), on GitHub Actions runners
+ * (/home/runner/work/BeardGit/BeardGit), and on contributors' own
+ * checkouts. wdio always runs with cwd = repo root.
+ */
+export const FIXTURE_ROOT = path.join(process.cwd(), "e2e", "fixtures");
 
 export type FixtureName = "simple-repo" | "conflict-repo" | "bisect-repo";
 
