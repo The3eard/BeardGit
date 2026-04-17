@@ -18,6 +18,9 @@ const EXTENSION_MAP: Record<string, string> = {
   sh: 'shell', bash: 'shell', zsh: 'shell',
 };
 
+/** Module-level cache for loaded CodeMirror language extensions. */
+const languageCache = new Map<string, Extension>();
+
 /** Returns a language name string for the given file path, or null if unknown. */
 export function getLanguageExtensionName(path: string): string | null {
   const ext = path.split('.').pop()?.toLowerCase();
@@ -25,8 +28,8 @@ export function getLanguageExtensionName(path: string): string | null {
   return EXTENSION_MAP[ext] ?? null;
 }
 
-/** Lazy-loads the CodeMirror language extension for a given language name. */
-export async function loadLanguageExtension(langName: string): Promise<Extension | null> {
+/** Lazy-loads the language extension without caching. */
+async function loadLanguageExtensionUncached(langName: string): Promise<Extension | null> {
   switch (langName) {
     case 'typescript': {
       const { javascript } = await import('@codemirror/lang-javascript');
@@ -83,4 +86,23 @@ export async function loadLanguageExtension(langName: string): Promise<Extension
     default:
       return null;
   }
+}
+
+/** Lazy-loads the CodeMirror language extension for a given language name, with caching. */
+export async function loadLanguageExtension(langName: string): Promise<Extension | null> {
+  const cached = languageCache.get(langName);
+  if (cached) {
+    return cached;
+  }
+
+  const ext = await loadLanguageExtensionUncached(langName);
+  if (ext) {
+    languageCache.set(langName, ext);
+  }
+  return ext;
+}
+
+/** Clear the language extension cache. Exposed for testing. */
+export function clearLanguageCache(): void {
+  languageCache.clear();
 }

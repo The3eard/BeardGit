@@ -13,6 +13,7 @@
   import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails } from "../../stores/graph";
   import { repoInfo } from "../../stores/repo";
   import { renderGraph, hitTest, graphHitTest, getResizeTarget, ROW_HEIGHT, DEFAULT_COLUMNS, DEFAULT_GRAPH_THEME, type GraphColumn } from "./graph-renderer";
+  import { getLastMetrics, getRollingFps } from "./graph-perf";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
@@ -65,6 +66,9 @@
 
   // Hover state — tracks which segment group the mouse is over
   let hoveredGroup = $state<number | null>(null);
+
+  // Dev-only perf overlay (toggle with Ctrl+Shift+P)
+  let showPerfOverlay = $state(false);
 
   // Bisect overlay sets — derived from bisect store
   let bisectGoodSet = $derived(new Set($bisectState.good_commits));
@@ -137,6 +141,57 @@
     }
   }
 
+  /** Dev-only perf overlay — paints last-recorded metrics on top of the graph. */
+  function drawPerfOverlay(ctx2: CanvasRenderingContext2D, canvasW: number) {
+    if (!showPerfOverlay || !import.meta.env.DEV) return;
+    const metrics = getLastMetrics();
+    if (!metrics) return;
+
+    const fps = getRollingFps();
+    const lines = [
+      `Total: ${metrics.totalMs.toFixed(2)}ms`,
+      `Lanes: ${metrics.lanesMs.toFixed(2)}ms`,
+      `Merges: ${metrics.mergesMs.toFixed(2)}ms`,
+      `Nodes: ${metrics.nodesMs.toFixed(2)}ms`,
+      `Badges+Text: ${metrics.badgesMs.toFixed(2)}ms`,
+      `FPS: ${fps.toFixed(0)}`,
+    ];
+
+    const padding = 8;
+    const lineHeight = 16;
+    const overlayWidth = 160;
+    const overlayHeight = lines.length * lineHeight + padding * 2;
+    const overlayX = canvasW - overlayWidth - 8;
+    const overlayY = 8;
+
+    // Semi-transparent background
+    ctx2.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx2.fillRect(overlayX, overlayY, overlayWidth, overlayHeight);
+
+    // Border
+    ctx2.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx2.lineWidth = 1;
+    ctx2.strokeRect(overlayX, overlayY, overlayWidth, overlayHeight);
+
+    // Text
+    ctx2.font = '11px "SF Mono", "Fira Code", monospace';
+    ctx2.fillStyle = '#00ff88';
+    ctx2.textAlign = 'left';
+    ctx2.textBaseline = 'top';
+
+    for (let i = 0; i < lines.length; i++) {
+      ctx2.fillText(
+        lines[i],
+        overlayX + padding,
+        overlayY + padding + i * lineHeight,
+      );
+    }
+
+    // Reset text alignment for subsequent draws
+    ctx2.textAlign = 'left';
+    ctx2.textBaseline = 'alphabetic';
+  }
+
   function draw() {
     if (!ctx || !canvas) return;
 
@@ -187,6 +242,7 @@
         bisectSkipSet,
         bisectCurrentOid,
       );
+      drawPerfOverlay(ctx, canvasW);
     } else {
       renderGraph(
         ctx,
@@ -212,6 +268,7 @@
         bisectSkipSet,
         bisectCurrentOid,
       );
+      drawPerfOverlay(ctx, canvasW);
     }
   }
 
@@ -628,6 +685,15 @@
     }
   }
 
+  /** Dev-only perf overlay toggle: Ctrl+Shift+P. */
+  function handleKeyDown(e: KeyboardEvent) {
+    if (import.meta.env.DEV && e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+      e.preventDefault();
+      showPerfOverlay = !showPerfOverlay;
+      scheduleDraw();
+    }
+  }
+
   onMount(() => {
     ctx = canvas.getContext("2d");
     resizeCanvas();
@@ -649,6 +715,7 @@
     watchDpr();
 
     window.addEventListener("click", handleWindowClick);
+    window.addEventListener("keydown", handleKeyDown);
 
     // Load persisted column config, merging with defaults for new columns
     getGraphColumns().then(saved => {
@@ -672,6 +739,7 @@
       resizeObserver.disconnect();
       dprQuery.removeEventListener("change", onDprChange);
       window.removeEventListener("click", handleWindowClick);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   });
 

@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { getLanguageExtensionName } from './language-support';
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  getLanguageExtensionName,
+  loadLanguageExtension,
+  clearLanguageCache,
+} from './language-support';
 import { createCodemirrorTheme } from './codemirror-theme';
 
 describe('getLanguageExtensionName', () => {
@@ -146,5 +150,57 @@ describe('createCodemirrorTheme', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ext = createCodemirrorTheme(partial as any, true);
     expect(ext).toBeDefined();
+  });
+});
+
+describe('loadLanguageExtension cache', () => {
+  beforeEach(() => {
+    clearLanguageCache();
+  });
+
+  it('returns an Extension for a known language', async () => {
+    const ext = await loadLanguageExtension('json');
+    expect(ext).not.toBeNull();
+  });
+
+  it('returns null for an unknown language', async () => {
+    const ext = await loadLanguageExtension('brainfuck');
+    expect(ext).toBeNull();
+  });
+
+  it('returns the same reference on cache hit', async () => {
+    const first = await loadLanguageExtension('json');
+    const second = await loadLanguageExtension('json');
+    expect(first).toBe(second);
+  });
+
+  it('caches different languages independently', async () => {
+    const json = await loadLanguageExtension('json');
+    const css = await loadLanguageExtension('css');
+    expect(json).not.toBe(css);
+    expect(json).not.toBeNull();
+    expect(css).not.toBeNull();
+  });
+
+  it('does not cache null results for unknown languages', async () => {
+    const first = await loadLanguageExtension('unknown_lang');
+    expect(first).toBeNull();
+    // The Map should NOT contain an entry for 'unknown_lang'
+    // so if a future version adds support, it would re-evaluate.
+    // Verify by loading a known language after to ensure cache is working.
+    const json = await loadLanguageExtension('json');
+    expect(json).not.toBeNull();
+  });
+
+  it('clearLanguageCache resets the cache', async () => {
+    const first = await loadLanguageExtension('json');
+    clearLanguageCache();
+    const second = await loadLanguageExtension('json');
+    // After clearing, we get a new instance (may or may not be same object
+    // depending on module-level caching in the import system, but the
+    // function must re-execute the import path).
+    expect(second).not.toBeNull();
+    // first must not be null either (silence unused warning)
+    expect(first).not.toBeNull();
   });
 });

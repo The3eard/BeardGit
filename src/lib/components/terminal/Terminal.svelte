@@ -7,6 +7,7 @@
   import { SearchAddon } from "@xterm/addon-search";
   import type { ITheme } from "@xterm/xterm";
   import type { ThemeData } from "../../types";
+  import { acquireInteractive, releaseInteractive } from "./interactive-pool";
 
   interface Props {
     mode: "interactive" | "readonly";
@@ -50,46 +51,85 @@
   onMount(() => {
     if (!containerEl) return;
 
-    terminal = new XTerm({
-      theme: toXtermTheme(theme),
-      fontFamily: "'Fira Code', 'NerdFontSymbols', monospace",
-      fontSize,
-      disableStdin: mode === "readonly",
-      cursorBlink: mode === "interactive",
-      scrollback: 10000,
-      convertEol: true,
-    });
+    if (mode === "interactive") {
+      // ── Interactive: acquire from pool ──
+      const pooled = acquireInteractive();
+      terminal = pooled.terminal;
+      fitAddon = pooled.fitAddon;
 
-    fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
-    terminal.loadAddon(new WebLinksAddon());
-    terminal.loadAddon(new SearchAddon());
+      // Apply current theme and font size (pool instance may have stale values)
+      terminal.options.theme = toXtermTheme(theme);
+      terminal.options.fontSize = fontSize;
 
-    terminal.open(containerEl);
+      terminal.open(containerEl);
 
-    // Load WebGL addon after open (needs canvas context)
-    try {
-      terminal.loadAddon(new WebglAddon());
-    } catch {
-      // WebGL not available — fallback to canvas renderer (automatic)
+      // Load WebGL addon after open (needs canvas context)
+      try {
+        terminal.loadAddon(new WebglAddon());
+      } catch {
+        // WebGL not available — fallback to canvas renderer (automatic)
+      }
+
+      fitAddon.fit();
+
+      if (onData) {
+        terminal.onData(onData);
+      }
+
+      const observer = new ResizeObserver(() => {
+        requestAnimationFrame(() => fitAddon?.fit());
+      });
+      observer.observe(containerEl);
+
+      return () => {
+        observer.disconnect();
+        if (terminal && fitAddon) {
+          releaseInteractive({ terminal, fitAddon });
+          terminal = undefined;
+          fitAddon = undefined;
+        }
+      };
+    } else {
+      // ── Read-only: create fresh instance (pool managed at higher level) ──
+      terminal = new XTerm({
+        theme: toXtermTheme(theme),
+        fontFamily: "'Fira Code', 'NerdFontSymbols', monospace",
+        fontSize,
+        disableStdin: true,
+        cursorBlink: false,
+        scrollback: 10000,
+        convertEol: true,
+      });
+
+      fitAddon = new FitAddon();
+      terminal.loadAddon(fitAddon);
+      terminal.loadAddon(new WebLinksAddon());
+      terminal.loadAddon(new SearchAddon());
+
+      terminal.open(containerEl);
+
+      try {
+        terminal.loadAddon(new WebglAddon());
+      } catch {
+        // WebGL not available
+      }
+
+      fitAddon.fit();
+
+      if (onData) {
+        terminal.onData(onData);
+      }
+
+      const observer = new ResizeObserver(() => {
+        requestAnimationFrame(() => fitAddon?.fit());
+      });
+      observer.observe(containerEl);
+
+      return () => {
+        observer.disconnect();
+        terminal?.dispose();
+      };
     }
-
-    fitAddon.fit();
-
-    if (mode === "interactive" && onData) {
-      terminal.onData(onData);
-    }
-
-    // ResizeObserver for auto-fit
-    const observer = new ResizeObserver(() => {
-      requestAnimationFrame(() => fitAddon?.fit());
-    });
-    observer.observe(containerEl);
-
-    return () => {
-      observer.disconnect();
-      terminal?.dispose();
-    };
   });
 
   // React to theme changes
@@ -110,6 +150,9 @@
   }
 
   export function dispose(): void {
+    // Note: for interactive mode, prefer the cleanup returned by onMount
+    // which calls releaseInteractive(). This method is a fallback for
+    // callers that don't rely on Svelte's lifecycle cleanup.
     terminal?.dispose();
     terminal = undefined;
   }

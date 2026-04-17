@@ -15,6 +15,7 @@ import type { LayoutNode, LaneSegment, MergeCurve, GraphTheme, MrPr } from "../.
 import { formatRelativeTimeUnix } from "../../utils/time";
 import { hashString as _hashString } from "../../utils/ref-colors";
 import { shortOid } from "../../utils/git";
+import { recordRenderMetrics } from "./graph-perf";
 
 export const ROW_HEIGHT = 28;
 export const LANE_WIDTH = 22;
@@ -185,6 +186,7 @@ export function renderGraph(
   bisectCurrent: string | null = null,
 ): void {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  performance.mark('render-start');
 
   // Opacity helpers for group-focus dimming
   // Returns a multiplier: 1.0 when no group is selected or group matches, dimOpacity otherwise
@@ -275,6 +277,7 @@ export function renderGraph(
   }
 
   // ── Draw lane segments (continuous vertical lines) ──
+  performance.mark('lanes-start');
   const ARROW_SIZE = 4;
   for (const seg of laneSegments) {
     setGroupOpacity(seg.group_id);
@@ -410,8 +413,11 @@ export function renderGraph(
   ctx.globalAlpha = 1.0;
   ctx.lineWidth = 2;
   ctx.setLineDash([]);
+  performance.mark('lanes-end');
+  performance.measure('render:lanes', 'lanes-start', 'lanes-end');
 
   // ── Draw merge curves (cross-lane S-curves) ──
+  performance.mark('merges-start');
   ctx.lineWidth = 2;
   for (const curve of mergeCurves) {
     const x1 = laneX(curve.from_lane);
@@ -451,8 +457,11 @@ export function renderGraph(
     ctx.stroke();
     resetOpacity();
   }
+  performance.mark('merges-end');
+  performance.measure('render:merges', 'merges-start', 'merges-end');
 
   // Draw nodes — with background halo to clear lane lines behind them
+  performance.mark('nodes-start');
   for (const node of nodes) {
     const x = laneX(node.lane);
     const y = rowY(node.row, offset);
@@ -496,8 +505,11 @@ export function renderGraph(
     ctx.lineWidth = 2;
     resetOpacity();
   }
+  performance.mark('nodes-end');
+  performance.measure('render:nodes', 'nodes-start', 'nodes-end');
 
   // ── Column layout calculation ──
+  performance.mark('badges-start');
   // Right columns are fixed-width, drawn right-to-left.
   // The "message" area (refs + summary) gets whatever space remains.
   const textX = metrics.textStartX;
@@ -666,6 +678,16 @@ export function renderGraph(
     }
     resetOpacity();
   }
+  performance.mark('badges-end');
+  performance.measure('render:badges', 'badges-start', 'badges-end');
+  // Badges and text are drawn interleaved in the per-node loop, so they share
+  // the same measurement window. `render:text` is emitted as an alias so the
+  // dev overlay can surface it independently if the loop is ever split.
+  performance.measure('render:text', 'badges-start', 'badges-end');
+
+  performance.mark('render-end');
+  performance.measure('render:total', 'render-start', 'render-end');
+  recordRenderMetrics();
 }
 
 // ── Utility functions ───────────────────────────────────────────────────
