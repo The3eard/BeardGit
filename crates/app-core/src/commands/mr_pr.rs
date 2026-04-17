@@ -13,12 +13,14 @@ use forge_provider::{
 };
 use task_runner::{OutputLine, Stream as TaskStream, TaskId, TaskManager, TaskStatus};
 use tauri::{AppHandle, Emitter, State};
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
 
 /// List merge requests / pull requests.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::mr_pr::list")]
 pub async fn list_mr_prs(
     state_filter: Option<MrPrState>,
     limit: Option<u32>,
@@ -38,6 +40,7 @@ pub async fn list_mr_prs(
 
 /// Get detailed info about a single MR/PR.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::mr_pr::detail")]
 pub async fn get_mr_pr_detail(
     number: u64,
     state: State<'_, AppState>,
@@ -48,6 +51,7 @@ pub async fn get_mr_pr_detail(
 
 /// Get the changed files in a MR/PR.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::mr_pr::diff")]
 pub async fn get_mr_pr_diff(
     number: u64,
     state: State<'_, AppState>,
@@ -59,6 +63,7 @@ pub async fn get_mr_pr_diff(
 /// Create a new MR/PR.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
+#[instrument(skip(state, body), name = "cmd::mr_pr::create")]
 pub async fn create_mr_pr(
     source: String,
     target: String,
@@ -84,6 +89,7 @@ pub async fn create_mr_pr(
 
 /// Edit a MR/PR's title and/or description.
 #[tauri::command]
+#[instrument(skip(state, body), name = "cmd::mr_pr::edit")]
 pub async fn edit_mr_pr(
     number: u64,
     title: Option<String>,
@@ -106,6 +112,7 @@ pub async fn edit_mr_pr(
 
 /// Merge a MR/PR with the given strategy.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::mr_pr::merge")]
 pub async fn merge_mr_pr(
     number: u64,
     strategy: MergeStrategy,
@@ -122,6 +129,7 @@ pub async fn merge_mr_pr(
 
 /// Close a MR/PR without merging.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::mr_pr::close")]
 pub async fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || provider.close_mr_pr(number).map_err(|e| e.to_string())).await
@@ -129,6 +137,7 @@ pub async fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), 
 
 /// Approve a MR/PR.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::mr_pr::approve")]
 pub async fn approve_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || provider.approve_mr_pr(number).map_err(|e| e.to_string())).await
@@ -136,6 +145,7 @@ pub async fn approve_mr_pr(number: u64, state: State<'_, AppState>) -> Result<()
 
 /// Request changes on a MR/PR with a comment body.
 #[tauri::command]
+#[instrument(skip(state, body), name = "cmd::mr_pr::request_changes")]
 pub async fn request_changes_mr_pr(
     number: u64,
     body: String,
@@ -152,6 +162,7 @@ pub async fn request_changes_mr_pr(
 
 /// Add a general comment to a MR/PR.
 #[tauri::command]
+#[instrument(skip(state, body), name = "cmd::mr_pr::comment")]
 pub async fn add_mr_pr_comment(
     number: u64,
     body: String,
@@ -168,6 +179,7 @@ pub async fn add_mr_pr_comment(
 
 /// Add an inline comment on a specific file and line of a MR/PR diff.
 #[tauri::command]
+#[instrument(skip(state, body), name = "cmd::mr_pr::inline_comment")]
 pub async fn add_mr_pr_inline_comment(
     number: u64,
     path: String,

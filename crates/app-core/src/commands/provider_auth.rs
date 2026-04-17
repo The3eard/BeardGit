@@ -1,6 +1,7 @@
 //! Provider authentication and CI run commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -23,6 +24,7 @@ use crate::state::AppState;
 /// # Returns
 /// The authenticated user profile as a [`provider::ProviderUser`].
 #[tauri::command]
+#[instrument(skip(state, token), name = "cmd::provider::connect")]
 pub async fn connect_provider(
     kind: provider::ProviderKind,
     instance_url: String,
@@ -84,6 +86,7 @@ pub async fn connect_provider(
 /// # Parameters
 /// - `instance_url` – Base URL of the provider to disconnect.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::provider::disconnect")]
 pub async fn disconnect_provider(
     instance_url: String,
     state: State<'_, AppState>,
@@ -117,6 +120,7 @@ pub async fn disconnect_provider(
 /// # Returns
 /// A list of successfully reconnected user profiles.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::provider::auto_connect")]
 pub async fn try_auto_connect(
     state: State<'_, AppState>,
 ) -> Result<Vec<provider::ProviderUser>, String> {
@@ -210,6 +214,7 @@ pub fn get_provider_status(state: State<'_, AppState>) -> provider::ProviderStat
 /// Call this after opening a new repo when providers are already connected,
 /// so the CI panel automatically scopes to the correct project.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::provider::detect_project")]
 pub async fn detect_project(state: State<'_, AppState>) -> Result<(), String> {
     detect_active_provider(&state).await;
     Ok(())

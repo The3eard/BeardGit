@@ -7,6 +7,7 @@
 use crate::error::GitError;
 use crate::repository::Repository;
 use serde::Serialize;
+use tracing::instrument;
 
 /// Information about a single git worktree.
 #[derive(Debug, Clone, Serialize)]
@@ -44,6 +45,7 @@ impl Repository {
     /// (equivalent to `git worktree add -b <branch> <path>`). When `false`,
     /// an existing branch is checked out into the new worktree
     /// (equivalent to `git worktree add <path> <branch>`).
+    #[instrument(skip(self), fields(path = %path, branch = %branch))]
     pub fn create_worktree(
         &self,
         path: &str,
@@ -66,6 +68,7 @@ impl Repository {
     ///
     /// Set `force` to `true` to remove a worktree that has uncommitted changes
     /// or is locked (equivalent to `git worktree remove --force <path>`).
+    #[instrument(skip(self), fields(path = %path))]
     pub fn remove_worktree(&self, path: &str, force: bool) -> Result<(), GitError> {
         let mut args = vec!["worktree", "remove", path];
         if force {

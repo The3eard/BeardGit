@@ -1,6 +1,7 @@
 //! Advanced git commands: cherry-pick, revert, reset, blame, file history, interactive rebase.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -13,6 +14,7 @@ use crate::state::AppState;
 /// # Returns
 /// The stdout of `git cherry-pick` on success, or stderr as an error.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::advanced::cherry_pick")]
 pub async fn cherry_pick(oid: String, state: State<'_, AppState>) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
 
@@ -37,6 +39,7 @@ pub async fn cherry_pick(oid: String, state: State<'_, AppState>) -> Result<Stri
 /// # Returns
 /// The stdout of `git revert` on success, or stderr as an error.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::advanced::revert")]
 pub async fn revert_commit(oid: String, state: State<'_, AppState>) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
 
@@ -63,6 +66,7 @@ pub async fn revert_commit(oid: String, state: State<'_, AppState>) -> Result<St
 /// `Ok(())` on success, or an error string if the mode is invalid or
 /// `git reset` exits with a non-zero status.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::advanced::reset")]
 pub async fn reset_to_commit(
     oid: String,
     mode: String,
@@ -144,6 +148,7 @@ pub async fn get_rebase_commits(
 /// `fixup`, `edit`, `drop`). The todo file is injected via `GIT_SEQUENCE_EDITOR`
 /// so no interactive terminal is required.
 #[tauri::command]
+#[instrument(skip(state, actions), name = "cmd::advanced::interactive_rebase")]
 pub async fn start_interactive_rebase(
     base_oid: String,
     actions: Vec<git_engine::RebaseAction>,

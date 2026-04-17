@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use task_runner::{TaskId, TaskManager};
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -58,6 +59,7 @@ pub async fn search_tags(
 /// - Otherwise creates a lightweight tag.
 /// - If `target` is empty, tags HEAD.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::tag::create")]
 pub async fn create_tag(
     name: String,
     target: String,
@@ -92,6 +94,7 @@ pub async fn create_tag(
 
 /// Delete a local tag by name.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::tag::delete")]
 pub async fn delete_tag(name: String, state: State<'_, AppState>) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
@@ -109,6 +112,7 @@ pub async fn delete_tag(name: String, state: State<'_, AppState>) -> Result<(), 
 
 /// Push a tag to a remote as a background task.
 #[tauri::command]
+#[instrument(skip(state, task_manager), name = "cmd::tag::push")]
 pub async fn push_tag(
     tag_name: Option<String>,
     remote: String,

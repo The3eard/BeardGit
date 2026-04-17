@@ -45,6 +45,55 @@ pub fn log_directory() -> PathBuf {
     }
 }
 
+/// Delete log files older than `max_age_days` from `log_dir`.
+///
+/// Only removes files whose names contain `"log"` (matching the
+/// `beardgit.log.*` naming convention from `tracing-appender`).
+/// Returns the number of files deleted.
+///
+/// # Errors
+/// Returns an I/O error if the directory cannot be read.
+pub fn purge_old_logs(log_dir: &std::path::Path, max_age_days: u64) -> std::io::Result<usize> {
+    use std::time::{Duration, SystemTime};
+
+    let cutoff = SystemTime::now() - Duration::from_secs(max_age_days * 86400);
+    let mut deleted = 0usize;
+
+    for entry in std::fs::read_dir(log_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        // Only consider files whose name contains "log"
+        let name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) if n.contains("log") => n.to_string(),
+            _ => continue,
+        };
+
+        // Skip directories
+        if !path.is_file() {
+            continue;
+        }
+
+        // Check modification time
+        let metadata = std::fs::metadata(&path)?;
+        let modified = metadata.modified()?;
+
+        if modified < cutoff {
+            if let Err(e) = std::fs::remove_file(&path) {
+                tracing::warn!(file = %name, error = %e, "Failed to remove old log file");
+            } else {
+                deleted += 1;
+            }
+        }
+    }
+
+    if deleted > 0 {
+        tracing::info!(count = deleted, "Purged old log files");
+    }
+
+    Ok(deleted)
+}
+
 /// Initialize the global tracing subscriber with file logging.
 ///
 /// Creates a daily-rotating log file in the platform log directory.
@@ -102,5 +151,66 @@ pub fn collect_debug_info() -> DebugInfo {
         arch: std::env::consts::ARCH.to_string(),
         git_version,
         log_path: log_directory().to_string_lossy().into_owned(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{Duration, SystemTime};
+
+    /// Helper: create a log file with a modified time set to `days_ago` days in the past.
+    fn create_aged_log(dir: &std::path::Path, name: &str, days_ago: u64) {
+        let path = dir.join(name);
+        fs::write(&path, "log content").unwrap();
+        let age = SystemTime::now() - Duration::from_secs(days_ago * 86400);
+        filetime::set_file_mtime(&path, filetime::FileTime::from_system_time(age)).unwrap();
+    }
+
+    #[test]
+    fn purge_deletes_old_logs() {
+        let tmp = tempfile::tempdir().unwrap();
+        create_aged_log(tmp.path(), "beardgit.log.2026-04-01", 10);
+        create_aged_log(tmp.path(), "beardgit.log.2026-04-10", 3);
+
+        let deleted = purge_old_logs(tmp.path(), 7).unwrap();
+        assert_eq!(deleted, 1);
+        assert!(!tmp.path().join("beardgit.log.2026-04-01").exists());
+        assert!(tmp.path().join("beardgit.log.2026-04-10").exists());
+    }
+
+    #[test]
+    fn purge_ignores_non_log_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        create_aged_log(tmp.path(), "beardgit.log.2026-04-01", 10);
+        create_aged_log(tmp.path(), "settings.json", 10);
+
+        let deleted = purge_old_logs(tmp.path(), 7).unwrap();
+        assert_eq!(deleted, 1);
+        assert!(tmp.path().join("settings.json").exists());
+    }
+
+    #[test]
+    fn purge_returns_zero_on_empty_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let deleted = purge_old_logs(tmp.path(), 7).unwrap();
+        assert_eq!(deleted, 0);
+    }
+
+    #[test]
+    fn purge_handles_nonexistent_dir() {
+        let result = purge_old_logs(std::path::Path::new("/nonexistent/path"), 7);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn purge_keeps_all_when_none_old_enough() {
+        let tmp = tempfile::tempdir().unwrap();
+        create_aged_log(tmp.path(), "beardgit.log.2026-04-14", 2);
+        create_aged_log(tmp.path(), "beardgit.log.2026-04-15", 1);
+
+        let deleted = purge_old_logs(tmp.path(), 7).unwrap();
+        assert_eq!(deleted, 0);
     }
 }

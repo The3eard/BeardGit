@@ -1,6 +1,7 @@
 //! Commit creation and amendment commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -13,6 +14,7 @@ use crate::state::AppState;
 /// # Returns
 /// The OID of the newly created commit as a hex string.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::commit::create")]
 pub fn create_commit(message: String, state: State<'_, AppState>) -> Result<String, String> {
     with_active_repo(&state, |repo| {
         repo.create_commit(&message).map_err(|e| e.to_string())
@@ -30,6 +32,7 @@ pub fn create_commit(message: String, state: State<'_, AppState>) -> Result<Stri
 /// # Returns
 /// `Ok(())` on success, or an error string if `git commit --amend` fails.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::commit::amend")]
 pub async fn amend_commit(message: String, state: State<'_, AppState>) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
 

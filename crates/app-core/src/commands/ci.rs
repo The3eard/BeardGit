@@ -1,6 +1,7 @@
 //! CI run listing, detail, and job log commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -10,6 +11,7 @@ use crate::state::AppState;
 /// All filter parameters are forwarded to the provider. Filtering is performed
 /// server-side only — there is no client-side filtering.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::ci::list_runs")]
 pub async fn list_ci_runs(
     branch: Option<String>,
     source: Option<String>,
@@ -37,6 +39,7 @@ pub async fn list_ci_runs(
 
 /// Fetch full detail for a single CI run, including its stages and jobs.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::ci::run_detail")]
 pub async fn get_ci_run_detail(
     run_id: u64,
     state: State<'_, AppState>,
@@ -50,6 +53,7 @@ pub async fn get_ci_run_detail(
 
 /// Fetch the raw log output for a single CI job.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::ci::job_log")]
 pub async fn get_job_log(job_id: u64, state: State<'_, AppState>) -> Result<String, String> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     ci_provider

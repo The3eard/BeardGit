@@ -43,6 +43,17 @@ pub fn run() {
             terminal_manager.start_process_polling();
             app.manage(terminal_manager);
 
+            // Lazy log purge — delete logs older than 7 days, 30s after startup.
+            {
+                let log_dir = storage::logging::log_directory();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                    tokio::task::spawn_blocking(move || {
+                        let _ = storage::logging::purge_old_logs(&log_dir, 7);
+                    });
+                });
+            }
+
             // Listen for OS theme changes and re-emit resolved theme when auto is enabled.
             let main_window = app.get_webview_window("main");
             if let Some(window) = main_window {

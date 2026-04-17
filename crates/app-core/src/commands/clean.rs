@@ -1,12 +1,14 @@
 //! Clean (untracked/ignored file removal) commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
 
 /// Preview untracked/ignored files that would be removed by `git clean`.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::clean::dry_run")]
 pub fn clean_dry_run(
     include_directories: bool,
     include_ignored: bool,
@@ -23,6 +25,7 @@ pub fn clean_dry_run(
 ///
 /// Returns the number of items successfully deleted.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::clean::paths")]
 pub fn clean_paths(paths: Vec<String>, state: State<'_, AppState>) -> Result<u32, String> {
     with_active_repo(&state, |repo| {
         repo.clean_paths(&paths).map_err(|e| e.to_string())

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use task_runner::{TaskId, TaskManager};
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -13,6 +14,7 @@ use crate::state::AppState;
 /// Spawns `git fetch <remote>` via the task manager and returns immediately
 /// with the task ID. Progress streams to the task popover.
 #[tauri::command]
+#[instrument(skip(state, task_manager), name = "cmd::remote::fetch")]
 pub async fn fetch_remote(
     remote: String,
     state: State<'_, AppState>,
@@ -32,6 +34,7 @@ pub async fn fetch_remote(
 ///
 /// Spawns `git pull <remote> <branch>` via the task manager.
 #[tauri::command]
+#[instrument(skip(state, task_manager), name = "cmd::remote::pull")]
 pub async fn pull_remote(
     remote: String,
     branch: String,
@@ -52,6 +55,7 @@ pub async fn pull_remote(
 ///
 /// Spawns `git push <remote> <branch>` via the task manager.
 #[tauri::command]
+#[instrument(skip(state, task_manager), name = "cmd::remote::push")]
 pub async fn push_remote(
     remote: String,
     branch: String,
@@ -73,6 +77,7 @@ pub async fn push_remote(
 /// Equivalent to `git remote rename <old_name> <new_name>`. Returns an error
 /// if `old_name` does not exist or `new_name` is already taken.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::remote::rename")]
 pub async fn rename_remote(
     old_name: String,
     new_name: String,
@@ -93,6 +98,7 @@ pub async fn rename_remote(
 /// Equivalent to `git remote remove <name>`. Returns an error if the remote
 /// does not exist.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::remote::remove")]
 pub async fn remove_remote(name: String, state: State<'_, AppState>) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {

@@ -3,6 +3,8 @@
 //! These operations shell out to the system `git` binary via [`Repository::git_cmd`]
 //! because `libgit2` does not expose remote rename/delete in a stable cross-platform way.
 
+use tracing::instrument;
+
 use crate::error::GitError;
 use crate::repository::Repository;
 
@@ -11,6 +13,7 @@ impl Repository {
     ///
     /// Equivalent to `git remote rename <old_name> <new_name>`. Fails if
     /// `old_name` does not exist or `new_name` is already taken.
+    #[instrument(skip(self), fields(old = %old_name, new = %new_name))]
     pub fn rename_remote(&self, old_name: &str, new_name: &str) -> Result<(), GitError> {
         let result = self.git_cmd(&["remote", "rename", old_name, new_name])?;
         if result.success {
@@ -23,6 +26,7 @@ impl Repository {
     /// Removes a remote.
     ///
     /// Equivalent to `git remote remove <name>`. Fails if the remote does not exist.
+    #[instrument(skip(self), fields(remote = %name))]
     pub fn remove_remote(&self, name: &str) -> Result<(), GitError> {
         let result = self.git_cmd(&["remote", "remove", name])?;
         if result.success {

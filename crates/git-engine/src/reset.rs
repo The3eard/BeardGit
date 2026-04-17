@@ -3,6 +3,8 @@
 //! Extends [`Repository`] with `git reset` and `git commit --amend` support,
 //! plus a helper to read the HEAD commit message for pre-filling amend UIs.
 
+use tracing::instrument;
+
 use crate::error::GitError;
 use crate::repository::Repository;
 
@@ -16,6 +18,7 @@ impl Repository {
     /// # Errors
     /// Returns [`GitError::RepoNotFound`] for an unrecognised `mode` or when
     /// the underlying `git reset` invocation exits with a non-zero status.
+    #[instrument(skip(self), fields(oid = %oid, mode = %mode))]
     pub fn reset_to_commit(&self, oid: &str, mode: &str) -> Result<(), GitError> {
         let flag = match mode {
             "soft" => "--soft",
@@ -46,6 +49,7 @@ impl Repository {
     /// # Errors
     /// Returns [`GitError::RepoNotFound`] when `git commit --amend` exits
     /// with a non-zero status (e.g. nothing to amend, detached HEAD, etc.).
+    #[instrument(skip(self))]
     pub fn amend_commit(&self, message: &str) -> Result<(), GitError> {
         let result = self.git_cmd(&["commit", "--amend", "-m", message])?;
         if result.success {

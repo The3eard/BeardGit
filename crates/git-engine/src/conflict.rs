@@ -5,6 +5,7 @@
 //! continue those operations via the git CLI.
 
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::error::GitError;
 use crate::repository::Repository;
@@ -160,6 +161,7 @@ impl Repository {
     /// Overwrites the working-directory file at `path` with `content`, stages
     /// the result, removes conflict entries from the index, and writes the
     /// index back to disk.
+    #[instrument(skip(self, content), fields(path = %path))]
     pub fn write_resolved_file(&self, path: &str, content: &str) -> Result<(), GitError> {
         let full_path = self.path().join(path);
         std::fs::write(&full_path, content)?;
@@ -176,6 +178,7 @@ impl Repository {
     // -----------------------------------------------------------------
 
     /// Abort an in-progress merge, restoring the pre-merge state.
+    #[instrument(skip(self))]
     pub fn abort_merge(&self) -> Result<crate::cli::GitCliResult, GitError> {
         self.git_cmd(&["merge", "--abort"])
     }
@@ -183,36 +186,43 @@ impl Repository {
     /// Continue a merge after all conflicts have been resolved.
     ///
     /// The index must have no unresolved conflicts; otherwise git will refuse.
+    #[instrument(skip(self))]
     pub fn continue_merge(&self) -> Result<crate::cli::GitCliResult, GitError> {
         self.git_cmd(&["merge", "--continue"])
     }
 
     /// Abort an in-progress rebase, restoring HEAD to the pre-rebase state.
+    #[instrument(skip(self))]
     pub fn abort_rebase(&self) -> Result<crate::cli::GitCliResult, GitError> {
         self.git_cmd(&["rebase", "--abort"])
     }
 
     /// Continue a rebase after all conflicts have been resolved.
+    #[instrument(skip(self))]
     pub fn continue_rebase(&self) -> Result<crate::cli::GitCliResult, GitError> {
         self.git_cmd(&["rebase", "--continue"])
     }
 
     /// Abort an in-progress cherry-pick.
+    #[instrument(skip(self))]
     pub fn abort_cherry_pick(&self) -> Result<crate::cli::GitCliResult, GitError> {
         self.git_cmd(&["cherry-pick", "--abort"])
     }
 
     /// Continue a cherry-pick after all conflicts have been resolved.
+    #[instrument(skip(self))]
     pub fn continue_cherry_pick(&self) -> Result<crate::cli::GitCliResult, GitError> {
         self.git_cmd(&["cherry-pick", "--continue"])
     }
 
     /// Abort an in-progress revert.
+    #[instrument(skip(self))]
     pub fn abort_revert(&self) -> Result<crate::cli::GitCliResult, GitError> {
         self.git_cmd(&["revert", "--abort"])
     }
 
     /// Continue a revert after all conflicts have been resolved.
+    #[instrument(skip(self))]
     pub fn continue_revert(&self) -> Result<crate::cli::GitCliResult, GitError> {
         self.git_cmd(&["revert", "--continue"])
     }

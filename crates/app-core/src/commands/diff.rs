@@ -1,6 +1,7 @@
 //! Diff and file content commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -38,6 +39,7 @@ pub fn get_diff_between_commits(
 
 /// Return the full diff (hunks + lines) for a single file in a commit.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::diff::commit_file_diff")]
 pub async fn get_commit_file_diff(
     oid: String,
     path: String,

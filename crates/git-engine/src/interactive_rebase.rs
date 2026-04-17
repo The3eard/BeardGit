@@ -7,6 +7,7 @@
 use std::io::Write;
 
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::error::GitError;
 use crate::repository::Repository;
@@ -74,6 +75,7 @@ impl Repository {
     /// Generates a todo file from `actions` and uses `GIT_SEQUENCE_EDITOR` to
     /// inject it into `git rebase -i`. The sequence editor is a simple copy
     /// command that overwrites git's generated todo file with our pre-built one.
+    #[instrument(skip(self, actions), fields(base = %base_oid, action_count = actions.len()))]
     pub fn start_interactive_rebase(
         &self,
         base_oid: &str,

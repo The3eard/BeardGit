@@ -1,6 +1,7 @@
 //! Worktree listing, creation, and removal commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -30,6 +31,7 @@ pub async fn list_worktrees(
 /// - `create_branch` – When `true`, create a new branch with `-b`; when `false`, check
 ///   out an existing branch.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::worktree::create")]
 pub async fn create_worktree(
     path: String,
     branch: String,
@@ -53,6 +55,7 @@ pub async fn create_worktree(
 /// - `force` – When `true`, remove the worktree even if it has uncommitted changes
 ///   or is locked.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::worktree::remove")]
 pub async fn remove_worktree(
     path: String,
     force: bool,

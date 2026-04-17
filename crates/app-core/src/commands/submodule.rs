@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use task_runner::{TaskId, TaskManager};
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -20,6 +21,7 @@ pub fn list_submodules(
 
 /// Initialize a submodule (register + set up working tree).
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::submodule::init")]
 pub fn init_submodule(path: String, state: State<'_, AppState>) -> Result<(), String> {
     with_active_repo(&state, |repo| {
         repo.init_submodule(&path).map_err(|e| e.to_string())
@@ -28,6 +30,7 @@ pub fn init_submodule(path: String, state: State<'_, AppState>) -> Result<(), St
 
 /// Deinitialize a submodule.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::submodule::deinit")]
 pub fn deinit_submodule(
     path: String,
     force: bool,
@@ -45,6 +48,7 @@ pub fn deinit_submodule(
 /// - `url` – Remote URL of the submodule repository.
 /// - `path` – Relative path where the submodule will be placed.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::submodule::add")]
 pub fn add_submodule(url: String, path: String, state: State<'_, AppState>) -> Result<(), String> {
     with_active_repo(&state, |repo| {
         repo.add_submodule(&url, &path).map_err(|e| e.to_string())
@@ -56,6 +60,7 @@ pub fn add_submodule(url: String, path: String, state: State<'_, AppState>) -> R
 /// # Parameters
 /// - `path` – Relative path of the submodule to remove.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::submodule::remove")]
 pub fn remove_submodule(path: String, state: State<'_, AppState>) -> Result<(), String> {
     with_active_repo(&state, |repo| {
         repo.remove_submodule(&path).map_err(|e| e.to_string())
@@ -76,6 +81,7 @@ pub fn submodule_abs_path(
 
 /// Update a single submodule (background task, returns TaskId).
 #[tauri::command]
+#[instrument(skip(state, task_manager), name = "cmd::submodule::update")]
 pub async fn update_submodule(
     path: String,
     state: State<'_, AppState>,
@@ -99,6 +105,7 @@ pub async fn update_submodule(
 
 /// Update all submodules (background task, returns TaskId).
 #[tauri::command]
+#[instrument(skip(state, task_manager), name = "cmd::submodule::update_all")]
 pub async fn update_all_submodules(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,

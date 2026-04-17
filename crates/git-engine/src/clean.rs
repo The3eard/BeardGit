@@ -5,6 +5,7 @@
 //! with path validation to ensure all targets are within the repository root.
 
 use serde::Serialize;
+use tracing::instrument;
 
 use crate::error::GitError;
 use crate::repository::Repository;
@@ -66,6 +67,7 @@ impl Repository {
     /// # Safety
     /// This permanently deletes files. There is no undo. Callers should confirm
     /// with the user before invoking this method.
+    #[instrument(skip(self))]
     pub fn clean_paths(&self, paths: &[String]) -> Result<u32, GitError> {
         let repo_root = self.path().canonicalize().map_err(GitError::Io)?;
         let mut removed = 0u32;

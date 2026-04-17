@@ -10,6 +10,7 @@
 use std::process::Command;
 
 use serde::Serialize;
+use tracing::instrument;
 
 use crate::error::GitError;
 use crate::repository::Repository;
@@ -233,26 +234,31 @@ impl Repository {
     }
 
     /// Merge `branch` into the current branch using `--no-edit` (no interactive prompt).
+    #[instrument(skip(self), fields(branch = %branch))]
     pub fn merge_branch(&self, branch: &str) -> Result<GitCliResult, GitError> {
         self.git_cmd(&["merge", branch, "--no-edit"])
     }
 
     /// Rebase the current branch onto `onto`.
+    #[instrument(skip(self), fields(onto = %onto))]
     pub fn rebase_branch(&self, onto: &str) -> Result<GitCliResult, GitError> {
         self.git_cmd(&["rebase", onto])
     }
 
     /// Cherry-pick a single commit by its OID onto the current branch.
+    #[instrument(skip(self), fields(oid = %oid))]
     pub fn cherry_pick(&self, oid: &str) -> Result<GitCliResult, GitError> {
         self.git_cmd(&["cherry-pick", oid])
     }
 
     /// Revert a single commit by its OID, creating a new revert commit automatically.
+    #[instrument(skip(self), fields(oid = %oid))]
     pub fn revert_commit(&self, oid: &str) -> Result<GitCliResult, GitError> {
         self.git_cmd(&["revert", oid, "--no-edit"])
     }
 
     /// Save uncommitted changes to the stash, optionally with a description message.
+    #[instrument(skip(self))]
     pub fn stash_push(&self, message: Option<&str>) -> Result<GitCliResult, GitError> {
         match message {
             Some(msg) => self.git_cmd(&["stash", "push", "-m", msg]),
@@ -261,6 +267,7 @@ impl Repository {
     }
 
     /// Apply and remove the stash entry at `index` (defaults to the latest stash).
+    #[instrument(skip(self))]
     pub fn stash_pop(&self, index: Option<usize>) -> Result<GitCliResult, GitError> {
         match index {
             Some(i) => {
@@ -283,6 +290,7 @@ impl Repository {
     }
 
     /// Delete the stash entry at `index` without applying it (defaults to the latest).
+    #[instrument(skip(self))]
     pub fn stash_drop(&self, index: Option<usize>) -> Result<GitCliResult, GitError> {
         match index {
             Some(i) => {
@@ -294,6 +302,7 @@ impl Repository {
     }
 
     /// Apply the stash entry at `index` without removing it (defaults to the latest).
+    #[instrument(skip(self))]
     pub fn stash_apply(&self, index: Option<usize>) -> Result<GitCliResult, GitError> {
         match index {
             Some(i) => {
@@ -308,6 +317,7 @@ impl Repository {
     ///
     /// Uses `git restore --source=stash@{index} -- path` to apply only the
     /// specified file without touching the rest of the working tree.
+    #[instrument(skip(self), fields(path = %path))]
     pub fn stash_apply_file(&self, index: usize, path: &str) -> Result<GitCliResult, GitError> {
         let stash_ref = format!("stash@{{{index}}}");
         self.git_cmd(&["restore", "--source", &stash_ref, "--", path])
@@ -409,6 +419,7 @@ impl Repository {
     }
 
     /// Create a lightweight tag (`name`) or an annotated tag when `message` is provided.
+    #[instrument(skip(self), fields(tag = %name))]
     pub fn create_tag(&self, name: &str, message: Option<&str>) -> Result<GitCliResult, GitError> {
         let result = match message {
             Some(msg) => self.git_cmd(&["tag", "-a", name, "-m", msg])?,
@@ -421,6 +432,7 @@ impl Repository {
     }
 
     /// Delete a local tag by name.
+    #[instrument(skip(self), fields(tag = %name))]
     pub fn delete_tag(&self, name: &str) -> Result<GitCliResult, GitError> {
         let result = self.git_cmd(&["tag", "-d", name])?;
         if result.success {
@@ -500,6 +512,7 @@ impl Repository {
     ///
     /// When `tag_name` is `Some`, only that specific tag ref is pushed.
     /// When `tag_name` is `None`, all local tags are pushed (`--tags`).
+    #[instrument(skip(self), fields(remote = %remote))]
     pub fn push_tag(&self, remote: &str, tag_name: Option<&str>) -> Result<GitCliResult, GitError> {
         match tag_name {
             Some(name) => self.git_cmd(&["push", remote, &format!("refs/tags/{name}")]),
@@ -527,16 +540,19 @@ impl Repository {
     }
 
     /// Fetch all updates from the named remote.
+    #[instrument(skip(self), fields(remote = %remote))]
     pub fn fetch_remote(&self, remote: &str) -> Result<GitCliResult, GitError> {
         self.git_cmd(&["fetch", remote])
     }
 
     /// Pull `branch` from `remote` into the current branch.
+    #[instrument(skip(self), fields(remote = %remote, branch = %branch))]
     pub fn pull_remote(&self, remote: &str, branch: &str) -> Result<GitCliResult, GitError> {
         self.git_cmd(&["pull", remote, branch])
     }
 
     /// Push `branch` to `remote`.
+    #[instrument(skip(self), fields(remote = %remote, branch = %branch))]
     pub fn push_remote(&self, remote: &str, branch: &str) -> Result<GitCliResult, GitError> {
         self.git_cmd(&["push", remote, branch])
     }

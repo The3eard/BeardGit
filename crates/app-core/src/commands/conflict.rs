@@ -1,12 +1,14 @@
 //! Conflict detection, resolution, abort, and continue commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
 
 /// Return the current conflict state and list of conflicted file paths.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::conflict::get_status")]
 pub fn get_conflict_status(
     state: State<'_, AppState>,
 ) -> Result<git_engine::ConflictStatus, String> {
@@ -17,6 +19,7 @@ pub fn get_conflict_status(
 
 /// Get the ours/theirs/base content of a conflicted file from the index.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::conflict::get_file_contents")]
 pub fn get_conflict_file_contents(
     path: String,
     state: State<'_, AppState>,
@@ -29,6 +32,7 @@ pub fn get_conflict_file_contents(
 
 /// Write resolved content to disk and mark the file as resolved in the index.
 #[tauri::command]
+#[instrument(skip(state, content), name = "cmd::conflict::write_resolved")]
 pub fn write_resolved_file(
     path: String,
     content: String,
@@ -42,6 +46,7 @@ pub fn write_resolved_file(
 
 /// Abort the current mid-operation git state (merge/rebase/cherry-pick/revert).
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::conflict::abort")]
 pub async fn abort_operation(state: State<'_, AppState>) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
@@ -74,6 +79,7 @@ pub async fn abort_operation(state: State<'_, AppState>) -> Result<String, Strin
 
 /// Continue the current mid-operation git state after conflicts are resolved.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::conflict::continue")]
 pub async fn continue_operation(state: State<'_, AppState>) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {

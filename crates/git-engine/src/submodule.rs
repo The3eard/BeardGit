@@ -5,6 +5,7 @@
 //! may involve network fetches and complex state changes.
 
 use serde::Serialize;
+use tracing::instrument;
 
 use crate::error::GitError;
 use crate::repository::Repository;
@@ -99,6 +100,7 @@ impl Repository {
     /// Initialize a submodule (registers it and clones the repo).
     ///
     /// Equivalent to `git submodule init <path>`.
+    #[instrument(skip(self), fields(path = %path))]
     pub fn init_submodule(&self, path: &str) -> Result<(), GitError> {
         let result = self.git_cmd(&["submodule", "init", path])?;
         if result.success {
@@ -111,6 +113,7 @@ impl Repository {
     /// Deinitialize a submodule (removes its working tree and config).
     ///
     /// Equivalent to `git submodule deinit [-f] <path>`.
+    #[instrument(skip(self), fields(path = %path))]
     pub fn deinit_submodule(&self, path: &str, force: bool) -> Result<(), GitError> {
         let mut args = vec!["submodule", "deinit"];
         if force {
@@ -128,6 +131,7 @@ impl Repository {
     /// Add a new submodule to the repository.
     ///
     /// Equivalent to `git submodule add <url> <path>`.
+    #[instrument(skip(self), fields(url = %url, path = %path))]
     pub fn add_submodule(&self, url: &str, path: &str) -> Result<(), GitError> {
         let result = self.git_cmd(&["submodule", "add", url, path])?;
         if result.success {
@@ -140,6 +144,7 @@ impl Repository {
     /// Remove a submodule completely (deinit, remove from index, delete directory).
     ///
     /// Equivalent to `git submodule deinit -f <path> && git rm -f <path>`.
+    #[instrument(skip(self), fields(path = %path))]
     pub fn remove_submodule(&self, path: &str) -> Result<(), GitError> {
         // Deinit first
         let result = self.git_cmd(&["submodule", "deinit", "--force", path])?;

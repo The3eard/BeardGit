@@ -1,6 +1,7 @@
 //! Stash push, pop, apply, drop, list, and show commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -13,6 +14,7 @@ use crate::state::AppState;
 /// # Returns
 /// The stdout of `git stash push` on success, or stderr as an error.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::stash::push")]
 pub async fn stash_push(
     message: Option<String>,
     state: State<'_, AppState>,
@@ -41,6 +43,7 @@ pub async fn stash_push(
 /// # Returns
 /// The stdout of `git stash pop` on success, or stderr as an error.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::stash::pop")]
 pub async fn stash_pop(index: Option<usize>, state: State<'_, AppState>) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
@@ -78,6 +81,7 @@ pub async fn stash_list(state: State<'_, AppState>) -> Result<Vec<String>, Strin
 /// # Returns
 /// The stdout of `git stash apply` on success, or stderr as an error.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::stash::apply")]
 pub async fn stash_apply(
     index: Option<usize>,
     state: State<'_, AppState>,
@@ -105,6 +109,7 @@ pub async fn stash_apply(
 /// # Returns
 /// The stdout of `git restore` on success, or stderr as an error.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::stash::apply_file")]
 pub async fn stash_apply_file(
     index: usize,
     path: String,
@@ -134,6 +139,7 @@ pub async fn stash_apply_file(
 /// # Returns
 /// The stdout of `git stash drop` on success, or stderr as an error.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::stash::drop")]
 pub async fn stash_drop(
     index: Option<usize>,
     state: State<'_, AppState>,

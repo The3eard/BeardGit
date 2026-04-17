@@ -6,6 +6,8 @@
 
 // Operations module — commit, branch, checkout
 
+use tracing::instrument;
+
 use crate::error::GitError;
 use crate::repository::Repository;
 
@@ -14,6 +16,7 @@ impl Repository {
     ///
     /// Uses the repository's configured `user.name` and `user.email` from
     /// git config for the author and committer signature.
+    #[instrument(skip(self))]
     pub fn create_commit(&self, message: &str) -> Result<String, GitError> {
         let repo = self.inner();
         let sig = repo.signature()?;
@@ -29,6 +32,7 @@ impl Repository {
     }
 
     /// Create a new branch at HEAD.
+    #[instrument(skip(self), fields(branch = %name))]
     pub fn create_branch(&self, name: &str) -> Result<(), GitError> {
         let repo = self.inner();
         let head = repo.head()?.peel_to_commit()?;
@@ -37,6 +41,7 @@ impl Repository {
     }
 
     /// Create a new branch at a specific commit.
+    #[instrument(skip(self), fields(branch = %name, oid = %oid))]
     pub fn create_branch_at(&self, name: &str, oid: &str) -> Result<(), GitError> {
         let repo = self.inner();
         let obj = repo.revparse_single(oid)?;
@@ -48,6 +53,7 @@ impl Repository {
     }
 
     /// Delete a local branch by name.
+    #[instrument(skip(self), fields(branch = %name))]
     pub fn delete_branch(&self, name: &str) -> Result<(), GitError> {
         let repo = self.inner();
         let mut branch = repo.find_branch(name, git2::BranchType::Local)?;
@@ -56,6 +62,7 @@ impl Repository {
     }
 
     /// Switch HEAD to an existing branch.
+    #[instrument(skip(self), fields(branch = %name))]
     pub fn checkout_branch(&self, name: &str) -> Result<(), GitError> {
         let repo = self.inner();
         let obj = repo.revparse_single(&format!("refs/heads/{name}"))?;
@@ -65,6 +72,7 @@ impl Repository {
     }
 
     /// Checkout a specific commit (detached HEAD).
+    #[instrument(skip(self), fields(oid = %oid))]
     pub fn checkout_detached(&self, oid: &str) -> Result<(), GitError> {
         let repo = self.inner();
         let obj = repo.revparse_single(oid)?;

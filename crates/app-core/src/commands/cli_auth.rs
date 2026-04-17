@@ -1,6 +1,7 @@
 //! CLI-based OAuth login and authentication check commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use super::provider_auth::connect_provider;
@@ -12,6 +13,7 @@ use crate::state::AppState;
 /// `CliAuthStatus` per tool — if the binary isn't found, the entry has
 /// `installed: false` instead of an error.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::cli_auth::check_status")]
 pub async fn cli_check_auth_status(
     state: State<'_, AppState>,
 ) -> Result<Vec<cli_provider::auth::CliAuthStatus>, String> {
@@ -39,6 +41,7 @@ pub async fn cli_check_auth_status(
 /// Returns `"gh auth login"` or `"glab auth login"` — the frontend opens
 /// a terminal tab and writes this command.
 #[tauri::command]
+#[instrument(name = "cmd::cli_auth::get_auth_command")]
 pub fn cli_get_auth_command(tool: String) -> Result<String, String> {
     match tool.as_str() {
         "gh" => Ok("gh auth login".to_string()),
@@ -49,6 +52,7 @@ pub fn cli_get_auth_command(tool: String) -> Result<String, String> {
 
 /// Get the shell command to log out of a CLI tool.
 #[tauri::command]
+#[instrument(name = "cmd::cli_auth::get_logout_command")]
 pub fn cli_get_logout_command(tool: String) -> Result<String, String> {
     match tool.as_str() {
         "gh" => Ok("gh auth logout".to_string()),
@@ -59,6 +63,7 @@ pub fn cli_get_logout_command(tool: String) -> Result<String, String> {
 
 /// Check if the CLI tool is already authenticated for the given provider.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::cli_auth::is_authenticated")]
 pub async fn is_cli_authenticated(
     kind: String,
     state: State<'_, AppState>,
@@ -82,6 +87,7 @@ pub async fn is_cli_authenticated(
 /// command waits until login completes. Emits `oauth-device-code`
 /// event with the one-time code so the frontend can display it.
 #[tauri::command]
+#[instrument(skip(state, app), name = "cmd::cli_auth::login")]
 pub async fn cli_login(
     kind: String,
     instance_url: Option<String>,

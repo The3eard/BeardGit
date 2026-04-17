@@ -43,3 +43,4 @@ sha2 = "0.10"
 rand = "0.8"
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"

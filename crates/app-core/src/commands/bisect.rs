@@ -1,12 +1,14 @@
 //! Bisect workflow commands.
 
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::get_active_project_path;
 use crate::state::AppState;
 
 /// Start a bisect session, optionally providing the initial bad and good commits.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::bisect::start")]
 pub async fn bisect_start(
     bad: Option<String>,
     good: Option<String>,
@@ -18,6 +20,7 @@ pub async fn bisect_start(
 
 /// Mark a commit (or current HEAD) as good.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::bisect::good")]
 pub async fn bisect_good(
     commit: Option<String>,
     state: State<'_, AppState>,
@@ -28,6 +31,7 @@ pub async fn bisect_good(
 
 /// Mark a commit (or current HEAD) as bad.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::bisect::bad")]
 pub async fn bisect_bad(
     commit: Option<String>,
     state: State<'_, AppState>,
@@ -38,6 +42,7 @@ pub async fn bisect_bad(
 
 /// Skip the current commit.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::bisect::skip")]
 pub async fn bisect_skip(state: State<'_, AppState>) -> Result<String, String> {
     let cwd = get_active_project_path(&state)?;
     git_engine::bisect::bisect_skip(&cwd)
@@ -45,6 +50,7 @@ pub async fn bisect_skip(state: State<'_, AppState>) -> Result<String, String> {
 
 /// Reset (end) the bisect session.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::bisect::reset")]
 pub async fn bisect_reset(state: State<'_, AppState>) -> Result<String, String> {
     let cwd = get_active_project_path(&state)?;
     git_engine::bisect::bisect_reset(&cwd)
@@ -68,6 +74,7 @@ pub async fn bisect_get_log(state: State<'_, AppState>) -> Result<String, String
 
 /// Run an automated bisect with a test command.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::bisect::run_auto")]
 pub async fn bisect_run_auto(
     test_command: String,
     state: State<'_, AppState>,

@@ -6,6 +6,7 @@ use rayon::prelude::*;
 
 use graph_builder::{Dag, GraphCommit, GraphLayout};
 use tauri::{AppHandle, Emitter, State};
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::{AppState, ProjectSlot};
@@ -22,6 +23,7 @@ use crate::state::{AppState, ProjectSlot};
 /// [`ProjectInfo`] with lightweight metadata on success, or an error string if the path
 /// is not a valid git repository.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::project::open")]
 pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectInfo, String> {
     let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
 
@@ -86,6 +88,7 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
 /// # Parameters
 /// - `index` – Zero-based index of the tab to close.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::project::close")]
 pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), String> {
     let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
     let mut active = state.active_index.lock().map_err(|e| e.to_string())?;

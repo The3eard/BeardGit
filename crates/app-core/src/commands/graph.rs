@@ -2,6 +2,7 @@
 
 use graph_builder::{Dag, GraphCommit, GraphLayout};
 use tauri::State;
+use tracing::instrument;
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -15,6 +16,7 @@ use crate::state::AppState;
 /// # Returns
 /// A [`GraphViewport`] containing the layout nodes for the requested window.
 #[tauri::command]
+#[instrument(skip(state), name = "cmd::graph::viewport")]
 pub async fn get_graph_viewport(
     offset: usize,
     limit: usize,

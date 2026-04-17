@@ -7,6 +7,8 @@
 use std::path::Path;
 use std::process::Command;
 
+use tracing::instrument;
+
 /// Current state of a bisect session.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BisectState {
@@ -23,6 +25,7 @@ pub struct BisectState {
 }
 
 /// Start a bisect session, optionally providing the initial bad and good commits.
+#[instrument(fields(repo = %repo_path.display()))]
 pub fn bisect_start(
     repo_path: &Path,
     bad: Option<&str>,
@@ -40,6 +43,7 @@ pub fn bisect_start(
 }
 
 /// Mark a commit (or current HEAD) as good.
+#[instrument(fields(repo = %repo_path.display()))]
 pub fn bisect_good(repo_path: &Path, commit: Option<&str>) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.current_dir(repo_path).arg("bisect").arg("good");
@@ -50,6 +54,7 @@ pub fn bisect_good(repo_path: &Path, commit: Option<&str>) -> Result<String, Str
 }
 
 /// Mark a commit (or current HEAD) as bad.
+#[instrument(fields(repo = %repo_path.display()))]
 pub fn bisect_bad(repo_path: &Path, commit: Option<&str>) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.current_dir(repo_path).arg("bisect").arg("bad");
@@ -60,6 +65,7 @@ pub fn bisect_bad(repo_path: &Path, commit: Option<&str>) -> Result<String, Stri
 }
 
 /// Skip the current commit (untestable).
+#[instrument(fields(repo = %repo_path.display()))]
 pub fn bisect_skip(repo_path: &Path) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.current_dir(repo_path).args(["bisect", "skip"]);
@@ -67,6 +73,7 @@ pub fn bisect_skip(repo_path: &Path) -> Result<String, String> {
 }
 
 /// Reset (end) the bisect session and return to the original HEAD.
+#[instrument(fields(repo = %repo_path.display()))]
 pub fn bisect_reset(repo_path: &Path) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.current_dir(repo_path).args(["bisect", "reset"]);
@@ -131,6 +138,7 @@ pub fn bisect_log(repo_path: &Path) -> Result<String, String> {
 /// Run an automated bisect with a test command.
 ///
 /// The test command is split on whitespace and passed to `git bisect run`.
+#[instrument(fields(repo = %repo_path.display()))]
 pub fn bisect_run(repo_path: &Path, test_command: &str) -> Result<String, String> {
     let parts: Vec<&str> = test_command.split_whitespace().collect();
     if parts.is_empty() {
