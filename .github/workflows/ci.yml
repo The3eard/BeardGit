@@ -156,25 +156,37 @@ jobs:
         # server) and shows "Connection refused".
         run: VITE_BEARDGIT_E2E=true npx tauri build --debug --no-bundle
 
-      - name: Start tauri-driver
-        # Launches tauri-driver on 127.0.0.1:4444 in the background so
-        # wdio can connect to it. --native-host defaults to 127.0.0.1.
+      - name: Start Xvfb + tauri-driver
+        # Tauri's GTK/WebKit app needs DISPLAY set at spawn time — when
+        # tauri-driver forks WebKitWebDriver and then the app binary, it
+        # inherits the parent's env. Wrapping only `wdio run` in
+        # xvfb-run is too late: the app is spawned by a process chain
+        # started before that. Bring Xvfb up manually, export DISPLAY,
+        # then start tauri-driver so both it and its children see it.
         run: |
+          Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset > /tmp/xvfb.log 2>&1 &
+          echo "XVFB_PID=$!" >> "$GITHUB_ENV"
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          export DISPLAY=:99
+          sleep 1
           tauri-driver > tauri-driver.log 2>&1 &
           echo "TAURI_DRIVER_PID=$!" >> "$GITHUB_ENV"
           sleep 2
 
       - name: Run E2E tests
-        run: xvfb-run --auto-servernum npx wdio run e2e/wdio.conf.ts
+        run: npx wdio run e2e/wdio.conf.ts
         env:
           CI: true
           BEARDGIT_BUILD_TYPE: debug
 
-      - name: Stop tauri-driver
+      - name: Stop Xvfb + tauri-driver
         if: always()
         run: |
           if [ -n "${TAURI_DRIVER_PID:-}" ]; then
             kill "$TAURI_DRIVER_PID" || true
+          fi
+          if [ -n "${XVFB_PID:-}" ]; then
+            kill "$XVFB_PID" || true
           fi
           echo "---- tauri-driver.log ----"
           cat tauri-driver.log || true
