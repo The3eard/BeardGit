@@ -3,6 +3,11 @@ name = "provider"
 version.workspace = true
 edition.workspace = true
 
+[features]
+# Expose `MockCiProvider` for downstream integration tests. Gated so
+# production builds never pull the stub in.
+mock = []
+
 [dependencies]
 async-trait = { workspace = true }
 serde = { workspace = true }

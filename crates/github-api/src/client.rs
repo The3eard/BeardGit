@@ -1,5 +1,6 @@
 //! HTTP client for the GitHub REST API.
 
+use ::provider::http_helpers;
 use serde::de::DeserializeOwned;
 
 /// Errors returned by [`GitHubClient`] requests.
@@ -65,7 +66,7 @@ impl GitHubClient {
     /// Normalize a GitHub instance URL so that `https://github.com` becomes
     /// `https://api.github.com`. Other hosts (GitHub Enterprise) are left unchanged.
     pub fn normalize_url(url: &str) -> String {
-        let trimmed = url.trim_end_matches('/');
+        let trimmed = http_helpers::trim_base_url(url);
         let lower = trimmed.to_lowercase();
         if lower == "https://github.com" || lower == "http://github.com" {
             "https://api.github.com".to_string()
@@ -82,6 +83,9 @@ impl GitHubClient {
     /// Check response headers for GitHub rate limit exhaustion.
     ///
     /// Returns `Err(ApiError::RateLimited)` if the remaining quota is zero.
+    /// Uses [`http_helpers::retry_after_secs`] for the pure reset-epoch
+    /// arithmetic so the logic is unit-testable without fabricating a
+    /// full HTTP response.
     fn check_rate_limit(resp: &reqwest::Response) -> Result<(), ApiError> {
         if let Some(remaining) = resp.headers().get("x-ratelimit-remaining")
             && remaining.to_str().unwrap_or("1") == "0"
@@ -96,9 +100,8 @@ impl GitHubClient {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
-            let retry_after = reset.saturating_sub(now);
             return Err(ApiError::RateLimited {
-                retry_after_secs: retry_after,
+                retry_after_secs: http_helpers::retry_after_secs(reset, now),
             });
         }
         Ok(())

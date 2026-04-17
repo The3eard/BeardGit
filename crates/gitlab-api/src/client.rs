@@ -1,6 +1,7 @@
 //! HTTP client and error types for the GitLab REST API v4.
 
 use crate::types::Project;
+use ::provider::http_helpers;
 use serde::de::DeserializeOwned;
 
 /// Async HTTP client authenticated against a GitLab instance via a Personal Access Token.
@@ -46,7 +47,7 @@ impl GitLabClient {
 
         Self {
             http,
-            base_url: base_url.trim_end_matches('/').to_string(),
+            base_url: http_helpers::trim_base_url(base_url).to_string(),
             token: token.to_string(),
         }
     }

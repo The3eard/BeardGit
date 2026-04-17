@@ -6,6 +6,13 @@
 //! crates (e.g. `cli-provider`) and execute on `spawn_blocking` threads in
 //! `app-core`.
 //!
+//! ## Trait-crate purity
+//!
+//! This crate must stay free of runtime dependencies (no `reqwest`, `tokio`
+//! runtimes, `tauri`, `hyper`, or similar). CI contains a grep-based guard
+//! that fails the build if one of those imports leaks in. The `mock` feature
+//! enables a stand-in [`ForgeProvider`] implementation for integration tests.
+//!
 //! # Design
 //!
 //! The trait is **fat**: it covers the union of capabilities across all
