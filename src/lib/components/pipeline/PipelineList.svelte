@@ -1,20 +1,47 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { ciRuns, loadCiRuns, loadMoreCiRuns, loadCiRunDetail, selectedCiRunId, startCiRunListPolling, stopCiRunListPolling, hasMoreCiRuns, hasActiveProvider } from "../../stores/provider";
+  import { ciRuns, loadCiRuns, loadMoreCiRuns, loadCiRunDetail, selectedCiRunId, startCiRunListPolling, stopCiRunListPolling, hasMoreCiRuns, hasActiveProvider, retryCiRun, cancelCiRun } from "../../stores/provider";
   import type { CiRun } from "../../types";
   import { repoInfo } from "../../stores/repo";
   import SearchBar from "../common/SearchBar.svelte";
   import type { SearchTag } from "../../search/types";
-  import { ciFilters, filterCiRunsLocal } from "../../search/ci-provider";
+  import { ciFilters } from "../../search/ci-provider";
   import * as m from "$lib/paraglide/messages";
   import { formatRelativeTime } from "../../utils/time";
   import { ciStatusColor, ciStatusLabel } from "../../utils/status";
+  import { openUrl } from "@tauri-apps/plugin-opener";
+  import TriggerWorkflowDialog from "./TriggerWorkflowDialog.svelte";
 
   let loading = $state(false);
   let loadingMore = $state(false);
   let error = $state<string | null>(null);
   let searchTags = $state<SearchTag[]>([]);
   let initialized = false;
+  let triggerDialogOpen = $state(false);
+  let ctxMenu = $state<{ x: number; y: number; run: CiRun } | null>(null);
+  let ctxError = $state<string | null>(null);
+
+  function onRowContextMenu(e: MouseEvent, run: CiRun) {
+    e.preventDefault();
+    ctxMenu = { x: e.clientX, y: e.clientY, run };
+  }
+
+  function closeCtxMenu() { ctxMenu = null; }
+
+  async function retryFromMenu(run: CiRun) {
+    closeCtxMenu();
+    try { await retryCiRun(run.id); await fetchPipelines(); }
+    catch (e) { ctxError = m.pipeline_retry_error({ error: String(e) }); }
+  }
+  async function cancelFromMenu(run: CiRun) {
+    closeCtxMenu();
+    try { await cancelCiRun(run.id); await fetchPipelines(); }
+    catch (e) { ctxError = m.pipeline_cancel_error({ error: String(e) }); }
+  }
+  async function openInBrowser(run: CiRun) {
+    closeCtxMenu();
+    try { await openUrl(run.web_url); } catch { /* ignore */ }
+  }
 
   onMount(() => {
     if ($hasActiveProvider) {
@@ -173,9 +200,18 @@
 <div class="pipeline-list">
   <div class="list-header">
     <span class="list-title">{m.pipeline_title()}</span>
-    <button class="refresh-btn nf" onclick={refresh} disabled={loading} title="Refresh">
-      {loading ? "\uF110" : "\uF021"}
-    </button>
+    <div class="header-actions">
+      <button
+        class="header-btn"
+        onclick={() => (triggerDialogOpen = true)}
+        disabled={!$hasActiveProvider}
+      >
+        {m.pipeline_action_trigger()}
+      </button>
+      <button class="refresh-btn nf" onclick={refresh} disabled={loading} title="Refresh">
+        {loading ? "\uF110" : "\uF021"}
+      </button>
+    </div>
   </div>
 
   <SearchBar
@@ -213,6 +249,7 @@
           class="pipeline-row"
           class:selected={selectedId === run.id}
           onclick={() => selectCiRun(run)}
+          oncontextmenu={(e) => onRowContextMenu(e, run)}
         >
           <div class="row-status">
             <span
@@ -267,6 +304,42 @@
   {/if}
 </div>
 
+<TriggerWorkflowDialog
+  open={triggerDialogOpen}
+  onClose={() => { triggerDialogOpen = false; fetchPipelines(); }}
+/>
+
+{#if ctxMenu}
+  <div
+    class="ctx-overlay"
+    role="presentation"
+    onclick={closeCtxMenu}
+    onkeydown={(e) => e.key === "Escape" && closeCtxMenu()}
+  ></div>
+  <div class="ctx-menu" style="top: {ctxMenu.y}px; left: {ctxMenu.x}px" role="menu">
+    {#if ctxMenu.run.status === "failed" || ctxMenu.run.status === "canceled" || ctxMenu.run.status === "timed_out"}
+      <button role="menuitem" onclick={() => retryFromMenu(ctxMenu!.run)}>
+        {m.pipeline_action_retry()}
+      </button>
+    {/if}
+    {#if ctxMenu.run.status === "running" || ctxMenu.run.status === "pending" || ctxMenu.run.status === "queued"}
+      <button role="menuitem" onclick={() => cancelFromMenu(ctxMenu!.run)}>
+        {m.pipeline_action_cancel()}
+      </button>
+    {/if}
+    <button role="menuitem" onclick={() => openInBrowser(ctxMenu!.run)}>
+      {m.pipeline_action_view_in_browser()}
+    </button>
+  </div>
+{/if}
+
+{#if ctxError}
+  <div class="list-error" role="alert">{ctxError}</div>
+{/if}
+{#if error}
+  <div class="list-error" role="alert">{error}</div>
+{/if}
+
 <style>
   .pipeline-list { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
   .list-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
@@ -313,4 +386,27 @@
   }
   .load-more-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-blue) 5%, transparent); }
   .load-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .header-actions { display: flex; gap: 6px; align-items: center; }
+  .header-btn {
+    background: var(--bg-secondary); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; font-size: 11px; cursor: pointer;
+  }
+  .header-btn:hover:not(:disabled) { border-color: var(--accent-blue); color: var(--accent-blue); }
+  .header-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .ctx-overlay { position: fixed; inset: 0; z-index: 900; }
+  .ctx-menu {
+    position: fixed; z-index: 901;
+    background: var(--bg-primary); border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px 0; min-width: 180px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  .ctx-menu button {
+    display: block; width: 100%; text-align: left;
+    background: none; border: none; color: var(--text-primary);
+    padding: 6px 12px; font-size: 12px; cursor: pointer;
+  }
+  .ctx-menu button:hover { background: color-mix(in srgb, var(--text-primary) 6%, transparent); }
 </style>

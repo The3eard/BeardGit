@@ -127,6 +127,32 @@ impl GitHubClient {
         Ok(resp.json().await?)
     }
 
+    /// POST a JSON body for endpoints that return 202/204/No Content.
+    pub(crate) async fn post_no_body<B: serde::Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<(), ApiError> {
+        let url = format!("{}{}", self.base_url, path);
+        let resp = self
+            .http
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", "2022-11-28")
+            .json(body)
+            .send()
+            .await?;
+
+        Self::check_rate_limit(&resp)?;
+        if !resp.status().is_success() {
+            let status = resp.status().as_u16();
+            let message = resp.text().await.unwrap_or_default();
+            return Err(ApiError::Api { status, message });
+        }
+        Ok(())
+    }
+
     /// Perform a GET request that returns plain text (follows redirects).
     pub(crate) async fn get_text(&self, path: &str) -> Result<String, ApiError> {
         let url = format!("{}{}", self.base_url, path);

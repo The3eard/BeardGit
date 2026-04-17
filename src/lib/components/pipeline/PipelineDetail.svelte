@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { selectedCiRun, loadingDetail, loadJobLog } from "../../stores/provider";
+  import { selectedCiRun, loadingDetail, loadJobLog, retryCiRun, retryCiFailedJobs, cancelCiRun, retryCiJob } from "../../stores/provider";
   import type { CiJob } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import { ciStatusColor } from "../../utils/status";
@@ -8,6 +8,51 @@
 
   let selectedJobId = $state<number | null>(null);
   let loadingJobId = $state<number | null>(null);
+  let busy = $state(false);
+  let actionError = $state<string | null>(null);
+
+  async function doRetry() {
+    if (!$selectedCiRun || busy) return;
+    busy = true; actionError = null;
+    try { await retryCiRun($selectedCiRun.run.id); }
+    catch (e) { actionError = m.pipeline_retry_error({ error: String(e) }); }
+    finally { busy = false; }
+  }
+  async function doRetryFailed() {
+    if (!$selectedCiRun || busy) return;
+    busy = true; actionError = null;
+    try { await retryCiFailedJobs($selectedCiRun.run.id); }
+    catch (e) { actionError = m.pipeline_retry_error({ error: String(e) }); }
+    finally { busy = false; }
+  }
+  async function doCancel() {
+    if (!$selectedCiRun || busy) return;
+    busy = true; actionError = null;
+    try { await cancelCiRun($selectedCiRun.run.id); }
+    catch (e) { actionError = m.pipeline_cancel_error({ error: String(e) }); }
+    finally { busy = false; }
+  }
+  async function doRetryJob(jobId: number) {
+    if (busy) return;
+    busy = true; actionError = null;
+    try { await retryCiJob(jobId); }
+    catch (e) { actionError = m.pipeline_retry_error({ error: String(e) }); }
+    finally { busy = false; }
+  }
+
+  let runStatus = $derived($selectedCiRun?.run.status ?? "");
+  let isActive = $derived(
+    runStatus === "running" || runStatus === "pending" || runStatus === "queued"
+  );
+  let hasFailedJob = $derived(
+    $selectedCiRun?.stages.some(s =>
+      s.jobs.some(j => j.status === "failed" || j.status === "timed_out")
+    ) ?? false
+  );
+  let isCompleted = $derived(
+    runStatus === "success" || runStatus === "failed" ||
+    runStatus === "canceled" || runStatus === "timed_out"
+  );
 
   function statusIcon(status: string): string {
     switch (status) {
@@ -76,6 +121,22 @@
           <span class="auto-refresh-label">{m.pipeline_auto_refresh()}</span>
         {/if}
       </div>
+
+      <div class="detail-actions">
+        {#if isCompleted}
+          <button onclick={doRetry} disabled={busy}>{m.pipeline_action_retry()}</button>
+          {#if hasFailedJob}
+            <button onclick={doRetryFailed} disabled={busy}>
+              {m.pipeline_action_retry_failed()}
+            </button>
+          {/if}
+        {/if}
+        {#if isActive}
+          <button onclick={doCancel} disabled={busy}>{m.pipeline_action_cancel()}</button>
+        {/if}
+      </div>
+
+      {#if actionError}<div class="action-error">{actionError}</div>{/if}
     </div>
 
     <div class="stages-flow">
@@ -84,26 +145,36 @@
           <div class="stage-name">{stage.name}</div>
           <div class="stage-jobs">
             {#each stage.jobs as job (job.id)}
-              <button
-                class="job-row"
-                class:selected={selectedJobId === job.id}
-                onclick={() => handleJobClick(job)}
-              >
-                {#if loadingJobId === job.id}
-                  <div class="spinner spinner--job"></div>
-                {:else}
-                  <span
-                    class="job-status-icon"
-                    style="color: {ciStatusColor(job.status)}"
-                  >
-                    {statusIcon(job.status)}
-                  </span>
+              <div class="job-row-wrapper">
+                <button
+                  class="job-row"
+                  class:selected={selectedJobId === job.id}
+                  onclick={() => handleJobClick(job)}
+                >
+                  {#if loadingJobId === job.id}
+                    <div class="spinner spinner--job"></div>
+                  {:else}
+                    <span
+                      class="job-status-icon"
+                      style="color: {ciStatusColor(job.status)}"
+                    >
+                      {statusIcon(job.status)}
+                    </span>
+                  {/if}
+                  <span class="job-name">{job.name}</span>
+                  {#if job.duration != null}
+                    <span class="job-duration">{formatDuration(job.duration)}</span>
+                  {/if}
+                </button>
+                {#if job.status === "failed" || job.status === "timed_out"}
+                  <button
+                    class="job-retry-btn"
+                    onclick={(e) => { e.stopPropagation(); doRetryJob(job.id); }}
+                    disabled={busy}
+                    title={m.pipeline_action_retry_job()}
+                  >{m.pipeline_action_retry_job()}</button>
                 {/if}
-                <span class="job-name">{job.name}</span>
-                {#if job.duration != null}
-                  <span class="job-duration">{formatDuration(job.duration)}</span>
-                {/if}
-              </button>
+              </div>
             {/each}
           </div>
         </div>
@@ -282,4 +353,24 @@
   .detail-empty {
     gap: 8px;
   }
+
+  .detail-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .detail-actions button {
+    background: var(--bg-secondary); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 10px; font-size: 11px; cursor: pointer;
+  }
+  .detail-actions button:hover:not(:disabled) { border-color: var(--accent-blue); color: var(--accent-blue); }
+  .detail-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .action-error { color: var(--accent-red); font-size: 11px; margin-top: 6px; }
+
+  .job-row-wrapper { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); }
+  .job-row-wrapper:last-child { border-bottom: none; }
+  .job-row-wrapper .job-row { border-bottom: none; flex: 1; }
+  .job-retry-btn {
+    background: none; border: 1px solid var(--border); color: var(--text-secondary);
+    padding: 2px 6px; font-size: 10px; border-radius: 3px; cursor: pointer; margin-right: 8px;
+  }
+  .job-retry-btn:hover:not(:disabled) { border-color: var(--accent-orange); color: var(--accent-orange); }
+  .job-retry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

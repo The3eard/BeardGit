@@ -14,6 +14,8 @@
 //! - [`parse_remote_url`] — detect provider from git remote URL
 
 pub mod log_preprocessor;
+pub mod types;
+pub use types::{TriggerResult, TriggerWorkflowInput, Workflow, WorkflowState};
 
 use serde::{Deserialize, Serialize};
 
@@ -313,6 +315,9 @@ pub enum ProviderError {
         /// Seconds until the rate limit resets.
         retry_after_secs: u64,
     },
+    /// Operation is not supported by this provider (e.g. GitLab has no draft releases).
+    #[error("operation not supported by this provider")]
+    NotSupported,
 }
 
 // ---------------------------------------------------------------------------
@@ -376,6 +381,56 @@ pub trait CiProvider: Send + Sync {
     /// GitLab returns the log body directly. GitHub returns a 302 redirect
     /// that the implementation follows transparently.
     async fn get_job_log(&self, project_ref: &str, job_id: u64) -> Result<String, ProviderError>;
+
+    // ---- CI/CD control (Phase 8.4) ----
+    // Default impls return NotSupported. Providers opt-in by overriding.
+
+    /// Trigger a new CI run on `git_ref` with optional inputs/variables.
+    ///
+    /// GitHub: dispatches `workflow_id` via `POST /actions/workflows/{id}/dispatches`.
+    /// GitLab: triggers a new pipeline via `POST /projects/:id/pipeline?ref=...`.
+    async fn trigger_workflow(
+        &self,
+        _project_ref: &str,
+        _input: &crate::types::TriggerWorkflowInput,
+    ) -> Result<crate::types::TriggerResult, ProviderError> {
+        Err(ProviderError::NotSupported)
+    }
+
+    /// Re-run all jobs of a previously completed run.
+    async fn retry_run(&self, _project_ref: &str, _run_id: &str) -> Result<(), ProviderError> {
+        Err(ProviderError::NotSupported)
+    }
+
+    /// Re-run only the failed jobs of a previously completed run.
+    async fn retry_failed_jobs(
+        &self,
+        _project_ref: &str,
+        _run_id: &str,
+    ) -> Result<(), ProviderError> {
+        Err(ProviderError::NotSupported)
+    }
+
+    /// Re-run a specific failed job.
+    async fn retry_job(&self, _project_ref: &str, _job_id: &str) -> Result<(), ProviderError> {
+        Err(ProviderError::NotSupported)
+    }
+
+    /// Cancel an in-progress run.
+    async fn cancel_run(&self, _project_ref: &str, _run_id: &str) -> Result<(), ProviderError> {
+        Err(ProviderError::NotSupported)
+    }
+
+    /// List workflow definitions for the project.
+    ///
+    /// GitHub returns all `.github/workflows/*.yml` files. GitLab returns
+    /// a single placeholder element representing the effective `.gitlab-ci.yml`.
+    async fn list_workflows(
+        &self,
+        _project_ref: &str,
+    ) -> Result<Vec<crate::types::Workflow>, ProviderError> {
+        Err(ProviderError::NotSupported)
+    }
 
     /// Returns which provider this instance represents.
     fn provider_kind(&self) -> ProviderKind;
@@ -665,5 +720,164 @@ mod tests {
             parse_remote_url("git@gitlab.com:group/subgroup/project.git", None, None).unwrap();
         assert_eq!(kind, ProviderKind::GitLab);
         assert_eq!(project, "group/subgroup/project");
+    }
+
+    // -- TriggerWorkflowInput / Workflow tests --
+
+    #[test]
+    fn test_trigger_workflow_input_serialization() {
+        let mut inputs = std::collections::HashMap::new();
+        inputs.insert("env".to_string(), "staging".to_string());
+        let input = TriggerWorkflowInput {
+            workflow_id: "ci.yml".to_string(),
+            git_ref: "main".to_string(),
+            inputs,
+        };
+        let json = serde_json::to_string(&input).unwrap();
+        assert!(json.contains("\"workflow_id\":\"ci.yml\""));
+        assert!(json.contains("\"git_ref\":\"main\""));
+        assert!(json.contains("\"env\":\"staging\""));
+    }
+
+    #[test]
+    fn test_trigger_result_roundtrip() {
+        let r = TriggerResult {
+            run_id: "12345".to_string(),
+            url: "https://gitlab.com/x/p/-/pipelines/12345".to_string(),
+        };
+        let json = serde_json::to_string(&r).unwrap();
+        let decoded: TriggerResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.run_id, "12345");
+        assert_eq!(decoded.url, r.url);
+    }
+
+    #[test]
+    fn test_workflow_state_serialization() {
+        let json = serde_json::to_string(&WorkflowState::Active).unwrap();
+        assert_eq!(json, "\"active\"");
+        let s: WorkflowState = serde_json::from_str("\"disabled\"").unwrap();
+        assert_eq!(s, WorkflowState::Disabled);
+    }
+
+    #[test]
+    fn test_workflow_serialization() {
+        let w = Workflow {
+            id: "12".to_string(),
+            name: "CI".to_string(),
+            path: ".github/workflows/ci.yml".to_string(),
+            state: WorkflowState::Active,
+        };
+        let json = serde_json::to_string(&w).unwrap();
+        assert!(json.contains("\"id\":\"12\""));
+        assert!(json.contains("\"state\":\"active\""));
+    }
+
+    // -- CiProvider default method tests --
+
+    struct MockCiProvider;
+
+    #[async_trait::async_trait]
+    impl CiProvider for MockCiProvider {
+        async fn validate_token(&self) -> Result<ProviderUser, ProviderError> {
+            unreachable!()
+        }
+        async fn get_project(&self, _: &str) -> Result<Project, ProviderError> {
+            unreachable!()
+        }
+        async fn list_ci_runs(
+            &self,
+            _: &str,
+            _: &CiFilters,
+            _: u32,
+            _: u32,
+        ) -> Result<Vec<CiRun>, ProviderError> {
+            unreachable!()
+        }
+        async fn get_ci_run_detail(&self, _: &str, _: u64) -> Result<CiRunDetail, ProviderError> {
+            unreachable!()
+        }
+        async fn get_job_log(&self, _: &str, _: u64) -> Result<String, ProviderError> {
+            unreachable!()
+        }
+        fn provider_kind(&self) -> ProviderKind {
+            ProviderKind::GitHub
+        }
+        fn base_url(&self) -> &str {
+            "https://example.test"
+        }
+        // Do NOT override trigger_workflow / retry_run / retry_failed_jobs /
+        // retry_job / cancel_run / list_workflows — default impls must return
+        // NotSupported for a mock that doesn't implement them.
+    }
+
+    fn is_not_supported(err: &ProviderError) -> bool {
+        matches!(err, ProviderError::NotSupported)
+    }
+
+    #[tokio::test]
+    async fn test_default_trigger_workflow_not_supported() {
+        let p = MockCiProvider;
+        let err = p
+            .trigger_workflow(
+                "owner/repo",
+                &TriggerWorkflowInput {
+                    workflow_id: "ci.yml".into(),
+                    git_ref: "main".into(),
+                    inputs: Default::default(),
+                },
+            )
+            .await
+            .unwrap_err();
+        assert!(is_not_supported(&err), "expected NotSupported, got {err:?}");
+    }
+
+    #[tokio::test]
+    async fn test_default_retry_run_not_supported() {
+        assert!(is_not_supported(
+            &MockCiProvider
+                .retry_run("owner/repo", "1")
+                .await
+                .unwrap_err()
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_default_retry_failed_jobs_not_supported() {
+        assert!(is_not_supported(
+            &MockCiProvider
+                .retry_failed_jobs("owner/repo", "1")
+                .await
+                .unwrap_err()
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_default_retry_job_not_supported() {
+        assert!(is_not_supported(
+            &MockCiProvider
+                .retry_job("owner/repo", "1")
+                .await
+                .unwrap_err()
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_default_cancel_run_not_supported() {
+        assert!(is_not_supported(
+            &MockCiProvider
+                .cancel_run("owner/repo", "1")
+                .await
+                .unwrap_err()
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_default_list_workflows_not_supported() {
+        assert!(is_not_supported(
+            &MockCiProvider
+                .list_workflows("owner/repo")
+                .await
+                .unwrap_err()
+        ));
     }
 }

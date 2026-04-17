@@ -209,6 +209,30 @@ export interface CiStage {
   jobs: CiJob[];
 }
 
+// ---------------------------------------------------------------------------
+// CI/CD control (Phase 8.4)
+// ---------------------------------------------------------------------------
+
+export type WorkflowState = "active" | "disabled";
+
+export interface Workflow {
+  id: string;
+  name: string;
+  path: string;
+  state: WorkflowState;
+}
+
+export interface TriggerWorkflowInput {
+  workflow_id: string;
+  git_ref: string;
+  inputs: Record<string, string>;
+}
+
+export interface TriggerResult {
+  run_id: string;
+  url: string;
+}
+
 export type ProviderKind = "gitlab" | "github";
 
 // ---------------------------------------------------------------------------

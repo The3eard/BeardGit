@@ -97,4 +97,49 @@ impl GitLabClient {
         let encoded = urlencoding::encode(path);
         self.get(&format!("/projects/{encoded}")).await
     }
+
+    /// POST a JSON body and deserialize the JSON response.
+    pub(crate) async fn post_json<B: serde::Serialize, T: DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, ApiError> {
+        let url = format!("{}/api/v4{}", self.base_url, path);
+        let resp = self
+            .http
+            .post(&url)
+            .header("PRIVATE-TOKEN", &self.token)
+            .json(body)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status().as_u16();
+            let message = resp.text().await.unwrap_or_default();
+            return Err(ApiError::Api { status, message });
+        }
+        Ok(resp.json().await?)
+    }
+
+    /// POST a JSON body and discard the response body (for 201/204 endpoints).
+    pub(crate) async fn post_no_body<B: serde::Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<(), ApiError> {
+        let url = format!("{}/api/v4{}", self.base_url, path);
+        let resp = self
+            .http
+            .post(&url)
+            .header("PRIVATE-TOKEN", &self.token)
+            .json(body)
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            let status = resp.status().as_u16();
+            let message = resp.text().await.unwrap_or_default();
+            return Err(ApiError::Api { status, message });
+        }
+        Ok(())
+    }
 }

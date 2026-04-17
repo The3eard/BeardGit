@@ -29,6 +29,29 @@ impl GitLabProvider {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Internal request/response shapes for CI/CD control (Phase 8.4)
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+struct GitLabTriggerBody {
+    #[serde(rename = "ref")]
+    ref_name: String,
+    variables: Vec<GitLabVariable>,
+}
+
+#[derive(serde::Serialize)]
+struct GitLabVariable {
+    key: String,
+    value: String,
+}
+
+#[derive(serde::Deserialize)]
+struct GitLabPipelineCreated {
+    id: u64,
+    web_url: String,
+}
+
 #[async_trait]
 impl CiProvider for GitLabProvider {
     async fn validate_token(&self) -> Result<ProviderUser, ProviderError> {
@@ -126,6 +149,91 @@ impl CiProvider for GitLabProvider {
             .get_text(&format!("/projects/{encoded}/jobs/{job_id}/trace"))
             .await
             .map_err(into_provider_error)
+    }
+
+    async fn trigger_workflow(
+        &self,
+        project_ref: &str,
+        input: &provider::TriggerWorkflowInput,
+    ) -> Result<provider::TriggerResult, ProviderError> {
+        let encoded = urlencoding::encode(project_ref);
+        let variables: Vec<GitLabVariable> = input
+            .inputs
+            .iter()
+            .map(|(k, v)| GitLabVariable {
+                key: k.clone(),
+                value: v.clone(),
+            })
+            .collect();
+        let body = GitLabTriggerBody {
+            ref_name: input.git_ref.clone(),
+            variables,
+        };
+        let created: GitLabPipelineCreated = self
+            .client
+            .post_json(&format!("/projects/{encoded}/pipeline"), &body)
+            .await
+            .map_err(into_provider_error)?;
+        Ok(provider::TriggerResult {
+            run_id: created.id.to_string(),
+            url: created.web_url,
+        })
+    }
+
+    async fn retry_run(&self, project_ref: &str, run_id: &str) -> Result<(), ProviderError> {
+        let encoded = urlencoding::encode(project_ref);
+        // Empty body satisfies reqwest's content-type expectations.
+        self.client
+            .post_no_body(
+                &format!("/projects/{encoded}/pipelines/{run_id}/retry"),
+                &serde_json::json!({}),
+            )
+            .await
+            .map_err(into_provider_error)
+    }
+
+    /// GitLab does not distinguish "retry all" from "retry failed" — the
+    /// `/retry` endpoint already only re-runs jobs that did not succeed.
+    async fn retry_failed_jobs(
+        &self,
+        project_ref: &str,
+        run_id: &str,
+    ) -> Result<(), ProviderError> {
+        self.retry_run(project_ref, run_id).await
+    }
+
+    async fn retry_job(&self, project_ref: &str, job_id: &str) -> Result<(), ProviderError> {
+        let encoded = urlencoding::encode(project_ref);
+        self.client
+            .post_no_body(
+                &format!("/projects/{encoded}/jobs/{job_id}/retry"),
+                &serde_json::json!({}),
+            )
+            .await
+            .map_err(into_provider_error)
+    }
+
+    async fn cancel_run(&self, project_ref: &str, run_id: &str) -> Result<(), ProviderError> {
+        let encoded = urlencoding::encode(project_ref);
+        self.client
+            .post_no_body(
+                &format!("/projects/{encoded}/pipelines/{run_id}/cancel"),
+                &serde_json::json!({}),
+            )
+            .await
+            .map_err(into_provider_error)
+    }
+
+    async fn list_workflows(
+        &self,
+        _project_ref: &str,
+    ) -> Result<Vec<provider::Workflow>, ProviderError> {
+        Ok(vec![provider::Workflow {
+            id: "default".to_string(),
+            name: "Pipeline".to_string(),
+            path: ".gitlab-ci.yml".to_string(),
+            state: provider::WorkflowState::Active,
+        }])
     }
 
     fn provider_kind(&self) -> ProviderKind {

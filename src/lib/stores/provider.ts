@@ -210,3 +210,61 @@ export async function loadJobLog(jobId: number, jobStatus?: string) {
     startJobLogPolling(jobId);
   }
 }
+
+// ---------------------------------------------------------------------------
+// CI/CD control actions (Phase 8.4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Trigger a new CI run. On success, refreshes the run list so the new run
+ * appears near the top (if it has already been registered server-side).
+ */
+export async function triggerWorkflow(
+  workflowId: string,
+  gitRef: string,
+  inputs: Record<string, string>,
+): Promise<void> {
+  await api.triggerWorkflow(workflowId, gitRef, inputs);
+  try { await loadCiRuns(); } catch { /* ignore */ }
+}
+
+/** Retry all jobs of a completed run; refresh detail after. */
+export async function retryCiRun(runId: number | string): Promise<void> {
+  await api.retryCiRun(String(runId));
+  const current = get(selectedCiRunId);
+  if (current != null) {
+    try { await loadCiRunDetail(current); } catch { /* ignore */ }
+  }
+}
+
+/** Retry only the failed jobs of a completed run; refresh detail after. */
+export async function retryCiFailedJobs(runId: number | string): Promise<void> {
+  await api.retryCiFailedJobs(String(runId));
+  const current = get(selectedCiRunId);
+  if (current != null) {
+    try { await loadCiRunDetail(current); } catch { /* ignore */ }
+  }
+}
+
+/** Retry a specific failed job; refresh detail after. */
+export async function retryCiJob(jobId: number | string): Promise<void> {
+  await api.retryCiJob(String(jobId));
+  const current = get(selectedCiRunId);
+  if (current != null) {
+    try { await loadCiRunDetail(current); } catch { /* ignore */ }
+  }
+}
+
+/** Cancel an in-progress run; refresh detail after. */
+export async function cancelCiRun(runId: number | string): Promise<void> {
+  await api.cancelCiRun(String(runId));
+  const current = get(selectedCiRunId);
+  if (current != null) {
+    try { await loadCiRunDetail(current); } catch { /* ignore */ }
+  }
+}
+
+/** Fetch the list of workflow definitions for the current project. */
+export async function listCiWorkflows(): Promise<import("../types").Workflow[]> {
+  return api.listCiWorkflows();
+}

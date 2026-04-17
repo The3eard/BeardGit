@@ -107,6 +107,28 @@ pub struct GitHubRepo {
     pub html_url: String,
 }
 
+/// Wrapper for `GET /repos/{owner}/{repo}/actions/workflows`.
+#[derive(Debug, Deserialize)]
+pub struct WorkflowsResponse {
+    /// Total number of workflow definitions.
+    pub total_count: u64,
+    /// Array of workflow definitions.
+    pub workflows: Vec<GitHubWorkflow>,
+}
+
+/// A single GitHub Actions workflow definition.
+#[derive(Debug, Deserialize)]
+pub struct GitHubWorkflow {
+    /// Numeric workflow ID.
+    pub id: u64,
+    /// Human-readable workflow name (from the `name:` top-level key).
+    pub name: String,
+    /// Repository-relative path to the workflow file.
+    pub path: String,
+    /// State string — `"active"`, `"disabled_manually"`, `"disabled_inactivity"`, etc.
+    pub state: String,
+}
+
 /// GitHub user profile as returned by `GET /user`.
 #[derive(Debug, Deserialize)]
 pub struct GitHubUser {

@@ -38,6 +38,29 @@ impl GitHubProvider {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Internal request shapes for CI/CD control (Phase 8.4)
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+struct GitHubDispatchBody<'a> {
+    #[serde(rename = "ref")]
+    ref_name: &'a str,
+    inputs: &'a std::collections::HashMap<String, String>,
+}
+
+/// Normalize a GitHub workflow `state` string into [`provider::WorkflowState`].
+///
+/// GitHub documents these variants: `active`, `deleted`, `disabled_fork`,
+/// `disabled_inactivity`, `disabled_manually`. Everything except `active`
+/// maps to [`provider::WorkflowState::Disabled`].
+fn normalize_workflow_state(state: &str) -> provider::WorkflowState {
+    match state {
+        "active" => provider::WorkflowState::Active,
+        _ => provider::WorkflowState::Disabled,
+    }
+}
+
 #[async_trait]
 impl CiProvider for GitHubProvider {
     async fn validate_token(&self) -> Result<ProviderUser, ProviderError> {
@@ -143,6 +166,96 @@ impl CiProvider for GitHubProvider {
             .get_text(&format!("/repos/{project_ref}/actions/jobs/{job_id}/logs"))
             .await
             .map_err(into_provider_error)
+    }
+
+    async fn trigger_workflow(
+        &self,
+        project_ref: &str,
+        input: &provider::TriggerWorkflowInput,
+    ) -> Result<provider::TriggerResult, ProviderError> {
+        let path = format!(
+            "/repos/{project_ref}/actions/workflows/{}/dispatches",
+            input.workflow_id
+        );
+        let body = GitHubDispatchBody {
+            ref_name: &input.git_ref,
+            inputs: &input.inputs,
+        };
+        self.client
+            .post_no_body(&path, &body)
+            .await
+            .map_err(into_provider_error)?;
+        // GitHub's dispatch endpoint does not return the new run ID. The
+        // frontend discovers it on the next polling cycle.
+        Ok(provider::TriggerResult {
+            run_id: String::new(),
+            url: format!("https://github.com/{project_ref}/actions"),
+        })
+    }
+
+    async fn retry_run(&self, project_ref: &str, run_id: &str) -> Result<(), ProviderError> {
+        self.client
+            .post_no_body(
+                &format!("/repos/{project_ref}/actions/runs/{run_id}/rerun"),
+                &serde_json::json!({}),
+            )
+            .await
+            .map_err(into_provider_error)
+    }
+
+    async fn retry_failed_jobs(
+        &self,
+        project_ref: &str,
+        run_id: &str,
+    ) -> Result<(), ProviderError> {
+        self.client
+            .post_no_body(
+                &format!("/repos/{project_ref}/actions/runs/{run_id}/rerun-failed-jobs"),
+                &serde_json::json!({}),
+            )
+            .await
+            .map_err(into_provider_error)
+    }
+
+    async fn retry_job(&self, project_ref: &str, job_id: &str) -> Result<(), ProviderError> {
+        self.client
+            .post_no_body(
+                &format!("/repos/{project_ref}/actions/jobs/{job_id}/rerun"),
+                &serde_json::json!({}),
+            )
+            .await
+            .map_err(into_provider_error)
+    }
+
+    async fn cancel_run(&self, project_ref: &str, run_id: &str) -> Result<(), ProviderError> {
+        self.client
+            .post_no_body(
+                &format!("/repos/{project_ref}/actions/runs/{run_id}/cancel"),
+                &serde_json::json!({}),
+            )
+            .await
+            .map_err(into_provider_error)
+    }
+
+    async fn list_workflows(
+        &self,
+        project_ref: &str,
+    ) -> Result<Vec<provider::Workflow>, ProviderError> {
+        let resp: types::WorkflowsResponse = self
+            .client
+            .get(&format!("/repos/{project_ref}/actions/workflows"))
+            .await
+            .map_err(into_provider_error)?;
+        Ok(resp
+            .workflows
+            .into_iter()
+            .map(|w| provider::Workflow {
+                id: w.id.to_string(),
+                name: w.name,
+                path: w.path,
+                state: normalize_workflow_state(&w.state),
+            })
+            .collect())
     }
 
     fn provider_kind(&self) -> ProviderKind {

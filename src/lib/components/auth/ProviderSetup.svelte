@@ -164,6 +164,9 @@
               placeholder={selectedProvider === "github" ? m.provider_token_placeholder_github() : m.provider_token_placeholder_gitlab()}
               disabled={$isConnecting}
             />
+            {#if selectedProvider === "github"}
+              <span class="field-note">{m.auth_github_scope_hint_workflow()}</span>
+            {/if}
           </label>
 
           {#if $providerError}
@@ -217,6 +220,7 @@
   .field-input { padding: 8px 12px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 13px; outline: none; transition: border-color 0.15s; }
   .field-input:focus { border-color: var(--accent-blue); }
   .field-input:disabled { opacity: 0.5; }
+  .field-note { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
 
   .form-actions { display: flex; gap: 8px; margin-top: 4px; }
   .btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }

@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -334,6 +334,36 @@ export async function detectProject(): Promise<void> {
 
 export async function preprocessJobLog(rawText: string, providerKind: string): Promise<string> {
   return invoke<string>("preprocess_job_log", { rawText, providerKind });
+}
+
+// -- CI/CD control (Phase 8.4) --
+
+export async function triggerWorkflow(
+  workflowId: string,
+  gitRef: string,
+  inputs: Record<string, string>,
+): Promise<TriggerResult> {
+  return invoke<TriggerResult>("trigger_workflow", { workflowId, gitRef, inputs });
+}
+
+export async function retryCiRun(runId: string): Promise<void> {
+  return invoke<void>("retry_ci_run", { runId });
+}
+
+export async function retryCiFailedJobs(runId: string): Promise<void> {
+  return invoke<void>("retry_ci_failed_jobs", { runId });
+}
+
+export async function retryCiJob(jobId: string): Promise<void> {
+  return invoke<void>("retry_ci_job", { jobId });
+}
+
+export async function cancelCiRun(runId: string): Promise<void> {
+  return invoke<void>("cancel_ci_run", { runId });
+}
+
+export async function listCiWorkflows(): Promise<Workflow[]> {
+  return invoke<Workflow[]>("list_ci_workflows");
 }
 
 // ---------------------------------------------------------------------------
