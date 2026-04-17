@@ -5,10 +5,10 @@
 
 use forge_provider::{
     Comment, CreateMrPrInput, EditMrPrPatch, ForgeError, MergeStrategy, MrPr, MrPrDetail,
-    MrPrDiffFile, MrPrFilter, ReviewStatus,
+    MrPrDiffFile, MrPrFilter, MrPrState, ReviewStatus,
 };
 
-use super::{GitLabCli, state_to_glab_str};
+use super::GitLabCli;
 use crate::parsers::{GITLAB_FIELDS, parse_gitlab_comment, parse_mr_pr};
 
 impl GitLabCli {
@@ -17,11 +17,17 @@ impl GitLabCli {
         filter: MrPrFilter,
         limit: u32,
     ) -> Result<Vec<MrPr>, ForgeError> {
-        let state_str = filter.state.map(state_to_glab_str);
+        // glab dropped `--state <value>` in favour of boolean flags
+        // (`--all`, `--closed`, `--merged`, default = opened). Match what
+        // the installed binary accepts — both 1.46.x (bundled) and 1.92.x
+        // (current Homebrew release) use the boolean form.
         let per_page = limit.to_string();
         let mut args = vec!["mr", "list", "--per-page", &per_page];
-        if let Some(s) = state_str {
-            args.extend(["--state", s]);
+        match filter.state {
+            None => args.push("--all"),
+            Some(MrPrState::Open) => {} // glab's default is "opened"
+            Some(MrPrState::Closed) => args.push("--closed"),
+            Some(MrPrState::Merged) => args.push("--merged"),
         }
         args.extend(["-F", "json"]);
         let raw: Vec<serde_json::Value> = self.run_json(&args)?;

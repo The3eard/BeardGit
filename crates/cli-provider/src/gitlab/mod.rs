@@ -290,12 +290,3 @@ impl ForgeProvider for GitLabCli {
         self.delete_release_asset_impl(tag, asset_id)
     }
 }
-
-/// Map [`MrPrState`][forge_provider::MrPrState] to the string `glab` expects.
-pub(super) fn state_to_glab_str(s: forge_provider::MrPrState) -> &'static str {
-    match s {
-        forge_provider::MrPrState::Open => "opened",
-        forge_provider::MrPrState::Closed => "closed",
-        forge_provider::MrPrState::Merged => "merged",
-    }
-}
