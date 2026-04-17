@@ -211,6 +211,18 @@ pub fn run() {
             app_core::commands::request_changes_mr_pr,
             app_core::commands::add_mr_pr_comment,
             app_core::commands::add_mr_pr_inline_comment,
+            // Phase 8.2 — MR/PR enhancements
+            app_core::commands::add_mr_pr_labels,
+            app_core::commands::remove_mr_pr_labels,
+            app_core::commands::add_mr_pr_reviewers,
+            app_core::commands::remove_mr_pr_reviewers,
+            app_core::commands::mark_mr_pr_ready,
+            app_core::commands::mark_mr_pr_draft,
+            app_core::commands::reopen_mr_pr,
+            app_core::commands::resolve_discussion,
+            app_core::commands::unresolve_discussion,
+            app_core::commands::list_labels,
+            app_core::commands::checkout_mr_pr_locally,
             // Sidebar
             app_core::commands::get_sidebar_collapsed,
             app_core::commands::set_sidebar_collapsed,

@@ -131,6 +131,22 @@ pub struct Comment {
     pub line: Option<u64>,
     /// Whether this is part of a review (not a standalone comment).
     pub is_review: bool,
+    /// GitLab-only: whether the comment (discussion) is marked resolvable.
+    ///
+    /// `None` on GitHub — GitHub has no equivalent concept of resolvable
+    /// discussions exposed via the CLI.
+    #[serde(default)]
+    pub resolvable: Option<bool>,
+    /// GitLab-only: whether the comment (discussion) is currently resolved.
+    ///
+    /// `None` on GitHub.
+    #[serde(default)]
+    pub resolved: Option<bool>,
+    /// GitLab-only: discussion ID used by resolve/unresolve API calls.
+    ///
+    /// `None` on GitHub.
+    #[serde(default)]
+    pub discussion_id: Option<String>,
 }
 
 /// A file changed in a MR/PR diff.
@@ -199,4 +215,146 @@ pub struct EditMrPrPatch {
     pub title: Option<String>,
     /// New body (leave `None` to keep current body).
     pub body: Option<String>,
+    /// Toggle draft state. `Some(true)` → convert to draft, `Some(false)`
+    /// → mark ready, `None` → leave unchanged.
+    ///
+    /// Providers with dedicated draft lifecycle commands (both GitHub
+    /// `pr ready` and GitLab `mr update --ready/--draft`) are invoked
+    /// through [`crate::ForgeProvider::mark_mr_pr_ready`] and
+    /// [`crate::ForgeProvider::mark_mr_pr_draft`]; this field is here
+    /// primarily for symmetry with the edit API.
+    pub draft: Option<bool>,
+}
+
+/// Result of checking out a MR/PR branch locally via
+/// [`crate::ForgeProvider::checkout_mr_pr`].
+///
+/// Enables the frontend to show a useful toast (e.g. "Checked out
+/// `feature/foo`; added remote `fork`") and decide whether to refresh the
+/// remotes list.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckoutResult {
+    /// Name of the local branch that was checked out.
+    pub branch_name: String,
+    /// Whether the MR/PR source branch lives on a fork (a new remote was
+    /// needed to fetch it).
+    pub is_fork: bool,
+    /// Name of the remote that was added for the fork, if any.
+    pub remote_added: Option<String>,
+}
+
+/// A repository label (used by both issues and MR/PRs).
+///
+/// Returned by [`crate::ForgeProvider::list_labels`] for populating the
+/// label picker UI.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Label {
+    /// Label name (identifier — `add_mr_pr_labels` takes these).
+    pub name: String,
+    /// Hex color without the leading `#`, if provided.
+    pub color: Option<String>,
+    /// Optional human-readable description.
+    pub description: Option<String>,
+}
+
+#[cfg(test)]
+mod types_tests {
+    use super::*;
+
+    #[test]
+    fn checkout_result_serializes_snake_case() {
+        let cr = CheckoutResult {
+            branch_name: "feature/foo".into(),
+            is_fork: true,
+            remote_added: Some("fork".into()),
+        };
+        let json = serde_json::to_string(&cr).unwrap();
+        assert!(json.contains("\"branch_name\":\"feature/foo\""));
+        assert!(json.contains("\"is_fork\":true"));
+        assert!(json.contains("\"remote_added\":\"fork\""));
+    }
+
+    #[test]
+    fn label_round_trips() {
+        let l = Label {
+            name: "bug".into(),
+            color: Some("ff0000".into()),
+            description: Some("Something broken".into()),
+        };
+        let json = serde_json::to_string(&l).unwrap();
+        let back: Label = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "bug");
+        assert_eq!(back.color.as_deref(), Some("ff0000"));
+        assert_eq!(back.description.as_deref(), Some("Something broken"));
+    }
+
+    #[test]
+    fn label_without_color_or_description() {
+        let l = Label {
+            name: "plain".into(),
+            color: None,
+            description: None,
+        };
+        let json = serde_json::to_string(&l).unwrap();
+        let back: Label = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "plain");
+        assert!(back.color.is_none());
+        assert!(back.description.is_none());
+    }
+
+    #[test]
+    fn edit_patch_has_optional_draft() {
+        let patch = EditMrPrPatch {
+            title: Some("new title".into()),
+            body: None,
+            draft: Some(false),
+        };
+        let json = serde_json::to_string(&patch).unwrap();
+        assert!(json.contains("\"draft\":false"));
+    }
+
+    #[test]
+    fn edit_patch_default_draft_none() {
+        let patch = EditMrPrPatch::default();
+        assert!(patch.draft.is_none());
+    }
+
+    #[test]
+    fn comment_with_resolvable_fields() {
+        let c = Comment {
+            id: 1,
+            author: "alice".into(),
+            body: "please fix".into(),
+            created_at: "2026-04-16T10:00:00Z".into(),
+            path: None,
+            line: None,
+            is_review: false,
+            resolvable: Some(true),
+            resolved: Some(false),
+            discussion_id: Some("abc123".into()),
+        };
+        let json = serde_json::to_string(&c).unwrap();
+        let back: Comment = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.resolvable, Some(true));
+        assert_eq!(back.resolved, Some(false));
+        assert_eq!(back.discussion_id.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn comment_without_resolvable_fields_defaults() {
+        // Simulates a payload from GitHub which omits the new optional keys.
+        let json = r#"{
+            "id": 1,
+            "author": "bob",
+            "body": "looks good",
+            "created_at": "2026-04-16T10:00:00Z",
+            "path": null,
+            "line": null,
+            "is_review": false
+        }"#;
+        let c: Comment = serde_json::from_str(json).unwrap();
+        assert!(c.resolvable.is_none());
+        assert!(c.resolved.is_none());
+        assert!(c.discussion_id.is_none());
+    }
 }

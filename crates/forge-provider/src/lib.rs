@@ -128,4 +128,35 @@ pub trait ForgeProvider: Send + Sync {
     fn reopen_mr_pr(&self, _number: u64) -> Result<(), ForgeError> {
         Err(ForgeError::NotSupported)
     }
+
+    /// 8.2 — mark a discussion thread as resolved.
+    ///
+    /// GitLab-only; GitHub returns [`ForgeError::NotSupported`] because
+    /// there is no equivalent CLI-exposed resolve operation.
+    fn resolve_discussion(&self, _number: u64, _discussion_id: &str) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.2 — mark a discussion thread as unresolved.
+    ///
+    /// GitLab-only; GitHub returns [`ForgeError::NotSupported`].
+    fn unresolve_discussion(&self, _number: u64, _discussion_id: &str) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.2 — check out a MR/PR branch locally.
+    ///
+    /// Both CLIs handle fork-remote setup, fetch, and checkout in a single
+    /// invocation. This synchronous method captures stdout and parses it
+    /// into a [`CheckoutResult`]. Callers that need streaming output
+    /// should invoke the CLI through `TaskManager` directly (see the
+    /// `checkout_mr_pr_locally` Tauri command).
+    fn checkout_mr_pr(&self, _number: u64) -> Result<CheckoutResult, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.2 — list all repository labels (for the label picker UI).
+    fn list_labels(&self) -> Result<Vec<Label>, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
 }

@@ -7,7 +7,7 @@
  */
 
 import { writable, derived, get } from "svelte/store";
-import type { MrPr, MrPrDetail, MrPrDiffFile, MrPrState } from "../types";
+import type { Label, MrPr, MrPrDetail, MrPrDiffFile, MrPrState, TaskId } from "../types";
 import {
   listMrPrs as apiList,
   getMrPrDetail as apiDetail,
@@ -19,6 +19,17 @@ import {
   approveMrPr as apiApprove,
   requestChangesMrPr as apiRequestChanges,
   addMrPrComment as apiAddComment,
+  addMrPrLabels as apiAddLabels,
+  removeMrPrLabels as apiRemoveLabels,
+  addMrPrReviewers as apiAddReviewers,
+  removeMrPrReviewers as apiRemoveReviewers,
+  markMrPrReady as apiMarkReady,
+  markMrPrDraft as apiMarkDraft,
+  reopenMrPr as apiReopen,
+  resolveDiscussion as apiResolveDiscussion,
+  unresolveDiscussion as apiUnresolveDiscussion,
+  listLabels as apiListLabels,
+  checkoutMrPrLocally as apiCheckoutLocally,
 } from "../api/tauri";
 import { fetchIntoStore } from "../utils/store-helpers";
 
@@ -145,4 +156,91 @@ export async function requestChangesMrPr(number: number, body: string): Promise<
 export async function addMrPrComment(number: number, body: string): Promise<void> {
   await apiAddComment(number, body);
   await loadMrPrDetail(number);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8.2 — Labels, reviewers, draft lifecycle, reopen, resolve, checkout
+// ---------------------------------------------------------------------------
+
+/** Cache of repository labels, populated on demand by the label picker. */
+export const repoLabels = writable<Label[]>([]);
+/** Whether the repository label cache is currently loading. */
+export const repoLabelsLoading = writable(false);
+
+/** Fetch repository labels into the cache (no-op on error — list stays empty). */
+export async function loadRepoLabels(): Promise<void> {
+  repoLabelsLoading.set(true);
+  try {
+    const labels = await apiListLabels();
+    repoLabels.set(labels);
+  } catch {
+    repoLabels.set([]);
+  } finally {
+    repoLabelsLoading.set(false);
+  }
+}
+
+/** Add labels to a MR/PR and refresh the detail. */
+export async function addMrPrLabels(number: number, labels: string[]): Promise<void> {
+  await apiAddLabels(number, labels);
+  await loadMrPrDetail(number);
+}
+
+/** Remove labels from a MR/PR and refresh the detail. */
+export async function removeMrPrLabels(number: number, labels: string[]): Promise<void> {
+  await apiRemoveLabels(number, labels);
+  await loadMrPrDetail(number);
+}
+
+/** Add reviewers to a MR/PR and refresh the detail. */
+export async function addMrPrReviewers(number: number, reviewers: string[]): Promise<void> {
+  await apiAddReviewers(number, reviewers);
+  await loadMrPrDetail(number);
+}
+
+/** Remove reviewers from a MR/PR and refresh the detail. */
+export async function removeMrPrReviewers(number: number, reviewers: string[]): Promise<void> {
+  await apiRemoveReviewers(number, reviewers);
+  await loadMrPrDetail(number);
+}
+
+/** Mark a draft MR/PR as ready for review and refresh the detail. */
+export async function markMrPrReady(number: number): Promise<void> {
+  await apiMarkReady(number);
+  await loadMrPrDetail(number);
+}
+
+/** Convert a ready MR/PR back to draft and refresh the detail. */
+export async function markMrPrDraft(number: number): Promise<void> {
+  await apiMarkDraft(number);
+  await loadMrPrDetail(number);
+}
+
+/** Reopen a closed MR/PR, refresh the detail, and refresh the list. */
+export async function reopenMrPr(number: number): Promise<void> {
+  await apiReopen(number);
+  await loadMrPrDetail(number);
+  await refreshMrPrList();
+}
+
+/** Mark a GitLab discussion as resolved and refresh the detail. */
+export async function resolveDiscussion(number: number, discussionId: string): Promise<void> {
+  await apiResolveDiscussion(number, discussionId);
+  await loadMrPrDetail(number);
+}
+
+/** Mark a GitLab discussion as unresolved and refresh the detail. */
+export async function unresolveDiscussion(number: number, discussionId: string): Promise<void> {
+  await apiUnresolveDiscussion(number, discussionId);
+  await loadMrPrDetail(number);
+}
+
+/**
+ * Kick off a MR/PR local checkout.
+ *
+ * Returns the task ID immediately — progress streams to the task popover
+ * and the final `CheckoutResult` arrives via a `mr-pr-checked-out` event.
+ */
+export async function checkoutMrPrLocally(number: number): Promise<TaskId> {
+  return apiCheckoutLocally(number);
 }

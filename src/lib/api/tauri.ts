@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -754,6 +754,63 @@ export async function addMrPrComment(number: number, body: string): Promise<void
 /** Add an inline comment on a specific file and line. */
 export async function addMrPrInlineComment(number: number, path: string, line: number, body: string): Promise<void> {
   return invoke<void>("add_mr_pr_inline_comment", { number, path, line, body });
+}
+
+// Phase 8.2 — MR/PR enhancements
+
+/** Add labels to an existing MR/PR. */
+export async function addMrPrLabels(number: number, labels: string[]): Promise<void> {
+  return invoke<void>("add_mr_pr_labels", { number, labels });
+}
+
+/** Remove labels from an existing MR/PR. */
+export async function removeMrPrLabels(number: number, labels: string[]): Promise<void> {
+  return invoke<void>("remove_mr_pr_labels", { number, labels });
+}
+
+/** Add reviewers to an existing MR/PR. */
+export async function addMrPrReviewers(number: number, reviewers: string[]): Promise<void> {
+  return invoke<void>("add_mr_pr_reviewers", { number, reviewers });
+}
+
+/** Remove reviewers from an existing MR/PR. */
+export async function removeMrPrReviewers(number: number, reviewers: string[]): Promise<void> {
+  return invoke<void>("remove_mr_pr_reviewers", { number, reviewers });
+}
+
+/** Mark a draft MR/PR as ready for review. */
+export async function markMrPrReady(number: number): Promise<void> {
+  return invoke<void>("mark_mr_pr_ready", { number });
+}
+
+/** Convert a ready MR/PR back to draft. */
+export async function markMrPrDraft(number: number): Promise<void> {
+  return invoke<void>("mark_mr_pr_draft", { number });
+}
+
+/** Reopen a previously closed MR/PR. */
+export async function reopenMrPr(number: number): Promise<void> {
+  return invoke<void>("reopen_mr_pr", { number });
+}
+
+/** Mark a GitLab discussion as resolved. GitHub returns an error. */
+export async function resolveDiscussion(number: number, discussionId: string): Promise<void> {
+  return invoke<void>("resolve_discussion", { number, discussionId });
+}
+
+/** Mark a GitLab discussion as unresolved. GitHub returns an error. */
+export async function unresolveDiscussion(number: number, discussionId: string): Promise<void> {
+  return invoke<void>("unresolve_discussion", { number, discussionId });
+}
+
+/** List all repository labels (for the label picker UI). */
+export async function listLabels(): Promise<Label[]> {
+  return invoke<Label[]>("list_labels");
+}
+
+/** Check out a MR/PR branch locally. Returns a task ID; the parsed result comes via the `mr-pr-checked-out` event. */
+export async function checkoutMrPrLocally(number: number): Promise<TaskId> {
+  return invoke<TaskId>("checkout_mr_pr_locally", { number });
 }
 
 // ── Sidebar ─────────────────────────────────────────────────────────

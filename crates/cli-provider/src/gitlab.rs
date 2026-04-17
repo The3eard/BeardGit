@@ -3,8 +3,9 @@
 use std::path::PathBuf;
 
 use forge_provider::{
-    Comment, CreateMrPrInput, EditMrPrPatch, ForgeAuthStatus, ForgeError, ForgeKind, ForgeProvider,
-    MergeStrategy, MrPr, MrPrDetail, MrPrDiffFile, MrPrFilter, ReviewStatus,
+    CheckoutResult, Comment, CreateMrPrInput, EditMrPrPatch, ForgeAuthStatus, ForgeError,
+    ForgeKind, ForgeProvider, Label, MergeStrategy, MrPr, MrPrDetail, MrPrDiffFile, MrPrFilter,
+    ReviewStatus,
 };
 
 use crate::auth;
@@ -78,10 +79,36 @@ impl ForgeProvider for GitLabCli {
         let num_str = number.to_string();
         let raw: serde_json::Value = self.run_json(&["mr", "view", &num_str, "-F", "json"])?;
         let summary = parse_mr_pr(&raw, &GITLAB_FIELDS);
-        let comments: Vec<Comment> = raw["notes"]
-            .as_array()
-            .map(|arr| arr.iter().map(parse_gitlab_comment).collect())
+
+        // Fetch discussions separately to get discussion IDs for resolve
+        // support. Each discussion groups one or more notes under a shared
+        // `id`, which is the identifier the resolve/unresolve API takes.
+        let discussions_path = format!("projects/:id/merge_requests/{number}/discussions");
+        let discussions: Vec<serde_json::Value> = self
+            .run_json(&["api", &discussions_path])
             .unwrap_or_default();
+
+        let mut comments: Vec<Comment> = Vec::new();
+        for disc in &discussions {
+            let disc_id = disc["id"].as_str().map(|s| s.to_string());
+            if let Some(notes) = disc["notes"].as_array() {
+                for note in notes {
+                    let mut c = parse_gitlab_comment(note);
+                    c.discussion_id = disc_id.clone();
+                    comments.push(c);
+                }
+            }
+        }
+
+        // Fallback: if the discussions endpoint failed or returned nothing,
+        // fall back to the `notes` field from the MR view — discussion_id
+        // stays `None`, resolve buttons will not render but comments still do.
+        if comments.is_empty()
+            && let Some(arr) = raw["notes"].as_array()
+        {
+            comments = arr.iter().map(parse_gitlab_comment).collect();
+        }
+
         let merge_status = raw["merge_status"].as_str().unwrap_or("");
         let mergeable = match merge_status {
             "can_be_merged" => Some(true),
@@ -225,6 +252,144 @@ impl ForgeProvider for GitLabCli {
         )?;
         Ok(())
     }
+
+    // ─── Phase 8.2: MR/PR enhancements ─────────────────────────────────
+
+    fn add_mr_pr_labels(&self, number: u64, labels: &[String]) -> Result<(), ForgeError> {
+        if labels.is_empty() {
+            return Ok(());
+        }
+        let num_str = number.to_string();
+        let joined = labels.join(",");
+        self.run(&["mr", "update", &num_str, "--label", &joined])?;
+        Ok(())
+    }
+
+    fn remove_mr_pr_labels(&self, number: u64, labels: &[String]) -> Result<(), ForgeError> {
+        if labels.is_empty() {
+            return Ok(());
+        }
+        let num_str = number.to_string();
+        let joined = labels.join(",");
+        self.run(&["mr", "update", &num_str, "--unlabel", &joined])?;
+        Ok(())
+    }
+
+    fn add_mr_pr_reviewers(&self, number: u64, reviewers: &[String]) -> Result<(), ForgeError> {
+        if reviewers.is_empty() {
+            return Ok(());
+        }
+        // `glab mr update --reviewer` replaces the full reviewer list rather
+        // than appending. Fetch current reviewers and merge manually.
+        let detail = self.get_mr_pr(number)?;
+        let mut set: std::collections::BTreeSet<String> =
+            detail.summary.reviewers.into_iter().collect();
+        for r in reviewers {
+            set.insert(r.clone());
+        }
+        let joined = set.into_iter().collect::<Vec<_>>().join(",");
+        let num_str = number.to_string();
+        self.run(&["mr", "update", &num_str, "--reviewer", &joined])?;
+        Ok(())
+    }
+
+    fn remove_mr_pr_reviewers(&self, number: u64, reviewers: &[String]) -> Result<(), ForgeError> {
+        if reviewers.is_empty() {
+            return Ok(());
+        }
+        let detail = self.get_mr_pr(number)?;
+        let to_remove: std::collections::HashSet<&str> =
+            reviewers.iter().map(|s| s.as_str()).collect();
+        let remaining: Vec<String> = detail
+            .summary
+            .reviewers
+            .into_iter()
+            .filter(|r| !to_remove.contains(r.as_str()))
+            .collect();
+        let joined = remaining.join(",");
+        let num_str = number.to_string();
+        // Empty string clears the reviewer list in glab.
+        self.run(&["mr", "update", &num_str, "--reviewer", &joined])?;
+        Ok(())
+    }
+
+    fn mark_mr_pr_ready(&self, number: u64) -> Result<(), ForgeError> {
+        let n = number.to_string();
+        self.run(&["mr", "update", &n, "--ready"])?;
+        Ok(())
+    }
+
+    fn mark_mr_pr_draft(&self, number: u64) -> Result<(), ForgeError> {
+        let n = number.to_string();
+        self.run(&["mr", "update", &n, "--draft"])?;
+        Ok(())
+    }
+
+    fn reopen_mr_pr(&self, number: u64) -> Result<(), ForgeError> {
+        let n = number.to_string();
+        self.run(&["mr", "reopen", &n])?;
+        Ok(())
+    }
+
+    fn resolve_discussion(&self, number: u64, discussion_id: &str) -> Result<(), ForgeError> {
+        let path = format!("projects/:id/merge_requests/{number}/discussions/{discussion_id}");
+        self.run(&["api", &path, "--method", "PUT", "-f", "resolved=true"])?;
+        Ok(())
+    }
+
+    fn unresolve_discussion(&self, number: u64, discussion_id: &str) -> Result<(), ForgeError> {
+        let path = format!("projects/:id/merge_requests/{number}/discussions/{discussion_id}");
+        self.run(&["api", &path, "--method", "PUT", "-f", "resolved=false"])?;
+        Ok(())
+    }
+
+    fn checkout_mr_pr(&self, number: u64) -> Result<CheckoutResult, ForgeError> {
+        let n = number.to_string();
+        let stdout = self.run(&["mr", "checkout", &n])?;
+        Ok(parse_glab_checkout_output(&stdout))
+    }
+
+    fn list_labels(&self) -> Result<Vec<Label>, ForgeError> {
+        let raw: Vec<serde_json::Value> = self.run_json(&["label", "list", "-F", "json"])?;
+        Ok(raw
+            .iter()
+            .map(|v| Label {
+                name: v["name"].as_str().unwrap_or("").to_string(),
+                color: v["color"]
+                    .as_str()
+                    .map(|s| s.trim_start_matches('#').to_string()),
+                description: v["description"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string()),
+            })
+            .collect())
+    }
+}
+
+/// Parse stdout from `glab mr checkout N` into a [`CheckoutResult`].
+///
+/// Pure heuristic parser — looks for glab's "Checking out branch 'X' from
+/// merge request !N" line and its "Adding remote <name>" line.
+fn parse_glab_checkout_output(stdout: &str) -> CheckoutResult {
+    let mut branch_name = String::new();
+    let mut remote_added: Option<String> = None;
+    for line in stdout.lines() {
+        if let Some(rest) = line.strip_prefix("Checking out branch '")
+            && let Some(end) = rest.find('\'')
+        {
+            branch_name = rest[..end].to_string();
+        }
+        if let Some(rest) = line.strip_prefix("Adding remote ") {
+            remote_added = Some(rest.trim().to_string());
+        }
+    }
+    let is_fork = remote_added.is_some();
+    CheckoutResult {
+        branch_name,
+        is_fork,
+        remote_added,
+    }
 }
 
 /// Map [`MrPrState`][forge_provider::MrPrState] to the string `glab` expects.
@@ -233,5 +398,37 @@ fn state_to_glab_str(s: forge_provider::MrPrState) -> &'static str {
         forge_provider::MrPrState::Open => "opened",
         forge_provider::MrPrState::Closed => "closed",
         forge_provider::MrPrState::Merged => "merged",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_glab_checkout_simple_output() {
+        let out = "Checking out branch 'feature-y' from merge request !7\n";
+        let r = parse_glab_checkout_output(out);
+        assert_eq!(r.branch_name, "feature-y");
+        assert!(!r.is_fork);
+        assert!(r.remote_added.is_none());
+    }
+
+    #[test]
+    fn parse_glab_checkout_fork_adds_remote() {
+        let out =
+            "Adding remote fork-user\nChecking out branch 'fork-feature' from merge request !7\n";
+        let r = parse_glab_checkout_output(out);
+        assert_eq!(r.branch_name, "fork-feature");
+        assert!(r.is_fork);
+        assert_eq!(r.remote_added.as_deref(), Some("fork-user"));
+    }
+
+    #[test]
+    fn parse_glab_checkout_empty_stdout() {
+        let r = parse_glab_checkout_output("");
+        assert_eq!(r.branch_name, "");
+        assert!(!r.is_fork);
+        assert!(r.remote_added.is_none());
     }
 }

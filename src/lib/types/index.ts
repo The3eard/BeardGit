@@ -636,6 +636,12 @@ export interface MrPrComment {
   path: string | null;
   line: number | null;
   is_review: boolean;
+  /** GitLab-only: whether the discussion is marked resolvable. `null` on GitHub. */
+  resolvable: boolean | null;
+  /** GitLab-only: whether the discussion is currently resolved. `null` on GitHub. */
+  resolved: boolean | null;
+  /** GitLab-only: discussion ID used by resolve/unresolve calls. `null` on GitHub. */
+  discussion_id: string | null;
 }
 
 export interface MrPrDiffFile {
@@ -645,6 +651,20 @@ export interface MrPrDiffFile {
   additions: number;
   deletions: number;
   patch: string | null;
+}
+
+/** A repository label for use with the label picker. */
+export interface Label {
+  name: string;
+  color: string | null;
+  description: string | null;
+}
+
+/** Result of checking out a MR/PR branch locally. */
+export interface CheckoutResult {
+  branch_name: string;
+  is_fork: boolean;
+  remote_added: string | null;
 }
 
 // ── CLI Auth ─────────────────────────────────────────────────────────

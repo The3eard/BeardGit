@@ -163,6 +163,9 @@ fn parse_string_array(value: &Value, field: &str) -> Vec<String> {
 }
 
 /// Parse a JSON comment into `Comment` for GitHub.
+///
+/// GitHub has no equivalent of GitLab's resolvable discussion threads, so
+/// `resolvable`, `resolved`, and `discussion_id` are always `None`.
 pub fn parse_github_comment(c: &Value) -> Comment {
     Comment {
         id: c["id"].as_u64().unwrap_or(0),
@@ -172,10 +175,17 @@ pub fn parse_github_comment(c: &Value) -> Comment {
         path: None,
         line: None,
         is_review: false,
+        resolvable: None,
+        resolved: None,
+        discussion_id: None,
     }
 }
 
 /// Parse a JSON note into `Comment` for GitLab.
+///
+/// Populates `resolvable` and `resolved` from the note JSON if present.
+/// `discussion_id` is set to `None` here; the caller (GitLab detail
+/// fetcher) fills it in when iterating discussions.
 pub fn parse_gitlab_comment(c: &Value) -> Comment {
     Comment {
         id: c["id"].as_u64().unwrap_or(0),
@@ -185,6 +195,9 @@ pub fn parse_gitlab_comment(c: &Value) -> Comment {
         path: c["position"]["new_path"].as_str().map(|s| s.to_string()),
         line: c["position"]["new_line"].as_u64(),
         is_review: c["type"].as_str() == Some("DiffNote"),
+        resolvable: c["resolvable"].as_bool(),
+        resolved: c["resolved"].as_bool(),
+        discussion_id: None,
     }
 }
 
@@ -320,6 +333,52 @@ mod tests {
         assert_eq!(c.path, Some("src/main.rs".to_string()));
         assert_eq!(c.line, Some(42));
         assert!(c.is_review);
+    }
+
+    #[test]
+    fn test_parse_gitlab_comment_resolvable() {
+        let note = json!({
+            "id": 42,
+            "author": { "username": "alice" },
+            "body": "please fix",
+            "created_at": "2026-04-16T10:00:00Z",
+            "type": "DiffNote",
+            "resolvable": true,
+            "resolved": false,
+            "position": { "new_path": "src/lib.rs", "new_line": 10 }
+        });
+        let c = parse_gitlab_comment(&note);
+        assert_eq!(c.resolvable, Some(true));
+        assert_eq!(c.resolved, Some(false));
+        // discussion_id is populated by the caller, not the parser.
+        assert!(c.discussion_id.is_none());
+    }
+
+    #[test]
+    fn test_parse_gitlab_comment_no_resolvable_fields() {
+        let note = json!({
+            "id": 42,
+            "author": { "username": "alice" },
+            "body": "hi",
+            "created_at": "2026-04-16T10:00:00Z"
+        });
+        let c = parse_gitlab_comment(&note);
+        assert!(c.resolvable.is_none());
+        assert!(c.resolved.is_none());
+    }
+
+    #[test]
+    fn test_parse_github_comment_no_resolvable() {
+        let item = json!({
+            "id": 1,
+            "author": { "login": "bob" },
+            "body": "looks good",
+            "createdAt": "2026-04-16T10:00:00Z"
+        });
+        let c = parse_github_comment(&item);
+        assert!(c.resolvable.is_none());
+        assert!(c.resolved.is_none());
+        assert!(c.discussion_id.is_none());
     }
 
     #[test]

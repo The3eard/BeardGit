@@ -14,14 +14,31 @@
     approveMrPr,
     requestChangesMrPr,
     addMrPrComment,
+    addMrPrLabels,
+    removeMrPrLabels,
+    addMrPrReviewers,
+    removeMrPrReviewers,
+    markMrPrReady,
+    markMrPrDraft,
+    reopenMrPr,
+    resolveDiscussion,
+    unresolveDiscussion,
+    checkoutMrPrLocally,
   } from "../../stores/mr-pr";
   import { activeProvider } from "../../stores/provider";
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { listen } from "@tauri-apps/api/event";
+  import { onDestroy, onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { renderMarkdown } from "../../utils/markdown";
+  import PillRow from "./PillRow.svelte";
+  import LabelPicker from "./LabelPicker.svelte";
+  import ReviewerPicker from "./ReviewerPicker.svelte";
+  import type { CheckoutResult } from "../../types";
 
   let isGitHub = $derived($activeProvider?.kind === "github");
+  let isGitLab = $derived($activeProvider?.kind === "gitlab");
   let selectMessage = $derived(isGitHub ? m.mrpr_select_github() : m.mrpr_select());
 
   // Merge/close confirmation state
@@ -29,6 +46,30 @@
   let mergeStrategy = $state("merge");
   let showMergeDropdown = $state(false);
   let showCloseConfirm = $state(false);
+
+  // Phase 8.2 — enhancement state
+  let showLabelPicker = $state(false);
+  let showReviewerPicker = $state(false);
+  let showReopenConfirm = $state(false);
+  let showCheckoutConfirm = $state(false);
+  let checkoutTaskId = $state<number | null>(null);
+  let checkoutSuccess = $state<CheckoutResult | null>(null);
+  let unlistenCheckout: (() => void) | null = null;
+
+  onMount(async () => {
+    unlistenCheckout = await listen<CheckoutResult>("mr-pr-checked-out", (event) => {
+      checkoutSuccess = event.payload;
+      checkoutTaskId = null;
+      // Auto-dismiss after 4 seconds.
+      setTimeout(() => {
+        checkoutSuccess = null;
+      }, 4000);
+    });
+  });
+
+  onDestroy(() => {
+    unlistenCheckout?.();
+  });
 
   // Close merge dropdown on outside click
   function handleWindowClick(e: MouseEvent) {
@@ -105,6 +146,113 @@
       commentSubmitting = false;
     }
   }
+
+  async function handleLabelApply(added: string[], removed: string[]) {
+    const detail = $mrPrDetail;
+    if (!detail) {
+      showLabelPicker = false;
+      return;
+    }
+    try {
+      actionError = "";
+      if (added.length > 0) await addMrPrLabels(detail.summary.number, added);
+      if (removed.length > 0) await removeMrPrLabels(detail.summary.number, removed);
+    } catch (e) {
+      actionError = String(e);
+    }
+    showLabelPicker = false;
+  }
+
+  async function handleRemoveLabel(label: string) {
+    const detail = $mrPrDetail;
+    if (!detail) return;
+    try {
+      actionError = "";
+      await removeMrPrLabels(detail.summary.number, [label]);
+    } catch (e) {
+      actionError = String(e);
+    }
+  }
+
+  async function handleReviewerApply(added: string[]) {
+    const detail = $mrPrDetail;
+    if (!detail || added.length === 0) {
+      showReviewerPicker = false;
+      return;
+    }
+    try {
+      actionError = "";
+      await addMrPrReviewers(detail.summary.number, added);
+    } catch (e) {
+      actionError = String(e);
+    }
+    showReviewerPicker = false;
+  }
+
+  async function handleRemoveReviewer(reviewer: string) {
+    const detail = $mrPrDetail;
+    if (!detail) return;
+    try {
+      actionError = "";
+      await removeMrPrReviewers(detail.summary.number, [reviewer]);
+    } catch (e) {
+      actionError = String(e);
+    }
+  }
+
+  async function handleDraftToggle() {
+    const detail = $mrPrDetail;
+    if (!detail) return;
+    try {
+      actionError = "";
+      if (detail.summary.draft) {
+        await markMrPrReady(detail.summary.number);
+      } else {
+        await markMrPrDraft(detail.summary.number);
+      }
+    } catch (e) {
+      actionError = String(e);
+    }
+  }
+
+  async function handleReopen() {
+    const detail = $mrPrDetail;
+    if (!detail) return;
+    try {
+      actionError = "";
+      await reopenMrPr(detail.summary.number);
+    } catch (e) {
+      actionError = String(e);
+    }
+    showReopenConfirm = false;
+  }
+
+  async function handleToggleResolve(discussionId: string, resolved: boolean) {
+    const detail = $mrPrDetail;
+    if (!detail) return;
+    try {
+      actionError = "";
+      if (resolved) {
+        await unresolveDiscussion(detail.summary.number, discussionId);
+      } else {
+        await resolveDiscussion(detail.summary.number, discussionId);
+      }
+    } catch (e) {
+      actionError = String(e);
+    }
+  }
+
+  async function handleCheckout() {
+    const detail = $mrPrDetail;
+    if (!detail) return;
+    try {
+      actionError = "";
+      checkoutTaskId = await checkoutMrPrLocally(detail.summary.number);
+    } catch (e) {
+      actionError = String(e);
+    }
+    showCheckoutConfirm = false;
+  }
 </script>
 
 <svelte:window onclick={handleWindowClick} />
@@ -152,7 +300,7 @@
       </span>
     </div>
 
-    <!-- Action buttons for open MR/PRs -->
+    <!-- Action buttons for open, closed, merged MR/PRs -->
     {#if detail.summary.state === "open"}
       <div class="detail-actions">
         <button class="action-btn-approve" onclick={handleApprove}>{m.mrpr_approve()}</button>
@@ -169,7 +317,26 @@
             </div>
           {/if}
         </div>
+        <button class="draft-toggle-btn" onclick={handleDraftToggle}>
+          {detail.summary.draft ? m.mrpr_mark_ready() : m.mrpr_convert_to_draft()}
+        </button>
+        <button class="checkout-btn" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
+          {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
+        </button>
         <button class="close-btn" onclick={() => { showCloseConfirm = true; }}>{m.mrpr_close()}</button>
+      </div>
+    {:else if detail.summary.state === "closed"}
+      <div class="detail-actions">
+        <button class="checkout-btn" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
+          {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
+        </button>
+        <button class="action-btn-reopen" onclick={() => { showReopenConfirm = true; }}>{m.mrpr_reopen()}</button>
+      </div>
+    {:else if detail.summary.state === "merged"}
+      <div class="detail-actions">
+        <button class="checkout-btn" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
+          {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
+        </button>
       </div>
     {/if}
 
@@ -184,16 +351,31 @@
       </div>
     {/if}
 
-    {#if detail.summary.labels.length > 0}
-      <div class="section">
-        <h4 class="section-title">{m.mrpr_labels()}</h4>
-        <div class="label-list">
-          {#each detail.summary.labels as label}
-            <span class="label-tag">{label}</span>
-          {/each}
-        </div>
-      </div>
-    {/if}
+    <div class="section">
+      <h4 class="section-title">{m.mrpr_labels()}</h4>
+      <PillRow
+        items={detail.summary.labels}
+        onRemove={handleRemoveLabel}
+        onAddClick={() => { showLabelPicker = true; }}
+        emptyLabel={m.mrpr_no_labels()}
+        pillClass="label-pill"
+        removeAriaLabel={(item) => m.mrpr_remove_label_aria({ item })}
+        addAriaLabel={m.mrpr_add_aria()}
+      />
+    </div>
+
+    <div class="section">
+      <h4 class="section-title">{m.mrpr_reviewers()}</h4>
+      <PillRow
+        items={detail.summary.reviewers}
+        onRemove={handleRemoveReviewer}
+        onAddClick={() => { showReviewerPicker = true; }}
+        emptyLabel={m.mrpr_no_reviewers()}
+        pillClass="reviewer-pill"
+        removeAriaLabel={(item) => m.mrpr_remove_reviewer_aria({ item })}
+        addAriaLabel={m.mrpr_add_aria()}
+      />
+    </div>
 
     <div class="section">
       <h4 class="section-title">{m.mrpr_changed_files({ count: $mrPrDiffFiles.length.toString() })}</h4>
@@ -228,12 +410,21 @@
         </h4>
         <div class="comment-list">
           {#each detail.comments as comment}
-            <div class="comment">
+            <div class="comment" class:resolved={comment.resolved === true}>
               <div class="comment-header">
                 <span class="comment-author">{comment.author}</span>
                 <span class="comment-date">{new Date(comment.created_at).toLocaleString()}</span>
                 {#if comment.path}
                   <span class="comment-file">{comment.path}{comment.line ? `:${comment.line}` : ""}</span>
+                {/if}
+                {#if isGitLab && comment.resolvable && comment.discussion_id}
+                  <button
+                    class="resolve-btn"
+                    class:is-resolved={comment.resolved === true}
+                    onclick={() => handleToggleResolve(comment.discussion_id!, comment.resolved === true)}
+                  >
+                    {comment.resolved ? m.mrpr_unresolve() : m.mrpr_resolve()}
+                  </button>
                 {/if}
               </div>
               <div class="comment-body">{@html renderMarkdown(comment.body)}</div>
@@ -292,6 +483,52 @@
     onConfirm={handleClose}
     onCancel={() => { showCloseConfirm = false; }}
   />
+{/if}
+
+{#if showReopenConfirm && $mrPrDetail}
+  <ConfirmDialog
+    title={m.mrpr_reopen()}
+    message={m.mrpr_reopen_confirm()}
+    confirmLabel={m.mrpr_reopen()}
+    onConfirm={handleReopen}
+    onCancel={() => { showReopenConfirm = false; }}
+  />
+{/if}
+
+{#if showCheckoutConfirm && $mrPrDetail}
+  <ConfirmDialog
+    title={m.mrpr_checkout_locally()}
+    message={m.mrpr_checkout_confirm({ branch: $mrPrDetail.summary.source_branch })}
+    confirmLabel={m.mrpr_checkout_locally()}
+    onConfirm={handleCheckout}
+    onCancel={() => { showCheckoutConfirm = false; }}
+  />
+{/if}
+
+{#if showLabelPicker && $mrPrDetail}
+  <LabelPicker
+    current={$mrPrDetail.summary.labels}
+    onApply={handleLabelApply}
+    onCancel={() => { showLabelPicker = false; }}
+  />
+{/if}
+
+{#if showReviewerPicker && $mrPrDetail}
+  <ReviewerPicker
+    current={$mrPrDetail.summary.reviewers}
+    onApply={handleReviewerApply}
+    onCancel={() => { showReviewerPicker = false; }}
+  />
+{/if}
+
+{#if checkoutSuccess}
+  <div class="checkout-toast">
+    {m.mrpr_checkout_success({ branch: checkoutSuccess.branch_name })}
+    {#if checkoutSuccess.remote_added}
+      <br />
+      <span class="toast-sub">{m.mrpr_checkout_remote_added({ remote: checkoutSuccess.remote_added })}</span>
+    {/if}
+  </div>
 {/if}
 
 <style>
@@ -608,20 +845,6 @@
     border-radius: 4px;
   }
 
-  .label-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .label-tag {
-    padding: 2px 8px;
-    border-radius: 12px;
-    background: rgba(88, 166, 255, 0.15);
-    color: var(--accent-blue);
-    font-size: 11px;
-  }
-
   .file-list {
     font-size: 12px;
   }
@@ -757,4 +980,69 @@
 
   .btn-request-changes:hover { background: rgba(248, 81, 73, 0.2); }
   .btn-request-changes:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .draft-toggle-btn {
+    padding: 5px 12px;
+    background: none;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .draft-toggle-btn:hover { background: rgba(255, 255, 255, 0.05); }
+
+  .checkout-btn {
+    padding: 5px 12px;
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent-blue);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .checkout-btn:hover { background: rgba(88, 166, 255, 0.2); }
+  .checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .action-btn-reopen {
+    padding: 5px 12px;
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--accent-green);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    margin-left: auto;
+  }
+  .action-btn-reopen:hover { background: rgba(63, 185, 80, 0.25); }
+
+  .comment.resolved { opacity: 0.6; }
+
+  .resolve-btn {
+    margin-left: auto;
+    padding: 2px 8px;
+    background: none;
+    color: var(--accent-green);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .resolve-btn.is-resolved { color: var(--text-secondary); }
+  .resolve-btn:hover { border-color: var(--accent-green); }
+
+  .checkout-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-green);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+  }
+  .toast-sub { color: var(--text-secondary); font-size: 11px; }
 </style>

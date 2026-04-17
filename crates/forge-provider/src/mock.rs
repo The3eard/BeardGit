@@ -111,6 +111,19 @@ mod tests {
             mock.reopen_mr_pr(1),
             Err(ForgeError::NotSupported)
         ));
+        assert!(matches!(
+            mock.resolve_discussion(1, "abc"),
+            Err(ForgeError::NotSupported)
+        ));
+        assert!(matches!(
+            mock.unresolve_discussion(1, "abc"),
+            Err(ForgeError::NotSupported)
+        ));
+        assert!(matches!(
+            mock.checkout_mr_pr(1),
+            Err(ForgeError::NotSupported)
+        ));
+        assert!(matches!(mock.list_labels(), Err(ForgeError::NotSupported)));
     }
 
     #[test]
