@@ -4,6 +4,7 @@
   import GitConfigSettings from "./GitConfigSettings.svelte";
   import AiSettings from "./AiSettings.svelte";
   import CliAuthSection from "./CliAuthSection.svelte";
+  import ConnectionHowTo from "./ConnectionHowTo.svelte";
   import * as m from "$lib/paraglide/messages";
 
   type SettingsSection = { labelKey: () => string; id: string; wip?: boolean };
@@ -38,6 +39,7 @@
 
   <div class="settings-content" data-testid="settings-content">
     {#if activeSection === "connection"}
+      <ConnectionHowTo />
       <div class="auth-section">
         <h3 class="auth-section-title">{m.settings_token_auth()}</h3>
         <ProviderSetup />
