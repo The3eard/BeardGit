@@ -54,93 +54,30 @@ Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with reco
 
 **8.5 — Releases Vertical:** 9 new trait methods (list/get/create/edit/delete/publish + 3 asset ops). Asset upload streams via TaskManager for non-blocking progress. New `commands/releases.rs`, store `stores/releases.ts`, `components/releases/` (ReleaseView, ReleaseList, ReleaseDetail, CreateReleaseDialog, AssetUploadProgress). `xrefs.ts` extended to recognize release tags against a loaded tag cache. `create_tag_and_release` flow atomically pushes the tag and creates the release via TaskManager.
 
----
+### Phase 7: Polish, Performance & Remaining Items ✅
 
-## Phase 7: Polish, Performance & Remaining Items
+**7.1 — Terminal Enhancements:** OSC 7 shell integration for cwd auto-detection (terminal navigating to a project path auto-links to its composite tab); foreground process polling auto-detects Claude / Codex / OpenCode running in a terminal and updates the tab label + icon dynamically. Split terminal panes deferred to a future phase (not in the plan's scope).
 
-All undone items from previous phases consolidated here.
+**7.2 — CLI Binary Bundling:** `gh` v2.62.0 and `glab` v1.46.1 bundled as Tauri sidecars on macOS arm64/x64, Linux x64, Windows x64 via `scripts/download-cli-binaries.js` + `cli-versions.json`. `resolve_cli_binary()` checks sidecar location first, falls back to system PATH. Build + Release pipelines download matrix-specific binaries before `tauri-action`. Validated end-to-end across all 4 platforms.
 
-### 7.1 — Terminal Enhancements
+**7.3 — Code Quality:** Generic `<List>` component with 10 consumers (Branch / Tag / Stash / Reflog / MrPr / Worktree / Submodule / Release / Issue / AiSession lists). `fetchIntoStore` / `fetchListIntoStore` / `fetchPageIntoStore` helpers consumed by 10 stores. CLI provider JSON parser dedup landed via 8.1 (`GITHUB_FIELDS`/`GITLAB_FIELDS` pattern) + 9.4 cleanup.
 
-- [ ] Terminal cwd auto-detection: OSC 7 shell integration, terminal navigating to a project path auto-links to composite tab
-- [ ] Terminal process detection: auto-detect Claude/Codex running in terminal, update label dynamically
-- [ ] Split terminal panes: multiple xterm.js instances in split layout within one tab segment
+**7.4 — E2E Testing Expansion:** 9 spec files / 53 tests (app-launch, navigation, golden-path, regression/{graph, branches, staging, terminal, bisect, settings}). 6 new page objects + 2 expanded; data-testid attributes across graph, branches, changes, terminal, settings, bisect, dialogs. New `e2e-tests` CI job (ubuntu-22.04, xvfb + tauri-driver) scoped to main/beta pushes and PRs targeting them; uploads junit.xml + failure screenshots.
 
-### 7.2 — CLI Binary Bundling
+**7.5 — Infrastructure:** `storage::logging::purge_old_logs()` auto-removes log files older than 7 days via `async_runtime::spawn` + `spawn_blocking` on startup. 41 `#[instrument]` spans on git-engine write operations (bisect, operations, conflict, reset, clean, remote, worktree, submodule, interactive_rebase) with sensitive fields excluded. 80 `#[instrument(name = "cmd::…")]` spans on 19 Tauri command modules for hierarchical log grepping. Auto-update for bundled CLIs is implicit (Tauri updater replaces the full app bundle).
 
-- [ ] Download platform-specific gh/glab binaries in CI build pipeline
-- [ ] Ship bundled with app (macOS arm64/x64, Linux x64, Windows x64)
-- [ ] Auto-update bundled CLIs with app updates
-- [ ] Fallback to system binaries when bundled not available
+**7.6 — UI Polish:** Bisect graph overlays + right-click context menu (Mark good/bad/skip). Worktree lock/unlock wired through git-engine + context menu; "Open in graph" navigates to worktree's branch. AI Config Editor live-reload via new `watcher::ai_config` module. AI Sessions "Focus" focuses linked terminal tab or launches `claude --resume <sessionId>`.
 
-### 7.3 — Code Quality (Remaining)
+**7.7 — Performance:** Graph render profiling via `graph-perf.ts` — 6 `performance.mark` pairs around the render loop, dev-only FPS overlay toggled with `Ctrl+Shift+P`. Interactive xterm.js instance pool (3 deep) recycles terminals across tab open/close to reduce GC pressure. CodeMirror language cache short-circuits repeated dynamic imports per file extension.
 
-- [ ] Extract generic `<List>` component (~1500 LOC savings across 11 components)
-- [ ] Extract store `fetchIntoStore` to remaining stores (branches, tags, stashes, reflog, mr-pr)
-- [ ] CLI provider JSON parsing deduplication (GitHub/GitLab shared parser)
+### Phase 9: Provider Architecture Cleanup ✅
 
-### 7.4 — E2E Testing Expansion
-
-- [ ] `tauri-driver` + WebdriverIO full integration (headless app launch)
-- [ ] Golden path tests: open repo → navigate → stage/commit → terminal → AI session
-- [ ] CI integration: headless E2E suite on build pipeline (xvfb-run on Linux)
-- [ ] Regression suite: one test per major feature (graph, branches, merge editor, terminal, AI)
-
-### 7.5 — Infrastructure
-
-- [ ] Auto-update scope: extend to bundled gh/glab binaries (after 7.2)
-- [ ] Error logging: add `tracing` instrumentation to git write operations (push/pull/fetch/commit/merge/rebase)
-- [ ] Log rotation cleanup: auto-purge logs older than 7 days
-
-### 7.6 — UI Polish & Bug Fixes
-
-- [ ] AI Sessions "Focus" button: wire to actual terminal tab when session has a linked BeardGit terminal
-- [ ] Bisect graph integration: highlight good/bad/current commits with colored overlays in canvas graph
-- [ ] Bisect context menu: right-click commit in graph → "Mark as good" / "Mark as bad"
-- [ ] AI Config Editor: file watcher for live reload when external editor modifies config files
-- [ ] Worktree "Open in graph": navigate graph view to worktree's branch
-- [ ] Worktree "Lock/Unlock": wire the context menu stub actions
-
-### 7.7 — Performance
-
-- [ ] Profile and optimize large repo graph rendering (100K+ commits)
-- [ ] Terminal instance pooling: recycle xterm.js instances for closed terminals
-- [ ] Lazy-load CodeMirror languages (only load grammar when file type first encountered)
-
----
-
-## Phase 9: Provider Architecture Cleanup
-
-Goal: make the forge/CI provider layer easier to read, test, and extend. Pure refactor, no user-visible behaviour change. Phases 8.2–8.5 grew `cli-provider/src/github.rs` and `gitlab.rs` to ~800 LOC each with every feature piled into one big `impl` block — this phase splits them before they get larger and draws a harder line between trait crates (contracts) and implementation crates (logic).
-
-### 9.1 — `provider` crate split
-
-- [ ] Split `crates/provider/src/lib.rs` (883 lines) — move `CiProvider` trait into `traits.rs`, `CiStatus`/`CiRun`/`CiJob`/`CiStage`/`CiRunDetail` into `types.rs` (joining the post-8.4 types already there), `ProviderKind` + `parse_remote_url` into `kind.rs`, `ProviderError` into `error.rs`
-- [ ] `lib.rs` becomes re-exports only — no definitions
-- [ ] Audit: the `provider` crate must never gain an HTTP dep. Impls belong in `gitlab-api`/`github-api`
-
-### 9.2 — `cli-provider` per-vertical split
-
-- [ ] Convert `cli-provider/src/github.rs` and `gitlab.rs` into module directories: `github/mod.rs` declaring the struct + `impl ForgeProvider`, with methods grouped into submodules `mr_pr.rs`, `issues.rs`, `releases.rs`, `labels.rs`, `reviewers.rs`, `checkout.rs`, `discussions.rs`
-- [ ] Each submodule contains only `impl GitHubCli { pub(super) fn … }` methods that the main `impl ForgeProvider for GitHubCli` delegates to. Keep args-builders + parse helpers colocated with their feature.
-- [ ] Same structure for `gitlab/`. Target: no file >400 LOC.
-
-### 9.3 — Trait / implementation discipline
-
-- [ ] Add CI guard (grep-based lint or `deny` attr) enforcing that `forge-provider` and `provider` never import `reqwest`, `tokio`, `tauri`, or `std::process::Command`. They are contract-only crates.
-- [ ] Promote `forge-provider::mock` behind a proper `mock` feature flag with richer fakes so `app-core` tests can exercise Tauri commands without shelling out to real CLIs
-- [ ] Same treatment for `provider::CiProvider` — a `MockCiProvider` that returns canned pipelines/runs for frontend-integration tests
-
-### 9.4 — Cross-cutting helpers
-
-- [ ] Extract shared `run` / `run_json` / `run_with_stdin` from `cli-provider` into a small internal helper module reused across all CLI-based forge impls (and any future AI provider wrappers that shell out)
-- [ ] Audit `gitlab-api` and `github-api` for shared retry / rate-limit / error-mapping logic — factor common primitives into a single place so bug fixes don't need two copies
-- [ ] Deduplicate JSON parsing helpers already listed in Phase 7.3 (GitHub/GitLab shared parser) — bring that item into 9.4's scope since both touch the same files
-
-### 9.5 — Documentation pass
-
-- [ ] Update `crates/CLAUDE.md` with the post-9.1/9.2 layout so future contributors know where each piece lives
-- [ ] Add a short "Adding a new forge capability" how-to that walks through: trait method on `ForgeProvider` → default `NotSupported` → GitHub/GitLab submodule impl → Tauri command → frontend store → i18n. Keeps the Phase 8 muscle memory captured.
+Pure refactor, zero user-visible change.
+- **9.1** `provider/lib.rs` (883 LOC) split into `traits.rs` / `types.rs` / `kind.rs` / `error.rs` / `http_helpers.rs` / `mock.rs`; `lib.rs` now 43 LOC of re-exports
+- **9.2** `cli-provider/src/github.rs` and `gitlab.rs` (~800 LOC each) converted to directory modules with per-vertical submodules (mr_pr, labels, reviewers, lifecycle, discussions, checkout, issues, releases). `impl ForgeProvider` in `mod.rs` delegates one-line to feature-scoped methods. No file exceeds 400 LOC.
+- **9.3** CI grep guard in `ci.yml` enforces trait-crate purity (provider + forge-provider cannot import reqwest/tokio/tauri/hyper at the src level). `mock` feature flag exposes `MockProvider` + `MockCiProvider` for integration tests.
+- **9.4** Pure HTTP primitives (`api_error`, `retry_after_secs`, `trim_base_url`) extracted into `provider::http_helpers`; consumed by gitlab-api + github-api. Rate-limit arithmetic now unit-testable without fabricating HTTP responses.
+- **9.5** `crates/CLAUDE.md` refreshed with the post-9.1/9.2 layout + an "Adding a new forge capability" how-to walkthrough.
 
 ---
 
