@@ -243,6 +243,17 @@ pub fn run() {
             app_core::commands::remove_issue_assignees,
             app_core::commands::set_issue_milestone,
             app_core::commands::list_milestones,
+            // Phase 8.5 — Releases
+            app_core::commands::list_releases,
+            app_core::commands::get_release_detail,
+            app_core::commands::list_release_assets,
+            app_core::commands::create_release,
+            app_core::commands::edit_release,
+            app_core::commands::delete_release,
+            app_core::commands::publish_release,
+            app_core::commands::delete_release_asset,
+            app_core::commands::upload_release_asset,
+            app_core::commands::create_tag_and_release,
             // Sidebar
             app_core::commands::get_sidebar_collapsed,
             app_core::commands::set_sidebar_collapsed,

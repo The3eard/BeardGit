@@ -743,6 +743,69 @@ export interface CheckoutResult {
   remote_added: string | null;
 }
 
+// ── Releases (Phase 8.5) ─────────────────────────────────────────────
+
+/** State of a release on the forge. */
+export type ReleaseState = "draft" | "prerelease" | "published";
+
+/** Summary of a release as shown in lists. */
+export interface Release {
+  tag: string;
+  name: string;
+  state: ReleaseState;
+  author: string;
+  created_at: string;
+  /** ISO 8601 publication timestamp. `null` for draft releases. */
+  published_at: string | null;
+  asset_count: number;
+  url: string;
+}
+
+/** A single binary asset attached to a release. */
+export interface ReleaseAsset {
+  id: number;
+  name: string;
+  /** Optional human-readable label (GitHub only). */
+  label: string | null;
+  /** Size of the asset in bytes (GitHub only; GitLab reports 0). */
+  size: number;
+  download_count: number;
+  content_type: string;
+  url: string;
+}
+
+/** Full release detail with body + assets. */
+export interface ReleaseDetail {
+  summary: Release;
+  body: string;
+  assets: ReleaseAsset[];
+}
+
+/** Input for creating a new release. */
+export interface CreateReleaseInput {
+  tag: string;
+  /** Git ref (branch, tag, SHA) when creating a new tag. Empty for existing. */
+  target_commit: string;
+  name: string;
+  body: string;
+  /** GitHub only — save as draft. */
+  draft: boolean;
+  /** GitHub only — mark as pre-release. */
+  prerelease: boolean;
+  /** GitHub only — auto-generate notes from commits. */
+  generate_notes: boolean;
+}
+
+/** Patch for editing an existing release. Undefined fields are left unchanged. */
+export interface EditReleasePatch {
+  name?: string | null;
+  body?: string | null;
+  /** GitHub only. */
+  draft?: boolean | null;
+  /** GitHub only. */
+  prerelease?: boolean | null;
+}
+
 // ── CLI Auth ─────────────────────────────────────────────────────────
 
 /** Authentication status for a CLI tool (gh or glab). */

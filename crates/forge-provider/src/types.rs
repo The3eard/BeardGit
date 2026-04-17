@@ -374,6 +374,108 @@ pub struct EditIssuePatch {
     pub body: Option<String>,
 }
 
+// ─── Releases (Phase 8.5) ───────────────────────────────────────────────────
+
+/// State of a release on the forge.
+///
+/// GitHub exposes all three states. GitLab has no draft/prerelease concept —
+/// existing releases are always [`ReleaseState::Published`] while upcoming
+/// releases (release date in the future) map to [`ReleaseState::Prerelease`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReleaseState {
+    /// Draft release (GitHub only — not yet visible to users).
+    Draft,
+    /// Pre-release marker (GitHub only; GitLab maps upcoming_release here).
+    Prerelease,
+    /// Published and visible to all users.
+    Published,
+}
+
+/// Summary of a release as shown in lists.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Release {
+    /// Tag name the release is pinned to (e.g. `v1.2.3`).
+    pub tag: String,
+    /// Human-readable release title. May be empty if the forge has no title.
+    pub name: String,
+    /// Current state (draft, prerelease, published).
+    pub state: ReleaseState,
+    /// Author username of the release creator.
+    pub author: String,
+    /// ISO 8601 creation timestamp.
+    pub created_at: String,
+    /// ISO 8601 publication timestamp. `None` for draft releases.
+    pub published_at: Option<String>,
+    /// Number of assets attached to the release (list view only).
+    pub asset_count: u64,
+    /// Web URL of the release page.
+    pub url: String,
+}
+
+/// A single binary asset attached to a release.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReleaseAsset {
+    /// Provider-specific asset ID (used for delete API calls).
+    pub id: u64,
+    /// File name of the asset.
+    pub name: String,
+    /// Optional human-readable label (GitHub only).
+    pub label: Option<String>,
+    /// Size of the asset in bytes (GitHub only; GitLab reports 0).
+    pub size: u64,
+    /// Number of times the asset has been downloaded (GitHub only).
+    pub download_count: u64,
+    /// MIME type or link type of the asset.
+    pub content_type: String,
+    /// Direct download URL.
+    pub url: String,
+}
+
+/// Full release detail — summary + notes + assets.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReleaseDetail {
+    /// Summary fields (same as list).
+    pub summary: Release,
+    /// Markdown body of the release notes.
+    pub body: String,
+    /// Assets attached to the release.
+    pub assets: Vec<ReleaseAsset>,
+}
+
+/// Input for creating a new release.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateReleaseInput {
+    /// Tag name the release will be pinned to.
+    pub tag: String,
+    /// Git ref (branch, tag, or SHA) to base the tag on when it does not
+    /// yet exist. May be empty if the tag already exists remotely.
+    pub target_commit: String,
+    /// Human-readable release title.
+    pub name: String,
+    /// Markdown body of the release notes.
+    pub body: String,
+    /// Save as draft (GitHub only). Ignored by GitLab.
+    pub draft: bool,
+    /// Mark as pre-release (GitHub only). Ignored by GitLab.
+    pub prerelease: bool,
+    /// Ask the forge to auto-generate notes from commits (GitHub only).
+    pub generate_notes: bool,
+}
+
+/// Patch for editing an existing release. Fields left as `None` are untouched.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EditReleasePatch {
+    /// New release title.
+    pub name: Option<String>,
+    /// New markdown body.
+    pub body: Option<String>,
+    /// Toggle draft state (GitHub only; ignored by GitLab).
+    pub draft: Option<bool>,
+    /// Toggle prerelease state (GitHub only; ignored by GitLab).
+    pub prerelease: Option<bool>,
+}
+
 #[cfg(test)]
 mod types_tests {
     use super::*;
@@ -546,5 +648,88 @@ mod issue_type_tests {
         assert!(json.contains("\"comments_count\":5"));
         assert!(json.contains("\"created_at\""));
         assert!(json.contains("\"updated_at\""));
+    }
+}
+
+#[cfg(test)]
+mod release_type_tests {
+    use super::*;
+
+    #[test]
+    fn release_state_serializes_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&ReleaseState::Draft).unwrap(),
+            "\"draft\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ReleaseState::Prerelease).unwrap(),
+            "\"prerelease\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ReleaseState::Published).unwrap(),
+            "\"published\""
+        );
+    }
+
+    #[test]
+    fn release_roundtrips() {
+        let r = Release {
+            tag: "v1.0.0".into(),
+            name: "v1.0".into(),
+            state: ReleaseState::Published,
+            author: "alice".into(),
+            created_at: "2026-04-16T09:30:00Z".into(),
+            published_at: Some("2026-04-16T10:00:00Z".into()),
+            asset_count: 3,
+            url: "https://github.com/o/r/releases/tag/v1.0.0".into(),
+        };
+        let json = serde_json::to_string(&r).unwrap();
+        let back: Release = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.tag, "v1.0.0");
+        assert_eq!(back.asset_count, 3);
+        assert_eq!(back.state, ReleaseState::Published);
+    }
+
+    #[test]
+    fn release_asset_label_optional() {
+        let a = ReleaseAsset {
+            id: 42,
+            name: "beardgit.dmg".into(),
+            label: None,
+            size: 1024,
+            download_count: 5,
+            content_type: "application/octet-stream".into(),
+            url: "https://x".into(),
+        };
+        let json = serde_json::to_string(&a).unwrap();
+        let back: ReleaseAsset = serde_json::from_str(&json).unwrap();
+        assert!(back.label.is_none());
+    }
+
+    #[test]
+    fn create_release_input_serializes_expected_fields() {
+        let input = CreateReleaseInput {
+            tag: "v1.0.0".into(),
+            target_commit: "main".into(),
+            name: "Release 1".into(),
+            body: "notes".into(),
+            draft: true,
+            prerelease: false,
+            generate_notes: true,
+        };
+        let json = serde_json::to_string(&input).unwrap();
+        assert!(json.contains("\"tag\":\"v1.0.0\""));
+        assert!(json.contains("\"target_commit\":\"main\""));
+        assert!(json.contains("\"generate_notes\":true"));
+        assert!(json.contains("\"draft\":true"));
+    }
+
+    #[test]
+    fn edit_release_patch_default_all_none() {
+        let p = EditReleasePatch::default();
+        assert!(p.name.is_none());
+        assert!(p.body.is_none());
+        assert!(p.draft.is_none());
+        assert!(p.prerelease.is_none());
     }
 }

@@ -36,6 +36,7 @@
     { label: m.sidebar_pipelines(), icon: "\uF144", id: "pipelines" },
     { label: m.sidebar_issues(), icon: "\uF188", id: "issues" },
     { label: m.sidebar_merge_requests(), icon: "\uF407", id: "merge-requests" },
+    { label: m.sidebar_releases(), icon: "\uF135", id: "releases" },
   ];
 
   function handleNav(id: string) {

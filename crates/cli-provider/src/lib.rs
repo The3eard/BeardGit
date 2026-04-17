@@ -11,6 +11,7 @@ pub mod error;
 pub mod github;
 pub mod gitlab;
 pub mod parsers;
+pub mod releases;
 pub(crate) mod runner;
 
 use std::process::Command;

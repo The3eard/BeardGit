@@ -5,16 +5,20 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 
 use forge_provider::{
-    CheckoutResult, Comment, CreateIssueInput, CreateMrPrInput, EditIssuePatch, EditMrPrPatch,
-    ForgeAuthStatus, ForgeError, ForgeKind, ForgeProvider, Issue, IssueDetail, IssueFilter,
-    IssueState, Label, MergeStrategy, Milestone, MrPr, MrPrDetail, MrPrDiffFile, MrPrFilter,
-    ReviewStatus,
+    CheckoutResult, Comment, CreateIssueInput, CreateMrPrInput, CreateReleaseInput, EditIssuePatch,
+    EditMrPrPatch, EditReleasePatch, ForgeAuthStatus, ForgeError, ForgeKind, ForgeProvider, Issue,
+    IssueDetail, IssueFilter, IssueState, Label, MergeStrategy, Milestone, MrPr, MrPrDetail,
+    MrPrDiffFile, MrPrFilter, Release, ReleaseAsset, ReleaseDetail, ReviewStatus,
 };
 
 use crate::auth;
 use crate::parsers::{
     GITLAB_FIELDS, parse_gitlab_comment, parse_gitlab_issue_view, parse_gitlab_issues,
     parse_gitlab_labels, parse_gitlab_milestones, parse_gitlab_notes, parse_mr_pr,
+};
+use crate::releases::{
+    build_glab_create_args, build_glab_delete_asset_endpoint, build_glab_update_args,
+    parse_glab_release_detail, parse_glab_releases,
 };
 use crate::runner;
 
@@ -496,6 +500,80 @@ impl ForgeProvider for GitLabCli {
         let stdout = self.run(&["api", "projects/:id/milestones", "--paginate"])?;
         parse_gitlab_milestones(&stdout).map_err(Into::into)
     }
+
+    // ─── Phase 8.5: Releases ───────────────────────────────────────────
+
+    fn list_releases(&self, limit: u32) -> Result<Vec<Release>, ForgeError> {
+        let per_page = limit.to_string();
+        let stdout = self.run(&["release", "list", "--per-page", &per_page, "-F", "json"])?;
+        parse_glab_releases(&stdout).map_err(|e| ForgeError::Cli(e.to_string()))
+    }
+
+    fn get_release(&self, tag: &str) -> Result<ReleaseDetail, ForgeError> {
+        let stdout = self.run(&["release", "view", tag, "-F", "json"])?;
+        parse_glab_release_detail(&stdout).map_err(|e| ForgeError::Cli(e.to_string()))
+    }
+
+    fn list_release_assets(&self, tag: &str) -> Result<Vec<ReleaseAsset>, ForgeError> {
+        Ok(self.get_release(tag)?.assets)
+    }
+
+    fn create_release(&self, input: CreateReleaseInput) -> Result<Release, ForgeError> {
+        let args = build_glab_create_args(&input);
+        let ref_args: Vec<&str> = args.iter().map(String::as_str).collect();
+        self.run(&ref_args)?;
+        Ok(self.get_release(&input.tag)?.summary)
+    }
+
+    fn edit_release(&self, tag: &str, patch: EditReleasePatch) -> Result<(), ForgeError> {
+        let args = build_glab_update_args(tag, &patch);
+        if args.len() == 3 {
+            return Ok(());
+        }
+        let ref_args: Vec<&str> = args.iter().map(String::as_str).collect();
+        self.run(&ref_args)?;
+        Ok(())
+    }
+
+    fn delete_release(&self, tag: &str) -> Result<(), ForgeError> {
+        self.run(&["release", "delete", tag, "--yes"])?;
+        Ok(())
+    }
+
+    // GitLab has no draft/prerelease concept — publish is a no-op / unsupported.
+    fn publish_release(&self, _tag: &str) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    fn upload_release_asset(
+        &self,
+        tag: &str,
+        path: &std::path::Path,
+        _label: Option<&str>,
+    ) -> Result<ReleaseAsset, ForgeError> {
+        let path_str = path.to_string_lossy().to_string();
+        // `glab release upload TAG FILE` uploads a single asset. The `--label`
+        // flag is not supported in the same way as `gh`; we document this as
+        // a known gap (see plan 8.5 Known Gaps) and ignore the label parameter.
+        self.run(&["release", "upload", tag, &path_str])?;
+        let name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+        let detail = self.get_release(tag)?;
+        detail
+            .assets
+            .into_iter()
+            .find(|a| a.name == name)
+            .ok_or_else(|| ForgeError::NotFound(format!("asset {name} after upload")))
+    }
+
+    fn delete_release_asset(&self, tag: &str, asset_id: u64) -> Result<(), ForgeError> {
+        let endpoint = build_glab_delete_asset_endpoint(tag, asset_id);
+        self.run(&["api", &endpoint, "--method", "DELETE"])?;
+        Ok(())
+    }
 }
 
 /// Build argv for `glab issue list` from an [`IssueFilter`] + limit.
@@ -704,5 +782,19 @@ mod tests {
         let args = build_glab_edit_issue_args(7, &patch);
         assert!(args.windows(2).any(|w| w == ["--title", "new"]));
         assert!(!args.contains(&"--description".to_string()));
+    }
+
+    // ─── Phase 8.5 — release tests ────────────────────────────────────
+
+    #[test]
+    fn gitlab_publish_release_not_supported() {
+        let p = GitLabCli {
+            binary_path: std::path::PathBuf::from("/nonexistent/glab"),
+            repo_path: std::path::PathBuf::from("/tmp"),
+        };
+        assert!(matches!(
+            p.publish_release("v1"),
+            Err(ForgeError::NotSupported)
+        ));
     }
 }

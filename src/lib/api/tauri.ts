@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch } from "../types";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -963,6 +963,90 @@ export async function setIssueMilestone(
 /** List all milestones for the current repo. */
 export async function listMilestones(): Promise<Milestone[]> {
   return invoke<Milestone[]>("list_milestones");
+}
+
+// ─── Releases (Phase 8.5) ────────────────────────────────────────────
+
+/** List releases for the current repository, newest first. */
+export async function listReleases(limit: number = 30): Promise<Release[]> {
+  return invoke<Release[]>("list_releases", { limit });
+}
+
+/** Fetch full detail (body + assets) for a single release by tag. */
+export async function getReleaseDetail(tag: string): Promise<ReleaseDetail> {
+  return invoke<ReleaseDetail>("get_release_detail", { tag });
+}
+
+/** List just the asset records for a release. */
+export async function listReleaseAssets(tag: string): Promise<ReleaseAsset[]> {
+  return invoke<ReleaseAsset[]>("list_release_assets", { tag });
+}
+
+/** Create a new release from a `CreateReleaseInput`. */
+export async function createRelease(input: CreateReleaseInput): Promise<Release> {
+  return invoke<Release>("create_release", { input });
+}
+
+/** Edit a release's title, body, and/or draft/prerelease flags. */
+export async function editRelease(
+  tag: string,
+  patch: EditReleasePatch,
+): Promise<void> {
+  return invoke<void>("edit_release", { tag, patch });
+}
+
+/** Delete a release. The underlying tag is not removed. */
+export async function deleteRelease(tag: string): Promise<void> {
+  return invoke<void>("delete_release", { tag });
+}
+
+/** Publish a draft release. GitHub only — GitLab returns an error. */
+export async function publishRelease(tag: string): Promise<void> {
+  return invoke<void>("publish_release", { tag });
+}
+
+/** Delete a single release asset by ID. */
+export async function deleteReleaseAsset(
+  tag: string,
+  assetId: number,
+): Promise<void> {
+  return invoke<void>("delete_release_asset", { tag, assetId });
+}
+
+/**
+ * Upload a binary asset to a release.
+ *
+ * Non-blocking: returns a TaskId immediately. Subscribe to task events to
+ * track progress and completion. Re-fetch the release detail on success to
+ * see the new asset row.
+ */
+export async function uploadReleaseAsset(
+  tag: string,
+  assetPath: string,
+  label?: string,
+): Promise<TaskId> {
+  return invoke<TaskId>("upload_release_asset", { tag, assetPath, label });
+}
+
+/**
+ * Atomic create-tag + push + create-release.
+ *
+ * Runs tag creation and push as a TaskManager task. On success emits a
+ * `release-created` event with the created `Release`; on release-step
+ * failure emits `release-create-failed` with `{ tag, error }`.
+ */
+export async function createTagAndRelease(
+  tag: string,
+  sourceRef: string,
+  remote: string,
+  input: CreateReleaseInput,
+): Promise<TaskId> {
+  return invoke<TaskId>("create_tag_and_release", {
+    tag,
+    sourceRef,
+    remote,
+    input,
+  });
 }
 
 // ── Sidebar ─────────────────────────────────────────────────────────

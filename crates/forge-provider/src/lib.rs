@@ -236,4 +236,58 @@ pub trait ForgeProvider: Send + Sync {
     fn list_milestones(&self) -> Result<Vec<Milestone>, ForgeError> {
         Err(ForgeError::NotSupported)
     }
+
+    // ─── Releases (Phase 8.5) ──────────────────────────────────────────
+
+    /// 8.5 — list releases for the current repo, newest first.
+    fn list_releases(&self, _limit: u32) -> Result<Vec<Release>, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.5 — get full release detail (summary, notes body, assets).
+    fn get_release(&self, _tag: &str) -> Result<ReleaseDetail, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.5 — create a new release from a [`CreateReleaseInput`].
+    fn create_release(&self, _input: CreateReleaseInput) -> Result<Release, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.5 — edit the title/body/flags of an existing release.
+    fn edit_release(&self, _tag: &str, _patch: EditReleasePatch) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.5 — delete a release. The underlying tag is not removed.
+    fn delete_release(&self, _tag: &str) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.5 — publish a draft release (GitHub only; GitLab returns
+    /// [`ForgeError::NotSupported`]).
+    fn publish_release(&self, _tag: &str) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.5 — list the binary assets attached to a release.
+    fn list_release_assets(&self, _tag: &str) -> Result<Vec<ReleaseAsset>, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.5 — upload a file as a release asset. Returns the newly-created
+    /// [`ReleaseAsset`] record.
+    fn upload_release_asset(
+        &self,
+        _tag: &str,
+        _path: &std::path::Path,
+        _label: Option<&str>,
+    ) -> Result<ReleaseAsset, ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
+    /// 8.5 — delete a single release asset by its provider-specific ID.
+    fn delete_release_asset(&self, _tag: &str, _asset_id: u64) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
 }

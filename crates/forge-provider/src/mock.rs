@@ -136,4 +136,40 @@ mod tests {
             _ => panic!("expected authenticated"),
         }
     }
+
+    // ─── Phase 8.5 — release trait surface ─────────────────────────────
+
+    #[test]
+    fn mock_list_releases_returns_not_supported() {
+        let p = MockProvider::new(ForgeKind::GitHub);
+        assert!(matches!(p.list_releases(30), Err(ForgeError::NotSupported)));
+    }
+
+    #[test]
+    fn mock_get_release_returns_not_supported() {
+        let p = MockProvider::new(ForgeKind::GitHub);
+        assert!(matches!(
+            p.get_release("v1.0.0"),
+            Err(ForgeError::NotSupported)
+        ));
+    }
+
+    #[test]
+    fn mock_publish_release_returns_not_supported() {
+        let p = MockProvider::new(ForgeKind::GitHub);
+        assert!(matches!(
+            p.publish_release("v1.0.0"),
+            Err(ForgeError::NotSupported)
+        ));
+    }
+
+    #[test]
+    fn mock_upload_release_asset_returns_not_supported() {
+        let p = MockProvider::new(ForgeKind::GitHub);
+        let path = std::path::Path::new("/tmp/asset.bin");
+        assert!(matches!(
+            p.upload_release_asset("v1.0.0", path, None),
+            Err(ForgeError::NotSupported)
+        ));
+    }
 }

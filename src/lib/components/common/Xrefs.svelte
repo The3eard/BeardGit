@@ -12,6 +12,7 @@
   import { mrPrList } from "../../stores/mr-pr";
   import { issueByNumber, loadIssueDetail } from "../../stores/issues";
   import { loadMrPrDetail } from "../../stores/mr-pr";
+  import { releaseTagSet, selectRelease } from "../../stores/releases";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { activeViewStore } from "../../stores/navigation";
 
@@ -26,8 +27,7 @@
   let ctx = $derived<XrefContext>({
     mrPrCache: new Map($mrPrList.map((p) => [p.number, p])),
     issueCache: $issueByNumber,
-    // Releases (8.5) not landed yet; empty means vX.Y.Z stays as plain text.
-    releaseTagCache: new Set<string>(),
+    releaseTagCache: $releaseTagSet,
     onOpenMrPr: (n) => {
       activeViewStore.set("merge-requests");
       void loadMrPrDetail(n);
@@ -36,8 +36,9 @@
       activeViewStore.set("issues");
       void loadIssueDetail(n);
     },
-    onOpenRelease: (_tag) => {
-      // Reserved for Phase 8.5.
+    onOpenRelease: (tag) => {
+      activeViewStore.set("releases");
+      selectRelease(tag);
     },
     onOpenExternal: (url) => {
       void openUrl(url);

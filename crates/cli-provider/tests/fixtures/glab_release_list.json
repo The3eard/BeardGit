@@ -1,0 +1,13 @@
+[
+  {
+    "tag_name": "v0.1.8",
+    "name": "BeardGit v0.1.8",
+    "description": "## Changes\n- Fix #42",
+    "created_at": "2026-04-16T09:30:00Z",
+    "released_at": "2026-04-16T10:00:00Z",
+    "upcoming_release": false,
+    "author": {"username": "adolfo"},
+    "_links": {"self": "https://gitlab.com/owner/repo/-/releases/v0.1.8"},
+    "assets": {"count": 2, "links": []}
+  }
+]

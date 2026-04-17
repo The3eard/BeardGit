@@ -29,6 +29,7 @@
   import BlameView from "$lib/components/blame/BlameView.svelte";
   import MrPrView from "$lib/components/mr-pr/MrPrView.svelte";
   import IssueView from "$lib/components/issues/IssueView.svelte";
+  import ReleaseView from "$lib/components/releases/ReleaseView.svelte";
   import { activeViewStore } from "$lib/stores/navigation";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
@@ -660,6 +661,8 @@
         <MrPrView />
       {:else if activeView === "issues"}
         <IssueView />
+      {:else if activeView === "releases"}
+        <ReleaseView />
       {:else if $isLoading}
         <div class="welcome-screen">
           <div class="spinner spinner--large"></div>
