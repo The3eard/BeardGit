@@ -1,6 +1,10 @@
 import "@wdio/types";
 import path from "path";
 import { execSync } from "child_process";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const isCI = !!process.env.CI;
 const projectRoot = path.resolve(__dirname, "..");
