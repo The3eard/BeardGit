@@ -89,6 +89,9 @@ pub struct AppState {
     /// first successful provider detection and kept alive for the process
     /// lifetime. `None` if no provider has been detected yet.
     pub ai_session_watcher: Mutex<Option<watcher::AiSessionWatcher>>,
+    /// Filesystem watcher for AI config directories (`.claude/` in project
+    /// and home). `None` if no watcher has been started.
+    pub ai_config_watcher: Mutex<Option<watcher::AiConfigWatcher>>,
 }
 
 impl Default for AppState {
@@ -123,6 +126,7 @@ impl AppState {
             active_provider_index: Mutex::new(None),
             ai_providers: Mutex::new(Vec::new()),
             ai_session_watcher: Mutex::new(None),
+            ai_config_watcher: Mutex::new(None),
         }
     }
 }

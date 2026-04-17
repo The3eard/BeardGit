@@ -6,14 +6,20 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(() => Promise.resolve(() => {})),
+}));
+
 import {
   configFiles,
   activeFilePath,
   activeFileDirty,
+  configFileChangedOnDisk,
   loadConfigFiles,
   openFile,
   saveFile,
   clearConfigState,
+  dismissDiskChange,
 } from "./aiConfig";
 
 import type { AiConfigFile } from "$lib/types";
@@ -51,5 +57,21 @@ describe("aiConfig store", () => {
       path: "/repo/CLAUDE.md",
       content: "# Updated",
     });
+  });
+
+  it("configFileChangedOnDisk starts false", () => {
+    expect(get(configFileChangedOnDisk)).toBe(false);
+  });
+
+  it("dismissDiskChange clears the flag", () => {
+    configFileChangedOnDisk.set(true);
+    dismissDiskChange();
+    expect(get(configFileChangedOnDisk)).toBe(false);
+  });
+
+  it("clearConfigState resets configFileChangedOnDisk", () => {
+    configFileChangedOnDisk.set(true);
+    clearConfigState();
+    expect(get(configFileChangedOnDisk)).toBe(false);
   });
 });

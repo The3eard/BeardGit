@@ -76,6 +76,14 @@ impl AiProvider for ClaudeCodeProvider {
         commands::build_worktree_cmd(self, cwd, name)
     }
 
+    fn build_resume_session_cmd(&self, session_id: &str, cwd: &Path) -> Option<Command> {
+        let binary = self.detect_binary()?;
+        let mut cmd = Command::new(binary);
+        cmd.current_dir(cwd);
+        cmd.arg("--resume").arg(session_id);
+        Some(cmd)
+    }
+
     fn list_sessions(&self, repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
         sessions::list_sessions(repo_path)
     }

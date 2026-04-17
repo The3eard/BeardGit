@@ -67,3 +67,39 @@ pub async fn remove_worktree(
     .await
     .map_err(|e| e.to_string())?
 }
+
+/// Lock a linked worktree, preventing accidental removal.
+///
+/// # Parameters
+/// - `path` – Absolute filesystem path to the worktree directory.
+/// - `reason` – Optional human-readable reason for the lock.
+#[tauri::command]
+pub async fn worktree_lock(
+    path: String,
+    reason: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.lock_worktree(&path, reason.as_deref())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Unlock a previously locked worktree.
+///
+/// # Parameters
+/// - `path` – Absolute filesystem path to the worktree directory.
+#[tauri::command]
+pub async fn worktree_unlock(path: String, state: State<'_, AppState>) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.unlock_worktree(&path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}

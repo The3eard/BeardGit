@@ -621,7 +621,9 @@
           {/if}
         </div>
       {:else if activeView === "worktrees"}
-        <WorktreeList />
+        <WorktreeList
+          onNavigateToGraph={(oid) => { navigateToCommit(oid); handleNavigate("graph"); }}
+        />
       {:else if activeView === "reflog"}
         <div class="branch-layout">
           <div class="branch-main">

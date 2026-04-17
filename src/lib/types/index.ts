@@ -87,6 +87,10 @@ export interface GraphTheme {
   textPrimary: string;
   textSecondary: string;
   textSha: string;
+  bisectGoodColor: string;
+  bisectBadColor: string;
+  bisectSkipColor: string;
+  bisectCurrentColor: string;
 }
 
 export interface CommitInfo {
@@ -877,6 +881,12 @@ export interface AiConfigFile {
   path: string;
   kind: "settings" | "instructions" | "agent" | "skill";
   scope: "user" | "project" | "local";
+}
+
+/** Payload from the "ai-config-changed" Tauri event. */
+export interface AiConfigChangeEvent {
+  path: string;
+  scope: "project" | "user";
 }
 
 // ---------------------------------------------------------------------------

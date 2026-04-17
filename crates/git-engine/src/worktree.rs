@@ -78,6 +78,37 @@ impl Repository {
             Err(GitError::RepoNotFound(result.stderr))
         }
     }
+
+    /// Lock a linked worktree with an optional reason.
+    ///
+    /// Equivalent to `git worktree lock [--reason <msg>] <path>`.
+    /// Locking prevents accidental removal.
+    pub fn lock_worktree(&self, path: &str, reason: Option<&str>) -> Result<(), GitError> {
+        let mut args = vec!["worktree", "lock"];
+        if let Some(r) = reason {
+            args.push("--reason");
+            args.push(r);
+        }
+        args.push(path);
+        let result = self.git_cmd(&args)?;
+        if result.success {
+            Ok(())
+        } else {
+            Err(GitError::CliError(result.stderr))
+        }
+    }
+
+    /// Unlock a previously locked worktree.
+    ///
+    /// Equivalent to `git worktree unlock <path>`.
+    pub fn unlock_worktree(&self, path: &str) -> Result<(), GitError> {
+        let result = self.git_cmd(&["worktree", "unlock", path])?;
+        if result.success {
+            Ok(())
+        } else {
+            Err(GitError::CliError(result.stderr))
+        }
+    }
 }
 
 /// Parse the output of `git worktree list --porcelain` into a list of [`WorktreeInfo`].
@@ -287,5 +318,66 @@ mod tests {
             .unwrap();
         let wts = repo.list_worktrees().unwrap();
         assert_eq!(wts.len(), 1);
+    }
+
+    #[test]
+    fn test_lock_and_unlock_worktree() {
+        let (tmp, _git_repo) = create_test_repo();
+        let repo = Repository::open(tmp.path()).unwrap();
+
+        let wt_path = tmp.path().join("worktree-lock-test");
+        repo.create_worktree(wt_path.to_str().unwrap(), "lock-branch", true)
+            .unwrap();
+
+        // Lock without reason
+        repo.lock_worktree(wt_path.to_str().unwrap(), None).unwrap();
+        let wts = repo.list_worktrees().unwrap();
+        let locked = wts
+            .iter()
+            .find(|w| w.branch.as_deref() == Some("lock-branch"))
+            .unwrap();
+        assert!(locked.is_locked);
+
+        // Unlock
+        repo.unlock_worktree(wt_path.to_str().unwrap()).unwrap();
+        let wts = repo.list_worktrees().unwrap();
+        let unlocked = wts
+            .iter()
+            .find(|w| w.branch.as_deref() == Some("lock-branch"))
+            .unwrap();
+        assert!(!unlocked.is_locked);
+    }
+
+    #[test]
+    fn test_lock_worktree_with_reason() {
+        let (tmp, _git_repo) = create_test_repo();
+        let repo = Repository::open(tmp.path()).unwrap();
+
+        let wt_path = tmp.path().join("worktree-reason-test");
+        repo.create_worktree(wt_path.to_str().unwrap(), "reason-branch", true)
+            .unwrap();
+
+        repo.lock_worktree(wt_path.to_str().unwrap(), Some("do not touch"))
+            .unwrap();
+        let wts = repo.list_worktrees().unwrap();
+        let locked = wts
+            .iter()
+            .find(|w| w.branch.as_deref() == Some("reason-branch"))
+            .unwrap();
+        assert!(locked.is_locked);
+    }
+
+    #[test]
+    fn test_unlock_already_unlocked_fails() {
+        let (tmp, _git_repo) = create_test_repo();
+        let repo = Repository::open(tmp.path()).unwrap();
+
+        let wt_path = tmp.path().join("worktree-unlock-fail");
+        repo.create_worktree(wt_path.to_str().unwrap(), "unlock-branch", true)
+            .unwrap();
+
+        // Unlocking an already-unlocked worktree should fail
+        let result = repo.unlock_worktree(wt_path.to_str().unwrap());
+        assert!(result.is_err());
     }
 }

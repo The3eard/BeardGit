@@ -53,6 +53,10 @@ export const DEFAULT_GRAPH_THEME: GraphTheme = {
   textPrimary: "#c9d1d9",
   textSecondary: "#8b949e",
   textSha: "#f0883e",
+  bisectGoodColor: "rgba(63, 185, 80, 0.15)",
+  bisectBadColor: "rgba(248, 81, 73, 0.15)",
+  bisectSkipColor: "rgba(139, 148, 158, 0.15)",
+  bisectCurrentColor: "rgba(227, 179, 65, 0.15)",
 };
 
 // ── Column configuration ────────────────────────────────────────────────
@@ -175,6 +179,10 @@ export function renderGraph(
   hoveredRow: number | null = null,
   mrPrByBranch: Map<string, MrPr> = new Map(),
   isGitHubProvider: boolean = false,
+  bisectGood: Set<string> = new Set(),
+  bisectBad: Set<string> = new Set(),
+  bisectSkip: Set<string> = new Set(),
+  bisectCurrent: string | null = null,
 ): void {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -227,6 +235,25 @@ export function renderGraph(
     if (selectedNode) {
       const y = rowY(selectedNode.row, offset);
       ctx.fillStyle = theme.selectionHighlight;
+      ctx.fillRect(0, y - ROW_HEIGHT / 2, canvasWidth, ROW_HEIGHT);
+    }
+  }
+
+  // ── Draw bisect overlays (row tints + current ring indicator) ──
+  for (const node of nodes) {
+    const y = rowY(node.row, offset);
+    if (bisectGood.has(node.oid)) {
+      ctx.fillStyle = theme.bisectGoodColor;
+      ctx.fillRect(0, y - ROW_HEIGHT / 2, canvasWidth, ROW_HEIGHT);
+    } else if (bisectBad.has(node.oid)) {
+      ctx.fillStyle = theme.bisectBadColor;
+      ctx.fillRect(0, y - ROW_HEIGHT / 2, canvasWidth, ROW_HEIGHT);
+    } else if (bisectSkip.has(node.oid)) {
+      ctx.fillStyle = theme.bisectSkipColor;
+      ctx.fillRect(0, y - ROW_HEIGHT / 2, canvasWidth, ROW_HEIGHT);
+    }
+    if (node.oid === bisectCurrent) {
+      ctx.fillStyle = theme.bisectCurrentColor;
       ctx.fillRect(0, y - ROW_HEIGHT / 2, canvasWidth, ROW_HEIGHT);
     }
   }
@@ -454,6 +481,17 @@ export function renderGraph(
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
+    }
+
+    // Bisect current commit — draw a yellow ring around the node
+    if (node.oid === bisectCurrent) {
+      ctx.beginPath();
+      const ringRadius = (node.is_merge ? theme.mergeRadius : theme.nodeRadius) + 3;
+      ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = theme.bisectCurrentColor.replace(/[\d.]+\)$/, "0.8)");
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.lineWidth = 2;
     }
     ctx.lineWidth = 2;
     resetOpacity();

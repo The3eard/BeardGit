@@ -28,6 +28,7 @@
   import { mrPrByBranch } from "../../stores/mr-pr";
   import { activeProvider } from "../../stores/provider";
   import { shortOid } from "../../utils/git";
+  import { bisectState, markGood, markBad, skipCommit } from "../../stores/bisect";
   import * as m from "$lib/paraglide/messages";
 
   // Column visibility state
@@ -64,6 +65,12 @@
 
   // Hover state — tracks which segment group the mouse is over
   let hoveredGroup = $state<number | null>(null);
+
+  // Bisect overlay sets — derived from bisect store
+  let bisectGoodSet = $derived(new Set($bisectState.good_commits));
+  let bisectBadSet = $derived(new Set($bisectState.bad_commits));
+  let bisectSkipSet = $derived(new Set<string>());
+  let bisectCurrentOid = $derived($bisectState.active ? $bisectState.current_commit : null);
 
   // Context menu state
   let contextMenuVisible = $state(false);
@@ -175,6 +182,10 @@
         hoveredRow,
         $mrPrByBranch,
         $activeProvider?.kind === "github",
+        bisectGoodSet,
+        bisectBadSet,
+        bisectSkipSet,
+        bisectCurrentOid,
       );
     } else {
       renderGraph(
@@ -196,6 +207,10 @@
         hoveredRow,
         $mrPrByBranch,
         $activeProvider?.kind === "github",
+        bisectGoodSet,
+        bisectBadSet,
+        bisectSkipSet,
+        bisectCurrentOid,
       );
     }
   }
@@ -572,6 +587,36 @@
       },
     ];
 
+    // ── Bisect actions (when active) ──
+    if ($bisectState.active) {
+      const isGood = bisectGoodSet.has(node.oid);
+      const isBad = bisectBadSet.has(node.oid);
+
+      contextMenuItems.push(
+        { label: "", action: () => {}, separator: true },
+        {
+          label: m.graph_bisect_mark_good(),
+          action: async () => {
+            try { await markGood(node.oid); } catch {}
+          },
+          disabled: isGood,
+        },
+        {
+          label: m.graph_bisect_mark_bad(),
+          action: async () => {
+            try { await markBad(node.oid); } catch {}
+          },
+          disabled: isBad,
+        },
+        {
+          label: m.graph_bisect_skip(),
+          action: async () => {
+            try { await skipCommit(); } catch {}
+          },
+        },
+      );
+    }
+
     contextMenuX = e.clientX;
     contextMenuY = e.clientY;
     contextMenuVisible = true;
@@ -642,6 +687,7 @@
     filteredOffset;
     searchLoading;
     hoveredGroup;
+    $bisectState;
     scheduleDraw();
   });
 

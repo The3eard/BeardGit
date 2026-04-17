@@ -522,6 +522,16 @@ export async function removeWorktree(path: string, force: boolean): Promise<void
   return invoke<void>("remove_worktree", { path, force });
 }
 
+/** Lock a linked worktree, preventing accidental removal. */
+export async function lockWorktree(path: string, reason?: string): Promise<void> {
+  return invoke<void>("worktree_lock", { path, reason: reason ?? null });
+}
+
+/** Unlock a previously locked worktree. */
+export async function unlockWorktree(path: string): Promise<void> {
+  return invoke<void>("worktree_unlock", { path });
+}
+
 // ---------------------------------------------------------------------------
 // Blame & file history
 // ---------------------------------------------------------------------------
@@ -1158,6 +1168,21 @@ export async function aiGetPreferredProvider(): Promise<string | null> {
 
 export async function aiSetPreferredProvider(provider: string | null): Promise<void> {
   return invoke<void>("ai_set_preferred_provider", { provider });
+}
+
+/** Start watching AI config directories for live-reload events. */
+export async function aiWatchConfigDirs(): Promise<void> {
+  return invoke<void>("ai_watch_config_dirs");
+}
+
+/** Stop the AI config directory watcher. */
+export async function aiStopConfigWatcher(): Promise<void> {
+  return invoke<void>("ai_stop_config_watcher");
+}
+
+/** Resume an existing AI session in a new terminal tab. Returns null if the provider does not support resume. */
+export async function aiResumeSession(provider: string, sessionId: string): Promise<number | null> {
+  return invoke<number | null>("ai_resume_session", { provider, sessionId });
 }
 
 export async function aiReadConfigFile(path: string): Promise<string> {

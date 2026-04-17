@@ -14,9 +14,16 @@
   } from "../../stores/worktrees";
   import { openProjectTab } from "../../stores/projects";
   import { repoInfo } from "../../stores/repo";
+  import { lockWorktree, unlockWorktree } from "../../api/tauri";
+  import { navigateToCommit } from "../../stores/graph";
   import type { EnrichedWorktree } from "$lib/types";
   import type { AiProviderKind } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
+
+  interface Props {
+    onNavigateToGraph?: (oid: string) => void;
+  }
+  let { onNavigateToGraph }: Props = $props();
 
   /** Display name per AI provider. */
   const PROVIDER_NAME: Record<AiProviderKind, string> = {
@@ -62,6 +69,35 @@
     }
   }
 
+  async function handleLock(wt: EnrichedWorktree) {
+    try {
+      await lockWorktree(wt.path);
+      await refreshWorktrees();
+    } catch (err) {
+      // Lock failure is non-fatal — toast or alert
+      console.error("Failed to lock worktree:", err);
+    }
+  }
+
+  async function handleUnlock(wt: EnrichedWorktree) {
+    try {
+      await unlockWorktree(wt.path);
+      await refreshWorktrees();
+    } catch (err) {
+      console.error("Failed to unlock worktree:", err);
+    }
+  }
+
+  async function handleOpenInGraph(wt: EnrichedWorktree) {
+    if (!wt.head_oid) return;
+    const oid = wt.head_oid;
+    if (onNavigateToGraph) {
+      onNavigateToGraph(oid);
+    } else {
+      await navigateToCommit(oid);
+    }
+  }
+
   /** Extract last path segment for compact display. */
   function shortPath(fullPath: string): string {
     const parts = fullPath.replace(/\\/g, "/").split("/");
@@ -73,12 +109,12 @@
     e.preventDefault();
 
     const items: MenuItem[] = [
-      { label: m.worktree_open_graph(), action: () => {} },
+      { label: m.worktree_open_graph(), action: () => handleOpenInGraph(wt) },
       { label: m.worktree_open_tab(), action: () => handleOpenInTab(wt.path) },
       { separator: true },
       {
         label: wt.is_locked ? m.worktree_unlock() : m.worktree_lock(),
-        action: () => {},
+        action: () => wt.is_locked ? handleUnlock(wt) : handleLock(wt),
       },
       {
         label: m.worktree_remove(),

@@ -119,6 +119,14 @@ pub fn build_worktree_cmd_from_binary(binary: &Path, cwd: &Path, name: Option<&s
     cmd
 }
 
+/// Build a resume session command from a known binary path (for testing).
+pub fn build_resume_cmd_from_binary(binary: &Path, cwd: &Path, session_id: &str) -> Command {
+    let mut cmd = Command::new(binary);
+    cmd.current_dir(cwd);
+    cmd.arg("--resume").arg(session_id);
+    cmd
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,5 +250,17 @@ mod tests {
         let debug = get_command_debug(&cmd);
         assert!(debug.contains("--worktree"));
         assert!(debug.contains("my-feature"));
+    }
+
+    #[test]
+    fn resume_command_has_session_id() {
+        let cmd = build_resume_cmd_from_binary(
+            &PathBuf::from("/usr/bin/claude"),
+            Path::new("/tmp/repo"),
+            "sess-abc123",
+        );
+        let debug = get_command_debug(&cmd);
+        assert!(debug.contains("--resume"));
+        assert!(debug.contains("sess-abc123"));
     }
 }

@@ -6,7 +6,7 @@
   showing filename, dirty state, scope/language badges, and save button.
 -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
   import AiConfigFileTree from "./AiConfigFileTree.svelte";
   import CreateConfigDialog from "./CreateConfigDialog.svelte";
@@ -18,10 +18,15 @@
     activeFileContent,
     activeFileDirty,
     configLoading,
+    configFileChangedOnDisk,
     loadConfigFiles,
     openFile,
     saveFile,
     markDirty,
+    startConfigWatcher,
+    stopConfigWatcher,
+    reloadActiveFile,
+    dismissDiskChange,
   } from "../../stores/aiConfig";
   import { activeTheme } from "../../stores/theme";
   import * as m from "$lib/paraglide/messages";
@@ -75,6 +80,11 @@
 
   onMount(() => {
     loadConfigFiles();
+    startConfigWatcher();
+  });
+
+  onDestroy(() => {
+    stopConfigWatcher();
   });
 
   // ─── Sync editor content when active file changes ───
@@ -170,6 +180,17 @@
         >
           {m.ai_config_save()} <kbd class="save-kbd">{navigator.platform.includes("Mac") ? "\u2318S" : "Ctrl+S"}</kbd>
         </button>
+        {#if $configFileChangedOnDisk}
+          <div class="disk-change-notice">
+            <span>{m.ai_config_changed_on_disk()}</span>
+            <button class="notice-btn" onclick={() => reloadActiveFile()}>
+              {m.ai_config_reload()}
+            </button>
+            <button class="notice-btn dismiss" onclick={() => dismissDiskChange()}>
+              {m.ai_config_dismiss()}
+            </button>
+          </div>
+        {/if}
       </div>
 
       <!-- CodeMirror editor -->
@@ -337,6 +358,42 @@
     background: none;
     border: none;
     padding: 0;
+  }
+
+  /* ─── Disk change notice ─── */
+
+  .disk-change-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    background: rgba(227, 179, 65, 0.15);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--accent-orange);
+  }
+
+  .notice-btn {
+    background: none;
+    border: 1px solid var(--accent-orange);
+    color: var(--accent-orange);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  .notice-btn:hover {
+    background: rgba(227, 179, 65, 0.1);
+  }
+
+  .notice-btn.dismiss {
+    border-color: var(--border);
+    color: var(--text-secondary);
+  }
+
+  .notice-btn.dismiss:hover {
+    background: rgba(255, 255, 255, 0.06);
   }
 
   /* ─── Editor area ─── */

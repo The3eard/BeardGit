@@ -380,6 +380,43 @@ pub fn ai_launch_worktree(
     Ok(Some(session_id))
 }
 
+/// Resume an existing AI session in a new terminal tab.
+///
+/// Looks up the provider's resume command for the given session ID.
+/// Returns `None` if the provider doesn't support resuming (no error).
+/// Returns `Some(SessionId)` on success.
+#[tauri::command]
+pub fn ai_resume_session(
+    provider: String,
+    session_id: String,
+    state: State<'_, AppState>,
+    terminal_manager: State<'_, Arc<TerminalManager>>,
+) -> Result<Option<SessionId>, String> {
+    let cwd = get_active_project_path(&state)?;
+    let kind = parse_kind(&provider)?;
+    let p = make_provider(kind)?;
+
+    let Some(cmd) = p.build_resume_session_cmd(&session_id, &cwd) else {
+        return Ok(None);
+    };
+
+    let (program, args) = command_to_parts(&cmd);
+    let shell_cmd = if args.is_empty() {
+        program
+    } else {
+        format!("{} {}", program, args.join(" "))
+    };
+    let config = TerminalConfig {
+        cwd: cwd.to_path_buf(),
+        shell: Some(shell_cmd),
+        env: HashMap::new(),
+        cols: 220,
+        rows: 50,
+    };
+    let session = terminal_manager.spawn(config).map_err(|e| e.to_string())?;
+    Ok(Some(session))
+}
+
 // ─── Introspection ────────────────────────────────────────────────────────────
 
 /// List AI sessions for all detected providers in the current repository.
@@ -469,6 +506,36 @@ pub fn ai_set_preferred_provider(
     let mut config = state.config.lock().unwrap();
     config.preferred_ai_provider = provider;
     config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
+/// Start watching AI config directories for the active project.
+///
+/// Watches `<project>/.claude/` and `~/.claude/` for file changes.
+/// Emits `"ai-config-changed"` Tauri events with `{ path, scope }`.
+/// Only one watcher is active at a time — calling again replaces the previous.
+#[tauri::command]
+pub fn ai_watch_config_dirs(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let cwd = get_active_project_path(&state)?;
+    let handle = app_handle.clone();
+
+    let watcher = watcher::AiConfigWatcher::start(&cwd, move |change| {
+        let _ = handle.emit("ai-config-changed", change);
+    });
+
+    let mut guard = state.ai_config_watcher.lock().map_err(|e| e.to_string())?;
+    *guard = watcher;
+    Ok(())
+}
+
+/// Stop the AI config directory watcher.
+#[tauri::command]
+pub fn ai_stop_config_watcher(state: State<'_, AppState>) -> Result<(), String> {
+    let mut guard = state.ai_config_watcher.lock().map_err(|e| e.to_string())?;
+    *guard = None;
+    Ok(())
 }
 
 /// List AI configuration files for all detected providers in the current repository.

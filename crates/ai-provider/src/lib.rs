@@ -143,6 +143,16 @@ pub trait AiProvider: Send + Sync {
         None
     }
 
+    /// Build a [`Command`] to resume an existing session by ID.
+    ///
+    /// Returns `None` if the provider does not support session resumption.
+    /// Providers that support it (e.g., Claude Code with `--resume`) return
+    /// a command that reconnects to the given session.
+    fn build_resume_session_cmd(&self, session_id: &str, cwd: &Path) -> Option<Command> {
+        let _ = (session_id, cwd);
+        None
+    }
+
     // ─── 6. Session & Worktree Introspection ───
 
     /// List sessions for this provider in the given repo.

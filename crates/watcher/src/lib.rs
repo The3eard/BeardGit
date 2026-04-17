@@ -9,7 +9,9 @@
 //! [`AiSessionWatcher`] watches AI provider session directories (e.g.
 //! `~/.claude/sessions/`) and fires on any change, without filtering.
 
+mod ai_config;
 mod ai_sessions;
+pub use ai_config::{AiConfigChange, AiConfigWatcher, ConfigChangeScope};
 pub use ai_sessions::AiSessionWatcher;
 
 use notify_debouncer_mini::new_debouncer;

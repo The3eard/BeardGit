@@ -6,8 +6,9 @@
  */
 
 import { writable, get } from "svelte/store";
+import { listen } from "@tauri-apps/api/event";
 import * as api from "$lib/api/tauri";
-import type { AiConfigFile } from "$lib/types";
+import type { AiConfigFile, AiConfigChangeEvent } from "$lib/types";
 import { fetchIntoStore } from "$lib/utils/store-helpers";
 
 // ─── State ───
@@ -26,6 +27,9 @@ export const activeFileDirty = writable(false);
 
 /** True while loading the file list. */
 export const configLoading = writable(false);
+
+/** True when the active file was modified on disk while the editor has unsaved changes. */
+export const configFileChangedOnDisk = writable(false);
 
 // ─── Actions ───
 
@@ -69,4 +73,61 @@ export function clearConfigState(): void {
   activeFilePath.set(null);
   activeFileContent.set(null);
   activeFileDirty.set(false);
+  configFileChangedOnDisk.set(false);
+}
+
+/** Reload the active file from disk, discarding editor changes. */
+export async function reloadActiveFile(): Promise<void> {
+  const path = get(activeFilePath);
+  if (path) {
+    await openFile(path);
+    configFileChangedOnDisk.set(false);
+  }
+}
+
+/** Dismiss the "changed on disk" notification. */
+export function dismissDiskChange(): void {
+  configFileChangedOnDisk.set(false);
+}
+
+// ─── Config File Watcher ───
+
+let unlistenConfigChanged: (() => void) | null = null;
+
+/** Start watching AI config directories. Call on AiConfigEditor mount. */
+export async function startConfigWatcher(): Promise<void> {
+  await api.aiWatchConfigDirs();
+
+  const unlisten = await listen<AiConfigChangeEvent>("ai-config-changed", (event) => {
+    const { path: changedPath } = event.payload;
+    const currentPath = get(activeFilePath);
+
+    if (currentPath && changedPath === currentPath) {
+      // Active file changed on disk
+      const isDirty = get(activeFileDirty);
+      if (isDirty) {
+        // User has unsaved changes — notify via a store flag
+        configFileChangedOnDisk.set(true);
+      } else {
+        // Editor is clean — auto-reload silently
+        openFile(currentPath);
+      }
+    } else {
+      // A different file changed — refresh the file tree
+      loadConfigFiles();
+    }
+  });
+
+  unlistenConfigChanged = unlisten;
+}
+
+/** Stop watching AI config directories. Call on AiConfigEditor unmount. */
+export async function stopConfigWatcher(): Promise<void> {
+  unlistenConfigChanged?.();
+  unlistenConfigChanged = null;
+  try {
+    await api.aiStopConfigWatcher();
+  } catch {
+    // Ignore — watcher may already be stopped
+  }
 }

@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest";
 import type { ThemeData, GraphTheme } from "../types";
 
+function hexToRgb(hex: string): string {
+  const h = hex.startsWith("#") ? hex.slice(1) : hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `${r}, ${g}, ${b}`;
+}
+
 // Self-contained mirror of buildGraphTheme (avoids importing theme.ts which uses `document`)
 function buildGraphTheme(theme: ThemeData): GraphTheme {
   const g = theme.graph;
@@ -32,6 +40,10 @@ function buildGraphTheme(theme: ThemeData): GraphTheme {
     textPrimary: g.text_primary,
     textSecondary: g.text_secondary,
     textSha: g.text_sha,
+    bisectGoodColor: `rgba(${hexToRgb(theme.derived.accent_green)}, 0.15)`,
+    bisectBadColor: `rgba(${hexToRgb(theme.derived.accent_red)}, 0.15)`,
+    bisectSkipColor: `rgba(${hexToRgb(theme.derived.text_secondary)}, 0.15)`,
+    bisectCurrentColor: `rgba(${hexToRgb(theme.derived.accent_orange)}, 0.15)`,
   };
 }
 
