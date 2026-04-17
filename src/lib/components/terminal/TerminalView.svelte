@@ -2,7 +2,11 @@
   import { onMount, onDestroy } from "svelte";
   import Terminal from "./Terminal.svelte";
   import { activeTheme } from "$lib/stores/theme";
-  import { terminalWrite, terminalResize } from "$lib/api/tauri";
+  import {
+    terminalWrite,
+    terminalResize,
+    terminalSetActive,
+  } from "$lib/api/tauri";
   import { onTerminalOutput, offTerminalOutput } from "$lib/stores/terminal";
   import type { TerminalTabInfo } from "$lib/types";
 
@@ -38,10 +42,16 @@
         terminalResize(terminal.sessionId, cols, rows);
       });
     }
+
+    // Mark this session as the visible terminal so the backend polls its
+    // foreground process for AI-provider detection (Claude/Codex/OpenCode).
+    terminalSetActive(terminal.sessionId);
   });
 
   onDestroy(() => {
     offTerminalOutput(terminal.sessionId);
+    // Clear active session when this view unmounts.
+    terminalSetActive(null);
   });
 
   function handleClick() {

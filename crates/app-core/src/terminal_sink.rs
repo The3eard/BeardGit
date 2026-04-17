@@ -3,7 +3,10 @@
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use tauri::{AppHandle, Emitter};
-use terminal::{SessionId, TerminalEventSink, TerminalExitEvent, TerminalOutputEvent};
+use terminal::{
+    SessionId, TerminalCwdChangedEvent, TerminalEventSink, TerminalExitEvent, TerminalOutputEvent,
+    TerminalProcessChangedEvent,
+};
 
 /// Forwards terminal events to the Tauri frontend via `AppHandle::emit`.
 pub struct TauriTerminalSink {
@@ -35,6 +38,23 @@ impl TerminalEventSink for TauriTerminalSink {
             &TerminalExitEvent {
                 session_id,
                 exit_code,
+            },
+        );
+    }
+
+    fn on_cwd_changed(&self, session_id: SessionId, cwd: String) {
+        let _ = self.app_handle.emit(
+            "terminal-cwd-changed",
+            &TerminalCwdChangedEvent { session_id, cwd },
+        );
+    }
+
+    fn on_foreground_process_changed(&self, session_id: SessionId, process_name: Option<String>) {
+        let _ = self.app_handle.emit(
+            "terminal-process-changed",
+            &TerminalProcessChangedEvent {
+                session_id,
+                process_name,
             },
         );
     }

@@ -37,6 +37,10 @@ pub fn run() {
             );
             let terminal_manager =
                 std::sync::Arc::new(terminal::TerminalManager::new(terminal_sink));
+            // Kick off the background foreground-process polling thread. It is
+            // idempotent and cheap (a single thread that sleeps for 3 s between
+            // checks and only polls when a session is marked active).
+            terminal_manager.start_process_polling();
             app.manage(terminal_manager);
 
             // Listen for OS theme changes and re-emit resolved theme when auto is enabled.
@@ -264,6 +268,7 @@ pub fn run() {
             app_core::terminal_commands::terminal_write,
             app_core::terminal_commands::terminal_resize,
             app_core::terminal_commands::terminal_kill,
+            app_core::terminal_commands::terminal_set_active,
             // Project snapshot cache
             app_core::commands::get_project_snapshot,
             app_core::commands::save_project_snapshot,

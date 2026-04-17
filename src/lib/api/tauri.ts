@@ -1104,6 +1104,15 @@ export async function terminalKill(id: number): Promise<void> {
   return invoke<void>("terminal_kill", { id });
 }
 
+/**
+ * Tell the backend which terminal session is currently visible, so the
+ * foreground-process polling thread only polls that session. Pass `null`
+ * when no terminal is focused.
+ */
+export async function terminalSetActive(id: number | null): Promise<void> {
+  return invoke<void>("terminal_set_active", { id });
+}
+
 // ─── AI Provider ───
 
 export async function aiGetProviders(): Promise<AvailableAiProvider[]> {

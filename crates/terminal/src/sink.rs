@@ -14,4 +14,18 @@ pub trait TerminalEventSink: Send + Sync {
 
     /// The terminal session exited.
     fn on_exit(&self, session_id: SessionId, exit_code: Option<u32>);
+
+    /// The terminal session's working directory changed (detected via OSC 7).
+    ///
+    /// Default no-op so implementors can opt-in.
+    fn on_cwd_changed(&self, _session_id: SessionId, _cwd: String) {}
+
+    /// The foreground process in the terminal changed (detected via polling).
+    ///
+    /// `process_name` is `None` when the shell itself is in the foreground
+    /// or detection is unsupported/unavailable.
+    ///
+    /// Default no-op so implementors can opt-in.
+    fn on_foreground_process_changed(&self, _session_id: SessionId, _process_name: Option<String>) {
+    }
 }

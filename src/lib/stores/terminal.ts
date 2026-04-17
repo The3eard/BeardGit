@@ -1,5 +1,9 @@
 import { listen } from "@tauri-apps/api/event";
-import { removeTerminalTabBySession } from "./tabs";
+import {
+  removeTerminalTabBySession,
+  onTerminalCwdChanged,
+  onTerminalProcessChanged,
+} from "./tabs";
 
 /** Registered terminal output listeners. Key = session ID. */
 const outputListeners = new Map<number, (data: Uint8Array) => void>();
@@ -30,6 +34,22 @@ export async function initTerminalEvents(): Promise<void> {
       outputListeners.delete(session_id);
       // Auto-remove the terminal tab when the shell exits
       removeTerminalTabBySession(session_id);
+    },
+  );
+
+  await listen<{ session_id: number; cwd: string }>(
+    "terminal-cwd-changed",
+    (event) => {
+      const { session_id, cwd } = event.payload;
+      onTerminalCwdChanged(session_id, cwd);
+    },
+  );
+
+  await listen<{ session_id: number; process_name: string | null }>(
+    "terminal-process-changed",
+    (event) => {
+      const { session_id, process_name } = event.payload;
+      onTerminalProcessChanged(session_id, process_name);
     },
   );
 }

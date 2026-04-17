@@ -62,3 +62,17 @@ pub fn terminal_kill(
 ) -> Result<(), String> {
     terminal_manager.kill(id).map_err(|e| e.to_string())
 }
+
+/// Set which terminal session is currently visible.
+///
+/// The process polling thread only polls the active session to minimize
+/// syscalls. The frontend calls this when a terminal tab gains focus
+/// (and again with `None` when it loses focus).
+#[tauri::command]
+pub fn terminal_set_active(
+    id: Option<SessionId>,
+    terminal_manager: State<'_, Arc<TerminalManager>>,
+) -> Result<(), String> {
+    terminal_manager.set_active_session(id);
+    Ok(())
+}

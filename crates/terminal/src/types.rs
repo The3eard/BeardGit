@@ -38,6 +38,23 @@ pub struct TerminalExitEvent {
     pub exit_code: Option<u32>,
 }
 
+/// Payload for the `terminal-cwd-changed` Tauri event.
+#[derive(Clone, Debug, Serialize)]
+pub struct TerminalCwdChangedEvent {
+    pub session_id: SessionId,
+    /// The new working directory path.
+    pub cwd: String,
+}
+
+/// Payload for the `terminal-process-changed` Tauri event.
+#[derive(Clone, Debug, Serialize)]
+pub struct TerminalProcessChangedEvent {
+    pub session_id: SessionId,
+    /// Name of the foreground process, or `None` if detection failed or the
+    /// shell itself is in the foreground.
+    pub process_name: Option<String>,
+}
+
 /// Errors that can occur when interacting with the terminal manager.
 #[derive(thiserror::Error, Debug)]
 pub enum TerminalError {
