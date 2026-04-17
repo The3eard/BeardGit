@@ -1,9 +1,12 @@
 import sidebar from "../../pages/sidebar.page";
 import branches from "../../pages/branches.page";
 import dialogs from "../../pages/dialogs.page";
+import { openFixtureProject } from "../../helpers/project";
 
 describe("Regression: Branches", () => {
   before(async () => {
+    await $("aside.sidebar").waitForExist({ timeout: 10000 });
+    await openFixtureProject("simple-repo");
     await sidebar.navigateTo("branches");
     await branches.waitForVisible();
   });

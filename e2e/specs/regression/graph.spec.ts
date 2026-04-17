@@ -1,8 +1,11 @@
 import sidebar from "../../pages/sidebar.page";
 import graph from "../../pages/graph.page";
+import { openFixtureProject } from "../../helpers/project";
 
 describe("Regression: Graph", () => {
   before(async () => {
+    await $("aside.sidebar").waitForExist({ timeout: 10000 });
+    await openFixtureProject("simple-repo");
     await sidebar.navigateTo("graph");
   });
 

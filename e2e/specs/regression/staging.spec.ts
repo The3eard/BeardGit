@@ -1,8 +1,11 @@
 import sidebar from "../../pages/sidebar.page";
 import changes from "../../pages/changes.page";
+import { openFixtureProject } from "../../helpers/project";
 
 describe("Regression: Staging & Commit", () => {
   before(async () => {
+    await $("aside.sidebar").waitForExist({ timeout: 10000 });
+    await openFixtureProject("simple-repo");
     await sidebar.navigateTo("changes");
     await changes.waitForVisible();
   });

@@ -137,22 +137,47 @@ jobs:
         # Tauri build script validates bundled sidecar paths; matches rust-checks.
         run: node scripts/download-cli-binaries.js --target x86_64-unknown-linux-gnu
 
+      - name: Install WebKit WebDriver
+        # tauri-driver proxies to WebKitWebDriver on Linux; the binary
+        # ships with the webkit2gtk-driver package, not webkit2gtk-4.1-dev
+        # itself.
+        run: sudo apt-get install -y webkit2gtk-driver
+
       - name: Generate Paraglide messages
         run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
 
-      - name: Build frontend
-        run: npm run build
+      - name: Build Tauri app (debug via tauri CLI + E2E hooks)
+        # `tauri build --debug --no-bundle` runs the full production
+        # asset pipeline (beforeBuildCommand + tauri-build asset
+        # embedding) but keeps cargo's debug profile for speed.
+        # VITE_BEARDGIT_E2E=true exposes the window.__E2E__ surface
+        # used by e2e/helpers/project.ts. Plain `cargo build` + `npm
+        # run build` leaves the webview pointing at devUrl (Vite dev
+        # server) and shows "Connection refused".
+        run: VITE_BEARDGIT_E2E=true npx tauri build --debug --no-bundle
 
-      - name: Build Tauri app (debug)
-        run: cargo build -p beardgit
-        env:
-          BEARDGIT_BUILD_TYPE: debug
+      - name: Start tauri-driver
+        # Launches tauri-driver on 127.0.0.1:4444 in the background so
+        # wdio can connect to it. --native-host defaults to 127.0.0.1.
+        run: |
+          tauri-driver > tauri-driver.log 2>&1 &
+          echo "TAURI_DRIVER_PID=$!" >> "$GITHUB_ENV"
+          sleep 2
 
       - name: Run E2E tests
         run: xvfb-run --auto-servernum npx wdio run e2e/wdio.conf.ts
         env:
           CI: true
           BEARDGIT_BUILD_TYPE: debug
+
+      - name: Stop tauri-driver
+        if: always()
+        run: |
+          if [ -n "${TAURI_DRIVER_PID:-}" ]; then
+            kill "$TAURI_DRIVER_PID" || true
+          fi
+          echo "---- tauri-driver.log ----"
+          cat tauri-driver.log || true
 
       - name: Upload E2E results
         if: always()

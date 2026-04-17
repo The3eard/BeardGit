@@ -1,8 +1,13 @@
 import sidebar from "../../pages/sidebar.page";
 import bisect from "../../pages/bisect.page";
+import { openFixtureProject } from "../../helpers/project";
 
 describe("Regression: Bisect", () => {
   before(async () => {
+    await $("aside.sidebar").waitForExist({ timeout: 10000 });
+    // bisect-repo has a known bug at commit 12 of 20 — the ideal fixture
+    // for exercising the bisect workflow.
+    await openFixtureProject("bisect-repo");
     await sidebar.navigateTo("bisect");
     await bisect.waitForVisible();
   });

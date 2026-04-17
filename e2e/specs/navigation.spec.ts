@@ -2,6 +2,10 @@ import sidebar from "../pages/sidebar.page";
 import settings from "../pages/settings.page";
 
 describe("Navigation", () => {
+  before(async () => {
+    await $("aside.sidebar").waitForExist({ timeout: 10000 });
+  });
+
   it("should navigate to branches view", async () => {
     await sidebar.navigateTo("branches");
     const activeView = await sidebar.getActiveView();

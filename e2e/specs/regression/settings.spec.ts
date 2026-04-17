@@ -3,6 +3,8 @@ import settings from "../../pages/settings.page";
 
 describe("Regression: Settings", () => {
   before(async () => {
+    // Settings page doesn't require a repo open — sidebar is enough.
+    await $("aside.sidebar").waitForExist({ timeout: 10000 });
     await sidebar.navigateTo("settings");
     await settings.waitForVisible();
   });

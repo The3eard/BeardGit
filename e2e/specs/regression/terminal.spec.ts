@@ -1,6 +1,11 @@
 import terminal from "../../pages/terminal.page";
 
 describe("Regression: Terminal", () => {
+  before(async () => {
+    // Terminal shortcut needs the app shell alive; no repo required.
+    await $("aside.sidebar").waitForExist({ timeout: 10000 });
+  });
+
   it("should open a terminal tab", async () => {
     await terminal.openTerminal();
 

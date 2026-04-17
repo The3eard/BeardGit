@@ -4,8 +4,15 @@ import branches from "../pages/branches.page";
 import changes from "../pages/changes.page";
 import terminal from "../pages/terminal.page";
 import settings from "../pages/settings.page";
+import { openFixtureProject } from "../helpers/project";
 
 describe("Golden Path — Critical User Journey", () => {
+  before(async () => {
+    // Every spec in this suite assumes simple-repo is opened.
+    await $("aside.sidebar").waitForExist({ timeout: 10000 });
+    await openFixtureProject("simple-repo");
+  });
+
   it("Step 1: App launches and graph renders with commits", async () => {
     // Verify the sidebar is visible
     expect(await sidebar.isVisible()).toBe(true);

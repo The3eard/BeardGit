@@ -7,8 +7,22 @@
   import { initUiScale } from "$lib/stores/theme";
   import { initShortcutListener } from "$lib/stores/shortcuts";
   import { checkForAppUpdate } from "$lib/stores/updater";
+  import { openProjectTab, closeTab } from "$lib/stores/projects";
   import ToastContainer from "$lib/components/ui/ToastContainer.svelte";
   let { children } = $props();
+
+  /**
+   * E2E test hooks — only exposed when BEARDGIT_E2E=true is set at build
+   * time (the tauri-driver / docker harness sets this). The production
+   * bundle strips the window.__E2E__ surface to avoid leaking test APIs
+   * to end users. See e2e/helpers/project.ts for consumers.
+   */
+  if (typeof window !== "undefined" && import.meta.env.VITE_BEARDGIT_E2E === "true") {
+    (window as unknown as Record<string, unknown>).__E2E__ = {
+      openProject: (path: string) => openProjectTab(path),
+      closeTab: (index: number) => closeTab(index),
+    };
+  }
 
   // Disable default browser context menu globally
   function handleContextMenu(e: MouseEvent) {

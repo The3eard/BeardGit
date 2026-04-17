@@ -15,7 +15,10 @@ const projectRoot = path.resolve(__dirname, "..");
  */
 function resolveBinaryPath(): string {
   const buildType = process.env.BEARDGIT_BUILD_TYPE ?? "debug";
-  const base = path.join(projectRoot, "src-tauri", "target", buildType);
+  // The Rust workspace's `target/` directory lives at the repo root, not
+  // inside `src-tauri/`. Cargo places the main binary at target/<profile>/
+  // even though its manifest lives under src-tauri/Cargo.toml.
+  const base = path.join(projectRoot, "target", buildType);
 
   switch (process.platform) {
     case "darwin":
@@ -35,6 +38,12 @@ export const config: WebdriverIO.Config = {
   exclude: [],
 
   maxInstances: 1, // Tauri app is single-instance
+
+  // Talk to the local tauri-driver process instead of auto-starting a
+  // browser driver. tauri-driver must be running on 4444 before wdio
+  // starts — CI does this explicitly; locally users run it by hand.
+  hostname: "127.0.0.1",
+  port: 4444,
 
   capabilities: [
     {
