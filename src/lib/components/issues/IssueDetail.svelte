@@ -221,7 +221,7 @@
           {m.issues_comments({ count: detail.comments.length.toString() })}
         </h4>
         <div class="comment-list">
-          {#each detail.comments as comment}
+          {#each detail.comments as comment (comment.id)}
             <div class="comment">
               <div class="comment-header">
                 <span class="comment-author">{comment.author}</span>

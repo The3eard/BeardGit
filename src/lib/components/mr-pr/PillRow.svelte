@@ -7,11 +7,15 @@
 -->
 <script lang="ts">
   interface Props {
-    /** Items to render as pills (one per entry). */
-    items: string[];
+    /**
+     * Items to render as pills. Plain strings are treated as names with no
+     * color; label objects carry an optional `color` (hex without `#`) that
+     * is used to tint the pill background and text.
+     */
+    items: (string | { name: string; color?: string | null })[];
     /** When true, the remove `×` and add `+` buttons are disabled. */
     disabled?: boolean;
-    /** Called with the item text when the `×` on a pill is clicked. */
+    /** Called with the item name when the `×` on a pill is clicked. */
     onRemove: (item: string) => void;
     /** Called when the trailing `+` button is clicked. */
     onAddClick: () => void;
@@ -19,9 +23,9 @@
     emptyLabel?: string;
     /** Additional CSS class applied to each pill (allows per-kind styling). */
     pillClass?: string;
-    /** Optional tooltip provider, called per item. */
+    /** Optional tooltip provider, called per item name. */
     tooltipFor?: (item: string) => string | undefined;
-    /** Accessible label template for the remove buttons. Receives the item. */
+    /** Accessible label template for the remove buttons. Receives the name. */
     removeAriaLabel?: (item: string) => string;
     /** Accessible label for the trailing add button. */
     addAriaLabel?: string;
@@ -42,14 +46,20 @@
 
 <div class="pill-row">
   {#each items as item}
-    <span class="pill {pillClass}" title={tooltipFor?.(item) ?? item}>
-      <span class="pill-label">{item}</span>
+    {@const label = typeof item === "string" ? { name: item, color: null } : item}
+    <span
+      class="pill {pillClass}"
+      style:background={label.color ? `#${label.color}20` : undefined}
+      style:color={label.color ? `#${label.color}` : undefined}
+      title={tooltipFor?.(label.name) ?? label.name}
+    >
+      <span class="pill-label">{label.name}</span>
       <button
         class="pill-remove nf"
         type="button"
         {disabled}
-        aria-label={removeAriaLabel ? removeAriaLabel(item) : `Remove ${item}`}
-        onclick={() => onRemove(item)}>{"\uF00D"}</button>
+        aria-label={removeAriaLabel ? removeAriaLabel(label.name) : `Remove ${label.name}`}
+        onclick={() => onRemove(label.name)}>{"\uF00D"}</button>
     </span>
   {/each}
   {#if items.length === 0 && emptyLabel}

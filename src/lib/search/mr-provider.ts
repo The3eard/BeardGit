@@ -21,7 +21,7 @@ export function filterMrPrLocal(items: MrPr[], tags: SearchTag[]): MrPr[] {
           return (item.source_branch ?? "").toLowerCase().includes(q) ||
                  (item.target_branch ?? "").toLowerCase().includes(q);
         case "label":
-          return item.labels.some(l => l.toLowerCase().includes(q));
+          return item.labels.some((l) => l.name.toLowerCase().includes(q));
         case "text": {
           return (item.title ?? "").toLowerCase().includes(q) ||
                  (item.author ?? "").toLowerCase().includes(q) ||

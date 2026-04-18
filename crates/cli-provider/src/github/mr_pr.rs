@@ -17,20 +17,9 @@ impl GitHubCli {
         filter: MrPrFilter,
         limit: u32,
     ) -> Result<Vec<MrPr>, ForgeError> {
-        let state_str = filter.state.map(state_to_gh_str);
-        let limit_str = limit.to_string();
-        let mut args = vec![
-            "pr",
-            "list",
-            "--json",
-            "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,additions,deletions,changedFiles",
-            "--limit",
-            &limit_str,
-        ];
-        if let Some(s) = state_str {
-            args.extend(["--state", s]);
-        }
-        let raw: Vec<serde_json::Value> = self.run_json(&args)?;
+        let args = build_gh_mr_pr_list_args(&filter, limit);
+        let argv: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let raw: Vec<serde_json::Value> = self.run_json(&argv)?;
         Ok(raw.iter().map(|i| parse_mr_pr(i, &GITHUB_FIELDS)).collect())
     }
 
@@ -212,5 +201,85 @@ impl GitHubCli {
             &json_body.to_string(),
         )?;
         Ok(())
+    }
+}
+
+// ─── argv builders ──────────────────────────────────────────────────────
+
+/// Build argv for `gh pr list` from an [`MrPrFilter`] + limit.
+///
+/// Extracted so the CLI-flag layout can be unit-tested without spawning
+/// `gh`. The returned vector always includes `--json` (fixed field list),
+/// `--limit`, and — when the corresponding filter field is set — one of
+/// `--state`, `--author`, `--label`, `--search`.
+pub(crate) fn build_gh_mr_pr_list_args(filter: &MrPrFilter, limit: u32) -> Vec<String> {
+    let mut args: Vec<String> = vec![
+        "pr".into(),
+        "list".into(),
+        "--json".into(),
+        "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,additions,deletions,changedFiles".into(),
+        "--limit".into(),
+        limit.to_string(),
+    ];
+    if let Some(s) = filter.state {
+        args.push("--state".into());
+        args.push(state_to_gh_str(s).into());
+    }
+    if let Some(a) = &filter.author {
+        args.push("--author".into());
+        args.push(a.clone());
+    }
+    if let Some(l) = &filter.label {
+        args.push("--label".into());
+        args.push(l.clone());
+    }
+    if let Some(t) = &filter.text {
+        args.push("--search".into());
+        args.push(t.clone());
+    }
+    args
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use forge_provider::MrPrState;
+
+    #[test]
+    fn build_gh_mr_pr_list_args_default_has_no_filter_flags() {
+        let f = MrPrFilter::default();
+        let args = build_gh_mr_pr_list_args(&f, 30);
+        assert!(args.contains(&"--limit".to_string()));
+        assert!(args.contains(&"30".to_string()));
+        assert!(!args.contains(&"--state".to_string()));
+        assert!(!args.contains(&"--author".to_string()));
+        assert!(!args.contains(&"--label".to_string()));
+        assert!(!args.contains(&"--search".to_string()));
+    }
+
+    #[test]
+    fn build_gh_mr_pr_list_args_with_state() {
+        let f = MrPrFilter {
+            state: Some(MrPrState::Open),
+            ..Default::default()
+        };
+        let args = build_gh_mr_pr_list_args(&f, 30);
+        assert!(args.windows(2).any(|w| w == ["--state", "open"]));
+    }
+
+    #[test]
+    fn build_gh_mr_pr_list_args_pushes_author_label_text() {
+        let f = MrPrFilter {
+            state: None,
+            author: Some("alice".into()),
+            label: Some("bug".into()),
+            text: Some("flaky test".into()),
+        };
+        let args = build_gh_mr_pr_list_args(&f, 25);
+        assert!(args.windows(2).any(|w| w == ["--author", "alice"]));
+        assert!(args.windows(2).any(|w| w == ["--label", "bug"]));
+        assert!(args.windows(2).any(|w| w == ["--search", "flaky test"]));
+        // --state still omitted when the filter doesn't set it
+        assert!(!args.contains(&"--state".to_string()));
     }
 }

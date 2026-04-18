@@ -17,6 +17,24 @@ use crate::parsers::{
 };
 
 impl GitLabCli {
+    /// Return a snapshot of the repository label cache, populating it on
+    /// first access. Returns an empty map on failure — colouring is a
+    /// best-effort UX concern, not load-bearing.
+    fn get_label_cache(&self) -> HashMap<String, forge_provider::Label> {
+        if let Ok(guard) = self.label_cache.lock()
+            && let Some(cache) = guard.as_ref()
+        {
+            return cache.clone();
+        }
+        let labels = self.list_labels_impl().unwrap_or_default();
+        let map: HashMap<String, forge_provider::Label> =
+            labels.into_iter().map(|l| (l.name.clone(), l)).collect();
+        if let Ok(mut guard) = self.label_cache.lock() {
+            *guard = Some(map.clone());
+        }
+        map
+    }
+
     pub(super) fn list_issues_impl(
         &self,
         filter: IssueFilter,
@@ -25,14 +43,14 @@ impl GitLabCli {
         let args = build_glab_issue_list_args(&filter, limit);
         let ref_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
         let stdout = self.run(&ref_args)?;
-        parse_gitlab_issues(&stdout, &HashMap::new()).map_err(Into::into)
+        parse_gitlab_issues(&stdout, &self.get_label_cache()).map_err(Into::into)
     }
 
     pub(super) fn get_issue_impl(&self, number: u64) -> Result<IssueDetail, ForgeError> {
         let num_str = number.to_string();
         let view = self.run(&["issue", "view", &num_str, "-F", "json"])?;
-        let (summary, body) =
-            parse_gitlab_issue_view(&view, &HashMap::new()).map_err(ForgeError::from)?;
+        let cache = self.get_label_cache();
+        let (summary, body) = parse_gitlab_issue_view(&view, &cache).map_err(ForgeError::from)?;
         // Fetch notes via the API. If it fails (e.g. scope mismatch) we still
         // return an IssueDetail with an empty comment list.
         let notes_path = format!("projects/:id/issues/{number}/notes");

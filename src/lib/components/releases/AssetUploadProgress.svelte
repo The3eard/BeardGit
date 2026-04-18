@@ -5,7 +5,7 @@
   (success, failure, or cancellation).
 -->
 <script lang="ts">
-  import { tasks } from "../../stores/tasks";
+  import { taskById } from "../../stores/tasks";
   import type { TaskId } from "../../types";
 
   interface Props {
@@ -15,7 +15,7 @@
   }
   let { taskId, fileName, onComplete }: Props = $props();
 
-  let task = $derived($tasks.find((t) => t.id === taskId));
+  let task = $derived($taskById.get(taskId));
   let state = $derived(task?.status.state ?? "running");
   let errorMsg = $derived(
     task?.status.state === "failed"

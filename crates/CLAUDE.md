@@ -99,6 +99,11 @@
 - Drop semantics = shutdown (dropping watcher stops watching)
 - `notify::RecommendedWatcher` is platform-auto-selected (kqueue/inotify/ReadDirectoryChangesW)
 
+### `ai-provider`
+- Defines `AiProvider` trait — the contract for all AI CLI backends (Claude Code, Codex, OpenCode)
+- Shared AI types, command-building helpers, sync-only surface (no Tauri dep)
+- **Trait-crate purity:** same rules as `provider` / `forge-provider` — no `reqwest`, `tokio` runtime imports, `tauri`, `hyper`. Enforced by the same CI grep guard in `ci.yml`. Dev-dependencies (e.g. `tokio` for `#[tokio::test]`) are fine; source-code imports are not
+
 ### `codex`
 - `AiProvider` implementation for Codex CLI
 - Binary detection via `which codex`, version parsing from `codex --version`

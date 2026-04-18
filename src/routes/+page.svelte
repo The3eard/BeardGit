@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
   import TabBar from "$lib/components/layout/TabBar.svelte";
   import Sidebar from "$lib/components/layout/Sidebar.svelte";
   import StatusBar from "$lib/components/layout/StatusBar.svelte";
@@ -14,7 +13,6 @@
   import { repoInfo, isLoading, error } from "$lib/stores/repo";
   import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit, graphNavigateDown, graphNavigateUp, graphNavigateFirst, graphNavigateLast } from "$lib/stores/graph";
   import type { RawDiffContent } from "$lib/stores/graph";
-  import type { ThemeData } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import TaskPopover from "$lib/components/tasks/TaskPopover.svelte";
   import TaskPanel from "$lib/components/tasks/TaskPanel.svelte";
@@ -36,7 +34,7 @@
   import TerminalView from "$lib/components/terminal/TerminalView.svelte";
   import { initTerminalEvents } from "$lib/stores/terminal";
   import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment, openTabs, getActiveTerminalSegment, getCompositeTerminals } from "$lib/stores/tabs";
-  import { getSidebarCollapsed, setSidebarCollapsed } from "$lib/api/tauri";
+  import { getSidebarCollapsed, setSidebarCollapsed, resolveStartupTheme } from "$lib/api/tauri";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
   import AiConfigEditor from "$lib/components/ai-config/AiConfigEditor.svelte";
   import AiSessionsView from "$lib/components/ai-sessions/AiSessionsView.svelte";
@@ -158,7 +156,7 @@
   onMount(async () => {
     // Initialize theme
     try {
-      const theme = await invoke<ThemeData>("resolve_startup_theme");
+      const theme = await resolveStartupTheme();
       activeTheme.set(theme);
       applyTheme(theme);
     } catch (e) {

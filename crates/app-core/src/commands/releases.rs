@@ -161,7 +161,17 @@ pub async fn upload_release_asset(
             conn.kind
         };
         let bin = resolve_cli_binary(&state, kind)?;
-        let args = build_upload_argv(kind, &tag, &asset_path, label.as_deref());
+        // Treat empty-string labels as "no label" so we never produce a
+        // dangling `path#` in the gh argv.
+        let label_ref = label.as_deref().filter(|s| !s.is_empty());
+        let args = match kind {
+            provider::ProviderKind::GitHub => {
+                cli_provider::build_gh_upload_args(&tag, &asset_path, label_ref)
+            }
+            provider::ProviderKind::GitLab => {
+                cli_provider::build_glab_upload_args(&tag, &asset_path, label_ref)
+            }
+        };
         (bin, args)
     };
 
@@ -182,38 +192,6 @@ pub async fn upload_release_asset(
         .spawn(task_label, &binary_str, &args_ref, &cwd, true)
         .await;
     Ok(id)
-}
-
-/// Build argv for the underlying CLI release upload.
-///
-/// - **GitHub** (`gh release upload`): `[tag, file#label?, --clobber]`.
-/// - **GitLab** (`glab release upload`): `[tag, file]` (labels unsupported).
-fn build_upload_argv(
-    kind: provider::ProviderKind,
-    tag: &str,
-    asset_path: &str,
-    label: Option<&str>,
-) -> Vec<String> {
-    match kind {
-        provider::ProviderKind::GitHub => {
-            let mut args: Vec<String> = vec!["release".into(), "upload".into(), tag.into()];
-            if let Some(l) = label.filter(|s| !s.is_empty()) {
-                args.push(format!("{asset_path}#{l}"));
-            } else {
-                args.push(asset_path.into());
-            }
-            args.push("--clobber".into());
-            args
-        }
-        provider::ProviderKind::GitLab => {
-            vec![
-                "release".into(),
-                "upload".into(),
-                tag.into(),
-                asset_path.into(),
-            ]
-        }
-    }
 }
 
 /// Atomic create-tag + push + create-release.
@@ -280,121 +258,36 @@ pub async fn create_tag_and_release(
     let tag_for_listener = tag.clone();
     tokio::spawn(async move {
         use task_runner::TaskStatus;
-        loop {
-            let info = tm.list_tasks().await.into_iter().find(|t| t.id == id);
-            match info.as_ref().map(|i| &i.status) {
-                Some(TaskStatus::Completed) => {
-                    // Tag is pushed; now attempt the release create.
-                    let provider = Arc::clone(&provider);
-                    let input = input.clone();
-                    let tag = tag_for_listener.clone();
-                    let result = tokio::task::spawn_blocking(move || {
-                        provider.create_release(input).map_err(|e| e.to_string())
-                    })
-                    .await;
-                    use tauri::Emitter as _;
-                    match result {
-                        Ok(Ok(release)) => {
-                            let _ = handle.emit("release-created", &release);
-                        }
-                        Ok(Err(e)) => {
-                            let _ = handle.emit(
-                                "release-create-failed",
-                                &serde_json::json!({ "tag": tag, "error": e }),
-                            );
-                        }
-                        Err(e) => {
-                            let _ = handle.emit(
-                                "release-create-failed",
-                                &serde_json::json!({ "tag": tag, "error": e.to_string() }),
-                            );
-                        }
-                    }
-                    break;
+        // Failed / Cancelled / NotFound: nothing to emit (the task log already
+        // captures the error). Silent exit matches the prior behaviour.
+        if let Ok(TaskStatus::Completed) = tm.wait_for_terminal(id).await {
+            let provider = Arc::clone(&provider);
+            let input = input.clone();
+            let tag = tag_for_listener.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                provider.create_release(input).map_err(|e| e.to_string())
+            })
+            .await;
+            use tauri::Emitter as _;
+            match result {
+                Ok(Ok(release)) => {
+                    let _ = handle.emit("release-created", &release);
                 }
-                Some(TaskStatus::Failed { .. }) | Some(TaskStatus::Cancelled) => break,
-                _ => tokio::time::sleep(std::time::Duration::from_millis(100)).await,
+                Ok(Err(e)) => {
+                    let _ = handle.emit(
+                        "release-create-failed",
+                        &serde_json::json!({ "tag": tag, "error": e }),
+                    );
+                }
+                Err(e) => {
+                    let _ = handle.emit(
+                        "release-create-failed",
+                        &serde_json::json!({ "tag": tag, "error": e.to_string() }),
+                    );
+                }
             }
         }
     });
 
     Ok(id)
-}
-
-/// Shell-escape a value for use in a POSIX `sh -c` command line.
-///
-/// Conservative: wraps in single quotes and escapes embedded single quotes.
-/// On Windows, `cmd.exe` handles most of the values we pass (tag names,
-/// refs, remotes) verbatim — the escaping here is best-effort for POSIX
-/// and still produces a working command on Windows for typical inputs.
-fn shell_escape(s: &str) -> String {
-    if s.is_empty() {
-        return "''".into();
-    }
-    // If the value is safe (alphanumerics, slashes, dots, dashes, underscores), pass as-is.
-    if s.chars()
-        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '-' | '_'))
-    {
-        return s.to_string();
-    }
-    let escaped = s.replace('\'', "'\\''");
-    format!("'{escaped}'")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn upload_argv_github_no_label_ends_with_clobber() {
-        let args = build_upload_argv(provider::ProviderKind::GitHub, "v1.0.0", "/tmp/a.dmg", None);
-        assert_eq!(args[0], "release");
-        assert_eq!(args[1], "upload");
-        assert_eq!(args[2], "v1.0.0");
-        assert_eq!(args[3], "/tmp/a.dmg");
-        assert_eq!(args[4], "--clobber");
-    }
-
-    #[test]
-    fn upload_argv_github_with_label_encodes_hash_syntax() {
-        let args = build_upload_argv(
-            provider::ProviderKind::GitHub,
-            "v1.0.0",
-            "/tmp/a.dmg",
-            Some("Mac arm64"),
-        );
-        assert!(args.iter().any(|a| a == "/tmp/a.dmg#Mac arm64"));
-        assert!(args.contains(&"--clobber".to_string()));
-    }
-
-    #[test]
-    fn upload_argv_gitlab_omits_clobber_and_label() {
-        let args = build_upload_argv(
-            provider::ProviderKind::GitLab,
-            "v1.0.0",
-            "/tmp/a.tar.gz",
-            Some("Linux x64"),
-        );
-        assert_eq!(args.len(), 4);
-        assert_eq!(args[3], "/tmp/a.tar.gz");
-        assert!(!args.contains(&"--clobber".to_string()));
-    }
-
-    #[test]
-    fn shell_escape_safe_passes_through() {
-        assert_eq!(shell_escape("v1.2.3"), "v1.2.3");
-        assert_eq!(shell_escape("feature/foo"), "feature/foo");
-        assert_eq!(shell_escape("origin"), "origin");
-    }
-
-    #[test]
-    fn shell_escape_spaces_get_quoted() {
-        assert_eq!(shell_escape("release notes"), "'release notes'");
-    }
-
-    #[test]
-    fn shell_escape_embedded_single_quote() {
-        // O'Brien → 'O'\''Brien'
-        assert_eq!(shell_escape("O'Brien"), "'O'\\''Brien'");
-    }
 }

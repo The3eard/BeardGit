@@ -100,6 +100,7 @@ pub async fn open_repo(
         }
     };
     *state.active_index.lock().map_err(|e| e.to_string())? = Some(active_idx);
+    invalidate_forge_provider_cache(&state);
 
     Ok(RepoInfo {
         path: status.path,

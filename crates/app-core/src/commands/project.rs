@@ -101,6 +101,7 @@ pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), Str
     projects.remove(index);
 
     // Adjust active index
+    let previous_active = *active;
     if projects.is_empty() {
         *active = None;
     } else if let Some(current) = *active {
@@ -110,6 +111,7 @@ pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), Str
             *active = Some(current - 1);
         }
     }
+    let active_changed = previous_active != *active;
 
     // Persist to config
     {
@@ -120,6 +122,13 @@ pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), Str
         config.recent_repos.insert(0, closed_path);
         config.recent_repos.truncate(20);
         config.save(&state.config_path).map_err(|e| e.to_string())?;
+    }
+
+    // Drop the locks before invalidating the forge provider cache.
+    drop(active);
+    drop(projects);
+    if active_changed {
+        invalidate_forge_provider_cache(&state);
     }
 
     Ok(())

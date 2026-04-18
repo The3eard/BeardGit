@@ -48,6 +48,10 @@ pub async fn connect_provider(
         .store_credential(&instance_url, &credential)
         .map_err(|e| e.to_string())?;
 
+    if let Ok(mut cache) = state.cli_binary_cache.lock() {
+        cache.remove(&kind);
+    }
+
     // 3. Build ProviderConnection (metadata only, no CiProvider)
     let conn = crate::state::ProviderConnection {
         kind,

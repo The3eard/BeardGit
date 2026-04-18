@@ -29,6 +29,7 @@ pub async fn list_mr_prs(
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let filter = MrPrFilter {
         state: state_filter,
+        ..Default::default()
     };
     run_blocking(move || {
         provider
@@ -373,22 +374,13 @@ pub async fn checkout_mr_pr_locally(
     let tm: Arc<TaskManager> = Arc::clone(&task_manager);
     let handle = app_handle.clone();
     tokio::spawn(async move {
-        // Poll until the task reaches a terminal state.
-        loop {
-            let info = tm.list_tasks().await.into_iter().find(|t| t.id == id);
-            match info.as_ref().map(|i| &i.status) {
-                Some(TaskStatus::Completed) => {
-                    if let Some(output) = tm.get_output(id).await {
-                        let stdout = stdout_from_output(&output);
-                        let result = parse_checkout_output(&stdout);
-                        let _ = handle.emit("mr-pr-checked-out", &result);
-                        let _ = handle.emit("repo-changed", ());
-                    }
-                    break;
-                }
-                Some(TaskStatus::Failed { .. }) | Some(TaskStatus::Cancelled) => break,
-                _ => tokio::time::sleep(std::time::Duration::from_millis(100)).await,
-            }
+        if let Ok(TaskStatus::Completed) = tm.wait_for_terminal(id).await
+            && let Some(output) = tm.get_output(id).await
+        {
+            let stdout = stdout_from_output(&output);
+            let result = parse_checkout_output(&stdout);
+            let _ = handle.emit("mr-pr-checked-out", &result);
+            let _ = handle.emit("repo-changed", ());
         }
     });
 

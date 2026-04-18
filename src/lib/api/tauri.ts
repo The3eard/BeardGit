@@ -462,6 +462,11 @@ export async function setThemeAuto(enabled: boolean): Promise<void> {
   return invoke<void>("set_theme_auto", { enabled });
 }
 
+/** Resolve the startup theme from saved config + OS preference. */
+export async function resolveStartupTheme(): Promise<ThemeData> {
+  return invoke<ThemeData>("resolve_startup_theme");
+}
+
 export async function getUiScale(): Promise<number> {
   return invoke<number>("get_ui_scale");
 }

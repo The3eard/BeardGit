@@ -680,10 +680,10 @@ export function renderGraph(
   }
   performance.mark('badges-end');
   performance.measure('render:badges', 'badges-start', 'badges-end');
-  // Badges and text are drawn interleaved in the per-node loop, so they share
-  // the same measurement window. `render:text` is emitted as an alias so the
-  // dev overlay can surface it independently if the loop is ever split.
-  performance.measure('render:text', 'badges-start', 'badges-end');
+  // Text is currently drawn inside the badges loop; when the loop is split
+  // this becomes a standalone measure. Until then, keep the alias but name
+  // it accurately so the HUD doesn't claim two separate timings.
+  performance.measure('render:badges-and-text', 'badges-start', 'badges-end');
 
   performance.mark('render-end');
   performance.measure('render:total', 'render-start', 'render-end');

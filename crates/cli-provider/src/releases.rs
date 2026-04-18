@@ -179,7 +179,7 @@ pub(crate) fn build_gh_edit_args(tag: &str, patch: &EditReleasePatch) -> Vec<Str
 }
 
 /// Build argv for `gh release upload` — file with optional `#label` suffix.
-pub(crate) fn build_gh_upload_args(tag: &str, file: &str, label: Option<&str>) -> Vec<String> {
+pub fn build_gh_upload_args(tag: &str, file: &str, label: Option<&str>) -> Vec<String> {
     let mut args: Vec<String> = vec!["release".into(), "upload".into(), tag.into()];
     if let Some(label) = label {
         args.push(format!("{file}#{label}"));
@@ -188,6 +188,13 @@ pub(crate) fn build_gh_upload_args(tag: &str, file: &str, label: Option<&str>) -
     }
     args.push("--clobber".into());
     args
+}
+
+/// Build argv for `glab release upload` — label is unsupported by glab
+/// (documented in `gitlab/releases.rs::upload_release_asset_impl`), so
+/// the parameter is accepted for call-site symmetry and silently ignored.
+pub fn build_glab_upload_args(tag: &str, file: &str, _label: Option<&str>) -> Vec<String> {
+    vec!["release".into(), "upload".into(), tag.into(), file.into()]
 }
 
 // ─── GitLab (glab) ──────────────────────────────────────────────────────────
@@ -560,5 +567,11 @@ mod tests {
         assert!(endpoint.contains("v1.0"));
         assert!(endpoint.contains("42"));
         assert!(endpoint.starts_with("projects/:fullpath/releases/"));
+    }
+
+    #[test]
+    fn build_glab_upload_args_ignores_label() {
+        let args = build_glab_upload_args("v1.0.0", "/tmp/a.dmg", Some("Mac arm64"));
+        assert_eq!(args, vec!["release", "upload", "v1.0.0", "/tmp/a.dmg"]);
     }
 }

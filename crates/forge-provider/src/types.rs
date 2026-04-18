@@ -67,7 +67,7 @@ pub struct MrPr {
     /// Whether this is a draft/WIP.
     pub draft: bool,
     /// Labels assigned to the MR/PR.
-    pub labels: Vec<String>,
+    pub labels: Vec<Label>,
     /// Assigned reviewers (usernames).
     pub reviewers: Vec<String>,
     /// ISO 8601 creation timestamp.
@@ -181,12 +181,20 @@ pub enum MergeStrategy {
 /// Filter for [`crate::ForgeProvider::list_mr_prs`].
 ///
 /// Added in 8.1 to replace the bare `(Option<MrPrState>, u32)` tuple the
-/// current CLI impl uses. Future sub-phases will extend it with author,
-/// label, and text filters.
+/// current CLI impl used. Extended in the audit-fix pass with `author`,
+/// `label`, and `text` so the CLI back-end can narrow the list server-side
+/// (both `gh pr list` and `glab mr list` accept `--author`, `--label`, and
+/// `--search` with identical semantics).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MrPrFilter {
     /// Restrict to a single state (Open/Closed/Merged); `None` means any.
     pub state: Option<MrPrState>,
+    /// Restrict to MR/PRs authored by this username. `None` means any.
+    pub author: Option<String>,
+    /// Restrict to MR/PRs carrying this label. `None` means any.
+    pub label: Option<String>,
+    /// Free-text search over titles + bodies (forge-specific semantics).
+    pub text: Option<String>,
 }
 
 /// Input payload for [`crate::ForgeProvider::create_mr_pr`].

@@ -81,7 +81,7 @@ jobs:
         run: |
           set -euo pipefail
           if grep -rnE '^[[:space:]]*(use|extern crate)[[:space:]]+(reqwest|tokio|tauri|hyper)\b' \
-                crates/provider/src crates/forge-provider/src; then
+                crates/provider/src crates/forge-provider/src crates/ai-provider/src; then
             echo "::error::Forbidden runtime dependency imported in a trait crate." >&2
             exit 1
           fi

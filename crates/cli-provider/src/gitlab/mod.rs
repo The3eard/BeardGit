@@ -33,6 +33,10 @@ pub struct GitLabCli {
     pub binary_path: PathBuf,
     /// Working directory — the repository root. `glab` auto-detects the remote.
     pub repo_path: PathBuf,
+    /// Lazy cache of repository labels for colouring issue labels in the
+    /// list/detail views. Populated on first issue fetch.
+    pub(super) label_cache:
+        std::sync::Mutex<Option<std::collections::HashMap<String, forge_provider::Label>>>,
 }
 
 impl GitLabCli {
@@ -41,6 +45,7 @@ impl GitLabCli {
         Self {
             binary_path: binary_path.into(),
             repo_path: repo_path.into(),
+            label_cache: std::sync::Mutex::new(None),
         }
     }
 

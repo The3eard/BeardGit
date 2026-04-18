@@ -44,7 +44,7 @@ describe('graph-perf', () => {
     mockMeasures['render:merges'] = 0.8;
     mockMeasures['render:nodes'] = 0.9;
     mockMeasures['render:badges'] = 0.3;
-    mockMeasures['render:text'] = 1.1;
+    mockMeasures['render:badges-and-text'] = 1.1;
 
     recordRenderMetrics();
 

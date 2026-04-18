@@ -639,7 +639,7 @@ export interface MrPr {
   target_branch: string;
   url: string;
   draft: boolean;
-  labels: string[];
+  labels: Label[];
   reviewers: string[];
   created_at: string;
   updated_at: string;
@@ -651,12 +651,21 @@ export interface MrPr {
 export interface MrPrDetail {
   summary: MrPr;
   body: string;
-  comments: MrPrComment[];
+  comments: ForgeComment[];
   review_status: ReviewStatus;
   mergeable: boolean | null;
 }
 
-export interface MrPrComment {
+/** Filter for [`listMrPrs`]. Mirrors `MrPrFilter` in Rust — all fields optional. */
+export interface MrPrFilter {
+  state?: MrPrState;
+  author?: string;
+  label?: string;
+  text?: string;
+}
+
+/** Shared comment shape for MR/PR, Issue, and Release threads. */
+export interface ForgeComment {
   id: number;
   author: string;
   body: string;
@@ -671,6 +680,9 @@ export interface MrPrComment {
   /** GitLab-only: discussion ID used by resolve/unresolve calls. `null` on GitHub. */
   discussion_id: string | null;
 }
+
+/** @deprecated use `ForgeComment` — kept for one branch to ease review. */
+export type MrPrComment = ForgeComment;
 
 export interface MrPrDiffFile {
   path: string;
@@ -726,8 +738,8 @@ export interface Issue {
 export interface IssueDetail {
   summary: Issue;
   body: string;
-  /** Reuses the existing MrPrComment shape — structurally identical. */
-  comments: MrPrComment[];
+  /** Reuses the existing ForgeComment shape — structurally identical. */
+  comments: ForgeComment[];
 }
 
 /** Filter for [`listIssues`]. */

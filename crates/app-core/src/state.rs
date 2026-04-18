@@ -19,6 +19,16 @@ use watcher::RepoWatcher;
 
 use crate::ai_background::AiBackgroundCoordinator;
 
+/// A cached `Arc<dyn ForgeProvider>` tagged with the state it was built for.
+pub struct ForgeProviderCacheEntry {
+    /// Active provider index at construction time.
+    pub provider_index: usize,
+    /// Active project path at construction time.
+    pub project_path: PathBuf,
+    /// The erased trait object, ready for reuse.
+    pub provider: std::sync::Arc<dyn forge_provider::ForgeProvider>,
+}
+
 /// A single authenticated provider connection held in application state.
 ///
 /// Stores the provider metadata and the detected project for the current repo.
@@ -86,6 +96,16 @@ pub struct AppState {
     /// (determined by matching the repo's remote URL).
     /// `None` if no repo is open or no provider matches.
     pub active_provider_index: Mutex<Option<usize>>,
+    /// Cache of resolved CLI binary paths per provider kind.
+    ///
+    /// Populated lazily on first `resolve_cli_binary` call and invalidated
+    /// when the user connects or reconnects a provider. Avoids walking
+    /// `$PATH` on every forge IPC handler.
+    pub cli_binary_cache: Mutex<std::collections::HashMap<ProviderKind, std::path::PathBuf>>,
+    /// Cache of the current forge provider instance, keyed by
+    /// `(active_provider_index, active_project_path)`. Invalidated on
+    /// provider change, project switch, or reconnect.
+    pub forge_provider_cache: Mutex<Option<ForgeProviderCacheEntry>>,
     /// Detected AI providers (populated at startup and on refresh).
     pub ai_providers: Mutex<Vec<AvailableAiProvider>>,
     /// Filesystem watcher for AI session directories. Started once after the
@@ -131,6 +151,8 @@ impl AppState {
             credential_store,
             providers: Mutex::new(Vec::new()),
             active_provider_index: Mutex::new(None),
+            cli_binary_cache: Mutex::new(std::collections::HashMap::new()),
+            forge_provider_cache: Mutex::new(None),
             ai_providers: Mutex::new(Vec::new()),
             ai_session_watcher: Mutex::new(None),
             ai_config_watcher: Mutex::new(None),

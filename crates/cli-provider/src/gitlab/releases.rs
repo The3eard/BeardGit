@@ -71,13 +71,15 @@ impl GitLabCli {
         &self,
         tag: &str,
         path: &std::path::Path,
-        _label: Option<&str>,
+        label: Option<&str>,
     ) -> Result<ReleaseAsset, ForgeError> {
         let path_str = path.to_string_lossy().to_string();
         // `glab release upload TAG FILE` uploads a single asset. The `--label`
         // flag is not supported in the same way as `gh`; we document this as
         // a known gap (see plan 8.5 Known Gaps) and ignore the label parameter.
-        self.run(&["release", "upload", tag, &path_str])?;
+        let args = crate::releases::build_glab_upload_args(tag, &path_str, label);
+        let ref_args: Vec<&str> = args.iter().map(String::as_str).collect();
+        self.run(&ref_args)?;
         let name = path
             .file_name()
             .and_then(|s| s.to_str())
@@ -108,10 +110,10 @@ mod tests {
 
     #[test]
     fn gitlab_publish_release_not_supported() {
-        let p = GitLabCli {
-            binary_path: std::path::PathBuf::from("/nonexistent/glab"),
-            repo_path: std::path::PathBuf::from("/tmp"),
-        };
+        let p = GitLabCli::new(
+            std::path::PathBuf::from("/nonexistent/glab"),
+            std::path::PathBuf::from("/tmp"),
+        );
         assert!(matches!(
             p.publish_release_impl("v1"),
             Err(ForgeError::NotSupported)

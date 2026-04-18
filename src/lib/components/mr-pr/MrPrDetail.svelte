@@ -383,7 +383,7 @@
     <div class="section">
       <h4 class="section-title">{m.mrpr_changed_files({ count: $mrPrDiffFiles.length.toString() })}</h4>
       <div class="file-list">
-        {#each $mrPrDiffFiles as file}
+        {#each $mrPrDiffFiles as file (file.path)}
           <div class="file-row">
             <span
               class="file-status"
@@ -412,7 +412,7 @@
           {m.mrpr_comments({ count: detail.comments.length.toString() })}
         </h4>
         <div class="comment-list">
-          {#each detail.comments as comment}
+          {#each detail.comments as comment (comment.id)}
             <div class="comment" class:resolved={comment.resolved === true}>
               <div class="comment-header">
                 <span class="comment-author">{comment.author}</span>
@@ -512,7 +512,7 @@
 
 {#if showLabelPicker && $mrPrDetail}
   <LabelPicker
-    current={$mrPrDetail.summary.labels}
+    current={$mrPrDetail.summary.labels.map((l) => l.name)}
     onApply={handleLabelApply}
     onCancel={() => { showLabelPicker = false; }}
   />

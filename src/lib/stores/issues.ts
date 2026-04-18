@@ -168,52 +168,47 @@ export async function addIssueComment(
   await loadIssueDetail(number);
 }
 
-/** Add labels and refresh. */
+/** Add labels and reload detail. List row counts tolerate staleness until next refresh. */
 export async function addIssueLabels(
   number: number,
   labels: string[],
 ): Promise<void> {
   await api.addIssueLabels(number, labels);
   await loadIssueDetail(number);
-  await refreshIssueList();
 }
 
-/** Remove labels and refresh. */
+/** Remove labels and reload detail. List row counts tolerate staleness until next refresh. */
 export async function removeIssueLabels(
   number: number,
   labels: string[],
 ): Promise<void> {
   await api.removeIssueLabels(number, labels);
   await loadIssueDetail(number);
-  await refreshIssueList();
 }
 
-/** Add assignees and refresh. */
+/** Add assignees and reload detail. List row counts tolerate staleness until next refresh. */
 export async function addIssueAssignees(
   number: number,
   assignees: string[],
 ): Promise<void> {
   await api.addIssueAssignees(number, assignees);
   await loadIssueDetail(number);
-  await refreshIssueList();
 }
 
-/** Remove assignees and refresh. */
+/** Remove assignees and reload detail. List row counts tolerate staleness until next refresh. */
 export async function removeIssueAssignees(
   number: number,
   assignees: string[],
 ): Promise<void> {
   await api.removeIssueAssignees(number, assignees);
   await loadIssueDetail(number);
-  await refreshIssueList();
 }
 
-/** Set (or clear) the milestone on an issue and refresh. */
+/** Set (or clear) the milestone on an issue and reload detail. List row counts tolerate staleness until next refresh. */
 export async function setIssueMilestone(
   number: number,
   milestoneId: number | null,
 ): Promise<void> {
   await api.setIssueMilestone(number, milestoneId);
   await loadIssueDetail(number);
-  await refreshIssueList();
 }

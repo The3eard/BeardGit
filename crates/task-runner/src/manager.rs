@@ -35,6 +35,9 @@ pub struct TaskManager {
     pub(crate) next_id: AtomicU64,
     pub(crate) cancellation_tokens: Mutex<HashMap<TaskId, CancellationToken>>,
     pub(crate) sink: Arc<dyn TaskEventSink>,
+    /// Woken once per terminal transition — listeners subscribe via
+    /// `wait_for_terminal`.
+    pub(crate) terminal_notify: tokio::sync::Notify,
 }
 
 impl TaskManager {
@@ -45,6 +48,7 @@ impl TaskManager {
             next_id: AtomicU64::new(1),
             cancellation_tokens: Mutex::new(HashMap::new()),
             sink,
+            terminal_notify: tokio::sync::Notify::new(),
         }
     }
 
@@ -52,6 +56,15 @@ impl TaskManager {
     pub async fn list_tasks(&self) -> Vec<TaskInfo> {
         let tasks = self.tasks.lock().await;
         tasks.iter().map(|t| t.to_info()).collect()
+    }
+
+    /// O(1)-ish status read for a single task.
+    pub async fn get_status(&self, task_id: TaskId) -> Option<TaskStatus> {
+        let tasks = self.tasks.lock().await;
+        tasks
+            .iter()
+            .find(|t| t.id == task_id)
+            .map(|t| t.status.clone())
     }
 
     /// Full output buffer for a specific task.
@@ -409,6 +422,39 @@ impl TaskManager {
             TaskStatus::Cancelled => self.sink.on_task_cancelled(info).await,
             _ => {}
         }
+
+        self.terminal_notify.notify_waiters();
+    }
+
+    /// Wait until the given task reaches a terminal state (`Completed`,
+    /// `Failed`, or `Cancelled`) and return that status.
+    ///
+    /// Returns `TaskError::NotFound` immediately if the task has been
+    /// evicted from the registry. Otherwise this suspends until the
+    /// internal `Notify` is tripped by `finish_task`, re-checks the
+    /// status, and returns it.
+    pub async fn wait_for_terminal(&self, task_id: TaskId) -> Result<TaskStatus, TaskError> {
+        loop {
+            // Subscribe *before* the status check so we don't miss a wake.
+            let waiter = self.terminal_notify.notified();
+            tokio::pin!(waiter);
+
+            {
+                let tasks = self.tasks.lock().await;
+                let handle = tasks
+                    .iter()
+                    .find(|t| t.id == task_id)
+                    .ok_or(TaskError::NotFound(task_id))?;
+                match &handle.status {
+                    TaskStatus::Completed | TaskStatus::Failed { .. } | TaskStatus::Cancelled => {
+                        return Ok(handle.status.clone());
+                    }
+                    _ => {}
+                }
+            }
+
+            waiter.await;
+        }
     }
 }
 
@@ -751,6 +797,36 @@ mod tests {
             }
             TaskKind::Generic => panic!("expected AiBackground kind"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_wait_for_terminal_on_completed() {
+        let (manager, _events) = new_manager();
+        let cwd = std::env::temp_dir();
+        let id = manager
+            .spawn("quick".into(), "sh", &["-c", "echo ok"], &cwd, false)
+            .await;
+
+        // Should return quickly with a terminal status — not time out.
+        let status = tokio::time::timeout(Duration::from_secs(3), manager.wait_for_terminal(id))
+            .await
+            .expect("wait_for_terminal did not return in 3s")
+            .expect("task vanished unexpectedly");
+
+        assert!(matches!(status, TaskStatus::Completed));
+    }
+
+    #[tokio::test]
+    async fn test_wait_for_terminal_missing_task() {
+        let (manager, _events) = new_manager();
+        let result = manager.wait_for_terminal(9999).await;
+        assert!(result.is_err(), "expected NotFound error for missing id");
+    }
+
+    #[tokio::test]
+    async fn test_get_status_returns_none_for_missing() {
+        let (manager, _events) = new_manager();
+        assert!(manager.get_status(42).await.is_none());
     }
 
     #[tokio::test]

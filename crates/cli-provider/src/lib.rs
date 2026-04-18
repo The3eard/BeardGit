@@ -19,6 +19,7 @@ use std::process::Command;
 pub use error::CliError;
 pub use github::GitHubCli;
 pub use gitlab::GitLabCli;
+pub use releases::{build_gh_upload_args, build_glab_upload_args};
 
 /// Configure a [`Command`] to suppress the console window on Windows.
 ///

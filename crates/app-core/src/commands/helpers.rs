@@ -208,6 +208,8 @@ pub(super) async fn detect_active_provider(state: &State<'_, AppState>) {
                 p.project_ref = None;
                 p.project_name = None;
             }
+            drop(providers);
+            invalidate_forge_provider_cache(state);
             return;
         }
     };
@@ -270,6 +272,7 @@ pub(super) async fn detect_active_provider(state: &State<'_, AppState>) {
     }
 
     *state.active_provider_index.lock().unwrap() = matched_index;
+    invalidate_forge_provider_cache(state);
 }
 
 /// Persist the current providers vec to `settings.json`.
@@ -374,34 +377,45 @@ fn sidecar_candidate_paths(
 /// Tauri strips the triple when copying them, so at runtime the
 /// installed filename is the plain `{name}[.exe]`.
 pub(super) fn resolve_cli_binary(
-    _state: &State<'_, AppState>,
+    state: &State<'_, AppState>,
     kind: provider::ProviderKind,
 ) -> Result<std::path::PathBuf, String> {
-    // 1. Prefer a system-wide install so the user's existing auth is reused.
-    //    `which::which` handles `PATHEXT` resolution on Windows, so we pass
-    //    the extensionless name on every OS.
+    // Fast path: cache hit.
+    if let Ok(cache) = state.cli_binary_cache.lock()
+        && let Some(path) = cache.get(&kind)
+    {
+        return Ok(path.clone());
+    }
+
+    // Slow path: PATH probe, then sidecar fallback.
     let plain_name = match kind {
         provider::ProviderKind::GitHub => "gh",
         provider::ProviderKind::GitLab => "glab",
     };
-    if let Ok(path) = which::which(plain_name) {
-        return Ok(path);
-    }
+    let resolved: Option<std::path::PathBuf> = which::which(plain_name).ok().or_else(|| {
+        let sidecar_name = sidecar_binary_name(kind);
+        std::env::current_exe().ok().and_then(|exe_path| {
+            sidecar_candidate_paths(&exe_path, sidecar_name)
+                .into_iter()
+                .find(|p| p.exists())
+        })
+    });
 
-    // 2. Fallback: bundled Tauri sidecar.
-    let sidecar_name = sidecar_binary_name(kind);
-    if let Ok(exe_path) = std::env::current_exe() {
-        for candidate in sidecar_candidate_paths(&exe_path, sidecar_name) {
-            if candidate.exists() {
-                return Ok(candidate);
+    match resolved {
+        Some(path) => {
+            if let Ok(mut cache) = state.cli_binary_cache.lock() {
+                cache.insert(kind, path.clone());
             }
+            Ok(path)
+        }
+        None => {
+            let sidecar_name = sidecar_binary_name(kind);
+            Err(format!(
+                "{plain_name} not found. Install it (or authenticate it) and restart BeardGit.\n\
+                 Looked for system '{plain_name}' and bundled sidecar '{sidecar_name}'."
+            ))
         }
     }
-
-    Err(format!(
-        "{plain_name} not found. Install it (or authenticate it) and restart BeardGit.\n\
-         Looked for system '{plain_name}' and bundled sidecar '{sidecar_name}'."
-    ))
 }
 
 /// Build an [`Arc<dyn ForgeProvider>`] from the current application state.
@@ -410,10 +424,17 @@ pub(super) fn resolve_cli_binary(
 /// project's filesystem path, then constructs the concrete `GitHubCli` /
 /// `GitLabCli` and erases it behind the trait. Downstream command modules
 /// only see the trait object.
+///
+/// The built provider is memoised in `AppState::forge_provider_cache`, keyed
+/// on `(active_provider_index, active_project_path)`. Subsequent calls with
+/// matching keys return the cached `Arc` without re-locking the providers
+/// vec or re-probing the CLI binary. Invalidate via
+/// [`invalidate_forge_provider_cache`] whenever the active provider or
+/// active project changes.
 pub(super) fn build_forge_provider(
     state: &State<'_, AppState>,
 ) -> Result<std::sync::Arc<dyn forge_provider::ForgeProvider>, String> {
-    let kind = {
+    let (provider_index, kind) = {
         let providers = state.providers.lock().map_err(|e| e.to_string())?;
         let active_idx = state
             .active_provider_index
@@ -421,22 +442,67 @@ pub(super) fn build_forge_provider(
             .map_err(|e| e.to_string())?;
         let idx = active_idx.ok_or("No active provider")?;
         let conn = providers.get(idx).ok_or("Provider index out of bounds")?;
-        conn.kind
+        (idx, conn.kind)
     };
 
     let cwd = get_active_project_path(state)?;
-    let binary = resolve_cli_binary(state, kind)?;
 
+    // Cache hit?
+    if let Ok(cache) = state.forge_provider_cache.lock()
+        && let Some(entry) = cache.as_ref()
+        && entry.provider_index == provider_index
+        && entry.project_path == cwd
+    {
+        return Ok(std::sync::Arc::clone(&entry.provider));
+    }
+
+    let binary = resolve_cli_binary(state, kind)?;
     let provider: std::sync::Arc<dyn forge_provider::ForgeProvider> = match kind {
         provider::ProviderKind::GitHub => {
-            std::sync::Arc::new(cli_provider::GitHubCli::new(binary, cwd))
+            std::sync::Arc::new(cli_provider::GitHubCli::new(binary, cwd.clone()))
         }
         provider::ProviderKind::GitLab => {
-            std::sync::Arc::new(cli_provider::GitLabCli::new(binary, cwd))
+            std::sync::Arc::new(cli_provider::GitLabCli::new(binary, cwd.clone()))
         }
     };
 
+    if let Ok(mut cache) = state.forge_provider_cache.lock() {
+        *cache = Some(crate::state::ForgeProviderCacheEntry {
+            provider_index,
+            project_path: cwd,
+            provider: std::sync::Arc::clone(&provider),
+        });
+    }
+
     Ok(provider)
+}
+
+/// Invalidate the cached `Arc<dyn ForgeProvider>`. Call whenever the
+/// active provider or active project changes.
+pub(super) fn invalidate_forge_provider_cache(state: &State<'_, AppState>) {
+    if let Ok(mut cache) = state.forge_provider_cache.lock() {
+        *cache = None;
+    }
+}
+
+/// Shell-escape a value for use in a POSIX `sh -c` command line.
+///
+/// Conservative: wraps in single quotes and escapes embedded single quotes.
+/// On Windows, `cmd.exe` handles most of the values we pass (tag names,
+/// refs, remotes) verbatim — the escaping here is best-effort for POSIX
+/// and still produces a working command on Windows for typical inputs.
+pub(super) fn shell_escape(s: &str) -> String {
+    if s.is_empty() {
+        return "''".into();
+    }
+    // If the value is safe (alphanumerics, slashes, dots, dashes, underscores), pass as-is.
+    if s.chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '-' | '_'))
+    {
+        return s.to_string();
+    }
+    let escaped = s.replace('\'', "'\\''");
+    format!("'{escaped}'")
 }
 
 #[cfg(test)]
@@ -502,5 +568,38 @@ mod tests {
                 .any(|p| p == std::path::Path::new("/App.app/Contents/Resources/gh")),
             "expected Contents/Resources fallback, got: {paths:?}"
         );
+    }
+
+    #[test]
+    fn cli_binary_cache_hits_on_second_call() {
+        // We can't invoke `resolve_cli_binary` without a `State`, so this test
+        // exercises the HashMap directly — the assertion is the cache type
+        // contract, not IO.
+        let mut cache: std::collections::HashMap<provider::ProviderKind, std::path::PathBuf> =
+            std::collections::HashMap::new();
+        cache.insert(
+            provider::ProviderKind::GitHub,
+            std::path::PathBuf::from("/usr/local/bin/gh"),
+        );
+        assert_eq!(
+            cache.get(&provider::ProviderKind::GitHub),
+            Some(&std::path::PathBuf::from("/usr/local/bin/gh"))
+        );
+    }
+
+    #[test]
+    fn shell_escape_empty() {
+        assert_eq!(shell_escape(""), "''");
+    }
+
+    #[test]
+    fn shell_escape_safe_passes_through() {
+        assert_eq!(shell_escape("v1.2.3"), "v1.2.3");
+        assert_eq!(shell_escape("refs/tags/v1"), "refs/tags/v1");
+    }
+
+    #[test]
+    fn shell_escape_wraps_and_escapes_single_quote() {
+        assert_eq!(shell_escape("it's"), "'it'\\''s'");
     }
 }

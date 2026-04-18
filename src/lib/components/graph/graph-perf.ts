@@ -47,7 +47,7 @@ export function recordRenderMetrics(): void {
     mergesMs: getMeasureDuration('render:merges'),
     nodesMs: getMeasureDuration('render:nodes'),
     badgesMs: getMeasureDuration('render:badges'),
-    textMs: getMeasureDuration('render:text'),
+    textMs: getMeasureDuration('render:badges-and-text'),
     timestamp: performance.now(),
   };
 

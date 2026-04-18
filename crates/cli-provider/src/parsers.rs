@@ -137,18 +137,35 @@ fn parse_state(raw: &str, fields: &MrPrFieldMap) -> MrPrState {
 
 /// Parse labels from JSON.
 ///
-/// GitHub: array of objects with "name" field.
-/// GitLab: array of plain strings.
-fn parse_labels(value: &Value, are_strings: bool) -> Vec<String> {
+/// GitHub: array of objects with `{ name, color, description }` fields.
+/// GitLab `mr list` returns labels as bare strings, so we produce [`Label`]s
+/// with only the `name` populated — the MR/PR list view has no per-label
+/// cache, so color/description are filled in later by the frontend when the
+/// label picker data is available.
+fn parse_labels(value: &Value, are_strings: bool) -> Vec<Label> {
     value
         .as_array()
         .map(|a| {
             a.iter()
                 .filter_map(|v| {
                     if are_strings {
-                        v.as_str().map(|s| s.to_string())
+                        v.as_str().map(|s| Label {
+                            name: s.to_string(),
+                            color: None,
+                            description: None,
+                        })
                     } else {
-                        v["name"].as_str().map(|s| s.to_string())
+                        v["name"].as_str().map(|name| Label {
+                            name: name.to_string(),
+                            color: v["color"]
+                                .as_str()
+                                .filter(|s| !s.is_empty())
+                                .map(|s| s.trim_start_matches('#').to_string()),
+                            description: v["description"]
+                                .as_str()
+                                .filter(|s| !s.is_empty())
+                                .map(|s| s.to_string()),
+                        })
                     }
                 })
                 .collect()
@@ -554,7 +571,8 @@ mod tests {
         assert_eq!(mr.source_branch, "fix/bug");
         assert_eq!(mr.target_branch, "main");
         assert!(!mr.draft);
-        assert_eq!(mr.labels, vec!["bug"]);
+        assert_eq!(mr.labels.len(), 1);
+        assert_eq!(mr.labels[0].name, "bug");
         assert_eq!(mr.reviewers, vec!["bob"]);
         assert_eq!(mr.additions, Some(10));
         assert_eq!(mr.deletions, Some(5));
@@ -584,7 +602,8 @@ mod tests {
         assert_eq!(mr.state, MrPrState::Open);
         assert_eq!(mr.author, "carlos");
         assert_eq!(mr.source_branch, "feature/x");
-        assert_eq!(mr.labels, vec!["enhancement", "frontend"]);
+        let label_names: Vec<&str> = mr.labels.iter().map(|l| l.name.as_str()).collect();
+        assert_eq!(label_names, vec!["enhancement", "frontend"]);
         assert_eq!(mr.reviewers, vec!["diana"]);
         assert!(mr.additions.is_none());
     }
@@ -603,19 +622,34 @@ mod tests {
 
     #[test]
     fn test_parse_labels_github() {
-        let labels = json!([{ "name": "bug" }, { "name": "critical" }]);
-        assert_eq!(parse_labels(&labels, false), vec!["bug", "critical"]);
+        let labels = json!([
+            { "name": "bug", "color": "d73a4a", "description": "broken" },
+            { "name": "critical" }
+        ]);
+        let got = parse_labels(&labels, false);
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].name, "bug");
+        assert_eq!(got[0].color.as_deref(), Some("d73a4a"));
+        assert_eq!(got[0].description.as_deref(), Some("broken"));
+        assert_eq!(got[1].name, "critical");
+        assert!(got[1].color.is_none());
+        assert!(got[1].description.is_none());
     }
 
     #[test]
     fn test_parse_labels_gitlab() {
         let labels = json!(["bug", "critical"]);
-        assert_eq!(parse_labels(&labels, true), vec!["bug", "critical"]);
+        let got = parse_labels(&labels, true);
+        let names: Vec<&str> = got.iter().map(|l| l.name.as_str()).collect();
+        assert_eq!(names, vec!["bug", "critical"]);
+        // GitLab `mr list` returns bare names, so color/description start empty.
+        assert!(got.iter().all(|l| l.color.is_none()));
+        assert!(got.iter().all(|l| l.description.is_none()));
     }
 
     #[test]
     fn test_parse_labels_null() {
-        assert_eq!(parse_labels(&json!(null), false), Vec::<String>::new());
+        assert!(parse_labels(&json!(null), false).is_empty());
     }
 
     #[test]

@@ -17,20 +17,9 @@ impl GitLabCli {
         filter: MrPrFilter,
         limit: u32,
     ) -> Result<Vec<MrPr>, ForgeError> {
-        // glab dropped `--state <value>` in favour of boolean flags
-        // (`--all`, `--closed`, `--merged`, default = opened). Match what
-        // the installed binary accepts — both 1.46.x (bundled) and 1.92.x
-        // (current Homebrew release) use the boolean form.
-        let per_page = limit.to_string();
-        let mut args = vec!["mr", "list", "--per-page", &per_page];
-        match filter.state {
-            None => args.push("--all"),
-            Some(MrPrState::Open) => {} // glab's default is "opened"
-            Some(MrPrState::Closed) => args.push("--closed"),
-            Some(MrPrState::Merged) => args.push("--merged"),
-        }
-        args.extend(["-F", "json"]);
-        let raw: Vec<serde_json::Value> = self.run_json(&args)?;
+        let args = build_glab_mr_pr_list_args(&filter, limit);
+        let argv: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let raw: Vec<serde_json::Value> = self.run_json(&argv)?;
         Ok(raw.iter().map(|i| parse_mr_pr(i, &GITLAB_FIELDS)).collect())
     }
 
@@ -226,6 +215,46 @@ impl GitLabCli {
     }
 }
 
+// ─── argv builders ──────────────────────────────────────────────────────
+
+/// Build argv for `glab mr list` from an [`MrPrFilter`] + limit.
+///
+/// Extracted so the CLI-flag layout can be unit-tested without spawning
+/// `glab`. `glab` dropped `--state <value>` in favour of boolean flags
+/// (`--all`, `--closed`, `--merged`, default = opened). Match what
+/// the installed binary accepts — both 1.46.x (bundled) and 1.92.x
+/// (current Homebrew release) use the boolean form. `--author`, `--label`,
+/// and `--search` are appended when the corresponding filter field is set.
+pub(crate) fn build_glab_mr_pr_list_args(filter: &MrPrFilter, limit: u32) -> Vec<String> {
+    let mut args: Vec<String> = vec![
+        "mr".into(),
+        "list".into(),
+        "--per-page".into(),
+        limit.to_string(),
+    ];
+    match filter.state {
+        None => args.push("--all".into()),
+        Some(MrPrState::Open) => {} // glab's default is "opened"
+        Some(MrPrState::Closed) => args.push("--closed".into()),
+        Some(MrPrState::Merged) => args.push("--merged".into()),
+    }
+    args.push("-F".into());
+    args.push("json".into());
+    if let Some(a) = &filter.author {
+        args.push("--author".into());
+        args.push(a.clone());
+    }
+    if let Some(l) = &filter.label {
+        args.push("--label".into());
+        args.push(l.clone());
+    }
+    if let Some(t) = &filter.text {
+        args.push("--search".into());
+        args.push(t.clone());
+    }
+    args
+}
+
 /// Count `+` / `-` lines in a unified diff hunk.
 ///
 /// The GitLab `projects/:id/merge_requests/{n}/diffs` endpoint returns the
@@ -254,7 +283,65 @@ fn count_patch_changes(patch: &str) -> (u64, u64) {
 
 #[cfg(test)]
 mod tests {
-    use super::count_patch_changes;
+    use super::{build_glab_mr_pr_list_args, count_patch_changes};
+    use forge_provider::{MrPrFilter, MrPrState};
+
+    #[test]
+    fn build_glab_mr_pr_list_args_default_uses_all_flag() {
+        let f = MrPrFilter::default();
+        let args = build_glab_mr_pr_list_args(&f, 50);
+        assert!(args.contains(&"--all".to_string()));
+        assert!(!args.contains(&"--author".to_string()));
+        assert!(!args.contains(&"--label".to_string()));
+        assert!(!args.contains(&"--search".to_string()));
+    }
+
+    #[test]
+    fn build_glab_mr_pr_list_args_open_omits_state_flag() {
+        let f = MrPrFilter {
+            state: Some(MrPrState::Open),
+            ..Default::default()
+        };
+        let args = build_glab_mr_pr_list_args(&f, 50);
+        // glab's default = opened, so we push no state flag
+        assert!(!args.contains(&"--all".to_string()));
+        assert!(!args.contains(&"--closed".to_string()));
+        assert!(!args.contains(&"--merged".to_string()));
+    }
+
+    #[test]
+    fn build_glab_mr_pr_list_args_closed_uses_closed_flag() {
+        let f = MrPrFilter {
+            state: Some(MrPrState::Closed),
+            ..Default::default()
+        };
+        let args = build_glab_mr_pr_list_args(&f, 50);
+        assert!(args.contains(&"--closed".to_string()));
+    }
+
+    #[test]
+    fn build_glab_mr_pr_list_args_merged_uses_merged_flag() {
+        let f = MrPrFilter {
+            state: Some(MrPrState::Merged),
+            ..Default::default()
+        };
+        let args = build_glab_mr_pr_list_args(&f, 50);
+        assert!(args.contains(&"--merged".to_string()));
+    }
+
+    #[test]
+    fn build_glab_mr_pr_list_args_pushes_author_label_text() {
+        let f = MrPrFilter {
+            state: None,
+            author: Some("alice".into()),
+            label: Some("bug".into()),
+            text: Some("flaky test".into()),
+        };
+        let args = build_glab_mr_pr_list_args(&f, 25);
+        assert!(args.windows(2).any(|w| w == ["--author", "alice"]));
+        assert!(args.windows(2).any(|w| w == ["--label", "bug"]));
+        assert!(args.windows(2).any(|w| w == ["--search", "flaky test"]));
+    }
 
     #[test]
     fn counts_simple_hunk() {

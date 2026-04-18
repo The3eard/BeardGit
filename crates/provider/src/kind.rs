@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Identifies which git hosting provider is in use.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ProviderKind {
     /// GitLab (cloud or self-hosted).

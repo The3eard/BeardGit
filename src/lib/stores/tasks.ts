@@ -32,6 +32,12 @@ export const panelMode = writable<TaskPanelMode>("closed");
 export const runningTasks = derived(tasks, ($tasks) =>
   $tasks.filter((t) => t.status.state === "running")
 );
+/** Tasks keyed by id for O(1) lookup in hot paths (e.g. upload progress). */
+export const taskById = derived(tasks, ($tasks) => {
+  const map = new Map<TaskId, TaskInfo>();
+  for (const t of $tasks) map.set(t.id, t);
+  return map;
+});
 export const hasRunningTasks = derived(runningTasks, ($running) => $running.length > 0);
 export const selectedTask = derived(
   [tasks, selectedTaskId],
