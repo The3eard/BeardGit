@@ -20,7 +20,11 @@ jobs:
             label: macOS-arm64
             rust-targets: aarch64-apple-darwin
             target-triple: aarch64-apple-darwin
-          - platform: macos-latest
+          # `macos-latest` is arm64; cross-compiling the x64 target on it
+          # produces a working binary but the DMG bundler (bundle_dmg.sh +
+          # hdiutil) fails intermittently. Pin the x64 job to Intel-native
+          # macos-13 runners so the DMG build matches the target arch.
+          - platform: macos-13
             args: '--target x86_64-apple-darwin'
             label: macOS-x64
             rust-targets: x86_64-apple-darwin

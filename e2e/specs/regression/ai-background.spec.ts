@@ -18,7 +18,7 @@ import { openFixtureProject } from "../../helpers/project";
 describe("Regression: AI Background Worktree", () => {
   before(async () => {
     await $("aside.sidebar").waitForExist({ timeout: 10000 });
-    await openFixtureProject("basic-repo");
+    await openFixtureProject("simple-repo");
     await sidebar.navigateTo("ai-sessions");
   });
 
