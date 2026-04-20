@@ -121,13 +121,18 @@
   {/snippet}
 
   {#snippet emptyState()}
-    {#if !$hasActiveProvider}
-      <div class="empty-state">{m.issues_no_provider()}</div>
-    {:else if $issueList.length > 0 && filteredList.length === 0}
-      <div class="empty-state">{m.issues_no_filter_results()}</div>
-    {:else}
-      <div class="empty-state">{m.issues_empty()}</div>
-    {/if}
+    <div class="empty-state">
+      {#if !$hasActiveProvider}
+        <h3 class="empty-state-title">{m.issues_no_provider()}</h3>
+        <p class="empty-state-description">{m.issues_no_provider_description()}</p>
+      {:else if $issueList.length > 0 && filteredList.length === 0}
+        <h3 class="empty-state-title">{m.issues_no_filter_results()}</h3>
+        <p class="empty-state-description">{m.issues_no_filter_description()}</p>
+      {:else}
+        <h3 class="empty-state-title">{m.issues_empty()}</h3>
+        <p class="empty-state-description">{m.issues_empty_description()}</p>
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet row({ item })}
@@ -184,13 +189,6 @@
     white-space: nowrap;
   }
   .action-btn-create:hover { opacity: 0.9; }
-
-  .empty-state {
-    padding: 32px 16px;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
 
   .row-status {
     display: flex;

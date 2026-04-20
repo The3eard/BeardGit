@@ -83,11 +83,15 @@
   {/snippet}
 
   {#snippet emptyState()}
-    {#if !$hasActiveProvider}
-      <div class="empty-state">{m.release_no_provider()}</div>
-    {:else}
-      <div class="empty-state">{m.release_list_empty()}</div>
-    {/if}
+    <div class="empty-state">
+      {#if !$hasActiveProvider}
+        <h3 class="empty-state-title">{m.release_no_provider()}</h3>
+        <p class="empty-state-description">{m.release_no_provider_description()}</p>
+      {:else}
+        <h3 class="empty-state-title">{m.release_list_empty()}</h3>
+        <p class="empty-state-description">{m.release_list_empty_description()}</p>
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet row({ item })}
@@ -136,13 +140,6 @@
   }
   .action-btn-create:hover {
     opacity: 0.9;
-  }
-
-  .empty-state {
-    padding: 32px 16px;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 13px;
   }
 
   .release-row {

@@ -233,13 +233,18 @@
       <span>{m.pipeline_loading()}</span>
     </div>
   {:else if !$hasActiveProvider}
-    <div class="list-empty">{m.pipeline_no_provider()}</div>
+    <div class="empty-state">
+      <h3 class="empty-state-title">{m.pipeline_no_provider()}</h3>
+      <p class="empty-state-description">{m.pipeline_no_provider_description()}</p>
+    </div>
   {:else if filteredPipelines.length === 0}
-    <div class="list-empty">
+    <div class="empty-state">
       {#if $ciRuns.length === 0}
-        {m.pipeline_no_runs()}
+        <h3 class="empty-state-title">{m.pipeline_no_runs()}</h3>
+        <p class="empty-state-description">{m.pipeline_no_runs_description()}</p>
       {:else}
-        {m.pipeline_no_match()}
+        <h3 class="empty-state-title">{m.pipeline_no_match()}</h3>
+        <p class="empty-state-description">{m.pipeline_no_match_description()}</p>
       {/if}
     </div>
   {:else}
