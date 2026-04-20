@@ -226,6 +226,7 @@ pub fn run() {
             app_core::commands::file_history,
             app_core::commands::get_rebase_commits,
             app_core::commands::start_interactive_rebase,
+            app_core::commands::clear_layout_cache,
             app_core::commands::get_reflog,
             app_core::commands::clean_dry_run,
             app_core::commands::clean_paths,

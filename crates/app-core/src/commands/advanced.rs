@@ -163,3 +163,97 @@ pub async fn start_interactive_rebase(
     .await
     .map_err(|e| e.to_string())?
 }
+
+/// Wipe the persistent graph-layout cache directory.
+///
+/// Exposed from Settings → Advanced as a manual "something looks
+/// wrong with the graph" escape hatch. The loader transparently
+/// rebuilds any missing layout on the next repo open (see
+/// `graph_cache::load_or_build_layout`), so clearing the dir is
+/// always safe — at worst the very next `open_repo` pays the cost
+/// of one fresh walk + write.
+///
+/// The operation is best-effort:
+///   - A missing layouts dir is treated as success (nothing to do).
+///   - Any IO error is bubbled back as the stringified
+///     `std::io::Error` so the frontend can surface it in a toast.
+///
+/// Returns the number of files removed on success (informational —
+/// the UI copy doesn't use it yet but tests assert on it).
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::advanced::clear_layout_cache")]
+pub async fn clear_layout_cache(state: State<'_, AppState>) -> Result<u32, String> {
+    let dir = state.config_dir.join("layouts");
+    tokio::task::spawn_blocking(move || {
+        let mut removed: u32 = 0;
+        match std::fs::read_dir(&dir) {
+            Ok(entries) => {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() {
+                        match std::fs::remove_file(&path) {
+                            Ok(()) => removed = removed.saturating_add(1),
+                            Err(e) => return Err(e.to_string()),
+                        }
+                    }
+                }
+                Ok(removed)
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(0),
+            Err(e) => Err(e.to_string()),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    //! Exercises the cache-clear core logic without spinning up a Tauri
+    //! runtime — we can't construct a real `State<'_, AppState>` from a
+    //! unit test, so the tests re-implement the command body 1:1
+    //! against a tempdir and assert the directory is empty afterwards.
+    use std::fs;
+    use tempfile::tempdir;
+
+    /// Re-implements the body of `clear_layout_cache` so the test can
+    /// exercise it without a Tauri runtime. Any change to the real
+    /// command MUST mirror here or the tests stop being load-bearing.
+    fn clear_layouts_in(dir: &std::path::Path) -> Result<u32, String> {
+        match fs::read_dir(dir) {
+            Ok(entries) => {
+                let mut removed: u32 = 0;
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() {
+                        fs::remove_file(&path).map_err(|e| e.to_string())?;
+                        removed = removed.saturating_add(1);
+                    }
+                }
+                Ok(removed)
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(0),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    #[test]
+    fn clear_layout_cache_removes_files() {
+        let tmp = tempdir().unwrap();
+        let layouts = tmp.path().join("layouts");
+        fs::create_dir_all(&layouts).unwrap();
+        fs::write(layouts.join("a.json"), b"{}").unwrap();
+        fs::write(layouts.join("b.json"), b"{}").unwrap();
+
+        let removed = clear_layouts_in(&layouts).unwrap();
+        assert_eq!(removed, 2);
+        assert!(fs::read_dir(&layouts).unwrap().next().is_none());
+    }
+
+    #[test]
+    fn clear_layout_cache_noop_when_missing() {
+        let tmp = tempdir().unwrap();
+        let dir = tmp.path().join("layouts");
+        assert_eq!(clear_layouts_in(&dir).unwrap(), 0);
+    }
+}

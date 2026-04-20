@@ -1,84 +1,381 @@
+<!--
+  SettingsPage.svelte — MT-5 IA shell.
+
+  Replaces the old flat 4-tab layout with the new 7-category
+  architecture (General / Appearance / Editor & Diff / Git / AI /
+  Integrations / Advanced). Built entirely on top of the shared
+  `$lib/components/ui` primitives — no inline button or card CSS
+  belongs here.
+
+  Responsibilities kept to the shell:
+
+  - `SearchInput` in the top bar (Cmd+K focus comes from the
+    primitive itself). Phase 5 wires the query against a flat index
+    aggregated from every category component's `settingsIndex`
+    export; for now the index is a `$state` populated by callbacks
+    the child components fire on mount.
+  - `CategoryNav` on the left with keyboard navigation built in.
+  - Right-pane dispatch to whichever category component matches the
+    active slug.
+  - URL deep-linking via `settingsRoute` — `#ai` opens the AI
+    category, `#appearance.theme` opens Appearance + scrolls to the
+    `theme` anchor.
+  - Legacy deep-link bridge: when `pendingSettingsSection` holds a
+    known id (the statusbar writes those) it is translated into the
+    new category slug via the shared helper in `settingsRoute`.
+  - `Esc` clears a search or, when empty, navigates away from
+    Settings entirely (by flipping `activeViewStore` back to the
+    default `"graph"` view).
+-->
 <script lang="ts">
-  import ProviderSetup from "../auth/ProviderSetup.svelte";
-  import AppearanceSettings from "./AppearanceSettings.svelte";
-  import GitConfigSettings from "./GitConfigSettings.svelte";
-  import AiSettings from "./AiSettings.svelte";
-  import UpdateSettings from "./UpdateSettings.svelte";
-  import CliAuthSection from "./CliAuthSection.svelte";
-  import ConnectionHowTo from "./ConnectionHowTo.svelte";
-  import { pendingSettingsSection } from "$lib/stores/navigation";
+  import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
+  import { SearchInput, CategoryNav } from "$lib/components/ui";
+  import {
+    CATEGORY_IDS,
+    DEFAULT_CATEGORY,
+    bindPendingSectionBridge,
+    initSettingsRouteSync,
+    setCategory,
+    settingsRoute,
+    type CategoryId,
+  } from "$lib/stores/settingsRoute";
+  import { activeViewStore } from "$lib/stores/navigation";
+  import GeneralSettings, {
+    settingsIndex as generalIndex,
+  } from "./GeneralSettings.svelte";
+  import AppearanceSettings, {
+    settingsIndex as appearanceIndex,
+  } from "./AppearanceSettings.svelte";
+  import EditorDiffSettings, {
+    settingsIndex as editorIndex,
+  } from "./EditorDiffSettings.svelte";
+  import GitSettings, {
+    settingsIndex as gitIndex,
+  } from "./GitSettings.svelte";
+  import AiSettings, {
+    settingsIndex as aiIndex,
+  } from "./AiSettings.svelte";
+  import IntegrationsSettings, {
+    settingsIndex as integrationsIndex,
+  } from "./IntegrationsSettings.svelte";
+  import AdvancedSettings, {
+    settingsIndex as advancedIndex,
+  } from "./AdvancedSettings.svelte";
+  import type { SettingDescriptor } from "./settings-index";
 
-  type SettingsSection = { labelKey: () => string; id: string; wip?: boolean };
+  /** Svelte-runified active category; the shell binds this to `CategoryNav`. */
+  let activeCategory = $state<CategoryId>(DEFAULT_CATEGORY);
 
-  const sections: SettingsSection[] = [
-    { labelKey: () => m.settings_connection(), id: "connection" },
-    { labelKey: () => m.settings_appearance(), id: "appearance" },
-    { labelKey: () => m.settings_git_config(), id: "git-config" },
-    { labelKey: () => m.ai_settings_title(), id: "ai" },
-    { labelKey: () => m.update_settings_title(), id: "updates" },
+  /** Search query — kept on the shell so Phase 5 can jump to matches. */
+  let searchQuery = $state("");
+
+  /**
+   * Whether the search input (or its dropdown) currently has focus.
+   * Drives the dropdown visibility so we can render the
+   * "Type to search…" empty state when the field is focused but
+   * empty — matching the spec.
+   */
+  let searchFocused = $state(false);
+
+  /**
+   * Flat union of every category's declared settings. Aggregated
+   * once at module scope (each category exports its own `const`
+   * array) so we avoid re-walking on every render.
+   */
+  const SETTINGS_INDEX: SettingDescriptor[] = [
+    ...generalIndex,
+    ...appearanceIndex,
+    ...editorIndex,
+    ...gitIndex,
+    ...aiIndex,
+    ...integrationsIndex,
+    ...advancedIndex,
   ];
 
-  let activeSection = $state("connection");
+  /** Filtered matches for the current search query (max 10). */
+  const matches = $derived.by<SettingDescriptor[]>(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return SETTINGS_INDEX.filter(
+      (entry) =>
+        entry.label.toLowerCase().includes(q) ||
+        entry.description.toLowerCase().includes(q),
+    ).slice(0, 10);
+  });
 
-  // Deep-link bridge — when a statusbar slot (or anything else) wants to
-  // open a specific Settings sub-section, it writes the id to the
-  // `pendingSettingsSection` store and flips the top-level view to
-  // "settings". We mirror that value into local state exactly once per
-  // request, then clear the store so a subsequent manual navigation to
-  // Settings doesn't re-trigger the deep-link.
-  $effect(() => {
-    const pending = $pendingSettingsSection;
-    if (pending && sections.some((s) => s.id === pending)) {
-      activeSection = pending;
-      pendingSettingsSection.set(null);
+  /** True when the dropdown should be visible to the user. */
+  const showDropdown = $derived(
+    searchFocused || searchQuery.trim().length > 0,
+  );
+
+  /** Category metadata — label + icon come from Paraglide. */
+  const categories = $derived([
+    {
+      id: "general",
+      label: m.settings_cat_general_title(),
+      icon: "\uF085", // gear
+    },
+    {
+      id: "appearance",
+      label: m.settings_cat_appearance_title(),
+      icon: "\uF1FC", // paint-brush
+    },
+    {
+      id: "editor",
+      label: m.settings_cat_editor_title(),
+      icon: "\uF044", // edit
+    },
+    {
+      id: "git",
+      label: m.settings_cat_git_title(),
+      icon: "\uE702", // git branch
+    },
+    {
+      id: "ai",
+      label: m.settings_cat_ai_title(),
+      icon: "\uF544", // robot
+    },
+    {
+      id: "integrations",
+      label: m.settings_cat_integrations_title(),
+      icon: "\uF0C1", // link
+    },
+    {
+      id: "advanced",
+      label: m.settings_cat_advanced_title(),
+      icon: "\uF013", // cog
+    },
+  ]);
+
+  /** Currently-selected category record (for title + description). */
+  const activeMeta = $derived(
+    categories.find((c) => c.id === activeCategory) ?? categories[0],
+  );
+
+  /** Translated description for the active category. */
+  const activeDescription = $derived.by(() => {
+    switch (activeCategory) {
+      case "general":
+        return m.settings_cat_general_description();
+      case "appearance":
+        return m.settings_cat_appearance_description();
+      case "editor":
+        return m.settings_cat_editor_description();
+      case "git":
+        return m.settings_cat_git_description();
+      case "ai":
+        return m.settings_cat_ai_description();
+      case "integrations":
+        return m.settings_cat_integrations_description();
+      case "advanced":
+        return m.settings_cat_advanced_description();
+      default:
+        return "";
     }
   });
+
+  onMount(() => {
+    // Seed from the URL + keep it synced after that.
+    const stopSync = initSettingsRouteSync();
+    const unsubBridge = bindPendingSectionBridge();
+    const unsubRoute = settingsRoute.subscribe((route) => {
+      activeCategory = route.category;
+      if (route.anchor) {
+        // Let the DOM render the target before attempting a scroll —
+        // `queueMicrotask` is enough because the category component
+        // rerenders synchronously when `activeCategory` flips.
+        queueMicrotask(() => scrollToAnchor(route.anchor!));
+      }
+    });
+    return () => {
+      stopSync();
+      unsubBridge();
+      unsubRoute();
+    };
+  });
+
+  function handleSelectCategory(id: string) {
+    if (!(CATEGORY_IDS as readonly string[]).includes(id)) return;
+    setCategory(id);
+  }
+
+  function handleSearch(value: string) {
+    searchQuery = value;
+  }
+
+  function jumpToMatch(entry: SettingDescriptor) {
+    setCategory(entry.category, entry.anchor);
+    searchQuery = "";
+  }
+
+  function scrollToAnchor(anchor: string) {
+    const el =
+      document.getElementById(anchor) ??
+      document.querySelector<HTMLElement>(
+        `[data-setting-anchor="${anchor}"]`,
+      );
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    el.classList.add("highlight");
+    window.setTimeout(() => el.classList.remove("highlight"), 1200);
+  }
+
+  function handleShellKey(event: KeyboardEvent) {
+    if (event.key !== "Escape") return;
+    if (searchQuery) {
+      searchQuery = "";
+      return;
+    }
+    // No active query — bail back to the graph view (the user's
+    // preferred "I'm done with Settings" escape hatch).
+    activeViewStore.set("graph");
+  }
+
+  /**
+   * When the user presses Enter inside the search input we jump to
+   * the first match (if any). Matches what the spec calls out:
+   * "Pressing Enter on the focused result OR on the first result
+   * when search has a value".
+   */
+  function handleSearchKey(event: KeyboardEvent) {
+    if (event.key === "Enter") {
+      if (matches.length > 0) {
+        event.preventDefault();
+        jumpToMatch(matches[0]);
+      }
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      searchQuery = "";
+    }
+  }
+
+  /** Enter on a focused result jumps to it; arrow keys let the user cycle. */
+  function handleResultKey(event: KeyboardEvent, entry: SettingDescriptor) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      jumpToMatch(entry);
+    }
+  }
+
+  function handleSearchFocus() {
+    searchFocused = true;
+  }
+
+  function handleSearchBlur(event: FocusEvent) {
+    // Keep the dropdown open while focus is still within the
+    // container (e.g. the user clicked a result). We check
+    // `relatedTarget` against the wrapper rather than relying on a
+    // timeout — more deterministic for the click-result path.
+    const next = event.relatedTarget as Node | null;
+    const wrapper = (event.currentTarget as HTMLElement | null)
+      ?.parentElement;
+    if (next && wrapper?.contains(next)) return;
+    searchFocused = false;
+  }
 </script>
 
-<div class="settings-page" data-testid="settings-page">
-  <nav class="settings-nav">
-    <div class="nav-title">{m.settings_title()}</div>
-    {#each sections as section}
-      <button
-        class="settings-nav-item"
-        class:active={activeSection === section.id}
-        data-testid="settings-nav-{section.id}"
-        onclick={() => activeSection = section.id}
-      >
-        {section.labelKey()}
-        {#if section.wip}
-          <span class="wip-tag">{m.settings_wip()}</span>
-        {/if}
-      </button>
-    {/each}
-  </nav>
+<svelte:window onkeydown={handleShellKey} />
 
-  <div class="settings-content" data-testid="settings-content">
-    {#if activeSection === "connection"}
-      <ConnectionHowTo />
-      <div class="auth-section">
-        <h3 class="auth-section-title">{m.settings_token_auth()}</h3>
-        <ProviderSetup />
+<div class="settings-page" data-testid="settings-page">
+  <div class="settings-topbar">
+    <div class="settings-topbar__title">{m.settings_title()}</div>
+    <!--
+      Event delegation wrapper — the key/focus listeners bubble up
+      from the `<input>` inside `SearchInput` and from each result
+      `<button>`. The div itself stays non-interactive (no role, no
+      tabindex) so screen readers announce the input, not the wrapper.
+    -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="settings-topbar__search"
+      onkeydown={handleSearchKey}
+      onfocusin={handleSearchFocus}
+      onfocusout={handleSearchBlur}
+    >
+      <SearchInput
+        bind:value={searchQuery}
+        placeholder={m.settings_search_placeholder()}
+        onSearch={handleSearch}
+      />
+      {#if showDropdown}
+        <div
+          class="settings-search-results"
+          data-testid="settings-search-results"
+          role="listbox"
+        >
+          {#if searchQuery.trim().length === 0}
+            <div class="settings-search-empty" data-testid="settings-search-empty">
+              {m.settings_search_empty_state()}
+            </div>
+          {:else if matches.length === 0}
+            <div class="settings-search-empty" data-testid="settings-search-none">
+              {m.settings_search_no_results()}
+            </div>
+          {:else}
+            {#each matches as match (match.id)}
+              <button
+                type="button"
+                class="settings-search-result"
+                data-testid={`settings-search-result-${match.id}`}
+                onclick={() => jumpToMatch(match)}
+                onkeydown={(e) => handleResultKey(e, match)}
+                role="option"
+                aria-selected="false"
+              >
+                <span class="settings-search-result__label">{match.label}</span>
+                <span class="settings-search-result__meta">
+                  {categories.find((c) => c.id === match.category)?.label ?? ""}
+                </span>
+              </button>
+            {/each}
+          {/if}
+        </div>
+      {/if}
+    </div>
+  </div>
+
+  <div class="settings-body">
+    <aside class="settings-sidebar">
+      <CategoryNav
+        categories={categories.map((c) => ({
+          id: c.id,
+          label: c.label,
+          icon: c.icon,
+        }))}
+        bind:activeId={activeCategory as unknown as string}
+        onSelect={handleSelectCategory}
+      />
+    </aside>
+
+    <section class="settings-content" data-testid="settings-content">
+      <header class="settings-content__header">
+        <h2 class="settings-content__title">{activeMeta.label}</h2>
+        {#if activeDescription}
+          <p class="settings-content__description">{activeDescription}</p>
+        {/if}
+      </header>
+
+      <div class="settings-content__body">
+        {#if activeCategory === "general"}
+          <GeneralSettings />
+        {:else if activeCategory === "appearance"}
+          <AppearanceSettings />
+        {:else if activeCategory === "editor"}
+          <EditorDiffSettings />
+        {:else if activeCategory === "git"}
+          <GitSettings />
+        {:else if activeCategory === "ai"}
+          <AiSettings />
+        {:else if activeCategory === "integrations"}
+          <IntegrationsSettings />
+        {:else if activeCategory === "advanced"}
+          <AdvancedSettings />
+        {/if}
       </div>
-      <div class="auth-section">
-        <CliAuthSection />
-      </div>
-    {:else if activeSection === "appearance"}
-      <AppearanceSettings />
-    {:else if activeSection === "git-config"}
-      <GitConfigSettings />
-    {:else if activeSection === "ai"}
-      <AiSettings />
-    {:else if activeSection === "updates"}
-      <UpdateSettings />
-    {:else}
-      <div class="wip-section">
-        <div class="wip-icon">&#128679;</div>
-        <h3>{m.settings_coming_soon()}</h3>
-        <p>{m.settings_section_unavailable({ section: activeSection })}</p>
-      </div>
-    {/if}
+    </section>
   </div>
 </div>
 
@@ -86,108 +383,148 @@
   .settings-page {
     display: flex;
     flex: 1;
+    flex-direction: column;
     overflow: hidden;
   }
 
-  .settings-nav {
-    width: clamp(140px, 14vw, 200px);
-    min-width: 0;
-    flex-shrink: 0;
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border);
-    padding: 16px 0;
+  .settings-topbar {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
   }
 
-  .nav-title {
-    padding: 4px 16px 12px;
+  .settings-topbar__title {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
+    flex-shrink: 0;
   }
 
-  .settings-nav-item {
+  .settings-topbar__search {
+    flex: 1;
+    max-width: 420px;
+    position: relative;
+  }
+
+  .settings-search-results {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px var(--overlay-shadow);
+    z-index: 10;
+    max-height: 280px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .settings-search-result {
     display: flex;
     align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 8px 16px;
-    background: none;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: transparent;
     border: none;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 12px;
+    font-family: inherit;
     cursor: pointer;
     text-align: left;
-    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
   }
 
-  .settings-nav-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+  .settings-search-result:last-child {
+    border-bottom: none;
   }
 
-  .settings-nav-item.active {
-    background: rgba(88, 166, 255, 0.1);
-    color: var(--accent-blue);
+  .settings-search-result:hover {
+    background: var(--overlay-hover);
   }
 
-  .wip-tag {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    background: rgba(255, 255, 255, 0.08);
+  .settings-search-result__meta {
+    font-size: 11px;
     color: var(--text-secondary);
-    padding: 1px 5px;
-    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .settings-search-empty {
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    font-style: italic;
+  }
+
+  .settings-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .settings-sidebar {
+    width: clamp(160px, 14vw, 220px);
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    background: var(--bg-secondary);
+    padding: 8px 0;
+    overflow-y: auto;
   }
 
   .settings-content {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow-y: auto;
-    padding: 0;
   }
 
-  .auth-section {
+  .settings-content__header {
+    padding: 20px 28px 12px;
+    border-bottom: 1px solid var(--border);
     display: flex;
     flex-direction: column;
+    gap: 4px;
   }
 
-  .auth-section-title {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: var(--text-secondary);
-    padding: 16px 48px 0;
+  .settings-content__title {
     margin: 0;
-  }
-
-  .wip-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    gap: 8px;
-    color: var(--text-secondary);
-  }
-
-  .wip-icon {
-    font-size: 36px;
-    opacity: 0.5;
-  }
-
-  .wip-section h3 {
     font-size: 16px;
     font-weight: 600;
     color: var(--text-primary);
-    margin: 0;
   }
 
-  .wip-section p {
-    font-size: 13px;
+  .settings-content__description {
     margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .settings-content__body {
+    padding: 20px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Pulse highlight applied when jumping to a search result. */
+  :global(.highlight) {
+    animation: bg-setting-pulse 1.1s ease-out;
+  }
+
+  @keyframes bg-setting-pulse {
+    0% {
+      box-shadow: 0 0 0 0 var(--overlay-accent-blue, rgba(88, 166, 255, 0.45));
+    }
+    100% {
+      box-shadow: 0 0 0 16px transparent;
+    }
   }
 </style>

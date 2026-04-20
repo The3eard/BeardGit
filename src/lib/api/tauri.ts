@@ -621,6 +621,17 @@ export async function startInteractiveRebase(baseOid: string, actions: RebaseAct
   return invoke<void>("start_interactive_rebase", { baseOid, actions });
 }
 
+/**
+ * Wipe the persistent graph-layout cache directory. Returns the
+ * number of files removed. Exposed from Settings → Advanced as a
+ * manual "recover from a corrupt layout" escape hatch. The loader
+ * rebuilds any missing layout on the next repo open, so calling
+ * this is always safe.
+ */
+export async function clearLayoutCache(): Promise<number> {
+  return invoke<number>("clear_layout_cache");
+}
+
 // ---------------------------------------------------------------------------
 // Reflog
 // ---------------------------------------------------------------------------
