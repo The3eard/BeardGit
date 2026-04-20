@@ -110,10 +110,10 @@
     <div class="panel-header">
       <span class="header-title">{m.tasks_title()}</span>
       <div class="header-actions">
-        <button class="panel-icon-btn" onclick={collapsePanel} title={m.tasks_collapse_tooltip()}>
+        <button class="btn-icon" onclick={collapsePanel} title={m.tasks_collapse_tooltip()}>
           <span class="nf">{"\uF066"}</span>
         </button>
-        <button class="panel-icon-btn" onclick={closePanel} title="Close">
+        <button class="btn-icon" onclick={closePanel} title="Close">
           <span class="nf">{"\uF00D"}</span>
         </button>
       </div>
@@ -179,20 +179,12 @@
     gap: 6px;
   }
 
-  .panel-icon-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 14px;
-    cursor: pointer;
+  /* Glyphs are in <span class="nf">, not on the button itself */
+  .btn-icon {
+    font-family: inherit;
     padding: 2px 4px;
-    border-radius: 4px;
     display: flex;
     align-items: center;
-  }
-
-  .panel-icon-btn:hover {
-    color: var(--text-primary);
   }
 
   .panel-list {
