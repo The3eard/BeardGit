@@ -109,7 +109,7 @@
         </button>
       {/if}
       {#if onClose}
-        <button class="close-btn" onclick={() => onClose!()}>
+        <button class="btn-icon" onclick={() => onClose!()}>
           {"\uF00D"}
         </button>
       {/if}
@@ -222,21 +222,11 @@
     color: var(--text-secondary);
   }
 
-  .close-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 14px;
-    font-family: var(--font-icons);
+  /* CommitDetail header is compact — tighter padding than .btn-icon default */
+  .btn-icon {
     padding: 2px 4px;
-    border-radius: 4px;
     display: flex;
     align-items: center;
-  }
-
-  .close-btn:hover {
-    color: var(--text-primary);
   }
 
   .header-btn {
