@@ -595,6 +595,13 @@ section + section { border-top: 1px solid var(--rule); }
   transition: opacity .25s;
   opacity: 1;
 }
+.screenshot-slot.loaded {
+  border: none;
+  background: transparent;
+  aspect-ratio: auto;
+}
+.screenshot-slot.loaded picture,
+.screenshot-slot.loaded img { object-fit: contain; height: auto; }
 .screenshot-slot.loaded .placeholder-tag { opacity: 0; }
 .screenshot-slot .placeholder-tag-id {
   font-family: "Fira Code", monospace;
@@ -623,6 +630,51 @@ section + section { border-top: 1px solid var(--rule); }
   margin-top: 1.5rem;
 }
 .screenshot-slot.small { min-height: 180px; aspect-ratio: 4 / 3; }
+
+.shot-figure { margin: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.shot-figure .screenshot-slot { cursor: zoom-in; transition: transform .25s ease; }
+.shot-figure .screenshot-slot:hover { transform: translateY(-2px); }
+.shot-caption {
+  color: var(--fg-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-align: right;
+}
+
+/* ---------- Lightbox ---------- */
+.lightbox {
+  position: fixed; inset: 0;
+  background: color-mix(in oklab, var(--bg) 85%, black);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 1000;
+  padding: 3rem;
+  backdrop-filter: blur(6px);
+}
+.lightbox.open { display: flex; }
+.lightbox-img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  border-radius: 8px;
+}
+.lightbox-caption {
+  position: absolute; bottom: 1.5rem; left: 0; right: 0;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+}
+.lightbox-close {
+  position: absolute; top: 1rem; right: 1.2rem;
+  background: none; border: none;
+  color: var(--fg);
+  font-size: 2.2rem; line-height: 1;
+  cursor: pointer;
+  padding: 0.3rem 0.7rem;
+  transition: color .15s;
+}
+.lightbox-close:hover { color: var(--accent); }
 
 .mock-fallback {
   margin-top: 1.2rem;

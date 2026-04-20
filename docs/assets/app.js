@@ -16,13 +16,36 @@
   const iconEl = document.getElementById("themeIcon");
   const labelEl = document.getElementById("themeLabel");
 
+  const mqlLight = window.matchMedia("(prefers-color-scheme: light)");
+
+  function effectiveTheme() {
+    const t = root.getAttribute("data-theme") || "auto";
+    if (t === "light" || t === "dark") return t;
+    return mqlLight.matches ? "light" : "dark";
+  }
+
+  function syncScreenshotVariants() {
+    const theme = effectiveTheme();
+    document.querySelectorAll(".shot-img").forEach((img) => {
+      const target = theme === "light" ? img.dataset.srcLight : img.dataset.srcDark;
+      if (!target) return;
+      const abs = new URL(target, location.href).href;
+      if (img.src !== abs) img.src = target;
+    });
+  }
+
   function applyTheme(mode) {
     root.setAttribute("data-theme", mode);
     if (iconEl) iconEl.innerHTML = ICONS[mode];
     if (labelEl) labelEl.textContent = LABELS[mode];
     if (mode === "auto") localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, mode);
+    syncScreenshotVariants();
   }
+
+  mqlLight.addEventListener?.("change", () => {
+    if ((root.getAttribute("data-theme") || "auto") === "auto") syncScreenshotVariants();
+  });
 
   const saved = localStorage.getItem(STORAGE_KEY);
   const initial = ORDER.includes(saved) ? saved : "auto";
@@ -87,6 +110,46 @@
       img.addEventListener("load", markLoaded);
       img.addEventListener("error", () => slot.classList.add("missing"));
     }
+  });
+
+  /* ---------- Lightbox: click any screenshot to enlarge ---------- */
+  const lightbox = document.getElementById("lightbox");
+  const lightboxImg = document.getElementById("lightboxImg");
+  const lightboxCaption = document.getElementById("lightboxCaption");
+  const lightboxClose = document.getElementById("lightboxClose");
+
+  function openLightbox(src, caption, alt) {
+    if (!lightbox || !lightboxImg) return;
+    lightboxImg.src = src;
+    lightboxImg.alt = alt || "";
+    if (lightboxCaption) lightboxCaption.textContent = caption || "";
+    lightbox.classList.add("open");
+    lightbox.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+  function closeLightbox() {
+    if (!lightbox) return;
+    lightbox.classList.remove("open");
+    lightbox.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  document.querySelectorAll(".shot-figure").forEach((figure) => {
+    const slot = figure.querySelector(".screenshot-slot");
+    const img = figure.querySelector(".shot-img");
+    const caption = figure.querySelector(".shot-caption");
+    if (!slot || !img) return;
+    slot.addEventListener("click", () => {
+      openLightbox(img.currentSrc || img.src, caption?.textContent || "", img.alt);
+    });
+  });
+
+  lightbox?.addEventListener("click", (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+  lightboxClose?.addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && lightbox?.classList.contains("open")) closeLightbox();
   });
 
   /* ---------- Keep hero stats subtly alive ---------- */

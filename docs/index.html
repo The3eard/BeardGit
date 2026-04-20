@@ -291,128 +291,68 @@
         │  fallback until real files exist.                            │
         └──────────────────────────────────────────────────────────────┘
       -->
-      <div class="screenshot-slot reveal" data-slot="main-window">
-        <picture>
-          <source media="(prefers-color-scheme: light)" srcset="assets/screenshots/main-light.png" />
-          <img src="assets/screenshots/main-dark.png" alt="BeardGit main window" />
-        </picture>
-        <div class="placeholder-tag">
-          <span class="placeholder-tag-id">IMG · 01 — main window</span>
-          <span class="placeholder-tag-path">assets/screenshots/main-{light|dark}.png</span>
-          <span class="placeholder-tag-hint">Hero screenshot: full app window with graph + diff + sidebar</span>
-        </div>
-      </div>
-
-      <details class="mock-fallback reveal">
-        <summary>Or preview the layout <span class="italic">(CSS mockup — not a real screenshot)</span></summary>
-        <div class="mock-window">
-        <div class="mock-chrome">
-          <div class="mock-dots"><span></span><span></span><span></span></div>
-          <div class="mock-tabs">
-            <div class="mock-tab active">BeardGit</div>
-            <div class="mock-tab">dotfiles</div>
-            <div class="mock-tab">tauri-apps</div>
-            <div class="mock-tab">+ new</div>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="main-window">
+          <img class="shot-img"
+               data-src-light="assets/screenshots/main-light.png"
+               data-src-dark="assets/screenshots/main-dark.png"
+               src="assets/screenshots/main-dark.png"
+               alt="BeardGit main window" />
+          <div class="placeholder-tag">
+            <span class="placeholder-tag-id">IMG · 01 — main window</span>
+            <span class="placeholder-tag-path">assets/screenshots/main-{light|dark}.png</span>
+            <span class="placeholder-tag-hint">Hero screenshot: full app window with graph + diff + sidebar</span>
           </div>
         </div>
-        <div class="mock-body">
-          <div class="mock-pane">
-            <div class="mock-pane-title">Branches</div>
-            <div class="mock-item active"><span class="dot"></span>site/landing-page</div>
-            <div class="mock-item"><span class="dot"></span>main</div>
-            <div class="mock-item"><span class="dot"></span>beta</div>
-            <div class="mock-item"><span class="dot"></span>feat/ai-drafter</div>
-            <div class="mock-pane-title" style="margin-top:1.2rem">Remotes</div>
-            <div class="mock-item"><span class="dot"></span>origin / main</div>
-            <div class="mock-item"><span class="dot"></span>origin / beta</div>
-            <div class="mock-pane-title" style="margin-top:1.2rem">Stashes</div>
-            <div class="mock-item"><span class="dot"></span>WIP: codemirror swap</div>
-          </div>
+        <figcaption class="shot-caption mono">fig. 01 — main window</figcaption>
+      </figure>
 
-          <div class="mock-pane">
-            <div class="mock-pane-title">History</div>
-            <div class="mock-graph">
-              <div class="mock-graph-row hl"><span class="glyph">● ─ ─ ─ ─</span><span class="msg">feat(site): landing page</span><span class="tag">HEAD</span></div>
-              <div class="mock-graph-row"><span class="glyph">│ ● ─ ─ ─</span><span class="msg">chore: untrack AI artifacts</span><span></span></div>
-              <div class="mock-graph-row"><span class="glyph">● ─╯ ─ ─</span><span class="msg">docs(readme): unsigned build</span><span></span></div>
-              <div class="mock-graph-row"><span class="glyph">● ─ ─ ─ ─</span><span class="msg">chore(ci): drop x64 bundles</span><span></span></div>
-              <div class="mock-graph-row"><span class="glyph">● ─ ─ ─ ─</span><span class="msg">fix(ci): pin macOS-x64 runner</span><span></span></div>
-              <div class="mock-graph-row"><span class="glyph">● ─ ─ ─ ─</span><span class="msg">release: v0.1.8</span><span class="tag">v0.1.8</span></div>
-              <div class="mock-graph-row"><span class="glyph">● ─ ─ ─ ─</span><span class="msg">feat(bisect): visual runner</span><span></span></div>
-              <div class="mock-graph-row"><span class="glyph">│ ● ─ ─ ─</span><span class="msg">feat(ai): background drafter</span><span></span></div>
-              <div class="mock-graph-row"><span class="glyph">● ─╯ ─ ─</span><span class="msg">perf(graph): lane packing</span><span></span></div>
-              <div class="mock-graph-row"><span class="glyph">● ─ ─ ─ ─</span><span class="msg">feat(conflict): 3-way merge</span><span></span></div>
-              <div class="mock-graph-row"><span class="glyph">● ─ ─ ─ ─</span><span class="msg">chore: bump deps</span><span></span></div>
-            </div>
-          </div>
-
-          <div class="mock-pane">
-            <div class="mock-pane-title">Diff · docs/assets/styles.css</div>
-            <div class="mock-diff">
-              <div class="mock-diff-row"><span class="ln">42</span><span class="code"><span class="kw">:root</span> {</span></div>
-              <div class="mock-diff-row del"><span class="ln">43</span><span class="code">  --bg: <span class="str">#F4ECDA</span>;</span></div>
-              <div class="mock-diff-row add"><span class="ln">43</span><span class="code">  --bg: <span class="str">#0D1117</span>;</span></div>
-              <div class="mock-diff-row add"><span class="ln">44</span><span class="code">  --fg: <span class="str">#E6EDF3</span>;</span></div>
-              <div class="mock-diff-row add"><span class="ln">45</span><span class="code">  --accent: <span class="str">#FF6A16</span>;</span></div>
-              <div class="mock-diff-row"><span class="ln">46</span><span class="code">}</span></div>
-              <div class="mock-diff-row"><span class="ln">47</span><span class="code"></span></div>
-              <div class="mock-diff-row"><span class="ln">48</span><span class="code"><span class="cm">/* modern neutrals + brand orange */</span></span></div>
-              <div class="mock-diff-row add"><span class="ln">49</span><span class="code"><span class="kw">body</span> {</span></div>
-              <div class="mock-diff-row add"><span class="ln">50</span><span class="code">  background: <span class="kw">var</span>(--bg);</span></div>
-              <div class="mock-diff-row add"><span class="ln">51</span><span class="code">  color: <span class="kw">var</span>(--fg);</span></div>
-              <div class="mock-diff-row add"><span class="ln">52</span><span class="code">}</span></div>
-              <div class="mock-diff-row"><span class="ln">53</span><span class="code"></span></div>
-              <div class="mock-diff-row del"><span class="ln">54</span><span class="code"><span class="cm">// TODO: retire gruvbox</span></span></div>
-            </div>
-          </div>
-        </div>
-        </div>
-      </details>
-
-      <div class="showcase-caption">
-        <span>Screenshot will reskin with the page — provide both <span class="mono">-light</span> and <span class="mono">-dark</span> variants.</span>
-        <span class="mono">fig. 01 — main window</span>
-      </div>
-
-      <!--
-        Additional screenshot slots — drop PNGs with matching names and they
-        show up. Remove the whole .screenshot-strip block if you only want
-        the hero shot above.
-      -->
       <div class="screenshot-strip">
-        <div class="screenshot-slot small reveal" data-slot="graph">
-          <picture>
-            <source media="(prefers-color-scheme: light)" srcset="assets/screenshots/graph-light.png" />
-            <img src="assets/screenshots/graph-dark.png" alt="Commit graph" />
-          </picture>
-          <div class="placeholder-tag">
-            <span class="placeholder-tag-id">IMG · 02</span>
-            <span class="placeholder-tag-path">assets/screenshots/graph-{light|dark}.png</span>
-            <span class="placeholder-tag-hint">Canvas commit graph close-up</span>
+        <figure class="shot-figure reveal">
+          <div class="screenshot-slot small" data-slot="graph">
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/graph-light.png"
+                 data-src-dark="assets/screenshots/graph-dark.png"
+                 src="assets/screenshots/graph-dark.png"
+                 alt="Commit graph" />
+            <div class="placeholder-tag">
+              <span class="placeholder-tag-id">IMG · 02</span>
+              <span class="placeholder-tag-path">assets/screenshots/graph-{light|dark}.png</span>
+              <span class="placeholder-tag-hint">Canvas commit graph close-up</span>
+            </div>
           </div>
-        </div>
-        <div class="screenshot-slot small reveal" data-slot="ai">
-          <picture>
-            <source media="(prefers-color-scheme: light)" srcset="assets/screenshots/ai-light.png" />
-            <img src="assets/screenshots/ai-dark.png" alt="AI background run" />
-          </picture>
-          <div class="placeholder-tag">
-            <span class="placeholder-tag-id">IMG · 03</span>
-            <span class="placeholder-tag-path">assets/screenshots/ai-{light|dark}.png</span>
-            <span class="placeholder-tag-hint">AI background run dialog or transcript</span>
+          <figcaption class="shot-caption mono">fig. 02 — commit graph</figcaption>
+        </figure>
+        <figure class="shot-figure reveal">
+          <div class="screenshot-slot small" data-slot="ai">
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/ai-light.png"
+                 data-src-dark="assets/screenshots/ai-dark.png"
+                 src="assets/screenshots/ai-dark.png"
+                 alt="AI background run" />
+            <div class="placeholder-tag">
+              <span class="placeholder-tag-id">IMG · 03</span>
+              <span class="placeholder-tag-path">assets/screenshots/ai-{light|dark}.png</span>
+              <span class="placeholder-tag-hint">AI background run dialog or transcript</span>
+            </div>
           </div>
-        </div>
-        <div class="screenshot-slot small reveal" data-slot="forge">
-          <picture>
-            <source media="(prefers-color-scheme: light)" srcset="assets/screenshots/forge-light.png" />
-            <img src="assets/screenshots/forge-dark.png" alt="PR / pipeline view" />
-          </picture>
-          <div class="placeholder-tag">
-            <span class="placeholder-tag-id">IMG · 04</span>
-            <span class="placeholder-tag-path">assets/screenshots/forge-{light|dark}.png</span>
-            <span class="placeholder-tag-hint">PR detail or CI pipeline view</span>
+          <figcaption class="shot-caption mono">fig. 03 — AI background run</figcaption>
+        </figure>
+        <figure class="shot-figure reveal">
+          <div class="screenshot-slot small" data-slot="forge">
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/forge-light.png"
+                 data-src-dark="assets/screenshots/forge-dark.png"
+                 src="assets/screenshots/forge-dark.png"
+                 alt="PR / pipeline view" />
+            <div class="placeholder-tag">
+              <span class="placeholder-tag-id">IMG · 04</span>
+              <span class="placeholder-tag-path">assets/screenshots/forge-{light|dark}.png</span>
+              <span class="placeholder-tag-hint">PR detail or CI pipeline view</span>
+            </div>
           </div>
-        </div>
+          <figcaption class="shot-caption mono">fig. 04 — PR / pipeline</figcaption>
+        </figure>
       </div>
     </div>
   </section>
@@ -546,6 +486,12 @@
       </div>
     </div>
   </footer>
+
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">×</button>
+    <img class="lightbox-img" id="lightboxImg" alt="" />
+    <div class="lightbox-caption mono" id="lightboxCaption"></div>
+  </div>
 
   <script src="assets/app.js"></script>
 </body>
