@@ -15,6 +15,8 @@ export function filterMrPrLocal(items: MrPr[], tags: SearchTag[]): MrPr[] {
     return tags.every(tag => {
       const q = tag.value.toLowerCase();
       switch (tag.type) {
+        case "state":
+          return (item.state ?? "").toLowerCase() === q;
         case "author":
           return (item.author ?? "").toLowerCase().includes(q);
         case "branch":

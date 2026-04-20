@@ -221,10 +221,13 @@ pub(crate) fn build_gh_mr_pr_list_args(filter: &MrPrFilter, limit: u32) -> Vec<S
         "--limit".into(),
         limit.to_string(),
     ];
-    if let Some(s) = filter.state {
-        args.push("--state".into());
-        args.push(state_to_gh_str(s).into());
-    }
+    // `gh pr list` defaults to `--state open`. Pass `--state all` when the
+    // caller hasn't specified a state so closed + merged PRs show up too.
+    args.push("--state".into());
+    args.push(match filter.state {
+        Some(s) => state_to_gh_str(s).into(),
+        None => "all".into(),
+    });
     if let Some(a) = &filter.author {
         args.push("--author".into());
         args.push(a.clone());
@@ -246,12 +249,13 @@ mod tests {
     use forge_provider::MrPrState;
 
     #[test]
-    fn build_gh_mr_pr_list_args_default_has_no_filter_flags() {
+    fn build_gh_mr_pr_list_args_default_requests_all_states() {
         let f = MrPrFilter::default();
         let args = build_gh_mr_pr_list_args(&f, 30);
         assert!(args.contains(&"--limit".to_string()));
         assert!(args.contains(&"30".to_string()));
-        assert!(!args.contains(&"--state".to_string()));
+        // Default must include closed + merged PRs (gh's default is open-only).
+        assert!(args.windows(2).any(|w| w == ["--state", "all"]));
         assert!(!args.contains(&"--author".to_string()));
         assert!(!args.contains(&"--label".to_string()));
         assert!(!args.contains(&"--search".to_string()));
@@ -279,7 +283,7 @@ mod tests {
         assert!(args.windows(2).any(|w| w == ["--author", "alice"]));
         assert!(args.windows(2).any(|w| w == ["--label", "bug"]));
         assert!(args.windows(2).any(|w| w == ["--search", "flaky test"]));
-        // --state still omitted when the filter doesn't set it
-        assert!(!args.contains(&"--state".to_string()));
+        // --state defaults to "all" when the filter doesn't set it.
+        assert!(args.windows(2).any(|w| w == ["--state", "all"]));
     }
 }

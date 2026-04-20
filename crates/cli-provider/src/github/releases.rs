@@ -16,6 +16,11 @@ use crate::releases::{
 
 impl GitHubCli {
     pub(super) fn list_releases_impl(&self, limit: u32) -> Result<Vec<Release>, ForgeError> {
+        // Valid list-endpoint fields are restricted. `author` and `url` are
+        // only available on the `gh release view` detail endpoint — requesting
+        // them on `list` fails with "Unknown JSON field" and returns an empty
+        // list, which previously caused ALL releases (including pre-releases)
+        // to disappear from the UI.
         let limit_str = limit.to_string();
         let stdout = self.run(&[
             "release",
@@ -23,7 +28,7 @@ impl GitHubCli {
             "-L",
             &limit_str,
             "--json",
-            "tagName,name,isDraft,isPrerelease,publishedAt,createdAt,author,url",
+            "tagName,name,isDraft,isPrerelease,publishedAt,createdAt",
         ])?;
         parse_gh_releases(&stdout).map_err(|e| ForgeError::Cli(e.to_string()))
     }
