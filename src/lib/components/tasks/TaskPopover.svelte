@@ -37,10 +37,10 @@
       <span class="header-badge">{$sortedTasks.length}</span>
     </div>
     <div class="header-actions">
-      <button class="popover-icon-btn" onclick={expandPanel} title={m.tasks_expand_tooltip()}>
+      <button class="btn-icon" onclick={expandPanel} title={m.tasks_expand_tooltip()}>
         <span class="nf">{"\uF065"}</span>
       </button>
-      <button class="popover-icon-btn" onclick={closePanel} title="Close">
+      <button class="btn-icon" onclick={closePanel} title="Close">
         <span class="nf">{"\uF00D"}</span>
       </button>
     </div>
@@ -101,19 +101,11 @@
     gap: 4px;
   }
 
-  .popover-icon-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 14px;
-    cursor: pointer;
+  /* Glyphs are in <span class="nf">, not on the button itself */
+  .btn-icon {
+    font-family: inherit;
     padding: 2px 4px;
-    border-radius: 4px;
     display: flex;
     align-items: center;
-  }
-
-  .popover-icon-btn:hover {
-    color: var(--text-primary);
   }
 </style>

@@ -363,10 +363,11 @@
     text-decoration: underline;
   }
   .btn-icon {
-    background: none;
-    border: none;
     color: var(--accent-red);
-    cursor: pointer;
+  }
+  .btn-icon:hover:not(:disabled) {
+    color: var(--accent-red);
+    background: rgba(248, 81, 73, 0.12);
   }
   .btn-icon .nf {
     font-family: var(--font-icons);

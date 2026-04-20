@@ -99,7 +99,7 @@
     >
       <div class="dialog-header">
         <h2 id="trigger-wf-title">{m.pipeline_trigger_dialog_title()}</h2>
-        <button class="close-btn nf" onclick={onClose} aria-label="Close">{"\uF00D"}</button>
+        <button class="btn-icon" onclick={onClose} aria-label="Close">{"\uF00D"}</button>
       </div>
 
       <div class="dialog-body">
@@ -145,7 +145,7 @@
                   placeholder={m.pipeline_variable_value_placeholder()}
                 />
                 <button
-                  class="pair-remove nf"
+                  class="btn-icon"
                   onclick={() => removePair(i)}
                   aria-label="Remove"
                 >{"\uF00D"}</button>
@@ -206,7 +206,6 @@
   }
   legend { font-size: 11px; color: var(--text-secondary); padding: 0 4px; }
   .pair-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; }
-  .pair-remove { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-family: var(--font-icons); }
   .pair-add {
     background: none; border: 1px dashed var(--border); color: var(--accent-blue);
     border-radius: 4px; padding: 6px; font-size: 11px; cursor: pointer;
@@ -215,13 +214,8 @@
     padding: 12px 16px; border-top: 1px solid var(--border);
     display: flex; justify-content: flex-end; gap: 8px;
   }
-  .btn { padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
-  .btn-primary { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
-  .btn-secondary { background: var(--bg-secondary); color: var(--text-primary); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .dialog-error { color: var(--accent-red); font-size: 12px; background: rgba(248, 81, 73, 0.1); padding: 6px 8px; border-radius: 4px; }
   .empty { color: var(--text-secondary); font-size: 12px; }
-  .close-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-family: var(--font-icons); }
   .spinner { border: 2px solid var(--border); border-top-color: var(--accent-blue); border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; align-self: center; }
   .spinner--sm { width: 10px; height: 10px; border-width: 1.5px; }
   @keyframes spin { to { transform: rotate(360deg); } }

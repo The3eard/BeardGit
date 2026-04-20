@@ -433,30 +433,6 @@
     border-top: 1px solid var(--border);
   }
 
-  .btn {
-    padding: 6px 16px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    transition: background 0.15s, opacity 0.15s;
-  }
-
-  .btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
-  .btn-cancel {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-primary);
-  }
-
-  .btn-cancel:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
   .btn-start {
     background: var(--accent-blue);
     color: #fff;

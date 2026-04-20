@@ -106,7 +106,7 @@
           {m.file_history_title()}
         </button>
       </div>
-      <button class="close-btn" onclick={handleClose} title="Close">
+      <button class="btn-icon" onclick={handleClose} title="Close">
         {'\uF00D'}
       </button>
     </div>
@@ -246,22 +246,11 @@
     background: var(--bg-primary);
   }
 
-  .close-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-family: var(--font-icons);
-    font-size: 14px;
-    cursor: pointer;
+  /* BlameView header is compact — tighter padding than .btn-icon default */
+  .btn-icon {
     padding: 2px 4px;
-    border-radius: 4px;
-    line-height: 1;
     display: flex;
     align-items: center;
-  }
-
-  .close-btn:hover {
-    color: var(--text-primary);
   }
 
   .blame-content {

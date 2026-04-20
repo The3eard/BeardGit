@@ -64,7 +64,7 @@
         <div class="vertical-resize-handle" onmousedown={startVerticalResize}></div>
         <div class="pipelines-log">
           <div class="log-header">
-            <button class="log-close-btn nf" onclick={closeJobLog} title="Close log">{"\uF00D"}</button>
+            <button class="btn-icon" onclick={closeJobLog} title="Close log">{"\uF00D"}</button>
           </div>
           <div class="log-content">
             <JobLog />
@@ -122,20 +122,11 @@
     background: var(--bg-secondary);
   }
 
-  .log-close-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 14px;
-    cursor: pointer;
+  /* Log header close button — compact padding */
+  .btn-icon {
     padding: 2px 4px;
-    border-radius: 4px;
     display: flex;
     align-items: center;
-  }
-
-  .log-close-btn:hover {
-    color: var(--text-primary);
   }
 
   .log-content {

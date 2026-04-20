@@ -155,7 +155,7 @@
             onclick={handleGood}
             disabled={$bisectLoading}
           >
-            <span class="btn-icon">{"\uF00C"}</span>
+            <span class="label-icon">{"\uF00C"}</span>
             {m.bisect_good()}
           </button>
           <button
@@ -164,7 +164,7 @@
             onclick={handleBad}
             disabled={$bisectLoading}
           >
-            <span class="btn-icon">{"\uF00D"}</span>
+            <span class="label-icon">{"\uF00D"}</span>
             {m.bisect_bad()}
           </button>
           <button
@@ -172,7 +172,7 @@
             onclick={handleSkip}
             disabled={$bisectLoading}
           >
-            <span class="btn-icon">{"\uF04E"}</span>
+            <span class="label-icon">{"\uF04E"}</span>
             {m.bisect_skip()}
           </button>
         </div>
@@ -192,7 +192,7 @@
             onclick={() => showAutoDialog = true}
             disabled={$bisectLoading}
           >
-            <span class="btn-icon">{"\uF04B"}</span>
+            <span class="label-icon">{"\uF04B"}</span>
             {m.bisect_auto()}
           </button>
           {#if $bisectLoading}
@@ -391,7 +391,7 @@
     background: rgba(255, 255, 255, 0.1);
   }
 
-  .btn-icon {
+  .label-icon {
     font-family: var(--font-icons);
     font-size: 12px;
   }

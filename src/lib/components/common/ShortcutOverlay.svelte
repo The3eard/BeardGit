@@ -44,7 +44,7 @@
     <div class="shortcut-overlay" bind:this={overlayEl}>
       <div class="overlay-header">
         <h2>{m.shortcuts_title()}</h2>
-        <button class="close-btn" onclick={toggleCheatSheet}>
+        <button class="btn-icon" onclick={toggleCheatSheet}>
           <span class="nf">{"\uF00D"}</span>
         </button>
       </div>
@@ -103,20 +103,12 @@
     margin: 0;
   }
 
-  .close-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
+  /* ShortcutOverlay × is bigger and wraps its glyph in a <span class="nf">, not on the button itself */
+  .btn-icon {
+    font-family: inherit;
     font-size: 18px;
-    cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 4px;
     display: flex;
     align-items: center;
-  }
-
-  .close-btn:hover {
-    color: var(--text-primary);
   }
 
   .overlay-grid {

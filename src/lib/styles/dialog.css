@@ -1,5 +1,6 @@
 /* Shared dialog styles — used by ConfirmDialog, CleanDialog, CreateMrPrDialog,
-   CreateWorktreeDialog, CreateConfigDialog, PatchPreviewDialog, TagCreateDialog */
+   CreateWorktreeDialog, CreateConfigDialog, PatchPreviewDialog, TagCreateDialog.
+   Also exports .btn-icon for icon-only nerd-font buttons (close ×, collapse/expand chevrons). */
 
 /* Full-screen backdrop overlay */
 .backdrop {
@@ -90,4 +91,30 @@
 
 .btn-destructive:hover:not(:disabled) {
   opacity: 0.9;
+}
+
+/* Icon-only button — transparent, holds a nerd-font glyph.
+   Use for panel close (×), collapse/expand chevrons, inline icon actions.
+   Distinct from text action buttons (.btn, .btn-primary, etc.) which have padding + background. */
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-icons);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.btn-icon:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.btn-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
