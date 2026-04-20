@@ -88,7 +88,6 @@ Pure refactor, zero user-visible change.
 - **9.2** `cli-provider/src/github.rs` and `gitlab.rs` (~800 LOC each) converted to directory modules with per-vertical submodules (mr_pr, labels, reviewers, lifecycle, discussions, checkout, issues, releases). `impl ForgeProvider` in `mod.rs` delegates one-line to feature-scoped methods. No file exceeds 400 LOC.
 - **9.3** CI grep guard in `ci.yml` enforces trait-crate purity (provider + forge-provider cannot import reqwest/tokio/tauri/hyper at the src level). `mock` feature flag exposes `MockProvider` + `MockCiProvider` for integration tests.
 - **9.4** Pure HTTP primitives (`api_error`, `retry_after_secs`, `trim_base_url`) extracted into `provider::http_helpers`; consumed by gitlab-api + github-api. Rate-limit arithmetic now unit-testable without fabricating HTTP responses.
-- **9.5** `crates/CLAUDE.md` refreshed with the post-9.1/9.2 layout + an "Adding a new forge capability" how-to walkthrough.
 
 ---
 
