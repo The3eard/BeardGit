@@ -321,25 +321,4 @@
     gap: 8px;
     margin-top: 12px;
   }
-  .btn {
-    padding: 6px 16px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    font-size: 12px;
-    cursor: pointer;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-  }
-  .btn-cancel:hover {
-    background: var(--bg-primary);
-  }
-  .btn-confirm {
-    background: var(--accent-blue);
-    color: #fff;
-    border-color: transparent;
-  }
-  .btn-confirm:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
 </style>
