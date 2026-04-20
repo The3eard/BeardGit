@@ -431,9 +431,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
 
-        let mut config = AppConfig::default();
-        config.theme_auto = false;
-        config.theme = "gitlab-light".to_string();
+        let config = AppConfig {
+            theme_auto: false,
+            theme: "gitlab-light".to_string(),
+            ..AppConfig::default()
+        };
         config.save(&path).unwrap();
 
         let loaded = AppConfig::load(&path).unwrap();

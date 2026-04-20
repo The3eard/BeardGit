@@ -55,6 +55,9 @@ export interface GraphViewport {
   visible_lane_count: number;
   total_lane_count: number;
   head_lane: number | null;
+  /** True when the chunk loader walked `limit + 1` and found more commits
+   *  beyond this window. Always `false` for cached-layout viewports. */
+  has_more: boolean;
 }
 
 export interface GraphThemeRefBadge {

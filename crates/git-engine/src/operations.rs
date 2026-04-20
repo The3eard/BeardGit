@@ -132,7 +132,7 @@ mod tests {
         repo.stage_files(&["file.txt".to_string()]).unwrap();
         let oid = repo.create_commit("Test commit").unwrap();
         assert!(!oid.is_empty());
-        let commits = repo.walk_commits(10).unwrap();
+        let commits = repo.walk_commits(0, 10).unwrap();
         assert_eq!(commits.len(), 2);
         assert_eq!(commits[0].summary, "Test commit");
     }
@@ -168,7 +168,7 @@ mod tests {
     #[test]
     fn test_create_branch_at_commit() {
         let (dir, repo) = create_test_repo();
-        let first_commits = repo.walk_commits(1).unwrap();
+        let first_commits = repo.walk_commits(0, 1).unwrap();
         let first_oid = &first_commits[0].oid;
 
         // Create a second commit
@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn test_checkout_detached() {
         let (_dir, repo) = create_test_repo();
-        let commits = repo.walk_commits(1).unwrap();
+        let commits = repo.walk_commits(0, 1).unwrap();
         let oid = &commits[0].oid;
 
         repo.checkout_detached(oid).unwrap();

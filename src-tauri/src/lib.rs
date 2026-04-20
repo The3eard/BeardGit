@@ -112,6 +112,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_core::commands::open_repo,
             app_core::commands::get_graph_viewport,
+            app_core::commands::load_graph_chunk,
             app_core::commands::get_commit_row,
             app_core::commands::search_commits,
             app_core::commands::get_commit_detail,

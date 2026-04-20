@@ -37,7 +37,7 @@ pub async fn open_repo(
         let repo =
             git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(|e| e.to_string())?;
 
-        let commits = repo.walk_commits(50_000).map_err(|e| e.to_string())?;
+        let commits = repo.walk_commits(0, 50_000).map_err(|e| e.to_string())?;
 
         let graph_commits: Vec<GraphCommit> = commits
             .iter()

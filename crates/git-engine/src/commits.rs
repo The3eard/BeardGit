@@ -90,10 +90,17 @@ fn build_ref_map(repo: &git2::Repository) -> HashMap<String, Vec<String>> {
 }
 
 impl Repository {
-    /// Walk all commits reachable from any ref, up to `max_count`.
+    /// Walk all commits reachable from any ref, skipping `offset` and returning at most `max_count`.
     ///
-    /// Commits are returned in topological + time order (newest first).
-    pub fn walk_commits(&self, max_count: usize) -> Result<Vec<CommitInfo>, GitError> {
+    /// Commits are returned in topological + time order (newest first). The first
+    /// `offset` commits encountered during the walk are discarded before
+    /// collecting up to `max_count` results, enabling pagination/windowing over
+    /// the commit graph.
+    pub fn walk_commits(
+        &self,
+        offset: usize,
+        max_count: usize,
+    ) -> Result<Vec<CommitInfo>, GitError> {
         let repo = self.inner();
         let ref_map = build_ref_map(repo);
 
@@ -112,7 +119,10 @@ impl Repository {
 
         let mut commits = Vec::new();
 
-        for oid_result in revwalk {
+        for (i, oid_result) in revwalk.enumerate() {
+            if i < offset {
+                continue;
+            }
             if commits.len() >= max_count {
                 break;
             }
@@ -125,9 +135,16 @@ impl Repository {
         Ok(commits)
     }
 
-    /// Walk commits filtered by criteria. Returns commits matching ALL filters.
+    /// Walk commits filtered by criteria, skipping `offset` raw revwalk entries.
+    ///
+    /// Returns commits matching ALL filters in topological + time order
+    /// (newest first). The first `offset` commits produced by the revwalk are
+    /// discarded before filtering; up to `max_count` matching commits are
+    /// returned afterwards. This enables windowed/paginated scans over filtered
+    /// history.
     pub fn walk_commits_filtered(
         &self,
+        offset: usize,
         max_count: usize,
         branch_filter: Option<&str>,
         author_filter: Option<&str>,
@@ -163,7 +180,10 @@ impl Repository {
         }
 
         let mut commits = Vec::with_capacity(max_count);
-        for oid_result in revwalk {
+        for (i, oid_result) in revwalk.enumerate() {
+            if i < offset {
+                continue;
+            }
             if commits.len() >= max_count {
                 break;
             }
@@ -300,8 +320,34 @@ mod tests {
         let path = create_repo_with_n_commits(&dir, 5);
         let repo = Repository::open(&path).unwrap();
 
-        let commits = repo.walk_commits(100).unwrap();
+        let commits = repo.walk_commits(0, 100).unwrap();
         assert_eq!(commits.len(), 5, "should return all 5 commits");
+    }
+
+    #[test]
+    fn test_walk_commits_respects_offset() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = create_repo_with_n_commits(&dir, 10);
+        let repo = Repository::open(&path).unwrap();
+
+        let all = repo.walk_commits(0, 100).unwrap();
+        let skipped = repo.walk_commits(3, 100).unwrap();
+        assert_eq!(all.len(), 10);
+        assert_eq!(skipped.len(), 7);
+        assert_eq!(
+            skipped[0].oid, all[3].oid,
+            "offset should skip the first 3 commits"
+        );
+    }
+
+    #[test]
+    fn test_walk_commits_offset_beyond_total_returns_empty() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = create_repo_with_n_commits(&dir, 5);
+        let repo = Repository::open(&path).unwrap();
+
+        let result = repo.walk_commits(100, 100).unwrap();
+        assert!(result.is_empty());
     }
 
     #[test]
@@ -310,7 +356,7 @@ mod tests {
         let path = create_repo_with_n_commits(&dir, 10);
         let repo = Repository::open(&path).unwrap();
 
-        let commits = repo.walk_commits(3).unwrap();
+        let commits = repo.walk_commits(0, 3).unwrap();
         assert_eq!(commits.len(), 3, "should respect max_count of 3");
     }
 
@@ -320,7 +366,7 @@ mod tests {
         let path = create_repo_with_n_commits(&dir, 3);
         let repo = Repository::open(&path).unwrap();
 
-        let commits = repo.walk_commits(100).unwrap();
+        let commits = repo.walk_commits(0, 100).unwrap();
         assert_eq!(commits.len(), 3);
 
         // Newest commit (index 0) should have one parent
@@ -340,7 +386,7 @@ mod tests {
         let path = create_repo_with_n_commits(&dir, 3);
         let repo = Repository::open(&path).unwrap();
 
-        let commits = repo.walk_commits(100).unwrap();
+        let commits = repo.walk_commits(0, 100).unwrap();
         assert!(!commits.is_empty());
 
         // Pick the middle commit
@@ -361,13 +407,13 @@ mod tests {
 
         // Filter by existing author
         let commits = repo
-            .walk_commits_filtered(100, None, Some("Test User"), None, None)
+            .walk_commits_filtered(0, 100, None, Some("Test User"), None, None)
             .unwrap();
         assert_eq!(commits.len(), 3, "all commits are by Test User");
 
         // Filter by nonexistent author
         let commits = repo
-            .walk_commits_filtered(100, None, Some("Nonexistent"), None, None)
+            .walk_commits_filtered(0, 100, None, Some("Nonexistent"), None, None)
             .unwrap();
         assert!(commits.is_empty(), "no commits by Nonexistent");
     }
@@ -380,14 +426,14 @@ mod tests {
 
         // Filter by message substring matching a single commit
         let commits = repo
-            .walk_commits_filtered(100, None, None, Some("Commit 3"), None)
+            .walk_commits_filtered(0, 100, None, None, Some("Commit 3"), None)
             .unwrap();
         assert_eq!(commits.len(), 1, "only one commit matches 'Commit 3'");
         assert_eq!(commits[0].summary, "Commit 3");
 
         // Filter by common substring matching all commits
         let commits = repo
-            .walk_commits_filtered(100, None, None, Some("Commit"), None)
+            .walk_commits_filtered(0, 100, None, None, Some("Commit"), None)
             .unwrap();
         assert_eq!(commits.len(), 5, "all commits match 'Commit'");
     }
@@ -398,12 +444,12 @@ mod tests {
         let path = create_repo_with_n_commits(&dir, 3);
         let repo = Repository::open(&path).unwrap();
 
-        let all = repo.walk_commits(100).unwrap();
+        let all = repo.walk_commits(0, 100).unwrap();
         let target = &all[1];
         let sha_prefix = &target.oid[..8];
 
         let commits = repo
-            .walk_commits_filtered(100, None, None, None, Some(sha_prefix))
+            .walk_commits_filtered(0, 100, None, None, None, Some(sha_prefix))
             .unwrap();
         assert_eq!(commits.len(), 1, "exactly one commit matches SHA prefix");
         assert_eq!(commits[0].oid, target.oid);
@@ -439,7 +485,7 @@ mod tests {
 
         let repo = Repository::open(&path).unwrap();
         let commits = repo
-            .walk_commits_filtered(100, Some("feature"), None, None, None)
+            .walk_commits_filtered(0, 100, Some("feature"), None, None, None)
             .unwrap();
 
         assert!(
@@ -460,6 +506,7 @@ mod tests {
 
         let commits = repo
             .walk_commits_filtered(
+                0,
                 100,
                 Some("nonexistent-branch"),
                 Some("Nobody"),
