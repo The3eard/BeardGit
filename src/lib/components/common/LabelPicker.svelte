@@ -1,11 +1,9 @@
 <!--
   LabelPicker — shared searchable dropdown of repository labels with
-  multi-select and an Apply button. Used by issues (8.3); the MR/PR picker
-  in mr-pr/LabelPicker.svelte remains unchanged for now (refactoring 8.2
-  to consume this is out-of-scope per Plan §9.2).
+  multi-select and an Apply button. Used by both issues and mr-pr consumers.
 
-  This generic version takes the label list + loading state via props so
-  consumers can point it at any label-producing store.
+  Takes the label list + loading state via props so consumers can point
+  it at any label-producing store.
 -->
 <script lang="ts">
   import type { Label } from "../../types";
