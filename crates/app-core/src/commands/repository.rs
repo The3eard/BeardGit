@@ -2,9 +2,9 @@
 
 use std::path::PathBuf;
 
-use graph_builder::{Dag, GraphCommit, GraphLayout};
 use tauri::{AppHandle, Emitter, State};
 
+use super::graph_cache::load_or_build_layout;
 use super::helpers::*;
 use crate::state::{AppState, ProjectSlot};
 
@@ -31,29 +31,14 @@ pub async fn open_repo(
     app_handle: AppHandle,
 ) -> Result<RepoInfo, String> {
     let path_clone = path.clone();
+    let config_dir = state.config_dir.clone();
 
     // Run the expensive graph computation off the main thread
     let (repo, layout, status) = tokio::task::spawn_blocking(move || {
         let repo =
             git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(|e| e.to_string())?;
 
-        let commits = repo.walk_commits(0, 50_000).map_err(|e| e.to_string())?;
-
-        let graph_commits: Vec<GraphCommit> = commits
-            .iter()
-            .map(|c| GraphCommit {
-                oid: c.oid.clone(),
-                parents: c.parents.clone(),
-                timestamp: c.timestamp,
-                refs: c.refs.clone(),
-                summary: c.summary.clone(),
-                author: c.author.clone(),
-                email: c.email.clone(),
-            })
-            .collect();
-
-        let dag = Dag::build(&graph_commits);
-        let layout = GraphLayout::compute(&dag);
+        let (layout, _was_cached) = load_or_build_layout(&repo, &path_clone, &config_dir)?;
         let status = repo.status().map_err(|e| e.to_string())?;
 
         Ok::<_, String>((repo, layout, status))

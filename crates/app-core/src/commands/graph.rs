@@ -269,53 +269,11 @@ pub async fn load_graph_chunk(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-
-    /// Create a repo with `n` sequential single-parent commits.
-    ///
-    /// Replicated inline from `git-engine`'s test module because it is not
-    /// re-exported. Kept minimal (a single linear chain) because the tests
-    /// below only need predictable pagination semantics, not varied graph
-    /// topology.
-    fn create_repo_with_n_commits(dir: &tempfile::TempDir, n: usize) -> PathBuf {
-        let path = dir.path().to_path_buf();
-        let repo = git2::Repository::init(&path).expect("init");
-
-        let mut config = repo.config().unwrap();
-        config.set_str("user.name", "Test User").unwrap();
-        config.set_str("user.email", "test@example.com").unwrap();
-        drop(config);
-
-        let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
-        let mut parent_commit: Option<git2::Oid> = None;
-
-        for i in 0..n {
-            let tree_id = {
-                let mut index = repo.index().unwrap();
-                index.write_tree().unwrap()
-            };
-            let tree = repo.find_tree(tree_id).unwrap();
-
-            let parents_vec: Vec<git2::Commit> = parent_commit
-                .iter()
-                .filter_map(|&oid| repo.find_commit(oid).ok())
-                .collect();
-            let parent_refs: Vec<&git2::Commit> = parents_vec.iter().collect();
-
-            let msg = format!("Commit {}", i + 1);
-            let oid = repo
-                .commit(Some("HEAD"), &sig, &sig, &msg, &tree, &parent_refs)
-                .unwrap();
-            parent_commit = Some(oid);
-        }
-
-        path
-    }
+    use git_engine::test_support::create_repo_with_n_commits;
 
     #[test]
     fn build_graph_chunk_returns_offset_slice() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 50);
+        let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
         let chunk = build_graph_chunk(&repo, 10, 20).expect("chunk ok");
@@ -329,8 +287,7 @@ mod tests {
 
     #[test]
     fn build_graph_chunk_flags_last_page() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 50);
+        let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
         let chunk = build_graph_chunk(&repo, 40, 20).expect("chunk ok");
@@ -343,8 +300,7 @@ mod tests {
 
     #[test]
     fn build_graph_chunk_offset_beyond_total_returns_empty() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 50);
+        let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
         let chunk = build_graph_chunk(&repo, 100, 20).expect("chunk ok");

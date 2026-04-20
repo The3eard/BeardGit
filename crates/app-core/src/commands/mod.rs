@@ -20,6 +20,7 @@ mod conflict;
 mod diff;
 mod gitignore;
 mod graph;
+mod graph_cache;
 mod issues;
 mod logging;
 mod mr_pr;
