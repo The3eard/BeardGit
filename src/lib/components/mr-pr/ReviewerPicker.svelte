@@ -41,9 +41,10 @@
   }
 </script>
 
-<button class="overlay" type="button" aria-label={m.mrpr_cancel()} onclick={onCancel}></button>
+<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+<div class="backdrop" onclick={onCancel} onkeydown={(e) => { if (e.key === "Escape") onCancel(); }} role="button" tabindex="-1"></div>
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_interactive_supports_focus -->
-<div class="picker" role="dialog" tabindex="-1" onkeydown={handleKeydown}>
+<div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onkeydown={handleKeydown}>
   <label class="picker-label" for="reviewer-input"
     >{m.mrpr_reviewer_picker_add_label()}</label
   >
@@ -55,13 +56,13 @@
     placeholder={m.mrpr_reviewer_picker_placeholder()}
   />
   <p class="picker-hint">{m.mrpr_reviewer_picker_hint()}</p>
-  <div class="picker-actions">
-    <button type="button" class="btn-secondary" onclick={onCancel}
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-cancel" onclick={onCancel}
       >{m.mrpr_cancel()}</button
     >
     <button
       type="button"
-      class="btn-primary"
+      class="btn btn-primary"
       onclick={apply}
       disabled={!input.trim()}
     >
@@ -71,27 +72,8 @@
 </div>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 99;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-  }
-  .picker {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 100;
-    width: 360px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  .dialog {
+    min-width: 340px;
   }
   .picker-label {
     display: block;
@@ -113,32 +95,5 @@
     font-size: 11px;
     color: var(--text-secondary);
     margin: 8px 0 12px;
-  }
-  .picker-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
-  .btn-primary {
-    padding: 5px 12px;
-    background: var(--accent-blue);
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .btn-secondary {
-    padding: 5px 12px;
-    background: none;
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
   }
 </style>
