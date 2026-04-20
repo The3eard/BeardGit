@@ -38,6 +38,13 @@ pub struct GraphViewport {
     pub total_lane_count: usize,
     /// Lane index of the HEAD commit, if present in the graph.
     pub head_lane: Option<usize>,
+    /// `true` when additional commits exist beyond this viewport.
+    ///
+    /// Set by paginated loaders (e.g. [`super::graph::load_graph_chunk`]) via
+    /// a `limit + 1` probe. Always `false` for commands that return a single
+    /// cached or filtered layout slice, because they surface the full result
+    /// set in one response.
+    pub has_more: bool,
 }
 
 /// Lightweight project info for tab display (no graph data).
