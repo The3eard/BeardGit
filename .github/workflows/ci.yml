@@ -97,12 +97,11 @@ jobs:
     name: E2E tests
     runs-on: ubuntu-22.04
     needs: [frontend-checks, rust-checks]
-    # Phase 7.4 — only run on main/beta pushes and PRs targeting those, to
-    # keep the heavy xvfb/tauri-driver job scoped to integration branches
-    # (matches the project's main/beta-only CI/build discipline).
+    # Run on every push/PR — gated by needs: [frontend-checks, rust-checks]
+    # so broken code short-circuits before the heavy xvfb/tauri-driver job.
     if: >-
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta')) ||
-      (github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'beta'))
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
