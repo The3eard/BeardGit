@@ -16,39 +16,19 @@
   import { activeBackgroundRunCount, selectedBackgroundSessionId, requestOpenCreateBackgroundRunDialog } from "../../stores/aiBackground";
   import { repoInfo } from "../../stores/repo";
   import { formatRelativeTimeUnix } from "../../utils/time";
-  import { aiResumeSession } from "../../api/tauri";
-  import { openTabs, activeTabIndex } from "../../stores/tabs";
-  import type { AiSession, AiProviderKind } from "$lib/types";
+  import { openTabs, activeTabIndex, resumeAiSessionTab } from "../../stores/tabs";
+  import type { AiSession } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import List from "../common/List.svelte";
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
+  import ProviderBrandIcon from "../ai/ProviderBrandIcon.svelte";
+  import { providerName, providerColor } from "$lib/data/ai-providers";
 
   interface Props {
     onSelectSession?: (session: AiSession) => void;
   }
 
   let { onSelectSession }: Props = $props();
-
-  /** Display name per AI provider. */
-  const PROVIDER_NAME: Record<AiProviderKind, string> = {
-    claude_code: "Claude Code",
-    codex: "Codex",
-    open_code: "OpenCode",
-  };
-
-  /** Provider-colored icon backgrounds. */
-  const PROVIDER_COLORS: Record<string, string> = {
-    claude_code: "#d97757",
-    codex: "#ffffff",
-    open_code: "#8b8b8b",
-  };
-
-  /** Provider icon initials for the rounded square. */
-  const PROVIDER_INITIALS: Record<string, string> = {
-    claude_code: "C",
-    codex: "X",
-    open_code: "O",
-  };
 
   /** Extract last path segment for compact display. */
   function shortCwd(fullPath: string): string {
@@ -147,9 +127,13 @@
 
   async function handleResumeSession(session: AiSession) {
     try {
-      const sessionId = await aiResumeSession(session.provider, session.id);
-      if (sessionId === null) {
-        // Provider does not support resume
+      const attached = await resumeAiSessionTab(
+        session.cwd,
+        providerName(session.provider),
+        session.provider,
+        session.id,
+      );
+      if (!attached) {
         console.warn("Resume not supported for provider:", session.provider);
       }
     } catch (err) {
@@ -199,19 +183,19 @@
   {/snippet}
 
   {#snippet row({ item }: { item: AiSession; selected: boolean })}
-    {@const providerColor = PROVIDER_COLORS[item.provider] ?? "#888"}
+    {@const pColor = providerColor(item.provider)}
     <div
       class="session-item"
       class:active={item.is_active}
       class:ended={!item.is_active}
-      style="--provider-color: {providerColor}"
+      style="--provider-color: {pColor}"
     >
-      <div class="session-icon" style="background: {providerColor}">
-        <span class="icon-initial">{PROVIDER_INITIALS[item.provider] ?? "?"}</span>
+      <div class="session-icon" style="background: {pColor}">
+        <ProviderBrandIcon provider={item.provider} size={16} fill="#111" />
       </div>
       <div class="session-info">
         <div class="session-row-top">
-          <span class="session-provider">{PROVIDER_NAME[item.provider] ?? item.provider}</span>
+          <span class="session-provider">{providerName(item.provider)}</span>
           {#if item.background_status}
             <BackgroundRunStatusBadge status={item.background_status} compact />
           {:else if item.is_active}
@@ -355,12 +339,6 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-  }
-
-  .icon-initial {
-    font-size: 14px;
-    font-weight: 700;
-    color: #000000;
   }
 
   .session-info {

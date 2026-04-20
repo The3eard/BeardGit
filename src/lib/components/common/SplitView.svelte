@@ -14,13 +14,19 @@
     refreshFn,
     left,
     right,
+    defaultWidth = 300,
   }: {
     refreshFn: () => void | Promise<void>;
     left: Snippet;
     right: Snippet;
+    /** Initial width of the left panel in px. Clamped to 220..600 on resize. */
+    defaultWidth?: number;
   } = $props();
 
-  let sidebarWidth = $state(300);
+  // svelte-ignore state_referenced_locally
+  // `defaultWidth` seeds the initial width; parent-side updates are intentionally ignored
+  // because the pane width becomes user-controlled once resizing starts.
+  let sidebarWidth = $state(defaultWidth);
 
   function startResize(e: MouseEvent) {
     e.preventDefault();
@@ -30,7 +36,7 @@
     function onMouseMove(e: MouseEvent) {
       const delta = e.clientX - startX;
       const minW = Math.max(220, window.innerWidth * 0.15);
-      const maxW = Math.min(500, window.innerWidth * 0.45);
+      const maxW = Math.min(600, window.innerWidth * 0.5);
       sidebarWidth = Math.max(minW, Math.min(maxW, startWidth + delta));
     }
 

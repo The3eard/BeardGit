@@ -813,7 +813,7 @@
   "ai_background_token_usage": "Tokens: {input} in / {output} out",
   "ai_background_token_cost": "Estimated cost: ${cost}",
   "ai_background_new_run_button": "New AI worktree run",
-  "ai_background_tab_button_tooltip": "New AI worktree run (Cmd+Shift+A)",
+  "ai_background_tab_button_tooltip": "Start AI background session on a worktree (Cmd+Shift+A)",
   "ai_background_toast_started": "AI run '{slug}' started",
   "ai_background_toast_completed": "AI run '{slug}' completed",
   "ai_background_toast_failed": "AI run '{slug}' failed — {reason}",

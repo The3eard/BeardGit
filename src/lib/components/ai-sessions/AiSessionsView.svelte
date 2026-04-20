@@ -23,11 +23,14 @@
 </script>
 
 <div class="ai-sessions-view">
-  <SplitView refreshFn={async () => {
-    const path = $repoInfo?.path;
-    if (path) await refreshSessions(path);
-    await refreshAiBackgroundRuns();
-  }}>
+  <SplitView
+    defaultWidth={380}
+    refreshFn={async () => {
+      const path = $repoInfo?.path;
+      if (path) await refreshSessions(path);
+      await refreshAiBackgroundRuns();
+    }}
+  >
     {#snippet left()}<AiSessionList />{/snippet}
     {#snippet right()}<AiSessionDetail />{/snippet}
   </SplitView>

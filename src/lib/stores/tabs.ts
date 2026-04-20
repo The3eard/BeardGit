@@ -12,7 +12,7 @@
 
 import { writable, derived, get } from "svelte/store";
 import type { Tab, ProjectInfo, TerminalTabInfo, LinkedSegment, AiProviderKind } from "../types";
-import { terminalSpawn, terminalKill, aiLaunchInteractive } from "../api/tauri";
+import { terminalSpawn, terminalKill, aiLaunchInteractive, aiResumeSession } from "../api/tauri";
 import { onTerminalOutput, offTerminalOutput } from "./terminal";
 
 export const openTabs = writable<Tab[]>([]);
@@ -279,6 +279,69 @@ export async function openAiTerminalTab(
   openTabs.set(newTabs);
   activeTabIndex.set(newTabs.length - 1);
   return sessionId;
+}
+
+/**
+ * Resume an existing AI session in a terminal tab.
+ *
+ * The Rust side has already spawned the PTY via `ai_resume_session`; this
+ * helper attaches the returned session id to the UI using the same
+ * promote/segment/standalone rules as `openAiTerminalTab`. Returns `true`
+ * on success, `false` when the provider doesn't advertise a resume command.
+ */
+export async function resumeAiSessionTab(
+  cwd: string,
+  title: string,
+  provider: AiProviderKind,
+  aiSessionId: string,
+): Promise<boolean> {
+  const sessionId = await aiResumeSession(provider, aiSessionId);
+  if (sessionId === null) return false;
+
+  const info: TerminalTabInfo = { sessionId, title, cwd, provider };
+  const segment: LinkedSegment = { type: "terminal", info };
+
+  const tabs = get(openTabs);
+
+  const projectIdx = tabs.findIndex(
+    (t) => t.kind === "project" && t.project.path === cwd,
+  );
+  if (projectIdx >= 0) {
+    const projectTab = tabs[projectIdx] as Extract<Tab, { kind: "project" }>;
+    const segments = sortSegments([segment]);
+    const newTabs = [...tabs];
+    newTabs[projectIdx] = {
+      kind: "composite",
+      project: projectTab.project,
+      segments,
+      activeSegmentIndex: findSegmentIndex(segments, segment),
+    };
+    openTabs.set(newTabs);
+    activeTabIndex.set(projectIdx);
+    return true;
+  }
+
+  const compositeIdx = tabs.findIndex(
+    (t) => t.kind === "composite" && t.project.path === cwd,
+  );
+  if (compositeIdx >= 0) {
+    const composite = tabs[compositeIdx] as Extract<Tab, { kind: "composite" }>;
+    const newSegments = sortSegments([...composite.segments, segment]);
+    const newTabs = [...tabs];
+    newTabs[compositeIdx] = {
+      ...composite,
+      segments: newSegments,
+      activeSegmentIndex: findSegmentIndex(newSegments, segment),
+    };
+    openTabs.set(newTabs);
+    activeTabIndex.set(compositeIdx);
+    return true;
+  }
+
+  const newTabs = [...tabs, { kind: "terminal" as const, terminal: info }];
+  openTabs.set(newTabs);
+  activeTabIndex.set(newTabs.length - 1);
+  return true;
 }
 
 /**

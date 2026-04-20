@@ -813,7 +813,7 @@
   "ai_background_token_usage": "Tokens: {input} entrada / {output} salida",
   "ai_background_token_cost": "Coste estimado: ${cost}",
   "ai_background_new_run_button": "Nueva ejecución IA en worktree",
-  "ai_background_tab_button_tooltip": "Nueva ejecución IA en worktree (Cmd+Shift+A)",
+  "ai_background_tab_button_tooltip": "Iniciar sesión IA en segundo plano en un worktree (Cmd+Shift+A)",
   "ai_background_toast_started": "Ejecución IA '{slug}' iniciada",
   "ai_background_toast_completed": "Ejecución IA '{slug}' completada",
   "ai_background_toast_failed": "Ejecución IA '{slug}' falló — {reason}",

@@ -339,6 +339,7 @@
 
   .field-input {
     width: 100%;
+    height: 30px;
     padding: 6px 10px;
     background: var(--bg-primary);
     border: 1px solid var(--border);
@@ -346,8 +347,28 @@
     color: var(--text-primary);
     font-size: 12px;
     font-family: var(--font-mono);
+    line-height: 1.2;
     outline: none;
     box-sizing: border-box;
+    /* Normalise native chrome so <select> and <input> share the same
+       height/alignment — native selects on macOS add extra padding for
+       the caret which pushed the provider column out of line with the
+       base-branch input. */
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  /* Restore a small caret so we don't lose the visual affordance
+     after flattening the native control. */
+  select.field-input {
+    padding-right: 24px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
+                      linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+    background-position:
+      calc(100% - 14px) 13px,
+      calc(100% - 9px) 13px;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
   }
 
   .field-input:focus {
