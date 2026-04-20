@@ -8,7 +8,7 @@
 
 import { writable, get } from "svelte/store";
 import type { GraphViewport, CommitInfo, CommitFileChange } from "../types";
-import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow, getFileAtCommit } from "../api/tauri";
+import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow, getFileAtCommit, refreshGraphLayout as apiRefreshGraphLayout } from "../api/tauri";
 
 /** Holds raw file content for the DiffEditor panel. */
 export interface RawDiffContent {
@@ -70,6 +70,33 @@ export async function loadViewport(offset: number) {
 
 /** Re-fetch the current viewport window. Used after mutations that change refs. */
 export async function reloadGraph(): Promise<void> {
+  await loadViewport(get(graphOffset));
+}
+
+/**
+ * Rebuild the server-side cached layout, then reload the current
+ * viewport window so new commits / moved refs become visible.
+ *
+ * `get_graph_viewport` slices a layout that lives in `ProjectSlot.layout`
+ * on the Rust side; that field is only populated by `open_repo` and
+ * `switch_project`. After a commit, amend, push, pull, rebase, reset,
+ * etc. the layout goes stale. This helper invokes
+ * `refresh_graph_layout` to rebuild the slot layout (honouring the
+ * persistent on-disk cache — a HEAD/refs change misses and falls through
+ * to a live walk) and then re-fetches the viewport so the UI shows the
+ * fresh state.
+ *
+ * Failures are swallowed: if the Rust command fails (e.g. no active
+ * project) we still fall through to a viewport fetch against whatever
+ * layout is currently cached, which matches the pre-regression
+ * behaviour for edge cases like detached repos.
+ */
+export async function refreshAndReloadGraph(): Promise<void> {
+  try {
+    await apiRefreshGraphLayout();
+  } catch {
+    // Best-effort — fall through to the viewport fetch below.
+  }
   await loadViewport(get(graphOffset));
 }
 

@@ -6,6 +6,7 @@
   import UpdateSettings from "./UpdateSettings.svelte";
   import CliAuthSection from "./CliAuthSection.svelte";
   import ConnectionHowTo from "./ConnectionHowTo.svelte";
+  import { pendingSettingsSection } from "$lib/stores/navigation";
   import * as m from "$lib/paraglide/messages";
 
   type SettingsSection = { labelKey: () => string; id: string; wip?: boolean };
@@ -19,6 +20,20 @@
   ];
 
   let activeSection = $state("connection");
+
+  // Deep-link bridge — when a statusbar slot (or anything else) wants to
+  // open a specific Settings sub-section, it writes the id to the
+  // `pendingSettingsSection` store and flips the top-level view to
+  // "settings". We mirror that value into local state exactly once per
+  // request, then clear the store so a subsequent manual navigation to
+  // Settings doesn't re-trigger the deep-link.
+  $effect(() => {
+    const pending = $pendingSettingsSection;
+    if (pending && sections.some((s) => s.id === pending)) {
+      activeSection = pending;
+      pendingSettingsSection.set(null);
+    }
+  });
 </script>
 
 <div class="settings-page" data-testid="settings-page">

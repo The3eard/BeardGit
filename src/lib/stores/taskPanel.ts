@@ -20,7 +20,7 @@ import { writable, derived, get } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { TaskInfo, TaskId, TaskOutputLine, TaskOutputEvent } from "../types";
 import * as api from "../api/tauri";
-import { loadViewport, graphOffset } from "./graph";
+import { refreshAndReloadGraph } from "./graph";
 import { refreshStatuses } from "./changes";
 import { getBranches as apiGetBranches } from "../api/tauri";
 import { branches } from "./repo";
@@ -124,9 +124,16 @@ export async function initTaskStore(): Promise<void> {
   unlisteners.push(
     await listen<TaskInfo>("task-completed", (event) => {
       updateTaskStatus(event);
-      // Auto-refresh graph after fetch or pull completes
+      // Auto-refresh graph after any remote op that can change refs /
+      // reachable commits. Push was previously skipped, which meant
+      // newly pushed commits never showed in the graph until the user
+      // reopened the repo.
       const label = event.payload.label;
-      if (label.startsWith("Fetch") || label.startsWith("Pull")) {
+      if (
+        label.startsWith("Fetch") ||
+        label.startsWith("Pull") ||
+        label.startsWith("Push")
+      ) {
         refreshAfterRemoteOp();
       }
     })
@@ -143,11 +150,18 @@ export function cleanupTaskStore(): void {
   unlisteners = [];
 }
 
-/** Refresh the graph, branches, and statuses after a remote operation completes. */
+/**
+ * Refresh the graph, branches, and statuses after a remote operation
+ * completes.
+ *
+ * `refreshAndReloadGraph` rebuilds the Rust-side `slot.layout` (hitting
+ * the persistent cache when possible) before re-fetching the viewport,
+ * so new commits pulled from the remote — or the ref move caused by a
+ * successful push — become visible immediately.
+ */
 async function refreshAfterRemoteOp() {
   try {
-    const offset = get(graphOffset);
-    await loadViewport(offset);
+    await refreshAndReloadGraph();
     const branchList = await apiGetBranches();
     branches.set(branchList);
     await refreshStatuses();

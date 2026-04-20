@@ -15,9 +15,11 @@ import {
   stageAll as apiStageAll,
   unstageAll as apiUnstageAll,
   createCommit as apiCreateCommit,
+  amendCommit as apiAmendCommit,
   getDiffWorkdir as apiDiffWorkdir,
   getDiffIndex as apiDiffIndex,
 } from "../api/tauri";
+import { refreshAndReloadGraph } from "./graph";
 
 /** Per-file status list (staged and unstaged combined). */
 export const fileStatuses = writable<FileStatus[]>([]);
@@ -66,9 +68,38 @@ export async function unstageAll() {
   await Promise.all([refreshStatuses(), refreshDiffs()]);
 }
 
-/** Create a commit, clear the message, and refresh statuses + diffs. */
+/**
+ * Create a commit, clear the message, and refresh statuses + diffs +
+ * graph.
+ *
+ * The graph refresh goes through `refreshAndReloadGraph` so the cached
+ * `slot.layout` on the Rust side is rebuilt against the new HEAD —
+ * otherwise `get_graph_viewport` would keep returning a layout that
+ * pre-dates the commit and the new node would never appear in the graph
+ * view.
+ */
 export async function commit(message: string) {
   await apiCreateCommit(message);
   commitMessage.set("");
-  await Promise.all([refreshStatuses(), refreshDiffs()]);
+  await Promise.all([
+    refreshStatuses(),
+    refreshDiffs(),
+    refreshAndReloadGraph(),
+  ]);
+}
+
+/**
+ * Amend the current HEAD commit and refresh statuses + diffs + graph.
+ *
+ * Mirrors {@link commit}: the graph layout cached on the Rust side must
+ * be rebuilt so the amended commit (which has a new OID) shows up in
+ * the graph view.
+ */
+export async function amendCommit(message: string): Promise<void> {
+  await apiAmendCommit(message);
+  await Promise.all([
+    refreshStatuses(),
+    refreshDiffs(),
+    refreshAndReloadGraph(),
+  ]);
 }

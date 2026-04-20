@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { fileStatuses, stageFiles, unstageFiles, commit, refreshStatuses, refreshDiffs } from "../../stores/changes";
+  import { fileStatuses, stageFiles, unstageFiles, commit, amendCommit, refreshStatuses, refreshDiffs } from "../../stores/changes";
   import ChangesList from "./ChangesList.svelte";
   import CleanDialog from "./CleanDialog.svelte";
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
-  import { amendCommit, getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote } from "$lib/api/tauri";
+  import { getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote } from "$lib/api/tauri";
   import { hasAiProvider, aiGenerateCommitMessage, aiReviewCode } from "$lib/stores/ai";
   import { addToast } from "$lib/stores/toast";
   import { repoInfo } from "$lib/stores/repo";

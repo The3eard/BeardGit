@@ -4,6 +4,7 @@
   import { tryAutoConnect } from "$lib/stores/provider";
   import { initLocale } from "$lib/stores/locale";
   import { initTaskStore, cleanupTaskStore } from "$lib/stores/taskPanel";
+  import { initTasksStore, stopTasksStore } from "$lib/stores/tasks";
   import { initUiScale } from "$lib/stores/theme";
   import { initShortcutListener } from "$lib/stores/shortcuts";
   import { runStartupCheck } from "$lib/stores/autoUpdate";
@@ -37,10 +38,17 @@
     initUiScale();
     tryAutoConnect();
     initTaskStore();
+    // Unified tasks drawer aggregator — wires the 3 bridges (task://update
+    // Tauri events, aiBackgroundRuns, autoUpdate.updateTask) into the
+    // statusbar's Tasks slot count + the drawer's feed. Missing this call
+    // was the root cause of the statusbar showing zero active tasks even
+    // when git ops / AI runs / update downloads were in flight.
+    initTasksStore();
     runStartupCheck();
     const cleanupShortcuts = initShortcutListener();
     return () => {
       cleanupTaskStore();
+      stopTasksStore();
       cleanupShortcuts();
     };
   });

@@ -31,6 +31,19 @@ export async function getGraphViewport(offset: number, limit: number): Promise<G
   return invoke<GraphViewport>("get_graph_viewport", { offset, limit });
 }
 
+/**
+ * Rebuild the active project's cached graph layout from the current
+ * repository state. Called after a local mutation (commit / amend) or
+ * after a completed Fetch / Pull / Push task so the next
+ * `getGraphViewport` call slices a layout that includes the new commits
+ * / refs. Under the hood this re-runs the `load_or_build_layout`
+ * pipeline, which correctly misses the persistent on-disk cache when
+ * HEAD or refs have moved.
+ */
+export async function refreshGraphLayout(): Promise<void> {
+  return invoke<void>("refresh_graph_layout");
+}
+
 export async function searchCommits(
   branch?: string, author?: string, message?: string, sha?: string, maxCount?: number
 ): Promise<GraphViewport> {
