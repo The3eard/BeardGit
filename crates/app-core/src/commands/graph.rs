@@ -95,6 +95,7 @@ pub async fn search_commits(
 
         let commits = repo
             .walk_commits_filtered(
+                0,
                 max_count.unwrap_or(200),
                 branch.as_deref(),
                 author.as_deref(),
