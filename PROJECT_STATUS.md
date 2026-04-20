@@ -58,7 +58,7 @@ Task history popup, keyboard shortcuts with cheat sheet, reflog viewer with reco
 
 **7.1 — Terminal Enhancements:** OSC 7 shell integration for cwd auto-detection (terminal navigating to a project path auto-links to its composite tab); foreground process polling auto-detects Claude / Codex / OpenCode running in a terminal and updates the tab label + icon dynamically. Split terminal panes deferred to a future phase (not in the plan's scope).
 
-**7.2 — CLI Binary Bundling:** `gh` v2.62.0 and `glab` v1.46.1 bundled as Tauri sidecars on macOS arm64/x64, Linux x64, Windows x64 via `scripts/download-cli-binaries.js` + `cli-versions.json`. `resolve_cli_binary()` checks sidecar location first, falls back to system PATH. Build + Release pipelines download matrix-specific binaries before `tauri-action`. Validated end-to-end across all 4 platforms.
+**7.2 — CLI Binary Bundling:** `gh` v2.62.0 and `glab` v1.46.1 bundled as Tauri sidecars on macOS arm64, Linux x64, Windows x64 via `scripts/download-cli-binaries.js` + `cli-versions.json`. `resolve_cli_binary()` checks sidecar location first, falls back to system PATH. Build + Release pipelines download matrix-specific binaries before `tauri-action`. Validated end-to-end across all 3 platforms.
 
 **7.3 — Code Quality:** Generic `<List>` component with 10 consumers (Branch / Tag / Stash / Reflog / MrPr / Worktree / Submodule / Release / Issue / AiSession lists). `fetchIntoStore` / `fetchListIntoStore` / `fetchPageIntoStore` helpers consumed by 10 stores. CLI provider JSON parser dedup landed via 8.1 (`GITHUB_FIELDS`/`GITLAB_FIELDS` pattern) + 9.4 cleanup.
 

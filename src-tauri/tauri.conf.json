@@ -27,7 +27,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["app", "dmg", "appimage", "nsis"],
     "createUpdaterArtifacts": true,
     "externalBin": [
       "binaries/gh",

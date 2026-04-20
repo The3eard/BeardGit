@@ -108,9 +108,8 @@ Pre-built installers are published on every tagged release:
 | Platform | Architecture | Format |
 |---|---|---|
 | macOS | Apple Silicon | `.dmg` |
-| macOS | Intel | `.dmg` |
-| Linux | x64 | `.AppImage` / `.deb` |
-| Windows | x64 | `.msi` / `.exe` |
+| Linux | x64 | `.AppImage` |
+| Windows | x64 | `.exe` |
 
 > Download the latest version from the [Releases page](https://github.com/The3eard/BeardGit/releases), pick the installer that matches your platform, and run it. `gh` and `glab` are bundled in every installer; no extra setup needed.
 

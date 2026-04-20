@@ -75,7 +75,7 @@ cargo fmt --all -- --check && cargo clippy --workspace && cargo test --workspace
 5. **Wait for ALL CI checks to pass** (fmt, clippy, tests, svelte-check)
 6. **Get explicit user approval** — do NOT merge without it
 7. **Squash-merge to `beta`** — reset beta if it has broken commits, then single clean commit
-8. **Verify Build pipeline** passes on beta (macOS arm64/x64, Linux, Windows)
+8. **Verify Build pipeline** passes on beta (macOS arm64, Linux, Windows)
 9. **When beta is stable**, user requests promotion to `main`
 
 **NEVER push without asking the user first.** Push is a shared-state action that requires confirmation every time.
@@ -111,7 +111,7 @@ cargo fmt --all -- --check && cargo clippy --workspace && cargo test --workspace
 | Pipeline | Trigger | Checks |
 |---|---|---|
 | **CI** (`ci.yml`) | main, beta, feature/** | fmt, clippy, tests, svelte-check |
-| **Build** (`build.yml`) | beta push | macOS arm64/x64, Linux x64, Windows x64 |
+| **Build** (`build.yml`) | beta push | macOS arm64, Linux x64, Windows x64 |
 | **Release** (`release.yml`) | `v*` tags | Build matrix + GitHub Releases |
 | **Security** (`security.yml`) | main/beta + weekly | cargo audit + npm audit |
 
