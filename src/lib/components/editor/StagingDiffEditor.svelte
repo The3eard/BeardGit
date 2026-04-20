@@ -203,7 +203,7 @@
   <div class="header">
     <div class="header-left">
       {#if onClose}
-        <button class="close-btn" onclick={onClose} title="Close">\uDB80\uDD99</button>
+        <button class="btn-icon" onclick={onClose} title="Close">\uDB80\uDD99</button>
       {/if}
       <span class="filename" title={filename}>{filename}</span>
       <span class="stats">
@@ -363,22 +363,11 @@
     flex-shrink: 0;
   }
 
-  .close-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-family: var(--font-icons);
-    font-size: 14px;
-    cursor: pointer;
+  /* StagingDiffEditor header is compact — tighter padding than .btn-icon default */
+  .btn-icon {
     padding: 2px 4px;
-    border-radius: 4px;
     display: flex;
     align-items: center;
-    transition: color 0.15s ease;
-  }
-
-  .close-btn:hover {
-    color: var(--text-primary);
   }
 
   .filename {
