@@ -370,7 +370,9 @@ describe("autoUpdate store — state transitions", () => {
     let entry = get(mod.updateTask);
     expect(entry).not.toBeNull();
     expect(entry!.status).toBe("running");
-    expect(entry!.kind).toBe("update");
+    expect(entry!.kind).toBe("app_update");
+    expect(entry!.id).toBe("auto-update");
+    expect(typeof entry!.startedAt).toBe("number");
 
     mod.autoUpdateState.set({
       status: "available",
@@ -378,7 +380,7 @@ describe("autoUpdate store — state transitions", () => {
       releaseNotes: "Notes",
     });
     entry = get(mod.updateTask);
-    expect(entry!.status).toBe("queued");
+    expect(entry!.status).toBe("running");
     expect(entry!.title).toContain("5.5.5");
     expect(entry!.subtitle).toBe("Notes");
 
@@ -389,16 +391,20 @@ describe("autoUpdate store — state transitions", () => {
     });
     entry = get(mod.updateTask);
     expect(entry!.status).toBe("running");
-    expect(entry!.progress).toBeCloseTo(0.25);
+    expect(entry!.progress?.determinate).toBe(true);
+    expect(entry!.progress?.percent).toBe(25);
+    expect(entry!.progress?.total).toBe(200);
+    expect(entry!.progress?.current).toBe(50);
 
     mod.autoUpdateState.set({ status: "ready" });
     entry = get(mod.updateTask);
-    expect(entry!.status).toBe("completed");
+    expect(entry!.status).toBe("success");
+    expect(entry!.finishedAt).toBeDefined();
 
     mod.autoUpdateState.set({ status: "error", error: "boom" });
     entry = get(mod.updateTask);
-    expect(entry!.status).toBe("failed");
-    expect(entry!.error).toBe("boom");
+    expect(entry!.status).toBe("error");
+    expect(entry!.errorMessage).toBe("boom");
   });
 
   it("resetAutoUpdateState returns the store to idle", async () => {

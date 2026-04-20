@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { TaskInfo, TaskId } from "../../types";
-  import { cancelTask, selectTask, selectedTaskId } from "../../stores/tasks";
+  import { cancelTask, selectTask, selectedTaskId } from "../../stores/taskPanel";
   import { formatRelativeTimeMs } from "../../utils/time";
   import * as m from "$lib/paraglide/messages";
 

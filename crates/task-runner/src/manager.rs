@@ -3,18 +3,26 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
-use crate::sink::TaskEventSink;
+use crate::sink::{NoopTaskEmitter, TaskEmitter, TaskEventSink};
 use crate::types::{
     OutputLine, Stream, TaskError, TaskHandle, TaskId, TaskInfo, TaskKind, TaskStatus,
 };
+
+/// Minimum gap between two progress emissions for the same task.
+///
+/// 200 ms ⇒ max 5 emissions / second / task, matching the spec's event-storm
+/// mitigation budget. Lifecycle transitions (`start`, `complete`, `fail`,
+/// `cancel`) bypass the throttle so terminal states never get dropped.
+const PROGRESS_THROTTLE: Duration = Duration::from_millis(200);
 
 /// Options accepted by [`TaskManager::spawn_with_options`].
 pub struct SpawnOptions<'a> {
@@ -38,10 +46,21 @@ pub struct TaskManager {
     /// Woken once per terminal transition — listeners subscribe via
     /// `wait_for_terminal`.
     pub(crate) terminal_notify: tokio::sync::Notify,
+    /// Snapshot emitter used to push task state into the unified tasks
+    /// drawer. Defaults to [`NoopTaskEmitter`] — the Tauri shell swaps in a
+    /// real emitter during setup via [`Self::set_emitter`].
+    pub(crate) emitter: StdMutex<Arc<dyn TaskEmitter>>,
+    /// Last time an emission fired for each task id, used to throttle
+    /// progress spam to [`PROGRESS_THROTTLE`].
+    pub(crate) last_emit: StdMutex<HashMap<TaskId, Instant>>,
 }
 
 impl TaskManager {
     /// Create a new task manager that emits events through the given sink.
+    ///
+    /// The snapshot emitter defaults to a no-op — install a real one via
+    /// [`Self::set_emitter`] after construction when the transport layer
+    /// (typically Tauri) is available.
     pub fn new(sink: Arc<dyn TaskEventSink>) -> Self {
         Self {
             tasks: Mutex::new(Vec::new()),
@@ -49,7 +68,61 @@ impl TaskManager {
             cancellation_tokens: Mutex::new(HashMap::new()),
             sink,
             terminal_notify: tokio::sync::Notify::new(),
+            emitter: StdMutex::new(Arc::new(NoopTaskEmitter)),
+            last_emit: StdMutex::new(HashMap::new()),
         }
+    }
+
+    /// Swap in a real snapshot emitter. Safe to call at any time after
+    /// construction — subsequent lifecycle transitions will use the new
+    /// emitter. Used during Tauri setup where the `AppHandle` only becomes
+    /// available after `TaskManager` has been constructed.
+    pub fn set_emitter(&self, emitter: Arc<dyn TaskEmitter>) {
+        *self.emitter.lock().expect("emitter mutex poisoned") = emitter;
+    }
+
+    /// Returns `true` when tasks of this kind should stream snapshots to the
+    /// unified tasks drawer.
+    ///
+    /// Gating policy (Phase 1): only git ops are surfaced. Other kinds —
+    /// AI background/interactive, auto-update — flow through their own
+    /// bridges in the frontend aggregator store, so emitting here would
+    /// duplicate entries. Additional kinds can be opted in by extending
+    /// this helper once their UX matures.
+    pub(crate) fn should_emit(kind: &TaskKind) -> bool {
+        matches!(
+            kind,
+            TaskKind::GitFetch | TaskKind::GitPull | TaskKind::GitPush | TaskKind::GitClone
+        )
+    }
+
+    /// Fire a snapshot through the emitter if gating allows and the throttle
+    /// budget has elapsed. Lifecycle transitions (`force = true`) always fire.
+    pub(crate) fn maybe_emit(&self, info: &TaskInfo, force: bool) {
+        if !Self::should_emit(&info.task_kind) {
+            return;
+        }
+
+        if !force {
+            let mut last = self.last_emit.lock().expect("last_emit mutex poisoned");
+            let now = Instant::now();
+            if let Some(prev) = last.get(&info.id)
+                && now.duration_since(*prev) < PROGRESS_THROTTLE
+            {
+                return;
+            }
+            last.insert(info.id, now);
+        } else {
+            // Refresh the timestamp so an immediately-following throttled
+            // emission still waits the full window.
+            self.last_emit
+                .lock()
+                .expect("last_emit mutex poisoned")
+                .insert(info.id, Instant::now());
+        }
+
+        let emitter = self.emitter.lock().expect("emitter mutex poisoned").clone();
+        emitter.emit(info);
     }
 
     /// Snapshot of all tasks for initial frontend load.
@@ -164,6 +237,9 @@ impl TaskManager {
             let tasks = self.tasks.lock().await;
             tasks.iter().find(|t| t.id == id).unwrap().to_info()
         };
+        // Emit a snapshot for gated kinds so the drawer picks the task up
+        // at `Running` before any output has streamed.
+        self.maybe_emit(&info, true);
         self.sink.on_task_started(info).await;
 
         // Build the child process with piped stdout, stderr, and (optionally) stdin.
@@ -405,6 +481,13 @@ impl TaskManager {
             tokens.remove(&task_id);
         }
 
+        // Drop the throttle entry so a new spawn reusing the same id (unlikely
+        // but possible in long-running processes) starts with a clean budget.
+        {
+            let mut last = self.last_emit.lock().expect("last_emit mutex poisoned");
+            last.remove(&task_id);
+        }
+
         let info = {
             let mut tasks = self.tasks.lock().await;
             if let Some(handle) = tasks.iter_mut().find(|t| t.id == task_id) {
@@ -416,6 +499,11 @@ impl TaskManager {
             }
         };
 
+        // Lifecycle transition — push a snapshot through the drawer
+        // emitter before the existing sink callbacks so the drawer sees
+        // the terminal state first.
+        self.maybe_emit(&info, true);
+
         match status {
             TaskStatus::Completed => self.sink.on_task_completed(info).await,
             TaskStatus::Failed { .. } => self.sink.on_task_failed(info).await,
@@ -424,6 +512,22 @@ impl TaskManager {
         }
 
         self.terminal_notify.notify_waiters();
+    }
+
+    /// Emit a progress snapshot for a running task.
+    ///
+    /// Throttled to [`PROGRESS_THROTTLE`]. Intended for callers that have
+    /// progress signals outside the normal stdout/stderr stream (e.g. a
+    /// future libgit2 fetch callback). No-op for non-gated kinds.
+    pub async fn emit_progress(&self, task_id: TaskId) {
+        let info = {
+            let tasks = self.tasks.lock().await;
+            match tasks.iter().find(|t| t.id == task_id) {
+                Some(handle) => handle.to_info(),
+                None => return,
+            }
+        };
+        self.maybe_emit(&info, false);
     }
 
     /// Wait until the given task reaches a terminal state (`Completed`,
@@ -795,7 +899,7 @@ mod tests {
                 assert_eq!(provider, "claude_code");
                 assert_eq!(worktree_path, "/tmp/wt");
             }
-            TaskKind::Generic => panic!("expected AiBackground kind"),
+            other => panic!("expected AiBackground kind, got {other:?}"),
         }
     }
 
@@ -869,5 +973,215 @@ mod tests {
             e,
             TaskEvent::Output { line, .. } if line.text == "error_msg"
         )));
+    }
+
+    // ── Snapshot emitter tests ────────────────────────────────────────────────
+
+    use std::sync::Mutex as StdMutex;
+
+    /// Mock emitter that captures every snapshot for assertion.
+    struct MockEmitter {
+        captured: Arc<StdMutex<Vec<TaskInfo>>>,
+    }
+
+    impl MockEmitter {
+        fn new() -> (Self, Arc<StdMutex<Vec<TaskInfo>>>) {
+            let captured = Arc::new(StdMutex::new(Vec::new()));
+            (
+                Self {
+                    captured: Arc::clone(&captured),
+                },
+                captured,
+            )
+        }
+    }
+
+    impl crate::sink::TaskEmitter for MockEmitter {
+        fn emit(&self, info: &TaskInfo) {
+            self.captured
+                .lock()
+                .expect("mock emitter mutex poisoned")
+                .push(info.clone());
+        }
+    }
+
+    /// A gated kind (`GitFetch`) emits at least `Running` then terminal.
+    #[tokio::test]
+    async fn emitter_captures_lifecycle_for_gated_kind() {
+        let (manager, events) = new_manager();
+        let (mock, captured) = MockEmitter::new();
+        manager.set_emitter(Arc::new(mock));
+
+        let cwd = std::env::temp_dir();
+        manager
+            .spawn_with_options(SpawnOptions {
+                label: "Fetch origin".into(),
+                command: "sh",
+                args: &["-c", "echo hello"],
+                cwd: &cwd,
+                cancellable: false,
+                kind: TaskKind::GitFetch,
+                stdin: None,
+            })
+            .await;
+
+        wait_for(&events, |ev| {
+            ev.iter().any(|e| matches!(e, TaskEvent::Completed(_)))
+        })
+        .await;
+
+        let snapshots = captured.lock().expect("captured mutex").clone();
+        assert!(
+            snapshots.len() >= 2,
+            "expected at least running + terminal, got {} snapshots: {:?}",
+            snapshots.len(),
+            snapshots.iter().map(|s| &s.status).collect::<Vec<_>>()
+        );
+        // First snapshot must be Running.
+        assert!(
+            matches!(snapshots.first().unwrap().status, TaskStatus::Running),
+            "first snapshot not Running: {:?}",
+            snapshots.first().unwrap().status
+        );
+        // Last snapshot must be terminal (Completed here since echo succeeds).
+        assert!(matches!(
+            snapshots.last().unwrap().status,
+            TaskStatus::Completed
+        ));
+    }
+
+    /// Non-gated kinds (`Generic`, `AiBackground`) must NOT flow to the
+    /// drawer emitter — those surfaces are served by other bridges.
+    #[tokio::test]
+    async fn emitter_skips_non_gated_kinds() {
+        let (manager, events) = new_manager();
+        let (mock, captured) = MockEmitter::new();
+        manager.set_emitter(Arc::new(mock));
+
+        let cwd = std::env::temp_dir();
+
+        // Generic (default `spawn()`).
+        manager
+            .spawn("generic".into(), "sh", &["-c", "echo generic"], &cwd, false)
+            .await;
+
+        // AiBackground with payload.
+        manager
+            .spawn_with_options(SpawnOptions {
+                label: "ai bg".into(),
+                command: "sh",
+                args: &["-c", "echo ai"],
+                cwd: &cwd,
+                cancellable: false,
+                kind: TaskKind::AiBackground {
+                    session_id: "sess".into(),
+                    provider: "claude_code".into(),
+                    worktree_path: "/tmp/wt".into(),
+                },
+                stdin: None,
+            })
+            .await;
+
+        wait_for(&events, |ev| {
+            ev.iter()
+                .filter(|e| matches!(e, TaskEvent::Completed(_)))
+                .count()
+                >= 2
+        })
+        .await;
+
+        let snapshots = captured.lock().expect("captured mutex");
+        assert!(
+            snapshots.is_empty(),
+            "non-gated kinds leaked to emitter: {:?}",
+            snapshots.iter().map(|s| &s.task_kind).collect::<Vec<_>>()
+        );
+    }
+
+    /// 100 rapid `emit_progress` calls on a running gated task must be
+    /// throttled to well under 100 snapshots thanks to the 200 ms window.
+    #[tokio::test]
+    async fn emitter_throttles_progress_spam() {
+        let (manager, _events) = new_manager();
+        let (mock, captured) = MockEmitter::new();
+        manager.set_emitter(Arc::new(mock));
+
+        let cwd = std::env::temp_dir();
+        // Long-running task so it stays Running throughout the spam.
+        let id = manager
+            .spawn_with_options(SpawnOptions {
+                label: "long fetch".into(),
+                command: "sleep",
+                args: &["30"],
+                cwd: &cwd,
+                cancellable: true,
+                kind: TaskKind::GitFetch,
+                stdin: None,
+            })
+            .await;
+
+        // Give spawn's Running emission a moment to land.
+        sleep(Duration::from_millis(10)).await;
+
+        // 100 progress ticks with no delay — all but the first should hit the
+        // throttle window and be dropped.
+        for _ in 0..100 {
+            manager.emit_progress(id).await;
+        }
+
+        // The baseline Running snapshot (from spawn) + at most ~1 additional
+        // from emit_progress (since we spent <200 ms here). Definitely under 6.
+        let count_before_cancel = captured.lock().expect("captured mutex").len();
+        assert!(
+            count_before_cancel <= 6,
+            "throttle failed: {} emissions in <200 ms",
+            count_before_cancel
+        );
+
+        // Cleanup: cancel the long-running sleep so the test runtime doesn't
+        // leave a zombie behind.
+        let _ = manager.cancel(id).await;
+    }
+
+    /// Lifecycle emissions always bypass the throttle — even if a progress
+    /// emission fired a millisecond earlier.
+    #[tokio::test]
+    async fn emitter_lifecycle_bypasses_throttle() {
+        let (manager, events) = new_manager();
+        let (mock, captured) = MockEmitter::new();
+        manager.set_emitter(Arc::new(mock));
+
+        let cwd = std::env::temp_dir();
+        let id = manager
+            .spawn_with_options(SpawnOptions {
+                label: "fetch".into(),
+                command: "sh",
+                args: &["-c", "echo done"],
+                cwd: &cwd,
+                cancellable: false,
+                kind: TaskKind::GitFetch,
+                stdin: None,
+            })
+            .await;
+
+        // Fire a progress emission immediately — sets the throttle clock.
+        manager.emit_progress(id).await;
+
+        // Wait for the task to complete on its own.
+        wait_for(&events, |ev| {
+            ev.iter().any(|e| matches!(e, TaskEvent::Completed(_)))
+        })
+        .await;
+
+        let snapshots = captured.lock().expect("captured mutex");
+        // Must contain a terminal Completed snapshot despite the throttle
+        // having been armed by emit_progress just prior.
+        assert!(
+            snapshots
+                .iter()
+                .any(|s| matches!(s.status, TaskStatus::Completed)),
+            "terminal snapshot lost to throttle: {:?}",
+            snapshots.iter().map(|s| &s.status).collect::<Vec<_>>()
+        );
     }
 }

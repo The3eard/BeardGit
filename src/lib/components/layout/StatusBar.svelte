@@ -1,194 +1,92 @@
+<!--
+  StatusBar — the lean 5-slot app status strip.
+
+  The bar replaces the former git-aware statusbar (branch count, ahead
+  /behind, dirty count, provider name) with a strictly app-level set of
+  signals. Repo-specific state already lives in the sidebar, branch
+  chip, and graph header — duplicating it here was noise.
+
+  Slot order (left → right):
+
+      [ Tasks ] | [ Forge ] | [ AI ] | [ Network ]   (spacer)   [ Version ]
+
+  Heights: 22 px total. 1 px 40%-opacity dividers between slots.
+
+  Behaviour:
+    - Clicking **Tasks** toggles the `tasksDrawerOpen` store; the drawer
+      itself is mounted in `+page.svelte`.
+    - Clicking **Forge / AI / Version** dispatches the corresponding
+      Settings sub-section key via `onNavigate` (which the parent wires
+      to `activeViewStore.set("settings")`). Until the Settings IA
+      overhaul (MT-5) supports sub-section deep-linking, only the
+      top-level Settings view is opened.
+    - **Network** is non-interactive and hides itself while online.
+-->
 <script lang="ts">
-  import { repoInfo, branches } from "../../stores/repo";
-  import { activeProvider } from "../../stores/provider";
-  import { runningTasks, hasRunningTasks, tasks, togglePopover, hasHistory } from "../../stores/tasks";
-  import { isInConflict, conflictStateLabel } from "../../stores/conflict";
-  import * as m from "$lib/paraglide/messages";
+  import TasksSlot from "./statusbar/TasksSlot.svelte";
+  import ForgeSlot from "./statusbar/ForgeSlot.svelte";
+  import AiSlot from "./statusbar/AiSlot.svelte";
+  import NetworkSlot from "./statusbar/NetworkSlot.svelte";
+  import VersionSlot from "./statusbar/VersionSlot.svelte";
+  import { toggleTasksDrawer } from "$lib/stores/tasksDrawer";
+  import { activeViewStore } from "$lib/stores/navigation";
 
-  let branchCount = $derived($branches.length);
-
-  let recentFailure = $state(false);
-  let failureTimer: ReturnType<typeof setTimeout> | null = null;
-
-  let failedCount = $derived(
-    $tasks.filter((t) => t.status.state === "failed").length
-  );
-
-  $effect(() => {
-    if (failedCount > 0) {
-      recentFailure = true;
-      if (failureTimer) clearTimeout(failureTimer);
-      failureTimer = setTimeout(() => {
-        if (!$hasRunningTasks) {
-          recentFailure = false;
-        }
-      }, 5000);
-    }
-  });
+  /**
+   * Navigate to a Settings sub-section. Until MT-5 ships sub-section
+   * deep-linking we just open the top-level Settings view — the
+   * `section` argument is threaded through for future use (and so the
+   * slot-click tests can assert the correct key without exposing the
+   * Settings internals).
+   */
+  function onNavigate(section: string): void {
+    void section;
+    activeViewStore.set("settings");
+  }
 </script>
 
-<footer class="status-bar">
+<footer class="status-bar" data-testid="statusbar">
   <div class="status-left">
-    {#if $repoInfo}
-      <span class="status-indicator repo-open"></span>
-      <span>{branchCount === 1 ? m.statusbar_branch({ count: String(branchCount) }) : m.statusbar_branches({ count: String(branchCount) })}</span>
-    {:else}
-      <span class="status-indicator disconnected"></span>
-      <span>{m.statusbar_no_repo()}</span>
-    {/if}
-
-    {#if $isInConflict}
-      <span class="status-separator">|</span>
-      <span class="conflict-badge">{$conflictStateLabel}</span>
-    {/if}
-
-    {#if $hasRunningTasks}
-      <span class="status-separator">|</span>
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <span class="task-indicator task-running" onclick={togglePopover}>
-        <span class="task-spinner"></span>
-        {m.tasks_running({ count: String($runningTasks.length) })}
-      </span>
-    {:else if recentFailure}
-      <span class="status-separator">|</span>
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <span class="task-indicator task-failed" onclick={togglePopover}>
-        <span class="nf">{"\uF00D"}</span> {m.tasks_failed({ count: String(failedCount) })}
-      </span>
-    {:else if $hasHistory}
-      <span class="status-separator">|</span>
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <span class="task-indicator task-idle" onclick={togglePopover}>
-        <span class="nf">{"\uF46A"}</span> {m.tasks_history()}
-      </span>
-    {/if}
-
-    {#if $activeProvider}
-      <span class="status-separator">|</span>
-      <span class="status-indicator provider-connected"></span>
-      <span>{$activeProvider.kind === 'github' ? m.statusbar_github_connected() : m.statusbar_gitlab_connected()}</span>
-      {#if $activeProvider.project_name}
-        <span class="status-separator">|</span>
-        <span>{$activeProvider.project_name}</span>
-      {/if}
-    {/if}
+    <TasksSlot onOpen={toggleTasksDrawer} />
+    <span class="divider" aria-hidden="true"></span>
+    <ForgeSlot {onNavigate} />
+    <span class="divider" aria-hidden="true"></span>
+    <AiSlot {onNavigate} />
+    <span class="divider" aria-hidden="true"></span>
+    <NetworkSlot />
   </div>
   <div class="status-right">
-    {#if $repoInfo}
-      <span class="status-path" title={$repoInfo.path}>{$repoInfo.path}</span>
-    {/if}
+    <VersionSlot {onNavigate} />
   </div>
 </footer>
 
 <style>
   .status-bar {
-    height: 24px;
-    min-height: 24px;
+    height: 22px;
+    min-height: 22px;
     background: var(--bg-toolbar);
     border-top: 1px solid var(--border);
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: space-between;
-    padding: 0 12px;
+    padding: 0;
     font-size: 11px;
     color: var(--text-secondary);
     user-select: none;
   }
 
-  .status-left {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
+  .status-left,
   .status-right {
     display: flex;
-    align-items: center;
-    gap: 6px;
+    align-items: stretch;
+    height: 100%;
   }
 
-  .status-indicator {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-  }
-
-  .status-indicator.repo-open {
-    background: var(--accent-blue);
-  }
-
-  .status-indicator.provider-connected {
-    background: var(--accent-green);
-  }
-
-  .status-indicator.disconnected {
-    background: var(--text-secondary);
-  }
-
-  .status-separator {
+  .divider {
+    width: 1px;
+    background: var(--border);
     opacity: 0.4;
-  }
-
-  .conflict-badge {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    padding: 0 6px;
-    border-radius: 3px;
-    background: rgba(210, 153, 34, 0.2);
-    color: var(--accent-orange);
-    line-height: 16px;
-  }
-
-  .status-path {
-    max-width: 300px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    direction: rtl;
-    text-align: right;
-  }
-
-  .task-indicator {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    transition: opacity 0.15s;
-  }
-
-  .task-indicator:hover {
-    opacity: 0.8;
-  }
-
-  .task-running {
-    color: var(--accent-orange);
-  }
-
-  .task-failed {
-    color: var(--accent-red);
-  }
-
-  .task-idle {
-    color: var(--text-secondary);
-  }
-
-  .task-spinner {
-    width: 10px;
-    height: 10px;
-    border: 1.5px solid currentColor;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+    align-self: center;
+    height: 60%;
     flex-shrink: 0;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
 </style>

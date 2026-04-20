@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use task_runner::{TaskId, TaskManager};
+use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use tauri::State;
 use tracing::instrument;
 
@@ -12,7 +12,8 @@ use crate::state::AppState;
 /// Fetch all updates from a remote as a background task.
 ///
 /// Spawns `git fetch <remote>` via the task manager and returns immediately
-/// with the task ID. Progress streams to the task popover.
+/// with the task ID. Progress streams to the task popover and the unified
+/// tasks drawer (via the `task://update` bridge).
 #[tauri::command]
 #[instrument(skip(state, task_manager), name = "cmd::remote::fetch")]
 pub async fn fetch_remote(
@@ -24,7 +25,15 @@ pub async fn fetch_remote(
 
     let label = format!("Fetch {}", remote);
     let id = task_manager
-        .spawn(label, "git", &["fetch", &remote], &cwd, true)
+        .spawn_with_options(SpawnOptions {
+            label,
+            command: "git",
+            args: &["fetch", &remote],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::GitFetch,
+            stdin: None,
+        })
         .await;
 
     Ok(id)
@@ -45,7 +54,15 @@ pub async fn pull_remote(
 
     let label = format!("Pull {}/{}", remote, branch);
     let id = task_manager
-        .spawn(label, "git", &["pull", &remote, &branch], &cwd, true)
+        .spawn_with_options(SpawnOptions {
+            label,
+            command: "git",
+            args: &["pull", &remote, &branch],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::GitPull,
+            stdin: None,
+        })
         .await;
 
     Ok(id)
@@ -66,7 +83,15 @@ pub async fn push_remote(
 
     let label = format!("Push {}/{}", remote, branch);
     let id = task_manager
-        .spawn(label, "git", &["push", &remote, &branch], &cwd, true)
+        .spawn_with_options(SpawnOptions {
+            label,
+            command: "git",
+            args: &["push", &remote, &branch],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::GitPush,
+            stdin: None,
+        })
         .await;
 
     Ok(id)

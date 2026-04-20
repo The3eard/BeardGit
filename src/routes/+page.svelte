@@ -16,7 +16,9 @@
   import * as m from "$lib/paraglide/messages";
   import TaskPopover from "$lib/components/tasks/TaskPopover.svelte";
   import TaskPanel from "$lib/components/tasks/TaskPanel.svelte";
-  import { panelMode } from "$lib/stores/tasks";
+  import TasksDrawer from "$lib/components/tasks/TasksDrawer.svelte";
+  import { panelMode } from "$lib/stores/taskPanel";
+  import { tasksDrawerOpen, toggleTasksDrawer, closeTasksDrawer } from "$lib/stores/tasksDrawer";
   import { initProjects, openFolderAsProject, activeProject, switchToNextTab, switchToPrevTab, closeActiveTab, switchToTab, onProjectSwitch } from "$lib/stores/projects";
   import StashView from "$lib/components/stash/StashView.svelte";
   import ConflictToolbar from "$lib/components/conflict/ConflictToolbar.svelte";
@@ -56,7 +58,7 @@
   import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
-  import { expandPanel as expandTaskPanel } from "$lib/stores/tasks";
+  import { expandPanel as expandTaskPanel } from "$lib/stores/taskPanel";
   import { addToast } from "$lib/stores/toast";
   import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
   import { get } from "svelte/store";
@@ -381,6 +383,16 @@
         label: m.ai_background_new_run_button(),
         category: "AI",
         action: () => { showAiBackgroundDialog = true; },
+        global: true,
+      },
+      {
+        id: "util.tasksDrawer",
+        keys: { mod: true, key: "j" },
+        label: m.tasks_title(),
+        category: "General",
+        // Global so the drawer opens even while an input is focused —
+        // users hit Cmd+J mid-commit-message all the time.
+        action: () => toggleTasksDrawer(),
         global: true,
       },
     ];
@@ -809,6 +821,8 @@
 
   <ShortcutOverlay />
   <StatusBar />
+
+  <TasksDrawer open={$tasksDrawerOpen} onClose={closeTasksDrawer} />
 
   {#if showAiBackgroundDialog}
     <CreateBackgroundRunDialog onClose={() => (showAiBackgroundDialog = false)} />

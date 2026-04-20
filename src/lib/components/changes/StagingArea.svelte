@@ -8,7 +8,7 @@
   import { hasAiProvider, aiGenerateCommitMessage, aiReviewCode } from "$lib/stores/ai";
   import { addToast } from "$lib/stores/toast";
   import { repoInfo } from "$lib/stores/repo";
-  import { taskOutput, selectTask, expandPanel } from "$lib/stores/tasks";
+  import { taskOutput, selectTask, expandPanel } from "$lib/stores/taskPanel";
   import { stripAnsi } from "$lib/utils/strip-ansi";
   import { listen } from "@tauri-apps/api/event";
   import { save } from "@tauri-apps/plugin-dialog";

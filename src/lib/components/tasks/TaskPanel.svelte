@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { sortedTasks, selectedOutput, selectedTask, collapsePanel, closePanel } from "../../stores/tasks";
+  import { sortedTasks, selectedOutput, selectedTask, collapsePanel, closePanel } from "../../stores/taskPanel";
   import { activeTheme } from "../../stores/theme";
   import { acquire, release, updatePoolTheme } from "../terminal/pool";
   import type { PooledInstance } from "../terminal/pool";

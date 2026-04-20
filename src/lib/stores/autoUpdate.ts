@@ -307,6 +307,7 @@ export function resetAutoUpdateState(): void {
   autoUpdateState.set({ status: "idle" });
   needsReauthNotice.set(false);
   currentUpdate = null;
+  clearAutoUpdateStartedAt();
 }
 
 // ---------------------------------------------------------------------------
@@ -492,16 +493,76 @@ async function startDownloadFromToast(toastId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
+ * Stable id reused across every emission of the auto-update
+ * [`TaskEntry`](../types/tasks.ts). The aggregator store keys entries by
+ * id, so using a constant here means successive update phases
+ * (`checking → available → downloading → ready`) upsert a single row in
+ * the drawer instead of piling up multiple rows.
+ */
+export const AUTO_UPDATE_TASK_ID = "auto-update";
+
+/**
+ * Remembered `startedAt` timestamp for the auto-update row.
+ *
+ * The Tauri updater plugin doesn't expose a single "I just started"
+ * event — each phase transition is observed separately — so we stamp the
+ * first emission and carry the same value forward, clearing the stamp
+ * whenever the store settles back to `idle`/`up_to_date`.
+ */
+let autoUpdateStartedAt: number | null = null;
+
+function updateTaskStartedAt(status: UpdateStatus): number {
+  if (status === "checking" || status === "available") {
+    autoUpdateStartedAt ??= Date.now();
+  } else if (status === "error" || status === "ready") {
+    autoUpdateStartedAt ??= Date.now();
+  }
+  return autoUpdateStartedAt ?? Date.now();
+}
+
+/**
+ * Called from {@link resetAutoUpdateState} (and any future idle-reset
+ * path) so the next lifecycle starts from a clean wall-clock.
+ */
+function clearAutoUpdateStartedAt(): void {
+  autoUpdateStartedAt = null;
+}
+
+/**
+ * Cancel an in-flight update download.
+ *
+ * `tauri-plugin-updater` doesn't expose a cancellation API yet (upstream
+ * issue tracked in the spec) — the best the UI can do is drop its
+ * reference to the in-flight handle and flip the store back to `idle` so
+ * the drawer row is dismissed. The underlying HTTP request then observes
+ * the abort the next time the runtime polls the stream; libgit2-style
+ * partial cleanup is a non-goal until the plugin grows proper cancel
+ * support.
+ *
+ * Exposed so the unified tasks-drawer router
+ * (`src/lib/stores/tasks.ts::cancelTaskById`) can route `app_update`
+ * cancellations to a single well-known entry point.
+ */
+export function cancelUpdateDownload(): void {
+  currentUpdate = null;
+  clearAutoUpdateStartedAt();
+  autoUpdateState.set({ status: "idle" });
+  needsReauthNotice.set(false);
+}
+
+/**
  * Derived, read-only view of the update lifecycle formatted as a
- * [`TaskEntry`](../types/tasks.ts) so the unified tasks drawer (cluster
- * 0.3) can render it alongside AI background runs, long git fetches,
- * etc.
+ * [`TaskEntry`](../types/tasks.ts) so the unified tasks drawer can render
+ * it alongside AI background runs, long git fetches, etc.
  *
  * Maps `checking | available | downloading | ready | error` onto
  * {@link TaskEntry}; returns `null` for `idle` and `up_to_date` so the
  * drawer hides the row when there's nothing to show.
  *
- * TODO: wire into tasks drawer (cluster 0.3)
+ * The output matches the spec's `TaskEntry` shape (kind `"app_update"`,
+ * `startedAt`/`finishedAt` ms timestamps, `"running" | "success" |
+ * "error" | "cancelled"` status, declarative `actions`). The aggregator
+ * store consumes this directly — no adapter.
  */
 export const updateTask: Readable<TaskEntry | null> = derived(
   autoUpdateState,
@@ -509,51 +570,79 @@ export const updateTask: Readable<TaskEntry | null> = derived(
     switch (state.status) {
       case "idle":
       case "up_to_date":
+        clearAutoUpdateStartedAt();
         return null;
-      case "checking":
+      case "checking": {
+        const startedAt = updateTaskStartedAt("checking");
         return {
-          id: "auto-update",
-          kind: "update",
+          id: AUTO_UPDATE_TASK_ID,
+          kind: "app_update",
           title: m.update_checking(),
+          startedAt,
           status: "running",
-        };
-      case "available":
-        return {
-          id: "auto-update",
-          kind: "update",
-          title: m.update_available({ version: state.availableVersion ?? "" }),
-          subtitle: state.releaseNotes,
-          status: "queued",
-        };
-      case "downloading": {
-        const total = state.totalBytes ?? 0;
-        const done = state.downloadedBytes ?? 0;
-        const progress = total > 0 ? Math.min(1, done / total) : undefined;
-        const percentLabel =
-          progress !== undefined ? String(Math.round(progress * 100)) : "0";
-        return {
-          id: "auto-update",
-          kind: "update",
-          title: m.update_downloading({ percent: percentLabel }),
-          status: "running",
-          progress,
+          actions: [],
         };
       }
-      case "ready":
+      case "available": {
+        const startedAt = updateTaskStartedAt("available");
         return {
-          id: "auto-update",
-          kind: "update",
+          id: AUTO_UPDATE_TASK_ID,
+          kind: "app_update",
+          title: m.update_available({ version: state.availableVersion ?? "" }),
+          subtitle: state.releaseNotes,
+          startedAt,
+          status: "running",
+          actions: [],
+        };
+      }
+      case "downloading": {
+        const startedAt = updateTaskStartedAt("checking");
+        const total = state.totalBytes ?? 0;
+        const done = state.downloadedBytes ?? 0;
+        const fraction = total > 0 ? Math.min(1, done / total) : undefined;
+        const percent =
+          fraction !== undefined ? Math.round(fraction * 100) : undefined;
+        const percentLabel = percent !== undefined ? String(percent) : "0";
+        return {
+          id: AUTO_UPDATE_TASK_ID,
+          kind: "app_update",
+          title: m.update_downloading({ percent: percentLabel }),
+          startedAt,
+          status: "running",
+          progress: {
+            determinate: percent !== undefined,
+            current: done || undefined,
+            total: total || undefined,
+            percent,
+          },
+          actions: [],
+        };
+      }
+      case "ready": {
+        const startedAt = updateTaskStartedAt("ready");
+        return {
+          id: AUTO_UPDATE_TASK_ID,
+          kind: "app_update",
           title: m.update_ready(),
-          status: "completed",
+          startedAt,
+          finishedAt: Date.now(),
+          status: "success",
+          actions: [],
         };
-      case "error":
+      }
+      case "error": {
+        const startedAt = updateTaskStartedAt("error");
         return {
-          id: "auto-update",
-          kind: "update",
+          id: AUTO_UPDATE_TASK_ID,
+          kind: "app_update",
           title: m.update_error(),
-          status: "failed",
-          error: state.error,
+          startedAt,
+          finishedAt: Date.now(),
+          status: "error",
+          errorMessage: state.error,
+          actions: [],
         };
+      }
     }
   },
 );

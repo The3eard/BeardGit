@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { sortedTasks, expandPanel, closePanel, selectTask } from "../../stores/tasks";
+  import { sortedTasks, expandPanel, closePanel, selectTask } from "../../stores/taskPanel";
   import TaskList from "./TaskList.svelte";
   import * as m from "$lib/paraglide/messages";
   import type { TaskId } from "../../types";

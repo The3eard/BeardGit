@@ -3,7 +3,7 @@
   import "../app.css";
   import { tryAutoConnect } from "$lib/stores/provider";
   import { initLocale } from "$lib/stores/locale";
-  import { initTaskStore, cleanupTaskStore } from "$lib/stores/tasks";
+  import { initTaskStore, cleanupTaskStore } from "$lib/stores/taskPanel";
   import { initUiScale } from "$lib/stores/theme";
   import { initShortcutListener } from "$lib/stores/shortcuts";
   import { runStartupCheck } from "$lib/stores/autoUpdate";

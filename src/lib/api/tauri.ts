@@ -398,6 +398,20 @@ export async function cancelTask(taskId: TaskId): Promise<void> {
   return invoke<void>("cancel_task", { taskId });
 }
 
+/**
+ * Cancel a running task by its string id.
+ *
+ * Used by the unified tasks drawer, where task ids are string-shaped
+ * across AI runs, git ops, and auto-update downloads. Wraps the
+ * `task_cancel` Rust IPC command which parses the id into a `TaskId`
+ * and fires the underlying `CancellationToken`.
+ *
+ * @param id — task id as emitted in the `task://update` event payload.
+ */
+export async function taskCancel(id: string): Promise<void> {
+  return invoke<void>("task_cancel", { id });
+}
+
 // ---------------------------------------------------------------------------
 // Multi-project tabs
 // ---------------------------------------------------------------------------

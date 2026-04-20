@@ -27,6 +27,12 @@ pub fn run() {
                 app.handle().clone(),
             ));
             let task_manager = std::sync::Arc::new(task_runner::TaskManager::new(sink.clone()));
+            // Plug the Tauri snapshot emitter into the task manager so git
+            // fetch/pull/push/clone lifecycle events stream to the unified
+            // tasks drawer via the `task://update` event.
+            task_manager.set_emitter(std::sync::Arc::new(
+                app_core::task_events::TauriEmitter::new(app.handle().clone()),
+            ));
             app.manage(task_manager.clone());
 
             // AI background coordinator: shares the task manager with the rest
@@ -209,6 +215,7 @@ pub fn run() {
             app_core::task_commands::get_tasks,
             app_core::task_commands::get_task_output,
             app_core::task_commands::cancel_task,
+            app_core::task_commands::task_cancel,
             app_core::commands::list_worktrees,
             app_core::commands::create_worktree,
             app_core::commands::remove_worktree,

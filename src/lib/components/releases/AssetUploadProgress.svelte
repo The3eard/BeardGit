@@ -5,7 +5,7 @@
   (success, failure, or cancellation).
 -->
 <script lang="ts">
-  import { taskById } from "../../stores/tasks";
+  import { taskById } from "../../stores/taskPanel";
   import type { TaskId } from "../../types";
 
   interface Props {
