@@ -41,7 +41,9 @@ AGENTS.md
 .superpowers/
 
 # Local-only documentation (specs, plans, scratch)
-docs/
+# docs/ is published as the project website; only exclude assistant artifacts inside it
+docs/superpowers/
+docs/.superpowers/
 specs/
 
 # Editor config
