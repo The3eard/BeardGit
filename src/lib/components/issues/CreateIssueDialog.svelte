@@ -124,10 +124,10 @@
   {#if errorMsg}<p class="error-msg">{errorMsg}</p>{/if}
 
   <div class="dialog-actions">
-    <button type="button" class="btn-secondary" onclick={onClose}>{m.issues_cancel()}</button>
+    <button type="button" class="btn btn-cancel" onclick={onClose}>{m.issues_cancel()}</button>
     <button
       type="button"
-      class="btn-primary"
+      class="btn btn-primary"
       disabled={submitting || !titleInput.trim()}
       onclick={handleSubmit}
     >
@@ -280,24 +280,5 @@
     justify-content: flex-end;
     padding-top: 6px;
     border-top: 1px solid var(--border);
-  }
-  .btn-primary {
-    padding: 5px 12px;
-    background: var(--accent-blue);
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-secondary {
-    padding: 5px 12px;
-    background: none;
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
   }
 </style>
