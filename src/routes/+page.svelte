@@ -57,6 +57,7 @@
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
   import { expandPanel as expandTaskPanel } from "$lib/stores/tasks";
+  import { addToast } from "$lib/stores/toast";
   import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
   import { get } from "svelte/store";
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
@@ -160,11 +161,10 @@
       activeTheme.set(theme);
       applyTheme(theme);
     } catch (e) {
-      console.warn("resolve_startup_theme failed, trying fallback:", e);
       try {
         await initTheme("github-dark");
-      } catch (e2) {
-        console.error("Theme fallback also failed:", e2);
+      } catch {
+        addToast({ message: m.theme_load_failed(), type: "error" });
       }
     }
     await listenThemeChanges();
@@ -508,7 +508,7 @@
             await api.checkoutDetached(entry.oid);
             await loadReflog();
           } catch (e) {
-            console.error("Checkout failed:", e);
+            addToast({ message: m.graph_checkout_failed({ error: String(e) }), type: "error" });
           }
         },
       },
@@ -521,7 +521,7 @@
             await api.createBranchAt(name, entry.oid);
             await loadReflog();
           } catch (e) {
-            console.error("Create branch failed:", e);
+            addToast({ message: m.graph_branch_failed({ error: String(e) }), type: "error" });
           }
         },
       },

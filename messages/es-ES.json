@@ -815,5 +815,6 @@
   "settings_ai_concurrency_label": "Ejecuciones concurrentes",
   "settings_ai_concurrency_hint": "Número máximo de ejecuciones IA que pueden correr a la vez. Las extra quedan en cola.",
   "settings_ai_auto_accept_label": "Auto-aceptar permisos de IA",
-  "settings_ai_auto_accept_hint": "Si se activa, las ejecuciones IA usan el flag de saltar permisos del proveedor. El agente puede editar cualquier archivo del worktree sin confirmación — úsalo con cuidado."
+  "settings_ai_auto_accept_hint": "Si se activa, las ejecuciones IA usan el flag de saltar permisos del proveedor. El agente puede editar cualquier archivo del worktree sin confirmación — úsalo con cuidado.",
+  "theme_load_failed": "No se pudo cargar el tema. Se usarán los valores predeterminados."
 }

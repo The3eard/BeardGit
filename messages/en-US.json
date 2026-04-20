@@ -815,5 +815,6 @@
   "settings_ai_concurrency_label": "Concurrent background runs",
   "settings_ai_concurrency_hint": "Maximum number of AI runs that can execute at the same time. Extra runs are queued.",
   "settings_ai_auto_accept_label": "Auto-accept AI permission prompts",
-  "settings_ai_auto_accept_hint": "When on, AI runs use the provider's permission-skip flag. The agent can edit any file under the worktree without confirmation — use with care."
+  "settings_ai_auto_accept_hint": "When on, AI runs use the provider's permission-skip flag. The agent can edit any file under the worktree without confirmation — use with care.",
+  "theme_load_failed": "Could not load theme. Using built-in defaults."
 }
