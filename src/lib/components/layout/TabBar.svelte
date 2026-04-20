@@ -182,7 +182,8 @@
         aria-label={m.ai_background_tab_button_tooltip()}
         onclick={() => requestOpenCreateBackgroundRunDialog()}
       >
-        <span class="nf">{"\uEB7D"}</span>
+        <span class="nf ai-bg-glyph play">{"\uF04B"}</span>
+        <span class="nf ai-bg-glyph branch">{"\uE725"}</span>
       </button>
     {/if}
     <div class="terminal-split" bind:this={terminalMenuRef}>
@@ -337,6 +338,20 @@
   .action-btn:disabled {
     opacity: 0.4;
     cursor: default;
+  }
+
+  /* AI-background button renders "▶ ⎇" — a play triangle plus a branch
+     glyph so the affordance reads as "start an AI run on a worktree". */
+  .ai-bg-glyph {
+    font-size: 13px;
+    line-height: 1;
+  }
+  .ai-bg-glyph.play {
+    color: var(--accent-green, #3fb950);
+  }
+  .ai-bg-glyph.branch {
+    font-size: 12px;
+    color: var(--text-secondary);
   }
 
   /* ── Terminal split button ── */
