@@ -10,7 +10,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { get } from "svelte/store";
-  import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails } from "../../stores/graph";
+  import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails, reloadGraph } from "../../stores/graph";
   import { repoInfo } from "../../stores/repo";
   import { renderGraph, hitTest, graphHitTest, getResizeTarget, ROW_HEIGHT, DEFAULT_COLUMNS, DEFAULT_GRAPH_THEME, type GraphColumn } from "./graph-renderer";
   import { getLastMetrics, getRollingFps } from "./graph-perf";
@@ -506,7 +506,7 @@
           if (name) {
             try {
               await createBranch(name);
-              // TODO: refresh graph after branch creation
+              await reloadGraph();
             } catch (err) {
               alert(m.graph_branch_failed({ error: String(err) }));
             }

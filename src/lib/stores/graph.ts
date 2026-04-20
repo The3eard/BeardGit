@@ -68,6 +68,11 @@ export async function loadViewport(offset: number) {
   viewport.set(vp);
 }
 
+/** Re-fetch the current viewport window. Used after mutations that change refs. */
+export async function reloadGraph(): Promise<void> {
+  await loadViewport(get(graphOffset));
+}
+
 /** Select a commit by OID, fetching detail + files in parallel. Uses last-wins guard. */
 export async function selectCommit(oid: string) {
   selectedOid.set(oid);
