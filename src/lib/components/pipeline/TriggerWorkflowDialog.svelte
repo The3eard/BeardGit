@@ -215,10 +215,6 @@
     padding: 12px 16px; border-top: 1px solid var(--border);
     display: flex; justify-content: flex-end; gap: 8px;
   }
-  .btn { padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
-  .btn-primary { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
-  .btn-secondary { background: var(--bg-secondary); color: var(--text-primary); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .dialog-error { color: var(--accent-red); font-size: 12px; background: rgba(248, 81, 73, 0.1); padding: 6px 8px; border-radius: 4px; }
   .empty { color: var(--text-secondary); font-size: 12px; }
   .close-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-family: var(--font-icons); }
