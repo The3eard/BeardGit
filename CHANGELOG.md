@@ -22,7 +22,7 @@ Full daily-dev-workflow parity with GitHub and GitLab web UIs, behind a clean pr
 
 ### Bundled CLI Binaries (Phase 7.2)
 
-BeardGit now ships `gh` (v2.62.0) and `glab` (v1.46.1) as Tauri sidecars on macOS arm64/x64, Linux x64, and Windows x64 — no manual install required. `scripts/download-cli-binaries.js` pulls pinned binaries from the official release URLs; the Build and Release pipelines fetch the matrix-specific target before `tauri-action`. `resolve_cli_binary()` checks the sidecar location first and falls back to the system PATH, so existing installations keep working. Validated end-to-end across all four platforms.
+BeardGit now ships `gh` (v2.62.0) and `glab` (v1.46.1) as Tauri sidecars on macOS arm64, Linux x64, and Windows x64 — no manual install required. `scripts/download-cli-binaries.js` pulls pinned binaries from the official release URLs; the Build and Release pipelines fetch the matrix-specific target before `tauri-action`. `resolve_cli_binary()` checks the sidecar location first and falls back to the system PATH, so existing installations keep working. Validated end-to-end across all four platforms.
 
 ### Terminal Enhancements (Phase 7.1)
 
