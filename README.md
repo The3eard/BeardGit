@@ -113,6 +113,43 @@ Pre-built installers are published on every tagged release:
 
 > Download the latest version from the [Releases page](https://github.com/The3eard/BeardGit/releases), pick the installer that matches your platform, and run it. `gh` and `glab` are bundled in every installer; no extra setup needed.
 
+### First launch — unsigned builds
+
+BeardGit is currently distributed without Apple or Microsoft code-signing certificates, so both operating systems will flag the app the first time you open it. The app is safe; the warnings exist because the binaries are not notarized/signed. Follow the steps below to allow the app to run — you only need to do this once per install.
+
+<details>
+<summary><strong>macOS — "BeardGit is damaged" or "cannot be opened because the developer cannot be verified"</strong></summary>
+
+macOS quarantines downloaded apps that are not signed with an Apple Developer certificate. Pick one of the following:
+
+**Option A — Terminal (fastest).** After dragging BeardGit to `/Applications`, run:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/BeardGit.app
+```
+
+Then open the app normally.
+
+**Option B — Right-click.** In Finder, right-click `BeardGit.app` → **Open** → click **Open** in the confirmation dialog.
+
+**Option C — System Settings.** Try to open the app once (it will be blocked), then go to **System Settings → Privacy & Security**, scroll to the message _"BeardGit was blocked to protect your Mac"_ and click **Open Anyway**.
+
+</details>
+
+<details>
+<summary><strong>Windows — "Windows protected your PC" (SmartScreen)</strong></summary>
+
+Windows SmartScreen warns on executables that are not signed with a Microsoft-recognised code-signing certificate.
+
+When the blue dialog appears:
+
+1. Click **More info**.
+2. Click **Run anyway**.
+
+The warning will not reappear for that installer on the same machine.
+
+</details>
+
 ---
 
 ## Building from source
