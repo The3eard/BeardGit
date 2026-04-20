@@ -40,10 +40,11 @@
   }
 </script>
 
-<button class="overlay" type="button" aria-label={m.issues_cancel()} onclick={onCancel}></button>
+<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+<div class="backdrop" onclick={onCancel} onkeydown={(e) => { if (e.key === "Escape") onCancel(); }} role="button" tabindex="-1"></div>
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_interactive_supports_focus -->
-<div class="picker" role="dialog" tabindex="-1" onkeydown={handleKeydown}>
-  <h3 class="picker-title">{m.issues_assignee_picker_title()}</h3>
+<div class="dialog" role="dialog" aria-modal="true" tabindex="-1" onkeydown={handleKeydown}>
+  <h3 class="dialog-title">{m.issues_assignee_picker_title()}</h3>
   <input
     class="picker-input"
     type="text"
@@ -51,42 +52,18 @@
     placeholder={m.issues_assignee_picker_placeholder()}
   />
   <p class="picker-hint">{m.issues_assignee_picker_hint()}</p>
-  <div class="picker-actions">
-    <button type="button" class="btn-secondary" onclick={onCancel}>{m.issues_cancel()}</button>
-    <button type="button" class="btn-primary" onclick={apply}>{m.issues_label_picker_apply()}</button>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-cancel" onclick={onCancel}>{m.issues_cancel()}</button>
+    <button type="button" class="btn btn-primary" onclick={apply}>{m.issues_label_picker_apply()}</button>
   </div>
 </div>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 99;
-    border: none;
-    cursor: pointer;
-  }
-  .picker {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 100;
+  .dialog {
     min-width: 340px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  }
-  .picker-title {
-    margin: 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
   }
   .picker-input {
     padding: 6px 10px;
@@ -101,29 +78,8 @@
     font-size: 11px;
     color: var(--text-secondary);
   }
-  .picker-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
+  .dialog-actions {
     padding-top: 6px;
     border-top: 1px solid var(--border);
-  }
-  .btn-primary {
-    padding: 5px 12px;
-    background: var(--accent-blue);
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .btn-secondary {
-    padding: 5px 12px;
-    background: none;
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
   }
 </style>
