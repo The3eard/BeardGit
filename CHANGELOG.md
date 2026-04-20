@@ -2,9 +2,67 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [0.1.9] — Forge Integration, Bundled CLIs, Refactor, E2E, Performance
+## [0.1.8] — Phases 6–10: Bisect, CLI Auth, AI Stack, Forge Integration, Bundled CLIs, Refactor, E2E, Performance
 
-The largest release since the MVP. Two full feature cuts, a pipeline rewrite, and a deep architecture pass — all shipped together.
+The biggest release since the MVP — everything since `v0.1.7-beta` ships in one cut. Five phases of feature work plus a deep architecture and performance pass: visual bisect, CLI auth, the full AI stack (three providers, headless background runs in worktrees), GitLab + GitHub forge integration with bundled CLIs, the provider architecture cleanup, and the E2E + tracing infrastructure.
+
+### AI Background Worktree Runs (Phase 10)
+
+Launch a headless AI coding run inside a fresh git worktree without opening a terminal. Three entry points: tab bar button, AI Sessions header, and `Cmd+Shift+A`. Prompt source: free text, saved prompt from `.claude/prompts/`, or skill from `.claude/skills/` (user or project scope). Provider: Claude Code, Codex, or OpenCode. Worktree root configurable (default `.beardgit/ai-worktrees`); concurrency cap configurable (default 3) with FIFO queueing past the cap.
+
+- **`ai-provider`** — `AiBackgroundRunInput` + `AiBackgroundRunStatus` + `AiTokenUsage` types; `launch_background` trait method with `NotSupported` default; `MockProvider` override for tests.
+- **`claude-code` / `codex` / `opencode`** — headless command builders with provider-specific flags (Claude: `--print --output-format stream-json --verbose`; Codex/OpenCode: prompt concatenation fallback where skill/prompt flags aren't native).
+- **`task-runner`** — `TaskKind::AiBackground` variant + `spawn_with_options` with stdin piping (backwards compatible — `spawn()` unchanged).
+- **`app-core`** — `AiBackgroundCoordinator` with full lifecycle (Queued → Running → Completed / Failed / Cancelled), concurrency cap enforcement, worktree creation via `git-engine` and cleanup on discard. 6 Tauri commands + 2 settings commands.
+- **`git-engine`** — `create_worktree_at` helper used by the coordinator.
+- **`storage`** — `AppConfig` gains `ai_worktree_root`, `ai_background_concurrency_cap`, `ai_prompt_auto_accept` fields with serde defaults.
+- **Frontend** — `CreateBackgroundRunDialog` with Free / Saved / Skill tabs, `BackgroundRunStatusBadge`, `BackgroundRunTranscript` with ANSI stripping, session detail + list integration, settings card, ~50 i18n keys per locale. `aiBackground.ts` store wires `ai-background-output` / `ai-background-status` events via `requestAnimationFrame` batching (matches the `tasks.ts` pattern); merges live runs into `aiSessions` for unified sidebar display.
+- **Testing** — 13 tests in `app-core::ai_background` (coordinator lifecycle + cap + cancel + discard), 5 in `ai-provider`, 3 per provider for argv builders, 7 vitest tests for the store.
+
+Known follow-ups for a later release: "View changes" button (deferred — merge-editor expects a conflict state, current release ships "Switch to worktree tab" as the review path), toast notification event wiring (i18n keys present), and an end-to-end spec exercising the full dialog (placeholder at `e2e/specs/regression/ai-background.spec.ts`).
+
+### Beta Audit — Performance & Code Quality
+
+A bundled audit pass landing 15 fixes from the beta-audit spec — the highest-leverage cleanup before tagging the release.
+
+**Performance (high impact)**
+- Cache `which::which()` results per provider kind on `AppState` — repeated provider detection no longer hits the filesystem.
+- Replace task polling loops with `TaskManager::wait_for_terminal` backed by `tokio::sync::Notify` — no more spin-wait on long-running tasks.
+- Memoise `Arc<dyn ForgeProvider>` keyed on `(provider_index, project_path)` — repeated forge lookups skip the construction cost.
+
+**Correctness**
+- Populate the GitLab label cache so issue labels render with their real colour.
+- Unify `MrPr.labels` with `Issue.labels` on `Vec<Label>`; `PillRow` now renders the real label colour everywhere.
+- Drop redundant `refreshIssueList` calls on label / assignee / milestone mutations — the optimistic update already covers it.
+- Route `resolve_startup_theme` through `src/lib/api/tauri.ts` for consistency with every other IPC call.
+- Key `#each` blocks over MR/PR diff files + comment lists for stable Svelte reconciliation.
+
+**Code quality**
+- Extend the trait-crate purity CI guard to include `ai-provider` (alongside `provider` and `forge-provider`).
+- Share `build_gh_upload_args` / `build_glab_upload_args` across crates instead of duplicating the argv shape.
+- Add `TaskManager::get_status` and a frontend `taskById` derived map for O(1) status lookup.
+- Move `shell_escape` into `helpers.rs` with unit tests.
+- Rename `MrPrComment` to `ForgeComment` in TypeScript (deprecated alias kept for one release).
+- Extend `MrPrFilter` with author / label / text fields, matching `IssueFilter`.
+- Rename the `render:text` perf measure to `render:badges-and-text` to match what it actually measures.
+
+### GitLab Provider Polish
+
+- **Per-file +/- counts** — `projects/:id/merge_requests/{n}/diffs` returns the raw patch but no additions/deletions counts. We were hardcoding 0/0, which showed as "+0 -0" beside every file in the MR detail panel. New `count_patch_changes` parser counts `+` / `-` content lines while skipping `+++` / `---` file headers and `@@` hunk headers. 4 unit tests.
+- **`glab mr list` boolean state flags** — glab (both 1.46.1 and 1.92.1) does not accept `--state <value>`; passing `--state opened` made glab reply "Unknown flag" and our list returned empty. Switched to the boolean form glab actually supports: default → opened, `--closed`, `--merged`, `--all`. Dropped the unused `state_to_glab_str` helper.
+- **Provider-aware sidebar label** — sidebar "Merge Requests" now reads "Pull Requests" when the active provider is GitHub. View id stays `merge-requests` so routing is unchanged; only the label swaps. New `sidebar_pull_requests` i18n key.
+- **MR/PR list errors are surfaced** — `refreshMrPrList()` no longer swallows failures. Errors go to a new `mrPrListError` store and `MrPrList` renders them inline with a Retry button instead of an empty list with no explanation.
+
+### Settings — Connection Guide
+
+- **"How to connect" guide** — collapsible help block in Settings → Connection covering standard gitlab.com / github.com setup (PAT + CLI flows), self-hosted GitLab with OAuth and token fallback, plus troubleshooting for the multi-config warning and the 404-when-self-hosted-points-at-gitlab.com trap.
+
+### Distribution
+
+- **macOS x64 dropped from the release matrix** — Apple Silicon runners are now the only macOS target. Reduces CI matrix time and avoids the dual-bundle confusion at install time.
+- **Bundle formats trimmed** — `.msi`, `.deb`, and `.rpm` removed from the bundle list. The `.dmg`, `.AppImage`, and `.exe` remain as the supported install paths per platform.
+- **First-launch documentation** — README now explains the unsigned-build workaround for macOS until code signing lands (Gatekeeper right-click → Open). E2E fixture path no longer pins to a hardcoded location; derived from the working directory at runtime so contributors can run the suite from anywhere.
+- **Repository hygiene** — AI assistant artifacts (`.claude/`, `.codex/`, etc.) untracked from the repo and added to `.gitignore`.
 
 ### Forge Integration (Phase 8)
 
@@ -72,7 +130,9 @@ Pure refactor. `provider/lib.rs` (883 LOC of trait + types + kind + error) split
 
 ---
 
-## [0.1.8] — Bisect, CLI Auth, AI Views, Multi-Provider, Code Quality
+### Phase 6 — Bisect, CLI Auth, AI Views, Multi-Provider, Code Quality
+
+(Previously drafted as a standalone `[0.1.8]` release; folded into the unified `[0.1.8]` cut since it never tagged separately.)
 
 **Git Bisect**
 
