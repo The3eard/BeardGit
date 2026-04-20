@@ -24,14 +24,25 @@ src-tauri/target/
 .DS_Store
 Thumbs.db
 
-# Claude Code config + CLAUDE.md files
+# AI assistant artifacts — kept local, not shared in the repo
 .claude/
 CLAUDE.md
 **/CLAUDE.md
-
-# Documentation (kept local, not in repo)
-docs/
+GEMINI.md
+**/GEMINI.md
+AGENTS.md
+**/AGENTS.md
+.cursorrules
+.cursor/
+.windsurfrules
+.continuerules
+.aider*
+.github/copilot-instructions.md
 .superpowers/
+
+# Local-only documentation (specs, plans, scratch)
+docs/
+specs/
 
 # Editor config
 .zed/
