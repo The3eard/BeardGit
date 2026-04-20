@@ -24,6 +24,9 @@
     resolveDiscussion,
     unresolveDiscussion,
     checkoutMrPrLocally,
+    repoLabels,
+    repoLabelsLoading,
+    loadRepoLabels,
   } from "../../stores/mr-pr";
   import { activeProvider } from "../../stores/provider";
   import { openUrl } from "@tauri-apps/plugin-opener";
@@ -34,7 +37,7 @@
   import Xrefs from "../common/Xrefs.svelte";
   import { renderMarkdown } from "../../utils/markdown";
   import PillRow from "./PillRow.svelte";
-  import LabelPicker from "./LabelPicker.svelte";
+  import LabelPicker from "../common/LabelPicker.svelte";
   import ReviewerPicker from "./ReviewerPicker.svelte";
   import type { CheckoutResult } from "../../types";
 
@@ -56,6 +59,13 @@
   let checkoutTaskId = $state<number | null>(null);
   let checkoutSuccess = $state<CheckoutResult | null>(null);
   let unlistenCheckout: (() => void) | null = null;
+
+  // Load repo labels when the picker is opened for the first time.
+  $effect(() => {
+    if (showLabelPicker && $repoLabels.length === 0) {
+      loadRepoLabels();
+    }
+  });
 
   onMount(async () => {
     unlistenCheckout = await listen<CheckoutResult>("mr-pr-checked-out", (event) => {
@@ -512,6 +522,8 @@
 
 {#if showLabelPicker && $mrPrDetail}
   <LabelPicker
+    labels={$repoLabels}
+    loading={$repoLabelsLoading}
     current={$mrPrDetail.summary.labels.map((l) => l.name)}
     onApply={handleLabelApply}
     onCancel={() => { showLabelPicker = false; }}
