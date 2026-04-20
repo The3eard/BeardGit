@@ -51,7 +51,11 @@ pub struct StartBackgroundRunResponse {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-fn parse_kind(provider: &str) -> Result<AiProviderKind, String> {
+/// Parse the IPC `provider` string into an [`AiProviderKind`].
+///
+/// Exposed at `pub(super)` so command-layer tests can exercise the
+/// dispatch table without spinning up the full coordinator.
+pub(super) fn parse_kind(provider: &str) -> Result<AiProviderKind, String> {
     match provider {
         "claude_code" => Ok(AiProviderKind::ClaudeCode),
         "codex" => Ok(AiProviderKind::Codex),
@@ -223,4 +227,90 @@ pub fn ai_open_background_terminal(
         rows: 50,
     };
     terminal_manager.spawn(config).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    //! Tests the pure dispatch helpers here plus the `MockAiProvider` the
+    //! command-layer hands to [`AiBackgroundCoordinator`] — we can't
+    //! exercise the coordinator itself without a live `AppState` + a
+    //! `TaskManager`, but we can verify the provider shape the commands
+    //! depend on.
+
+    use super::parse_kind;
+    use ai_provider::mock::MockAiProvider;
+    use ai_provider::{AiBackgroundRunInput, AiError, AiProvider, AiProviderKind, AiSession};
+    use std::path::PathBuf;
+
+    #[test]
+    fn parse_kind_maps_known_strings() {
+        assert_eq!(
+            parse_kind("claude_code").unwrap(),
+            AiProviderKind::ClaudeCode
+        );
+        assert_eq!(parse_kind("codex").unwrap(), AiProviderKind::Codex);
+        assert_eq!(parse_kind("open_code").unwrap(), AiProviderKind::OpenCode);
+    }
+
+    #[test]
+    fn parse_kind_unknown_string_errors() {
+        let err = parse_kind("aider").err().unwrap();
+        assert!(
+            err.contains("unknown AI provider"),
+            "error should describe the problem, got {err:?}"
+        );
+        assert!(parse_kind("").is_err());
+    }
+
+    #[test]
+    fn mock_provider_launch_background_errors_when_not_supported() {
+        let mock = MockAiProvider::default();
+        let input = AiBackgroundRunInput {
+            provider: AiProviderKind::ClaudeCode,
+            worktree_path: PathBuf::from("/tmp/wt"),
+            prompt: "hi".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            auto_accept_permissions: false,
+        };
+        assert!(matches!(
+            mock.launch_background(input),
+            Err(AiError::NotSupported)
+        ));
+    }
+
+    #[test]
+    fn mock_provider_launch_background_ok_when_supported() {
+        let mock = MockAiProvider {
+            background_supported: true,
+            ..Default::default()
+        };
+        let input = AiBackgroundRunInput {
+            provider: AiProviderKind::ClaudeCode,
+            worktree_path: PathBuf::from("/tmp/wt"),
+            prompt: "ping".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            auto_accept_permissions: true,
+        };
+        assert!(
+            mock.launch_background(input).is_ok(),
+            "supported mock must return Ok(Command)"
+        );
+    }
+
+    #[test]
+    fn mock_provider_list_sessions_returns_configured_vec() {
+        let mock = MockAiProvider {
+            sessions: Vec::<AiSession>::new(),
+            ..Default::default()
+        };
+        let sessions = mock.list_sessions(std::path::Path::new("/tmp")).unwrap();
+        assert!(
+            sessions.is_empty(),
+            "mock with empty sessions vec should return empty"
+        );
+    }
 }

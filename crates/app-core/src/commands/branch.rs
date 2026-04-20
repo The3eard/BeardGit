@@ -121,3 +121,98 @@ pub async fn rebase_branch(onto: String, state: State<'_, AppState>) -> Result<S
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[cfg(test)]
+mod tests {
+    use git_engine::Repository;
+    use git_engine::test_support::{create_repo_with_branches, create_repo_with_n_commits};
+
+    #[test]
+    fn create_branch_at_head_adds_new_branch() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+
+        repo.create_branch("feature/foo").unwrap();
+
+        assert!(
+            repo.branches()
+                .unwrap()
+                .iter()
+                .any(|b| b.name == "feature/foo"),
+            "new branch should be listed"
+        );
+    }
+
+    #[test]
+    fn create_branch_with_existing_name_errors() {
+        let (_tmp, path) = create_repo_with_branches(&["already"]);
+        let repo = Repository::open(&path).unwrap();
+        let err = repo.create_branch("already").err();
+        assert!(
+            err.is_some(),
+            "creating a duplicate branch name should error"
+        );
+    }
+
+    #[test]
+    fn delete_branch_removes_local_ref() {
+        // `delete_branch` in git-engine wraps `git2::Branch::delete`, which
+        // ignores the merged/unmerged distinction — behaviour-equivalent to
+        // `git branch -D` (force=true in the command plan).
+        let (_tmp, path) = create_repo_with_branches(&["to-delete"]);
+        let repo = Repository::open(&path).unwrap();
+
+        repo.delete_branch("to-delete").unwrap();
+
+        assert!(
+            !repo
+                .branches()
+                .unwrap()
+                .iter()
+                .any(|b| b.name == "to-delete"),
+            "deleted branch should be gone"
+        );
+    }
+
+    #[test]
+    fn checkout_branch_switches_head() {
+        let (_tmp, path) = create_repo_with_branches(&["feat-a", "feat-b"]);
+        let repo = Repository::open(&path).unwrap();
+
+        repo.checkout_branch("feat-a").unwrap();
+        assert_eq!(
+            repo.get_current_branch().unwrap().as_deref(),
+            Some("feat-a")
+        );
+
+        repo.checkout_branch("feat-b").unwrap();
+        assert_eq!(
+            repo.get_current_branch().unwrap().as_deref(),
+            Some("feat-b")
+        );
+    }
+
+    #[test]
+    fn checkout_unknown_branch_errors() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        assert!(repo.checkout_branch("does-not-exist").is_err());
+    }
+
+    #[test]
+    fn create_branch_at_oid_points_to_that_commit() {
+        let (_tmp, path) = create_repo_with_n_commits(3);
+        let repo = Repository::open(&path).unwrap();
+        let commits = repo.walk_commits(0, 3).unwrap();
+        let oldest = &commits.last().unwrap().oid;
+
+        repo.create_branch_at("old-anchor", oldest).unwrap();
+        let branch = repo
+            .branches()
+            .unwrap()
+            .into_iter()
+            .find(|b| b.name == "old-anchor")
+            .expect("branch exists");
+        assert_eq!(&branch.oid, oldest);
+    }
+}

@@ -191,3 +191,63 @@ pub async fn stash_show_parsed(
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[cfg(test)]
+mod tests {
+    use git_engine::Repository;
+    use git_engine::test_support::{create_repo_with_n_commits, create_repo_with_stash};
+
+    #[test]
+    fn stash_push_creates_entry_with_message() {
+        // Seed a repo with a tracked file we can modify and stash.
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        std::fs::write(path.join("tracked.txt"), "v1\n").unwrap();
+        let repo = Repository::open(&path).unwrap();
+        repo.stage_files(&["tracked.txt".to_string()]).unwrap();
+        repo.create_commit("add tracked").unwrap();
+        std::fs::write(path.join("tracked.txt"), "v2\n").unwrap();
+
+        let result = repo.stash_push(Some("work in progress")).unwrap();
+        assert!(
+            result.success,
+            "stash push should succeed, stderr: {}",
+            result.stderr
+        );
+        let entries = repo.stash_list().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(
+            entries[0].contains("work in progress"),
+            "stash list should include the message, got {entries:?}"
+        );
+    }
+
+    #[test]
+    fn stash_pop_restores_stashed_changes() {
+        let (_tmp, path) = create_repo_with_stash(1);
+        let repo = Repository::open(&path).unwrap();
+        assert_eq!(repo.stash_list().unwrap().len(), 1);
+
+        let result = repo.stash_pop(None).unwrap();
+        assert!(
+            result.success,
+            "stash pop should succeed, stderr: {}",
+            result.stderr
+        );
+        assert_eq!(repo.stash_list().unwrap().len(), 0);
+
+        // The modified file should be back in the working tree.
+        let content = std::fs::read_to_string(path.join("f0.txt")).unwrap();
+        assert_eq!(content, "stash-0\n");
+    }
+
+    #[test]
+    fn stash_drop_on_empty_stack_errors() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let result = repo.stash_drop(None).unwrap();
+        assert!(
+            !result.success,
+            "stash drop on empty stack should report failure"
+        );
+    }
+}

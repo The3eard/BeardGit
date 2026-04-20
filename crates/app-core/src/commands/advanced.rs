@@ -213,8 +213,15 @@ mod tests {
     //! runtime — we can't construct a real `State<'_, AppState>` from a
     //! unit test, so the tests re-implement the command body 1:1
     //! against a tempdir and assert the directory is empty afterwards.
+    //!
+    //! The remaining tests cover the `git_engine::Repository` surface that
+    //! the other `advanced` commands delegate to (cherry-pick, revert,
+    //! reset, blame, file-history, interactive rebase).
     use std::fs;
     use tempfile::tempdir;
+
+    use git_engine::Repository;
+    use git_engine::test_support::{create_repo_with_n_commits, create_repo_with_staged_changes};
 
     /// Re-implements the body of `clear_layout_cache` so the test can
     /// exercise it without a Tauri runtime. Any change to the real
@@ -255,5 +262,106 @@ mod tests {
         let tmp = tempdir().unwrap();
         let dir = tmp.path().join("layouts");
         assert_eq!(clear_layouts_in(&dir).unwrap(), 0);
+    }
+
+    // ---------------------------------------------------------------------
+    // Delegate-layer tests for the other advanced commands.
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn reset_to_commit_rejects_invalid_mode() {
+        let (_tmp, path) = create_repo_with_n_commits(2);
+        let repo = Repository::open(&path).unwrap();
+        let head_oid = repo.inner().head().unwrap().target().unwrap().to_string();
+        let err = repo.reset_to_commit(&head_oid, "bogus").err();
+        assert!(
+            err.is_some(),
+            "invalid mode should be rejected before hitting git"
+        );
+    }
+
+    #[test]
+    fn reset_to_commit_soft_moves_head_to_parent() {
+        let (_tmp, path) = create_repo_with_n_commits(2);
+        let repo = Repository::open(&path).unwrap();
+        // HEAD~1 oid
+        let head = repo.inner().head().unwrap().peel_to_commit().unwrap();
+        let parent = head.parent(0).unwrap();
+        let parent_oid = parent.id().to_string();
+        repo.reset_to_commit(&parent_oid, "soft")
+            .expect("soft reset");
+
+        let new_head = repo.inner().head().unwrap().target().unwrap().to_string();
+        assert_eq!(
+            new_head, parent_oid,
+            "HEAD should have moved to parent after soft reset"
+        );
+    }
+
+    #[test]
+    fn revert_commit_creates_new_head() {
+        let (_tmp, path) = create_repo_with_staged_changes(&[("r.txt", "v1\n")]);
+        let repo = Repository::open(&path).unwrap();
+        let _ = repo.create_commit("add r").unwrap();
+
+        std::fs::write(path.join("r.txt"), "v2\n").unwrap();
+        repo.stage_files(&["r.txt".to_string()]).unwrap();
+        let target_oid = repo.create_commit("bump r").unwrap();
+
+        let head_before = repo.inner().head().unwrap().target().unwrap().to_string();
+        let result = repo.revert_commit(&target_oid).unwrap();
+        assert!(result.success, "revert should succeed: {}", result.stderr);
+        let head_after = repo.inner().head().unwrap().target().unwrap().to_string();
+        assert_ne!(head_before, head_after, "revert should move HEAD");
+    }
+
+    #[test]
+    fn cherry_pick_on_missing_oid_errors() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        // cherry_pick returns Ok(GitCliResult) with success=false on a bogus
+        // oid (the CLI errors, but we wrap the result, not the spawn itself).
+        let out = repo.cherry_pick("0000000000000000000000000000000000000000");
+        match out {
+            Ok(r) => assert!(!r.success, "cherry-pick of bogus oid must not succeed"),
+            Err(_) => { /* also acceptable */ }
+        }
+    }
+
+    #[test]
+    fn blame_file_returns_entries_for_tracked_file() {
+        let (_tmp, path) = create_repo_with_staged_changes(&[("b.txt", "a\nb\nc\n")]);
+        let repo = Repository::open(&path).unwrap();
+        let _ = repo.create_commit("seed b").unwrap();
+        let lines = repo.blame_file("b.txt", None).unwrap();
+        assert_eq!(lines.len(), 3, "blame should have 3 lines, got {lines:?}");
+    }
+
+    #[test]
+    fn file_history_returns_commits_touching_file() {
+        let (_tmp, path) = create_repo_with_staged_changes(&[("f.txt", "v1\n")]);
+        let repo = Repository::open(&path).unwrap();
+        let _ = repo.create_commit("add f").unwrap();
+        std::fs::write(path.join("f.txt"), "v2\n").unwrap();
+        repo.stage_files(&["f.txt".to_string()]).unwrap();
+        let _ = repo.create_commit("bump f").unwrap();
+        let entries = repo.file_history("f.txt", Some(10)).unwrap();
+        assert!(
+            entries.len() >= 2,
+            "f.txt has 2+ commits touching it, got {entries:?}"
+        );
+    }
+
+    #[test]
+    fn get_rebase_commits_returns_range_oldest_first() {
+        let (_tmp, path) = create_repo_with_n_commits(3);
+        let repo = Repository::open(&path).unwrap();
+        // base = oldest commit.
+        let head = repo.inner().head().unwrap().peel_to_commit().unwrap();
+        let middle = head.parent(0).unwrap();
+        let base = middle.parent(0).unwrap();
+        let base_oid = base.id().to_string();
+        let commits = repo.get_rebase_commits(&base_oid).unwrap();
+        assert_eq!(commits.len(), 2, "range base..HEAD has 2 commits");
     }
 }

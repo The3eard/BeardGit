@@ -106,3 +106,78 @@ pub async fn worktree_unlock(path: String, state: State<'_, AppState>) -> Result
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[cfg(test)]
+mod tests {
+    //! Drive `Repository::*` worktree helpers against fixture repos.
+
+    use git_engine::Repository;
+    use git_engine::test_support::create_repo_with_n_commits;
+
+    #[test]
+    fn list_worktrees_on_fresh_repo_returns_main_only() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let worktrees = repo.list_worktrees().expect("list_worktrees");
+        assert_eq!(
+            worktrees.len(),
+            1,
+            "fresh repo should only expose the main worktree, got {worktrees:?}"
+        );
+        assert!(
+            worktrees[0].is_main,
+            "first worktree must be marked as main"
+        );
+    }
+
+    #[test]
+    fn create_worktree_adds_linked_worktree() {
+        let (tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+
+        // Place the new worktree as a sibling of the repo inside the same
+        // tempdir so it's cleaned up automatically.
+        let wt_path = tmp.path().join("wt-feature");
+        let wt_str = wt_path.to_str().unwrap();
+        repo.create_worktree(wt_str, "feature-one", true)
+            .expect("create_worktree");
+
+        let worktrees = repo.list_worktrees().unwrap();
+        assert_eq!(
+            worktrees.len(),
+            2,
+            "expected main + new worktree, got {worktrees:?}"
+        );
+        assert!(
+            worktrees.iter().any(|w| !w.is_main),
+            "at least one worktree should not be marked main"
+        );
+    }
+
+    #[test]
+    fn remove_worktree_on_missing_path_errors() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let err = repo.remove_worktree("/no/such/path", false).err();
+        assert!(
+            err.is_some(),
+            "remove_worktree should error when the path isn't a worktree"
+        );
+    }
+
+    #[test]
+    fn lock_unlock_roundtrip_on_linked_worktree() {
+        let (tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+
+        let wt_path = tmp.path().join("wt-lockme");
+        let wt_str = wt_path.to_str().unwrap();
+        repo.create_worktree(wt_str, "lock-branch", true).unwrap();
+
+        repo.lock_worktree(wt_str, Some("under test"))
+            .expect("lock_worktree should succeed");
+        // Unlock reverses the lock — second unlock would error, so only call once.
+        repo.unlock_worktree(wt_str)
+            .expect("unlock_worktree after lock");
+    }
+}

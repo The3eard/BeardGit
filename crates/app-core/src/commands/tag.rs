@@ -143,3 +143,61 @@ pub async fn push_tag(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use git_engine::Repository;
+    use git_engine::test_support::create_repo_with_n_commits;
+
+    #[test]
+    fn create_lightweight_tag_at_head() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+
+        let result = repo.create_tag("v0.1.0", None).unwrap();
+        assert!(
+            result.success,
+            "lightweight tag should succeed, stderr: {}",
+            result.stderr
+        );
+
+        let tags = repo.tags().unwrap();
+        let v010 = tags
+            .iter()
+            .find(|t| t.name == "v0.1.0")
+            .expect("tag exists");
+        assert!(!v010.annotated, "expected lightweight tag");
+    }
+
+    #[test]
+    fn create_annotated_tag_has_message() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+
+        let result = repo.create_tag("v0.2.0", Some("release cut")).unwrap();
+        assert!(result.success);
+
+        let tags = repo.tags().unwrap();
+        let v020 = tags
+            .iter()
+            .find(|t| t.name == "v0.2.0")
+            .expect("tag exists");
+        assert!(v020.annotated, "expected annotated tag");
+        assert!(
+            v020.message.contains("release cut"),
+            "annotated tag message missing, got {:?}",
+            v020.message
+        );
+    }
+
+    #[test]
+    fn delete_nonexistent_tag_reports_failure() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let result = repo.delete_tag("does-not-exist").unwrap();
+        assert!(
+            !result.success,
+            "delete of missing tag should be reported as failure"
+        );
+    }
+}

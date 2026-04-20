@@ -115,3 +115,61 @@ pub async fn continue_operation(state: State<'_, AppState>) -> Result<String, St
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[cfg(test)]
+mod tests {
+    use git_engine::Repository;
+    use git_engine::test_support::{create_repo_with_conflict, create_repo_with_n_commits};
+
+    #[test]
+    fn get_file_contents_returns_both_sides() {
+        let (_tmp, path) =
+            create_repo_with_conflict("base contents\n", "our edit\n", "their edit\n", "foo.txt");
+        let repo = Repository::open(&path).unwrap();
+
+        let contents = repo.get_conflict_file_contents("foo.txt").unwrap();
+        assert_eq!(contents.base, "base contents\n");
+        assert_eq!(contents.ours, "our edit\n");
+        assert_eq!(contents.theirs, "their edit\n");
+
+        let status = repo.conflict_status().unwrap();
+        assert!(status.conflicted_files.contains(&"foo.txt".to_string()));
+        assert_ne!(status.state, git_engine::ConflictState::None);
+    }
+
+    #[test]
+    fn write_resolved_file_clears_conflict_entry() {
+        let (_tmp, path) =
+            create_repo_with_conflict("base\n", "ours\n", "theirs\n", "conflicted.txt");
+        let repo = Repository::open(&path).unwrap();
+
+        repo.write_resolved_file("conflicted.txt", "merged\n")
+            .unwrap();
+
+        // Working-tree content should be the merged text.
+        let content = std::fs::read_to_string(path.join("conflicted.txt")).unwrap();
+        assert_eq!(content, "merged\n");
+
+        // Index should no longer flag the file as conflicted.
+        let status = repo.conflict_status().unwrap();
+        assert!(
+            !status
+                .conflicted_files
+                .contains(&"conflicted.txt".to_string()),
+            "conflicted_files should no longer contain the resolved file, got {:?}",
+            status.conflicted_files
+        );
+    }
+
+    #[test]
+    fn get_file_contents_on_non_conflicted_file_errors() {
+        // No merge in progress → no conflict entries at all → lookup fails.
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let err = repo.get_conflict_file_contents("anything.txt").err();
+        assert!(
+            err.is_some(),
+            "reading conflict contents when no conflict exists should error"
+        );
+    }
+}

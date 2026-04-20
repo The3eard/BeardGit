@@ -291,3 +291,98 @@ pub async fn create_tag_and_release(
 
     Ok(id)
 }
+
+#[cfg(test)]
+mod tests {
+    //! Tests the release trait surface through `MockProvider` (defaults to
+    //! NotSupported) and the `cli_provider` argv-builders that the
+    //! `upload_release_asset` command composes. The async task-runner glue
+    //! is covered at the `task_runner` crate level.
+
+    use forge_provider::mock::MockProvider;
+    use forge_provider::{
+        CreateReleaseInput, EditReleasePatch, ForgeError, ForgeKind, ForgeProvider,
+    };
+
+    #[test]
+    fn mock_provider_list_releases_returns_not_supported() {
+        let provider = MockProvider::new(ForgeKind::GitHub);
+        assert!(matches!(
+            provider.list_releases(30),
+            Err(ForgeError::NotSupported)
+        ));
+    }
+
+    #[test]
+    fn mock_provider_create_release_returns_not_supported() {
+        let provider = MockProvider::new(ForgeKind::GitLab);
+        let input = CreateReleaseInput {
+            tag: "v1.0.0".into(),
+            target_commit: "".into(),
+            name: "1.0".into(),
+            body: "Notes".into(),
+            draft: false,
+            prerelease: false,
+            generate_notes: false,
+        };
+        assert!(matches!(
+            provider.create_release(input),
+            Err(ForgeError::NotSupported)
+        ));
+    }
+
+    #[test]
+    fn mock_provider_edit_release_returns_not_supported() {
+        let provider = MockProvider::new(ForgeKind::GitHub);
+        let patch = EditReleasePatch {
+            name: Some("renamed".into()),
+            body: None,
+            draft: Some(false),
+            prerelease: None,
+        };
+        assert!(matches!(
+            provider.edit_release("v1.0.0", patch),
+            Err(ForgeError::NotSupported)
+        ));
+    }
+
+    #[test]
+    fn mock_provider_delete_release_returns_not_supported() {
+        let provider = MockProvider::new(ForgeKind::GitHub);
+        assert!(matches!(
+            provider.delete_release("v1.0.0"),
+            Err(ForgeError::NotSupported)
+        ));
+    }
+
+    #[test]
+    fn build_gh_upload_args_includes_tag_and_path() {
+        let args = cli_provider::build_gh_upload_args("v1.0.0", "/tmp/a.zip", None);
+        // The argv must include the tag and the path somewhere — label is
+        // None so the path should appear without a "#label" suffix.
+        assert!(
+            args.iter().any(|a| a == "v1.0.0"),
+            "gh upload argv must include the tag, got {args:?}"
+        );
+        assert!(
+            args.iter().any(|a| a.ends_with("a.zip")),
+            "gh upload argv must reference the asset path, got {args:?}"
+        );
+    }
+
+    #[test]
+    fn build_glab_upload_args_ignores_label_but_includes_tag_and_file() {
+        // glab's `release upload` subcommand does not accept a label
+        // argument (unlike `gh release upload`), so the label is dropped
+        // by design. Verify both the tag and file path make it through.
+        let args = cli_provider::build_glab_upload_args("v2", "/tmp/b.bin", Some("Linux binary"));
+        assert!(
+            args.iter().any(|a| a == "v2"),
+            "glab upload argv must include the tag, got {args:?}"
+        );
+        assert!(
+            args.iter().any(|a| a.ends_with("b.bin")),
+            "glab upload argv must reference the asset path, got {args:?}"
+        );
+    }
+}

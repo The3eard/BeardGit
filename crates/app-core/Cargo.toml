@@ -40,3 +40,5 @@ base64 = "0.22"
 tempfile = "3"
 git2 = { workspace = true }
 git-engine = { path = "../git-engine", features = ["test-support"] }
+ai-provider = { path = "../ai-provider", features = ["mock"] }
+forge-provider = { path = "../forge-provider", features = ["mock"] }

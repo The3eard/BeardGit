@@ -133,3 +133,82 @@ pub async fn remove_remote(name: String, state: State<'_, AppState>) -> Result<(
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[cfg(test)]
+mod tests {
+    use git_engine::Repository;
+    use git_engine::test_support::create_repo_with_n_commits;
+
+    #[test]
+    fn remotes_list_is_empty_on_fresh_repo() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let names: Vec<String> = repo
+            .inner()
+            .remotes()
+            .unwrap()
+            .iter()
+            .flatten()
+            .map(String::from)
+            .collect();
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn remotes_list_reflects_git_remote_add() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let git_repo = git2::Repository::open(&path).unwrap();
+        git_repo
+            .remote("origin", "https://example.invalid/x/y.git")
+            .unwrap();
+        drop(git_repo);
+
+        let repo = Repository::open(&path).unwrap();
+        let origin = repo.inner().find_remote("origin").unwrap();
+        assert_eq!(origin.name(), Some("origin"));
+        assert_eq!(origin.url(), Some("https://example.invalid/x/y.git"));
+    }
+
+    #[test]
+    fn rename_remote_on_nonexistent_remote_errors() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let err = repo.rename_remote("nope", "whatever").err();
+        assert!(
+            err.is_some(),
+            "renaming a non-existent remote must surface an error"
+        );
+    }
+
+    #[test]
+    fn remove_remote_on_nonexistent_remote_errors() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let err = repo.remove_remote("nope").err();
+        assert!(err.is_some());
+    }
+
+    #[test]
+    fn rename_remote_renames_existing_entry() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let git_repo = git2::Repository::open(&path).unwrap();
+        git_repo
+            .remote("origin", "https://example.invalid/x/y.git")
+            .unwrap();
+        drop(git_repo);
+
+        let repo = Repository::open(&path).unwrap();
+        repo.rename_remote("origin", "canonical").unwrap();
+
+        let names: Vec<String> = repo
+            .inner()
+            .remotes()
+            .unwrap()
+            .iter()
+            .flatten()
+            .map(String::from)
+            .collect();
+        assert!(names.contains(&"canonical".to_string()));
+        assert!(!names.contains(&"origin".to_string()));
+    }
+}

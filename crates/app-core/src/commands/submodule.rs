@@ -125,3 +125,60 @@ pub async fn update_all_submodules(
 
     Ok(id)
 }
+
+#[cfg(test)]
+mod tests {
+    //! Delegate-layer tests: exercise `Repository::*` submodule helpers.
+    //! The async `update_submodule` / `update_all_submodules` commands are
+    //! thin `TaskManager::spawn` wrappers and are covered at the TaskManager
+    //! level.
+
+    use git_engine::Repository;
+    use git_engine::test_support::create_repo_with_n_commits;
+
+    #[test]
+    fn list_submodules_on_repo_with_none_returns_empty() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let subs = repo.list_submodules().expect("list_submodules");
+        assert!(
+            subs.is_empty(),
+            "fresh repo should have no submodules, got {subs:?}"
+        );
+    }
+
+    #[test]
+    fn submodule_abs_path_on_missing_path_errors() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let err = repo.submodule_abs_path("no-such-submodule").err();
+        assert!(
+            err.is_some(),
+            "absolute path lookup for a missing submodule should error"
+        );
+    }
+
+    #[test]
+    fn submodule_abs_path_returns_existing_dir_path() {
+        // Any existing directory under the repo satisfies the existence check;
+        // the helper resolves `<repo>/<path>` and requires only that it exists.
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        std::fs::create_dir(path.join("vendor")).unwrap();
+        let abs = repo.submodule_abs_path("vendor").expect("vendor exists");
+        assert!(
+            abs.ends_with("vendor"),
+            "abs path should end with the requested sub path, got {abs}"
+        );
+    }
+
+    #[test]
+    fn init_submodule_on_missing_submodule_errors() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        // No `.gitmodules` entry for "libs/foo" — init should surface a
+        // non-success from the git CLI.
+        let err = repo.init_submodule("libs/foo").err();
+        assert!(err.is_some(), "init on missing submodule should error");
+    }
+}

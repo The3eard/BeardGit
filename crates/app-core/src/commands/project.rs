@@ -80,6 +80,28 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
     })
 }
 
+/// Pure helper: adjust the active-project index after closing `closed_index`
+/// from a list that had `prior_len` entries.
+///
+/// Mirrors the core logic of [`close_project`] without touching any state,
+/// so it can be unit-tested in isolation.
+pub(super) fn adjust_active_after_close(
+    active: Option<usize>,
+    closed_index: usize,
+    prior_len: usize,
+) -> Option<usize> {
+    let new_len = prior_len.saturating_sub(1);
+    if new_len == 0 {
+        return None;
+    }
+    match active {
+        None => None,
+        Some(current) if current == closed_index => Some(closed_index.min(new_len - 1)),
+        Some(current) if current > closed_index => Some(current - 1),
+        other => other,
+    }
+}
+
 /// Close a tab and remove it from the persisted list.
 ///
 /// Adds the closed path to `recent_repos` (front, capped at 20). Adjusts the
@@ -98,19 +120,12 @@ pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), Str
     }
 
     let closed_path = projects[index].path.clone();
+    let prior_len = projects.len();
     projects.remove(index);
 
     // Adjust active index
     let previous_active = *active;
-    if projects.is_empty() {
-        *active = None;
-    } else if let Some(current) = *active {
-        if current == index {
-            *active = Some(index.min(projects.len() - 1));
-        } else if current > index {
-            *active = Some(current - 1);
-        }
-    }
+    *active = adjust_active_after_close(previous_active, index, prior_len);
     let active_changed = previous_active != *active;
 
     // Persist to config
@@ -339,11 +354,18 @@ pub fn get_recent_repos(state: State<'_, AppState>) -> Result<Vec<RecentRepo>, S
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let config = state.config.lock().map_err(|e| e.to_string())?;
     let open_paths: Vec<&String> = projects.iter().map(|p| &p.path).collect();
+    Ok(filter_recent_repos(&config.recent_repos, &open_paths))
+}
 
-    Ok(config
-        .recent_repos
+/// Pure helper: given a recent-repos list and a set of currently open paths,
+/// return the recent entries not currently open, preserving order.
+///
+/// Factored out so the most-recent-first filtering logic can be unit-tested
+/// without building an `AppState`.
+pub(super) fn filter_recent_repos(recent: &[String], open: &[&String]) -> Vec<RecentRepo> {
+    recent
         .iter()
-        .filter(|r| !open_paths.contains(r))
+        .filter(|r| !open.contains(r))
         .map(|r| {
             let name = std::path::Path::new(r)
                 .file_name()
@@ -354,5 +376,76 @@ pub fn get_recent_repos(state: State<'_, AppState>) -> Result<Vec<RecentRepo>, S
                 name,
             }
         })
-        .collect())
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::filter_recent_repos;
+
+    #[test]
+    fn recent_repos_preserves_insertion_order() {
+        // The config module inserts most-recent-first with `.insert(0, path)`,
+        // so the caller passes them in that order. The filter must preserve it.
+        let recent = vec![
+            "/home/adolfo/most-recent".to_string(),
+            "/home/adolfo/older".to_string(),
+            "/home/adolfo/oldest".to_string(),
+        ];
+        let open: Vec<&String> = vec![];
+        let result = filter_recent_repos(&recent, &open);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].path, "/home/adolfo/most-recent");
+        assert_eq!(result[0].name, "most-recent");
+        assert_eq!(result[2].path, "/home/adolfo/oldest");
+    }
+
+    #[test]
+    fn recent_repos_excludes_open_paths() {
+        let recent = vec!["/a".to_string(), "/b".to_string(), "/c".to_string()];
+        let open_b = "/b".to_string();
+        let open: Vec<&String> = vec![&open_b];
+        let result = filter_recent_repos(&recent, &open);
+        assert_eq!(
+            result.iter().map(|r| r.path.clone()).collect::<Vec<_>>(),
+            vec!["/a".to_string(), "/c".to_string()]
+        );
+    }
+
+    #[test]
+    fn recent_repos_empty_input_returns_empty() {
+        let recent: Vec<String> = vec![];
+        let result = filter_recent_repos(&recent, &[]);
+        assert!(result.is_empty());
+    }
+
+    use super::adjust_active_after_close;
+
+    #[test]
+    fn adjust_active_after_close_shifts_when_active_follows_closed() {
+        // [A, B(active), C] → close A → active should shift from 1 to 0.
+        assert_eq!(adjust_active_after_close(Some(1), 0, 3), Some(0));
+    }
+
+    #[test]
+    fn adjust_active_after_close_picks_neighbour_when_active_closed() {
+        // [A(active), B, C] → close A → new active should be 0 (was-B).
+        assert_eq!(adjust_active_after_close(Some(0), 0, 3), Some(0));
+        // [A, B(active), C] → close B → new active should clamp to 1 (was-C).
+        assert_eq!(adjust_active_after_close(Some(1), 1, 3), Some(1));
+        // [A, B(active)] → close B → new active should clamp to 0 (was-A).
+        assert_eq!(adjust_active_after_close(Some(1), 1, 2), Some(0));
+    }
+
+    #[test]
+    fn adjust_active_after_close_returns_none_when_empty() {
+        // Closing the only tab leaves nothing active.
+        assert_eq!(adjust_active_after_close(Some(0), 0, 1), None);
+    }
+
+    #[test]
+    fn adjust_active_after_close_leaves_earlier_active_untouched() {
+        // [A(active), B, C] → close C → active stays 0.
+        assert_eq!(adjust_active_after_close(Some(0), 2, 3), Some(0));
+    }
 }
