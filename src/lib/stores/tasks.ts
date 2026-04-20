@@ -1,5 +1,7 @@
 /**
- * Unified tasks aggregator — powers the Tasks drawer.
+ * Unified tasks aggregator — powers the statusbar tasks popover
+ * (`TasksPopover.svelte`) and every derived surface the popover
+ * exposes (icon spin + colour, list badge, drill-down).
  *
  * Three independent bridges feed into one internal `Map<string, TaskEntry>`:
  *
@@ -24,24 +26,9 @@
  * git ops → `task_cancel` IPC, AI headless → `ai_cancel_background_run`,
  * AI interactive → `terminal_kill`, auto-update → `cancelUpdateDownload`.
  *
- * ---
- *
- * ## Phase 0 inventory note (captured 2026-04-20)
- *
- * - The legacy task-panel store lives at
- *   `src/lib/stores/taskPanel.ts` and powers `TaskList` / `TaskPopover`
- *   / `TaskPanel` / `AssetUploadProgress` / the existing statusbar. It is
- *   not replaced by this module — the unified drawer is additive.
- * - `aiBackgroundRuns` is the `Map<string, AiSession>` at
- *   `src/lib/stores/aiBackground.ts`. Running sessions have
- *   `background_status.state === "queued" | "running"`.
- * - `autoUpdate.updateTask` is the derived `Readable<TaskEntry | null>`
- *   in `src/lib/stores/autoUpdate.ts`. The old `"update"` /
- *   `"completed"` shape was rewritten in this cluster to match the
- *   spec's `"app_update"` / `"success"` shape.
- * - The current statusbar lives at
- *   `src/lib/components/layout/StatusBar.svelte` and will be replaced
- *   wholesale in Phase 4 — that work is NOT covered in this module.
+ * The legacy raw `task-*` Tauri events remain wired in
+ * `src/lib/stores/taskPanel.ts`, which still feeds the stdout/stderr
+ * drill-down view and the AI commit-message harvester.
  */
 
 import { derived, get, writable, type Readable } from "svelte/store";
@@ -115,6 +102,43 @@ const unseenErrorIds = writable<Set<string>>(new Set());
 export const hasUnseenError: Readable<boolean> = derived(
   unseenErrorIds,
   ($set) => $set.size > 0,
+);
+
+/**
+ * `true` when at least one entry in {@link tasksStore} is currently
+ * `running`.
+ *
+ * Drives the statusbar tasks icon's spin animation so the user gets
+ * peripheral-vision feedback that background work is in flight.
+ */
+export const anyRunning: Readable<boolean> = derived(
+  tasksStore,
+  ($tasks) => $tasks.some((t) => t.status === "running"),
+);
+
+/**
+ * The most recent entry across every bridge — preferring running tasks
+ * (newest `startedAt` wins), then the newest finished entry by
+ * `finishedAt` (or `startedAt` when `finishedAt` is missing).
+ *
+ * Powers the statusbar tasks icon's status-aware colour: running →
+ * accent, success → green, error → red, cancelled → muted, null →
+ * default. When the user has no history the store emits `null`.
+ */
+export const latestEntry: Readable<TaskEntry | null> = derived(
+  tasksStore,
+  ($tasks) => {
+    if ($tasks.length === 0) return null;
+    const running = $tasks.filter((t) => t.status === "running");
+    if (running.length > 0) {
+      return running.reduce((a, b) => (a.startedAt >= b.startedAt ? a : b));
+    }
+    return $tasks.reduce((a, b) => {
+      const at = a.finishedAt ?? a.startedAt;
+      const bt = b.finishedAt ?? b.startedAt;
+      return at >= bt ? a : b;
+    });
+  },
 );
 
 // ─── Internal state ──────────────────────────────────────────────────────────

@@ -8,7 +8,8 @@
   import { hasAiProvider, aiGenerateCommitMessage, aiReviewCode } from "$lib/stores/ai";
   import { addToast } from "$lib/stores/toast";
   import { repoInfo } from "$lib/stores/repo";
-  import { taskOutput, selectTask, expandPanel } from "$lib/stores/taskPanel";
+  import { taskOutput, selectTask } from "$lib/stores/taskPanel";
+  import { openTasksPopover } from "$lib/stores/tasksPopover";
   import { stripAnsi } from "$lib/utils/strip-ansi";
   import { listen } from "@tauri-apps/api/event";
   import { save } from "@tauri-apps/plugin-dialog";
@@ -87,7 +88,7 @@
     try {
       const taskId = await aiGenerateCommitMessage();
       selectTask(taskId);
-      expandPanel();
+      openTasksPopover();
 
       const unlistenCompleted = await listen<TaskInfo>("task-completed", (event) => {
         if (event.payload.id === taskId) {
@@ -134,7 +135,7 @@
       const diff = await createWorkingTreePatch(false);
       const taskId = await aiReviewCode(diff);
       selectTask(taskId);
-      expandPanel();
+      openTasksPopover();
     } catch { /* ignore — task output streams to panel */ }
   }
 

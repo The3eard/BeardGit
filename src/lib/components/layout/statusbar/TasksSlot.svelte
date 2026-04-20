@@ -1,28 +1,38 @@
 <!--
   TasksSlot — the leftmost slot of the lean statusbar.
 
-  Renders a Nerd-font checklist glyph + the count of *currently running*
-  tasks as reported by the aggregator store (`activeTaskCount`). Two
-  overlays layer on top of the glyph:
+  Renders a Nerd-font checklist glyph that mirrors the state of the most
+  recent background task. Four signals layer on top:
 
-    - **Pulse animation** — fires briefly whenever the count grows, so
-      the user gets peripheral-vision feedback that new work is starting.
-    - **Red dot** — shown while `hasUnseenError` is true; cleared when the
-      drawer opens (`markSeen()` in the drawer).
+    - **Spin animation** — fires while any task is `running`
+      (`anyRunning`). Replaces the old pulse-on-count-increase bump with
+      a continuous rotation so long-running work is obvious without
+      watching the count.
+    - **State colour** — the glyph takes on the accent/green/red/muted
+      colour for the latest task's status. Running wins over terminal
+      states so a freshly-started task doesn't inherit the previous
+      failure's red.
+    - **Count badge** — shown when `activeTaskCount > 0` so the user
+      sees at-a-glance how many tasks are in flight.
+    - **Red dot** — shown while `hasUnseenError` is true; cleared when
+      the popover opens (`markSeen()` in the popover).
 
   Clicking the slot calls the parent-provided `onOpen` handler, which
-  flips the `tasksDrawerOpen` store in the root layout.
-
-  The slot is always visible. When `activeTaskCount === 0`, only the
-  icon renders (no count badge), so the statusbar stays quiet but the
-  control is still clickable.
+  flips the `tasksPopoverOpen` store in the root layout. A second click
+  while the popover is already open closes it (handled by the parent
+  toggle helper).
 -->
 <script lang="ts">
-  import { activeTaskCount, hasUnseenError } from "$lib/stores/tasks";
+  import {
+    activeTaskCount,
+    anyRunning,
+    hasUnseenError,
+    latestEntry,
+  } from "$lib/stores/tasks";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
-    /** Called when the user clicks the slot. Parent opens the drawer. */
+    /** Called when the user clicks the slot. Parent opens the popover. */
     onOpen: () => void;
   }
 
@@ -30,43 +40,53 @@
 
   let count = $derived($activeTaskCount);
   let unseenError = $derived($hasUnseenError);
+  let spinning = $derived($anyRunning);
 
   /**
-   * Previous count snapshot used to detect increases and trigger the
-   * pulse animation. `hasPrevious` distinguishes "first render, skip
-   * pulse" from "real increase". Both are plain mutable — the $effect
-   * only reads `count` reactively.
+   * Modifier that drives the CSS colour palette for the icon glyph.
+   *
+   * - `running` — accent blue/orange (matches the old spinner tint).
+   * - `error`   — red (takes priority over unseen-error dot).
+   * - `success` — green.
+   * - `cancelled` — muted secondary text.
+   * - `idle`    — default secondary text (no history, or nothing to
+   *               emphasise yet).
    */
-  let previousCount = 0;
-  let hasPrevious = false;
-  let pulsing = $state(false);
-  let pulseTimer: ReturnType<typeof setTimeout> | null = null;
-
-  $effect(() => {
-    if (hasPrevious && count > previousCount) {
-      pulsing = true;
-      if (pulseTimer) clearTimeout(pulseTimer);
-      pulseTimer = setTimeout(() => {
-        pulsing = false;
-      }, 600);
+  let stateClass = $derived.by<
+    "running" | "error" | "success" | "cancelled" | "idle"
+  >(() => {
+    const entry = $latestEntry;
+    if (!entry) return "idle";
+    switch (entry.status) {
+      case "running":
+        return "running";
+      case "error":
+        return "error";
+      case "success":
+        return "success";
+      case "cancelled":
+        return "cancelled";
+      default:
+        return "idle";
     }
-    previousCount = count;
-    hasPrevious = true;
   });
 </script>
 
 <button
-  class="tasks-slot"
-  class:pulsing
+  class="tasks-slot state-{stateClass}"
+  class:spinning
   class:has-error={unseenError}
   onclick={onOpen}
   title={m.statusbar_tasks_tooltip()}
   data-testid="statusbar-tasks-slot"
   data-count={count}
+  data-state={stateClass}
   type="button"
 >
   <span class="icon-wrap">
-    <span class="nf" aria-hidden="true">{"\uF46A"}</span>
+    <span class="nf glyph" class:spin={spinning} aria-hidden="true"
+      >{"\uF46A"}</span
+    >
     {#if unseenError}
       <span class="error-dot" data-testid="statusbar-tasks-error-dot"></span>
     {/if}
@@ -97,12 +117,26 @@
     color: var(--text-primary);
   }
 
-  .tasks-slot.has-error {
+  /* State-driven glyph colour. Running wins over terminal states so a
+     freshly-started task doesn't inherit a previous failure's red. */
+  .tasks-slot.state-running {
+    color: var(--accent-orange);
+  }
+  .tasks-slot.state-error {
     color: var(--accent-red);
   }
+  .tasks-slot.state-success {
+    color: var(--accent-green);
+  }
+  .tasks-slot.state-cancelled {
+    color: var(--text-secondary);
+  }
 
-  .tasks-slot.pulsing .icon-wrap {
-    animation: tasks-pulse 600ms ease-out;
+  /* Unseen-error dot keeps priority for attention even when the last
+     task recovered — the dot itself stays red and the base colour
+     bumps to red to match. */
+  .tasks-slot.has-error {
+    color: var(--accent-red);
   }
 
   .icon-wrap {
@@ -111,6 +145,14 @@
     align-items: center;
     justify-content: center;
     line-height: 1;
+  }
+
+  .glyph {
+    display: inline-block;
+  }
+
+  .glyph.spin {
+    animation: tasks-spin 1.1s linear infinite;
   }
 
   .error-dot {
@@ -130,9 +172,18 @@
     text-align: center;
   }
 
-  @keyframes tasks-pulse {
-    0%   { transform: scale(1);   opacity: 1;   }
-    30%  { transform: scale(1.25); opacity: 0.85; }
-    100% { transform: scale(1);   opacity: 1;   }
+  @keyframes tasks-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .glyph.spin {
+      animation: none;
+    }
   }
 </style>

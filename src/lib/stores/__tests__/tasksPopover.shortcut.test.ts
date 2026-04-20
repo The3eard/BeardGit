@@ -1,6 +1,6 @@
 /**
  * Unit tests for the Cmd+J / Ctrl+J global shortcut that toggles the
- * tasks drawer.
+ * tasks popover.
  *
  * The test registers the same shortcut the root layout registers (via
  * `registerShortcuts`) and then fires a synthetic `KeyboardEvent` on
@@ -28,37 +28,37 @@ import {
   unregisterShortcuts,
 } from "$lib/stores/shortcuts";
 import {
-  tasksDrawerOpen,
-  toggleTasksDrawer,
-  closeTasksDrawer,
-} from "$lib/stores/tasksDrawer";
+  tasksPopoverOpen,
+  toggleTasksPopover,
+  closeTasksPopover,
+} from "$lib/stores/tasksPopover";
 
-describe("Cmd+J / Ctrl+J tasks drawer shortcut", () => {
+describe("Cmd+J / Ctrl+J tasks popover shortcut", () => {
   let cleanup: () => void = () => {};
 
   beforeEach(() => {
-    closeTasksDrawer();
+    closeTasksPopover();
     cleanup = initShortcutListener();
     registerShortcuts([
       {
-        id: "util.tasksDrawer",
+        id: "util.tasksPopover",
         keys: { mod: true, key: "j" },
         label: "Tasks",
         category: "General",
-        action: () => toggleTasksDrawer(),
+        action: () => toggleTasksPopover(),
         global: true,
       },
     ]);
   });
 
   afterEach(() => {
-    unregisterShortcuts(["util.tasksDrawer"]);
+    unregisterShortcuts(["util.tasksPopover"]);
     cleanup();
-    closeTasksDrawer();
+    closeTasksPopover();
   });
 
-  it("flips `tasksDrawerOpen` when Cmd+J fires", () => {
-    expect(get(tasksDrawerOpen)).toBe(false);
+  it("flips `tasksPopoverOpen` when Cmd+J fires", () => {
+    expect(get(tasksPopoverOpen)).toBe(false);
 
     // Send both modifier flags so the handler fires on any platform.
     window.dispatchEvent(
@@ -71,10 +71,10 @@ describe("Cmd+J / Ctrl+J tasks drawer shortcut", () => {
       }),
     );
 
-    expect(get(tasksDrawerOpen)).toBe(true);
+    expect(get(tasksPopoverOpen)).toBe(true);
   });
 
-  it("closes the drawer on the second Cmd+J press", () => {
+  it("closes the popover on the second Cmd+J press", () => {
     window.dispatchEvent(
       new KeyboardEvent("keydown", {
         key: "j",
@@ -84,7 +84,7 @@ describe("Cmd+J / Ctrl+J tasks drawer shortcut", () => {
         cancelable: true,
       }),
     );
-    expect(get(tasksDrawerOpen)).toBe(true);
+    expect(get(tasksPopoverOpen)).toBe(true);
 
     window.dispatchEvent(
       new KeyboardEvent("keydown", {
@@ -95,7 +95,7 @@ describe("Cmd+J / Ctrl+J tasks drawer shortcut", () => {
         cancelable: true,
       }),
     );
-    expect(get(tasksDrawerOpen)).toBe(false);
+    expect(get(tasksPopoverOpen)).toBe(false);
   });
 
   it("ignores bare `j` keypress without the mod modifier", () => {
@@ -106,7 +106,7 @@ describe("Cmd+J / Ctrl+J tasks drawer shortcut", () => {
         cancelable: true,
       }),
     );
-    expect(get(tasksDrawerOpen)).toBe(false);
+    expect(get(tasksPopoverOpen)).toBe(false);
   });
 
   it("fires even when an input is focused (global flag)", () => {
@@ -124,40 +124,38 @@ describe("Cmd+J / Ctrl+J tasks drawer shortcut", () => {
           cancelable: true,
         }),
       );
-      expect(get(tasksDrawerOpen)).toBe(true);
+      expect(get(tasksPopoverOpen)).toBe(true);
     } finally {
       input.remove();
     }
   });
 
-  it("toggleTasksDrawer flips the store state directly", () => {
-    expect(get(tasksDrawerOpen)).toBe(false);
-    toggleTasksDrawer();
-    expect(get(tasksDrawerOpen)).toBe(true);
-    toggleTasksDrawer();
-    expect(get(tasksDrawerOpen)).toBe(false);
+  it("toggleTasksPopover flips the store state directly", () => {
+    expect(get(tasksPopoverOpen)).toBe(false);
+    toggleTasksPopover();
+    expect(get(tasksPopoverOpen)).toBe(true);
+    toggleTasksPopover();
+    expect(get(tasksPopoverOpen)).toBe(false);
   });
 });
 
-describe("tasksDrawer store module", () => {
-  it("`closeTasksDrawer` forces the store to false regardless of state", () => {
-    tasksDrawerOpen.set(true);
-    closeTasksDrawer();
-    expect(get(tasksDrawerOpen)).toBe(false);
+describe("tasksPopover store module", () => {
+  it("`closeTasksPopover` forces the store to false regardless of state", () => {
+    tasksPopoverOpen.set(true);
+    closeTasksPopover();
+    expect(get(tasksPopoverOpen)).toBe(false);
   });
 
-  it("`tasksDrawerOpen` default is false", () => {
-    // After `closeTasksDrawer` in the other afterEach, the store should
-    // read false for new importers too.
-    closeTasksDrawer();
-    expect(get(tasksDrawerOpen)).toBe(false);
+  it("`tasksPopoverOpen` default is false", () => {
+    closeTasksPopover();
+    expect(get(tasksPopoverOpen)).toBe(false);
   });
 
   it("dispatching a synthetic event without a registered shortcut is a no-op", () => {
     // A sanity check that stray j keypresses elsewhere don't flip the
-    // drawer if we somehow lose the registration.
-    unregisterShortcuts(["util.tasksDrawer"]);
-    closeTasksDrawer();
+    // popover if we somehow lose the registration.
+    unregisterShortcuts(["util.tasksPopover"]);
+    closeTasksPopover();
     window.dispatchEvent(
       new KeyboardEvent("keydown", {
         key: "j",
@@ -168,15 +166,15 @@ describe("tasksDrawer store module", () => {
       }),
     );
     // No registered shortcut → store unchanged.
-    expect(get(tasksDrawerOpen)).toBe(false);
+    expect(get(tasksPopoverOpen)).toBe(false);
     // Re-register for afterEach cleanup symmetry.
     registerShortcuts([
       {
-        id: "util.tasksDrawer",
+        id: "util.tasksPopover",
         keys: { mod: true, key: "j" },
         label: "Tasks",
         category: "General",
-        action: () => toggleTasksDrawer(),
+        action: () => toggleTasksPopover(),
         global: true,
       },
     ]);
@@ -184,7 +182,7 @@ describe("tasksDrawer store module", () => {
 
   it("exports a typed vi-mockable toggle helper", () => {
     // Type-level sanity: the function exists and returns void.
-    const fn: () => void = toggleTasksDrawer;
+    const fn: () => void = toggleTasksPopover;
     expect(typeof fn).toBe("function");
     vi.clearAllMocks();
   });

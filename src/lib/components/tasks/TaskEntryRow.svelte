@@ -1,5 +1,5 @@
 <!--
-  TaskEntryRow — renders a single `TaskEntry` inside the TasksDrawer.
+  TaskEntryRow — renders a single `TaskEntry` inside the TasksPopover.
 
   Dispatches three concerns by `TaskEntry.kind`:
 

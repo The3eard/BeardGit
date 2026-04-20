@@ -1,19 +1,33 @@
 /**
- * Task panel store (legacy) — background task lifecycle, output streaming,
- * and UI state for the sidebar task popover + panel.
+ * Task panel store (infrastructure) — Rust `TaskManager` lifecycle bridge
+ * for raw `task-started` / `task-output` / `task-completed` /
+ * `task-failed` / `task-cancelled` events.
  *
- * Listens for Tauri events (`task-started`, `task-output`, `task-completed`,
- * `task-failed`, `task-cancelled`) and maintains a reactive list of tasks
- * and their output buffers. Output events are batched via `requestAnimationFrame`
- * to reduce GC pressure from rapid updates.
+ * Maintains three reactive surfaces used across the app:
  *
- * After remote operations (Fetch/Pull) complete successfully, the graph,
- * branches, and file statuses are auto-refreshed.
+ *   1. **`tasks`** — every lifecycle snapshot reported by the
+ *      `TaskManager`, upserted in place. Consumed by
+ *      `AssetUploadProgress` and tests.
+ *   2. **`taskOutput`** — per-`TaskId` stdout/stderr buffer, updated at
+ *      rAF cadence to avoid GC thrash when a subprocess blasts lines.
+ *      Consumed by `TaskDetailPanel.svelte` (the popover drill-down)
+ *      and by the AI commit-message flow in `StagingArea.svelte` which
+ *      harvests the final output to seed the commit box.
+ *   3. **`selectedTaskId` / `selectedTask` / `selectedOutput`** — the
+ *      "which task's output do I want to stream right now" cursor,
+ *      shared with the AI commit flow so the user jumps straight to
+ *      the live output as soon as `selectTask(id)` fires.
  *
- * This module powers the existing `TaskList` / `TaskPopover` / `TaskPanel`
- * stack. The unified "Tasks drawer" ships a separate aggregator store at
- * `src/lib/stores/tasks.ts` that bridges this panel's state alongside AI
- * background runs and auto-update downloads into a single feed.
+ * After remote operations (Fetch/Pull/Push) complete successfully, the
+ * graph, branches, and file statuses are auto-refreshed — the
+ * side-effect lives here because `task-completed` is the only place
+ * that sees the terminal transition.
+ *
+ * The legacy popover/panel UI that this module powered was retired in
+ * favour of the unified `TasksPopover.svelte` (wired through
+ * `src/lib/stores/tasks.ts`). What remains is the infrastructure the
+ * new popover piggybacks on plus the AI commit-message flow that still
+ * needs raw task output.
  */
 
 import { writable, derived, get } from "svelte/store";
@@ -25,26 +39,24 @@ import { refreshStatuses } from "./changes";
 import { getBranches as apiGetBranches } from "../api/tauri";
 import { branches } from "./repo";
 
+/** Every task reported by the Rust `TaskManager`, upserted in place. */
 export const tasks = writable<TaskInfo[]>([]);
 /** Output lines keyed by task ID. Mutated in-place, cloned on rAF tick. */
 export const taskOutput = writable<Map<TaskId, TaskOutputLine[]>>(new Map());
+/**
+ * Currently-selected `TaskId` for the output viewer.
+ *
+ * Set by `selectTask(id)` ahead of opening the popover/drilling down so
+ * the detail panel can render the buffer without an extra round-trip.
+ */
 export const selectedTaskId = writable<TaskId | null>(null);
 
-/** Display mode for the task UI: hidden, floating popover, or full panel. */
-export type TaskPanelMode = "closed" | "popover" | "panel";
-export const panelMode = writable<TaskPanelMode>("closed");
-
-// Derived
-export const runningTasks = derived(tasks, ($tasks) =>
-  $tasks.filter((t) => t.status.state === "running")
-);
 /** Tasks keyed by id for O(1) lookup in hot paths (e.g. upload progress). */
 export const taskById = derived(tasks, ($tasks) => {
   const map = new Map<TaskId, TaskInfo>();
   for (const t of $tasks) map.set(t.id, t);
   return map;
 });
-export const hasRunningTasks = derived(runningTasks, ($running) => $running.length > 0);
 export const selectedTask = derived(
   [tasks, selectedTaskId],
   ([$tasks, $id]) => ($id !== null ? $tasks.find((t) => t.id === $id) ?? null : null)
@@ -53,23 +65,6 @@ export const selectedOutput = derived(
   [taskOutput, selectedTaskId],
   ([$output, $id]) => ($id !== null ? $output.get($id) ?? [] : [])
 );
-
-/** Tasks sorted: running first, then by most recent start time (newest first). */
-export const sortedTasks = derived(tasks, ($tasks) => {
-  return [...$tasks].sort((a, b) => {
-    // Running tasks always come first
-    const aRunning = a.status.state === "running" ? 0 : 1;
-    const bRunning = b.status.state === "running" ? 0 : 1;
-    if (aRunning !== bRunning) return aRunning - bRunning;
-    // Then sort by start time descending (most recent first)
-    const aTime = a.started_at_ms ?? 0;
-    const bTime = b.started_at_ms ?? 0;
-    return bTime - aTime;
-  });
-});
-
-/** True when there are any tasks in history (running, completed, or failed). */
-export const hasHistory = derived(tasks, ($tasks) => $tasks.length > 0);
 
 // Lifecycle
 let unlisteners: UnlistenFn[] = [];
@@ -175,6 +170,12 @@ export async function cancelTask(taskId: TaskId): Promise<void> {
   await api.cancelTask(taskId);
 }
 
+/**
+ * Select a task for output viewing and back-fill its buffer from the
+ * backend when the local `taskOutput` map has no lines yet. Safe to
+ * call multiple times — the fetch is a no-op when the buffer is
+ * already populated.
+ */
 export async function selectTask(taskId: TaskId): Promise<void> {
   selectedTaskId.set(taskId);
 
@@ -194,20 +195,4 @@ export async function selectTask(taskId: TaskId): Promise<void> {
       // Task might have been cleaned up — ignore
     }
   }
-}
-
-export function togglePopover(): void {
-  panelMode.update((mode) => (mode === "closed" ? "popover" : "closed"));
-}
-
-export function expandPanel(): void {
-  panelMode.set("panel");
-}
-
-export function collapsePanel(): void {
-  panelMode.set("popover");
-}
-
-export function closePanel(): void {
-  panelMode.set("closed");
 }

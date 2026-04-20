@@ -14,11 +14,13 @@
   import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit, graphNavigateDown, graphNavigateUp, graphNavigateFirst, graphNavigateLast } from "$lib/stores/graph";
   import type { RawDiffContent } from "$lib/stores/graph";
   import * as m from "$lib/paraglide/messages";
-  import TaskPopover from "$lib/components/tasks/TaskPopover.svelte";
-  import TaskPanel from "$lib/components/tasks/TaskPanel.svelte";
-  import TasksDrawer from "$lib/components/tasks/TasksDrawer.svelte";
-  import { panelMode } from "$lib/stores/taskPanel";
-  import { tasksDrawerOpen, toggleTasksDrawer, closeTasksDrawer } from "$lib/stores/tasksDrawer";
+  import TasksPopover from "$lib/components/tasks/TasksPopover.svelte";
+  import {
+    tasksPopoverOpen,
+    toggleTasksPopover,
+    openTasksPopover,
+    closeTasksPopover,
+  } from "$lib/stores/tasksPopover";
   import { initProjects, openFolderAsProject, activeProject, switchToNextTab, switchToPrevTab, closeActiveTab, switchToTab, onProjectSwitch } from "$lib/stores/projects";
   import StashView from "$lib/components/stash/StashView.svelte";
   import ConflictToolbar from "$lib/components/conflict/ConflictToolbar.svelte";
@@ -58,7 +60,6 @@
   import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
-  import { expandPanel as expandTaskPanel } from "$lib/stores/taskPanel";
   import { addToast } from "$lib/stores/toast";
   import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
   import { get } from "svelte/store";
@@ -90,7 +91,6 @@
   });
   let registeredShortcutIds: string[] = [];
   let diffPanelHeight = $state(250);
-  let taskPanelHeight = $state(200);
   let changesSidebarWidth = $state(320);
   let sidebarCollapsed = $state(false);
 
@@ -132,28 +132,6 @@
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
-  }
-
-  function startTaskPanelResize(e: MouseEvent) {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startHeight = taskPanelHeight;
-
-    function onMouseMove(e: MouseEvent) {
-      // Dragging up (negative delta) increases height; dragging down decreases it.
-      const delta = startY - e.clientY;
-      const minH = Math.max(100, window.innerHeight * 0.1);
-      const maxH = Math.min(400, window.innerHeight * 0.4);
-      taskPanelHeight = Math.max(minH, Math.min(maxH, startHeight + delta));
-    }
-
-    function onMouseUp() {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    }
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
   }
 
   onMount(async () => {
@@ -375,7 +353,10 @@
         keys: { mod: true, shift: true, key: "T" },
         label: m.tasks_title(),
         category: "General",
-        action: () => expandTaskPanel(),
+        // Retained as a secondary binding for muscle memory — opens
+        // the same popover as Cmd+J. The dedicated expanded-panel mode
+        // was retired alongside the cluster-0.3 drawer.
+        action: () => openTasksPopover(),
       },
       {
         id: "ai.newBackgroundRun",
@@ -386,13 +367,13 @@
         global: true,
       },
       {
-        id: "util.tasksDrawer",
+        id: "util.tasksPopover",
         keys: { mod: true, key: "j" },
         label: m.tasks_title(),
         category: "General",
-        // Global so the drawer opens even while an input is focused —
+        // Global so the popover opens even while an input is focused —
         // users hit Cmd+J mid-commit-message all the time.
-        action: () => toggleTasksDrawer(),
+        action: () => toggleTasksPopover(),
         global: true,
       },
     ];
@@ -774,13 +755,6 @@
         </div>
       {/if}
       </div><!-- /content-wrapper -->
-      {#if $panelMode === "panel"}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="task-panel-resize-handle" onmousedown={startTaskPanelResize}></div>
-        <div class="task-panel-container" style="height: {taskPanelHeight}px;">
-          <TaskPanel />
-        </div>
-      {/if}
     </div>
 
     {#if activeView === "graph" && $selectedCommit}
@@ -815,14 +789,10 @@
     {/if}
   </div>
 
-  {#if $panelMode === "popover"}
-    <TaskPopover />
-  {/if}
-
   <ShortcutOverlay />
   <StatusBar />
 
-  <TasksDrawer open={$tasksDrawerOpen} onClose={closeTasksDrawer} />
+  <TasksPopover open={$tasksPopoverOpen} onClose={closeTasksPopover} />
 
   {#if showAiBackgroundDialog}
     <CreateBackgroundRunDialog onClose={() => (showAiBackgroundDialog = false)} />
@@ -969,26 +939,6 @@
   .changes-diff {
     flex: 1;
     overflow: hidden;
-  }
-
-  .task-panel-resize-handle {
-    height: 4px;
-    background: var(--border);
-    cursor: ns-resize;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .task-panel-resize-handle:hover {
-    background: var(--accent-blue);
-  }
-
-  .task-panel-container {
-    flex-shrink: 0;
-    overflow: hidden;
-    border-top: 1px solid var(--border);
   }
 
   .branch-layout {

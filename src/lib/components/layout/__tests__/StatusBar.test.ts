@@ -58,11 +58,13 @@ vi.mock("$lib/stores/autoUpdate", () => ({
 
 vi.mock("$lib/stores/tasks", () => ({
   activeTaskCount: writable(0),
+  anyRunning: writable(false),
+  latestEntry: writable(null),
   hasUnseenError: writable(false),
 }));
 
-vi.mock("$lib/stores/tasksDrawer", () => ({
-  toggleTasksDrawer: vi.fn(),
+vi.mock("$lib/stores/tasksPopover", () => ({
+  toggleTasksPopover: vi.fn(),
 }));
 
 // The network slot renders nothing while online, which is the default in

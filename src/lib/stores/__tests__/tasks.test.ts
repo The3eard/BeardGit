@@ -379,4 +379,81 @@ describe("tasks aggregator store", () => {
     expect(aiBackgroundCancelMock).not.toHaveBeenCalled();
     expect(terminalKillMock).not.toHaveBeenCalled();
   });
+
+  it("anyRunning flips true when a running task appears and false when it terminates", async () => {
+    const mod = await import("../tasks");
+    await mod.initTasksStore();
+
+    expect(get(mod.anyRunning)).toBe(false);
+    triggerUpdate(makeEvent({ id: "r-1", status: "running" }));
+    expect(get(mod.anyRunning)).toBe(true);
+    triggerUpdate(
+      makeEvent({
+        id: "r-1",
+        status: "success",
+        finished_at_ms: Date.now(),
+      }),
+    );
+    expect(get(mod.anyRunning)).toBe(false);
+  });
+
+  it("latestEntry prefers a running task over a finished one", async () => {
+    const mod = await import("../tasks");
+    await mod.initTasksStore();
+
+    const now = Date.now();
+    triggerUpdate(
+      makeEvent({
+        id: "done",
+        status: "success",
+        started_at_ms: now - 60_000,
+        finished_at_ms: now - 30_000,
+      }),
+    );
+    triggerUpdate(
+      makeEvent({
+        id: "running",
+        status: "running",
+        started_at_ms: now,
+      }),
+    );
+
+    const latest = get(mod.latestEntry);
+    expect(latest?.id).toBe("running");
+    expect(latest?.status).toBe("running");
+  });
+
+  it("latestEntry falls back to the newest finished entry when nothing is running", async () => {
+    const mod = await import("../tasks");
+    await mod.initTasksStore();
+
+    const now = Date.now();
+    triggerUpdate(
+      makeEvent({
+        id: "old-success",
+        status: "success",
+        started_at_ms: now - 5 * 60_000,
+        finished_at_ms: now - 4 * 60_000,
+      }),
+    );
+    triggerUpdate(
+      makeEvent({
+        id: "recent-error",
+        status: "error",
+        started_at_ms: now - 60_000,
+        finished_at_ms: now - 30_000,
+        error_message: "boom",
+      }),
+    );
+
+    const latest = get(mod.latestEntry);
+    expect(latest?.id).toBe("recent-error");
+    expect(latest?.status).toBe("error");
+  });
+
+  it("latestEntry is null when the feed is empty", async () => {
+    const mod = await import("../tasks");
+    await mod.initTasksStore();
+    expect(get(mod.latestEntry)).toBeNull();
+  });
 });

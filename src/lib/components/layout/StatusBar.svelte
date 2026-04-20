@@ -13,8 +13,8 @@
   Heights: 22 px total. 1 px 40%-opacity dividers between slots.
 
   Behaviour:
-    - Clicking **Tasks** toggles the `tasksDrawerOpen` store; the drawer
-      itself is mounted in `+page.svelte`.
+    - Clicking **Tasks** toggles the `tasksPopoverOpen` store; the
+      popover itself is mounted in `+page.svelte`.
     - Clicking **Forge / AI / Version** deep-links to the corresponding
       Settings sub-section: the section key is written to
       `pendingSettingsSection` and then `activeViewStore` flips to
@@ -28,7 +28,7 @@
   import AiSlot from "./statusbar/AiSlot.svelte";
   import NetworkSlot from "./statusbar/NetworkSlot.svelte";
   import VersionSlot from "./statusbar/VersionSlot.svelte";
-  import { toggleTasksDrawer } from "$lib/stores/tasksDrawer";
+  import { toggleTasksPopover } from "$lib/stores/tasksPopover";
   import { activeViewStore, pendingSettingsSection } from "$lib/stores/navigation";
 
   /**
@@ -59,7 +59,7 @@
 
 <footer class="status-bar" data-testid="statusbar">
   <div class="status-left">
-    <TasksSlot onOpen={toggleTasksDrawer} />
+    <TasksSlot onOpen={toggleTasksPopover} />
     <span class="divider" aria-hidden="true"></span>
     <ForgeSlot {onNavigate} />
     <span class="divider" aria-hidden="true"></span>
