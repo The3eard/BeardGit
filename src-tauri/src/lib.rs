@@ -15,15 +15,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(app_core::state::AppState::new())
         .setup(|app| {
             // Initialize structured file logging (best-effort — don't crash if it fails)
             storage::logging::init_logging().ok();
-
-            #[cfg(desktop)]
-            app.handle()
-                .plugin(tauri_plugin_updater::Builder::new().build())?;
 
             use tauri::Manager as _;
             let sink = std::sync::Arc::new(app_core::event_sink::TauriEventSink::new(
@@ -298,6 +295,11 @@ pub fn run() {
             // Sidebar
             app_core::commands::get_sidebar_collapsed,
             app_core::commands::set_sidebar_collapsed,
+            // Auto-update preference
+            app_core::commands::get_auto_check_updates,
+            app_core::commands::set_auto_check_updates,
+            app_core::commands::get_reauth_dismissed,
+            app_core::commands::set_reauth_dismissed,
             // Terminal
             app_core::terminal_commands::terminal_spawn,
             app_core::terminal_commands::terminal_write,

@@ -3,6 +3,7 @@
   import AppearanceSettings from "./AppearanceSettings.svelte";
   import GitConfigSettings from "./GitConfigSettings.svelte";
   import AiSettings from "./AiSettings.svelte";
+  import UpdateSettings from "./UpdateSettings.svelte";
   import CliAuthSection from "./CliAuthSection.svelte";
   import ConnectionHowTo from "./ConnectionHowTo.svelte";
   import * as m from "$lib/paraglide/messages";
@@ -14,6 +15,7 @@
     { labelKey: () => m.settings_appearance(), id: "appearance" },
     { labelKey: () => m.settings_git_config(), id: "git-config" },
     { labelKey: () => m.ai_settings_title(), id: "ai" },
+    { labelKey: () => m.update_settings_title(), id: "updates" },
   ];
 
   let activeSection = $state("connection");
@@ -53,6 +55,8 @@
       <GitConfigSettings />
     {:else if activeSection === "ai"}
       <AiSettings />
+    {:else if activeSection === "updates"}
+      <UpdateSettings />
     {:else}
       <div class="wip-section">
         <div class="wip-icon">&#128679;</div>

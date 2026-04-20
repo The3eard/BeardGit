@@ -22,7 +22,23 @@
 
 <div class="toast toast--{toast.type}" class:toast--visible={visible}>
   <div class="toast__accent"></div>
-  <span class="toast__message">{toast.message}</span>
+  <div class="toast__body">
+    <span class="toast__message">{toast.message}</span>
+    {#if toast.progress !== undefined}
+      <div
+        class="toast__progress"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="1"
+        aria-valuenow={toast.progress}
+      >
+        <div
+          class="toast__progress-bar"
+          style="width: {Math.max(0, Math.min(1, toast.progress)) * 100}%"
+        ></div>
+      </div>
+    {/if}
+  </div>
   <div class="toast__actions">
     {#if toast.actions}
       {#each toast.actions as action}
@@ -68,9 +84,27 @@
   .toast--success .toast__accent { background: var(--accent-green, #3fb950); }
   .toast--warning .toast__accent { background: var(--accent-orange, #d29922); }
   .toast--error .toast__accent { background: var(--accent-red, #f85149); }
-  .toast__message {
+  .toast__body {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .toast__message {
     line-height: 1.4;
+  }
+  .toast__progress {
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .toast__progress-bar {
+    height: 100%;
+    background: var(--accent-blue);
+    transition: width 0.15s ease;
   }
   .toast__actions {
     display: flex;

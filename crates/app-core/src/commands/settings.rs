@@ -67,6 +67,59 @@ pub fn set_sidebar_collapsed(collapsed: bool, state: State<'_, AppState>) -> Res
     config.save(&state.config_path).map_err(|e| e.to_string())
 }
 
+/// Return whether the app should silently probe for updates on startup.
+///
+/// Defaults to `true`. Exposed via the settings IPC so the frontend's
+/// `runStartupCheck()` in `autoUpdate.ts` can short-circuit when the
+/// user has opted out.
+#[tauri::command]
+pub fn get_auto_check_updates(state: State<'_, AppState>) -> Result<bool, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(config.auto_check_updates)
+}
+
+/// Persist the `auto_check_updates` preference. The startup toast
+/// behaviour flips on the next cold-start.
+#[tauri::command]
+pub fn set_auto_check_updates(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.auto_check_updates = enabled;
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
+/// Return whether the per-OS re-authorization notice has been dismissed.
+///
+/// `os` must be `"macos"` or `"windows"`; other values return `false`
+/// (Linux never shows the dialog, so the frontend never probes for it).
+#[tauri::command]
+pub fn get_reauth_dismissed(os: String, state: State<'_, AppState>) -> Result<bool, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(match os.as_str() {
+        "macos" => config.auto_update_reauth_notice_dismissed_macos,
+        "windows" => config.auto_update_reauth_notice_dismissed_windows,
+        _ => false,
+    })
+}
+
+/// Persist the re-authorization-notice dismissal for a single OS.
+///
+/// `os` must be `"macos"` or `"windows"`; other values are ignored so
+/// the frontend can't accidentally poison the config with arbitrary keys.
+#[tauri::command]
+pub fn set_reauth_dismissed(
+    os: String,
+    dismissed: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    match os.as_str() {
+        "macos" => config.auto_update_reauth_notice_dismissed_macos = dismissed,
+        "windows" => config.auto_update_reauth_notice_dismissed_windows = dismissed,
+        _ => return Ok(()),
+    }
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
 // ─── AI background settings (Phase 10) ───────────────────────────────────
 
 /// Serialisable view of the AI background settings.

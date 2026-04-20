@@ -475,6 +475,35 @@ export async function setUiScale(scale: number): Promise<void> {
   return invoke<void>("set_ui_scale", { scale });
 }
 
+/**
+ * Return whether the app should silently probe for updates on startup.
+ * Default `true`. Persisted in `AppConfig::auto_check_updates`.
+ */
+export async function getAutoCheckUpdates(): Promise<boolean> {
+  return invoke<boolean>("get_auto_check_updates");
+}
+
+/** Persist the `auto_check_updates` preference. */
+export async function setAutoCheckUpdates(enabled: boolean): Promise<void> {
+  return invoke<void>("set_auto_check_updates", { enabled });
+}
+
+/**
+ * Return whether the per-OS re-authorization notice has been dismissed.
+ * `os` must be `"macos"` or `"windows"` — Linux never shows the dialog.
+ */
+export async function getReauthDismissed(os: string): Promise<boolean> {
+  return invoke<boolean>("get_reauth_dismissed", { os });
+}
+
+/** Persist the re-authorization-notice dismissal for a single OS. */
+export async function setReauthDismissed(
+  os: string,
+  dismissed: boolean,
+): Promise<void> {
+  return invoke<void>("set_reauth_dismissed", { os, dismissed });
+}
+
 export async function getGraphColumns(): Promise<GraphColumnConfig[]> {
   return invoke<GraphColumnConfig[]>("get_graph_columns");
 }

@@ -23,6 +23,13 @@ export interface Toast {
   actions?: ToastAction[];
   dismissible: boolean;
   duration: number | null;
+  /**
+   * Optional 0..1 progress fraction. When present, the toast renders a
+   * thin progress bar beneath the message — used by the auto-update
+   * download lifecycle until the unified tasks drawer (cluster 0.3)
+   * takes over. Leave `undefined` for normal toasts.
+   */
+  progress?: number;
 }
 
 export type ToastOptions = {
@@ -31,6 +38,8 @@ export type ToastOptions = {
   actions?: ToastAction[];
   dismissible?: boolean;
   duration?: number | null;
+  /** Optional 0..1 download progress fraction. See {@link Toast.progress}. */
+  progress?: number;
 };
 
 export const toasts = writable<Toast[]>([]);
@@ -45,6 +54,7 @@ export function addToast(options: ToastOptions): string {
     actions: options.actions,
     dismissible: options.dismissible ?? true,
     duration: options.duration === undefined ? 5000 : options.duration,
+    progress: options.progress,
   };
   toasts.update((list) => {
     const next = [...list, toast];

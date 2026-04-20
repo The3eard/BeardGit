@@ -6,7 +6,7 @@
   import { initTaskStore, cleanupTaskStore } from "$lib/stores/tasks";
   import { initUiScale } from "$lib/stores/theme";
   import { initShortcutListener } from "$lib/stores/shortcuts";
-  import { checkForAppUpdate } from "$lib/stores/updater";
+  import { runStartupCheck } from "$lib/stores/autoUpdate";
   import { openProjectTab, closeTab } from "$lib/stores/projects";
   import ToastContainer from "$lib/components/ui/ToastContainer.svelte";
   let { children } = $props();
@@ -37,7 +37,7 @@
     initUiScale();
     tryAutoConnect();
     initTaskStore();
-    checkForAppUpdate();
+    runStartupCheck();
     const cleanupShortcuts = initShortcutListener();
     return () => {
       cleanupTaskStore();
