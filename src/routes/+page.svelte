@@ -66,6 +66,7 @@
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
   import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
+  import RepoConfigDialog from "$lib/components/repo-config/RepoConfigDialog.svelte";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
 
   let activeView = $state("graph");
@@ -793,6 +794,8 @@
   <StatusBar />
 
   <TasksPopover open={$tasksPopoverOpen} onClose={closeTasksPopover} />
+
+  <RepoConfigDialog />
 
   {#if showAiBackgroundDialog}
     <CreateBackgroundRunDialog onClose={() => (showAiBackgroundDialog = false)} />
