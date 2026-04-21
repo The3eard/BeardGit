@@ -44,16 +44,22 @@ pub fn create_commit(
 /// # Returns
 /// `Ok(())` on success, or an error string if `git commit --amend` fails.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::commit::amend")]
-pub async fn amend_commit(message: String, state: State<'_, AppState>) -> Result<(), String> {
+#[instrument(skip(state, app), name = "cmd::commit::amend")]
+pub async fn amend_commit(
+    message: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
-
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.amend_commit(&message).map_err(|e| e.to_string())
+    with_mutation_guard_async(&state, &app, MutationKind::Amend, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            repo.amend_commit(&message).map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Return the commit message of the current HEAD commit.
