@@ -5,6 +5,27 @@
 //! map it into the shared [`forge_provider::Release`] / [`ReleaseAsset`] /
 //! [`ReleaseDetail`] types. argv builders are pure functions so the command
 //! shape can be unit-tested without spawning subprocesses.
+//
+// DIAGNOSIS 2026-04-21 — "release blank pane" bug
+// ------------------------------------------------
+// Symptom: some releases render a blank detail pane in the UI.
+// Root cause: GitHub returns `"body": null` (and occasionally
+// `"assets": null`) for releases where the notes/assets fields were
+// left empty by `gh release create --notes ''` or similar flows.
+//
+// The current `parse_gh_release_detail` relies on `#[serde(default)]`
+// on `body: String` / `assets: Vec<GhAssetRow>`. `#[serde(default)]`
+// only substitutes a default when the KEY IS MISSING — it does NOT
+// accept an explicit JSON `null` value and fails the whole payload
+// with a serde decode error. That error surfaces as
+// `ForgeError::Cli`; the frontend's catch clears `releaseDetail` to
+// null, producing the blank pane.
+//
+// Fix path (upcoming phases): introduce a `null_as_default` custom
+// deserializer that treats both missing keys AND explicit `null` as
+// the `Default::default()` value, and apply it to the affected
+// fields (`body`, `assets`, and any other String/Vec fields that
+// GitHub may emit as null).
 
 use forge_provider::{
     CreateReleaseInput, EditReleasePatch, Release, ReleaseAsset, ReleaseDetail, ReleaseState,

@@ -4,6 +4,33 @@
  * Handles list fetching with filter tabs, detail loading, polling
  * for updates on open MR/PRs, and a derived store mapping branches
  * to open MR/PRs for graph badges.
+ *
+ * DIAGNOSIS 2026-04-21 — "PR #18 infinite loading spinner" bug
+ * ------------------------------------------------------------
+ * Symptom: opening PR #18 in the `beardgit_test` project leaves the
+ * detail pane stuck on a loading spinner forever.
+ *
+ * Ruled out: the `loadMrPrDetail` function below (see ~line 97) does
+ * call `mrPrDetailLoading.set(false)` inside a `finally` block, so
+ * the classic "missing finally" state-leak bug is NOT the cause.
+ *
+ * Actual root cause: PR #18 has ~3.4k changed files. The backend
+ * runs `gh api repos/{owner}/{repo}/pulls/18/files --paginate`,
+ * which over a slow/congested network can take >60s and in practice
+ * appears to hang indefinitely (the subprocess never returns).
+ * Because neither the TS caller nor the Rust spawn has a timeout,
+ * the awaited `apiDiff(number)` promise never settles — so the
+ * `try`/`finally` never reaches `finally`, loading stays true, and
+ * the spinner is forever.
+ *
+ * Fix path (upcoming phases):
+ *  - TS side: wrap the detail+diff fetch in a 15 s `withTimeout`
+ *    helper so the spinner always clears; on timeout, surface a
+ *    toast and show the shared `ForgeDetailShell` error state with
+ *    a retry button.
+ *  - Rust side: add `wait_timeout(20s)` on the spawned `gh`/`glab`
+ *    process and cap the diff payload so runaway outputs are
+ *    truncated rather than streamed indefinitely.
  */
 
 import { writable, derived, get } from "svelte/store";
