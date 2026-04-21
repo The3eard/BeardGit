@@ -11,15 +11,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, fireEvent } from "@testing-library/svelte";
 import { tick } from "svelte";
-import { writable } from "svelte/store";
 
-const changeLocaleSpy = vi.fn(async (_: string) => {});
-const currentLocaleStore = writable<string>("en-US");
-
-vi.mock("$lib/stores/locale", () => ({
-  currentLocale: currentLocaleStore,
-  changeLocale: (locale: string) => changeLocaleSpy(locale),
-}));
+vi.mock("$lib/stores/locale", async () => {
+  const { writable } = await import("svelte/store");
+  const currentLocale = writable<string>("en-US");
+  const changeLocale = vi.fn(async (_: string) => {});
+  return { currentLocale, changeLocale };
+});
 
 vi.mock("$lib/api/tauri", () => ({
   listThemes: vi
@@ -46,10 +44,11 @@ vi.mock("$lib/stores/theme", async () => {
 });
 
 import LookAndFeelSection from "../LookAndFeelSection.svelte";
+import { currentLocale, changeLocale } from "$lib/stores/locale";
 
 beforeEach(() => {
-  changeLocaleSpy.mockClear();
-  currentLocaleStore.set("en-US");
+  (changeLocale as unknown as ReturnType<typeof vi.fn>).mockClear();
+  currentLocale.set("en-US");
 });
 
 afterEach(() => cleanup());
@@ -96,7 +95,7 @@ describe("LookAndFeelSection", () => {
     await fireEvent.change(select, { target: { value: "es-ES" } });
     await tick();
 
-    expect(changeLocaleSpy).toHaveBeenCalledWith("es-ES");
+    expect(changeLocale).toHaveBeenCalledWith("es-ES");
   });
 
   it("exposes a data-setting-anchor for each settings row", async () => {
