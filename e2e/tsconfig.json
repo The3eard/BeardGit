@@ -11,6 +11,11 @@
     "noEmit": true,
     "types": ["node", "@wdio/globals/types", "expect-webdriverio", "@wdio/mocha-framework"]
   },
-  "include": ["./pages/**/*.ts", "./specs/**/*.ts", "./wdio.conf.ts"],
+  "include": [
+    "./pages/**/*.ts",
+    "./specs/**/*.ts",
+    "./helpers/**/*.ts",
+    "./wdio.conf.ts"
+  ],
   "exclude": ["./fixtures/**/*"]
 }

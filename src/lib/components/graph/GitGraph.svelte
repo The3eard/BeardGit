@@ -901,6 +901,18 @@
         <span class="graph-skeleton__lane" style="left: 50px"></span>
       </div>
     {/if}
+    <!--
+      Hidden DOM mirror of the currently-rendered graph nodes.
+      The graph itself paints to a <canvas> which is opaque to querySelectorAll,
+      so E2E specs rely on this list to assert row counts (e.g. "commit added
+      a new row") and to drive accessibility tech that cannot read canvas.
+      Only the OID is exposed; layout lives on the canvas.
+    -->
+    <ol class="graph-rows-mirror" data-testid="graph-rows" aria-hidden="true">
+      {#each filteredNodes as node (node.oid)}
+        <li data-testid="graph-row" data-oid={node.oid}></li>
+      {/each}
+    </ol>
   </div>
 
   <div class="graph-footer">
@@ -1061,6 +1073,26 @@
     background: var(--text-primary);
     opacity: 0.06;
     border-radius: 1px;
+  }
+
+  /*
+   * Visually hidden — the mirror exists purely for E2E assertions and
+   * accessibility tooling. Kept rendered (not display:none) so the
+   * browser still reflects `.length` on querySelectorAll; clip
+   * strategy cribbed from the standard a11y-only pattern.
+   */
+  .graph-rows-mirror {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+    pointer-events: none;
+    list-style: none;
   }
 
   .graph-footer {

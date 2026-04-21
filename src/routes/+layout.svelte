@@ -8,7 +8,13 @@
   import { initUiScale } from "$lib/stores/theme";
   import { initShortcutListener } from "$lib/stores/shortcuts";
   import { runStartupCheck } from "$lib/stores/autoUpdate";
-  import { openProjectTab, closeTab } from "$lib/stores/projects";
+  import {
+    openProjectTab,
+    closeTab,
+    activeProject,
+    openProjects,
+  } from "$lib/stores/projects";
+  import { get } from "svelte/store";
   import {
     startMutationListener,
     stopMutationListener,
@@ -26,6 +32,14 @@
     (window as unknown as Record<string, unknown>).__E2E__ = {
       openProject: (path: string) => openProjectTab(path),
       closeTab: (index: number) => closeTab(index),
+      /**
+       * Active project path. Phase-11 specs use this to translate UI
+       * state into fixture paths (e.g. running `git -C <path>` in a
+       * child process) without re-computing paths client-side.
+       */
+      activeProjectPath: () => get(activeProject)?.path ?? null,
+      /** Count of currently open projects. */
+      openProjectCount: () => get(openProjects).length,
     };
   }
 
