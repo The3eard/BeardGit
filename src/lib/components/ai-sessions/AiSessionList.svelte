@@ -121,9 +121,10 @@
   }
 
   function handleSelect(session: AiSession) {
-    if (session.background_status) {
-      selectedBackgroundSessionId.set(session.id);
-    }
+    // Every row populates the detail pane — interactive/headless sessions
+    // without a background_status still need to drive the selection store
+    // so the right-hand pane reflects what the user clicked.
+    selectedBackgroundSessionId.set(session.id);
     onSelectSession?.(session);
   }
 
