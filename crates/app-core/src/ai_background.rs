@@ -36,6 +36,7 @@ use ai_provider::{
     AiBackgroundRunInput, AiBackgroundRunStatus, AiError, AiProvider, AiProviderKind, AiSession,
     AiTokenUsage, SessionKind,
 };
+use mutation_events::{AiSource, MutationFlags, Snapshot};
 use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use tracing::{info, warn};
 
@@ -114,6 +115,21 @@ pub trait AiBackgroundEventSink: Send + Sync {
     fn on_status(&self, session: &AiSession);
     /// Emitted on each captured stdout/stderr line.
     fn on_output(&self, session_id: &str, line: &str);
+    /// Emitted once when an AI background run reaches a terminal state
+    /// and the worktree state diff is non-empty.
+    ///
+    /// Implementations should forward this to the Tauri `project-mutated`
+    /// bus via [`mutation_events::emit_mutation`] with
+    /// [`mutation_events::MutationKind::Ai`] and the given `source` so
+    /// the frontend refreshes the right stores. Default impl is a no-op
+    /// so non-Tauri sinks (tests, `NoopAiBackgroundEventSink`) ignore it.
+    fn on_repo_mutated(
+        &self,
+        _worktree_path: &std::path::Path,
+        _source: AiSource,
+        _flags: MutationFlags,
+    ) {
+    }
 }
 
 /// A no-op sink — useful for unit tests that only care about state, not events.
@@ -133,6 +149,11 @@ struct CoordinatorInner {
     /// Maps the session_id to its input payload so queued runs can be
     /// dispatched later (the prompt / stdin / flags were already computed).
     pending: std::collections::HashMap<String, PendingDispatch>,
+    /// Worktree [`Snapshot`] captured just before the subprocess was
+    /// spawned, keyed by session id. Consumed on terminal transition in
+    /// [`AiBackgroundCoordinator::on_task_finished`] so the diff can be
+    /// emitted as a `MutationKind::Ai { source }` event.
+    before_snapshots: std::collections::HashMap<String, Snapshot>,
 }
 
 /// Serialisable payload kept around while a run is queued.
@@ -173,6 +194,7 @@ impl AiBackgroundCoordinator {
                 queue: VecDeque::new(),
                 concurrency_cap: 3,
                 pending: std::collections::HashMap::new(),
+                before_snapshots: std::collections::HashMap::new(),
             }),
             task_manager,
             event_sink,
@@ -466,6 +488,7 @@ impl AiBackgroundCoordinator {
             let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
             guard.sessions.retain(|s| s.id != session_id);
             guard.pending.remove(session_id);
+            guard.before_snapshots.remove(session_id);
         }
         Ok(())
     }
@@ -497,6 +520,27 @@ impl AiBackgroundCoordinator {
         let cwd = input.worktree_path.clone();
         let label = format!("AI background: {}", session_id);
         let manager = Arc::clone(&self.task_manager);
+
+        // Capture a baseline snapshot of the worktree *right before* we
+        // spawn the subprocess. Stored on the coordinator so
+        // `on_task_finished` can diff against it and emit a
+        // `MutationKind::Ai { source }` event when the run actually
+        // touched refs / HEAD / status. Snapshot failures are logged
+        // but non-fatal — we simply skip the emit at the end.
+        match Snapshot::capture(&cwd) {
+            Ok(snap) => {
+                let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+                guard.before_snapshots.insert(session_id.to_string(), snap);
+            }
+            Err(err) => {
+                warn!(
+                    session_id,
+                    error = %err,
+                    "failed to capture AI background baseline snapshot; \
+                     will skip project-mutated emit on completion"
+                );
+            }
+        }
 
         // task-runner is async only, so we wrap the spawn call in a blocking
         // call — this function is sync and invoked from a Tauri command that
@@ -596,6 +640,40 @@ impl AiBackgroundCoordinator {
         });
         if let Some(snapshot) = self.get(&session_id) {
             self.event_sink.on_status(&snapshot);
+        }
+
+        // Diff the pre-spawn snapshot against current worktree state and
+        // emit a `MutationKind::Ai { source }` event when refs/HEAD/status/
+        // stashes/worktrees/remotes moved. The emit runs for every terminal
+        // state (completed, failed, cancelled) because a partially-applied
+        // AI run still produces real mutations the UI must refresh.
+        let (before, worktree_path, provider_kind) = {
+            let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+            let before = guard.before_snapshots.remove(&session_id);
+            let session = guard.sessions.iter().find(|s| s.id == session_id).cloned();
+            let worktree_path = session.as_ref().and_then(|s| s.worktree_path.clone());
+            let provider_kind = session.as_ref().map(|s| s.provider);
+            (before, worktree_path, provider_kind)
+        };
+        if let (Some(before), Some(worktree_path), Some(provider_kind)) =
+            (before, worktree_path, provider_kind)
+        {
+            match Snapshot::capture(&worktree_path) {
+                Ok(after) => {
+                    let flags = before.diff(&after);
+                    if !flags.is_empty() {
+                        let source = ai_source_for(provider_kind);
+                        self.event_sink
+                            .on_repo_mutated(&worktree_path, source, flags);
+                    }
+                }
+                Err(err) => warn!(
+                    session_id = %session_id,
+                    error = %err,
+                    "failed to capture AI background post-run snapshot; \
+                     skipping project-mutated emit"
+                ),
+            }
         }
 
         // Try to drain the queue.
@@ -729,6 +807,18 @@ fn provider_slug(kind: AiProviderKind) -> &'static str {
     }
 }
 
+/// Map an [`AiProviderKind`] (domain enum) onto the
+/// [`mutation_events::AiSource`] emitted alongside
+/// [`mutation_events::MutationKind::Ai`]. Centralised so the coordinator
+/// and any future caller stay consistent.
+fn ai_source_for(kind: AiProviderKind) -> AiSource {
+    match kind {
+        AiProviderKind::ClaudeCode => AiSource::ClaudeCode,
+        AiProviderKind::Codex => AiSource::Codex,
+        AiProviderKind::OpenCode => AiSource::OpenCode,
+    }
+}
+
 fn command_to_parts(cmd: &std::process::Command) -> (String, Vec<String>) {
     let program = cmd.get_program().to_string_lossy().to_string();
     let args: Vec<String> = cmd
@@ -835,6 +925,7 @@ mod tests {
     struct RecordingSink {
         statuses: Mutex<Vec<(String, Option<AiBackgroundRunStatus>)>>,
         outputs: Mutex<Vec<(String, String)>>,
+        mutations: Mutex<Vec<(PathBuf, AiSource, MutationFlags)>>,
     }
     impl AiBackgroundEventSink for RecordingSink {
         fn on_status(&self, session: &AiSession) {
@@ -848,6 +939,12 @@ mod tests {
                 .lock()
                 .unwrap()
                 .push((session_id.to_string(), line.to_string()));
+        }
+        fn on_repo_mutated(&self, worktree_path: &Path, source: AiSource, flags: MutationFlags) {
+            self.mutations
+                .lock()
+                .unwrap()
+                .push((worktree_path.to_path_buf(), source, flags));
         }
     }
 
@@ -1196,5 +1293,131 @@ mod tests {
     fn parse_claude_usage_ignores_non_result_lines() {
         assert!(parse_claude_usage(r#"{"type":"assistant","text":"hi"}"#).is_none());
         assert!(parse_claude_usage("not json at all").is_none());
+    }
+
+    #[test]
+    fn ai_source_for_maps_each_provider_kind() {
+        assert_eq!(
+            ai_source_for(AiProviderKind::ClaudeCode),
+            AiSource::ClaudeCode
+        );
+        assert_eq!(ai_source_for(AiProviderKind::Codex), AiSource::Codex);
+        assert_eq!(ai_source_for(AiProviderKind::OpenCode), AiSource::OpenCode);
+    }
+
+    /// End-to-end integration: when an AI background run creates a commit
+    /// inside its worktree, the coordinator fires `on_repo_mutated` with
+    /// `MutationKind::Ai { source }` for the matching provider and
+    /// non-empty flags that cover HEAD + refs + status.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn mutation_emitted_when_ai_run_commits_inside_worktree() {
+        let (tmp, base_branch) = init_test_repo();
+        let sink_bridge = Arc::new(CoordinatorTestSink {
+            coord: Mutex::new(None),
+        });
+        let task_manager = Arc::new(TaskManager::new(sink_bridge.clone()));
+        let recorder = Arc::new(RecordingSink::default());
+        let coord = Arc::new(AiBackgroundCoordinator::new(
+            Arc::clone(&task_manager),
+            recorder.clone(),
+        ));
+        sink_bridge.install(Arc::clone(&coord));
+
+        // Shell script that creates a tracked file and commits — this is
+        // what a real Claude Code / Codex run would eventually do.
+        let script = "\
+            set -e; \
+            git config user.email test@test.com; \
+            git config user.name Test; \
+            echo ai-payload > ai.txt; \
+            git add ai.txt; \
+            git commit -m 'ai commit'";
+
+        let provider = StubProvider {
+            script: script.into(),
+            binary: PathBuf::from("/usr/bin/false"),
+            uses_stdin: false,
+        };
+        let args = StartArgs {
+            repo_root: tmp.path().to_path_buf(),
+            provider: AiProviderKind::Codex,
+            base_branch,
+            prompt: "commit something".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            worktree_slug_override: Some("mut-commit".into()),
+            worktree_root_override: None,
+            auto_accept_permissions: false,
+            concurrency_cap: 3,
+        };
+        let out = coord.start(args, &provider).expect("start must succeed");
+        wait_terminal(&coord, &out.session_id).await;
+
+        let mutations = recorder.mutations.lock().unwrap().clone();
+        let hit = mutations
+            .iter()
+            .find(|(p, _, _)| p == &out.worktree_path)
+            .cloned()
+            .expect("expected on_repo_mutated for the worktree path");
+        let (_, source, flags) = hit;
+        assert_eq!(source, AiSource::Codex, "source should track provider kind");
+        assert!(
+            flags.head_changed,
+            "HEAD moved due to the commit — flags.head_changed must be true"
+        );
+        assert!(
+            flags.refs_changed,
+            "refs moved due to the commit — flags.refs_changed must be true"
+        );
+
+        let _ = coord.discard_worktree(&out.session_id);
+    }
+
+    /// A background run that touches nothing must not emit a mutation
+    /// event — the TS listener would otherwise reload the graph for no
+    /// reason.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn no_mutation_emitted_when_worktree_state_unchanged() {
+        let (tmp, base_branch) = init_test_repo();
+        let sink_bridge = Arc::new(CoordinatorTestSink {
+            coord: Mutex::new(None),
+        });
+        let task_manager = Arc::new(TaskManager::new(sink_bridge.clone()));
+        let recorder = Arc::new(RecordingSink::default());
+        let coord = Arc::new(AiBackgroundCoordinator::new(
+            Arc::clone(&task_manager),
+            recorder.clone(),
+        ));
+        sink_bridge.install(Arc::clone(&coord));
+
+        let provider = StubProvider {
+            script: "echo no-op".into(),
+            binary: PathBuf::from("/usr/bin/false"),
+            uses_stdin: false,
+        };
+        let args = StartArgs {
+            repo_root: tmp.path().to_path_buf(),
+            provider: AiProviderKind::ClaudeCode,
+            base_branch,
+            prompt: "noop".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            worktree_slug_override: Some("mut-noop".into()),
+            worktree_root_override: None,
+            auto_accept_permissions: false,
+            concurrency_cap: 3,
+        };
+        let out = coord.start(args, &provider).expect("start must succeed");
+        wait_terminal(&coord, &out.session_id).await;
+
+        let mutations = recorder.mutations.lock().unwrap().clone();
+        assert!(
+            mutations.is_empty(),
+            "expected no mutation events for a no-op AI run, got {mutations:?}"
+        );
+
+        let _ = coord.discard_worktree(&out.session_id);
     }
 }
