@@ -22,21 +22,26 @@ import type { AiProviderKind, ConnectedProvider } from "$lib/types";
 const mocks = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { writable: w } = require("svelte/store") as typeof import("svelte/store");
+  const githubProvider = {
+    kind: "github",
+    instance_url: "https://github.com",
+    user: { username: "someone", avatar_url: null },
+  } as ConnectedProvider;
   return {
     preferredAiProvider: w<AiProviderKind | null>("claude_code"),
     providerStatus: w<{
       providers: ConnectedProvider[];
       active_index: number | null;
     }>({
-      providers: [
-        {
-          kind: "github",
-          instance_url: "https://github.com",
-          user: { username: "someone", avatar_url: null },
-        } as ConnectedProvider,
-      ],
+      providers: [githubProvider],
       active_index: 0,
     }),
+    // ForgeSlot now consumes `projectProvider` directly — seed it with
+    // the same GitHub provider so the forge pill still renders.
+    projectProvider: w<
+      | { kind: "github" | "gitlab"; provider: ConnectedProvider }
+      | null
+    >({ kind: "github", provider: githubProvider }),
     autoUpdateState: w({ status: "idle" } as unknown as Record<string, unknown>),
   };
 });
@@ -47,6 +52,7 @@ vi.mock("$lib/stores/ai", () => ({
 
 vi.mock("$lib/stores/provider", () => ({
   providerStatus: mocks.providerStatus,
+  projectProvider: mocks.projectProvider,
 }));
 
 vi.mock("$lib/stores/autoUpdate", () => ({
