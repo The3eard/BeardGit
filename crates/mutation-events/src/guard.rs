@@ -47,10 +47,8 @@ impl MutationGuard {
             // No observable change — skip emit to keep the bus quiet.
             return Ok(());
         }
-        if let Err(err) = emit_mutation(app, kind, flags, &self.path) {
-            warn!(?err, "failed to emit project-mutated");
-            return Err(err.into());
-        }
+        emit_mutation(app, kind, flags, &self.path)
+            .inspect_err(|err| warn!(?err, "failed to emit project-mutated"))?;
         Ok(())
     }
 }
