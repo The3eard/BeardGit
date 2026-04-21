@@ -18,10 +18,10 @@
  *      shared with the AI commit flow so the user jumps straight to
  *      the live output as soon as `selectTask(id)` fires.
  *
- * After remote operations (Fetch/Pull/Push) complete successfully, the
- * graph, branches, and file statuses are auto-refreshed — the
- * side-effect lives here because `task-completed` is the only place
- * that sees the terminal transition.
+ * Refresh of graph / branches / statuses after a Fetch/Pull/Push used
+ * to be triggered from `task-completed` here — that side-effect is
+ * now owned by the `project-mutated` event listener (see
+ * `mutations.ts`), which emits one coalesced refresh per mutation.
  *
  * The legacy popover/panel UI that this module powered was retired in
  * favour of the unified `TasksPopover.svelte` (wired through
@@ -34,10 +34,6 @@ import { writable, derived, get } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { TaskInfo, TaskId, TaskOutputLine, TaskOutputEvent } from "../types";
 import * as api from "../api/tauri";
-import { refreshAndReloadGraph } from "./graph";
-import { refreshStatuses } from "./changes";
-import { getBranches as apiGetBranches } from "../api/tauri";
-import { branches } from "./repo";
 
 /** Every task reported by the Rust `TaskManager`, upserted in place. */
 export const tasks = writable<TaskInfo[]>([]);
@@ -116,23 +112,11 @@ export async function initTaskStore(): Promise<void> {
     });
   };
 
-  unlisteners.push(
-    await listen<TaskInfo>("task-completed", (event) => {
-      updateTaskStatus(event);
-      // Auto-refresh graph after any remote op that can change refs /
-      // reachable commits. Push was previously skipped, which meant
-      // newly pushed commits never showed in the graph until the user
-      // reopened the repo.
-      const label = event.payload.label;
-      if (
-        label.startsWith("Fetch") ||
-        label.startsWith("Pull") ||
-        label.startsWith("Push")
-      ) {
-        refreshAfterRemoteOp();
-      }
-    })
-  );
+  // Graph / branches / statuses refresh after a successful Fetch /
+  // Pull / Push is handled by the `project-mutated` event dispatcher
+  // in `mutations.ts`. We just mirror the lifecycle into the local
+  // `tasks` store for surfaces like AssetUploadProgress.
+  unlisteners.push(await listen<TaskInfo>("task-completed", updateTaskStatus));
   unlisteners.push(await listen<TaskInfo>("task-failed", updateTaskStatus));
   unlisteners.push(await listen<TaskInfo>("task-cancelled", updateTaskStatus));
 }
@@ -143,26 +127,6 @@ export function cleanupTaskStore(): void {
     unlisten();
   }
   unlisteners = [];
-}
-
-/**
- * Refresh the graph, branches, and statuses after a remote operation
- * completes.
- *
- * `refreshAndReloadGraph` rebuilds the Rust-side `slot.layout` (hitting
- * the persistent cache when possible) before re-fetching the viewport,
- * so new commits pulled from the remote — or the ref move caused by a
- * successful push — become visible immediately.
- */
-async function refreshAfterRemoteOp() {
-  try {
-    await refreshAndReloadGraph();
-    const branchList = await apiGetBranches();
-    branches.set(branchList);
-    await refreshStatuses();
-  } catch {
-    // Silently ignore refresh errors — the user can manually refresh
-  }
 }
 
 // Actions
