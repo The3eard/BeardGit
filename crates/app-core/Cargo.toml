@@ -34,6 +34,7 @@ open = "5"
 rayon = "1"
 watcher = { path = "../watcher" }
 terminal = { path = "../terminal" }
+mutation-events = { path = "../mutation-events" }
 base64 = "0.22"
 
 [dev-dependencies]
