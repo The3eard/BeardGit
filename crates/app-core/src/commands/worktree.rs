@@ -1,6 +1,7 @@
 //! Worktree listing, creation, and removal commands.
 
-use tauri::State;
+use mutation_events::MutationKind;
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
@@ -31,21 +32,25 @@ pub async fn list_worktrees(
 /// - `create_branch` – When `true`, create a new branch with `-b`; when `false`, check
 ///   out an existing branch.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::worktree::create")]
+#[instrument(skip(state, app), name = "cmd::worktree::create")]
 pub async fn create_worktree(
     path: String,
     branch: String,
     create_branch: bool,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.create_worktree(&path, &branch, create_branch)
-            .map_err(|e| e.to_string())
+    with_mutation_guard_async(&state, &app, MutationKind::WorktreeCreate, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            repo.create_worktree(&path, &branch, create_branch)
+                .map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Remove a linked worktree at `path`.
@@ -55,20 +60,24 @@ pub async fn create_worktree(
 /// - `force` – When `true`, remove the worktree even if it has uncommitted changes
 ///   or is locked.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::worktree::remove")]
+#[instrument(skip(state, app), name = "cmd::worktree::remove")]
 pub async fn remove_worktree(
     path: String,
     force: bool,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.remove_worktree(&path, force)
-            .map_err(|e| e.to_string())
+    with_mutation_guard_async(&state, &app, MutationKind::WorktreeRemove, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            repo.remove_worktree(&path, force)
+                .map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Lock a linked worktree, preventing accidental removal.
