@@ -60,6 +60,16 @@ import {
 } from "../api/tauri";
 import { runMutation } from "../api/runMutation";
 import { fetchIntoStore } from "../utils/store-helpers";
+import { withTimeout } from "../utils/withTimeout";
+import { addToast } from "./toast";
+import * as m from "$lib/paraglide/messages";
+
+/**
+ * Timeout for the detail+diff fetch. Protects against the
+ * ~3.4k-file PR scenario documented at the top of this file where
+ * `gh api --paginate` hangs and strands the UI in a loading state.
+ */
+const DETAIL_TIMEOUT_MS = 15_000;
 
 /** Current filter tab: open, closed, merged, or all. */
 export const mrPrFilter = writable<MrPrState | "all">("open");
@@ -92,6 +102,14 @@ export const mrPrDiffFiles = writable<MrPrDiffFile[]>([]);
 /** Whether the detail is loading. */
 export const mrPrDetailLoading = writable(false);
 
+/**
+ * Last error raised while loading the selected MR/PR detail. Null on
+ * success or when no load has been attempted. `MrPrDetail.svelte` reads
+ * this store via `ForgeDetailShell` to render an inline error banner
+ * with a retry button so users aren't stuck staring at a blank pane.
+ */
+export const mrPrDetailError = writable<string | null>(null);
+
 /** Map of branch name -> MrPr for open MR/PRs (used by graph for badges). */
 export const mrPrByBranch = derived(mrPrList, ($list) => {
   const map = new Map<string, MrPr>();
@@ -120,17 +138,37 @@ export async function refreshMrPrList() {
   }
 }
 
-/** Load detail + diff for a specific MR/PR. */
-export async function loadMrPrDetail(number: number) {
+/**
+ * Load detail + diff for a specific MR/PR.
+ *
+ * The combined fetch is raced against a {@link DETAIL_TIMEOUT_MS}
+ * timer via `withTimeout` so a hung IPC call (e.g. a huge paginated
+ * diff) can't leave the detail pane stuck on a spinner. On any
+ * failure — network, provider error, or timeout — the error is
+ * surfaced both to the `mrPrDetailError` store (for the inline
+ * banner) and to a user-facing toast, then the loading flag is
+ * cleared in `finally`.
+ */
+export async function loadMrPrDetail(number: number): Promise<void> {
   selectedMrPrNumber.set(number);
   mrPrDetailLoading.set(true);
+  mrPrDetailError.set(null);
   try {
-    const [detail, diff] = await Promise.all([apiDetail(number), apiDiff(number)]);
+    const [detail, diff] = await withTimeout(
+      Promise.all([apiDetail(number), apiDiff(number)]),
+      DETAIL_TIMEOUT_MS,
+    );
     mrPrDetail.set(detail);
     mrPrDiffFiles.set(diff);
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     mrPrDetail.set(null);
     mrPrDiffFiles.set([]);
+    mrPrDetailError.set(msg);
+    addToast({
+      message: m.mrpr_load_failed({ number: number.toString(), error: msg }),
+      type: "error",
+    });
   } finally {
     mrPrDetailLoading.set(false);
   }

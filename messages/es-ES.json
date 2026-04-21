@@ -589,6 +589,7 @@
   "mrpr_close_confirm_github": "Cerrar esta pull request sin fusionar?",
   "mrpr_merge_confirm": "Fusionar esto en {target}?",
   "mrpr_create_failed": "Error al crear: {error}",
+  "mrpr_load_failed": "No se pudo cargar la PR #{number} — {error}",
   "mrpr_merge_failed": "Error al fusionar: {error}",
   "mrpr_close_failed": "Error al cerrar: {error}",
   "mrpr_approve": "Aprobar",

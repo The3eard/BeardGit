@@ -589,6 +589,7 @@
   "mrpr_close_confirm_github": "Close this pull request without merging?",
   "mrpr_merge_confirm": "Merge this into {target}?",
   "mrpr_create_failed": "Failed to create: {error}",
+  "mrpr_load_failed": "Failed to load PR #{number} — {error}",
   "mrpr_merge_failed": "Failed to merge: {error}",
   "mrpr_close_failed": "Failed to close: {error}",
   "mrpr_approve": "Approve",
