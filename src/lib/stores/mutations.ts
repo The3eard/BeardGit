@@ -58,7 +58,7 @@ function accumulate(path: string, flags: MutationFlags): void {
  * that care. Exported for {@link flushPendingForActiveProject} and
  * for direct testing.
  */
-export function dispatchRefresh(_path: string, flags: MutationFlags): void {
+export function dispatchRefresh(flags: MutationFlags): void {
   if (flags.refs_changed) {
     void refreshAndReloadGraph();
   }
@@ -75,7 +75,7 @@ function flush(): void {
   const active = get(activeProject);
   for (const [path, flags] of Array.from(pending.entries())) {
     if (path === active?.path) {
-      dispatchRefresh(path, flags);
+      dispatchRefresh(flags);
       pending.delete(path);
     }
   }
@@ -104,7 +104,7 @@ export async function startMutationListener(): Promise<void> {
 export function flushPendingForActiveProject(path: string): void {
   const flags = pending.get(path);
   if (flags) {
-    dispatchRefresh(path, flags);
+    dispatchRefresh(flags);
     pending.delete(path);
   }
 }
