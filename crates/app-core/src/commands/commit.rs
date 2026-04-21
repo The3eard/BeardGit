@@ -1,6 +1,7 @@
 //! Commit creation and amendment commands.
 
-use tauri::State;
+use mutation_events::MutationKind;
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
@@ -8,16 +9,27 @@ use crate::state::AppState;
 
 /// Create a new commit from the current index with the given message and author.
 ///
+/// Wraps the underlying `git_engine::Repository::create_commit` call inside
+/// a [`MutationGuard`][mutation_events::MutationGuard] scope so that on
+/// success a `project-mutated` event with [`MutationKind::Commit`] is
+/// emitted to the frontend.
+///
 /// # Parameters
 /// - `message` – Commit message (subject + optional body).
 ///
 /// # Returns
 /// The OID of the newly created commit as a hex string.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::commit::create")]
-pub fn create_commit(message: String, state: State<'_, AppState>) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
-        repo.create_commit(&message).map_err(|e| e.to_string())
+#[instrument(skip(state, app), name = "cmd::commit::create")]
+pub fn create_commit(
+    message: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
+    with_mutation_guard(&state, &app, MutationKind::Commit, || {
+        with_active_repo(&state, |repo| {
+            repo.create_commit(&message).map_err(|e| e.to_string())
+        })
     })
 }
 
