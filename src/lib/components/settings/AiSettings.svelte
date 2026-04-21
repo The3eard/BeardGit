@@ -72,31 +72,13 @@
     Field,
     Button,
   } from "$lib/components/ui";
+  // ProviderIcon is shared with AiSessions + Spec 4's generic-icon fix.
+  import ProviderIcon from "$lib/components/ai-sessions/ProviderIcon.svelte";
 
-  const ALL_KINDS: {
-    kind: AiProviderKind;
-    label: () => string;
-    icon: string;
-    color: string;
-  }[] = [
-    {
-      kind: "claude_code",
-      label: () => m.ai_settings_provider_claude(),
-      icon: "\uF135",
-      color: "#d97757",
-    },
-    {
-      kind: "codex",
-      label: () => m.ai_settings_provider_codex(),
-      icon: "\uF121",
-      color: "#ffffff",
-    },
-    {
-      kind: "open_code",
-      label: () => m.ai_settings_provider_opencode(),
-      icon: "\uF489",
-      color: "#8b8b8b",
-    },
+  const ALL_KINDS: { kind: AiProviderKind; label: () => string }[] = [
+    { kind: "claude_code", label: () => m.ai_settings_provider_claude() },
+    { kind: "codex", label: () => m.ai_settings_provider_codex() },
+    { kind: "open_code", label: () => m.ai_settings_provider_opencode() },
   ];
 
   let refreshing = $state(false);
@@ -182,7 +164,7 @@
 
   <SettingSection title={m.ai_settings_title()}>
     <div class="provider-list" data-setting-anchor="provider">
-      {#each ALL_KINDS as { kind, label, icon, color } (kind)}
+      {#each ALL_KINDS as { kind, label } (kind)}
         {@const detected = isDetected(kind)}
         {@const preferred = isPreferred(kind)}
         {@const version = getVersion(kind)}
@@ -194,12 +176,7 @@
           disabled={!detected}
           onclick={() => handleSelect(kind)}
         >
-          <span
-            class="provider-icon nf"
-            style="color: {detected ? color : 'var(--text-secondary)'}"
-          >
-            {icon}
-          </span>
+          <ProviderIcon provider={kind} size={20} />
           <div class="provider-info">
             <span class="provider-name">{label()}</span>
             {#if detected && version}
@@ -331,14 +308,6 @@
   .provider-row.preferred {
     border-color: var(--accent-blue);
     background: var(--overlay-accent-blue);
-  }
-
-  .provider-icon {
-    font-family: var(--font-icons);
-    font-size: 18px;
-    flex-shrink: 0;
-    width: 24px;
-    text-align: center;
   }
 
   .provider-info {

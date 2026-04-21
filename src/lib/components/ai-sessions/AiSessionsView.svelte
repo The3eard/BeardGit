@@ -16,13 +16,13 @@
 
   onMount(() => {
     startAiBackgroundListeners();
-    refreshAiBackgroundRuns().catch(() => {});
+    void refreshAiBackgroundRuns().catch(() => {});
     const path = $repoInfo?.path;
-    if (path) refreshSessions(path);
+    if (path) void refreshSessions(path).catch(() => {});
   });
 </script>
 
-<div class="ai-sessions-view">
+<div class="ai-sessions-view" data-testid="ai-sessions-view">
   <SplitView
     defaultWidth={380}
     refreshFn={async () => {

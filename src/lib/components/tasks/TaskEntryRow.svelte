@@ -4,7 +4,7 @@
   Dispatches three concerns by `TaskEntry.kind`:
 
   1. **Icon.** Nerd-font glyphs for git ops and app updates; the shared
-     `ProviderBrandIcon` for AI kinds when the entry subtitle starts with a
+     `ProviderIcon` for AI kinds when the entry subtitle starts with a
      provider hint (`claude_code:` / `codex:` / `open_code:`), otherwise a
      neutral AI brain glyph.
   2. **Progress.** Determinate bar with % when `progress.percent` is
@@ -20,7 +20,7 @@
   import type { TaskAction, TaskEntry, TaskKind } from "$lib/types/tasks";
   import type { AiProviderKind } from "$lib/types";
   import { formatRelativeTimeMs } from "$lib/utils/time";
-  import ProviderBrandIcon from "$lib/components/ai/ProviderBrandIcon.svelte";
+  import ProviderIcon from "$lib/components/ai-sessions/ProviderIcon.svelte";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -117,7 +117,7 @@
       data-kind={entry.kind}
     >
       {#if providerHint}
-        <ProviderBrandIcon provider={providerHint} size={14} />
+        <ProviderIcon provider={providerHint} size={14} />
       {:else}
         <span class="task-row__icon-glyph" aria-hidden="true"
           >{kindGlyph}</span

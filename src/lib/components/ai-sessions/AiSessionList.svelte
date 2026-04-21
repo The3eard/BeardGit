@@ -21,8 +21,8 @@
   import * as m from "$lib/paraglide/messages";
   import List from "../common/List.svelte";
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
-  import ProviderBrandIcon from "../ai/ProviderBrandIcon.svelte";
-  import { providerName, providerColor } from "$lib/data/ai-providers";
+  import ProviderIcon from "./ProviderIcon.svelte";
+  import { providerName } from "$lib/data/ai-providers";
 
   interface Props {
     onSelectSession?: (session: AiSession) => void;
@@ -39,7 +39,9 @@
   onMount(() => {
     const path = $repoInfo?.path;
     if (path) {
-      refreshSessions(path);
+      // Fire-and-forget so the list shell paints this frame instead
+      // of blocking on the initial session fetch.
+      void refreshSessions(path).catch(() => {});
       startSessionListeners(path);
     }
   });
@@ -119,9 +121,10 @@
   }
 
   function handleSelect(session: AiSession) {
-    if (session.background_status) {
-      selectedBackgroundSessionId.set(session.id);
-    }
+    // Every row populates the detail pane — interactive/headless sessions
+    // without a background_status still need to drive the selection store
+    // so the right-hand pane reflects what the user clicked.
+    selectedBackgroundSessionId.set(session.id);
     onSelectSession?.(session);
   }
 
@@ -183,16 +186,14 @@
   {/snippet}
 
   {#snippet row({ item }: { item: AiSession; selected: boolean })}
-    {@const pColor = providerColor(item.provider)}
     <div
       class="session-item"
       class:active={item.is_active}
       class:ended={!item.is_active}
-      style="--provider-color: {pColor}"
+      data-testid="ai-session-row"
+      data-session-id={item.id}
     >
-      <div class="session-icon" style="background: {pColor}">
-        <ProviderBrandIcon provider={item.provider} size={16} fill="#111" />
-      </div>
+      <ProviderIcon provider={item.provider} size={20} />
       <div class="session-info">
         <div class="session-row-top">
           <span class="session-provider">{providerName(item.provider)}</span>
@@ -213,6 +214,13 @@
             <span class="session-time">{formatRelativeTimeUnix(item.started_at)}</span>
           {/if}
         </div>
+      </div>
+      <div class="session-meta">
+        {#if !item.worktree_path}
+          <span class="external-badge" data-testid="external-badge">
+            {m.ai_sessions_external()}
+          </span>
+        {/if}
       </div>
       <div class="session-actions">
         {#if item.is_active && item.kind === "interactive"}
@@ -319,26 +327,12 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 8px 0;
+    padding: 8px;
     transition: background 0.1s;
-  }
-
-  .session-item.active {
-    background: color-mix(in srgb, var(--provider-color) 5%, transparent);
   }
 
   .session-item.ended {
     opacity: 0.5;
-  }
-
-  .session-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
   }
 
   .session-info {
@@ -411,6 +405,24 @@
     color: var(--text-secondary);
     white-space: nowrap;
     flex-shrink: 0;
+  }
+
+  .session-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .external-badge {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    background: rgba(128, 128, 128, 0.15);
+    color: var(--text-secondary);
   }
 
   .session-actions {

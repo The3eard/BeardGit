@@ -19,7 +19,7 @@
   import * as m from "$lib/paraglide/messages";
 
   import { onMount } from "svelte";
-  import ProviderBrandIcon from "../ai/ProviderBrandIcon.svelte";
+  import ProviderIcon from "../ai-sessions/ProviderIcon.svelte";
   import { providerName } from "$lib/data/ai-providers";
 
   let tabsRef = $state<HTMLDivElement | null>(null);
@@ -237,7 +237,7 @@
             <div class="terminal-menu-divider"></div>
             {#each $aiProviders as provider}
               <button class="terminal-menu-item" onclick={() => handleTerminalAi(provider.kind)}>
-                <ProviderBrandIcon provider={provider.kind} size={16} />
+                <ProviderIcon provider={provider.kind} size={16} />
                 <span class="provider-label">
                   {providerName(provider.kind)}
                   {#if provider.version}

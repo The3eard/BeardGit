@@ -16,9 +16,11 @@
     openTerminalForAiBackgroundSession,
   } from "$lib/stores/aiBackground";
   import { openProjectTab } from "$lib/stores/projects";
+  import { runMutation } from "$lib/api/runMutation";
   import * as m from "$lib/paraglide/messages";
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
   import BackgroundRunTranscript from "../ai/BackgroundRunTranscript.svelte";
+  import ProviderIcon from "./ProviderIcon.svelte";
   import type { AiSession } from "$lib/types";
 
   let session = $derived($selectedBackgroundSession);
@@ -54,11 +56,17 @@
   );
 
   async function handleOpenTerminal() {
-    if (!session || isRunning) return;
+    if (!session || !session.worktree_path || isRunning) return;
+    const id = session.id;
     try {
-      await openTerminalForAiBackgroundSession(session.id);
-    } catch (e) {
-      console.error("failed to open terminal for AI session", e);
+      await runMutation({
+        kind: "ai_open_terminal",
+        invoke: () => openTerminalForAiBackgroundSession(id),
+        successToast: () => m.ai_background_open_terminal_success(),
+        failureToastPrefix: m.ai_background_open_terminal_error(),
+      });
+    } catch {
+      // runMutation already surfaced a sticky failure toast.
     }
   }
 
@@ -66,10 +74,15 @@
     if (!session || !isTerminal) return;
     // eslint-disable-next-line no-alert
     if (!window.confirm(m.ai_background_discard_confirm())) return;
+    const id = session.id;
     try {
-      await discardAiBackgroundRunWorktree(session.id);
-    } catch (e) {
-      console.error("failed to discard worktree", e);
+      await runMutation({
+        kind: "ai_discard_worktree",
+        invoke: () => discardAiBackgroundRunWorktree(id),
+        failureToastPrefix: m.ai_background_discard_error(),
+      });
+    } catch {
+      // runMutation already surfaced a sticky failure toast.
     }
   }
 
@@ -84,10 +97,15 @@
 
   async function handleCancel() {
     if (!session || !isRunning) return;
+    const id = session.id;
     try {
-      await cancelAiBackgroundRun(session.id);
-    } catch (e) {
-      console.error("failed to cancel run", e);
+      await runMutation({
+        kind: "ai_cancel_run",
+        invoke: () => cancelAiBackgroundRun(id),
+        failureToastPrefix: m.ai_background_cancel_error(),
+      });
+    } catch {
+      // runMutation already surfaced a sticky failure toast.
     }
   }
 </script>
@@ -95,14 +113,22 @@
 {#if !session}
   <div class="empty">{m.ai_sessions_empty()}</div>
 {:else if session.background_status}
-  <div class="detail">
+  <div class="detail" data-testid="ai-session-detail">
     <header class="header">
       <div class="title-row">
+        <ProviderIcon provider={session.provider} size={20} />
         <span class="provider">{session.provider.replace("_", " ")}</span>
         <BackgroundRunStatusBadge status={session.background_status} />
+        {#if !session.worktree_path}
+          <span class="external-badge" data-testid="external-badge">
+            {m.ai_sessions_external()}
+          </span>
+        {/if}
       </div>
       <div class="wt-row">
-        <code class="wt-path">{session.worktree_path ?? session.cwd}</code>
+        <code class="wt-path" data-testid="ai-session-detail-wt-path">
+          {session.worktree_path ?? session.cwd}
+        </code>
       </div>
     </header>
 
@@ -118,15 +144,22 @@
         <button class="btn danger" onclick={handleCancel}>
           {m.ai_background_cancel_run()}
         </button>
+        {#if session.worktree_path}
+          <button
+            class="btn"
+            disabled
+            title={m.ai_background_tooltip_terminal_running()}
+            data-testid="ai-session-detail-open-terminal"
+          >
+            {m.ai_background_open_terminal()}
+          </button>
+        {/if}
+      {:else if session.worktree_path}
         <button
           class="btn"
-          disabled
-          title={m.ai_background_tooltip_terminal_running()}
+          onclick={handleOpenTerminal}
+          data-testid="ai-session-detail-open-terminal"
         >
-          {m.ai_background_open_terminal()}
-        </button>
-      {:else}
-        <button class="btn" onclick={handleOpenTerminal}>
           {m.ai_background_open_terminal()}
         </button>
       {/if}
@@ -147,6 +180,7 @@
   <div class="detail">
     <header class="header">
       <div class="title-row">
+        <ProviderIcon provider={session.provider} size={20} />
         <span class="provider">{session.provider.replace("_", " ")}</span>
       </div>
       <div class="wt-row">
@@ -186,6 +220,18 @@
     font-weight: 600;
     color: var(--text-primary);
     text-transform: capitalize;
+  }
+
+  .external-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--text-secondary) 15%, transparent);
+    color: var(--text-secondary);
+    border: 1px solid color-mix(in srgb, var(--text-secondary) 30%, transparent);
   }
 
   .wt-row {

@@ -2,7 +2,7 @@
  * Unit tests for `AiSlot.svelte`.
  *
  * Covers the two render branches:
- *   - With a preferred provider → `ProviderBrandIcon` renders.
+ *   - With a preferred provider → `ProviderIcon` renders.
  *   - Without a preferred provider → grey dot + "AI" fallback.
  *
  * Click-navigation asserts the Settings section key ("ai") bubbles up.
@@ -52,8 +52,8 @@ describe("AiSlot", () => {
     await tick();
     const slot = getByTestId("statusbar-ai-slot");
     expect(slot.getAttribute("data-has-provider")).toBe("true");
-    const svg = container.querySelector("svg.brand-icon");
-    expect(svg).toBeTruthy();
+    const img = container.querySelector("img.provider-icon");
+    expect(img).toBeTruthy();
   });
 
   it("calls onNavigate('ai') when clicked", async () => {
