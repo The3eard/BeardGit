@@ -19,6 +19,11 @@
     startMutationListener,
     stopMutationListener,
   } from "$lib/stores/mutations";
+  import {
+    aiBackgroundRuns,
+    selectedBackgroundSessionId,
+  } from "$lib/stores/aiBackground";
+  import type { AiSession } from "$lib/types";
   import ToastContainer from "$lib/components/ui/ToastContainer.svelte";
   let { children } = $props();
 
@@ -40,6 +45,20 @@
       activeProjectPath: () => get(activeProject)?.path ?? null,
       /** Count of currently open projects. */
       openProjectCount: () => get(openProjects).length,
+      /**
+       * Seed the `aiBackgroundRuns` store with synthetic sessions —
+       * Spec 2 / Phase 7 E2E specs use this to exercise the AI Sessions
+       * list + detail flow without spawning a real provider process
+       * (which would need a mock binary bundled into the E2E image).
+       * Pass `null` worktree_path to exercise the External-tag branch.
+       */
+      seedAiBackgroundRuns: (sessions: AiSession[]) => {
+        aiBackgroundRuns.set(new Map(sessions.map((s) => [s.id, s])));
+      },
+      /** Set the currently selected AI session id (drives the detail pane). */
+      selectAiSession: (id: string | null) => {
+        selectedBackgroundSessionId.set(id);
+      },
     };
   }
 

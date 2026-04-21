@@ -22,7 +22,7 @@
   });
 </script>
 
-<div class="ai-sessions-view">
+<div class="ai-sessions-view" data-testid="ai-sessions-view">
   <SplitView
     defaultWidth={380}
     refreshFn={async () => {

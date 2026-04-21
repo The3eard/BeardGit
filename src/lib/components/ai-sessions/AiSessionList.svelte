@@ -190,6 +190,8 @@
       class="session-item"
       class:active={item.is_active}
       class:ended={!item.is_active}
+      data-testid="ai-session-row"
+      data-session-id={item.id}
     >
       <ProviderIcon provider={item.provider} size={20} />
       <div class="session-info">

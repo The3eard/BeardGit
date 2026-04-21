@@ -113,18 +113,22 @@
 {#if !session}
   <div class="empty">{m.ai_sessions_empty()}</div>
 {:else if session.background_status}
-  <div class="detail">
+  <div class="detail" data-testid="ai-session-detail">
     <header class="header">
       <div class="title-row">
         <ProviderIcon provider={session.provider} size={20} />
         <span class="provider">{session.provider.replace("_", " ")}</span>
         <BackgroundRunStatusBadge status={session.background_status} />
         {#if !session.worktree_path}
-          <span class="external-badge">{m.ai_sessions_external()}</span>
+          <span class="external-badge" data-testid="external-badge">
+            {m.ai_sessions_external()}
+          </span>
         {/if}
       </div>
       <div class="wt-row">
-        <code class="wt-path">{session.worktree_path ?? session.cwd}</code>
+        <code class="wt-path" data-testid="ai-session-detail-wt-path">
+          {session.worktree_path ?? session.cwd}
+        </code>
       </div>
     </header>
 
@@ -145,12 +149,17 @@
             class="btn"
             disabled
             title={m.ai_background_tooltip_terminal_running()}
+            data-testid="ai-session-detail-open-terminal"
           >
             {m.ai_background_open_terminal()}
           </button>
         {/if}
       {:else if session.worktree_path}
-        <button class="btn" onclick={handleOpenTerminal}>
+        <button
+          class="btn"
+          onclick={handleOpenTerminal}
+          data-testid="ai-session-detail-open-terminal"
+        >
           {m.ai_background_open_terminal()}
         </button>
       {/if}
