@@ -145,6 +145,31 @@ where
     result
 }
 
+/// Async variant — for commands that delegate to `tokio::task::spawn_blocking`
+/// or otherwise `.await`. The guard itself is cheap so capture/emit stay
+/// on the caller's task; the inner `f` receives no arguments.
+pub(super) async fn with_mutation_guard_async<F, Fut, R>(
+    state: &State<'_, AppState>,
+    app: &AppHandle,
+    kind: MutationKind,
+    f: F,
+) -> Result<R, String>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<R, String>>,
+{
+    let path = get_active_project_path(state)?;
+    let guard = MutationGuard::enter(&path).ok();
+    let result = f().await;
+    if result.is_ok()
+        && let Some(g) = guard
+        && let Err(err) = g.exit(kind, app)
+    {
+        tracing::warn!(?err, "mutation guard emit failed");
+    }
+    result
+}
+
 /// Run a blocking closure on a dedicated thread and map errors to `String`.
 pub(super) async fn run_blocking<T, F>(f: F) -> Result<T, String>
 where
