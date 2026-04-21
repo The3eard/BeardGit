@@ -20,6 +20,7 @@ import {
   deleteTag as apiDeleteTag,
   pushTag as apiPushTag,
 } from "../api/tauri";
+import { runMutation } from "../api/runMutation";
 import { fetchPageIntoStore } from "../utils/store-helpers";
 
 // ---------------------------------------------------------------------------
@@ -171,12 +172,25 @@ export function selectTag(name: string) {
 // ---------------------------------------------------------------------------
 
 export async function doCreateTag(name: string, target: string, message: string | null) {
-  await apiCreateTag(name, target, message);
+  await runMutation({
+    kind: "tag_create",
+    invoke: () => apiCreateTag(name, target, message),
+    successToast: () => `Tagged ${name}`,
+    failureToastPrefix: "Tag create failed",
+  });
+  // Tag list refresh: `refs_changed` via project-mutated. Tags store
+  // is not yet wired into the dispatcher, so we keep the explicit
+  // refreshTags() here until it is.
   await refreshTags();
 }
 
 export async function doDeleteTag(name: string) {
-  await apiDeleteTag(name);
+  await runMutation({
+    kind: "tag_delete",
+    invoke: () => apiDeleteTag(name),
+    successToast: () => `Deleted tag ${name}`,
+    failureToastPrefix: "Tag delete failed",
+  });
   // Clear selection if deleted tag was selected
   if (get(selectedTagName) === name) {
     selectedTagName.set(null);

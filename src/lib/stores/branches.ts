@@ -17,6 +17,7 @@ import {
   deleteBranch as apiDelete,
   mergeBranch as apiMerge,
 } from "../api/tauri";
+import { runMutation } from "../api/runMutation";
 import { fetchListIntoStore } from "../utils/store-helpers";
 
 export const branches = writable<BranchInfo[]>([]);
@@ -89,22 +90,37 @@ export function selectBranch(name: string) {
 }
 
 export async function doCheckout(name: string) {
-  await apiCheckout(name);
-  await refreshBranches();
+  await runMutation({
+    kind: "checkout",
+    invoke: () => apiCheckout(name),
+    successToast: () => `Checked out ${name}`,
+    failureToastPrefix: "Checkout failed",
+  });
+  // Branch list refresh is driven by the project-mutated event.
 }
 
 export async function doDeleteBranch(name: string) {
-  await apiDelete(name);
+  await runMutation({
+    kind: "branch_delete",
+    invoke: () => apiDelete(name),
+    successToast: () => `Deleted branch ${name}`,
+    failureToastPrefix: "Branch delete failed",
+  });
   if (get(selectedBranchName) === name) {
     selectedBranchName.set(null);
     selectedBranchCommits.set([]);
   }
-  await refreshBranches();
+  // Branch list refresh is driven by the project-mutated event.
 }
 
 export async function doMergeBranch(name: string) {
-  await apiMerge(name);
-  await refreshBranches();
+  await runMutation({
+    kind: "merge",
+    invoke: () => apiMerge(name),
+    successToast: () => `Merged ${name}`,
+    failureToastPrefix: "Merge failed",
+  });
+  // Branch list refresh is driven by the project-mutated event.
 }
 
 /** Reset all branch selection/detail state. Called on repo switch. */
