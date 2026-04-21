@@ -61,22 +61,12 @@ impl GitHubCli {
     }
 
     pub(super) fn get_mr_pr_diff_impl(&self, number: u64) -> Result<Vec<MrPrDiffFile>, ForgeError> {
-        let files: Vec<serde_json::Value> = self.run_json(&[
+        let stdout = self.run(&[
             "api",
             &format!("repos/{{owner}}/{{repo}}/pulls/{number}/files"),
             "--paginate",
         ])?;
-        Ok(files
-            .iter()
-            .map(|f| MrPrDiffFile {
-                path: f["filename"].as_str().unwrap_or("").to_string(),
-                old_path: f["previous_filename"].as_str().map(|s| s.to_string()),
-                status: f["status"].as_str().unwrap_or("modified").to_string(),
-                additions: f["additions"].as_u64().unwrap_or(0),
-                deletions: f["deletions"].as_u64().unwrap_or(0),
-                patch: f["patch"].as_str().map(|s| s.to_string()),
-            })
-            .collect())
+        parse_diff_files(&stdout, MAX_DIFF_PAYLOAD_BYTES)
     }
 
     pub(super) fn create_mr_pr_impl(&self, input: CreateMrPrInput) -> Result<MrPr, ForgeError> {
@@ -202,6 +192,51 @@ impl GitHubCli {
         )?;
         Ok(())
     }
+}
+
+// ─── diff parsing ───────────────────────────────────────────────────────
+
+/// Upper bound on the JSON payload returned by `gh api
+/// repos/…/pulls/{n}/files --paginate`.
+///
+/// GitHub can return a few thousand file entries for large PRs (e.g.
+/// vendored dependency bumps), which has caused multi-minute hangs in
+/// `serde_json::from_str` on the Rust side. 50 MB is well above every
+/// real-world PR we've observed while keeping worst-case parse time
+/// bounded.
+pub(crate) const MAX_DIFF_PAYLOAD_BYTES: usize = 50 * 1024 * 1024;
+
+/// Parse stdout from `gh api repos/…/pulls/{n}/files --paginate` into a
+/// list of [`MrPrDiffFile`]s.
+///
+/// Short-circuits with `ForgeError::Cli("diff payload too large …")` if
+/// the payload exceeds `max_bytes`, so the UI surfaces a clear error
+/// rather than sitting on an unbounded parse. `max_bytes` is passed in
+/// (instead of always using [`MAX_DIFF_PAYLOAD_BYTES`]) so tests can
+/// exercise the size guard with tiny fixtures.
+pub(crate) fn parse_diff_files(
+    stdout: &str,
+    max_bytes: usize,
+) -> Result<Vec<MrPrDiffFile>, ForgeError> {
+    if stdout.len() > max_bytes {
+        return Err(ForgeError::Cli(format!(
+            "diff payload too large ({} bytes, cap {max_bytes})",
+            stdout.len()
+        )));
+    }
+    let files: Vec<serde_json::Value> =
+        serde_json::from_str(stdout).map_err(|e| ForgeError::Cli(e.to_string()))?;
+    Ok(files
+        .iter()
+        .map(|f| MrPrDiffFile {
+            path: f["filename"].as_str().unwrap_or("").to_string(),
+            old_path: f["previous_filename"].as_str().map(|s| s.to_string()),
+            status: f["status"].as_str().unwrap_or("modified").to_string(),
+            additions: f["additions"].as_u64().unwrap_or(0),
+            deletions: f["deletions"].as_u64().unwrap_or(0),
+            patch: f["patch"].as_str().map(|s| s.to_string()),
+        })
+        .collect())
 }
 
 // ─── argv builders ──────────────────────────────────────────────────────
