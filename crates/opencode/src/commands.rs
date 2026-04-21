@@ -42,6 +42,26 @@ pub fn build_interactive_cmd(provider: &dyn AiProvider, cwd: &Path) -> Result<Co
     Ok(cmd)
 }
 
+/// Build a resume command for a previously-recorded OpenCode session.
+///
+/// Shape: `opencode run --session <id> --dir <cwd>`. The OpenCode CLI
+/// also supports `-c` to continue the **last** session, but BeardGit
+/// targets a specific id so it always uses `--session`.
+///
+/// `session_id` is passed verbatim — OpenCode session ids (`ses_…`) are
+/// filename-safe and don't need shell quoting.
+pub fn build_resume_session_cmd(binary: &Path, session_id: &str, cwd: &Path) -> Command {
+    let mut cmd = Command::new(binary);
+    cmd.current_dir(cwd);
+    cmd.arg("run")
+        .arg("--session")
+        .arg(session_id)
+        .arg("--dir")
+        .arg(cwd);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd
+}
+
 /// Build a **headless background** OpenCode command.
 ///
 /// OpenCode accepts the prompt via `-p <text>` in its non-interactive mode
@@ -156,6 +176,39 @@ mod tests {
         assert!(d.contains("run"));
         assert!(d.contains("\"-p\""));
         assert!(d.contains("bump version"));
+    }
+
+    #[test]
+    fn resume_command_contains_run_session_and_dir() {
+        let cmd = build_resume_session_cmd(
+            &PathBuf::from("/usr/bin/opencode"),
+            "ses_abc123",
+            Path::new("/tmp/repo"),
+        );
+        let args: Vec<&std::ffi::OsStr> = cmd.get_args().collect();
+        assert!(args.iter().any(|a| a.to_str() == Some("run")));
+        assert!(args.iter().any(|a| a.to_str() == Some("--session")));
+        assert!(args.iter().any(|a| a.to_str() == Some("ses_abc123")));
+        assert!(args.iter().any(|a| a.to_str() == Some("--dir")));
+        assert!(args.iter().any(|a| a.to_str() == Some("/tmp/repo")));
+    }
+
+    #[test]
+    fn resume_command_has_correct_argv_order() {
+        let cmd = build_resume_session_cmd(
+            &PathBuf::from("/usr/bin/opencode"),
+            "ses_id",
+            Path::new("/tmp/repo"),
+        );
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        let run_idx = args.iter().position(|a| a == "run").unwrap();
+        let session_idx = args.iter().position(|a| a == "--session").unwrap();
+        let id_idx = args.iter().position(|a| a == "ses_id").unwrap();
+        assert!(run_idx < session_idx);
+        assert!(session_idx < id_idx);
     }
 
     #[test]

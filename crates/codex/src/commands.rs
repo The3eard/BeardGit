@@ -40,6 +40,23 @@ pub fn build_interactive_cmd(binary: &Path, cwd: &Path) -> Result<Command, AiErr
     Ok(cmd)
 }
 
+/// Build a resume command for an existing session id.
+///
+/// Shape: `codex exec resume <session_id> -C <cwd>`. Stdout is configured
+/// for piping so callers can stream output (matches the Claude Code idiom).
+/// `session_id` is passed verbatim — Codex UUIDs are filename-safe.
+pub fn build_resume_session_cmd(binary: &Path, session_id: &str, cwd: &Path) -> Command {
+    let mut cmd = Command::new(binary);
+    cmd.current_dir(cwd);
+    cmd.arg("exec")
+        .arg("resume")
+        .arg(session_id)
+        .arg("-C")
+        .arg(cwd);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd
+}
+
 /// Build a **headless background** Codex command.
 ///
 /// Codex doesn't have first-class `--skill` or `--prompt-file` flags at the
@@ -166,5 +183,42 @@ mod tests {
         assert!(d.contains("/usr/bin/codex"));
         assert!(!d.contains("exec"));
         assert!(!d.contains("-p"));
+    }
+
+    #[test]
+    fn resume_command_contains_exec_resume_and_session_id() {
+        let cmd = build_resume_session_cmd(
+            &PathBuf::from("/usr/bin/codex"),
+            "019dace7-5260-7762",
+            Path::new("/tmp/repo"),
+        );
+        let args: Vec<&std::ffi::OsStr> = cmd.get_args().collect();
+        assert!(args.iter().any(|a| a.to_str() == Some("exec")));
+        assert!(args.iter().any(|a| a.to_str() == Some("resume")));
+        assert!(
+            args.iter()
+                .any(|a| a.to_str() == Some("019dace7-5260-7762"))
+        );
+        assert!(args.iter().any(|a| a.to_str() == Some("-C")));
+        assert!(args.iter().any(|a| a.to_str() == Some("/tmp/repo")));
+    }
+
+    #[test]
+    fn resume_command_has_correct_argv_order() {
+        let cmd = build_resume_session_cmd(
+            &PathBuf::from("/usr/bin/codex"),
+            "sess-id",
+            Path::new("/tmp/repo"),
+        );
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        // `exec` must precede `resume`; `resume` must precede the session id.
+        let exec_idx = args.iter().position(|a| a == "exec").unwrap();
+        let resume_idx = args.iter().position(|a| a == "resume").unwrap();
+        let id_idx = args.iter().position(|a| a == "sess-id").unwrap();
+        assert!(exec_idx < resume_idx);
+        assert!(resume_idx < id_idx);
     }
 }

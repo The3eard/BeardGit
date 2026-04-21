@@ -123,6 +123,9 @@ impl AiProvider for MockAiProvider {
                 AiError::Parse(s) => AiError::Parse(s.clone()),
                 AiError::NotSupported => AiError::NotSupported,
                 AiError::Io(e) => AiError::Io(std::io::Error::new(e.kind(), e.to_string())),
+                AiError::AuthExpired(s) => AiError::AuthExpired(s.clone()),
+                AiError::RateLimited(s) => AiError::RateLimited(s.clone()),
+                AiError::Other(s) => AiError::Other(s.clone()),
             }),
         }
     }
