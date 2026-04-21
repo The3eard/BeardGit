@@ -97,7 +97,7 @@ BeardGit now ships `gh` (v2.62.0) and `glab` (v1.46.1) as Tauri sidecars on macO
 
 ### Infrastructure (Phase 7.5)
 
-- **Log rotation** — `storage::logging::purge_old_logs()` auto-removes `beardgit.log.*` files older than 7 days on startup (async, non-blocking).
+- **Log rotation** — `storage::logging::purge_old_logs()` auto-removes `beardgit.*.log` files older than 7 days on startup (async, non-blocking). Legacy `beardgit.log.*` files from pre-rename installs are also purged by age.
 - **Tracing on git writes** — 41 `#[instrument]` spans on `git-engine` write operations (bisect / operations / conflict / reset / clean / remote / worktree / submodule / interactive_rebase). Sensitive fields (commit bodies, PR descriptions, PAT tokens) excluded via `skip(...)`.
 - **Tracing on Tauri commands** — 80 `#[instrument(name = "cmd::…")]` spans across 19 command modules. Hierarchical names make log grepping trivial.
 

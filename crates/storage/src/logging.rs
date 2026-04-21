@@ -7,7 +7,6 @@
 
 use std::path::PathBuf;
 
-use tracing_appender::rolling;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Debug information for error reports and the "About" screen.
@@ -47,9 +46,9 @@ pub fn log_directory() -> PathBuf {
 
 /// Delete log files older than `max_age_days` from `log_dir`.
 ///
-/// Only removes files whose names contain `"log"` (matching the
-/// `beardgit.log.*` naming convention from `tracing-appender`).
-/// Returns the number of files deleted.
+/// Only removes files whose names contain `"log"`. This matches both the
+/// current `beardgit.{date}.log` layout and any legacy `beardgit.log.{date}`
+/// files left behind by pre-rename installs. Returns the number of files deleted.
 ///
 /// # Errors
 /// Returns an I/O error if the directory cannot be read.
@@ -94,6 +93,21 @@ pub fn purge_old_logs(log_dir: &std::path::Path, max_age_days: u64) -> std::io::
     Ok(deleted)
 }
 
+/// Build the daily-rotating file appender used by `init_logging`.
+///
+/// Filename layout: `beardgit.{YYYY-MM-DD}.log` — the `.log` suffix is last
+/// so `*.log` globs and standard log viewers recognize the file.
+fn build_file_appender(
+    log_dir: &std::path::Path,
+) -> tracing_appender::rolling::RollingFileAppender {
+    tracing_appender::rolling::RollingFileAppender::builder()
+        .rotation(tracing_appender::rolling::Rotation::DAILY)
+        .filename_prefix("beardgit")
+        .filename_suffix("log")
+        .build(log_dir)
+        .expect("rolling file appender builder should not fail for a valid directory")
+}
+
 /// Initialize the global tracing subscriber with file logging.
 ///
 /// Creates a daily-rotating log file in the platform log directory.
@@ -103,7 +117,7 @@ pub fn init_logging() -> Result<(), String> {
     let log_dir = log_directory();
     std::fs::create_dir_all(&log_dir).map_err(|e| format!("failed to create log dir: {e}"))?;
 
-    let file_appender = rolling::daily(&log_dir, "beardgit.log");
+    let file_appender = build_file_appender(&log_dir);
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     // Keep the guard alive for the lifetime of the app.
@@ -171,19 +185,19 @@ mod tests {
     #[test]
     fn purge_deletes_old_logs() {
         let tmp = tempfile::tempdir().unwrap();
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-01", 10);
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-10", 3);
+        create_aged_log(tmp.path(), "beardgit.2026-04-01.log", 10);
+        create_aged_log(tmp.path(), "beardgit.2026-04-10.log", 3);
 
         let deleted = purge_old_logs(tmp.path(), 7).unwrap();
         assert_eq!(deleted, 1);
-        assert!(!tmp.path().join("beardgit.log.2026-04-01").exists());
-        assert!(tmp.path().join("beardgit.log.2026-04-10").exists());
+        assert!(!tmp.path().join("beardgit.2026-04-01.log").exists());
+        assert!(tmp.path().join("beardgit.2026-04-10.log").exists());
     }
 
     #[test]
     fn purge_ignores_non_log_files() {
         let tmp = tempfile::tempdir().unwrap();
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-01", 10);
+        create_aged_log(tmp.path(), "beardgit.2026-04-01.log", 10);
         create_aged_log(tmp.path(), "settings.json", 10);
 
         let deleted = purge_old_logs(tmp.path(), 7).unwrap();
@@ -207,10 +221,75 @@ mod tests {
     #[test]
     fn purge_keeps_all_when_none_old_enough() {
         let tmp = tempfile::tempdir().unwrap();
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-14", 2);
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-15", 1);
+        create_aged_log(tmp.path(), "beardgit.2026-04-14.log", 2);
+        create_aged_log(tmp.path(), "beardgit.2026-04-15.log", 1);
 
         let deleted = purge_old_logs(tmp.path(), 7).unwrap();
         assert_eq!(deleted, 0);
+    }
+
+    #[test]
+    fn purge_matches_new_filename_pattern() {
+        let tmp = tempfile::tempdir().unwrap();
+        // New shape — old enough to purge.
+        create_aged_log(tmp.path(), "beardgit.2026-04-01.log", 10);
+        // New shape — recent, should survive.
+        create_aged_log(tmp.path(), "beardgit.2026-04-20.log", 1);
+
+        let deleted = purge_old_logs(tmp.path(), 7).unwrap();
+        assert_eq!(deleted, 1);
+        assert!(!tmp.path().join("beardgit.2026-04-01.log").exists());
+        assert!(tmp.path().join("beardgit.2026-04-20.log").exists());
+    }
+
+    #[test]
+    fn purge_handles_legacy_filenames_without_crashing() {
+        // Legacy `beardgit.log.{date}` files may linger from pre-rename installs.
+        // Rotation should treat them like any other log file: age-based purge, no panic.
+        let tmp = tempfile::tempdir().unwrap();
+        create_aged_log(tmp.path(), "beardgit.log.2026-04-01", 10); // legacy, old
+        create_aged_log(tmp.path(), "beardgit.2026-04-20.log", 1); // new, recent
+
+        let deleted = purge_old_logs(tmp.path(), 7).unwrap();
+        assert_eq!(deleted, 1, "legacy old file should be purged by age");
+        assert!(!tmp.path().join("beardgit.log.2026-04-01").exists());
+        assert!(tmp.path().join("beardgit.2026-04-20.log").exists());
+    }
+
+    #[test]
+    fn init_logging_produces_filename_matching_new_pattern() {
+        // The rolling appender writes `beardgit.{YYYY-MM-DD}.log`.
+        // We build the appender via the production helper to assert
+        // the filename shape without touching the global subscriber.
+        let tmp = tempfile::tempdir().unwrap();
+        let appender = build_file_appender(tmp.path());
+
+        // Force a write so the file is created.
+        use std::io::Write;
+        let mut w = appender;
+        writeln!(w, "probe").unwrap();
+        drop(w);
+
+        let entries: Vec<String> = std::fs::read_dir(tmp.path())
+            .unwrap()
+            .filter_map(|e| e.ok().and_then(|e| e.file_name().into_string().ok()))
+            .collect();
+
+        assert_eq!(
+            entries.len(),
+            1,
+            "expected exactly one log file, got {entries:?}"
+        );
+        let name = &entries[0];
+        assert!(
+            name.starts_with("beardgit.") && name.ends_with(".log"),
+            "filename {name:?} does not match beardgit.{{date}}.log"
+        );
+        // Reject the legacy shape: prefix `beardgit.log.` means the `.log`
+        // slot is in the middle, which is exactly what we are fixing.
+        assert!(
+            !name.starts_with("beardgit.log."),
+            "filename {name:?} still uses the legacy beardgit.log.{{date}} shape"
+        );
     }
 }
