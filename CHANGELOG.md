@@ -2,6 +2,75 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Reactivity foundation, AI sessions UX, forge data fixes, settings IA polish, log rename, E2E retirement
+
+Six sequential specs brainstormed and shipped on 2026-04-21. Each spec merged into `beta` on its own feature branch with a dedicated design + plan document.
+
+### Reactivity & feedback foundation (Spec 1)
+
+Every repository mutation — UI-initiated, AI-initiated, or external CLI — now broadcasts a precise `project-mutated` event so the UI converges on fresh state without per-call-site refresh code.
+
+- **New `mutation-events` Rust crate** — `Snapshot::capture` + `diff`, `MutationGuard` RAII wrapper, `MutationKind` enum (commit / push / stash / worktree / staging_change / ai / external / …), `MutationFlags` struct, `emit_mutation` helper. Status fingerprint tracks per-file index/worktree bitflags so staging transitions flip `status_changed` even when the overall dirty boolean doesn't move.
+- **app-core commands wrapped** — every mutating Tauri command (commit / amend / branch / tag / stash / staging / worktree / remote / cherry-pick / revert / rebase / reset / merge / conflict / clean / patch / submodule / mr_pr / releases) fires the guard on success.
+- **watcher crate** — debounced `.git/**` change → `MutationKind::External` so CLI edits outside BeardGit still refresh the UI.
+- **AI background runs** — coordinator captures pre/post worktree snapshots and emits `MutationKind::Ai { source }` on completion / failure / cancellation.
+- **TS `mutations.ts` store** — single `project-mutated` listener coalesces events per rAF tick, buffers flags per project path, flushes on tab switch, dispatches the minimal refresh set to `graph` / `changes` / `stashes` / `worktrees` / `repoConfig`.
+- **`runMutation` wrapper** — caller-side toast + task-record seam. Silent-set (stage / unstage / discard) suppresses success toast. Failures are sticky with a **See details** action that opens the Tasks popover at the failing task's detail panel.
+- **Graph cache-first paint** — per-project `GraphViewportCache` slice persisted in `project-cache.ts`; synchronous hydration on cold start; faint skeleton stripes while first paint resolves; HEAD-OID reconciliation preserves scroll anchor when new commits land above the cached top.
+- **Statusbar provider filter** — new `projectProvider` derived store. `repoConfig` wins; otherwise inferred from `origin` URL (`github.com`, `gitlab.*`). Renders 0 or 1 pill, never both.
+- **Tasks popover regression fixed** — click-bubble race where the opening click hit the outside-click handler on the same frame. Rising-edge `ready` latch tied to the `open` transition.
+
+### AI sessions UX pass (Spec 2)
+
+The AI Sessions tab is now async-first, populates detail on click, supports open-in-terminal via the shared runMutation seam, and renders brand logos at native transparency.
+
+- **`ProviderIcon` shared component** + brand SVG assets for Claude Code, Codex, OpenCode, and a generic fallback. No enclosing background square — brand logos render at native transparency.
+- **`AiSessionList`** — shell paints immediately, refresh fires fire-and-forget in `onMount`. Row layout: 8 px padding, vertically-centered 20 px icon slot, External badge when `worktree_path` is missing or unreachable.
+- **`AiSessionDetail`** — populates on `selectedBackgroundSessionId` change. Header uses `ProviderIcon`. Open-in-terminal / Cancel / Discard routed through `runMutation` with sticky-failure toasts.
+- **AI Settings, TabBar, AiSlot, TaskEntryRow** — migrated to the shared `ProviderIcon`; generic nerd-font glyphs retired.
+- **i18n** — en-US + es-ES keys for the new toast labels.
+
+### Forge data fixes (Spec 3)
+
+PR and Release detail panes no longer hang; error and empty states are distinct and localized.
+
+- **`ForgeDetailShell`** — shared loading / error / empty / content state primitive used by both `MrPrDetail` and `ReleaseDetail`.
+- **`withTimeout`** helper + `TimeoutError` — 15 s bound on detail fetches; errors surface via a new per-detail error store (`mrPrDetailError` / `releaseDetailError`) + sticky toast with a **Retry** action.
+- **PR #18 infinite loading** — root cause traced to unbounded `gh api --paginate` for ~3 400-file diffs. Fix: 50 MB payload cap + 20 s subprocess timeout in `cli-provider` via `wait-timeout`. Frontend's 15 s `withTimeout` is the outer guard.
+- **Release-blank** — `#[serde(default)]` didn't accept explicit JSON `null`. New `null_as_default` deserializer handles null `body` / `assets` from `gh`/`glab` payloads.
+- **Empty-state copy** — "No changes in this pull request." / "No release notes or assets published for {tag}."
+
+### Settings IA polish (Spec 4)
+
+One canonical shape for the settings navigation, driven by the shared primitives from Spec 2.
+
+- **`LookAndFeelSection.svelte`** extracted from `GeneralSettings`. General now owns a single Look & Feel card (no duplicate blocks).
+- **Appearance tab removed** — collapsed into General; legacy `appearance` deep-links redirect to `general`.
+- **Editor/Diff tab removed** — the placeholder page wasn't implemented; legacy `editor` deep-links redirect to `general`.
+- **`CATEGORY_IDS`** reduced to `general / git / ai / integrations / advanced`.
+- **AI Settings** — stray broken-glyph refresh button deleted; provider icons verified wired to `ProviderIcon`.
+- **`ConnectionHowTo`** — reworked as a compact top-level dropdown (OAuth / PAT / CLI modes) rendered above the card, not inside.
+- **Integrations Connections** — unified single Card with a new `ConnectionRow` primitive dispatching on `kind` (github / gitlab / gh / glab). `CliAuthSection.svelte` and `ProviderSetup.svelte` deleted.
+
+### Log filename convention (Spec 5)
+
+Log files now write as `beardgit.{date}.log` (was `beardgit.log.{date}`) so `*.log` globs match them and log-rotation tooling sees the date as the disambiguator, not the extension. Rotation cleanup tolerates both shapes so legacy files age out under the existing retention policy.
+
+### E2E infrastructure retired
+
+The WebdriverIO + tauri-driver suite is removed while the app is in heavy flux. Specs would need continuous rewriting against a moving target; the Vitest integration layer under `src/test/e2e/` remains as the sustainable cross-store regression suite. Re-introduction happens once the UI stabilises and a focused "write E2E from scratch" spec is brainstormed.
+
+- Deleted `e2e/` directory (specs, fixtures, page objects, Dockerfile, run scripts).
+- Dropped the `e2e-tests` job from `.github/workflows/ci.yml`.
+- Removed `@wdio/*` devDependencies + the `npm run e2e*` scripts from `package.json`.
+- Dropped the `window.__E2E__` surface + `VITE_BEARDGIT_E2E` gate from `src/routes/+layout.svelte`.
+
+### Testing
+
+- **Rust:** 965 tests across 22 crates, clippy clean on `--workspace --all-targets`.
+- **Frontend:** 595 Vitest tests across 86 files.
+- **svelte-check:** 0 errors / 0 warnings across 2 618 files.
+
 ## [0.1.8] — Phases 6–10: Bisect, CLI Auth, AI Stack, Forge Integration, Bundled CLIs, Refactor, E2E, Performance
 
 The biggest release since the MVP — everything since `v0.1.7-beta` ships in one cut. Five phases of feature work plus a deep architecture and performance pass: visual bisect, CLI auth, the full AI stack (three providers, headless background runs in worktrees), GitLab + GitHub forge integration with bundled CLIs, the provider architecture cleanup, and the E2E + tracing infrastructure.
