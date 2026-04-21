@@ -34,6 +34,10 @@
     type?: "button" | "submit";
     /** Click handler; skipped while `loading` or `disabled`. */
     onclick?: (event: MouseEvent) => void;
+    /** Optional `aria-label` for icon-only buttons (a11y). */
+    ariaLabel?: string;
+    /** Optional `data-testid` forwarded to the underlying `<button>`. */
+    testid?: string;
     /** Slot for label text/children. */
     children?: import("svelte").Snippet;
   }
@@ -46,6 +50,8 @@
     icon,
     type = "button",
     onclick,
+    ariaLabel,
+    testid,
     children,
   }: Props = $props();
 
@@ -65,8 +71,10 @@
   class:bg-btn--loading={loading}
   disabled={disabled || loading}
   aria-busy={loading ? "true" : undefined}
+  aria-label={ariaLabel}
   data-variant={variant}
   data-size={size}
+  data-testid={testid}
   onclick={handleClick}
 >
   {#if loading}

@@ -39,6 +39,7 @@
   import type { TaskEntry, TaskAction } from "$lib/types/tasks";
   import TaskEntryRow from "./TaskEntryRow.svelte";
   import TaskDetailPanel from "./TaskDetailPanel.svelte";
+  import { Button } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -206,27 +207,25 @@
   >
     {#if detailEntry}
       <header class="popover-header" data-testid="tasks-popover-detail-header">
-        <button
-          type="button"
-          class="btn-icon back-btn"
-          aria-label={m.tasks_collapse_tooltip()}
-          data-testid="tasks-popover-back"
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={"\uF060"}
+          ariaLabel={m.tasks_collapse_tooltip()}
+          testid="tasks-popover-back"
           onclick={backToList}
-        >
-          <span class="nf" aria-hidden="true">{"\uF060"}</span>
-        </button>
+        />
         <span class="header-title header-title--detail" title={detailEntry.title}
           >{detailEntry.title}</span
         >
-        <button
-          type="button"
-          class="btn-icon close-btn"
-          aria-label={m.tasks_close()}
-          data-testid="tasks-popover-close"
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={"\uF00D"}
+          ariaLabel={m.tasks_close()}
+          testid="tasks-popover-close"
           onclick={closeX}
-        >
-          <span class="nf" aria-hidden="true">{"\uF00D"}</span>
-        </button>
+        />
       </header>
       <div class="popover-body popover-body--detail">
         <TaskDetailPanel entry={detailEntry} />
@@ -240,24 +239,23 @@
           >
         </div>
         <div class="header-actions">
-          <button
-            type="button"
-            class="btn-cancel clear-btn"
-            data-testid="tasks-popover-clear"
+          <Button
+            variant="secondary"
+            size="sm"
+            testid="tasks-popover-clear"
             disabled={finished.length === 0}
             onclick={clearFinished}
           >
             {m.tasks_clear_finished()}
-          </button>
-          <button
-            type="button"
-            class="btn-icon close-btn"
-            aria-label={m.tasks_close()}
-            data-testid="tasks-popover-close"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={"\uF00D"}
+            ariaLabel={m.tasks_close()}
+            testid="tasks-popover-close"
             onclick={closeX}
-          >
-            <span class="nf" aria-hidden="true">{"\uF00D"}</span>
-          </button>
+          />
         </div>
       </header>
 
@@ -357,29 +355,6 @@
     display: flex;
     align-items: center;
     gap: 6px;
-  }
-
-  .clear-btn {
-    padding: 3px 10px;
-    font-size: 11px;
-  }
-
-  .btn-icon {
-    font-family: inherit;
-    padding: 2px 6px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: 4px;
-  }
-
-  .btn-icon:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-primary);
   }
 
   .popover-body {
