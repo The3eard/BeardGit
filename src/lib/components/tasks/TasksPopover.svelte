@@ -137,7 +137,15 @@
 
   function handleClickOutside(event: MouseEvent) {
     if (!open || !ready) return;
-    if (popoverEl && !popoverEl.contains(event.target as Node)) {
+    const target = event.target as HTMLElement | null;
+    // Defence in depth: even if the rising-edge `ready` latch races in
+    // real WebKit, never treat a click that originated inside the
+    // statusbar Tasks slot as "outside" — the slot's own onclick owns
+    // opening/closing this popover, so bubbling up to the window-level
+    // outside-click handler on the opening click would close the
+    // popover on the same frame it opened.
+    if (target?.closest('[data-testid="statusbar-tasks-slot"]')) return;
+    if (popoverEl && !popoverEl.contains(target)) {
       onClose();
     }
   }
