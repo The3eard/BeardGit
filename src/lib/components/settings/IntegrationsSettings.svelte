@@ -41,28 +41,36 @@
   import { Card, SettingSection } from "$lib/components/ui";
 </script>
 
-<Card>
+<div class="integrations-page">
   <ConnectionHowTo />
-</Card>
 
-<Card
-  title={m.settings_integrations_token_section()}
-  description={m.settings_integrations_token_description()}
->
-  <SettingSection title={m.settings_token_auth()}>
-    <div data-setting-anchor="tokens">
-      <ProviderSetup />
-    </div>
-  </SettingSection>
-</Card>
+  <Card
+    title={m.settings_integrations_token_section()}
+    description={m.settings_integrations_token_description()}
+  >
+    <SettingSection title={m.settings_token_auth()}>
+      <div data-setting-anchor="tokens">
+        <ProviderSetup />
+      </div>
+    </SettingSection>
+  </Card>
 
-<Card
-  title={m.settings_integrations_cli_section()}
-  description={m.settings_integrations_cli_description()}
->
-  <SettingSection title={m.cli_auth_title()}>
-    <div data-setting-anchor="cli">
-      <CliAuthSection />
-    </div>
-  </SettingSection>
-</Card>
+  <Card
+    title={m.settings_integrations_cli_section()}
+    description={m.settings_integrations_cli_description()}
+  >
+    <SettingSection title={m.cli_auth_title()}>
+      <div data-setting-anchor="cli">
+        <CliAuthSection />
+      </div>
+    </SettingSection>
+  </Card>
+</div>
+
+<style>
+  .integrations-page {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+</style>
