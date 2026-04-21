@@ -83,7 +83,10 @@ fn stash_flips_stashes_changed() {
     let after = Snapshot::capture(&path).unwrap();
 
     let flags = before.diff(&after);
-    assert!(flags.stashes_changed, "stashes_changed should flip on stash push");
+    assert!(
+        flags.stashes_changed,
+        "stashes_changed should flip on stash push"
+    );
 }
 
 #[test]

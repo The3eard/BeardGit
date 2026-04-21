@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use ai_provider::AiSession;
 use async_trait::async_trait;
-use mutation_events::{emit_mutation, AiSource, MutationFlags, MutationKind};
+use mutation_events::{AiSource, MutationFlags, MutationKind, emit_mutation};
 use serde::Serialize;
 use task_runner::{OutputLine, TaskEventSink, TaskId, TaskInfo, TaskKind, TaskOutputEvent};
 use tauri::{AppHandle, Emitter};

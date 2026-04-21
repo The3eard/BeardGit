@@ -7,7 +7,7 @@ use tauri::AppHandle;
 use thiserror::Error;
 use tracing::warn;
 
-use crate::{emit_mutation, EmitError, MutationKind, Snapshot, SnapshotError};
+use crate::{EmitError, MutationKind, Snapshot, SnapshotError, emit_mutation};
 
 /// Errors produced by the guard lifecycle.
 #[derive(Debug, Error)]
