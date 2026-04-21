@@ -16,9 +16,9 @@
 
   onMount(() => {
     startAiBackgroundListeners();
-    refreshAiBackgroundRuns().catch(() => {});
+    void refreshAiBackgroundRuns().catch(() => {});
     const path = $repoInfo?.path;
-    if (path) refreshSessions(path);
+    if (path) void refreshSessions(path).catch(() => {});
   });
 </script>
 

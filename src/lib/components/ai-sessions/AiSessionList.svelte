@@ -39,7 +39,9 @@
   onMount(() => {
     const path = $repoInfo?.path;
     if (path) {
-      refreshSessions(path);
+      // Fire-and-forget so the list shell paints this frame instead
+      // of blocking on the initial session fetch.
+      void refreshSessions(path).catch(() => {});
       startSessionListeners(path);
     }
   });
