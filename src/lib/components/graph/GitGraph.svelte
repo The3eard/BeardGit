@@ -199,6 +199,12 @@
     const activeVp = filteredViewport ?? $viewport;
     if (!activeVp || filteredNodes.length === 0) {
       ctx.clearRect(0, 0, canvas.width / canvasDpr, canvas.height / canvasDpr);
+      // Cold-start path: skeleton DOM overlays the canvas and owns the
+      // visual — bail out silently so we don't paint "No commits" text
+      // over the lane stripes.
+      if ($viewport === null && !filteredViewport && !isFiltering && !searchLoading) {
+        return;
+      }
       ctx.fillStyle = "#888888";
       ctx.font = "14px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.textAlign = "center";
@@ -881,6 +887,20 @@
       onmousedown={handleMouseDown}
       oncontextmenu={handleContextMenu}
     ></canvas>
+    <!--
+      Skeleton paint — overlaid on the canvas when the viewport store is
+      null (cold start, no cached slice). Shows three faint vertical
+      lane stripes instead of a spinner or "Loading…" text so the graph
+      feels stable and ready to receive data. Fades out as soon as
+      `viewport` is set (tab cache, persisted slice, or fresh fetch).
+    -->
+    {#if $viewport === null}
+      <div class="graph-skeleton" data-testid="graph-skeleton" aria-hidden="true">
+        <span class="graph-skeleton__lane" style="left: 14px"></span>
+        <span class="graph-skeleton__lane" style="left: 32px"></span>
+        <span class="graph-skeleton__lane" style="left: 50px"></span>
+      </div>
+    {/if}
   </div>
 
   <div class="graph-footer">
@@ -1016,6 +1036,31 @@
     width: 100%;
     height: 100%;
     cursor: default;
+  }
+
+  /*
+    Cold-start skeleton — three faint vertical lane stripes that
+    approximate the default graph layout (lane width ~18px, first
+    lane ~14px from left). Uses `--text-primary` tinted by opacity
+    instead of a bespoke colour so it follows the active theme.
+  */
+  .graph-skeleton {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .graph-skeleton__lane {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--text-primary);
+    opacity: 0.06;
+    border-radius: 1px;
   }
 
   .graph-footer {
