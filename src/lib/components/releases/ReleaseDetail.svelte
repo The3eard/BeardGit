@@ -8,7 +8,9 @@
   import {
     releaseDetail,
     releaseDetailLoading,
+    releaseDetailError,
     selectedReleaseTag,
+    selectRelease,
     doDeleteRelease,
     doPublishRelease,
     doUploadAsset,
@@ -16,6 +18,7 @@
     refreshSelectedDetail,
     completeUpload,
   } from "../../stores/releases";
+  import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
   import { activeProvider } from "../../stores/provider";
   import { renderMarkdown } from "../../utils/markdown";
   import { formatRelativeTime } from "../../utils/time";
@@ -136,19 +139,26 @@
   }
 </script>
 
-{#if $releaseDetailLoading && !detail}
-  <div class="loading"><div class="spinner"></div></div>
-{:else if !detail}
-  <div class="empty">{m.release_detail_empty()}</div>
-{:else}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="detail"
-    class:drag-over={dragOver}
-    ondragover={onDragOver}
-    ondragleave={onDragLeave}
-    ondrop={onDrop}
-  >
+<ForgeDetailShell
+  loading={$releaseDetailLoading}
+  error={$releaseDetailError}
+  isEmpty={!detail && !$releaseDetailLoading && !$releaseDetailError}
+  emptyMessage={m.release_detail_empty()}
+  onRetry={() => {
+    const tag = $selectedReleaseTag;
+    if (tag) selectRelease(tag);
+  }}
+>
+  {#snippet content()}
+    {#if detail}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="detail"
+        class:drag-over={dragOver}
+        ondragover={onDragOver}
+        ondragleave={onDragLeave}
+        ondrop={onDrop}
+      >
     <header class="header">
       <span class="badge badge-{detail.summary.state}">
         {stateLabel(detail.summary.state)}
@@ -249,8 +259,10 @@
     {#if dragOver}
       <div class="drop-hint">{m.release_drop_hint()}</div>
     {/if}
-  </div>
-{/if}
+      </div>
+    {/if}
+  {/snippet}
+</ForgeDetailShell>
 
 <style>
   .detail {
@@ -398,27 +410,12 @@
     color: var(--accent-red);
     border-color: var(--accent-red);
   }
-  .loading,
-  .empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-secondary);
-  }
-  .spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent-blue);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
+  /*
+   * Legacy `.loading`, `.empty`, `.spinner` + `@keyframes spin`
+   * lived here for the local loading/empty states. Those states are
+   * now rendered by `ForgeDetailShell`, which owns its own spinner,
+   * so the rules were removed to avoid dead CSS.
+   */
   .badge {
     font-size: 10px;
     padding: 1px 6px;
