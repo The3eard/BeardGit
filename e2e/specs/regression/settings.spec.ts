@@ -17,9 +17,9 @@ describe("Regression: Settings", () => {
     expect(await settings.hasContent()).toBe(true);
   });
 
-  it("should default to 'connection' section", async () => {
+  it("should default to 'general' section", async () => {
     const active = await settings.getActiveSection();
-    expect(active).toBe("connection");
+    expect(active).toBe("general");
   });
 
   it("should navigate to 'appearance' section", async () => {
@@ -29,10 +29,10 @@ describe("Regression: Settings", () => {
     expect(await settings.hasContent()).toBe(true);
   });
 
-  it("should navigate to 'git-config' section", async () => {
-    await settings.navigateToSection("git-config");
+  it("should navigate to 'git' section", async () => {
+    await settings.navigateToSection("git");
     const active = await settings.getActiveSection();
-    expect(active).toBe("git-config");
+    expect(active).toBe("git");
     expect(await settings.hasContent()).toBe(true);
   });
 
@@ -43,9 +43,16 @@ describe("Regression: Settings", () => {
     expect(await settings.hasContent()).toBe(true);
   });
 
-  it("should navigate back to 'connection' section", async () => {
-    await settings.navigateToSection("connection");
+  it("should navigate to 'integrations' section", async () => {
+    await settings.navigateToSection("integrations");
     const active = await settings.getActiveSection();
-    expect(active).toBe("connection");
+    expect(active).toBe("integrations");
+    expect(await settings.hasContent()).toBe(true);
+  });
+
+  it("should navigate back to 'general' section", async () => {
+    await settings.navigateToSection("general");
+    const active = await settings.getActiveSection();
+    expect(active).toBe("general");
   });
 });
