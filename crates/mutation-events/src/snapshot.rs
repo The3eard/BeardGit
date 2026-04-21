@@ -62,14 +62,12 @@ impl Snapshot {
         let mut stash_count = 0;
         // `stash_foreach` needs `&mut` repo; reopen for it.
         let mut stash_repo = git2::Repository::open(path).map_err(SnapshotError::from)?;
-        stash_repo
-            .stash_foreach(|_, _, _| {
-                stash_count += 1;
-                true
-            })
-            .ok();
+        stash_repo.stash_foreach(|_, _, _| {
+            stash_count += 1;
+            true
+        })?;
 
-        let worktree_count = repo.worktrees().map(|w| w.len()).unwrap_or(0);
+        let worktree_count = repo.worktrees()?.len();
 
         let remote_names: BTreeSet<String> = repo
             .remotes()?
