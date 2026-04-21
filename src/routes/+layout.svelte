@@ -9,7 +9,10 @@
   import { initShortcutListener } from "$lib/stores/shortcuts";
   import { runStartupCheck } from "$lib/stores/autoUpdate";
   import { openProjectTab, closeTab } from "$lib/stores/projects";
-  import { startMutationListener } from "$lib/stores/mutations";
+  import {
+    startMutationListener,
+    stopMutationListener,
+  } from "$lib/stores/mutations";
   import ToastContainer from "$lib/components/ui/ToastContainer.svelte";
   let { children } = $props();
 
@@ -34,6 +37,8 @@
     e.preventDefault();
   }
 
+  let stopMutations: (() => void) | null = null;
+
   onMount(() => {
     initLocale();
     initUiScale();
@@ -44,14 +49,19 @@
     // statusbar's Tasks slot count + the drawer's feed. Missing this call
     // was the root cause of the statusbar showing zero active tasks even
     // when git ops / AI runs / update downloads were in flight.
-    //
+    void initTasksStore();
     // `startMutationListener` registers the single `project-mutated` Tauri
     // listener so store refreshes happen reactively on backend mutations
-    // (Phase 2 of the reactivity foundation).
-    Promise.all([initTasksStore(), startMutationListener()]);
+    // (Phase 2 of the reactivity foundation). We stash the teardown in a
+    // closure-scoped handle so Vite HMR (which re-runs onMount on module
+    // reload) doesn't orphan the listener.
+    void startMutationListener().then(() => {
+      stopMutations = stopMutationListener;
+    });
     runStartupCheck();
     const cleanupShortcuts = initShortcutListener();
     return () => {
+      stopMutations?.();
       cleanupTaskStore();
       stopTasksStore();
       cleanupShortcuts();
