@@ -14,6 +14,7 @@ import {
   aiListWorktrees,
   aiCleanupWorktree,
 } from "$lib/api/tauri";
+import { runMutation } from "$lib/api/runMutation";
 import type { WorktreeInfo, AiWorktree, EnrichedWorktree } from "$lib/types";
 import { fetchIntoStore } from "$lib/utils/store-helpers";
 
@@ -70,22 +71,35 @@ export async function refreshWorktrees() {
   );
 }
 
-/** Create a new linked worktree and refresh the list. */
+/** Create a new linked worktree. */
 export async function addWorktree(path: string, branch: string, createBranch: boolean) {
-  await createWorktree(path, branch, createBranch);
-  await refreshWorktrees();
+  await runMutation({
+    kind: "worktree_create",
+    invoke: () => createWorktree(path, branch, createBranch),
+    successToast: () => `Created worktree at ${path}`,
+    failureToastPrefix: "Worktree create failed",
+  });
+  // Worktree list refresh is driven by the project-mutated event.
 }
 
-/** Remove a linked worktree and refresh the list. */
+/** Remove a linked worktree. */
 export async function deleteWorktree(path: string, force: boolean) {
-  await removeWorktree(path, force);
-  await refreshWorktrees();
+  await runMutation({
+    kind: "worktree_remove",
+    invoke: () => removeWorktree(path, force),
+    successToast: () => `Removed worktree ${path}`,
+    failureToastPrefix: "Worktree remove failed",
+  });
 }
 
-/** Cleanup an AI worktree (removes directory + branch) and refresh. */
+/** Cleanup an AI worktree (removes directory + branch). */
 export async function cleanupAiWorktree(provider: string, worktreePath: string) {
-  await aiCleanupWorktree(provider, worktreePath);
-  await refreshWorktrees();
+  await runMutation({
+    kind: "worktree_cleanup_ai",
+    invoke: () => aiCleanupWorktree(provider, worktreePath),
+    successToast: () => `Cleaned up AI worktree ${worktreePath}`,
+    failureToastPrefix: "AI worktree cleanup failed",
+  });
 }
 
 /** Reset worktree state. Called on repo switch. */
