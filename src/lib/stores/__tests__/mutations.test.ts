@@ -159,4 +159,43 @@ describe("startMutationListener", () => {
     // graph reload is idempotent.
     expect(refreshAndReloadGraph).toHaveBeenCalledTimes(5);
   });
+
+  it("dispatches stashes / worktrees / remotes refreshers when flagged", async () => {
+    const stashesRefresh = vi.fn();
+    const worktreesRefresh = vi.fn();
+    const remotesRefresh = vi.fn();
+    vi.doMock("../stashes", () => ({ refreshStashes: stashesRefresh }));
+    vi.doMock("../worktrees", () => ({ refreshWorktrees: worktreesRefresh }));
+    vi.doMock("../repoConfig", () => ({ refreshRepoConfig: remotesRefresh }));
+
+    // Reset the module graph so `../mutations` picks up the fresh
+    // `vi.doMock` factories above instead of the already-cached
+    // real imports from the top-of-file import.
+    vi.resetModules();
+    const mod = await import("../mutations");
+    mod.__resetForTests();
+    let handler: ((ev: unknown) => void) | null = null;
+    listenMock.mockImplementation(async (_n, cb) => {
+      handler = cb as (ev: unknown) => void;
+      return () => {};
+    });
+    await mod.startMutationListener();
+    handler!({
+      payload: {
+        project_path: "/repo",
+        kind: { type: "stash" },
+        flags: {
+          refs_changed: false,
+          head_changed: false,
+          status_changed: false,
+          stashes_changed: true,
+          worktrees_changed: true,
+          remotes_changed: true,
+        },
+      },
+    });
+    expect(stashesRefresh).toHaveBeenCalled();
+    expect(worktreesRefresh).toHaveBeenCalled();
+    expect(remotesRefresh).toHaveBeenCalled();
+  });
 });

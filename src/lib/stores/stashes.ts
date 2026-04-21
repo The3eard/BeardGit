@@ -23,6 +23,15 @@ export const stashesLoading = writable(false);
 export const selectedStashIndex = writable<number | null>(null);
 export const selectedStashDiff = writable<FileDiff[] | null>(null);
 
+/**
+ * Re-fetch the stash list for the active project. Thin wrapper over
+ * {@link loadStashes}; exists so the mutation dispatcher can call a
+ * named refresher that matches the other stores' naming pattern.
+ */
+export async function refreshStashes(): Promise<void> {
+  await loadStashes();
+}
+
 /** Refresh the stash entry list. Clears selection if the selected stash was dropped. */
 export async function loadStashes() {
   await fetchIntoStore(stashes, stashesLoading, apiStashEntries, []);

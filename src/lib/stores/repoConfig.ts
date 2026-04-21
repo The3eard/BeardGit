@@ -21,7 +21,7 @@
  * from non-UI contexts.
  */
 
-import { derived, writable } from "svelte/store";
+import { derived, get, writable } from "svelte/store";
 import type {
   RemoteRepoConfig,
   RemoteRepoConfigPatch,
@@ -29,6 +29,7 @@ import type {
   Visibility,
 } from "../types/repoConfig";
 import { patchClear, patchSet, patchUnchanged } from "../types/repoConfig";
+import { loadRemoteRepoConfig } from "../api/tauri";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Dialog open/closed flag
@@ -249,6 +250,32 @@ export function isPatchEmpty(patch: RemoteRepoConfigPatch): boolean {
     patch.wiki_enabled === undefined &&
     patch.archive === undefined
   );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Mutation-driven refresh
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Re-fetch the remote config for the currently-tracked repo path, if
+ * any. A no-op when the dialog has never been opened — there's nothing
+ * to refresh and we don't want to trigger a backend call just because
+ * a mutation event mentioned `remotes_changed`.
+ *
+ * Called from the mutation dispatcher when `remotes_changed` flag is
+ * set; keeps the dialog's `before`/`current` snapshots in sync with
+ * forge-side edits made through other surfaces.
+ */
+export async function refreshRepoConfig(): Promise<void> {
+  const snapshot = get(repoConfigStore);
+  const repoPath = snapshot.repoPath;
+  if (!repoPath) return;
+  try {
+    const config = await loadRemoteRepoConfig(repoPath);
+    setLoadedConfig(repoPath, config);
+  } catch (e) {
+    setLoadError(String(e));
+  }
 }
 
 // ───────────────────────────────────────────────────────────────────────────

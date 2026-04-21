@@ -13,6 +13,9 @@ import { get } from "svelte/store";
 import { activeProject } from "./projects";
 import { refreshAndReloadGraph } from "./graph";
 import { refreshStatuses } from "./changes";
+import { refreshStashes } from "./stashes";
+import { refreshWorktrees } from "./worktrees";
+import { refreshRepoConfig } from "./repoConfig";
 
 /** Shape emitted by `mutation_events::emit_mutation`. */
 export interface MutationFlags {
@@ -62,9 +65,9 @@ export function dispatchRefresh(_path: string, flags: MutationFlags): void {
   if (flags.head_changed || flags.status_changed) {
     void refreshStatuses();
   }
-  // Stashes/worktrees/remotes refresh matrix lands alongside
-  // Phase 7 call-site migration so the test suite isolates graph +
-  // status first.
+  if (flags.stashes_changed) void refreshStashes();
+  if (flags.worktrees_changed) void refreshWorktrees();
+  if (flags.remotes_changed) void refreshRepoConfig();
 }
 
 function flush(): void {
