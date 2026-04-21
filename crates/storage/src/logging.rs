@@ -183,19 +183,19 @@ mod tests {
     #[test]
     fn purge_deletes_old_logs() {
         let tmp = tempfile::tempdir().unwrap();
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-01", 10);
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-10", 3);
+        create_aged_log(tmp.path(), "beardgit.2026-04-01.log", 10);
+        create_aged_log(tmp.path(), "beardgit.2026-04-10.log", 3);
 
         let deleted = purge_old_logs(tmp.path(), 7).unwrap();
         assert_eq!(deleted, 1);
-        assert!(!tmp.path().join("beardgit.log.2026-04-01").exists());
-        assert!(tmp.path().join("beardgit.log.2026-04-10").exists());
+        assert!(!tmp.path().join("beardgit.2026-04-01.log").exists());
+        assert!(tmp.path().join("beardgit.2026-04-10.log").exists());
     }
 
     #[test]
     fn purge_ignores_non_log_files() {
         let tmp = tempfile::tempdir().unwrap();
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-01", 10);
+        create_aged_log(tmp.path(), "beardgit.2026-04-01.log", 10);
         create_aged_log(tmp.path(), "settings.json", 10);
 
         let deleted = purge_old_logs(tmp.path(), 7).unwrap();
@@ -219,8 +219,8 @@ mod tests {
     #[test]
     fn purge_keeps_all_when_none_old_enough() {
         let tmp = tempfile::tempdir().unwrap();
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-14", 2);
-        create_aged_log(tmp.path(), "beardgit.log.2026-04-15", 1);
+        create_aged_log(tmp.path(), "beardgit.2026-04-14.log", 2);
+        create_aged_log(tmp.path(), "beardgit.2026-04-15.log", 1);
 
         let deleted = purge_old_logs(tmp.path(), 7).unwrap();
         assert_eq!(deleted, 0);
