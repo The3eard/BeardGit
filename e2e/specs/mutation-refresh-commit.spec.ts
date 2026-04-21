@@ -37,6 +37,16 @@ describe("mutation refresh — commit path", () => {
     // absorb CI jitter without hiding genuine regressions.
     await browser.pause(1000);
 
+    // `stageAllAndCommit` leaves the app on the Changes view, which
+    // unmounts `GitGraph` and tears down the `[data-testid="graph-row"]`
+    // mirror. Navigate back to graph to re-mount the list — if the
+    // mutation listener fired correctly, the mounted mirror shows the
+    // fresh viewport including the new commit.
+    const graphNav = await $('[data-testid="nav-graph"]');
+    await graphNav.waitForDisplayed({ timeout: 5000 });
+    await graphNav.click();
+    await $('[data-testid="graph-rows"]').waitForExist({ timeout: 5000 });
+
     const after = await $$('[data-testid="graph-row"]').length;
     expect(after).toBeGreaterThan(before);
 
