@@ -97,7 +97,9 @@ pub fn purge_old_logs(log_dir: &std::path::Path, max_age_days: u64) -> std::io::
 ///
 /// Filename layout: `beardgit.{YYYY-MM-DD}.log` — the `.log` suffix is last
 /// so `*.log` globs and standard log viewers recognize the file.
-fn build_file_appender(log_dir: &std::path::Path) -> tracing_appender::rolling::RollingFileAppender {
+fn build_file_appender(
+    log_dir: &std::path::Path,
+) -> tracing_appender::rolling::RollingFileAppender {
     tracing_appender::rolling::RollingFileAppender::builder()
         .rotation(tracing_appender::rolling::Rotation::DAILY)
         .filename_prefix("beardgit")
