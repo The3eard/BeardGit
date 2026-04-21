@@ -41,6 +41,7 @@
   width={size}
   height={size}
   draggable="false"
+  data-testid={`provider-icon-${provider}`}
 />
 
 <style>

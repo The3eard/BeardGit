@@ -39,12 +39,17 @@ describe("settingsRoute store", () => {
   });
 
   it("setCategory() supports an anchor and serialises it", () => {
-    setCategory("appearance", "theme");
+    setCategory("general", "theme");
     expect(get(settingsRoute)).toEqual({
-      category: "appearance",
+      category: "general",
       anchor: "theme",
     });
-    expect(window.location.hash).toBe("#appearance.theme");
+    expect(window.location.hash).toBe("#general.theme");
+  });
+
+  it("legacy 'appearance' slug falls back to general", () => {
+    setCategory("appearance");
+    expect(get(settingsRoute).category).toBe("general");
   });
 
   it("unknown slugs fall back to the default category", () => {

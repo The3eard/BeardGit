@@ -1,11 +1,10 @@
 <!--
   SettingsPage.svelte — MT-5 IA shell.
 
-  Replaces the old flat 4-tab layout with the new 7-category
-  architecture (General / Appearance / Editor & Diff / Git / AI /
-  Integrations / Advanced). Built entirely on top of the shared
-  `$lib/components/ui` primitives — no inline button or card CSS
-  belongs here.
+  Replaces the old flat 4-tab layout with the post-Phase-3/4 5-category
+  architecture (General / Git / AI / Integrations / Advanced). Built
+  entirely on top of the shared `$lib/components/ui` primitives — no
+  inline button or card CSS belongs here.
 
   Responsibilities kept to the shell:
 
@@ -18,7 +17,7 @@
   - Right-pane dispatch to whichever category component matches the
     active slug.
   - URL deep-linking via `settingsRoute` — `#ai` opens the AI
-    category, `#appearance.theme` opens Appearance + scrolls to the
+    category, `#general.theme` opens General + scrolls to the
     `theme` anchor.
   - Legacy deep-link bridge: when `pendingSettingsSection` holds a
     known id (the statusbar writes those) it is translated into the
@@ -44,12 +43,6 @@
   import GeneralSettings, {
     settingsIndex as generalIndex,
   } from "./GeneralSettings.svelte";
-  import AppearanceSettings, {
-    settingsIndex as appearanceIndex,
-  } from "./AppearanceSettings.svelte";
-  import EditorDiffSettings, {
-    settingsIndex as editorIndex,
-  } from "./EditorDiffSettings.svelte";
   import GitSettings, {
     settingsIndex as gitIndex,
   } from "./GitSettings.svelte";
@@ -85,8 +78,6 @@
    */
   const SETTINGS_INDEX: SettingDescriptor[] = [
     ...generalIndex,
-    ...appearanceIndex,
-    ...editorIndex,
     ...gitIndex,
     ...aiIndex,
     ...integrationsIndex,
@@ -115,16 +106,6 @@
       id: "general",
       label: m.settings_cat_general_title(),
       icon: "\uF085", // gear
-    },
-    {
-      id: "appearance",
-      label: m.settings_cat_appearance_title(),
-      icon: "\uF1FC", // paint-brush
-    },
-    {
-      id: "editor",
-      label: m.settings_cat_editor_title(),
-      icon: "\uF044", // edit
     },
     {
       id: "git",
@@ -158,10 +139,6 @@
     switch (activeCategory) {
       case "general":
         return m.settings_cat_general_description();
-      case "appearance":
-        return m.settings_cat_appearance_description();
-      case "editor":
-        return m.settings_cat_editor_description();
       case "git":
         return m.settings_cat_git_description();
       case "ai":
@@ -361,10 +338,6 @@
       <div class="settings-content__body">
         {#if activeCategory === "general"}
           <GeneralSettings />
-        {:else if activeCategory === "appearance"}
-          <AppearanceSettings />
-        {:else if activeCategory === "editor"}
-          <EditorDiffSettings />
         {:else if activeCategory === "git"}
           <GitSettings />
         {:else if activeCategory === "ai"}
