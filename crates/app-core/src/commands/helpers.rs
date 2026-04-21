@@ -136,12 +136,11 @@ where
     let path = get_active_project_path(state)?;
     let guard = MutationGuard::enter(&path).ok();
     let result = f();
-    if result.is_ok() {
-        if let Some(g) = guard {
-            if let Err(err) = g.exit(kind, app) {
-                tracing::warn!(?err, "mutation guard emit failed");
-            }
-        }
+    if result.is_ok()
+        && let Some(g) = guard
+        && let Err(err) = g.exit(kind, app)
+    {
+        tracing::warn!(?err, "mutation guard emit failed");
     }
     result
 }
