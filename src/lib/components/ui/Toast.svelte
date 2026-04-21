@@ -20,7 +20,12 @@
   }
 </script>
 
-<div class="toast toast--{toast.type}" class:toast--visible={visible}>
+<div
+  class="toast toast--{toast.type}"
+  class:toast--visible={visible}
+  data-testid="toast"
+  data-type={toast.type}
+>
   <div class="toast__accent"></div>
   <div class="toast__body">
     <span class="toast__message">{toast.message}</span>
@@ -42,7 +47,15 @@
   <div class="toast__actions">
     {#if toast.actions}
       {#each toast.actions as action}
-        <button class="toast__btn" onclick={action.onclick}>{action.label}</button>
+        <button
+          class="toast__btn"
+          data-testid={action.label === "See details"
+            ? "toast-action-see-details"
+            : "toast-action"}
+          onclick={action.onclick}
+        >
+          {action.label}
+        </button>
       {/each}
     {/if}
     {#if toast.dismissible}
