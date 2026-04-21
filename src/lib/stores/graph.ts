@@ -74,6 +74,38 @@ export async function reloadGraph(): Promise<void> {
 }
 
 /**
+ * Reconcile a fresh viewport against the currently-displayed one,
+ * preserving the user's scroll anchor by OID.
+ *
+ * Two paths:
+ * 1. `top_oid` matches (nothing above the old top changed) → atomic
+ *    `viewport.set(fresh)`. Svelte reactivity no-ops if the
+ *    serialised content is identical; when it differs (e.g. refs
+ *    moved but commits didn't) the canvas repaints in place.
+ * 2. `top_oid` differs → new commits likely landed above the old
+ *    top. Locate the old anchor in the fresh window and bump
+ *    `graphOffset` so the same commit stays at the top of the
+ *    visible viewport. When the anchor is outside the fresh
+ *    window we keep the current offset — the fresh refresh will
+ *    be re-attempted at the new offset on the next mutation.
+ *
+ * Exported so unit tests can exercise both branches without mocking
+ * the entire refresh chain.
+ */
+export function reconcileViewport(fresh: GraphViewport): void {
+  const cached = get(viewport);
+  const cachedTopOid = cached?.nodes[0]?.oid;
+  const freshTopOid = fresh.nodes[0]?.oid;
+  if (cached && cachedTopOid && freshTopOid && cachedTopOid !== freshTopOid) {
+    const idx = fresh.nodes.findIndex((n) => n.oid === cachedTopOid);
+    if (idx > 0) {
+      graphOffset.update((o) => o + idx);
+    }
+  }
+  viewport.set(fresh);
+}
+
+/**
  * Rebuild the server-side cached layout, then reload the current
  * viewport window so new commits / moved refs become visible.
  *
@@ -86,6 +118,13 @@ export async function reloadGraph(): Promise<void> {
  * to a live walk) and then re-fetches the viewport so the UI shows the
  * fresh state.
  *
+ * Reconciliation (Phase 8.4): the fresh viewport is compared against the
+ * currently-displayed one by `top_oid`. When they match we do a silent
+ * replace (no flicker); when they differ we preserve the scroll anchor
+ * by locating the old `top_oid` in the fresh window and adjusting
+ * `graphOffset` accordingly. The final paint is always a single
+ * `viewport.set` — no partial states.
+ *
  * Failures are swallowed: if the Rust command fails (e.g. no active
  * project) we still fall through to a viewport fetch against whatever
  * layout is currently cached, which matches the pre-regression
@@ -97,7 +136,9 @@ export async function refreshAndReloadGraph(): Promise<void> {
   } catch {
     // Best-effort — fall through to the viewport fetch below.
   }
-  await loadViewport(get(graphOffset));
+  const offset = get(graphOffset);
+  const fresh = await apiGetGraphViewport(offset, VIEWPORT_SIZE);
+  reconcileViewport(fresh);
 }
 
 /** Select a commit by OID, fetching detail + files in parallel. Uses last-wins guard. */
