@@ -53,6 +53,43 @@ where
     Ok(Option::<T>::deserialize(d)?.unwrap_or_default())
 }
 
+/// Serde deserializer that accepts either a numeric or a string asset id.
+///
+/// `gh release view --json assets` emits the asset's `id` field as a
+/// GraphQL node_id string (e.g. `"RA_kwDORyZ4bM4X4fN7"`) rather than the
+/// REST API's numeric id. `glab api …/releases/<tag>` emits a number.
+/// We unify both into `u64` so [`crate::forge_provider::ReleaseAsset`]
+/// keeps a single type downstream:
+///
+/// - Numeric input is used as-is (GitLab path).
+/// - String input is hashed via [`DefaultHasher`] so each asset gets a
+///   stable, unique non-zero id across repeated captures of the same
+///   release. The hashed value is never round-tripped back to GitHub —
+///   `gh release delete-asset` identifies assets by `name`, not id.
+/// - Anything else degrades to `0` (treat as "unknown"; delete still
+///   works for GitHub because it matches on name).
+///
+/// The test suite in this module covers both shapes via
+/// `gh_asset_accepts_string_id` and `gh_asset_accepts_numeric_id`.
+fn flexible_asset_id<'de, D>(d: D) -> Result<u64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let value = Option::<serde_json::Value>::deserialize(d)?;
+    Ok(match value {
+        Some(serde_json::Value::Number(n)) => n.as_u64().unwrap_or(0),
+        Some(serde_json::Value::String(s)) => {
+            let mut hasher = DefaultHasher::new();
+            s.hash(&mut hasher);
+            hasher.finish()
+        }
+        _ => 0,
+    })
+}
+
 // ─── GitHub (gh) ────────────────────────────────────────────────────────────
 
 /// One row from `gh release list --json ...`.
@@ -100,7 +137,11 @@ struct GhReleaseDetailRow {
 
 #[derive(Debug, Deserialize)]
 struct GhAssetRow {
-    #[serde(default)]
+    // `gh release view --json assets` returns `id` as a GraphQL node_id
+    // string (e.g. "RA_kwDORyZ4bM4X4fN7"); older REST-style payloads emit
+    // a number. `flexible_asset_id` accepts either shape — see the
+    // helper's doc comment for why hashing strings is safe here.
+    #[serde(default, deserialize_with = "flexible_asset_id")]
     id: u64,
     name: String,
     #[serde(default)]
@@ -464,6 +505,36 @@ mod tests {
         let json = r#"{"tagName":"v1","name":"","isDraft":false,"isPrerelease":false,"publishedAt":"","createdAt":"","author":{"login":"a"},"url":"","body":"","assets":[{"id":1,"name":"f","label":"Mac arm64","size":1,"downloadCount":0,"contentType":"x","url":"u"}]}"#;
         let d = parse_gh_release_detail(json).unwrap();
         assert_eq!(d.assets[0].label.as_deref(), Some("Mac arm64"));
+    }
+
+    #[test]
+    fn gh_asset_accepts_string_id() {
+        // `gh release view --json assets` emits the asset id as a GraphQL
+        // node_id string. The whole payload must still decode — the string
+        // is hashed into a stable u64 via `flexible_asset_id`.
+        let json = r#"{"tagName":"v1","name":"","isDraft":false,"isPrerelease":false,"publishedAt":"","createdAt":"","author":{"login":"a"},"url":"","body":"","assets":[{"id":"RA_kwDORyZ4bM4X4fN7","name":"f","label":"","size":0,"downloadCount":0,"contentType":"x","url":"u"}]}"#;
+        let d = parse_gh_release_detail(json).expect("string asset id must decode");
+        assert_eq!(d.assets.len(), 1);
+        // Hashed id is non-zero — ensures UI reactivity keys are unique.
+        assert!(d.assets[0].id != 0, "hashed node_id should be non-zero");
+    }
+
+    #[test]
+    fn gh_asset_accepts_numeric_id() {
+        // Sanity: the legacy REST-style numeric id still parses as-is.
+        let json = r#"{"tagName":"v1","name":"","isDraft":false,"isPrerelease":false,"publishedAt":"","createdAt":"","author":{"login":"a"},"url":"","body":"","assets":[{"id":42,"name":"f","label":"","size":0,"downloadCount":0,"contentType":"x","url":"u"}]}"#;
+        let d = parse_gh_release_detail(json).unwrap();
+        assert_eq!(d.assets[0].id, 42);
+    }
+
+    #[test]
+    fn gh_asset_string_ids_are_stable() {
+        // Hashed ids must be deterministic across runs so UI keys stay
+        // stable between refreshes of the same release.
+        let json = r#"{"tagName":"v1","name":"","isDraft":false,"isPrerelease":false,"publishedAt":"","createdAt":"","author":{"login":"a"},"url":"","body":"","assets":[{"id":"RA_kwDORyZ4bM4X4fN7","name":"f","label":"","size":0,"downloadCount":0,"contentType":"x","url":"u"}]}"#;
+        let a = parse_gh_release_detail(json).unwrap();
+        let b = parse_gh_release_detail(json).unwrap();
+        assert_eq!(a.assets[0].id, b.assets[0].id);
     }
 
     // ─── GitHub argv tests ──────────────────────────────────────────────

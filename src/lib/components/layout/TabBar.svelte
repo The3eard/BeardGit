@@ -103,7 +103,12 @@
       await runMutation({
         kind: "fetch",
         invoke: () => fetchRemote("origin"),
-        successToast: (n) => `Fetched origin — ${n} ref${n === 1 ? "" : "s"}`,
+        // `fetchRemote` returns the task-runner's TaskId (a monotonic
+        // u64), not a ref count — the background `git fetch` finishes
+        // later and the refs-updated number isn't threaded back to the
+        // caller. Toast just reports that the op was spawned; the Tasks
+        // drawer (Cmd+J) carries the completion status.
+        successToast: () => "Fetched origin",
         failureToastPrefix: "Fetch failed",
         trackAsTask: true,
       });
@@ -122,8 +127,10 @@
       await runMutation({
         kind: "pull",
         invoke: () => pullRemote("origin", branch),
-        successToast: (n) =>
-          `Pulled origin/${branch} — ${n} commit${n === 1 ? "" : "s"}`,
+        // `pullRemote` returns a TaskId, not a commit count — see the
+        // fetch handler above. Toast reports spawn; Tasks drawer (Cmd+J)
+        // carries the final commit summary.
+        successToast: () => `Pulled origin/${branch}`,
         failureToastPrefix: "Pull failed",
         trackAsTask: true,
       });
