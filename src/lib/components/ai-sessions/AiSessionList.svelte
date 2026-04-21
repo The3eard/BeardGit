@@ -4,14 +4,11 @@
   while keeping session-specific row markup, styles, and lifecycle.
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
   import {
     mergedSessions,
     sessionsLoading,
     refreshSessions,
     dismissSession,
-    startSessionListeners,
-    stopSessionListeners,
   } from "../../stores/aiSessions";
   import { activeBackgroundRunCount, selectedBackgroundSessionId, requestOpenCreateBackgroundRunDialog } from "../../stores/aiBackground";
   import { repoInfo } from "../../stores/repo";
@@ -36,19 +33,11 @@
     return parts[parts.length - 1] ?? fullPath;
   }
 
-  onMount(() => {
-    const path = $repoInfo?.path;
-    if (path) {
-      // Fire-and-forget so the list shell paints this frame instead
-      // of blocking on the initial session fetch.
-      void refreshSessions(path).catch(() => {});
-      startSessionListeners(path);
-    }
-  });
-
-  onDestroy(() => {
-    stopSessionListeners();
-  });
+  // No `onMount` on purpose — refresh + listener startup live on the
+  // `SplitView` refreshFn + app-shell init (see `AiSessionsView.svelte`
+  // and `+layout.svelte`). Keeping this component a dumb render of
+  // `$mergedSessions` matches `TagList` / `BranchList` / etc. so the
+  // view swap paints in the same frame as the rest of the sections.
 
   function handleRefresh() {
     const path = $repoInfo?.path;

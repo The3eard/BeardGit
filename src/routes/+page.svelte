@@ -69,6 +69,7 @@
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
   import RepoConfigDialog from "$lib/components/repo-config/RepoConfigDialog.svelte";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
+  import { startSessionListeners, stopSessionListeners } from "$lib/stores/aiSessions";
 
   let activeView = $state("graph");
   let showAiBackgroundDialog = $state(false);
@@ -157,6 +158,13 @@
     loadPreferredProvider();
     startAiBackgroundListeners();
     refreshAiBackgroundRuns().catch(() => {});
+    // AI session auto-refresh listeners are per-project-path — register
+    // once here with the initial active project (if any), and re-register
+    // from the `onProjectSwitch` callback below. Putting this at the
+    // app-shell level keeps `AiSessionsView` / `AiSessionList` free of
+    // `onMount` work so the view swap into AI Sessions paints the same
+    // frame as the rest of the sections (pipelines / tags / branches).
+    refreshAiSessionListeners();
 
     try {
       sidebarCollapsed = await getSidebarCollapsed();
@@ -169,6 +177,8 @@
       activeView = "graph";
       selectedDiff = null;
       selectedStagingFile = null;
+      // Point the AI session listeners at the freshly active project.
+      refreshAiSessionListeners();
     });
 
     // --- Keyboard shortcuts ---
@@ -436,6 +446,22 @@
       unregisterShortcuts(registeredShortcutIds);
     }
   });
+
+  /**
+   * (Re-)wire the AI session auto-refresh listeners to the currently
+   * active project. Called once from `onMount` with the initial project
+   * and again from `onProjectSwitch` whenever the user picks a
+   * different tab. Kept outside `AiSessionList.svelte` / `AiSessionsView`
+   * so the AI Sessions view swap stays a zero-work shell-paint — same
+   * async-first pattern as `TagView` / `BranchView` / `PipelineView`.
+   */
+  function refreshAiSessionListeners(): void {
+    stopSessionListeners();
+    const proj = get(activeProject);
+    if (proj?.path) {
+      void startSessionListeners(proj.path);
+    }
+  }
 
   async function handleNavigate(view: string) {
     // If a terminal tab is active, switch to the last project tab first
