@@ -2,40 +2,36 @@
 //! a real git2 repository, covering every flag the TS refresh matrix
 //! cares about.
 
+use std::path::Path;
+
+use git_engine::test_support::create_repo_with_n_commits;
 use mutation_events::{MutationFlags, Snapshot};
 
-fn init_repo(tmp: &tempfile::TempDir) -> git2::Repository {
-    let repo = git2::Repository::init(tmp.path()).unwrap();
-    let mut cfg = repo.config().unwrap();
-    cfg.set_str("user.name", "Test").unwrap();
-    cfg.set_str("user.email", "test@example.org").unwrap();
-    repo
-}
-
-fn commit(repo: &git2::Repository, msg: &str) -> git2::Oid {
-    let mut idx = repo.index().unwrap();
-    idx.add_all(["*"], git2::IndexAddOption::DEFAULT, None).unwrap();
-    idx.write().unwrap();
-    let tree_id = idx.write_tree().unwrap();
-    let tree = repo.find_tree(tree_id).unwrap();
-    let sig = repo.signature().unwrap();
-    let parent = repo.head().ok().and_then(|r| r.target()).and_then(|oid| repo.find_commit(oid).ok());
-    let parents: Vec<&git2::Commit> = parent.as_ref().map(|c| vec![c]).unwrap_or_default();
-    repo.commit(Some("HEAD"), &sig, &sig, msg, &tree, &parents).unwrap()
+/// Run `git` with `args` inside `repo_path` and panic on failure.
+/// Used by stash/worktree tests where shelling out is simpler than the
+/// equivalent git2 API dance.
+fn run_git(repo_path: &Path, args: &[&str]) {
+    let status = std::process::Command::new("git")
+        .args(args)
+        .current_dir(repo_path)
+        .status()
+        .expect("spawn git");
+    assert!(status.success(), "git {args:?} failed: {status:?}");
 }
 
 #[test]
 fn commit_flips_head_and_refs() {
-    let tmp = tempfile::tempdir().unwrap();
-    let repo = init_repo(&tmp);
-    std::fs::write(tmp.path().join("seed.txt"), "seed\n").unwrap();
-    commit(&repo, "seed");
-    let before = Snapshot::capture(tmp.path()).unwrap();
+    let (_tmp, path) = create_repo_with_n_commits(1);
+    let before = Snapshot::capture(&path).unwrap();
 
-    std::fs::write(tmp.path().join("new.txt"), "new\n").unwrap();
-    commit(&repo, "new");
+    // Create a second commit on the same repo via git-engine's high-level
+    // helpers so we don't re-implement signing/index/tree wiring here.
+    let repo = git_engine::Repository::open(&path).unwrap();
+    std::fs::write(path.join("new.txt"), "new\n").unwrap();
+    repo.stage_files(&["new.txt".to_string()]).unwrap();
+    repo.create_commit("new").unwrap();
 
-    let after = Snapshot::capture(tmp.path()).unwrap();
+    let after = Snapshot::capture(&path).unwrap();
     let flags: MutationFlags = before.diff(&after);
     assert!(flags.head_changed);
     assert!(flags.refs_changed);
@@ -43,16 +39,14 @@ fn commit_flips_head_and_refs() {
 
 #[test]
 fn branch_create_flips_refs_only() {
-    let tmp = tempfile::tempdir().unwrap();
-    let repo = init_repo(&tmp);
-    std::fs::write(tmp.path().join("x.txt"), "x\n").unwrap();
-    commit(&repo, "seed");
-    let before = Snapshot::capture(tmp.path()).unwrap();
+    let (_tmp, path) = create_repo_with_n_commits(1);
+    let before = Snapshot::capture(&path).unwrap();
 
+    let repo = git2::Repository::open(&path).unwrap();
     let head_commit = repo.head().unwrap().peel_to_commit().unwrap();
     repo.branch("feature", &head_commit, false).unwrap();
 
-    let after = Snapshot::capture(tmp.path()).unwrap();
+    let after = Snapshot::capture(&path).unwrap();
     let flags = before.diff(&after);
     assert!(flags.refs_changed);
     assert!(!flags.head_changed);
@@ -60,16 +54,74 @@ fn branch_create_flips_refs_only() {
 
 #[test]
 fn remote_add_flips_remotes_changed() {
-    let tmp = tempfile::tempdir().unwrap();
-    let repo = init_repo(&tmp);
-    std::fs::write(tmp.path().join("r.txt"), "r\n").unwrap();
-    commit(&repo, "seed");
-    let before = Snapshot::capture(tmp.path()).unwrap();
+    let (_tmp, path) = create_repo_with_n_commits(1);
+    let before = Snapshot::capture(&path).unwrap();
 
+    let repo = git2::Repository::open(&path).unwrap();
     repo.remote("origin", "https://example.org/x.git").unwrap();
 
-    let after = Snapshot::capture(tmp.path()).unwrap();
+    let after = Snapshot::capture(&path).unwrap();
     let flags = before.diff(&after);
     assert!(flags.remotes_changed);
     assert!(!flags.refs_changed);
+}
+
+#[test]
+fn stash_flips_stashes_changed() {
+    let (_tmp, path) = create_repo_with_n_commits(1);
+
+    // Seed a tracked file + commit so stash has something to compare against.
+    std::fs::write(path.join("tracked.txt"), "base\n").unwrap();
+    run_git(&path, &["add", "tracked.txt"]);
+    run_git(&path, &["commit", "-m", "track"]);
+
+    // Dirty the working tree so `git stash push` has content to save.
+    std::fs::write(path.join("tracked.txt"), "dirty\n").unwrap();
+
+    let before = Snapshot::capture(&path).unwrap();
+    run_git(&path, &["stash", "push", "-m", "test-stash"]);
+    let after = Snapshot::capture(&path).unwrap();
+
+    let flags = before.diff(&after);
+    assert!(flags.stashes_changed, "stashes_changed should flip on stash push");
+}
+
+#[test]
+fn worktree_add_flips_worktrees_changed() {
+    let (_tmp, path) = create_repo_with_n_commits(1);
+
+    // `git worktree add` needs a sibling directory that doesn't already
+    // exist — use the tempdir's parent.
+    let worktree_path = path.parent().unwrap().join("wt-linked");
+
+    let before = Snapshot::capture(&path).unwrap();
+    run_git(
+        &path,
+        &[
+            "worktree",
+            "add",
+            "-b",
+            "wt-branch",
+            worktree_path.to_str().unwrap(),
+        ],
+    );
+    let after = Snapshot::capture(&path).unwrap();
+
+    let flags = before.diff(&after);
+    assert!(
+        flags.worktrees_changed,
+        "worktrees_changed should flip after `git worktree add`"
+    );
+
+    // Clean up the linked worktree so the tempdir drop doesn't race with a
+    // dangling admin file.
+    let _ = std::process::Command::new("git")
+        .args([
+            "worktree",
+            "remove",
+            "--force",
+            worktree_path.to_str().unwrap(),
+        ])
+        .current_dir(&path)
+        .status();
 }
