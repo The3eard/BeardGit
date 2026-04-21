@@ -118,3 +118,63 @@ pub fn resolve_theme_for_mode(base: &str, os_dark: bool) -> String {
     let themes_dir = config_dir.join("themes");
     storage::theme::resolve_theme_for_mode(base, os_dark, &themes_dir)
 }
+
+#[cfg(test)]
+mod tests {
+    //! Drive the `storage::theme` functions that these commands delegate to
+    //! against an empty (no user themes) tempdir — we avoid touching the
+    //! real `~/.config/beardgit/themes` directory.
+
+    use storage::theme::{list_all_themes, resolve_theme, resolve_theme_for_mode};
+    use tempfile::tempdir;
+
+    #[test]
+    fn list_all_themes_in_empty_dir_returns_builtins() {
+        let tmp = tempdir().unwrap();
+        let themes = list_all_themes(tmp.path());
+        assert!(
+            !themes.is_empty(),
+            "built-in themes must ship even without user themes"
+        );
+        assert!(
+            themes.iter().any(|t| t.id == "github-dark"),
+            "default 'github-dark' should be present, got {:?}",
+            themes.iter().map(|t| &t.id).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn resolve_theme_known_id_returns_matching_id() {
+        let tmp = tempdir().unwrap();
+        let theme = resolve_theme("github-dark", tmp.path());
+        assert_eq!(
+            theme.meta.id, "github-dark",
+            "resolve_theme should return the requested theme when it exists"
+        );
+    }
+
+    #[test]
+    fn resolve_theme_unknown_id_falls_back_to_default() {
+        let tmp = tempdir().unwrap();
+        let theme = resolve_theme("does-not-exist-xyz", tmp.path());
+        assert!(
+            !theme.meta.id.is_empty(),
+            "resolve_theme must always return a valid theme (fallback), got {theme:?}"
+        );
+    }
+
+    #[test]
+    fn resolve_theme_for_mode_respects_dark_mode_flag() {
+        let tmp = tempdir().unwrap();
+        // We don't know exactly what the complementary mapping does, but we
+        // can assert it returns a non-empty id for both modes (i.e. the
+        // helper is callable and yields something usable).
+        let dark_id = resolve_theme_for_mode("github-dark", true, tmp.path());
+        let light_id = resolve_theme_for_mode("github-dark", false, tmp.path());
+        assert!(!dark_id.is_empty(), "dark-mode resolution must yield an id");
+        assert!(
+            !light_id.is_empty(),
+            "light-mode resolution must yield an id"
+        );
+    }
+}

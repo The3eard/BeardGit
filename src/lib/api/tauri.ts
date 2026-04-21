@@ -22,6 +22,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings } from "../types";
+import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -29,6 +30,19 @@ export async function openRepo(path: string): Promise<RepoInfo> {
 
 export async function getGraphViewport(offset: number, limit: number): Promise<GraphViewport> {
   return invoke<GraphViewport>("get_graph_viewport", { offset, limit });
+}
+
+/**
+ * Rebuild the active project's cached graph layout from the current
+ * repository state. Called after a local mutation (commit / amend) or
+ * after a completed Fetch / Pull / Push task so the next
+ * `getGraphViewport` call slices a layout that includes the new commits
+ * / refs. Under the hood this re-runs the `load_or_build_layout`
+ * pipeline, which correctly misses the persistent on-disk cache when
+ * HEAD or refs have moved.
+ */
+export async function refreshGraphLayout(): Promise<void> {
+  return invoke<void>("refresh_graph_layout");
 }
 
 export async function searchCommits(
@@ -398,6 +412,20 @@ export async function cancelTask(taskId: TaskId): Promise<void> {
   return invoke<void>("cancel_task", { taskId });
 }
 
+/**
+ * Cancel a running task by its string id.
+ *
+ * Used by the unified tasks drawer, where task ids are string-shaped
+ * across AI runs, git ops, and auto-update downloads. Wraps the
+ * `task_cancel` Rust IPC command which parses the id into a `TaskId`
+ * and fires the underlying `CancellationToken`.
+ *
+ * @param id — task id as emitted in the `task://update` event payload.
+ */
+export async function taskCancel(id: string): Promise<void> {
+  return invoke<void>("task_cancel", { id });
+}
+
 // ---------------------------------------------------------------------------
 // Multi-project tabs
 // ---------------------------------------------------------------------------
@@ -473,6 +501,35 @@ export async function getUiScale(): Promise<number> {
 
 export async function setUiScale(scale: number): Promise<void> {
   return invoke<void>("set_ui_scale", { scale });
+}
+
+/**
+ * Return whether the app should silently probe for updates on startup.
+ * Default `true`. Persisted in `AppConfig::auto_check_updates`.
+ */
+export async function getAutoCheckUpdates(): Promise<boolean> {
+  return invoke<boolean>("get_auto_check_updates");
+}
+
+/** Persist the `auto_check_updates` preference. */
+export async function setAutoCheckUpdates(enabled: boolean): Promise<void> {
+  return invoke<void>("set_auto_check_updates", { enabled });
+}
+
+/**
+ * Return whether the per-OS re-authorization notice has been dismissed.
+ * `os` must be `"macos"` or `"windows"` — Linux never shows the dialog.
+ */
+export async function getReauthDismissed(os: string): Promise<boolean> {
+  return invoke<boolean>("get_reauth_dismissed", { os });
+}
+
+/** Persist the re-authorization-notice dismissal for a single OS. */
+export async function setReauthDismissed(
+  os: string,
+  dismissed: boolean,
+): Promise<void> {
+  return invoke<void>("set_reauth_dismissed", { os, dismissed });
 }
 
 export async function getGraphColumns(): Promise<GraphColumnConfig[]> {
@@ -563,6 +620,17 @@ export async function getRebaseCommits(baseOid: string): Promise<RebaseCommit[]>
 /** Start an interactive rebase with pre-defined actions. */
 export async function startInteractiveRebase(baseOid: string, actions: RebaseAction[]): Promise<void> {
   return invoke<void>("start_interactive_rebase", { baseOid, actions });
+}
+
+/**
+ * Wipe the persistent graph-layout cache directory. Returns the
+ * number of files removed. Exposed from Settings → Advanced as a
+ * manual "recover from a corrupt layout" escape hatch. The loader
+ * rebuilds any missing layout on the next repo open, so calling
+ * this is always safe.
+ */
+export async function clearLayoutCache(): Promise<number> {
+  return invoke<number>("clear_layout_cache");
 }
 
 // ---------------------------------------------------------------------------
@@ -1312,4 +1380,97 @@ export async function getLogPath(): Promise<string> {
 /** Open the log directory in the system file manager. */
 export async function openLogDirectory(): Promise<void> {
   return invoke<void>("open_log_directory");
+}
+
+// ---------------------------------------------------------------------------
+// Remote repo configuration (gh/glab)
+// ---------------------------------------------------------------------------
+
+/**
+ * Load the remote repository configuration for the repo at `repoPath`.
+ *
+ * Shells out to `gh repo view` or `glab repo view` depending on the
+ * repo's origin remote. Fails with the raw backend error string when
+ * the CLI is not installed, not authenticated, or the forge is
+ * unsupported — Phase 7's probe command handles those empty states
+ * before this call is made.
+ */
+export async function loadRemoteRepoConfig(
+  repoPath: string,
+): Promise<RemoteRepoConfig> {
+  return invoke<RemoteRepoConfig>("load_remote_repo_config", { repoPath });
+}
+
+/**
+ * Apply a diff-driven patch to the remote repository.
+ *
+ * Returns a structured {@link ApplyResult} — partial failures are
+ * collected per-field so the UI can render a mixed-state toast rather
+ * than abort on the first error.
+ */
+export async function applyRemoteRepoConfig(
+  repoPath: string,
+  patch: RemoteRepoConfigPatch,
+): Promise<ApplyResult> {
+  return invoke<ApplyResult>("apply_remote_repo_config", { repoPath, patch });
+}
+
+/** Create a new label on the remote repo. */
+export async function createRepoLabel(
+  repoPath: string,
+  label: RepoConfigLabel,
+): Promise<void> {
+  return invoke<void>("create_label", { repoPath, label });
+}
+
+/** Update an existing label. `oldName` identifies the label to rename. */
+export async function updateRepoLabel(
+  repoPath: string,
+  oldName: string,
+  label: RepoConfigLabel,
+): Promise<void> {
+  return invoke<void>("update_label", { repoPath, oldName, label });
+}
+
+/** Delete a label by name. */
+export async function deleteRepoLabel(
+  repoPath: string,
+  name: string,
+): Promise<void> {
+  return invoke<void>("delete_label", { repoPath, name });
+}
+
+/**
+ * Read GitHub branch-protection rules for a branch. Returns `null`
+ * when the branch is not protected. Fails with an error string when
+ * called on a GitLab repo (protection is not supported there yet).
+ */
+export async function getBranchProtection(
+  repoPath: string,
+  branch: string,
+): Promise<BranchProtection | null> {
+  return invoke<BranchProtection | null>("get_branch_protection", {
+    repoPath,
+    branch,
+  });
+}
+
+/** Write GitHub branch-protection rules for a branch. */
+export async function setBranchProtection(
+  repoPath: string,
+  branch: string,
+  rules: BranchProtection,
+): Promise<void> {
+  return invoke<void>("set_branch_protection", { repoPath, branch, rules });
+}
+
+/**
+ * Probe the installation + authentication state of the forge CLI
+ * for the repo at `repoPath`. Used by the dialog's empty-state gating
+ * to pick between "install gh/glab", "authenticate", or the real UI.
+ */
+export async function probeForgeCliStatus(
+  repoPath: string,
+): Promise<ForgeCliStatus> {
+  return invoke<ForgeCliStatus>("probe_forge_cli_status", { repoPath });
 }

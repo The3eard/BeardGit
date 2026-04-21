@@ -9,5 +9,5 @@ pub mod sink;
 pub mod types;
 
 pub use manager::{SpawnOptions, TaskManager};
-pub use sink::TaskEventSink;
+pub use sink::{NoopTaskEmitter, TaskEmitter, TaskEventSink};
 pub use types::*;

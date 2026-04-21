@@ -2,6 +2,7 @@
   import { activeProject } from "$lib/stores/projects";
   import { repoInfo } from "$lib/stores/repo";
   import { fetchRemote, pullRemote, pushRemote, previewPatch, applyPatch } from "$lib/api/tauri";
+  import { runMutation } from "$lib/api/runMutation";
   import { open } from "@tauri-apps/plugin-dialog";
   import PatchPreviewDialog from "../patch/PatchPreviewDialog.svelte";
   import type { PatchPreview } from "$lib/types";
@@ -18,7 +19,15 @@
     if (fetchInProgress) return;
     fetchInProgress = true;
     try {
-      await fetchRemote("origin");
+      await runMutation({
+        kind: "fetch",
+        invoke: () => fetchRemote("origin"),
+        successToast: (n) => `Fetched origin — ${n} ref${n === 1 ? "" : "s"}`,
+        failureToastPrefix: "Fetch failed",
+        trackAsTask: true,
+      });
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       fetchInProgress = false;
     }
@@ -26,9 +35,19 @@
 
   async function handlePull() {
     if (pullInProgress || !$repoInfo?.head_branch) return;
+    const branch = $repoInfo.head_branch;
     pullInProgress = true;
     try {
-      await pullRemote("origin", $repoInfo.head_branch);
+      await runMutation({
+        kind: "pull",
+        invoke: () => pullRemote("origin", branch),
+        successToast: (n) =>
+          `Pulled origin/${branch} — ${n} commit${n === 1 ? "" : "s"}`,
+        failureToastPrefix: "Pull failed",
+        trackAsTask: true,
+      });
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       pullInProgress = false;
     }
@@ -36,9 +55,18 @@
 
   async function handlePush() {
     if (pushInProgress || !$repoInfo?.head_branch) return;
+    const branch = $repoInfo.head_branch;
     pushInProgress = true;
     try {
-      await pushRemote("origin", $repoInfo.head_branch);
+      await runMutation({
+        kind: "push",
+        invoke: () => pushRemote("origin", branch),
+        successToast: () => `Pushed to origin/${branch}`,
+        failureToastPrefix: "Push failed",
+        trackAsTask: true,
+      });
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       pushInProgress = false;
     }
@@ -64,11 +92,16 @@
     if (applyInProgress) return;
     applyInProgress = true;
     try {
-      await applyPatch(patchPath, threeWay);
+      await runMutation({
+        kind: "patch_apply",
+        invoke: () => applyPatch(patchPath, threeWay),
+        successToast: () => "Patch applied",
+        failureToastPrefix: "Patch apply failed",
+      });
       patchPreview = null;
       patchPath = "";
-    } catch (err) {
-      alert(m.patch_apply_failed({ error: String(err) }));
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       applyInProgress = false;
     }
@@ -100,6 +133,7 @@
       </button>
       <button
         class="toolbar-btn action-btn"
+        data-testid="push-button"
         disabled={pushInProgress || !$repoInfo?.head_branch}
         title={m.toolbar_push()}
         onclick={handlePush}

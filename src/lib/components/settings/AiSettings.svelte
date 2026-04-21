@@ -1,15 +1,102 @@
+<!--
+  AiSettings.svelte — AI provider picker + background-run config.
+
+  Phase 4.5 refactor only: same behaviour as the pre-MT-5 version
+  (detect providers, pick a preferred one, tune the background
+  worktree / concurrency / auto-accept defaults) — now rendered on
+  top of the shared `Card` / `SettingSection` / `FormRow` / `Field`
+  / `Button` primitives so the inline card CSS disappears.
+
+  Provider rows stay as a bespoke grid because the
+  icon-label-status-badge layout is unique to this category and
+  doesn't map cleanly to `FormRow`.
+-->
+<script module lang="ts">
+  import type { SettingDescriptor } from "./settings-index";
+
+  export const settingsIndex: SettingDescriptor[] = [
+    {
+      id: "ai.provider",
+      label: "Preferred AI provider",
+      description:
+        "Pick which installed AI tool (Claude Code / Codex / OpenCode) BeardGit uses by default.",
+      category: "ai",
+      anchor: "provider",
+    },
+    {
+      id: "ai.worktree-root",
+      label: "AI worktree root",
+      description:
+        "Directory where AI background worktrees are created. Relative paths resolve to each repo.",
+      category: "ai",
+      anchor: "worktree-root",
+    },
+    {
+      id: "ai.concurrency",
+      label: "Concurrent background runs",
+      description:
+        "Maximum number of AI background runs that may execute at once. Extra runs are queued.",
+      category: "ai",
+      anchor: "concurrency",
+    },
+    {
+      id: "ai.auto-accept",
+      label: "Auto-accept AI permission prompts",
+      description:
+        "Allow AI agents to edit files in the worktree without confirmation — use with care.",
+      category: "ai",
+      anchor: "auto-accept",
+    },
+  ];
+</script>
+
 <script lang="ts">
   import { onMount } from "svelte";
-  import { aiProviders, preferredAiProvider, detectAiProviders, setPreferredProvider, loadPreferredProvider } from "$lib/stores/ai";
+  import {
+    aiProviders,
+    preferredAiProvider,
+    detectAiProviders,
+    setPreferredProvider,
+    loadPreferredProvider,
+  } from "$lib/stores/ai";
   import type { AiBackgroundSettings, AiProviderKind } from "$lib/types";
-  import { aiBackgroundGetSettings, aiBackgroundSetSettings } from "$lib/api/tauri";
+  import {
+    aiBackgroundGetSettings,
+    aiBackgroundSetSettings,
+  } from "$lib/api/tauri";
   import * as m from "$lib/paraglide/messages";
+  import {
+    Card,
+    SettingSection,
+    FormRow,
+    Field,
+    Button,
+  } from "$lib/components/ui";
 
-  /** All known provider kinds (for display even when not installed). */
-  const ALL_KINDS: { kind: AiProviderKind; label: () => string; icon: string; color: string }[] = [
-    { kind: "claude_code", label: () => m.ai_settings_provider_claude(), icon: "\uF135", color: "#d97757" },
-    { kind: "codex", label: () => m.ai_settings_provider_codex(), icon: "\uF121", color: "#ffffff" },
-    { kind: "open_code", label: () => m.ai_settings_provider_opencode(), icon: "\uF489", color: "#8b8b8b" },
+  const ALL_KINDS: {
+    kind: AiProviderKind;
+    label: () => string;
+    icon: string;
+    color: string;
+  }[] = [
+    {
+      kind: "claude_code",
+      label: () => m.ai_settings_provider_claude(),
+      icon: "\uF135",
+      color: "#d97757",
+    },
+    {
+      kind: "codex",
+      label: () => m.ai_settings_provider_codex(),
+      icon: "\uF121",
+      color: "#ffffff",
+    },
+    {
+      kind: "open_code",
+      label: () => m.ai_settings_provider_opencode(),
+      icon: "\uF489",
+      color: "#8b8b8b",
+    },
   ];
 
   let refreshing = $state(false);
@@ -36,9 +123,10 @@
     bgError = null;
     try {
       await aiBackgroundSetSettings({
-        worktree_root: bgSettings.worktree_root && bgSettings.worktree_root.trim().length > 0
-          ? bgSettings.worktree_root.trim()
-          : null,
+        worktree_root:
+          bgSettings.worktree_root && bgSettings.worktree_root.trim().length > 0
+            ? bgSettings.worktree_root.trim()
+            : null,
         concurrency_cap: Math.max(1, Math.floor(bgSettings.concurrency_cap)),
         auto_accept_permissions: bgSettings.auto_accept_permissions,
       });
@@ -78,126 +166,142 @@
   }
 </script>
 
-<div class="ai-card">
-  <div class="card-header">
-    <h2 class="card-title">{m.ai_settings_title()}</h2>
-    <button class="refresh-btn" onclick={handleRefresh} disabled={refreshing} title="Refresh">
-      <span class="nf" class:spinning={refreshing}>{"\uF021"}</span>
-    </button>
-  </div>
+<Card
+  title={m.settings_ai_providers_section_title()}
+  description={m.settings_ai_providers_section_description()}
+>
+  {#snippet actions()}
+    <Button
+      variant="ghost"
+      size="sm"
+      loading={refreshing}
+      icon="\uF021"
+      onclick={handleRefresh}
+    />
+  {/snippet}
 
-  <div class="provider-list">
-    {#each ALL_KINDS as { kind, label, icon, color }}
-      {@const detected = isDetected(kind)}
-      {@const preferred = isPreferred(kind)}
-      {@const version = getVersion(kind)}
-      <button
-        class="provider-row"
-        class:detected
-        class:preferred
-        disabled={!detected}
-        onclick={() => handleSelect(kind)}
-      >
-        <span class="provider-icon nf" style="color: {detected ? color : 'var(--text-secondary)'}">{icon}</span>
-        <div class="provider-info">
-          <span class="provider-name">{label()}</span>
-          {#if detected && version}
-            <span class="provider-version">{m.ai_settings_version({ version })}</span>
-          {:else if !detected}
-            <span class="provider-status not-found">{m.ai_settings_not_found()}</span>
+  <SettingSection title={m.ai_settings_title()}>
+    <div class="provider-list" data-setting-anchor="provider">
+      {#each ALL_KINDS as { kind, label, icon, color } (kind)}
+        {@const detected = isDetected(kind)}
+        {@const preferred = isPreferred(kind)}
+        {@const version = getVersion(kind)}
+        <button
+          type="button"
+          class="provider-row"
+          class:detected
+          class:preferred
+          disabled={!detected}
+          onclick={() => handleSelect(kind)}
+        >
+          <span
+            class="provider-icon nf"
+            style="color: {detected ? color : 'var(--text-secondary)'}"
+          >
+            {icon}
+          </span>
+          <div class="provider-info">
+            <span class="provider-name">{label()}</span>
+            {#if detected && version}
+              <span class="provider-version"
+                >{m.ai_settings_version({ version })}</span
+              >
+            {:else if !detected}
+              <span class="provider-status not-found"
+                >{m.ai_settings_not_found()}</span
+              >
+            {/if}
+          </div>
+          {#if preferred && detected}
+            <span class="preferred-badge"
+              >{m.ai_settings_default_provider()}</span
+            >
+          {:else if detected}
+            <span class="detected-badge">{m.ai_settings_detected()}</span>
           {/if}
-        </div>
-        {#if preferred && detected}
-          <span class="preferred-badge">{m.ai_settings_default_provider()}</span>
-        {:else if detected}
-          <span class="detected-badge">{m.ai_settings_detected()}</span>
-        {/if}
-      </button>
-    {/each}
-  </div>
+        </button>
+      {/each}
+    </div>
 
-  {#if $aiProviders.length === 0}
-    <div class="empty-state">{m.ai_settings_no_providers()}</div>
-  {/if}
-</div>
+    {#if $aiProviders.length === 0}
+      <div class="empty-state">{m.ai_settings_no_providers()}</div>
+    {/if}
+  </SettingSection>
+</Card>
 
-<div class="ai-card">
-  <h2 class="card-title">{m.settings_ai_background_heading()}</h2>
+<Card
+  title={m.settings_ai_background_section_title()}
+  description={m.settings_ai_background_section_description()}
+>
+  <SettingSection title={m.settings_ai_background_heading()}>
+    <div data-setting-anchor="worktree-root">
+      <Field
+        label={m.settings_ai_worktree_root_label()}
+        description={m.settings_ai_worktree_root_hint()}
+        for="bg-root"
+      >
+        <input
+          id="bg-root"
+          class="field-input"
+          type="text"
+          placeholder=".beardgit/ai-worktrees"
+          value={bgSettings.worktree_root ?? ""}
+          oninput={(e) => {
+            bgSettings.worktree_root = e.currentTarget.value;
+          }}
+          onblur={saveBgSettings}
+        />
+      </Field>
+    </div>
 
-  <div class="bg-field">
-    <label class="field-label" for="bg-root">{m.settings_ai_worktree_root_label()}</label>
-    <input
-      id="bg-root"
-      class="field-input"
-      type="text"
-      placeholder=".beardgit/ai-worktrees"
-      value={bgSettings.worktree_root ?? ""}
-      oninput={(e) => { bgSettings.worktree_root = e.currentTarget.value; }}
-      onblur={saveBgSettings}
-    />
-    <p class="field-hint">{m.settings_ai_worktree_root_hint()}</p>
-  </div>
+    <div data-setting-anchor="concurrency">
+      <FormRow
+        label={m.settings_ai_concurrency_label()}
+        for="bg-cap"
+        helperText={m.settings_ai_concurrency_hint()}
+      >
+        <input
+          id="bg-cap"
+          class="field-input short"
+          type="number"
+          min="1"
+          max="32"
+          bind:value={bgSettings.concurrency_cap}
+          onblur={saveBgSettings}
+        />
+      </FormRow>
+    </div>
 
-  <div class="bg-field">
-    <label class="field-label" for="bg-cap">{m.settings_ai_concurrency_label()}</label>
-    <input
-      id="bg-cap"
-      class="field-input short"
-      type="number"
-      min="1"
-      max="32"
-      bind:value={bgSettings.concurrency_cap}
-      onblur={saveBgSettings}
-    />
-    <p class="field-hint">{m.settings_ai_concurrency_hint()}</p>
-  </div>
+    <div data-setting-anchor="auto-accept">
+      <FormRow
+        label={m.settings_ai_auto_accept_label()}
+        for="bg-auto-accept"
+        helperText={m.settings_ai_auto_accept_hint()}
+      >
+        <input
+          id="bg-auto-accept"
+          type="checkbox"
+          class="bg-checkbox"
+          bind:checked={bgSettings.auto_accept_permissions}
+          onchange={saveBgSettings}
+        />
+      </FormRow>
+    </div>
 
-  <div class="bg-field">
-    <label class="checkbox-label">
-      <input
-        type="checkbox"
-        bind:checked={bgSettings.auto_accept_permissions}
-        onchange={saveBgSettings}
-      />
-      <span>{m.settings_ai_auto_accept_label()}</span>
-    </label>
-    <p class="field-hint">{m.settings_ai_auto_accept_hint()}</p>
-  </div>
-
-  {#if bgError}
-    <p class="error-text">{bgError}</p>
-  {:else if bgSaving}
-    <p class="saving-text">…</p>
-  {/if}
-</div>
+    {#if bgError}
+      <p class="error-text">{bgError}</p>
+    {:else if bgSaving}
+      <p class="saving-text">…</p>
+    {/if}
+  </SettingSection>
+</Card>
 
 <style>
-  .ai-card { max-width: 480px; margin: 48px auto; padding: 32px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; }
-  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-  .card-title { font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0; }
-
-  .refresh-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    cursor: pointer;
+  .provider-list {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s, color 0.15s;
+    flex-direction: column;
+    gap: 4px;
   }
-  .refresh-btn:hover { background: var(--overlay-hover); color: var(--text-primary); }
-  .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .nf { font-family: var(--font-icons); font-size: 13px; line-height: 1; }
-
-  .spinning { animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .provider-list { display: flex; flex-direction: column; gap: 4px; }
 
   .provider-row {
     display: flex;
@@ -208,25 +312,56 @@
     border: 1px solid var(--border);
     background: var(--bg-primary);
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
     text-align: left;
     width: 100%;
+    font-family: inherit;
   }
 
-  .provider-row:hover:not(:disabled) { background: var(--overlay-hover); }
-  .provider-row:disabled { opacity: 0.45; cursor: not-allowed; }
+  .provider-row:hover:not(:disabled) {
+    background: var(--overlay-hover);
+  }
+  .provider-row:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 
   .provider-row.preferred {
     border-color: var(--accent-blue);
     background: var(--overlay-accent-blue);
   }
 
-  .provider-icon { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+  .provider-icon {
+    font-family: var(--font-icons);
+    font-size: 18px;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+  }
 
-  .provider-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-  .provider-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
-  .provider-version { font-size: 11px; color: var(--text-secondary); }
-  .provider-status.not-found { font-size: 11px; color: var(--text-secondary); font-style: italic; }
+  .provider-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+  }
+  .provider-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .provider-version {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .provider-status.not-found {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
 
   .preferred-badge {
     font-size: 10px;
@@ -248,26 +383,9 @@
   }
 
   .empty-state {
-    text-align: center;
     color: var(--text-secondary);
     font-size: 12px;
     font-style: italic;
-    margin-top: 16px;
-  }
-
-  .bg-field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 16px;
-  }
-
-  .field-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
   }
 
   .field-input {
@@ -280,33 +398,27 @@
     font-family: var(--font-mono);
     outline: none;
     box-sizing: border-box;
+    width: 100%;
   }
 
   .field-input.short {
     max-width: 100px;
+    width: 100px;
   }
 
   .field-input:focus {
     border-color: var(--accent-blue);
   }
 
-  .field-hint {
-    font-size: 11px;
-    color: var(--text-secondary);
-    margin: 0;
-  }
-
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--text-primary);
+  .bg-checkbox {
+    accent-color: var(--accent-blue);
+    width: 16px;
+    height: 16px;
     cursor: pointer;
   }
 
   .error-text {
-    color: #f85149;
+    color: var(--accent-red, #f85149);
     font-size: 12px;
   }
 

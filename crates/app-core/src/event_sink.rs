@@ -1,9 +1,11 @@
 //! Tauri event sinks that bridge domain crates to the Tauri event system.
 
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use ai_provider::AiSession;
 use async_trait::async_trait;
+use mutation_events::{AiSource, MutationFlags, MutationKind, emit_mutation};
 use serde::Serialize;
 use task_runner::{OutputLine, TaskEventSink, TaskId, TaskInfo, TaskKind, TaskOutputEvent};
 use tauri::{AppHandle, Emitter};
@@ -122,5 +124,20 @@ impl AiBackgroundEventSink for TauriAiBackgroundEventSink {
             "ai-background-output",
             &AiBackgroundOutputEvent { session_id, line },
         );
+    }
+
+    fn on_repo_mutated(&self, worktree_path: &Path, source: AiSource, flags: MutationFlags) {
+        if let Err(err) = emit_mutation(
+            &self.app_handle,
+            MutationKind::Ai { source },
+            flags,
+            worktree_path,
+        ) {
+            tracing::warn!(
+                ?err,
+                worktree = %worktree_path.display(),
+                "failed to emit project-mutated for AI background run"
+            );
+        }
     }
 }

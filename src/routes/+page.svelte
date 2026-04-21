@@ -14,9 +14,13 @@
   import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit, graphNavigateDown, graphNavigateUp, graphNavigateFirst, graphNavigateLast } from "$lib/stores/graph";
   import type { RawDiffContent } from "$lib/stores/graph";
   import * as m from "$lib/paraglide/messages";
-  import TaskPopover from "$lib/components/tasks/TaskPopover.svelte";
-  import TaskPanel from "$lib/components/tasks/TaskPanel.svelte";
-  import { panelMode } from "$lib/stores/tasks";
+  import TasksPopover from "$lib/components/tasks/TasksPopover.svelte";
+  import {
+    tasksPopoverOpen,
+    toggleTasksPopover,
+    openTasksPopover,
+    closeTasksPopover,
+  } from "$lib/stores/tasksPopover";
   import { initProjects, openFolderAsProject, activeProject, switchToNextTab, switchToPrevTab, closeActiveTab, switchToTab, onProjectSwitch } from "$lib/stores/projects";
   import StashView from "$lib/components/stash/StashView.svelte";
   import ConflictToolbar from "$lib/components/conflict/ConflictToolbar.svelte";
@@ -51,18 +55,19 @@
   import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
   import { shortOid } from "$lib/utils/git";
   import * as api from "$lib/api/tauri";
+  import { runMutation } from "$lib/api/runMutation";
   import { unstagedDiffs, stagedDiffs } from "$lib/stores/changes";
   import type { FileDiff } from "$lib/types";
   import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
-  import { expandPanel as expandTaskPanel } from "$lib/stores/tasks";
   import { addToast } from "$lib/stores/toast";
   import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
   import { get } from "svelte/store";
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
   import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
+  import RepoConfigDialog from "$lib/components/repo-config/RepoConfigDialog.svelte";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
 
   let activeView = $state("graph");
@@ -88,7 +93,6 @@
   });
   let registeredShortcutIds: string[] = [];
   let diffPanelHeight = $state(250);
-  let taskPanelHeight = $state(200);
   let changesSidebarWidth = $state(320);
   let sidebarCollapsed = $state(false);
 
@@ -130,28 +134,6 @@
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
-  }
-
-  function startTaskPanelResize(e: MouseEvent) {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startHeight = taskPanelHeight;
-
-    function onMouseMove(e: MouseEvent) {
-      // Dragging up (negative delta) increases height; dragging down decreases it.
-      const delta = startY - e.clientY;
-      const minH = Math.max(100, window.innerHeight * 0.1);
-      const maxH = Math.min(400, window.innerHeight * 0.4);
-      taskPanelHeight = Math.max(minH, Math.min(maxH, startHeight + delta));
-    }
-
-    function onMouseUp() {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    }
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
   }
 
   onMount(async () => {
@@ -265,7 +247,16 @@
         label: m.toolbar_fetch(),
         category: "Git",
         action: async () => {
-          try { await api.fetchRemote("origin"); } catch { /* toolbar shows error */ }
+          try {
+            await runMutation({
+              kind: "fetch",
+              invoke: () => api.fetchRemote("origin"),
+              successToast: (n) =>
+                `Fetched origin — ${n} ref${n === 1 ? "" : "s"}`,
+              failureToastPrefix: "Fetch failed",
+              trackAsTask: true,
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -276,7 +267,17 @@
         action: async () => {
           const info = get(repoInfo);
           if (!info?.head_branch) return;
-          try { await api.pullRemote("origin", info.head_branch); } catch { /* handled */ }
+          const branch = info.head_branch;
+          try {
+            await runMutation({
+              kind: "pull",
+              invoke: () => api.pullRemote("origin", branch),
+              successToast: (n) =>
+                `Pulled origin/${branch} — ${n} commit${n === 1 ? "" : "s"}`,
+              failureToastPrefix: "Pull failed",
+              trackAsTask: true,
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -287,7 +288,16 @@
         action: async () => {
           const info = get(repoInfo);
           if (!info?.head_branch) return;
-          try { await api.pushRemote("origin", info.head_branch); } catch { /* handled */ }
+          const branch = info.head_branch;
+          try {
+            await runMutation({
+              kind: "push",
+              invoke: () => api.pushRemote("origin", branch),
+              successToast: () => `Pushed to origin/${branch}`,
+              failureToastPrefix: "Push failed",
+              trackAsTask: true,
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -296,7 +306,13 @@
         label: m.changes_stage_all(),
         category: "Git",
         action: async () => {
-          try { await api.stageAll(); await refreshStatuses(); } catch { /* handled */ }
+          try {
+            await runMutation({
+              kind: "stage",
+              invoke: () => api.stageAll(),
+              failureToastPrefix: "Stage failed",
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -305,7 +321,13 @@
         label: m.changes_unstage_all(),
         category: "Git",
         action: async () => {
-          try { await api.unstageAll(); await refreshStatuses(); } catch { /* handled */ }
+          try {
+            await runMutation({
+              kind: "unstage",
+              invoke: () => api.unstageAll(),
+              failureToastPrefix: "Unstage failed",
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
     ];
@@ -373,7 +395,10 @@
         keys: { mod: true, shift: true, key: "T" },
         label: m.tasks_title(),
         category: "General",
-        action: () => expandTaskPanel(),
+        // Retained as a secondary binding for muscle memory — opens
+        // the same popover as Cmd+J. The dedicated expanded-panel mode
+        // was retired alongside the cluster-0.3 drawer.
+        action: () => openTasksPopover(),
       },
       {
         id: "ai.newBackgroundRun",
@@ -381,6 +406,16 @@
         label: m.ai_background_new_run_button(),
         category: "AI",
         action: () => { showAiBackgroundDialog = true; },
+        global: true,
+      },
+      {
+        id: "util.tasksPopover",
+        keys: { mod: true, key: "j" },
+        label: m.tasks_title(),
+        category: "General",
+        // Global so the popover opens even while an input is focused —
+        // users hit Cmd+J mid-commit-message all the time.
+        action: () => toggleTasksPopover(),
         global: true,
       },
     ];
@@ -505,11 +540,14 @@
         label: m.graph_checkout({ sha: shortOid(entry.oid) }),
         action: async () => {
           try {
-            await api.checkoutDetached(entry.oid);
+            await runMutation({
+              kind: "checkout_detached",
+              invoke: () => api.checkoutDetached(entry.oid),
+              successToast: () => `Checked out ${shortOid(entry.oid)} (detached)`,
+              failureToastPrefix: "Checkout failed",
+            });
             await loadReflog();
-          } catch (e) {
-            addToast({ message: m.graph_checkout_failed({ error: String(e) }), type: "error" });
-          }
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -518,11 +556,14 @@
           const name = prompt(m.graph_branch_name_prompt());
           if (!name) return;
           try {
-            await api.createBranchAt(name, entry.oid);
+            await runMutation({
+              kind: "branch_create",
+              invoke: () => api.createBranchAt(name, entry.oid),
+              successToast: () => `Created branch ${name}`,
+              failureToastPrefix: "Branch create failed",
+            });
             await loadReflog();
-          } catch (e) {
-            addToast({ message: m.graph_branch_failed({ error: String(e) }), type: "error" });
-          }
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       { separator: true },
@@ -530,7 +571,15 @@
         label: m.graph_reset_soft(),
         action: async () => {
           if (confirm(m.graph_reset_confirm_soft({ sha: shortOid(entry.oid) }))) {
-            try { await api.resetToCommit(entry.oid, "soft"); await loadReflog(); } catch { /* handled */ }
+            try {
+              await runMutation({
+                kind: "reset_soft",
+                invoke: () => api.resetToCommit(entry.oid, "soft"),
+                successToast: () => `Reset (soft) to ${shortOid(entry.oid)}`,
+                failureToastPrefix: "Reset failed",
+              });
+              await loadReflog();
+            } catch { /* runMutation surfaced the toast */ }
           }
         },
       },
@@ -538,7 +587,15 @@
         label: m.graph_reset_mixed(),
         action: async () => {
           if (confirm(m.graph_reset_confirm_mixed({ sha: shortOid(entry.oid) }))) {
-            try { await api.resetToCommit(entry.oid, "mixed"); await loadReflog(); } catch { /* handled */ }
+            try {
+              await runMutation({
+                kind: "reset_mixed",
+                invoke: () => api.resetToCommit(entry.oid, "mixed"),
+                successToast: () => `Reset (mixed) to ${shortOid(entry.oid)}`,
+                failureToastPrefix: "Reset failed",
+              });
+              await loadReflog();
+            } catch { /* runMutation surfaced the toast */ }
           }
         },
       },
@@ -546,7 +603,15 @@
         label: m.graph_reset_hard(),
         action: async () => {
           if (confirm(m.graph_reset_confirm_hard({ sha: shortOid(entry.oid) }))) {
-            try { await api.resetToCommit(entry.oid, "hard"); await loadReflog(); } catch { /* handled */ }
+            try {
+              await runMutation({
+                kind: "reset_hard",
+                invoke: () => api.resetToCommit(entry.oid, "hard"),
+                successToast: () => `Reset (hard) to ${shortOid(entry.oid)}`,
+                failureToastPrefix: "Reset failed",
+              });
+              await loadReflog();
+            } catch { /* runMutation surfaced the toast */ }
           }
         },
       },
@@ -762,13 +827,6 @@
         </div>
       {/if}
       </div><!-- /content-wrapper -->
-      {#if $panelMode === "panel"}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="task-panel-resize-handle" onmousedown={startTaskPanelResize}></div>
-        <div class="task-panel-container" style="height: {taskPanelHeight}px;">
-          <TaskPanel />
-        </div>
-      {/if}
     </div>
 
     {#if activeView === "graph" && $selectedCommit}
@@ -803,12 +861,12 @@
     {/if}
   </div>
 
-  {#if $panelMode === "popover"}
-    <TaskPopover />
-  {/if}
-
   <ShortcutOverlay />
   <StatusBar />
+
+  <TasksPopover open={$tasksPopoverOpen} onClose={closeTasksPopover} />
+
+  <RepoConfigDialog />
 
   {#if showAiBackgroundDialog}
     <CreateBackgroundRunDialog onClose={() => (showAiBackgroundDialog = false)} />
@@ -955,26 +1013,6 @@
   .changes-diff {
     flex: 1;
     overflow: hidden;
-  }
-
-  .task-panel-resize-handle {
-    height: 4px;
-    background: var(--border);
-    cursor: ns-resize;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .task-panel-resize-handle:hover {
-    background: var(--accent-blue);
-  }
-
-  .task-panel-container {
-    flex-shrink: 0;
-    overflow: hidden;
-    border-top: 1px solid var(--border);
   }
 
   .branch-layout {

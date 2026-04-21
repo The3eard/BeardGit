@@ -4,15 +4,19 @@
 //! Handles binary detection, headless command building (`codex exec -p`),
 //! interactive launch, and config file discovery in `.codex/`.
 
+pub mod attribution;
 pub mod commands;
 pub mod detect;
+pub mod errors;
+pub mod sessions;
+pub mod worktrees;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ai_provider::{
-    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AttributionMatch,
-    AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
+    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AiSession, AiWorktree,
+    AttributionMatch, AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
 };
 
 /// AI provider for the Codex CLI.
@@ -107,6 +111,65 @@ impl AiProvider for CodexProvider {
         false
     }
 
+    /// Build a resume command for a previously-recorded Codex session.
+    ///
+    /// Shape: `codex exec resume <session_id> -C <cwd>`. Returns `None` only
+    /// if the binary isn't on PATH — matches the Claude Code idiom.
+    fn build_resume_session_cmd(&self, session_id: &str, cwd: &Path) -> Option<Command> {
+        let binary = self.binary.as_ref()?;
+        Some(commands::build_resume_session_cmd(binary, session_id, cwd))
+    }
+
+    // ─── Session Introspection ───
+
+    /// List Codex sessions whose `cwd` matches `repo_path`.
+    ///
+    /// Reads `~/.codex/sessions/` (filtering by cwd) — Codex has no built-in
+    /// JSON session-list command, so we parse the on-disk JSONL rollouts
+    /// directly. See [`sessions`] for the format.
+    fn list_sessions(&self, repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
+        let Some(home) = dirs::home_dir() else {
+            return Ok(Vec::new());
+        };
+        let base_dir = home.join(".codex/sessions");
+        let all = sessions::load_sessions(&base_dir);
+        let target = repo_path;
+        Ok(all.into_iter().filter(|s| s.cwd == target).collect())
+    }
+
+    /// Whether a Codex session is still "live".
+    ///
+    /// Codex does not record a PID in its session metadata, so liveness
+    /// falls back to a recency heuristic: sessions whose rollout file has
+    /// been written within [`sessions::ACTIVE_WINDOW`] are reported as
+    /// active. The [`AiSession::is_active`] field populated at discovery
+    /// time takes precedence; we re-scan the session directory only when
+    /// that flag is already false (the session may have been written to
+    /// since the last list).
+    fn is_session_active(&self, session: &AiSession) -> bool {
+        if session.is_active {
+            return true;
+        }
+        let Some(home) = dirs::home_dir() else {
+            return false;
+        };
+        let base_dir = home.join(".codex/sessions");
+        sessions::is_session_active(&base_dir, &session.id)
+    }
+
+    // ─── Worktree Introspection ───
+
+    /// List BeardGit-spawned Codex worktrees under
+    /// `<repo>/.beardgit/ai-worktrees/codex/`.
+    fn list_worktrees(&self, repo_path: &Path) -> Result<Vec<AiWorktree>, AiError> {
+        worktrees::list_worktrees(repo_path)
+    }
+
+    /// Remove the worktree's directory (recursive).
+    fn cleanup_worktree(&self, worktree: &AiWorktree) -> Result<(), AiError> {
+        worktrees::cleanup_worktree(worktree)
+    }
+
     // ─── Configuration Discovery ───
 
     /// Discover Codex configuration files for the given repo.
@@ -141,9 +204,13 @@ impl AiProvider for CodexProvider {
         files
     }
 
-    /// Codex does not use instruction files — returns empty vec.
-    fn instruction_files(&self, _repo_path: &Path) -> Vec<PathBuf> {
-        vec![]
+    /// Codex reads instructions from conventional repo-level files.
+    ///
+    /// Modern Codex releases honour `AGENTS.md` (shared convention with other
+    /// agents); older / alternate installs may still look at `CODEX.md`. Both
+    /// are returned so callers can surface whichever exists.
+    fn instruction_files(&self, repo_path: &Path) -> Vec<PathBuf> {
+        vec![repo_path.join("AGENTS.md"), repo_path.join("CODEX.md")]
     }
 
     // ─── Attribution ───
@@ -159,6 +226,10 @@ impl AiProvider for CodexProvider {
                 pattern: "(?i)codex".to_string(),
             },
         ]
+    }
+
+    fn is_ai_authored(&self, message: &str, author: &str) -> bool {
+        attribution::is_ai_authored(message, author)
     }
 }
 
@@ -190,6 +261,36 @@ mod tests {
             .filter(|f| f.scope == ConfigScope::Project)
             .collect();
         assert!(project_files.is_empty());
+    }
+
+    #[test]
+    fn instruction_files_returns_agents_and_codex_md() {
+        let dir = tempfile::tempdir().unwrap();
+        let provider = CodexProvider { binary: None };
+        let files = provider.instruction_files(dir.path());
+        assert_eq!(files.len(), 2);
+        assert!(files[0].ends_with("AGENTS.md"));
+        assert!(files[1].ends_with("CODEX.md"));
+    }
+
+    #[test]
+    fn attribution_patterns_cover_trailer_and_author() {
+        let provider = CodexProvider { binary: None };
+        let patterns = provider.attribution_patterns();
+        assert!(patterns.iter().any(|p| p.kind == AttributionMatch::Trailer));
+        assert!(
+            patterns
+                .iter()
+                .any(|p| p.kind == AttributionMatch::AuthorName)
+        );
+    }
+
+    #[test]
+    fn is_ai_authored_detects_codex_trailer() {
+        let provider = CodexProvider { binary: None };
+        let msg = "feat: x\n\nCo-authored-by: Codex CLI <codex@openai.com>";
+        assert!(provider.is_ai_authored(msg, "Alice"));
+        assert!(!provider.is_ai_authored("feat: x", "Alice"));
     }
 
     #[test]

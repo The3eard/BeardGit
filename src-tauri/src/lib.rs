@@ -15,21 +15,24 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(app_core::state::AppState::new())
         .setup(|app| {
             // Initialize structured file logging (best-effort — don't crash if it fails)
             storage::logging::init_logging().ok();
 
-            #[cfg(desktop)]
-            app.handle()
-                .plugin(tauri_plugin_updater::Builder::new().build())?;
-
             use tauri::Manager as _;
             let sink = std::sync::Arc::new(app_core::event_sink::TauriEventSink::new(
                 app.handle().clone(),
             ));
             let task_manager = std::sync::Arc::new(task_runner::TaskManager::new(sink.clone()));
+            // Plug the Tauri snapshot emitter into the task manager so git
+            // fetch/pull/push/clone lifecycle events stream to the unified
+            // tasks drawer via the `task://update` event.
+            task_manager.set_emitter(std::sync::Arc::new(
+                app_core::task_events::TauriEmitter::new(app.handle().clone()),
+            ));
             app.manage(task_manager.clone());
 
             // AI background coordinator: shares the task manager with the rest
@@ -113,6 +116,7 @@ pub fn run() {
             app_core::commands::open_repo,
             app_core::commands::get_graph_viewport,
             app_core::commands::load_graph_chunk,
+            app_core::commands::refresh_graph_layout,
             app_core::commands::get_commit_row,
             app_core::commands::search_commits,
             app_core::commands::get_commit_detail,
@@ -212,6 +216,7 @@ pub fn run() {
             app_core::task_commands::get_tasks,
             app_core::task_commands::get_task_output,
             app_core::task_commands::cancel_task,
+            app_core::task_commands::task_cancel,
             app_core::commands::list_worktrees,
             app_core::commands::create_worktree,
             app_core::commands::remove_worktree,
@@ -221,6 +226,7 @@ pub fn run() {
             app_core::commands::file_history,
             app_core::commands::get_rebase_commits,
             app_core::commands::start_interactive_rebase,
+            app_core::commands::clear_layout_cache,
             app_core::commands::get_reflog,
             app_core::commands::clean_dry_run,
             app_core::commands::clean_paths,
@@ -298,6 +304,11 @@ pub fn run() {
             // Sidebar
             app_core::commands::get_sidebar_collapsed,
             app_core::commands::set_sidebar_collapsed,
+            // Auto-update preference
+            app_core::commands::get_auto_check_updates,
+            app_core::commands::set_auto_check_updates,
+            app_core::commands::get_reauth_dismissed,
+            app_core::commands::set_reauth_dismissed,
             // Terminal
             app_core::terminal_commands::terminal_spawn,
             app_core::terminal_commands::terminal_write,
@@ -351,6 +362,15 @@ pub fn run() {
             app_core::commands::cli_check_auth_status,
             app_core::commands::cli_get_auth_command,
             app_core::commands::cli_get_logout_command,
+            // Remote repo configuration (gh/glab)
+            app_core::commands::load_remote_repo_config,
+            app_core::commands::apply_remote_repo_config,
+            app_core::commands::create_label,
+            app_core::commands::update_label,
+            app_core::commands::delete_label,
+            app_core::commands::get_branch_protection,
+            app_core::commands::set_branch_protection,
+            app_core::commands::probe_forge_cli_status,
             app_core::commands::get_debug_info,
             app_core::commands::get_log_path,
             app_core::commands::open_log_directory,

@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { get } from "svelte/store";
-import { mockInvokeResponse } from "../setup";
+import { invokeMock, mockInvokeResponse } from "../setup";
 import type { BranchInfo, CommitInfo } from "$lib/types";
 
 import {
@@ -178,39 +178,36 @@ describe("branch operations workflow", () => {
   });
 
   // ── doCheckout ──────────────────────────────────────────────────────
+  //
+  // Branch list refresh is now driven by the `project-mutated` event
+  // (see mutations.ts) rather than an inline `refreshBranches()` call —
+  // these tests therefore assert the IPC invocation. The refresh path
+  // itself is covered by `mutations.test.ts`.
 
-  it("doCheckout invokes IPC and refreshes branches", async () => {
+  it("doCheckout invokes checkout_branch IPC with the branch name", async () => {
     branches.set(MOCK_BRANCHES);
     mockInvokeResponse("checkout_branch", undefined);
 
-    const afterCheckout: BranchInfo[] = MOCK_BRANCHES.map((b) => ({
-      ...b,
-      is_head: b.name === "feature/auth",
-    }));
-    mockInvokeResponse("get_branches", afterCheckout);
-
     await doCheckout("feature/auth");
 
-    const list = get(branches);
-    const head = list.find((b) => b.is_head);
-    expect(head?.name).toBe("feature/auth");
+    const call = invokeMock.mock.calls.find((c) => c[0] === "checkout_branch");
+    expect(call).toBeDefined();
+    expect(call?.[1]).toEqual({ name: "feature/auth" });
   });
 
   // ── doDeleteBranch ───────────────────────────────────────────────────
 
-  it("doDeleteBranch removes the branch and clears selection", async () => {
+  it("doDeleteBranch invokes delete_branch IPC and clears selection of the deleted branch", async () => {
     branches.set(MOCK_BRANCHES);
     selectedBranchName.set("feature/auth");
 
     mockInvokeResponse("delete_branch", undefined);
-    const remaining: BranchInfo[] = [MOCK_BRANCHES[0], MOCK_BRANCHES[2], MOCK_BRANCHES[3]];
-    mockInvokeResponse("get_branches", remaining);
 
     await doDeleteBranch("feature/auth");
 
+    const call = invokeMock.mock.calls.find((c) => c[0] === "delete_branch");
+    expect(call?.[1]).toEqual({ name: "feature/auth" });
     expect(get(selectedBranchName)).toBeNull();
-    expect(get(branches)).toHaveLength(3);
-    expect(get(branches).find((b) => b.name === "feature/auth")).toBeUndefined();
   });
 
   it("doDeleteBranch does not clear selection when deleting non-selected branch", async () => {
@@ -218,8 +215,6 @@ describe("branch operations workflow", () => {
     selectedBranchName.set("main");
 
     mockInvokeResponse("delete_branch", undefined);
-    const remaining: BranchInfo[] = [MOCK_BRANCHES[0], MOCK_BRANCHES[2], MOCK_BRANCHES[3]];
-    mockInvokeResponse("get_branches", remaining);
 
     await doDeleteBranch("feature/auth");
 
@@ -228,15 +223,14 @@ describe("branch operations workflow", () => {
 
   // ── doMergeBranch ────────────────────────────────────────────────────
 
-  it("doMergeBranch invokes IPC and refreshes branches", async () => {
+  it("doMergeBranch invokes merge_branch IPC with the branch name", async () => {
     branches.set(MOCK_BRANCHES);
     mockInvokeResponse("merge_branch", "Fast-forward");
-    mockInvokeResponse("get_branches", MOCK_BRANCHES);
 
     await doMergeBranch("feature/auth");
 
-    // Branches should be refreshed (same list in this mock)
-    expect(get(branches)).toHaveLength(4);
+    const call = invokeMock.mock.calls.find((c) => c[0] === "merge_branch");
+    expect(call?.[1]).toEqual({ branch: "feature/auth" });
   });
 
   // ── clearBranchState ─────────────────────────────────────────────────

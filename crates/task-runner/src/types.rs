@@ -44,6 +44,21 @@ pub enum TaskKind {
         provider: String,
         worktree_path: String,
     },
+    /// Interactive AI PTY session (Claude Code, Codex, OpenCode).
+    ///
+    /// Surfaced in the unified tasks drawer so users can see and cancel
+    /// running interactive sessions alongside background runs.
+    AiInteractive,
+    /// `git fetch <remote>` spawned via `TaskManager`.
+    GitFetch,
+    /// `git pull <remote> <branch>` spawned via `TaskManager`.
+    GitPull,
+    /// `git push <remote> <branch>` spawned via `TaskManager`.
+    GitPush,
+    /// `git clone <url> <path>` spawned via `TaskManager`.
+    GitClone,
+    /// Auto-update download driven by `tauri-plugin-updater`.
+    AppUpdate,
 }
 
 /// Which output stream a line came from.

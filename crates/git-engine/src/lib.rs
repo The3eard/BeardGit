@@ -43,6 +43,9 @@ pub mod staging;
 pub mod submodule;
 pub mod worktree;
 
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_support;
+
 pub use bisect::BisectState;
 pub use blame::{BlameLine, FileHistoryEntry};
 pub use clean::CleanItem;

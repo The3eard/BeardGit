@@ -15,6 +15,9 @@
 pub mod error;
 pub mod types;
 
+#[cfg(any(test, feature = "mock"))]
+pub mod mock;
+
 pub use error::AiError;
 pub use types::*;
 

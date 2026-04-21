@@ -109,3 +109,76 @@ pub fn get_user_identities(state: State<'_, AppState>) -> Result<Vec<String>, St
     identities.dedup();
     Ok(identities)
 }
+
+#[cfg(test)]
+mod tests {
+    //! Drive local-scope git config CRUD against a fixture repo. Global /
+    //! system scopes would mutate the tester's ~/.gitconfig — we don't
+    //! touch those here.
+
+    use git_engine::test_support::create_repo_with_n_commits;
+    use git_engine::{ConfigScope, Repository};
+
+    #[test]
+    fn set_then_list_config_roundtrips_entry() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        repo.set_config(ConfigScope::Local, "beardgit.test-key", "hello")
+            .unwrap();
+        let entries = repo.list_config(ConfigScope::Local).unwrap();
+        assert!(
+            entries
+                .iter()
+                .any(|e| e.key == "beardgit.test-key" && e.value == "hello"),
+            "expected beardgit.test-key=hello, got {entries:?}"
+        );
+    }
+
+    #[test]
+    fn unset_config_removes_existing_entry() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        repo.set_config(ConfigScope::Local, "beardgit.doomed", "v")
+            .unwrap();
+        repo.unset_config(ConfigScope::Local, "beardgit.doomed")
+            .unwrap();
+        let entries = repo.list_config(ConfigScope::Local).unwrap();
+        assert!(
+            !entries.iter().any(|e| e.key == "beardgit.doomed"),
+            "unset should have removed the key, got {entries:?}"
+        );
+    }
+
+    #[test]
+    fn add_config_appends_additional_value() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        repo.add_config(ConfigScope::Local, "beardgit.list", "one")
+            .unwrap();
+        repo.add_config(ConfigScope::Local, "beardgit.list", "two")
+            .unwrap();
+        let entries = repo.list_config(ConfigScope::Local).unwrap();
+        let values: Vec<_> = entries
+            .iter()
+            .filter(|e| e.key == "beardgit.list")
+            .map(|e| e.value.clone())
+            .collect();
+        assert!(
+            values.contains(&"one".to_string()) && values.contains(&"two".to_string()),
+            "both appended values should be present, got {values:?}"
+        );
+    }
+
+    #[test]
+    fn unset_config_on_missing_key_errors() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let err = repo
+            .unset_config(ConfigScope::Local, "beardgit.never-set")
+            .err();
+        assert!(
+            err.is_some(),
+            "unsetting a missing key should error (mirrors `git config`)"
+        );
+    }
+}

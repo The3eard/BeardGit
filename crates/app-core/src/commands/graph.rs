@@ -1,9 +1,12 @@
 //! Graph viewport, commit search, and commit detail commands.
 
+use std::path::PathBuf;
+
 use graph_builder::{Dag, GraphCommit, GraphLayout};
 use tauri::State;
 use tracing::instrument;
 
+use super::graph_cache::load_or_build_layout;
 use super::helpers::*;
 use crate::state::AppState;
 
@@ -266,56 +269,86 @@ pub async fn load_graph_chunk(
     .map_err(|e| e.to_string())?
 }
 
+/// Core of [`refresh_graph_layout`]: open the repo at `path`, consult
+/// the persistent cache, and return the freshly-loaded layout.
+///
+/// Separated from the Tauri command so unit tests can exercise the
+/// rebuild behaviour without a live `AppState`. On a cache hit the
+/// returned layout is byte-identical to the previous build for the same
+/// `(path, HEAD oid, refs)`; on a miss [`load_or_build_layout`] walks
+/// the repo, computes a fresh layout, and writes the cache entry back.
+fn rebuild_layout_blocking(
+    path: &str,
+    config_dir: &std::path::Path,
+) -> Result<GraphLayout, String> {
+    let repo = git_engine::Repository::open(PathBuf::from(path)).map_err(|e| e.to_string())?;
+    let (layout, _was_cached) = load_or_build_layout(&repo, path, config_dir)?;
+    Ok(layout)
+}
+
+/// Rebuild the active project's cached [`GraphLayout`] from the current
+/// repository state.
+///
+/// [`get_graph_viewport`] slices a pre-computed layout that lives in
+/// [`crate::state::ProjectSlot::layout`] and is only populated by
+/// [`super::repository::open_repo`] and [`super::project::switch_project`].
+/// After a mutation that changes reachable commits or refs (commit, amend,
+/// push, pull, rebase, reset, …) the slot layout goes stale and the
+/// viewport no longer reflects reality.
+///
+/// Frontend bridges invoke this command whenever they need the graph to
+/// catch up — typically right after `commit()` or when a Fetch / Pull /
+/// Push task reaches a completed lifecycle state. The work reuses
+/// [`load_or_build_layout`] so the persistent on-disk cache correctly
+/// misses on the new HEAD + refs key and writes a fresh entry in the
+/// background.
+///
+/// # Returns
+/// `Ok(())` when the layout was rebuilt, or an error string when no
+/// project is active / no repository is loaded in the active slot.
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::graph::refresh_layout")]
+pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), String> {
+    // Snapshot the path + config dir so we can drop the lock before doing
+    // the (potentially expensive) walk + layout build off-thread.
+    let (path, config_dir) = {
+        let projects = state.projects.lock().map_err(|e| e.to_string())?;
+        let active = state.active_index.lock().map_err(|e| e.to_string())?;
+        let idx = active.ok_or_else(|| "No active project".to_string())?;
+        let slot = projects
+            .get(idx)
+            .ok_or_else(|| "Active project index out of bounds".to_string())?;
+        (slot.path.clone(), state.config_dir.clone())
+    };
+
+    let path_clone = path.clone();
+    let layout =
+        tokio::task::spawn_blocking(move || rebuild_layout_blocking(&path_clone, &config_dir))
+            .await
+            .map_err(|e| e.to_string())??;
+
+    // Re-acquire the lock and swap in the fresh layout. Only touch the slot
+    // whose path still matches what we snapshotted — a project switch that
+    // raced with this call is a silent no-op.
+    let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let active = state.active_index.lock().map_err(|e| e.to_string())?;
+    if let Some(idx) = *active
+        && let Some(slot) = projects.get_mut(idx)
+        && slot.path == path
+    {
+        slot.layout = Some(layout);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-
-    /// Create a repo with `n` sequential single-parent commits.
-    ///
-    /// Replicated inline from `git-engine`'s test module because it is not
-    /// re-exported. Kept minimal (a single linear chain) because the tests
-    /// below only need predictable pagination semantics, not varied graph
-    /// topology.
-    fn create_repo_with_n_commits(dir: &tempfile::TempDir, n: usize) -> PathBuf {
-        let path = dir.path().to_path_buf();
-        let repo = git2::Repository::init(&path).expect("init");
-
-        let mut config = repo.config().unwrap();
-        config.set_str("user.name", "Test User").unwrap();
-        config.set_str("user.email", "test@example.com").unwrap();
-        drop(config);
-
-        let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
-        let mut parent_commit: Option<git2::Oid> = None;
-
-        for i in 0..n {
-            let tree_id = {
-                let mut index = repo.index().unwrap();
-                index.write_tree().unwrap()
-            };
-            let tree = repo.find_tree(tree_id).unwrap();
-
-            let parents_vec: Vec<git2::Commit> = parent_commit
-                .iter()
-                .filter_map(|&oid| repo.find_commit(oid).ok())
-                .collect();
-            let parent_refs: Vec<&git2::Commit> = parents_vec.iter().collect();
-
-            let msg = format!("Commit {}", i + 1);
-            let oid = repo
-                .commit(Some("HEAD"), &sig, &sig, &msg, &tree, &parent_refs)
-                .unwrap();
-            parent_commit = Some(oid);
-        }
-
-        path
-    }
+    use git_engine::test_support::create_repo_with_n_commits;
 
     #[test]
     fn build_graph_chunk_returns_offset_slice() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 50);
+        let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
         let chunk = build_graph_chunk(&repo, 10, 20).expect("chunk ok");
@@ -329,8 +362,7 @@ mod tests {
 
     #[test]
     fn build_graph_chunk_flags_last_page() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 50);
+        let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
         let chunk = build_graph_chunk(&repo, 40, 20).expect("chunk ok");
@@ -343,12 +375,53 @@ mod tests {
 
     #[test]
     fn build_graph_chunk_offset_beyond_total_returns_empty() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 50);
+        let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
         let chunk = build_graph_chunk(&repo, 100, 20).expect("chunk ok");
         assert!(chunk.nodes.is_empty());
         assert!(!chunk.has_more);
+    }
+
+    /// After a new commit lands in the repo, `rebuild_layout_blocking`
+    /// must return a layout that includes the fresh HEAD — not a cached
+    /// layout from the previous HEAD. The persistent cache in
+    /// `graph_cache.rs` keys on `(path, HEAD, refs)` so a HEAD move
+    /// invalidates automatically; this test pins down that behaviour end
+    /// to end through the refresh helper used by `refresh_graph_layout`.
+    #[test]
+    fn rebuild_layout_blocking_sees_new_commit_after_head_moves() {
+        let (_dir, path) = create_repo_with_n_commits(5);
+        let path_str = path.to_str().unwrap();
+        let tmp_cfg = tempfile::tempdir().unwrap();
+
+        // Warm the cache with the 5-commit layout.
+        let layout1 = rebuild_layout_blocking(path_str, tmp_cfg.path()).expect("initial build");
+        assert_eq!(layout1.nodes.len(), 5);
+
+        // Add one commit so HEAD advances.
+        {
+            let git_repo = git2::Repository::open(&path).unwrap();
+            let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
+            let parent = git_repo
+                .find_commit(git_repo.head().unwrap().target().unwrap())
+                .unwrap();
+            let tree = git_repo
+                .find_tree(git_repo.index().unwrap().write_tree().unwrap())
+                .unwrap();
+            git_repo
+                .commit(Some("HEAD"), &sig, &sig, "extra", &tree, &[&parent])
+                .unwrap();
+        }
+
+        // Refresh — must surface the new commit, not re-serve the stale
+        // 5-node layout from cache.
+        let layout2 =
+            rebuild_layout_blocking(path_str, tmp_cfg.path()).expect("post-commit rebuild");
+        assert_eq!(
+            layout2.nodes.len(),
+            6,
+            "refresh must see the new commit after HEAD advances"
+        );
     }
 }

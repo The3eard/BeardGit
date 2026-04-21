@@ -275,49 +275,11 @@ impl Repository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-
-    /// Create a repo with `n` sequential commits, return the temp dir and path.
-    fn create_repo_with_n_commits(dir: &tempfile::TempDir, n: usize) -> PathBuf {
-        let path = dir.path().to_path_buf();
-        let repo = git2::Repository::init(&path).expect("init");
-
-        let mut config = repo.config().unwrap();
-        config.set_str("user.name", "Test User").unwrap();
-        config.set_str("user.email", "test@example.com").unwrap();
-        drop(config);
-
-        let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
-
-        let mut parent_commit: Option<git2::Oid> = None;
-
-        for i in 0..n {
-            let tree_id = {
-                let mut index = repo.index().unwrap();
-                index.write_tree().unwrap()
-            };
-            let tree = repo.find_tree(tree_id).unwrap();
-
-            let parents_vec: Vec<git2::Commit> = parent_commit
-                .iter()
-                .filter_map(|&oid| repo.find_commit(oid).ok())
-                .collect();
-            let parent_refs: Vec<&git2::Commit> = parents_vec.iter().collect();
-
-            let msg = format!("Commit {}", i + 1);
-            let oid = repo
-                .commit(Some("HEAD"), &sig, &sig, &msg, &tree, &parent_refs)
-                .unwrap();
-            parent_commit = Some(oid);
-        }
-
-        path
-    }
+    use crate::test_support::create_repo_with_n_commits;
 
     #[test]
     fn test_walk_commits_returns_all() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 5);
+        let (_dir, path) = create_repo_with_n_commits(5);
         let repo = Repository::open(&path).unwrap();
 
         let commits = repo.walk_commits(0, 100).unwrap();
@@ -326,8 +288,7 @@ mod tests {
 
     #[test]
     fn test_walk_commits_respects_offset() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 10);
+        let (_dir, path) = create_repo_with_n_commits(10);
         let repo = Repository::open(&path).unwrap();
 
         let all = repo.walk_commits(0, 100).unwrap();
@@ -342,8 +303,7 @@ mod tests {
 
     #[test]
     fn test_walk_commits_offset_beyond_total_returns_empty() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 5);
+        let (_dir, path) = create_repo_with_n_commits(5);
         let repo = Repository::open(&path).unwrap();
 
         let result = repo.walk_commits(100, 100).unwrap();
@@ -352,8 +312,7 @@ mod tests {
 
     #[test]
     fn test_walk_commits_respects_max_count() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 10);
+        let (_dir, path) = create_repo_with_n_commits(10);
         let repo = Repository::open(&path).unwrap();
 
         let commits = repo.walk_commits(0, 3).unwrap();
@@ -362,8 +321,7 @@ mod tests {
 
     #[test]
     fn test_walk_commits_has_parent_info() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 3);
+        let (_dir, path) = create_repo_with_n_commits(3);
         let repo = Repository::open(&path).unwrap();
 
         let commits = repo.walk_commits(0, 100).unwrap();
@@ -382,8 +340,7 @@ mod tests {
 
     #[test]
     fn test_get_commit_by_oid() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 3);
+        let (_dir, path) = create_repo_with_n_commits(3);
         let repo = Repository::open(&path).unwrap();
 
         let commits = repo.walk_commits(0, 100).unwrap();
@@ -401,8 +358,7 @@ mod tests {
 
     #[test]
     fn test_walk_commits_filtered_by_author() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 3);
+        let (_dir, path) = create_repo_with_n_commits(3);
         let repo = Repository::open(&path).unwrap();
 
         // Filter by existing author
@@ -420,8 +376,7 @@ mod tests {
 
     #[test]
     fn test_walk_commits_filtered_by_message() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 5);
+        let (_dir, path) = create_repo_with_n_commits(5);
         let repo = Repository::open(&path).unwrap();
 
         // Filter by message substring matching a single commit
@@ -440,8 +395,7 @@ mod tests {
 
     #[test]
     fn test_walk_commits_filtered_by_sha() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 3);
+        let (_dir, path) = create_repo_with_n_commits(3);
         let repo = Repository::open(&path).unwrap();
 
         let all = repo.walk_commits(0, 100).unwrap();
@@ -457,8 +411,7 @@ mod tests {
 
     #[test]
     fn test_walk_commits_filtered_by_branch() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 2);
+        let (_dir, path) = create_repo_with_n_commits(2);
         let git_repo = git2::Repository::open(&path).unwrap();
 
         // Create a "feature" branch from HEAD
@@ -500,8 +453,7 @@ mod tests {
 
     #[test]
     fn test_walk_commits_filtered_no_match() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 3);
+        let (_dir, path) = create_repo_with_n_commits(3);
         let repo = Repository::open(&path).unwrap();
 
         let commits = repo
@@ -522,8 +474,7 @@ mod tests {
 
     #[test]
     fn test_branch_commits() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 2);
+        let (_dir, path) = create_repo_with_n_commits(2);
         let git_repo = git2::Repository::open(&path).unwrap();
 
         // Create a "feature" branch and add a commit to it
@@ -556,8 +507,7 @@ mod tests {
 
     #[test]
     fn test_branch_commits_nonexistent() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let path = create_repo_with_n_commits(&dir, 2);
+        let (_dir, path) = create_repo_with_n_commits(2);
         let repo = Repository::open(&path).unwrap();
 
         let result = repo.branch_commits("nonexistent", 100);

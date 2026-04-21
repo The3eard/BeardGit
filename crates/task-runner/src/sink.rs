@@ -27,3 +27,28 @@ pub trait TaskEventSink: Send + Sync {
     /// A task was cancelled by the user.
     async fn on_task_cancelled(&self, info: TaskInfo);
 }
+
+/// Receives a full [`TaskInfo`] snapshot whenever a task transitions or emits
+/// progress.
+///
+/// Consumers (typically `app-core`) project the snapshot into a wire
+/// `TaskEvent` and forward it to the frontend via the `task://update` Tauri
+/// event. Kept independent of [`TaskEventSink`] so the drawer bridge can be
+/// plugged in without touching existing output-streaming consumers.
+///
+/// Emissions are gated on task kind and throttled inside [`crate::TaskManager`]
+/// — see `task_events.rs` in app-core and `manager.rs` for the policy.
+pub trait TaskEmitter: Send + Sync {
+    /// Emit a snapshot of the task to the transport layer.
+    fn emit(&self, info: &TaskInfo);
+}
+
+/// Default no-op implementation used by tests and by `TaskManager::new`
+/// callers that haven't plugged in a real emitter yet.
+pub struct NoopTaskEmitter;
+
+impl TaskEmitter for NoopTaskEmitter {
+    fn emit(&self, _info: &TaskInfo) {
+        // Intentionally empty.
+    }
+}

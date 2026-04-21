@@ -8,3 +8,10 @@ notify = "7"
 notify-debouncer-mini = "0.5"
 serde = { workspace = true }
 dirs = "6"
+mutation-events = { path = "../mutation-events" }
+tauri = { version = "2", features = [] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+git2 = { workspace = true }

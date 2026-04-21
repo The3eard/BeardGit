@@ -88,6 +88,10 @@ pub struct AppState {
     pub config: Mutex<AppConfig>,
     /// Filesystem path to `settings.json`, used when saving config changes.
     pub config_path: PathBuf,
+    /// Root config directory for BeardGit (parent of `settings.json`). Used
+    /// by persistent caches (layouts, project snapshots) that need to write
+    /// under `<config_dir>/…`.
+    pub config_dir: PathBuf,
     /// Encrypted credential store for PAT / OAuth tokens.
     pub credential_store: CredentialStore,
     /// All authenticated provider connections.
@@ -148,6 +152,7 @@ impl AppState {
             db: Mutex::new(db),
             config: Mutex::new(config),
             config_path,
+            config_dir,
             credential_store,
             providers: Mutex::new(Vec::new()),
             active_provider_index: Mutex::new(None),

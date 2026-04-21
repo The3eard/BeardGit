@@ -2,9 +2,9 @@
 
 use std::path::PathBuf;
 
-use graph_builder::{Dag, GraphCommit, GraphLayout};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 
+use super::graph_cache::load_or_build_layout;
 use super::helpers::*;
 use crate::state::{AppState, ProjectSlot};
 
@@ -31,29 +31,14 @@ pub async fn open_repo(
     app_handle: AppHandle,
 ) -> Result<RepoInfo, String> {
     let path_clone = path.clone();
+    let config_dir = state.config_dir.clone();
 
     // Run the expensive graph computation off the main thread
     let (repo, layout, status) = tokio::task::spawn_blocking(move || {
         let repo =
             git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(|e| e.to_string())?;
 
-        let commits = repo.walk_commits(0, 50_000).map_err(|e| e.to_string())?;
-
-        let graph_commits: Vec<GraphCommit> = commits
-            .iter()
-            .map(|c| GraphCommit {
-                oid: c.oid.clone(),
-                parents: c.parents.clone(),
-                timestamp: c.timestamp,
-                refs: c.refs.clone(),
-                summary: c.summary.clone(),
-                author: c.author.clone(),
-                email: c.email.clone(),
-            })
-            .collect();
-
-        let dag = Dag::build(&graph_commits);
-        let layout = GraphLayout::compute(&dag);
+        let (layout, _was_cached) = load_or_build_layout(&repo, &path_clone, &config_dir)?;
         let status = repo.status().map_err(|e| e.to_string())?;
 
         Ok::<_, String>((repo, layout, status))
@@ -62,13 +47,11 @@ pub async fn open_repo(
     .map_err(|e| e.to_string())?
     .map_err(|e: String| e)?;
 
-    // Start filesystem watcher for the new repo (emits `repo-changed` events)
+    // Start filesystem watcher for the new repo. The watcher now emits
+    // `project-mutated` with `MutationKind::External` directly via the
+    // mutation-events pipeline, so no manual `repo-changed` shim is needed.
     let repo_path = PathBuf::from(&path);
-    let handle = app_handle.clone();
-    let new_watcher = watcher::RepoWatcher::start(&repo_path, move || {
-        let _ = handle.emit("repo-changed", ());
-    })
-    .ok();
+    let new_watcher = watcher::RepoWatcher::start(app_handle.clone(), repo_path).ok();
 
     // Derive lightweight metadata
     let name = PathBuf::from(&path)
@@ -152,20 +135,92 @@ pub fn get_status_summary(state: State<'_, AppState>) -> Result<git_engine::Stat
 /// List all configured remotes for the active repository.
 #[tauri::command]
 pub fn get_remotes(state: State<'_, AppState>) -> Result<Vec<RemoteInfo>, String> {
-    with_active_repo(&state, |repo| {
-        let git_repo = repo.inner();
-        let remotes = git_repo.remotes().map_err(|e| e.to_string())?;
-        let mut result = Vec::new();
-        for name in remotes.iter().flatten() {
-            let url = git_repo
-                .find_remote(name)
-                .ok()
-                .and_then(|r| r.url().map(|u| u.to_string()));
-            result.push(RemoteInfo {
-                name: name.to_string(),
-                url,
-            });
+    with_active_repo(&state, collect_remotes)
+}
+
+/// Collect `RemoteInfo` for every configured remote of `repo`.
+///
+/// Extracted so it can be tested without the Tauri `State` plumbing.
+pub(super) fn collect_remotes(repo: &git_engine::Repository) -> Result<Vec<RemoteInfo>, String> {
+    let git_repo = repo.inner();
+    let remotes = git_repo.remotes().map_err(|e| e.to_string())?;
+    let mut result = Vec::new();
+    for name in remotes.iter().flatten() {
+        let url = git_repo
+            .find_remote(name)
+            .ok()
+            .and_then(|r| r.url().map(|u| u.to_string()));
+        result.push(RemoteInfo {
+            name: name.to_string(),
+            url,
+        });
+    }
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::collect_remotes;
+    use git_engine::Repository;
+    use git_engine::test_support::{create_repo_with_branches, create_repo_with_n_commits};
+
+    #[test]
+    fn open_repo_on_valid_git_dir_returns_status() {
+        let (_tmp, path) = create_repo_with_n_commits(2);
+        let repo = Repository::open(&path).expect("open should succeed");
+        let status = repo.status().unwrap();
+        assert!(!status.is_empty);
+        assert!(status.head_oid.is_some());
+    }
+
+    #[test]
+    fn open_repo_on_non_git_dir_errors() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let err = Repository::open(dir.path()).err();
+        assert!(
+            err.is_some(),
+            "opening a non-git directory must produce an error"
+        );
+    }
+
+    #[test]
+    fn get_branches_returns_branches_fixture() {
+        let (_tmp, path) = create_repo_with_branches(&["feat-x", "feat-y"]);
+        let repo = Repository::open(&path).unwrap();
+        let branches = repo.branches().unwrap();
+        for name in ["feat-x", "feat-y"] {
+            assert!(
+                branches.iter().any(|b| b.name == name),
+                "missing expected branch {name}"
+            );
         }
-        Ok(result)
-    })
+    }
+
+    #[test]
+    fn collect_remotes_on_repo_without_remotes_returns_empty() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = Repository::open(&path).unwrap();
+        let remotes = collect_remotes(&repo).unwrap();
+        assert!(remotes.is_empty(), "fresh repo has no remotes");
+    }
+
+    #[test]
+    fn collect_remotes_returns_origin_name_and_url() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        // Register a fake remote; no network traffic — git only writes config.
+        let git_repo = git2::Repository::open(&path).unwrap();
+        git_repo
+            .remote("origin", "https://example.invalid/owner/repo.git")
+            .unwrap();
+        drop(git_repo);
+
+        let repo = Repository::open(&path).unwrap();
+        let remotes = collect_remotes(&repo).unwrap();
+        assert_eq!(remotes.len(), 1);
+        assert_eq!(remotes[0].name, "origin");
+        assert_eq!(
+            remotes[0].url.as_deref(),
+            Some("https://example.invalid/owner/repo.git")
+        );
+    }
 }

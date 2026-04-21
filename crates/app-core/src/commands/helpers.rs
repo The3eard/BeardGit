@@ -7,7 +7,8 @@
 
 use std::path::PathBuf;
 
-use tauri::State;
+use mutation_events::{MutationGuard, MutationKind};
+use tauri::{AppHandle, State};
 
 use crate::state::AppState;
 
@@ -112,6 +113,61 @@ pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<Pat
         .get(idx)
         .ok_or_else(|| "Active project index out of bounds".to_string())?;
     Ok(PathBuf::from(&slot.path))
+}
+
+/// Run `f` inside a [`MutationGuard`] scope, emitting `project-mutated`
+/// on success with the given `kind`. If snapshot capture fails the op
+/// still runs — we log and proceed so a flaky snapshot never blocks
+/// the user.
+///
+/// The guard captures a snapshot of the active project before running
+/// `f`, re-snapshots afterward, and only emits when the closure returned
+/// `Ok`. Emit failures are logged via `tracing::warn!` but do not
+/// clobber the original success value returned from `f`.
+pub(super) fn with_mutation_guard<F, R>(
+    state: &State<'_, AppState>,
+    app: &AppHandle,
+    kind: MutationKind,
+    f: F,
+) -> Result<R, String>
+where
+    F: FnOnce() -> Result<R, String>,
+{
+    let path = get_active_project_path(state)?;
+    let guard = MutationGuard::enter(&path).ok();
+    let result = f();
+    if result.is_ok()
+        && let Some(g) = guard
+        && let Err(err) = g.exit(kind, app)
+    {
+        tracing::warn!(?err, "mutation guard emit failed");
+    }
+    result
+}
+
+/// Async variant — for commands that delegate to `tokio::task::spawn_blocking`
+/// or otherwise `.await`. The guard itself is cheap so capture/emit stay
+/// on the caller's task; the inner `f` receives no arguments.
+pub(super) async fn with_mutation_guard_async<F, Fut, R>(
+    state: &State<'_, AppState>,
+    app: &AppHandle,
+    kind: MutationKind,
+    f: F,
+) -> Result<R, String>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<R, String>>,
+{
+    let path = get_active_project_path(state)?;
+    let guard = MutationGuard::enter(&path).ok();
+    let result = f().await;
+    if result.is_ok()
+        && let Some(g) = guard
+        && let Err(err) = g.exit(kind, app)
+    {
+        tracing::warn!(?err, "mutation guard emit failed");
+    }
+    result
 }
 
 /// Run a blocking closure on a dedicated thread and map errors to `String`.
@@ -608,5 +664,25 @@ mod tests {
     #[test]
     fn shell_escape_wraps_and_escapes_single_quote() {
         assert_eq!(shell_escape("it's"), "'it'\\''s'");
+    }
+}
+
+#[cfg(test)]
+mod helper_tests {
+    // Pure snapshot coverage lives in mutation-events::tests. This
+    // module asserts that the helper signature compiles against the
+    // real State<AppState>; exercised end-to-end by e2e tests.
+    use mutation_events::{MutationKind, Snapshot};
+    use std::path::Path;
+
+    #[test]
+    fn mutation_kind_is_serializable() {
+        let json = serde_json::to_string(&MutationKind::Commit).unwrap();
+        assert!(json.contains("commit"));
+    }
+
+    #[test]
+    fn snapshot_capture_compiles() {
+        let _: fn(&Path) -> _ = Snapshot::capture;
     }
 }

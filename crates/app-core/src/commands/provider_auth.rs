@@ -223,3 +223,57 @@ pub async fn detect_project(state: State<'_, AppState>) -> Result<(), String> {
     detect_active_provider(&state).await;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    //! The `connect_provider` / `disconnect_provider` / `try_auto_connect`
+    //! flows touch the network, the OS keyring, and Tauri state — not
+    //! unit-testable here. What we can test:
+    //!
+    //!   * `provider::ProviderKind::from_config_str` — the round-trip
+    //!     used by `try_auto_connect` to parse saved config values.
+    //!   * The `auth::Credential` struct's serde round-trip (the command
+    //!     stores/retrieves these verbatim through `credential_store`).
+
+    use auth::Credential;
+    use provider::ProviderKind;
+
+    #[test]
+    fn provider_kind_from_config_str_maps_known_strings() {
+        assert_eq!(
+            ProviderKind::from_config_str("gitlab"),
+            Some(ProviderKind::GitLab)
+        );
+        assert_eq!(
+            ProviderKind::from_config_str("github"),
+            Some(ProviderKind::GitHub)
+        );
+    }
+
+    #[test]
+    fn provider_kind_from_config_str_unknown_returns_none() {
+        assert_eq!(ProviderKind::from_config_str("bitbucket"), None);
+        assert_eq!(ProviderKind::from_config_str(""), None);
+        // Case-sensitive: "GitHub" should not match.
+        assert_eq!(ProviderKind::from_config_str("GitHub"), None);
+    }
+
+    #[test]
+    fn provider_kind_as_str_is_inverse_of_from_config_str() {
+        for k in [ProviderKind::GitHub, ProviderKind::GitLab] {
+            assert_eq!(ProviderKind::from_config_str(k.as_str()), Some(k));
+        }
+    }
+
+    #[test]
+    fn credential_serde_roundtrip_preserves_fields() {
+        let original = Credential {
+            token: "ghp_xyz".to_string(),
+            provider: ProviderKind::GitHub,
+        };
+        let json = serde_json::to_string(&original).expect("serialize");
+        let back: Credential = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.token, original.token);
+        assert_eq!(back.provider, original.provider);
+    }
+}

@@ -13,6 +13,12 @@
 import { writable, derived, get } from "svelte/store";
 import type { ProviderStatusResponse, CiRun, CiRunDetail, ProviderKind } from "../types";
 import * as api from "../api/tauri";
+// Import from `tabs` (and `repoConfig`) directly — `projects.ts` itself
+// imports from this module, so re-importing `activeProject` through
+// `./projects` would form a cycle that leaves the `derived` constructor
+// below observing `undefined` at module-init time (see Phase 9).
+import { activeProjectFromTab } from "./tabs";
+import { repoConfig } from "./repoConfig";
 
 /** Full provider connection status (all providers + active index). */
 export const providerStatus = writable<ProviderStatusResponse>({ providers: [], active_index: null });
@@ -268,3 +274,56 @@ export async function cancelCiRun(runId: number | string): Promise<void> {
 export async function listCiWorkflows(): Promise<import("../types").Workflow[]> {
   return api.listCiWorkflows();
 }
+
+// ---------------------------------------------------------------------------
+// Per-project provider selection (Phase 9 — statusbar forge filter)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolved provider selection for the active project, or `null` when
+ * the project has no associated forge.
+ *
+ * Used by `ForgeSlot.svelte` to render exactly one pill (GitHub or
+ * GitLab) — never both — so the statusbar reflects the current
+ * project's provider rather than the union of all connected providers.
+ *
+ * Derivation rules, applied in order:
+ *   1. Explicit `repoConfig.provider === "github"` → GitHub.
+ *   2. Explicit `repoConfig.provider === "gitlab"` → GitLab.
+ *   3. `activeProject.remotes[origin]` URL heuristic:
+ *        - `github.com` anywhere in the URL → GitHub
+ *        - `gitlab.com` or any `gitlab.<domain>` host → GitLab
+ *   4. Otherwise → `null` (render nothing).
+ *
+ * The resolved kind is then matched against `providerStatus.providers`
+ * and the corresponding `ConnectedProvider` is attached. If the user's
+ * project points at a provider they haven't authed yet, the store is
+ * `null` — rendering nothing is better than a dead pill.
+ *
+ * Custom-domain self-hosted GitLab (e.g. `code.example.org`) won't
+ * match the heuristic — those users must set `repoConfig.provider`
+ * explicitly via the repo-settings dialog.
+ */
+export const projectProvider = derived(
+  [activeProjectFromTab, providerStatus, repoConfig],
+  ([$project, $status, $config]) => {
+    if (!$project) return null;
+
+    const pickByKind = (kind: "github" | "gitlab") => {
+      const p = $status.providers.find((x) => x.kind === kind);
+      return p ? { kind, provider: p } : null;
+    };
+
+    if ($config?.provider === "github") return pickByKind("github");
+    if ($config?.provider === "gitlab") return pickByKind("gitlab");
+
+    const origin = (
+      $project as { remotes?: Array<{ name: string; url: string }> }
+    ).remotes?.find((r) => r.name === "origin")?.url;
+    if (origin) {
+      if (/github\.com[:/]/.test(origin)) return pickByKind("github");
+      if (/gitlab\.(com|[\w.-]+)[:/]/.test(origin)) return pickByKind("gitlab");
+    }
+    return null;
+  },
+);

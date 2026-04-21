@@ -118,3 +118,17 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  publish:
+    name: Publish release (undraft)
+    needs: release
+    runs-on: ubuntu-latest
+    # Undraft the GitHub release so `latest.json` is reachable via the
+    # `/releases/latest/download/latest.json` URL that the Tauri updater
+    # plugin polls. The matrix job creates a draft release; this step
+    # flips it to published once all platform bundles have been uploaded.
+    steps:
+      - name: Undraft release so updater can consume latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false --repo "${{ github.repository }}"

@@ -320,6 +320,28 @@ export interface ProjectSnapshot {
   conflicted: number;
   stash_count: number;
   change_count: number;
+  /**
+   * Persisted commit-graph viewport slice (Phase 8). `null` on legacy
+   * snapshots written before the field existed — the Rust side uses
+   * `#[serde(default)]` so older JSON still deserialises cleanly.
+   */
+  graph_viewport_cache?: ProjectSnapshotGraphViewportCache | null;
+}
+
+/**
+ * Serialised shape of `storage::GraphViewportCache`. Distinct from the
+ * frontend's `GraphViewportCache` in `stores/project-cache.ts`:
+ * - `nodes` is opaque on the Rust side (`serde_json::Value`), but on
+ *   the TS side we know it's a `LayoutNode[]` — hence the typed field.
+ * - Otherwise the field set matches one-to-one.
+ */
+export interface ProjectSnapshotGraphViewportCache {
+  nodes: LayoutNode[];
+  total_count: number;
+  head_oid: string;
+  top_oid: string;
+  offset: number;
+  cached_at: number;
 }
 
 export interface StashEntry {

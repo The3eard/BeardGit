@@ -16,6 +16,22 @@ use tauri::State;
 use super::helpers::*;
 use crate::state::AppState;
 
+/// Parse the `state_filter` string from the IPC layer into an optional
+/// [`IssueState`].
+///
+/// Extracted so it can be exercised in unit tests without a live
+/// `State<AppState>` — the IPC command wrapper delegates here.
+///
+/// Returns `None` for unknown strings (and for `None`), matching the
+/// "show everything" semantics the frontend relies on.
+pub(crate) fn parse_issue_state_filter(raw: Option<&str>) -> Option<IssueState> {
+    match raw {
+        Some("open") => Some(IssueState::Open),
+        Some("closed") => Some(IssueState::Closed),
+        _ => None,
+    }
+}
+
 /// List issues for the current repo with optional filters.
 ///
 /// The `state_filter` arg accepts `"open"`, `"closed"`, or `None` (=all).
@@ -33,11 +49,7 @@ pub async fn list_issues(
 ) -> Result<Vec<Issue>, String> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let filter = IssueFilter {
-        state: match state_filter.as_deref() {
-            Some("open") => Some(IssueState::Open),
-            Some("closed") => Some(IssueState::Closed),
-            _ => None,
-        },
+        state: parse_issue_state_filter(state_filter.as_deref()),
         author,
         assignee,
         label,
@@ -214,4 +226,86 @@ pub async fn set_issue_milestone(
 pub async fn list_milestones(state: State<'_, AppState>) -> Result<Vec<Milestone>, String> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || provider.list_milestones().map_err(|e| e.to_string())).await
+}
+
+#[cfg(test)]
+mod tests {
+    //! Tests the pure dispatch helper (`parse_issue_state_filter`) and
+    //! exercises the issues trait methods through `MockProvider` — a
+    //! `ForgeProvider` with default no-op / NotSupported impls. This
+    //! confirms the command layer's calling convention (Arc<dyn> +
+    //! trait method) compiles and dispatches correctly.
+
+    use super::parse_issue_state_filter;
+    use forge_provider::mock::MockProvider;
+    use forge_provider::{
+        CreateIssueInput, EditIssuePatch, ForgeError, ForgeKind, ForgeProvider, IssueFilter,
+        IssueState,
+    };
+
+    #[test]
+    fn parse_issue_state_filter_maps_known_strings() {
+        assert_eq!(
+            parse_issue_state_filter(Some("open")),
+            Some(IssueState::Open)
+        );
+        assert_eq!(
+            parse_issue_state_filter(Some("closed")),
+            Some(IssueState::Closed)
+        );
+    }
+
+    #[test]
+    fn parse_issue_state_filter_unknown_or_none_returns_none() {
+        assert_eq!(parse_issue_state_filter(None), None);
+        // Typos / unknown strings fall through to "no filter", not an error.
+        assert_eq!(parse_issue_state_filter(Some("merged")), None);
+        assert_eq!(parse_issue_state_filter(Some("")), None);
+    }
+
+    #[test]
+    fn mock_provider_list_issues_returns_not_supported() {
+        let provider = MockProvider::new(ForgeKind::GitHub);
+        let filter = IssueFilter {
+            state: Some(IssueState::Open),
+            author: None,
+            assignee: None,
+            label: None,
+            milestone: None,
+            text: None,
+        };
+        assert!(matches!(
+            provider.list_issues(filter, 50),
+            Err(ForgeError::NotSupported)
+        ));
+    }
+
+    #[test]
+    fn mock_provider_create_issue_returns_not_supported() {
+        let provider = MockProvider::new(ForgeKind::GitLab);
+        let input = CreateIssueInput {
+            title: "t".into(),
+            body: "b".into(),
+            labels: vec![],
+            assignees: vec![],
+            milestone: None,
+        };
+        assert!(matches!(
+            provider.create_issue(input),
+            Err(ForgeError::NotSupported)
+        ));
+    }
+
+    #[test]
+    fn mock_provider_edit_issue_returns_not_supported() {
+        let provider = MockProvider::new(ForgeKind::GitHub);
+        let patch = EditIssuePatch {
+            title: Some("new".into()),
+            body: None,
+        };
+        assert!(matches!(
+            provider.edit_issue(1, patch),
+            Err(ForgeError::NotSupported)
+        ));
+    }
 }

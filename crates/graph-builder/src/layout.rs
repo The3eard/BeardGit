@@ -10,11 +10,11 @@
 // Lane layout
 
 use crate::dag::Dag;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// Synchronization state of a lane segment relative to its remote tracking branch.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SyncState {
     /// Commit exists both locally and on the remote — thick solid line.
     Synced,
@@ -35,7 +35,7 @@ const MAX_LANES: usize = 8;
 /// Represents a run of rows where a single lane holds the same branch line,
 /// from `start_row` through `end_row` (inclusive). Used by the canvas renderer
 /// to draw vertical branch lines without per-row lookups.
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LaneSegment {
     /// Horizontal lane index (0 = leftmost).
     pub lane: usize,
@@ -61,7 +61,7 @@ pub struct LaneSegment {
 ///
 /// Emitted whenever a commit in one lane has a parent in a different lane,
 /// representing a branch or merge edge that crosses horizontal lanes.
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MergeCurve {
     /// Lane of the child commit (where the curve starts).
     pub from_lane: usize,
@@ -82,7 +82,7 @@ pub struct MergeCurve {
 /// This is the primary unit consumed by the canvas renderer; it contains
 /// everything needed to draw the node and its outgoing edges without any
 /// additional lookups.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayoutNode {
     /// Full SHA-1 object ID of the commit.
     pub oid: String,
@@ -112,7 +112,7 @@ pub struct LayoutNode {
 ///
 /// Produced by [`GraphLayout::compute`] and then sliced by [`GraphLayout::viewport`]
 /// before being sent to the frontend.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GraphLayout {
     /// All layout nodes in insertion order (newest-first).
     pub nodes: Vec<LayoutNode>,
@@ -829,5 +829,55 @@ mod tests {
         assert_eq!(layout.lane_segments.len(), 1);
         let seg = &layout.lane_segments[0];
         assert_eq!(seg.sync_state, SyncState::RemoteOnly);
+    }
+
+    #[test]
+    fn graph_layout_json_round_trip() {
+        let original = GraphLayout {
+            nodes: vec![LayoutNode {
+                oid: "abc123".to_string(),
+                lane: 0,
+                row: 0,
+                refs: vec!["HEAD".to_string(), "refs/heads/main".to_string()],
+                summary: "initial".to_string(),
+                author: "Alice".to_string(),
+                email: "alice@example.com".to_string(),
+                timestamp: 1_700_000_000,
+                is_merge: false,
+                is_root: true,
+                segment_group: 0,
+            }],
+            lane_count: 3,
+            lane_segments: vec![LaneSegment {
+                lane: 0,
+                start_row: 0,
+                end_row: 0,
+                color_index: 0,
+                recycled: false,
+                sync_state: SyncState::LocalOnly,
+                group_id: 0,
+            }],
+            merge_curves: vec![MergeCurve {
+                from_lane: 1,
+                from_row: 0,
+                to_lane: 0,
+                to_row: 1,
+                color_index: 1,
+                group_id: 2,
+            }],
+            head_lane: Some(0),
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: GraphLayout = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.nodes.len(), restored.nodes.len());
+        assert_eq!(original.lane_count, restored.lane_count);
+        assert_eq!(original.head_lane, restored.head_lane);
+        assert_eq!(original.lane_segments.len(), restored.lane_segments.len());
+        assert_eq!(original.merge_curves.len(), restored.merge_curves.len());
+        // Spot-check the field inside each vec.
+        assert_eq!(restored.nodes[0].oid, "abc123");
+        assert_eq!(restored.nodes[0].refs.len(), 2);
+        assert_eq!(restored.lane_segments[0].sync_state, SyncState::LocalOnly);
+        assert_eq!(restored.merge_curves[0].from_lane, 1);
     }
 }

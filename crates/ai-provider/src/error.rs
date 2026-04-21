@@ -2,6 +2,7 @@
 
 /// Errors that can occur during AI provider operations.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum AiError {
     /// The AI tool binary was not found on PATH.
     #[error("AI tool binary not found: {0}")]
@@ -22,6 +23,18 @@ pub enum AiError {
     /// The requested feature is not supported by this provider.
     #[error("feature not supported by this provider")]
     NotSupported,
+
+    /// The provider's credentials are missing or expired.
+    #[error("AI provider authentication expired: {0}")]
+    AuthExpired(String),
+
+    /// The provider reported a rate-limit / quota error.
+    #[error("AI provider rate limited: {0}")]
+    RateLimited(String),
+
+    /// An unclassified error returned by the provider (raw stderr).
+    #[error("AI provider error: {0}")]
+    Other(String),
 }
 
 #[cfg(test)]

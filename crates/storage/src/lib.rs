@@ -7,6 +7,7 @@ pub mod commits_cache;
 pub mod config;
 pub mod database;
 pub mod error;
+pub mod layout_cache;
 pub mod logging;
 pub mod project_cache;
 pub mod theme;

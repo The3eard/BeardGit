@@ -141,3 +141,63 @@ pub async fn cli_login(
     let user = connect_provider(provider_kind, effective_url, token, state).await?;
     Ok(user)
 }
+
+#[cfg(test)]
+mod tests {
+    //! The OAuth and CLI-detection flows depend on the real `gh`/`glab`
+    //! binaries and a Tauri handle — those are integration-tested. What we
+    //! can unit-test are the two pure command wrappers
+    //! (`cli_get_auth_command`, `cli_get_logout_command`) plus the
+    //! not-installed status helper.
+
+    use super::{cli_get_auth_command, cli_get_logout_command};
+
+    #[test]
+    fn cli_get_auth_command_maps_known_tools() {
+        assert_eq!(
+            cli_get_auth_command("gh".to_string()).unwrap(),
+            "gh auth login"
+        );
+        assert_eq!(
+            cli_get_auth_command("glab".to_string()).unwrap(),
+            "glab auth login"
+        );
+    }
+
+    #[test]
+    fn cli_get_auth_command_unknown_tool_errors() {
+        let err = cli_get_auth_command("hub".to_string()).err();
+        assert!(err.is_some(), "unknown tool should be rejected");
+    }
+
+    #[test]
+    fn cli_get_logout_command_maps_known_tools() {
+        assert_eq!(
+            cli_get_logout_command("gh".to_string()).unwrap(),
+            "gh auth logout"
+        );
+        assert_eq!(
+            cli_get_logout_command("glab".to_string()).unwrap(),
+            "glab auth logout"
+        );
+    }
+
+    #[test]
+    fn cli_get_logout_command_unknown_tool_errors() {
+        assert!(cli_get_logout_command("".to_string()).is_err());
+        assert!(cli_get_logout_command("cli".to_string()).is_err());
+    }
+
+    #[test]
+    fn not_installed_status_marks_tool_unavailable() {
+        // The command flows fall through to `not_installed_status` when a
+        // bundled binary can't be resolved. Spot-check the helper so a
+        // future refactor that removes the stable shape shows up here.
+        let status = cli_provider::auth::not_installed_status("gh");
+        assert_eq!(status.tool, "gh");
+        assert!(
+            !status.installed,
+            "not_installed_status should mark tool as not installed, got {status:?}"
+        );
+    }
+}

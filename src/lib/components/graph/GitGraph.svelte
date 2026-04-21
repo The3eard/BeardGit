@@ -18,6 +18,7 @@
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns, createCommitPatches } from "../../api/tauri";
+  import { runMutation } from "../../api/runMutation";
   import { save } from "@tauri-apps/plugin-dialog";
   import RebaseEditor from "../rebase/RebaseEditor.svelte";
   import { debounce } from "../../utils/debounce";
@@ -198,6 +199,12 @@
     const activeVp = filteredViewport ?? $viewport;
     if (!activeVp || filteredNodes.length === 0) {
       ctx.clearRect(0, 0, canvas.width / canvasDpr, canvas.height / canvasDpr);
+      // Cold-start path: skeleton DOM overlays the canvas and owns the
+      // visual — bail out silently so we don't paint "No commits" text
+      // over the lane stripes.
+      if ($viewport === null && !filteredViewport && !isFiltering && !searchLoading) {
+        return;
+      }
       ctx.fillStyle = "#888888";
       ctx.font = "14px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.textAlign = "center";
@@ -492,9 +499,14 @@
             // save() returns the full file path; format-patch needs a directory
             const sep = dir.includes("/") ? "/" : "\\";
             const parentDir = dir.substring(0, dir.lastIndexOf(sep)) || ".";
-            await createCommitPatches([node.oid], parentDir);
-          } catch (err) {
-            alert(m.patch_create_failed({ error: String(err) }));
+            await runMutation({
+              kind: "patch_create",
+              invoke: () => createCommitPatches([node.oid], parentDir),
+              successToast: () => `Saved patch for ${sha}`,
+              failureToastPrefix: "Patch create failed",
+            });
+          } catch {
+            // runMutation already surfaced the toast.
           }
         },
       },
@@ -505,10 +517,15 @@
           const name = prompt(m.graph_branch_name_prompt());
           if (name) {
             try {
-              await createBranch(name);
-              await reloadGraph();
-            } catch (err) {
-              alert(m.graph_branch_failed({ error: String(err) }));
+              await runMutation({
+                kind: "branch_create",
+                invoke: () => createBranch(name),
+                successToast: () => `Created branch ${name}`,
+                failureToastPrefix: "Branch create failed",
+              });
+              // Graph reload is driven by the project-mutated event.
+            } catch {
+              // runMutation already surfaced the toast.
             }
           }
         },
@@ -517,9 +534,14 @@
         label: m.graph_cherry_pick({ sha }),
         action: async () => {
           try {
-            await cherryPick(node.oid);
-          } catch (err) {
-            alert(m.graph_cherry_pick_failed({ error: String(err) }));
+            await runMutation({
+              kind: "cherry_pick",
+              invoke: () => cherryPick(node.oid),
+              successToast: () => `Cherry-picked ${sha}`,
+              failureToastPrefix: "Cherry-pick failed",
+            });
+          } catch {
+            // runMutation already surfaced the toast.
           }
         },
       },
@@ -527,20 +549,25 @@
       {
         label: m.graph_checkout({ sha }),
         action: async () => {
-          try {
-            // For commits with refs, checkout the branch name
-            if (node.refs.length > 0) {
-              const branchRef = node.refs.find(r => !r.startsWith("refs/remotes/") && !r.startsWith("refs/tags/"));
-              if (branchRef) {
-                const branchName = branchRef.replace("refs/heads/", "");
-                await checkoutBranch(branchName);
-                return;
+          // For commits with refs, checkout the branch name
+          if (node.refs.length > 0) {
+            const branchRef = node.refs.find(r => !r.startsWith("refs/remotes/") && !r.startsWith("refs/tags/"));
+            if (branchRef) {
+              const branchName = branchRef.replace("refs/heads/", "");
+              try {
+                await runMutation({
+                  kind: "checkout",
+                  invoke: () => checkoutBranch(branchName),
+                  successToast: () => `Checked out ${branchName}`,
+                  failureToastPrefix: "Checkout failed",
+                });
+              } catch {
+                // runMutation already surfaced the toast.
               }
+              return;
             }
-            alert(m.graph_checkout_detached());
-          } catch (err) {
-            alert(m.graph_checkout_failed({ error: String(err) }));
           }
+          alert(m.graph_checkout_detached());
         },
       },
       { label: "", action: () => {}, separator: true },
@@ -555,9 +582,14 @@
             destructive: false,
             onConfirm: async () => {
               try {
-                await revertCommit(node.oid);
+                await runMutation({
+                  kind: "revert",
+                  invoke: () => revertCommit(node.oid),
+                  successToast: () => `Reverted ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Revert failed",
+                });
               } catch {
-                // Conflict will be detected by watcher
+                // runMutation surfaced the toast; conflicts also caught by watcher.
               }
               showConfirm = false;
             },
@@ -576,7 +608,16 @@
             confirmLabel: m.graph_reset_soft(),
             destructive: false,
             onConfirm: async () => {
-              try { await resetToCommit(node.oid, 'soft'); } catch {}
+              try {
+                await runMutation({
+                  kind: "reset_soft",
+                  invoke: () => resetToCommit(node.oid, 'soft'),
+                  successToast: () => `Reset (soft) to ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Reset failed",
+                });
+              } catch {
+                // runMutation surfaced the toast.
+              }
               showConfirm = false;
             },
           };
@@ -593,7 +634,16 @@
             confirmLabel: m.graph_reset_mixed(),
             destructive: false,
             onConfirm: async () => {
-              try { await resetToCommit(node.oid, 'mixed'); } catch {}
+              try {
+                await runMutation({
+                  kind: "reset_mixed",
+                  invoke: () => resetToCommit(node.oid, 'mixed'),
+                  successToast: () => `Reset (mixed) to ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Reset failed",
+                });
+              } catch {
+                // runMutation surfaced the toast.
+              }
               showConfirm = false;
             },
           };
@@ -610,7 +660,16 @@
             confirmLabel: m.graph_reset_hard(),
             destructive: true,
             onConfirm: async () => {
-              try { await resetToCommit(node.oid, 'hard'); } catch {}
+              try {
+                await runMutation({
+                  kind: "reset_hard",
+                  invoke: () => resetToCommit(node.oid, 'hard'),
+                  successToast: () => `Reset (hard) to ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Reset failed",
+                });
+              } catch {
+                // runMutation surfaced the toast.
+              }
               showConfirm = false;
             },
           };
@@ -628,7 +687,17 @@
             confirmLabel: m.graph_rebase_onto(),
             destructive: false,
             onConfirm: async () => {
-              try { await rebaseBranch(node.oid); } catch {}
+              try {
+                await runMutation({
+                  kind: "rebase",
+                  invoke: () => rebaseBranch(node.oid),
+                  successToast: () => `Rebased onto ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Rebase failed",
+                  trackAsTask: true,
+                });
+              } catch {
+                // runMutation surfaced the toast.
+              }
               showConfirm = false;
             },
           };
@@ -818,6 +887,32 @@
       onmousedown={handleMouseDown}
       oncontextmenu={handleContextMenu}
     ></canvas>
+    <!--
+      Skeleton paint — overlaid on the canvas when the viewport store is
+      null (cold start, no cached slice). Shows three faint vertical
+      lane stripes instead of a spinner or "Loading…" text so the graph
+      feels stable and ready to receive data. Fades out as soon as
+      `viewport` is set (tab cache, persisted slice, or fresh fetch).
+    -->
+    {#if $viewport === null}
+      <div class="graph-skeleton" data-testid="graph-skeleton" aria-hidden="true">
+        <span class="graph-skeleton__lane" style="left: 14px"></span>
+        <span class="graph-skeleton__lane" style="left: 32px"></span>
+        <span class="graph-skeleton__lane" style="left: 50px"></span>
+      </div>
+    {/if}
+    <!--
+      Hidden DOM mirror of the currently-rendered graph nodes.
+      The graph itself paints to a <canvas> which is opaque to querySelectorAll,
+      so E2E specs rely on this list to assert row counts (e.g. "commit added
+      a new row") and to drive accessibility tech that cannot read canvas.
+      Only the OID is exposed; layout lives on the canvas.
+    -->
+    <ol class="graph-rows-mirror" data-testid="graph-rows" aria-hidden="true">
+      {#each filteredNodes as node (node.oid)}
+        <li data-testid="graph-row" data-oid={node.oid}></li>
+      {/each}
+    </ol>
   </div>
 
   <div class="graph-footer">
@@ -953,6 +1048,51 @@
     width: 100%;
     height: 100%;
     cursor: default;
+  }
+
+  /*
+    Cold-start skeleton — three faint vertical lane stripes that
+    approximate the default graph layout (lane width ~18px, first
+    lane ~14px from left). Uses `--text-primary` tinted by opacity
+    instead of a bespoke colour so it follows the active theme.
+  */
+  .graph-skeleton {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .graph-skeleton__lane {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--text-primary);
+    opacity: 0.06;
+    border-radius: 1px;
+  }
+
+  /*
+   * Visually hidden — the mirror exists purely for E2E assertions and
+   * accessibility tooling. Kept rendered (not display:none) so the
+   * browser still reflects `.length` on querySelectorAll; clip
+   * strategy cribbed from the standard a11y-only pattern.
+   */
+  .graph-rows-mirror {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+    pointer-events: none;
+    list-style: none;
   }
 
   .graph-footer {

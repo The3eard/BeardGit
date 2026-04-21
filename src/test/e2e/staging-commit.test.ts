@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { get } from "svelte/store";
-import { mockInvokeResponse } from "../setup";
+import { invokeMock, mockInvokeResponse } from "../setup";
 import type { FileStatus, FileDiff } from "$lib/types";
 
 import {
@@ -116,93 +116,77 @@ describe("staging and commit workflow", () => {
   });
 
   // ── stageFiles ──────────────────────────────────────────────────────
+  //
+  // Refresh of statuses/diffs is now driven by the `project-mutated`
+  // event listener (see mutations.ts) — the store mutation functions no
+  // longer refresh in-line. These tests therefore assert the IPC was
+  // invoked with the correct payload; the refresh path is covered by
+  // mutations.test.ts.
 
-  it("stageFiles calls IPC and refreshes statuses and diffs", async () => {
+  it("stageFiles invokes stage_files IPC with the given paths", async () => {
     mockInvokeResponse("stage_files", undefined);
-    mockInvokeResponse("get_file_statuses", PARTIAL_STAGED_STATUSES);
-    mockInvokeResponse("get_diff_workdir", []);
-    mockInvokeResponse("get_diff_index", MOCK_INDEX_DIFF);
 
     await stageFiles(["src/app.ts"]);
 
-    const statuses = get(fileStatuses);
-    expect(statuses).toHaveLength(2);
-    const appStatus = statuses.find((s) => s.path === "src/app.ts");
-    expect(appStatus?.is_staged).toBe(true);
+    const stageCall = invokeMock.mock.calls.find((c) => c[0] === "stage_files");
+    expect(stageCall).toBeDefined();
+    expect(stageCall?.[1]).toEqual({ paths: ["src/app.ts"] });
   });
 
   it("stageFiles handles multiple paths", async () => {
     mockInvokeResponse("stage_files", undefined);
-    mockInvokeResponse("get_file_statuses", STAGED_STATUSES);
-    mockInvokeResponse("get_diff_workdir", []);
-    mockInvokeResponse("get_diff_index", []);
 
     await stageFiles(["src/app.ts", "src/utils.ts"]);
 
-    const statuses = get(fileStatuses);
-    expect(statuses.every((s) => s.is_staged)).toBe(true);
+    const stageCall = invokeMock.mock.calls.find((c) => c[0] === "stage_files");
+    expect(stageCall?.[1]).toEqual({ paths: ["src/app.ts", "src/utils.ts"] });
   });
 
   // ── unstageFiles ────────────────────────────────────────────────────
 
-  it("unstageFiles calls IPC and refreshes stores", async () => {
-    // Pre-populate with staged files
-    fileStatuses.set(STAGED_STATUSES);
-
+  it("unstageFiles invokes unstage_files IPC with the given paths", async () => {
     mockInvokeResponse("unstage_files", undefined);
-    mockInvokeResponse("get_file_statuses", UNSTAGED_STATUSES);
-    mockInvokeResponse("get_diff_workdir", MOCK_WORKDIR_DIFF);
-    mockInvokeResponse("get_diff_index", []);
 
     await unstageFiles(["src/app.ts"]);
 
-    const statuses = get(fileStatuses);
-    expect(statuses.every((s) => !s.is_staged)).toBe(true);
+    const unstageCall = invokeMock.mock.calls.find(
+      (c) => c[0] === "unstage_files",
+    );
+    expect(unstageCall).toBeDefined();
+    expect(unstageCall?.[1]).toEqual({ paths: ["src/app.ts"] });
   });
 
   // ── stageAll / unstageAll ────────────────────────────────────────────
 
-  it("stageAll stages everything and refreshes", async () => {
+  it("stageAll invokes stage_all IPC", async () => {
     mockInvokeResponse("stage_all", undefined);
-    mockInvokeResponse("get_file_statuses", STAGED_STATUSES);
-    mockInvokeResponse("get_diff_workdir", []);
-    mockInvokeResponse("get_diff_index", MOCK_INDEX_DIFF);
 
     await stageAll();
 
-    const statuses = get(fileStatuses);
-    expect(statuses.every((s) => s.is_staged)).toBe(true);
+    expect(invokeMock.mock.calls.some((c) => c[0] === "stage_all")).toBe(true);
   });
 
-  it("unstageAll unstages everything and refreshes", async () => {
-    fileStatuses.set(STAGED_STATUSES);
+  it("unstageAll invokes unstage_all IPC", async () => {
     mockInvokeResponse("unstage_all", undefined);
-    mockInvokeResponse("get_file_statuses", UNSTAGED_STATUSES);
-    mockInvokeResponse("get_diff_workdir", MOCK_WORKDIR_DIFF);
-    mockInvokeResponse("get_diff_index", []);
 
     await unstageAll();
 
-    const statuses = get(fileStatuses);
-    expect(statuses.every((s) => !s.is_staged)).toBe(true);
-    expect(get(stagedDiffs)).toHaveLength(0);
+    expect(invokeMock.mock.calls.some((c) => c[0] === "unstage_all")).toBe(true);
   });
 
   // ── commit ──────────────────────────────────────────────────────────
 
-  it("commit calls IPC, clears message, and refreshes stores", async () => {
+  it("commit calls IPC and clears the message draft", async () => {
     mockInvokeResponse("create_commit", "newcommitoid123");
-    mockInvokeResponse("get_file_statuses", EMPTY_STATUSES);
-    mockInvokeResponse("get_diff_workdir", []);
-    mockInvokeResponse("get_diff_index", []);
 
     commitMessage.set("fix: resolve null pointer");
     await commit("fix: resolve null pointer");
 
     expect(get(commitMessage)).toBe("");
-    expect(get(fileStatuses)).toHaveLength(0);
-    expect(get(unstagedDiffs)).toHaveLength(0);
-    expect(get(stagedDiffs)).toHaveLength(0);
+    const commitCall = invokeMock.mock.calls.find(
+      (c) => c[0] === "create_commit",
+    );
+    expect(commitCall?.[1]).toEqual({ message: "fix: resolve null pointer" });
   });
 
   it("commit does not clear message on IPC failure", async () => {

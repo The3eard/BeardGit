@@ -67,4 +67,28 @@ describe("toast store", () => {
     removeToast(id);
     expect(get(toasts)).toHaveLength(0);
   });
+
+  it("addToast preserves an optional progress fraction", () => {
+    const id = addToast({
+      message: "Downloading",
+      type: "info",
+      duration: null,
+      progress: 0.25,
+    });
+    const t = get(toasts).find((x) => x.id === id)!;
+    expect(t.progress).toBeCloseTo(0.25);
+  });
+
+  it("updateToast can bump the progress field on a live toast", () => {
+    const id = addToast({
+      message: "Downloading",
+      type: "info",
+      duration: null,
+      progress: 0,
+    });
+    updateToast(id, { progress: 0.6, message: "Downloading 60%" });
+    const t = get(toasts).find((x) => x.id === id)!;
+    expect(t.progress).toBeCloseTo(0.6);
+    expect(t.message).toBe("Downloading 60%");
+  });
 });

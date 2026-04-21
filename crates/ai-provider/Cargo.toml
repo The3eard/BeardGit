@@ -9,5 +9,11 @@ authors.workspace = true
 serde = { workspace = true }
 thiserror = { workspace = true }
 
+[features]
+# When enabled, expose `ai_provider::mock::MockAiProvider` so downstream
+# crates can use it in their own `[dev-dependencies]` without a cyclic
+# `#[cfg(test)]` gate.
+mock = []
+
 [dev-dependencies]
 serde_json = { workspace = true }

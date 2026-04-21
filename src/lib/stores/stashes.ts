@@ -16,12 +16,22 @@ import {
   stashPop as apiStashPop,
   stashDrop as apiStashDrop,
 } from "../api/tauri";
+import { runMutation } from "../api/runMutation";
 import { fetchIntoStore } from "../utils/store-helpers";
 
 export const stashes = writable<StashEntry[]>([]);
 export const stashesLoading = writable(false);
 export const selectedStashIndex = writable<number | null>(null);
 export const selectedStashDiff = writable<FileDiff[] | null>(null);
+
+/**
+ * Re-fetch the stash list for the active project. Thin wrapper over
+ * {@link loadStashes}; exists so the mutation dispatcher can call a
+ * named refresher that matches the other stores' naming pattern.
+ */
+export async function refreshStashes(): Promise<void> {
+  await loadStashes();
+}
 
 /** Refresh the stash entry list. Clears selection if the selected stash was dropped. */
 export async function loadStashes() {
@@ -46,27 +56,48 @@ export async function selectStash(index: number) {
 }
 
 export async function doStashPush(message: string | null) {
-  await apiStashPush(message);
-  await loadStashes();
+  await runMutation({
+    kind: "stash_push",
+    invoke: () => apiStashPush(message),
+    successToast: () => (message ? `Stashed — ${message}` : "Stashed changes"),
+    failureToastPrefix: "Stash failed",
+  });
+  // Stashes refresh is driven by the project-mutated event.
 }
 
 export async function doStashApply(index: number) {
-  await apiStashApply(index);
-  await loadStashes();
+  await runMutation({
+    kind: "stash_apply",
+    invoke: () => apiStashApply(index),
+    successToast: () => "Stash applied",
+    failureToastPrefix: "Stash apply failed",
+  });
 }
 
 export async function doStashApplyFile(index: number, path: string) {
-  await apiStashApplyFile(index, path);
+  await runMutation({
+    kind: "stash_apply_file",
+    invoke: () => apiStashApplyFile(index, path),
+    failureToastPrefix: "Stash apply file failed",
+  });
 }
 
 export async function doStashPop(index: number) {
-  await apiStashPop(index);
-  await loadStashes();
+  await runMutation({
+    kind: "stash_pop",
+    invoke: () => apiStashPop(index),
+    successToast: () => "Stash popped",
+    failureToastPrefix: "Stash pop failed",
+  });
 }
 
 export async function doStashDrop(index: number) {
-  await apiStashDrop(index);
-  await loadStashes();
+  await runMutation({
+    kind: "stash_drop",
+    invoke: () => apiStashDrop(index),
+    successToast: () => "Stash dropped",
+    failureToastPrefix: "Stash drop failed",
+  });
 }
 
 /** Reset all stash selection/detail state. Called on repo switch. */

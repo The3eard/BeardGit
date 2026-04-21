@@ -14,6 +14,10 @@ fn default_theme_auto() -> bool {
     true
 }
 
+fn default_auto_check_updates() -> bool {
+    true
+}
+
 fn default_locale() -> String {
     "en-US".to_string()
 }
@@ -127,6 +131,26 @@ pub struct AppConfig {
     #[serde(default)]
     pub ai_prompt_auto_accept: bool,
 
+    /// When true, silently probe the updater endpoint on app startup and
+    /// surface a toast if a new version is available. Default `true` so
+    /// users get updates out of the box; they can disable the probe in
+    /// Settings → Updates.
+    #[serde(default = "default_auto_check_updates")]
+    pub auto_check_updates: bool,
+
+    /// Whether the user has dismissed the macOS Gatekeeper re-authorization
+    /// notice. When `true`, the install flow skips the apology dialog on
+    /// macOS. Independent from the Windows flag below — users might
+    /// dismiss one while still wanting the other.
+    #[serde(default)]
+    pub auto_update_reauth_notice_dismissed_macos: bool,
+
+    /// Whether the user has dismissed the Windows SmartScreen re-authorization
+    /// notice. When `true`, the install flow skips the apology dialog on
+    /// Windows.
+    #[serde(default)]
+    pub auto_update_reauth_notice_dismissed_windows: bool,
+
     // -- Legacy fields (read during migration, never written) --
     /// Legacy Plan 5 field. Migrated to `providers` vec.
     #[serde(default, skip_serializing)]
@@ -159,6 +183,9 @@ impl Default for AppConfig {
             ai_worktree_root: None,
             ai_background_concurrency_cap: default_ai_background_concurrency_cap(),
             ai_prompt_auto_accept: false,
+            auto_check_updates: default_auto_check_updates(),
+            auto_update_reauth_notice_dismissed_macos: false,
+            auto_update_reauth_notice_dismissed_windows: false,
             provider_kind: None,
             provider_instance_url: None,
             gitlab_instance_url: None,
@@ -424,6 +451,78 @@ mod tests {
         );
         assert_eq!(loaded.ai_background_concurrency_cap, 5);
         assert!(loaded.ai_prompt_auto_accept);
+    }
+
+    #[test]
+    fn test_auto_check_updates_default_true() {
+        let config = AppConfig::default();
+        assert!(config.auto_check_updates);
+    }
+
+    #[test]
+    fn test_auto_check_updates_persists() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        let config = AppConfig {
+            auto_check_updates: false,
+            ..AppConfig::default()
+        };
+        config.save(&path).unwrap();
+
+        let loaded = AppConfig::load(&path).unwrap();
+        assert!(!loaded.auto_check_updates);
+    }
+
+    #[test]
+    fn test_legacy_config_defaults_auto_check_updates_true() {
+        // Old configs (pre-auto-update) must load cleanly with the probe
+        // enabled by default — users opt out, they don't opt in.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{"theme": "github-dark"}"#;
+        std::fs::write(&path, json).unwrap();
+
+        let config = AppConfig::load(&path).unwrap();
+        assert!(config.auto_check_updates);
+    }
+
+    #[test]
+    fn test_reauth_dismissal_defaults_false() {
+        let config = AppConfig::default();
+        assert!(!config.auto_update_reauth_notice_dismissed_macos);
+        assert!(!config.auto_update_reauth_notice_dismissed_windows);
+    }
+
+    #[test]
+    fn test_reauth_dismissal_persists_per_os() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        let config = AppConfig {
+            auto_update_reauth_notice_dismissed_macos: true,
+            auto_update_reauth_notice_dismissed_windows: false,
+            ..AppConfig::default()
+        };
+        config.save(&path).unwrap();
+
+        let loaded = AppConfig::load(&path).unwrap();
+        assert!(loaded.auto_update_reauth_notice_dismissed_macos);
+        assert!(!loaded.auto_update_reauth_notice_dismissed_windows);
+    }
+
+    #[test]
+    fn test_legacy_config_defaults_reauth_flags_false() {
+        // Existing configs (written before the reauth flags existed) must
+        // still load without error — flags fall back to `false`.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{"theme": "github-dark"}"#;
+        std::fs::write(&path, json).unwrap();
+
+        let config = AppConfig::load(&path).unwrap();
+        assert!(!config.auto_update_reauth_notice_dismissed_macos);
+        assert!(!config.auto_update_reauth_notice_dismissed_windows);
     }
 
     #[test]

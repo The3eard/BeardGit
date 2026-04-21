@@ -112,11 +112,16 @@
     }
   });
 
-  /* ---------- Lightbox: click any screenshot to enlarge ---------- */
+  /* ---------- Lightbox: click any screenshot to enlarge ----------
+     On phones (≤480px) the lightbox chrome is too small to be usable, so we
+     skip it entirely and open the full-size image in a new tab. A companion
+     CSS rule (@media max-width: 480px .lightbox { display:none }) guarantees
+     the overlay stays hidden even if something else flips the .open class. */
   const lightbox = document.getElementById("lightbox");
   const lightboxImg = document.getElementById("lightboxImg");
   const lightboxCaption = document.getElementById("lightboxCaption");
   const lightboxClose = document.getElementById("lightboxClose");
+  const mqlPhone = window.matchMedia("(max-width: 480px)");
 
   function openLightbox(src, caption, alt) {
     if (!lightbox || !lightboxImg) return;
@@ -140,7 +145,14 @@
     const caption = figure.querySelector(".shot-caption");
     if (!slot || !img) return;
     slot.addEventListener("click", () => {
-      openLightbox(img.currentSrc || img.src, caption?.textContent || "", img.alt);
+      const src = img.currentSrc || img.src;
+      // Phone fallback: open the image in a new tab — the lightbox overlay
+      // is too small to be useful on a 375px viewport.
+      if (mqlPhone.matches) {
+        window.open(src, "_blank", "noopener");
+        return;
+      }
+      openLightbox(src, caption?.textContent || "", img.alt);
     });
   });
 

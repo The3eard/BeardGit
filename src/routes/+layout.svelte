@@ -3,11 +3,22 @@
   import "../app.css";
   import { tryAutoConnect } from "$lib/stores/provider";
   import { initLocale } from "$lib/stores/locale";
-  import { initTaskStore, cleanupTaskStore } from "$lib/stores/tasks";
+  import { initTaskStore, cleanupTaskStore } from "$lib/stores/taskPanel";
+  import { initTasksStore, stopTasksStore } from "$lib/stores/tasks";
   import { initUiScale } from "$lib/stores/theme";
   import { initShortcutListener } from "$lib/stores/shortcuts";
-  import { checkForAppUpdate } from "$lib/stores/updater";
-  import { openProjectTab, closeTab } from "$lib/stores/projects";
+  import { runStartupCheck } from "$lib/stores/autoUpdate";
+  import {
+    openProjectTab,
+    closeTab,
+    activeProject,
+    openProjects,
+  } from "$lib/stores/projects";
+  import { get } from "svelte/store";
+  import {
+    startMutationListener,
+    stopMutationListener,
+  } from "$lib/stores/mutations";
   import ToastContainer from "$lib/components/ui/ToastContainer.svelte";
   let { children } = $props();
 
@@ -21,6 +32,14 @@
     (window as unknown as Record<string, unknown>).__E2E__ = {
       openProject: (path: string) => openProjectTab(path),
       closeTab: (index: number) => closeTab(index),
+      /**
+       * Active project path. Phase-11 specs use this to translate UI
+       * state into fixture paths (e.g. running `git -C <path>` in a
+       * child process) without re-computing paths client-side.
+       */
+      activeProjectPath: () => get(activeProject)?.path ?? null,
+      /** Count of currently open projects. */
+      openProjectCount: () => get(openProjects).length,
     };
   }
 
@@ -32,15 +51,33 @@
     e.preventDefault();
   }
 
+  let stopMutations: (() => void) | null = null;
+
   onMount(() => {
     initLocale();
     initUiScale();
     tryAutoConnect();
     initTaskStore();
-    checkForAppUpdate();
+    // Unified tasks drawer aggregator — wires the 3 bridges (task://update
+    // Tauri events, aiBackgroundRuns, autoUpdate.updateTask) into the
+    // statusbar's Tasks slot count + the drawer's feed. Missing this call
+    // was the root cause of the statusbar showing zero active tasks even
+    // when git ops / AI runs / update downloads were in flight.
+    void initTasksStore();
+    // `startMutationListener` registers the single `project-mutated` Tauri
+    // listener so store refreshes happen reactively on backend mutations
+    // (Phase 2 of the reactivity foundation). We stash the teardown in a
+    // closure-scoped handle so Vite HMR (which re-runs onMount on module
+    // reload) doesn't orphan the listener.
+    void startMutationListener().then(() => {
+      stopMutations = stopMutationListener;
+    });
+    runStartupCheck();
     const cleanupShortcuts = initShortcutListener();
     return () => {
+      stopMutations?.();
       cleanupTaskStore();
+      stopTasksStore();
       cleanupShortcuts();
     };
   });
