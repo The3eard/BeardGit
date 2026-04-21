@@ -20,6 +20,7 @@ import { get } from "svelte/store";
 import Stub from "./__stubs__/Stub.svelte";
 import { pendingSettingsSection } from "$lib/stores/navigation";
 import {
+  CATEGORY_IDS,
   DEFAULT_CATEGORY,
   settingsRoute,
 } from "$lib/stores/settingsRoute";
@@ -45,10 +46,6 @@ vi.mock("../GeneralSettings.svelte", () => ({
       anchor: "density",
     },
   ],
-}));
-vi.mock("../EditorDiffSettings.svelte", () => ({
-  default: Stub,
-  settingsIndex: [],
 }));
 vi.mock("../GitSettings.svelte", () => ({
   default: Stub,
@@ -202,5 +199,26 @@ describe("SettingsPage shell", () => {
 
     expect(get(settingsRoute).category).toBe("general");
     expect(get(pendingSettingsSection)).toBeNull();
+  });
+
+  it('legacy "editor" deep-link falls back to the general category', async () => {
+    render(SettingsPage);
+    await tick();
+
+    pendingSettingsSection.set("editor");
+    await tick();
+
+    expect(get(settingsRoute).category).toBe("general");
+    expect(get(pendingSettingsSection)).toBeNull();
+  });
+
+  it("locks the nav down to the spec's five categories", () => {
+    expect(Array.from(CATEGORY_IDS)).toEqual([
+      "general",
+      "git",
+      "ai",
+      "integrations",
+      "advanced",
+    ]);
   });
 });
