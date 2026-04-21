@@ -128,36 +128,55 @@ describe("startMutationListener", () => {
   });
 
   it("coalesces rapid events within one frame", async () => {
-    let handler: ((ev: unknown) => void) | null = null;
-    listenMock.mockImplementation(async (_n, cb) => {
-      handler = cb as (ev: unknown) => void;
-      return () => {};
-    });
+    // Scope a deferred rAF stub to this test only so emits queue up
+    // instead of flushing synchronously (the beforeEach stub runs
+    // callbacks inline, which would defeat coalescing).
+    const rafQueue: Array<() => void> = [];
+    const origRaf = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => {
+      rafQueue.push(cb as () => void);
+      return 0;
+    };
 
-    await startMutationListener();
-    // Emit 5 refs_changed events in the same frame.
-    for (let i = 0; i < 5; i++) {
-      handler!({
-        payload: {
-          project_path: "/repo",
-          kind: { type: "commit" },
-          flags: {
-            refs_changed: true,
-            head_changed: false,
-            status_changed: false,
-            stashes_changed: false,
-            worktrees_changed: false,
-            remotes_changed: false,
-          },
-        },
+    try {
+      let handler: ((ev: unknown) => void) | null = null;
+      listenMock.mockImplementation(async (_n, cb) => {
+        handler = cb as (ev: unknown) => void;
+        return () => {};
       });
-    }
 
-    // With the synchronous rAF stub, each emit schedules one flush
-    // and resets the gate. The coalescer collapses to 5 dispatches,
-    // but each bears the merged flags — tested implicitly because
-    // graph reload is idempotent.
-    expect(refreshAndReloadGraph).toHaveBeenCalledTimes(5);
+      await startMutationListener();
+      // Emit 5 refs_changed events in the same tick, no awaits between them.
+      for (let i = 0; i < 5; i++) {
+        handler!({
+          payload: {
+            project_path: "/repo",
+            kind: { type: "commit" },
+            flags: {
+              refs_changed: true,
+              head_changed: false,
+              status_changed: false,
+              stashes_changed: false,
+              worktrees_changed: false,
+              remotes_changed: false,
+            },
+          },
+        });
+      }
+
+      // Nothing should have been dispatched yet — the rAF callback is
+      // queued, not invoked.
+      expect(refreshAndReloadGraph).toHaveBeenCalledTimes(0);
+
+      // Drain the queue — the coalescer should collapse all 5 emits
+      // into exactly one dispatch.
+      rafQueue.forEach((fn) => fn());
+      rafQueue.length = 0;
+
+      expect(refreshAndReloadGraph).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.requestAnimationFrame = origRaf;
+    }
   });
 
   it("dispatches stashes / worktrees / remotes refreshers when flagged", async () => {
