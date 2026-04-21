@@ -32,6 +32,41 @@ import { patchClear, patchSet, patchUnchanged } from "../types/repoConfig";
 import { loadRemoteRepoConfig } from "../api/tauri";
 
 // ───────────────────────────────────────────────────────────────────────────
+// Per-project provider selection
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Minimal per-repo config consumed by `projectProvider` (Phase 9) to
+ * pick which forge pill the statusbar should render.
+ *
+ * The shape is intentionally narrow — we only need the explicit provider
+ * override here. Full `RemoteRepoConfig` continues to live in
+ * {@link repoConfigStore}; that store carries the dialog's edit cycle
+ * and is orthogonal to this selection signal.
+ *
+ * Values:
+ *   - `{ provider: "github" }` — force the GitHub pill regardless of
+ *     remote URL.
+ *   - `{ provider: "gitlab" }` — force the GitLab pill.
+ *   - `{ provider: null }` or the store being `null` — defer to the
+ *     remote-URL heuristic in `projectProvider`.
+ */
+export type ProjectRepoConfig = {
+  provider: "github" | "gitlab" | null;
+};
+
+/**
+ * Active per-repo config for the current project, or `null` when no
+ * explicit provider selection has been loaded.
+ *
+ * Populated by the repo-config CLI flow (see
+ * `crates/app-core/src/commands/cli_auth.rs`) once a project's provider
+ * is known. The `projectProvider` derived store treats `null` as "defer
+ * to heuristic" rather than "no provider".
+ */
+export const repoConfig = writable<ProjectRepoConfig | null>(null);
+
+// ───────────────────────────────────────────────────────────────────────────
 // Dialog open/closed flag
 // ───────────────────────────────────────────────────────────────────────────
 
