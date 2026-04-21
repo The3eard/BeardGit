@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 
 use super::graph_cache::load_or_build_layout;
 use super::helpers::*;
@@ -47,13 +47,11 @@ pub async fn open_repo(
     .map_err(|e| e.to_string())?
     .map_err(|e: String| e)?;
 
-    // Start filesystem watcher for the new repo (emits `repo-changed` events)
+    // Start filesystem watcher for the new repo. The watcher now emits
+    // `project-mutated` with `MutationKind::External` directly via the
+    // mutation-events pipeline, so no manual `repo-changed` shim is needed.
     let repo_path = PathBuf::from(&path);
-    let handle = app_handle.clone();
-    let new_watcher = watcher::RepoWatcher::start(&repo_path, move || {
-        let _ = handle.emit("repo-changed", ());
-    })
-    .ok();
+    let new_watcher = watcher::RepoWatcher::start(app_handle.clone(), repo_path).ok();
 
     // Derive lightweight metadata
     let name = PathBuf::from(&path)

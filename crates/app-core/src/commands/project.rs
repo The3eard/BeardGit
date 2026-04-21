@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use rayon::prelude::*;
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::graph_cache::load_or_build_layout;
@@ -205,13 +205,10 @@ pub async fn switch_project(
     .map_err(|e| e.to_string())?
     .map_err(|e: String| e)?;
 
-    // 4. Start filesystem watcher
+    // 4. Start filesystem watcher. The watcher emits `project-mutated`
+    //    with `MutationKind::External` directly — no manual shim needed.
     let repo_path = PathBuf::from(&path);
-    let handle = app_handle.clone();
-    let new_watcher = watcher::RepoWatcher::start(&repo_path, move || {
-        let _ = handle.emit("repo-changed", ());
-    })
-    .ok();
+    let new_watcher = watcher::RepoWatcher::start(app_handle.clone(), repo_path).ok();
 
     let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
 
