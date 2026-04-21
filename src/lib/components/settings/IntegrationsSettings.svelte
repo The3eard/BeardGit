@@ -1,15 +1,15 @@
 <!--
-  IntegrationsSettings.svelte — the former "Connection" tab, now a
-  top-level category in the MT-5 IA.
+  IntegrationsSettings.svelte — the Integrations settings page.
 
-  Content migrated verbatim:
-   - ConnectionHowTo — collapsible walkthrough for PAT vs CLI auth.
-   - ProviderSetup — GitHub / GitLab token entry + remove.
-   - CliAuthSection — gh / glab installed-and-authed status + auth
-     button.
+  Post-Spec-4-Phase-8 shape:
+  - A top-level `<ConnectionHowTo />` dropdown (Phase 7).
+  - A single dense `<Card>` titled "Connections" (Phase 8) holding
+    four rows: GitHub, GitLab, gh CLI, glab CLI — one per integration,
+    each rendered by the shared `<ConnectionRow>` primitive.
 
-  Wrapped in shared `Card` + `SettingSection` so the category picks
-  up the new IA spacing and heading conventions.
+  The old PAT card + CLI card split is gone — provider tokens and
+  CLI auth are now adjacent in a single compact grid so the page
+  matches the rest of the post-IA settings surfaces.
 -->
 <script module lang="ts">
   import type { SettingDescriptor } from "./settings-index";
@@ -17,53 +17,35 @@
   export const settingsIndex: SettingDescriptor[] = [
     {
       id: "integrations.token",
-      label: "Personal access tokens",
+      label: "Connections",
       description:
-        "Connect BeardGit to GitHub or GitLab with a Personal Access Token.",
+        "GitHub / GitLab accounts and gh / glab CLI authentication.",
       category: "integrations",
-      anchor: "tokens",
-    },
-    {
-      id: "integrations.cli",
-      label: "CLI authentication",
-      description: "Check gh and glab login state without leaving Settings.",
-      category: "integrations",
-      anchor: "cli",
+      anchor: "connections",
     },
   ];
 </script>
 
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import ProviderSetup from "../auth/ProviderSetup.svelte";
-  import CliAuthSection from "./CliAuthSection.svelte";
   import ConnectionHowTo from "./ConnectionHowTo.svelte";
-  import { Card, SettingSection } from "$lib/components/ui";
+  import ConnectionRow from "./ConnectionRow.svelte";
+  import { Card } from "$lib/components/ui";
 </script>
 
 <div class="integrations-page">
   <ConnectionHowTo />
 
   <Card
-    title={m.settings_integrations_token_section()}
-    description={m.settings_integrations_token_description()}
+    title={m.settings_integrations_connections_section()}
+    description={m.settings_integrations_connections_description()}
   >
-    <SettingSection title={m.settings_token_auth()}>
-      <div data-setting-anchor="tokens">
-        <ProviderSetup />
-      </div>
-    </SettingSection>
-  </Card>
-
-  <Card
-    title={m.settings_integrations_cli_section()}
-    description={m.settings_integrations_cli_description()}
-  >
-    <SettingSection title={m.cli_auth_title()}>
-      <div data-setting-anchor="cli">
-        <CliAuthSection />
-      </div>
-    </SettingSection>
+    <div class="connections-grid" data-setting-anchor="connections">
+      <ConnectionRow kind="github" />
+      <ConnectionRow kind="gitlab" />
+      <ConnectionRow kind="gh" />
+      <ConnectionRow kind="glab" />
+    </div>
   </Card>
 </div>
 
@@ -72,5 +54,11 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+
+  .connections-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 </style>
