@@ -32,6 +32,27 @@ use forge_provider::{
 };
 use serde::Deserialize;
 
+/// Serde deserializer that maps JSON `null` to the type's `Default` value.
+///
+/// `gh release view --json body,assets` emits `null` (not an empty
+/// string / empty array) when those fields were never set at release
+/// creation time — same story for `glab release view -F json` on
+/// `description` / `assets`. Plain `#[serde(default)]` only substitutes
+/// a default when the KEY IS MISSING; it does not accept explicit null
+/// and fails the whole payload, which surfaced as a blank release
+/// detail pane in the UI.
+///
+/// Pair with `#[serde(default, deserialize_with = "null_as_default")]`
+/// so both shapes — missing key AND explicit null — degrade to
+/// `Default::default()`.
+fn null_as_default<'de, D, T>(d: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Default + serde::Deserialize<'de>,
+{
+    Ok(Option::<T>::deserialize(d)?.unwrap_or_default())
+}
+
 // ─── GitHub (gh) ────────────────────────────────────────────────────────────
 
 /// One row from `gh release list --json ...`.
@@ -62,13 +83,18 @@ struct GhAuthor {
 }
 
 /// Row from `gh release view --json ...` (summary + body + assets).
+///
+/// `body` and `assets` use `null_as_default` so releases created with
+/// `gh release create --notes ''` (which stores `null`, not `""`) still
+/// parse cleanly. Without this the whole payload fails to deserialize
+/// and the UI renders a blank detail pane.
 #[derive(Debug, Deserialize)]
 struct GhReleaseDetailRow {
     #[serde(flatten)]
     summary: GhReleaseRow,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     body: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     assets: Vec<GhAssetRow>,
 }
 
@@ -223,11 +249,11 @@ pub fn build_glab_upload_args(tag: &str, file: &str, _label: Option<&str>) -> Ve
 #[derive(Debug, Deserialize)]
 struct GlabReleaseRow {
     tag_name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     description: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     created_at: String,
     released_at: Option<String>,
     #[serde(default)]
@@ -236,7 +262,7 @@ struct GlabReleaseRow {
     author: GlabAuthor,
     #[serde(default, rename = "_links")]
     links: GlabLinks,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     assets: GlabAssets,
 }
 
@@ -256,7 +282,7 @@ struct GlabLinks {
 struct GlabAssets {
     #[serde(default)]
     count: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     links: Vec<GlabAssetLink>,
 }
 
