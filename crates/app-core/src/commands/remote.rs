@@ -2,8 +2,9 @@
 
 use std::sync::Arc;
 
+use mutation_events::MutationKind;
 use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
-use tauri::State;
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
@@ -122,16 +123,27 @@ pub async fn rename_remote(
 ///
 /// Equivalent to `git remote remove <name>`. Returns an error if the remote
 /// does not exist.
+///
+/// Wraps the work inside a [`MutationGuard`][mutation_events::MutationGuard]
+/// scope so that on success a `project-mutated` event with
+/// [`MutationKind::RemoteRemove`] is emitted.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::remote::remove")]
-pub async fn remove_remote(name: String, state: State<'_, AppState>) -> Result<(), String> {
+#[instrument(skip(state, app), name = "cmd::remote::remove")]
+pub async fn remove_remote(
+    name: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.remove_remote(&name).map_err(|e| e.to_string())
+    with_mutation_guard_async(&state, &app, MutationKind::RemoteRemove, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            repo.remove_remote(&name).map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]
