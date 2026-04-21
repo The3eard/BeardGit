@@ -8,7 +8,10 @@
   import {
     mrPrDetail,
     mrPrDetailLoading,
+    mrPrDetailError,
     mrPrDiffFiles,
+    selectedMrPrNumber,
+    loadMrPrDetail,
     mergeMrPr,
     closeMrPr,
     approveMrPr,
@@ -28,6 +31,7 @@
     repoLabelsLoading,
     loadRepoLabels,
   } from "../../stores/mr-pr";
+  import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
   import { activeProvider } from "../../stores/provider";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { listen } from "@tauri-apps/api/event";
@@ -268,13 +272,20 @@
 
 <svelte:window onclick={handleWindowClick} />
 
-{#if $mrPrDetailLoading}
-  <div class="detail-empty">{m.mrpr_loading()}</div>
-{:else if !$mrPrDetail}
-  <div class="detail-empty">{selectMessage}</div>
-{:else}
-  {@const detail = $mrPrDetail}
-  <div class="mrpr-detail">
+<ForgeDetailShell
+  loading={$mrPrDetailLoading}
+  error={$mrPrDetailError}
+  isEmpty={!$mrPrDetail && !$mrPrDetailLoading && !$mrPrDetailError}
+  emptyMessage={selectMessage}
+  onRetry={() => {
+    const n = $selectedMrPrNumber;
+    if (n !== null) void loadMrPrDetail(n);
+  }}
+>
+  {#snippet content()}
+    {#if $mrPrDetail}
+      {@const detail = $mrPrDetail}
+      <div class="mrpr-detail">
     <div class="detail-header">
       <h3 class="detail-title">
         <span class="detail-number">#{detail.summary.number}</span>
@@ -477,7 +488,9 @@
       </div>
     {/if}
   </div>
-{/if}
+    {/if}
+  {/snippet}
+</ForgeDetailShell>
 
 {#if showMergeConfirm && $mrPrDetail}
   <ConfirmDialog
@@ -549,15 +562,11 @@
 {/if}
 
 <style>
-  .detail-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
-
+  /*
+   * `.detail-empty` used to live here for the legacy loading/empty
+   * states — those are now owned by `ForgeDetailShell`, so the class
+   * was removed to avoid "unused selector" noise.
+   */
   .mrpr-detail {
     padding: 16px;
     overflow-y: auto;
