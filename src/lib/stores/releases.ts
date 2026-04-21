@@ -28,6 +28,7 @@ import {
   deleteReleaseAsset as apiDeleteAsset,
   createTagAndRelease as apiCreateTagAndRelease,
 } from "../api/tauri";
+import { runMutation } from "../api/runMutation";
 import { fetchListIntoStore } from "../utils/store-helpers";
 
 /** Current list of releases for the active repository. */
@@ -107,7 +108,12 @@ export async function refreshSelectedDetail(): Promise<void> {
 export async function doCreateRelease(
   input: CreateReleaseInput,
 ): Promise<Release> {
-  const created = await apiCreate(input);
+  const created = await runMutation({
+    kind: "release_create",
+    invoke: () => apiCreate(input),
+    successToast: (r) => `Created release ${r.tag}`,
+    failureToastPrefix: "Release create failed",
+  });
   await refreshReleases();
   return created;
 }
@@ -119,7 +125,15 @@ export async function doCreateTagAndRelease(
   remote: string,
   input: CreateReleaseInput,
 ): Promise<TaskId> {
-  return apiCreateTagAndRelease(tag, sourceRef, remote, input);
+  // Long-running task — progress + completion are reported by the
+  // Rust-side TaskManager, which already fires its own task entries.
+  // Toast policy still runs through runMutation so a provider-CLI
+  // failure (e.g. `gh` not installed) surfaces a sticky error.
+  return runMutation({
+    kind: "release_create_tag_and_release",
+    invoke: () => apiCreateTagAndRelease(tag, sourceRef, remote, input),
+    failureToastPrefix: "Release create failed",
+  });
 }
 
 /** Edit a release, then refresh list + detail. */
@@ -127,14 +141,24 @@ export async function doEditRelease(
   tag: string,
   patch: EditReleasePatch,
 ): Promise<void> {
-  await apiEdit(tag, patch);
+  await runMutation({
+    kind: "release_edit",
+    invoke: () => apiEdit(tag, patch),
+    successToast: () => `Updated release ${tag}`,
+    failureToastPrefix: "Release edit failed",
+  });
   await refreshReleases();
   await refreshSelectedDetail();
 }
 
 /** Delete a release and refresh. Clears selection if it was the deleted tag. */
 export async function doDeleteRelease(tag: string): Promise<void> {
-  await apiDelete(tag);
+  await runMutation({
+    kind: "release_delete",
+    invoke: () => apiDelete(tag),
+    successToast: () => `Deleted release ${tag}`,
+    failureToastPrefix: "Release delete failed",
+  });
   if (get(selectedReleaseTag) === tag) {
     selectedReleaseTag.set(null);
     releaseDetail.set(null);
@@ -144,7 +168,13 @@ export async function doDeleteRelease(tag: string): Promise<void> {
 
 /** Publish a draft release (GitHub only), then refresh. */
 export async function doPublishRelease(tag: string): Promise<void> {
-  await apiPublish(tag);
+  await runMutation({
+    kind: "release_publish",
+    invoke: () => apiPublish(tag),
+    successToast: () => `Published ${tag}`,
+    failureToastPrefix: "Release publish failed",
+    trackAsTask: true,
+  });
   await refreshReleases();
   await refreshSelectedDetail();
 }
@@ -190,7 +220,12 @@ export async function doDeleteAsset(
   tag: string,
   assetId: number,
 ): Promise<void> {
-  await apiDeleteAsset(tag, assetId);
+  await runMutation({
+    kind: "release_asset_delete",
+    invoke: () => apiDeleteAsset(tag, assetId),
+    successToast: () => "Asset deleted",
+    failureToastPrefix: "Asset delete failed",
+  });
   await refreshSelectedDetail();
 }
 

@@ -31,6 +31,7 @@ import {
   listLabels as apiListLabels,
   checkoutMrPrLocally as apiCheckoutLocally,
 } from "../api/tauri";
+import { runMutation } from "../api/runMutation";
 import { fetchIntoStore } from "../utils/store-helpers";
 
 /** Current filter tab: open, closed, merged, or all. */
@@ -131,27 +132,48 @@ export async function createMrPr(
   source: string, target: string, title: string, body: string,
   draft: boolean, labels: string[], reviewers: string[]
 ): Promise<MrPr> {
-  const result = await apiCreate(source, target, title, body, draft, labels, reviewers);
+  const result = await runMutation({
+    kind: "mr_pr_create",
+    invoke: () =>
+      apiCreate(source, target, title, body, draft, labels, reviewers),
+    successToast: (r) => `Opened PR #${r.number}`,
+    failureToastPrefix: "PR create failed",
+  });
   await refreshMrPrList();
   return result;
 }
 
 /** Edit a MR/PR and refresh the detail. */
 export async function editMrPr(number: number, title?: string, body?: string): Promise<void> {
-  await apiEdit(number, title, body);
+  await runMutation({
+    kind: "mr_pr_edit",
+    invoke: () => apiEdit(number, title, body),
+    successToast: () => `Updated PR #${number}`,
+    failureToastPrefix: "PR edit failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Merge a MR/PR and refresh the list. */
 export async function mergeMrPr(number: number, strategy: string): Promise<void> {
-  await apiMerge(number, strategy);
+  await runMutation({
+    kind: "mr_pr_merge",
+    invoke: () => apiMerge(number, strategy),
+    successToast: () => `Merged PR #${number}`,
+    failureToastPrefix: "PR merge failed",
+  });
   clearMrPrDetail();
   await refreshMrPrList();
 }
 
 /** Close a MR/PR and refresh the list. */
 export async function closeMrPr(number: number): Promise<void> {
-  await apiClose(number);
+  await runMutation({
+    kind: "mr_pr_close",
+    invoke: () => apiClose(number),
+    successToast: () => `Closed PR #${number}`,
+    failureToastPrefix: "PR close failed",
+  });
   clearMrPrDetail();
   await refreshMrPrList();
 }
@@ -162,19 +184,34 @@ export async function closeMrPr(number: number): Promise<void> {
 
 /** Approve a MR/PR and refresh the detail. */
 export async function approveMrPr(number: number): Promise<void> {
-  await apiApprove(number);
+  await runMutation({
+    kind: "mr_pr_approve",
+    invoke: () => apiApprove(number),
+    successToast: () => `Approved PR #${number}`,
+    failureToastPrefix: "Approve failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Request changes on a MR/PR and refresh the detail. */
 export async function requestChangesMrPr(number: number, body: string): Promise<void> {
-  await apiRequestChanges(number, body);
+  await runMutation({
+    kind: "mr_pr_request_changes",
+    invoke: () => apiRequestChanges(number, body),
+    successToast: () => `Requested changes on PR #${number}`,
+    failureToastPrefix: "Request changes failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Add a general comment to a MR/PR and refresh the detail. */
 export async function addMrPrComment(number: number, body: string): Promise<void> {
-  await apiAddComment(number, body);
+  await runMutation({
+    kind: "mr_pr_comment",
+    invoke: () => apiAddComment(number, body),
+    successToast: () => `Commented on PR #${number}`,
+    failureToastPrefix: "Comment failed",
+  });
   await loadMrPrDetail(number);
 }
 
@@ -202,56 +239,101 @@ export async function loadRepoLabels(): Promise<void> {
 
 /** Add labels to a MR/PR and refresh the detail. */
 export async function addMrPrLabels(number: number, labels: string[]): Promise<void> {
-  await apiAddLabels(number, labels);
+  await runMutation({
+    kind: "mr_pr_labels_add",
+    invoke: () => apiAddLabels(number, labels),
+    successToast: () => `Added ${labels.length} label${labels.length === 1 ? "" : "s"}`,
+    failureToastPrefix: "Add labels failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Remove labels from a MR/PR and refresh the detail. */
 export async function removeMrPrLabels(number: number, labels: string[]): Promise<void> {
-  await apiRemoveLabels(number, labels);
+  await runMutation({
+    kind: "mr_pr_labels_remove",
+    invoke: () => apiRemoveLabels(number, labels),
+    successToast: () => `Removed ${labels.length} label${labels.length === 1 ? "" : "s"}`,
+    failureToastPrefix: "Remove labels failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Add reviewers to a MR/PR and refresh the detail. */
 export async function addMrPrReviewers(number: number, reviewers: string[]): Promise<void> {
-  await apiAddReviewers(number, reviewers);
+  await runMutation({
+    kind: "mr_pr_reviewers_add",
+    invoke: () => apiAddReviewers(number, reviewers),
+    successToast: () => `Added ${reviewers.length} reviewer${reviewers.length === 1 ? "" : "s"}`,
+    failureToastPrefix: "Add reviewers failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Remove reviewers from a MR/PR and refresh the detail. */
 export async function removeMrPrReviewers(number: number, reviewers: string[]): Promise<void> {
-  await apiRemoveReviewers(number, reviewers);
+  await runMutation({
+    kind: "mr_pr_reviewers_remove",
+    invoke: () => apiRemoveReviewers(number, reviewers),
+    successToast: () => `Removed ${reviewers.length} reviewer${reviewers.length === 1 ? "" : "s"}`,
+    failureToastPrefix: "Remove reviewers failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Mark a draft MR/PR as ready for review and refresh the detail. */
 export async function markMrPrReady(number: number): Promise<void> {
-  await apiMarkReady(number);
+  await runMutation({
+    kind: "mr_pr_mark_ready",
+    invoke: () => apiMarkReady(number),
+    successToast: () => `Marked PR #${number} as ready`,
+    failureToastPrefix: "Mark ready failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Convert a ready MR/PR back to draft and refresh the detail. */
 export async function markMrPrDraft(number: number): Promise<void> {
-  await apiMarkDraft(number);
+  await runMutation({
+    kind: "mr_pr_mark_draft",
+    invoke: () => apiMarkDraft(number),
+    successToast: () => `Marked PR #${number} as draft`,
+    failureToastPrefix: "Mark draft failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Reopen a closed MR/PR, refresh the detail, and refresh the list. */
 export async function reopenMrPr(number: number): Promise<void> {
-  await apiReopen(number);
+  await runMutation({
+    kind: "mr_pr_reopen",
+    invoke: () => apiReopen(number),
+    successToast: () => `Reopened PR #${number}`,
+    failureToastPrefix: "Reopen failed",
+  });
   await loadMrPrDetail(number);
   await refreshMrPrList();
 }
 
 /** Mark a GitLab discussion as resolved and refresh the detail. */
 export async function resolveDiscussion(number: number, discussionId: string): Promise<void> {
-  await apiResolveDiscussion(number, discussionId);
+  await runMutation({
+    kind: "mr_pr_discussion_resolve",
+    invoke: () => apiResolveDiscussion(number, discussionId),
+    successToast: () => "Discussion resolved",
+    failureToastPrefix: "Resolve failed",
+  });
   await loadMrPrDetail(number);
 }
 
 /** Mark a GitLab discussion as unresolved and refresh the detail. */
 export async function unresolveDiscussion(number: number, discussionId: string): Promise<void> {
-  await apiUnresolveDiscussion(number, discussionId);
+  await runMutation({
+    kind: "mr_pr_discussion_unresolve",
+    invoke: () => apiUnresolveDiscussion(number, discussionId),
+    successToast: () => "Discussion reopened",
+    failureToastPrefix: "Reopen discussion failed",
+  });
   await loadMrPrDetail(number);
 }
 
