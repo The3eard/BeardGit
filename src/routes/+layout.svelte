@@ -9,58 +9,11 @@
   import { initShortcutListener } from "$lib/stores/shortcuts";
   import { runStartupCheck } from "$lib/stores/autoUpdate";
   import {
-    openProjectTab,
-    closeTab,
-    activeProject,
-    openProjects,
-  } from "$lib/stores/projects";
-  import { get } from "svelte/store";
-  import {
     startMutationListener,
     stopMutationListener,
   } from "$lib/stores/mutations";
-  import {
-    aiBackgroundRuns,
-    selectedBackgroundSessionId,
-  } from "$lib/stores/aiBackground";
-  import type { AiSession } from "$lib/types";
   import ToastContainer from "$lib/components/ui/ToastContainer.svelte";
   let { children } = $props();
-
-  /**
-   * E2E test hooks — only exposed when BEARDGIT_E2E=true is set at build
-   * time (the tauri-driver / docker harness sets this). The production
-   * bundle strips the window.__E2E__ surface to avoid leaking test APIs
-   * to end users. See e2e/helpers/project.ts for consumers.
-   */
-  if (typeof window !== "undefined" && import.meta.env.VITE_BEARDGIT_E2E === "true") {
-    (window as unknown as Record<string, unknown>).__E2E__ = {
-      openProject: (path: string) => openProjectTab(path),
-      closeTab: (index: number) => closeTab(index),
-      /**
-       * Active project path. Phase-11 specs use this to translate UI
-       * state into fixture paths (e.g. running `git -C <path>` in a
-       * child process) without re-computing paths client-side.
-       */
-      activeProjectPath: () => get(activeProject)?.path ?? null,
-      /** Count of currently open projects. */
-      openProjectCount: () => get(openProjects).length,
-      /**
-       * Seed the `aiBackgroundRuns` store with synthetic sessions —
-       * Spec 2 / Phase 7 E2E specs use this to exercise the AI Sessions
-       * list + detail flow without spawning a real provider process
-       * (which would need a mock binary bundled into the E2E image).
-       * Pass `null` worktree_path to exercise the External-tag branch.
-       */
-      seedAiBackgroundRuns: (sessions: AiSession[]) => {
-        aiBackgroundRuns.set(new Map(sessions.map((s) => [s.id, s])));
-      },
-      /** Set the currently selected AI session id (drives the detail pane). */
-      selectAiSession: (id: string | null) => {
-        selectedBackgroundSessionId.set(id);
-      },
-    };
-  }
 
   // Disable default browser context menu globally
   function handleContextMenu(e: MouseEvent) {

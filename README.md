@@ -64,7 +64,7 @@ Composite tabs combine a project and its linked terminals (or worktrees) in a si
 
 ### Observability and quality
 
-Structured file logging via `tracing` with daily rotation and 7-day auto-purge. Tracing spans across every git write and every Tauri command, with sensitive payloads redacted. Trait-crate purity enforced at CI (no runtime deps allowed in contract crates). Full WebdriverIO + tauri-driver E2E suite runnable locally in Docker or on CI via `xvfb`.
+Structured file logging via `tracing` with daily rotation and 7-day auto-purge. Tracing spans across every git write and every Tauri command, with sensitive payloads redacted. Trait-crate purity enforced at CI (no runtime deps allowed in contract crates).
 
 ---
 
@@ -76,7 +76,7 @@ Structured file logging via `tracing` with daily rotation and 7-day auto-purge. 
 | Core | Rust — 17 crates, libgit2, SQLite, `tracing`, `tokio`, `reqwest` |
 | Frontend | Svelte 5, TypeScript, Canvas 2D, Vite, Paraglide 2 (i18n) |
 | Integrations | `gh` and `glab` (bundled), Claude Code, Codex, OpenCode |
-| CI | GitHub Actions — fmt, clippy, tests, svelte-check, vitest, E2E |
+| CI | GitHub Actions — fmt, clippy, tests, svelte-check, vitest |
 
 ### Architecture in one glance
 
@@ -220,14 +220,6 @@ To build a release bundle for your platform:
 ```sh
 npm run tauri build
 ```
-
-### Running the E2E suite locally
-
-```sh
-npm run e2e:docker
-```
-
-Requires Docker Desktop (macOS) or dockerd (Linux). The first run builds the image (~10 min). After that, named volumes keep cargo and node_modules warm and iteration is ~1–2 min per cycle. See [`e2e/README.md`](e2e/README.md) for full details.
 
 ---
 
