@@ -7,7 +7,7 @@
    */
   import type { FileDiff, HunkSelection } from "$lib/types";
   import { stageHunks, unstageHunks, discardHunks } from "$lib/api/tauri";
-  import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
+  import { runMutation } from "$lib/api/runMutation";
   import ConfirmDialog from "$lib/components/common/ConfirmDialog.svelte";
   import * as m from "$lib/paraglide/messages";
 
@@ -153,18 +153,23 @@
     return result;
   }
 
-  /** After a successful action, refresh store data and clear selection. */
-  async function afterAction() {
+  /** After a successful action, clear selection. Refresh is event-driven. */
+  function afterAction() {
     selectedLines = new Map();
-    await Promise.all([refreshStatuses(), refreshDiffs()]);
   }
 
   async function handleStage() {
     if (actionInProgress || selectedLineCount === 0) return;
     actionInProgress = true;
     try {
-      await stageHunks(filename, buildSelections());
-      await afterAction();
+      await runMutation({
+        kind: "stage",
+        invoke: () => stageHunks(filename, buildSelections()),
+        failureToastPrefix: "Stage failed",
+      });
+      afterAction();
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       actionInProgress = false;
     }
@@ -174,8 +179,14 @@
     if (actionInProgress || selectedLineCount === 0) return;
     actionInProgress = true;
     try {
-      await unstageHunks(filename, buildSelections());
-      await afterAction();
+      await runMutation({
+        kind: "unstage",
+        invoke: () => unstageHunks(filename, buildSelections()),
+        failureToastPrefix: "Unstage failed",
+      });
+      afterAction();
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       actionInProgress = false;
     }
@@ -190,8 +201,14 @@
     showDiscardConfirm = false;
     actionInProgress = true;
     try {
-      await discardHunks(filename, buildSelections());
-      await afterAction();
+      await runMutation({
+        kind: "discard",
+        invoke: () => discardHunks(filename, buildSelections()),
+        failureToastPrefix: "Discard failed",
+      });
+      afterAction();
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       actionInProgress = false;
     }

@@ -15,6 +15,7 @@
   import { requestOpenCreateBackgroundRunDialog } from "$lib/stores/aiBackground";
   import type { AiProviderKind } from "$lib/types";
   import { fetchRemote, pullRemote, pushRemote } from "$lib/api/tauri";
+  import { runMutation } from "$lib/api/runMutation";
   import * as m from "$lib/paraglide/messages";
 
   import { onMount } from "svelte";
@@ -99,7 +100,15 @@
     if (fetchInProgress) return;
     fetchInProgress = true;
     try {
-      await fetchRemote("origin");
+      await runMutation({
+        kind: "fetch",
+        invoke: () => fetchRemote("origin"),
+        successToast: (n) => `Fetched origin — ${n} ref${n === 1 ? "" : "s"}`,
+        failureToastPrefix: "Fetch failed",
+        trackAsTask: true,
+      });
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       fetchInProgress = false;
     }
@@ -107,9 +116,19 @@
 
   async function handlePull() {
     if (pullInProgress || !$repoInfo?.head_branch) return;
+    const branch = $repoInfo.head_branch;
     pullInProgress = true;
     try {
-      await pullRemote("origin", $repoInfo.head_branch);
+      await runMutation({
+        kind: "pull",
+        invoke: () => pullRemote("origin", branch),
+        successToast: (n) =>
+          `Pulled origin/${branch} — ${n} commit${n === 1 ? "" : "s"}`,
+        failureToastPrefix: "Pull failed",
+        trackAsTask: true,
+      });
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       pullInProgress = false;
     }
@@ -117,9 +136,18 @@
 
   async function handlePush() {
     if (pushInProgress || !$repoInfo?.head_branch) return;
+    const branch = $repoInfo.head_branch;
     pushInProgress = true;
     try {
-      await pushRemote("origin", $repoInfo.head_branch);
+      await runMutation({
+        kind: "push",
+        invoke: () => pushRemote("origin", branch),
+        successToast: () => `Pushed to origin/${branch}`,
+        failureToastPrefix: "Push failed",
+        trackAsTask: true,
+      });
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       pushInProgress = false;
     }

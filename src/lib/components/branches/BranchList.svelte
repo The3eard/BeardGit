@@ -19,6 +19,7 @@
     doMergeBranch,
   } from "../../stores/branches";
   import { rebaseBranch } from "../../api/tauri";
+  import { runMutation } from "../../api/runMutation";
   import * as m from "$lib/paraglide/messages";
   import type { BranchInfo } from "../../types";
 
@@ -278,9 +279,18 @@
     confirmLabel={m.branch_rebase_onto()}
     destructive={false}
     onConfirm={async () => {
+      const target = confirmRebase!;
       try {
-        await rebaseBranch(confirmRebase!);
-      } catch {}
+        await runMutation({
+          kind: "rebase",
+          invoke: () => rebaseBranch(target),
+          successToast: () => `Rebased onto ${target}`,
+          failureToastPrefix: "Rebase failed",
+          trackAsTask: true,
+        });
+      } catch {
+        // runMutation already surfaced the toast.
+      }
       confirmRebase = null;
     }}
     onCancel={() => (confirmRebase = null)}

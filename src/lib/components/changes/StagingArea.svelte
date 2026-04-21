@@ -5,6 +5,7 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote } from "$lib/api/tauri";
+  import { runMutation } from "$lib/api/runMutation";
   import { hasAiProvider, aiGenerateCommitMessage, aiReviewCode } from "$lib/stores/ai";
   import { addToast } from "$lib/stores/toast";
   import { repoInfo } from "$lib/stores/repo";
@@ -143,9 +144,18 @@
 
   async function handlePush() {
     if (pushInProgress || !$repoInfo?.head_branch) return;
+    const branch = $repoInfo.head_branch;
     pushInProgress = true;
     try {
-      await pushRemote("origin", $repoInfo.head_branch);
+      await runMutation({
+        kind: "push",
+        invoke: () => pushRemote("origin", branch),
+        successToast: () => `Pushed to origin/${branch}`,
+        failureToastPrefix: "Push failed",
+        trackAsTask: true,
+      });
+    } catch {
+      // runMutation already surfaced the toast.
     } finally {
       pushInProgress = false;
     }

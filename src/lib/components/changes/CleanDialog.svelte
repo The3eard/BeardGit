@@ -9,7 +9,7 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { cleanDryRun, cleanPaths } from "$lib/api/tauri";
-  import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
+  import { runMutation } from "$lib/api/runMutation";
   import type { CleanItem } from "$lib/types";
 
   let {
@@ -85,9 +85,15 @@
   async function handleDelete() {
     if (selected.size === 0) return;
     errorMessage = null;
+    const paths = [...selected];
     try {
-      await cleanPaths([...selected]);
-      await Promise.all([refreshStatuses(), refreshDiffs()]);
+      await runMutation({
+        kind: "clean",
+        invoke: () => cleanPaths(paths),
+        successToast: () =>
+          `Deleted ${paths.length} file${paths.length === 1 ? "" : "s"}`,
+        failureToastPrefix: "Clean failed",
+      });
       onClose();
     } catch (err) {
       errorMessage = String(err);

@@ -3,6 +3,7 @@
   import CommitDetail from "../detail/CommitDetail.svelte";
   import * as m from "$lib/paraglide/messages";
   import * as api from "../../api/tauri";
+  import { runMutation } from "../../api/runMutation";
   import { shortOid } from "../../utils/git";
   import { loadReflog } from "../../stores/reflog";
 
@@ -52,10 +53,15 @@
 
   async function handleCheckout() {
     try {
-      await api.checkoutDetached(entry.oid);
+      await runMutation({
+        kind: "checkout_detached",
+        invoke: () => api.checkoutDetached(entry.oid),
+        successToast: () => `Checked out ${shortOid(entry.oid)} (detached)`,
+        failureToastPrefix: "Checkout failed",
+      });
       await loadReflog();
-    } catch (e) {
-      console.error("Checkout failed:", e);
+    } catch {
+      // runMutation already surfaced the toast.
     }
   }
 
@@ -63,10 +69,15 @@
     const name = prompt(m.graph_branch_name_prompt());
     if (!name) return;
     try {
-      await api.createBranchAt(name, entry.oid);
+      await runMutation({
+        kind: "branch_create",
+        invoke: () => api.createBranchAt(name, entry.oid),
+        successToast: () => `Created branch ${name}`,
+        failureToastPrefix: "Branch create failed",
+      });
       await loadReflog();
-    } catch (e) {
-      console.error("Create branch failed:", e);
+    } catch {
+      // runMutation already surfaced the toast.
     }
   }
 
@@ -75,10 +86,16 @@
     const labels: Record<string, string> = { soft: "Soft", mixed: "Mixed", hard: "Hard" };
     if (!confirm(`${labels[mode]} reset to ${shortOid(entry.oid)}?`)) return;
     try {
-      await api.resetToCommit(entry.oid, mode);
+      await runMutation({
+        kind: `reset_${mode}`,
+        invoke: () => api.resetToCommit(entry.oid, mode),
+        successToast: () =>
+          `Reset (${mode}) to ${shortOid(entry.oid)}`,
+        failureToastPrefix: "Reset failed",
+      });
       await loadReflog();
-    } catch (e) {
-      console.error("Reset failed:", e);
+    } catch {
+      // runMutation already surfaced the toast.
     }
   }
 

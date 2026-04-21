@@ -18,6 +18,7 @@
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns, createCommitPatches } from "../../api/tauri";
+  import { runMutation } from "../../api/runMutation";
   import { save } from "@tauri-apps/plugin-dialog";
   import RebaseEditor from "../rebase/RebaseEditor.svelte";
   import { debounce } from "../../utils/debounce";
@@ -492,9 +493,14 @@
             // save() returns the full file path; format-patch needs a directory
             const sep = dir.includes("/") ? "/" : "\\";
             const parentDir = dir.substring(0, dir.lastIndexOf(sep)) || ".";
-            await createCommitPatches([node.oid], parentDir);
-          } catch (err) {
-            alert(m.patch_create_failed({ error: String(err) }));
+            await runMutation({
+              kind: "patch_create",
+              invoke: () => createCommitPatches([node.oid], parentDir),
+              successToast: () => `Saved patch for ${sha}`,
+              failureToastPrefix: "Patch create failed",
+            });
+          } catch {
+            // runMutation already surfaced the toast.
           }
         },
       },
@@ -505,10 +511,15 @@
           const name = prompt(m.graph_branch_name_prompt());
           if (name) {
             try {
-              await createBranch(name);
-              await reloadGraph();
-            } catch (err) {
-              alert(m.graph_branch_failed({ error: String(err) }));
+              await runMutation({
+                kind: "branch_create",
+                invoke: () => createBranch(name),
+                successToast: () => `Created branch ${name}`,
+                failureToastPrefix: "Branch create failed",
+              });
+              // Graph reload is driven by the project-mutated event.
+            } catch {
+              // runMutation already surfaced the toast.
             }
           }
         },
@@ -517,9 +528,14 @@
         label: m.graph_cherry_pick({ sha }),
         action: async () => {
           try {
-            await cherryPick(node.oid);
-          } catch (err) {
-            alert(m.graph_cherry_pick_failed({ error: String(err) }));
+            await runMutation({
+              kind: "cherry_pick",
+              invoke: () => cherryPick(node.oid),
+              successToast: () => `Cherry-picked ${sha}`,
+              failureToastPrefix: "Cherry-pick failed",
+            });
+          } catch {
+            // runMutation already surfaced the toast.
           }
         },
       },
@@ -527,20 +543,25 @@
       {
         label: m.graph_checkout({ sha }),
         action: async () => {
-          try {
-            // For commits with refs, checkout the branch name
-            if (node.refs.length > 0) {
-              const branchRef = node.refs.find(r => !r.startsWith("refs/remotes/") && !r.startsWith("refs/tags/"));
-              if (branchRef) {
-                const branchName = branchRef.replace("refs/heads/", "");
-                await checkoutBranch(branchName);
-                return;
+          // For commits with refs, checkout the branch name
+          if (node.refs.length > 0) {
+            const branchRef = node.refs.find(r => !r.startsWith("refs/remotes/") && !r.startsWith("refs/tags/"));
+            if (branchRef) {
+              const branchName = branchRef.replace("refs/heads/", "");
+              try {
+                await runMutation({
+                  kind: "checkout",
+                  invoke: () => checkoutBranch(branchName),
+                  successToast: () => `Checked out ${branchName}`,
+                  failureToastPrefix: "Checkout failed",
+                });
+              } catch {
+                // runMutation already surfaced the toast.
               }
+              return;
             }
-            alert(m.graph_checkout_detached());
-          } catch (err) {
-            alert(m.graph_checkout_failed({ error: String(err) }));
           }
+          alert(m.graph_checkout_detached());
         },
       },
       { label: "", action: () => {}, separator: true },
@@ -555,9 +576,14 @@
             destructive: false,
             onConfirm: async () => {
               try {
-                await revertCommit(node.oid);
+                await runMutation({
+                  kind: "revert",
+                  invoke: () => revertCommit(node.oid),
+                  successToast: () => `Reverted ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Revert failed",
+                });
               } catch {
-                // Conflict will be detected by watcher
+                // runMutation surfaced the toast; conflicts also caught by watcher.
               }
               showConfirm = false;
             },
@@ -576,7 +602,16 @@
             confirmLabel: m.graph_reset_soft(),
             destructive: false,
             onConfirm: async () => {
-              try { await resetToCommit(node.oid, 'soft'); } catch {}
+              try {
+                await runMutation({
+                  kind: "reset_soft",
+                  invoke: () => resetToCommit(node.oid, 'soft'),
+                  successToast: () => `Reset (soft) to ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Reset failed",
+                });
+              } catch {
+                // runMutation surfaced the toast.
+              }
               showConfirm = false;
             },
           };
@@ -593,7 +628,16 @@
             confirmLabel: m.graph_reset_mixed(),
             destructive: false,
             onConfirm: async () => {
-              try { await resetToCommit(node.oid, 'mixed'); } catch {}
+              try {
+                await runMutation({
+                  kind: "reset_mixed",
+                  invoke: () => resetToCommit(node.oid, 'mixed'),
+                  successToast: () => `Reset (mixed) to ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Reset failed",
+                });
+              } catch {
+                // runMutation surfaced the toast.
+              }
               showConfirm = false;
             },
           };
@@ -610,7 +654,16 @@
             confirmLabel: m.graph_reset_hard(),
             destructive: true,
             onConfirm: async () => {
-              try { await resetToCommit(node.oid, 'hard'); } catch {}
+              try {
+                await runMutation({
+                  kind: "reset_hard",
+                  invoke: () => resetToCommit(node.oid, 'hard'),
+                  successToast: () => `Reset (hard) to ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Reset failed",
+                });
+              } catch {
+                // runMutation surfaced the toast.
+              }
               showConfirm = false;
             },
           };
@@ -628,7 +681,17 @@
             confirmLabel: m.graph_rebase_onto(),
             destructive: false,
             onConfirm: async () => {
-              try { await rebaseBranch(node.oid); } catch {}
+              try {
+                await runMutation({
+                  kind: "rebase",
+                  invoke: () => rebaseBranch(node.oid),
+                  successToast: () => `Rebased onto ${node.oid.slice(0, 8)}`,
+                  failureToastPrefix: "Rebase failed",
+                  trackAsTask: true,
+                });
+              } catch {
+                // runMutation surfaced the toast.
+              }
               showConfirm = false;
             },
           };

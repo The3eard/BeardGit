@@ -55,6 +55,7 @@
   import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
   import { shortOid } from "$lib/utils/git";
   import * as api from "$lib/api/tauri";
+  import { runMutation } from "$lib/api/runMutation";
   import { unstagedDiffs, stagedDiffs } from "$lib/stores/changes";
   import type { FileDiff } from "$lib/types";
   import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
@@ -246,7 +247,16 @@
         label: m.toolbar_fetch(),
         category: "Git",
         action: async () => {
-          try { await api.fetchRemote("origin"); } catch { /* toolbar shows error */ }
+          try {
+            await runMutation({
+              kind: "fetch",
+              invoke: () => api.fetchRemote("origin"),
+              successToast: (n) =>
+                `Fetched origin — ${n} ref${n === 1 ? "" : "s"}`,
+              failureToastPrefix: "Fetch failed",
+              trackAsTask: true,
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -257,7 +267,17 @@
         action: async () => {
           const info = get(repoInfo);
           if (!info?.head_branch) return;
-          try { await api.pullRemote("origin", info.head_branch); } catch { /* handled */ }
+          const branch = info.head_branch;
+          try {
+            await runMutation({
+              kind: "pull",
+              invoke: () => api.pullRemote("origin", branch),
+              successToast: (n) =>
+                `Pulled origin/${branch} — ${n} commit${n === 1 ? "" : "s"}`,
+              failureToastPrefix: "Pull failed",
+              trackAsTask: true,
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -268,7 +288,16 @@
         action: async () => {
           const info = get(repoInfo);
           if (!info?.head_branch) return;
-          try { await api.pushRemote("origin", info.head_branch); } catch { /* handled */ }
+          const branch = info.head_branch;
+          try {
+            await runMutation({
+              kind: "push",
+              invoke: () => api.pushRemote("origin", branch),
+              successToast: () => `Pushed to origin/${branch}`,
+              failureToastPrefix: "Push failed",
+              trackAsTask: true,
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -277,7 +306,13 @@
         label: m.changes_stage_all(),
         category: "Git",
         action: async () => {
-          try { await api.stageAll(); await refreshStatuses(); } catch { /* handled */ }
+          try {
+            await runMutation({
+              kind: "stage",
+              invoke: () => api.stageAll(),
+              failureToastPrefix: "Stage failed",
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -286,7 +321,13 @@
         label: m.changes_unstage_all(),
         category: "Git",
         action: async () => {
-          try { await api.unstageAll(); await refreshStatuses(); } catch { /* handled */ }
+          try {
+            await runMutation({
+              kind: "unstage",
+              invoke: () => api.unstageAll(),
+              failureToastPrefix: "Unstage failed",
+            });
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
     ];
@@ -499,11 +540,14 @@
         label: m.graph_checkout({ sha: shortOid(entry.oid) }),
         action: async () => {
           try {
-            await api.checkoutDetached(entry.oid);
+            await runMutation({
+              kind: "checkout_detached",
+              invoke: () => api.checkoutDetached(entry.oid),
+              successToast: () => `Checked out ${shortOid(entry.oid)} (detached)`,
+              failureToastPrefix: "Checkout failed",
+            });
             await loadReflog();
-          } catch (e) {
-            addToast({ message: m.graph_checkout_failed({ error: String(e) }), type: "error" });
-          }
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       {
@@ -512,11 +556,14 @@
           const name = prompt(m.graph_branch_name_prompt());
           if (!name) return;
           try {
-            await api.createBranchAt(name, entry.oid);
+            await runMutation({
+              kind: "branch_create",
+              invoke: () => api.createBranchAt(name, entry.oid),
+              successToast: () => `Created branch ${name}`,
+              failureToastPrefix: "Branch create failed",
+            });
             await loadReflog();
-          } catch (e) {
-            addToast({ message: m.graph_branch_failed({ error: String(e) }), type: "error" });
-          }
+          } catch { /* runMutation surfaced the toast */ }
         },
       },
       { separator: true },
@@ -524,7 +571,15 @@
         label: m.graph_reset_soft(),
         action: async () => {
           if (confirm(m.graph_reset_confirm_soft({ sha: shortOid(entry.oid) }))) {
-            try { await api.resetToCommit(entry.oid, "soft"); await loadReflog(); } catch { /* handled */ }
+            try {
+              await runMutation({
+                kind: "reset_soft",
+                invoke: () => api.resetToCommit(entry.oid, "soft"),
+                successToast: () => `Reset (soft) to ${shortOid(entry.oid)}`,
+                failureToastPrefix: "Reset failed",
+              });
+              await loadReflog();
+            } catch { /* runMutation surfaced the toast */ }
           }
         },
       },
@@ -532,7 +587,15 @@
         label: m.graph_reset_mixed(),
         action: async () => {
           if (confirm(m.graph_reset_confirm_mixed({ sha: shortOid(entry.oid) }))) {
-            try { await api.resetToCommit(entry.oid, "mixed"); await loadReflog(); } catch { /* handled */ }
+            try {
+              await runMutation({
+                kind: "reset_mixed",
+                invoke: () => api.resetToCommit(entry.oid, "mixed"),
+                successToast: () => `Reset (mixed) to ${shortOid(entry.oid)}`,
+                failureToastPrefix: "Reset failed",
+              });
+              await loadReflog();
+            } catch { /* runMutation surfaced the toast */ }
           }
         },
       },
@@ -540,7 +603,15 @@
         label: m.graph_reset_hard(),
         action: async () => {
           if (confirm(m.graph_reset_confirm_hard({ sha: shortOid(entry.oid) }))) {
-            try { await api.resetToCommit(entry.oid, "hard"); await loadReflog(); } catch { /* handled */ }
+            try {
+              await runMutation({
+                kind: "reset_hard",
+                invoke: () => api.resetToCommit(entry.oid, "hard"),
+                successToast: () => `Reset (hard) to ${shortOid(entry.oid)}`,
+                failureToastPrefix: "Reset failed",
+              });
+              await loadReflog();
+            } catch { /* runMutation surfaced the toast */ }
           }
         },
       },

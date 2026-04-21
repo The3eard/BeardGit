@@ -7,7 +7,7 @@
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
   import { cleanPaths } from "$lib/api/tauri";
   import { addGitignorePattern } from "$lib/api/tauri";
-  import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
+  import { runMutation } from "$lib/api/runMutation";
 
   let {
     files,
@@ -181,8 +181,16 @@
           items.push({
             label: p.label,
             action: async () => {
-              await addGitignorePattern(p.pattern);
-              await Promise.all([refreshStatuses(), refreshDiffs()]);
+              try {
+                await runMutation({
+                  kind: "gitignore_add",
+                  invoke: () => addGitignorePattern(p.pattern),
+                  successToast: () => `Added \`${p.pattern}\` to .gitignore`,
+                  failureToastPrefix: "Gitignore update failed",
+                });
+              } catch {
+                // runMutation already surfaced the toast.
+              }
             },
           });
         }
@@ -194,10 +202,19 @@
 
   async function handleConfirmDelete() {
     if (!deleteTargetPath) return;
-    await cleanPaths([deleteTargetPath]);
+    const path = deleteTargetPath;
+    try {
+      await runMutation({
+        kind: "clean",
+        invoke: () => cleanPaths([path]),
+        successToast: () => `Deleted ${path}`,
+        failureToastPrefix: "Delete failed",
+      });
+    } catch {
+      // runMutation already surfaced the toast.
+    }
     showDeleteConfirm = false;
     deleteTargetPath = null;
-    await Promise.all([refreshStatuses(), refreshDiffs()]);
   }
 
   function openContextMenu(e: MouseEvent, filePath: string) {
