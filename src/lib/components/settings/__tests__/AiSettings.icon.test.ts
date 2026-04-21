@@ -47,4 +47,37 @@ describe("AiSettings provider icon", () => {
       expect(row.querySelector("img.provider-icon")).toBeTruthy();
     });
   });
+
+  // Lockdown — Spec 4 Phase 5 re-verifies Spec 2's Phase 6 landing so a
+  // future refactor can't silently regress back to the old nerd-font span.
+  it("renders exactly one ProviderIcon per ALL_KINDS row (3 total)", async () => {
+    const { container } = render(AiSettings);
+    await tick();
+    const rows = container.querySelectorAll(".provider-row");
+    expect(rows.length).toBe(3);
+    const icons = container.querySelectorAll("img.provider-icon");
+    expect(icons.length).toBe(3);
+  });
+
+  it("never resurrects the legacy `.provider-icon.nf` nerd-font span", async () => {
+    const { container } = render(AiSettings);
+    await tick();
+    // Old markup was `<span class="provider-icon nf">{icon}</span>` —
+    // any surviving <span class="provider-icon"> would be the regression.
+    const legacySpans = container.querySelectorAll("span.provider-icon");
+    expect(legacySpans.length).toBe(0);
+  });
+
+  it("passes the row's provider kind to ProviderIcon (alt text check)", async () => {
+    const { container } = render(AiSettings);
+    await tick();
+    const alts = Array.from(
+      container.querySelectorAll<HTMLImageElement>("img.provider-icon"),
+    ).map((img) => img.alt);
+    expect(alts).toEqual([
+      "claude_code icon",
+      "codex icon",
+      "open_code icon",
+    ]);
+  });
 });
