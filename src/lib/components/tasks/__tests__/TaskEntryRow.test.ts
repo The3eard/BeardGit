@@ -11,7 +11,7 @@
  * - Determinate progress renders a bar with the correct percent; the
  *   indeterminate branch renders the animated stripe element.
  * - AI-kind entries with a provider hint in title/subtitle render the
- *   `ProviderBrandIcon` instead of the generic glyph.
+ *   `ProviderIcon` instead of the generic glyph.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -124,7 +124,7 @@ describe("TaskEntryRow", () => {
     expect(indet).toBeTruthy();
   });
 
-  it("AI-kind with provider hint renders the ProviderBrandIcon", () => {
+  it("AI-kind with provider hint renders the ProviderIcon", () => {
     const entry = makeEntry({
       kind: "ai_background",
       title: "Claude Code run: fix/refactor-api",
@@ -135,8 +135,8 @@ describe("TaskEntryRow", () => {
     });
 
     const iconWrap = getByTestId("task-row-icon");
-    // ProviderBrandIcon renders an <svg>; the fallback glyph renders a span.
-    expect(iconWrap.querySelector("svg")).not.toBeNull();
+    // ProviderIcon renders an <img>; the fallback glyph renders a span.
+    expect(iconWrap.querySelector("img")).not.toBeNull();
     expect(
       iconWrap.querySelector(".task-row__icon-glyph"),
     ).toBeNull();
@@ -150,7 +150,7 @@ describe("TaskEntryRow", () => {
     });
 
     const iconWrap = getByTestId("task-row-icon");
-    expect(iconWrap.querySelector("svg")).toBeNull();
+    expect(iconWrap.querySelector("img")).toBeNull();
     expect(iconWrap.querySelector(".task-row__icon-glyph")).not.toBeNull();
   });
 });
