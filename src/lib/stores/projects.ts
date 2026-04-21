@@ -45,6 +45,7 @@ import { clearIssueState } from "./issues";
 import { clearReleaseState } from "./releases";
 import { clearReflogState } from "./reflog";
 import { refreshConflictStatus } from "./conflict";
+import { flushPendingForActiveProject } from "./mutations";
 import {
   openTabs,
   activeTabIndex,
@@ -197,6 +198,11 @@ async function activateProjectTab(tabIndex: number) {
   const targetTab = tabs[tabIndex];
   const targetPath = (targetTab?.kind === "project" || targetTab?.kind === "composite") ? targetTab.project.path : null;
   const hasCachedGraph = targetPath ? restoreCachedViewport(targetPath) : false;
+
+  // Replay any mutation-event flags buffered for this project while it
+  // was in the background — ensures the incoming tab picks up backend
+  // mutations that fired during its inactive window.
+  if (targetPath) flushPendingForActiveProject(targetPath);
 
   // Set clean titlebar immediately (no stale counts from previous project)
   const projName = (targetTab?.kind === "project" || targetTab?.kind === "composite")
