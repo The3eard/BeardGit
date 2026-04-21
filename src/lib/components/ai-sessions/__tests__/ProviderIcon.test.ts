@@ -42,7 +42,7 @@ describe("ProviderIcon", () => {
 
   it("falls back to generic.svg for unknown providers", () => {
     const { container } = render(ProviderIcon, {
-      // @ts-expect-error intentionally invalid
+      // Intentionally pass an unrecognised key to exercise the fallback path.
       props: { provider: "unknown_provider" },
     });
     expect(container.querySelector("img")?.getAttribute("src")).toMatch(

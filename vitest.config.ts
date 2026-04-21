@@ -4,6 +4,12 @@ import path from "path";
 
 export default defineConfig({
   plugins: [svelte()],
+  // Keep SVG imports as file URLs (never inline as data URIs) so asset
+  // imports are comparable by path in unit tests. Production bundling
+  // goes through SvelteKit's own vite.config.js which is unaffected.
+  build: {
+    assetsInlineLimit: 0,
+  },
   test: {
     include: ["src/**/*.test.ts"],
     setupFiles: ["./src/test/setup.ts"],
