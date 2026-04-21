@@ -49,6 +49,22 @@ use serde::Deserialize;
 /// live.
 pub const ACTIVE_WINDOW: Duration = Duration::from_secs(5 * 60);
 
+/// Rollouts older than this are skipped at the directory-walk level.
+///
+/// Codex writes one JSONL file per conversation under
+/// `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` with no built-in
+/// pruning — a year of daily use accumulates thousands of historical
+/// rollouts that almost never match the current project anyway.
+/// Reading + parsing the first line of every file put the whole AI
+/// Sessions view behind a ~600 ms filesystem walk on every click.
+///
+/// Anything touched within the last 30 days is still considered
+/// "recent enough to surface": active Codex sessions touch their
+/// rollout within [`ACTIVE_WINDOW`]; ended sessions stay listed for a
+/// month, which covers typical "show me last week's runs" UX without
+/// re-parsing the entire history.
+pub const DISCOVERY_WINDOW: Duration = Duration::from_secs(30 * 24 * 60 * 60);
+
 /// First-line JSON shape — only the fields we read.
 #[derive(Debug, Deserialize)]
 struct SessionMeta {
@@ -104,7 +120,24 @@ fn collect_jsonl(dir: &Path, out: &mut Vec<AiSession>) {
 
 /// Parse the first line of `path` into an [`AiSession`], or return `None`
 /// if the file is empty / malformed / not a `session_meta` record.
+///
+/// Bails early on rollouts older than [`DISCOVERY_WINDOW`] — those are
+/// historical conversations from unrelated projects that would otherwise
+/// turn the AI Sessions view click into a filesystem walk of every
+/// rollout Codex has ever written.
 fn parse_session_file(path: &Path) -> Option<AiSession> {
+    // Metadata probe first — reading `mtime` is a cheap `stat`; reading
+    // + parsing the file is an order of magnitude more work. Skipping
+    // ancient rollouts up front is what keeps the click responsive.
+    let modified = path.metadata().and_then(|m| m.modified()).ok()?;
+    if SystemTime::now()
+        .duration_since(modified)
+        .map(|age| age > DISCOVERY_WINDOW)
+        .unwrap_or(false)
+    {
+        return None;
+    }
+
     let contents = fs::read_to_string(path).ok()?;
     let first_line = contents.lines().next()?;
     let meta: SessionMeta = serde_json::from_str(first_line).ok()?;
@@ -131,11 +164,10 @@ fn parse_session_file(path: &Path) -> Option<AiSession> {
         _ => SessionKind::Interactive,
     };
 
-    let is_active = path
-        .metadata()
-        .and_then(|m| m.modified())
-        .map(is_file_active)
-        .unwrap_or(false);
+    // Reuse the `modified` timestamp captured at the top — a second
+    // metadata() syscall per file is wasted work given the window
+    // check already read it.
+    let is_active = is_file_active(modified);
 
     Some(AiSession {
         id: meta.payload.id,

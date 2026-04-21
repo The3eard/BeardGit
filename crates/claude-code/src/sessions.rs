@@ -8,9 +8,20 @@
 
 use std::fs;
 use std::path::Path;
+use std::time::{Duration, SystemTime};
 
 use ai_provider::{AiError, AiProviderKind, AiSession, SessionKind};
 use serde::Deserialize;
+
+/// Session PID files older than this are skipped at the directory walk.
+///
+/// Claude Code writes one JSON file per run at `~/.claude/sessions/{pid}.json`
+/// and never prunes them, so long-running installs accumulate hundreds of
+/// dead-PID files that contribute nothing to the UI but slow the AI
+/// Sessions view's initial paint. 30 days of retention matches the
+/// Codex-side [`codex::sessions::DISCOVERY_WINDOW`] and covers typical
+/// "show me last month's runs" UX without scanning the full history.
+const DISCOVERY_WINDOW: Duration = Duration::from_secs(30 * 24 * 60 * 60);
 
 /// Raw session file as written by Claude Code.
 #[derive(Debug, Deserialize)]
@@ -39,9 +50,26 @@ pub fn list_sessions(repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
     let mut sessions = Vec::new();
     let entries = fs::read_dir(&sessions_dir)?;
 
+    let now = SystemTime::now();
+
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+
+        // Cheap `stat` before the read — files older than the
+        // discovery window can't be active (their PIDs are long dead)
+        // and aren't worth parsing. This is the difference between a
+        // click-blocking O(total session history) scan and a fast
+        // O(recently-active) scan.
+        if let Ok(meta) = entry.metadata()
+            && let Ok(modified) = meta.modified()
+            && now
+                .duration_since(modified)
+                .map(|age| age > DISCOVERY_WINDOW)
+                .unwrap_or(false)
+        {
             continue;
         }
 
