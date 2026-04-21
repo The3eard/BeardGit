@@ -3,6 +3,8 @@
 //! Covers list / get / diff / create / edit / merge / close / approve /
 //! request-changes / add-comment / add-inline-comment.
 
+use std::time::Duration;
+
 use forge_provider::{
     Comment, CreateMrPrInput, EditMrPrPatch, ForgeError, MergeStrategy, MrPr, MrPrDetail,
     MrPrDiffFile, MrPrFilter, ReviewStatus,
@@ -61,11 +63,14 @@ impl GitHubCli {
     }
 
     pub(super) fn get_mr_pr_diff_impl(&self, number: u64) -> Result<Vec<MrPrDiffFile>, ForgeError> {
-        let stdout = self.run(&[
-            "api",
-            &format!("repos/{{owner}}/{{repo}}/pulls/{number}/files"),
-            "--paginate",
-        ])?;
+        let stdout = self.run_with_timeout(
+            &[
+                "api",
+                &format!("repos/{{owner}}/{{repo}}/pulls/{number}/files"),
+                "--paginate",
+            ],
+            DIFF_FETCH_TIMEOUT,
+        )?;
         parse_diff_files(&stdout, MAX_DIFF_PAYLOAD_BYTES)
     }
 
@@ -205,6 +210,14 @@ impl GitHubCli {
 /// real-world PR we've observed while keeping worst-case parse time
 /// bounded.
 pub(crate) const MAX_DIFF_PAYLOAD_BYTES: usize = 50 * 1024 * 1024;
+
+/// Wall-clock cap for the `gh api … /pulls/{n}/files --paginate` call.
+///
+/// The frontend applies a 15 s `withTimeout` cap on the Tauri invoke;
+/// this slightly-larger budget lets Rust emit a clean
+/// `ForgeError::Cli("command timed out …")` rather than the frontend
+/// abandoning a still-running child.
+const DIFF_FETCH_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Parse stdout from `gh api repos/…/pulls/{n}/files --paginate` into a
 /// list of [`MrPrDiffFile`]s.
