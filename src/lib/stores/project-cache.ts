@@ -5,11 +5,52 @@
  * After real data loads: build snapshot from current state → save to cache.
  */
 
-import type { ProjectSnapshot } from "$lib/types";
+import type { ProjectSnapshot, GraphViewport } from "$lib/types";
 import * as api from "$lib/api/tauri";
 import { fileStatuses } from "./changes";
 import { get } from "svelte/store";
 import { repoInfo } from "./repo";
+
+/**
+ * Persistent graph viewport slice.
+ *
+ * Stored inside `ProjectSnapshot.graph_viewport_cache` so a cold start
+ * can paint the commit graph synchronously from disk. Size is roughly
+ * 60 KB per project (300 rows × ~200 B JSON each).
+ */
+export interface GraphViewportCache {
+  /** Last-seen 300-row viewport window (the `nodes` array as served by
+   *  `get_graph_viewport`). No lane segments / merge curves — the fresh
+   *  refresh repopulates those within one tick of paint. */
+  nodes: GraphViewport["nodes"];
+  /** Total commit count for the repo — used to render the scroll footer. */
+  total_count: number;
+  /** HEAD OID at the time the cache was written. Used as a coarse
+   *  staleness check alongside `top_oid`. */
+  head_oid: string;
+  /** First visible commit in the cached window. Primary staleness
+   *  check during reconciliation: if fresh `top_oid` matches, the
+   *  cache is still accurate and no repaint is needed. */
+  top_oid: string;
+  /** Scroll offset captured at cache time — preserves vertical scroll
+   *  position across cold starts. */
+  offset: number;
+  /** Epoch milliseconds when the cache was written. Entries older than
+   *  `GRAPH_CACHE_TTL_MS` at load time are ignored and overwritten. */
+  cached_at: number;
+}
+
+/** Max age before a cached graph slice is ignored at load time (7 days). */
+export const GRAPH_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Return `true` when the cache timestamp is within the TTL window.
+ * Boundary (`cached_at === now - TTL`) is accepted so borderline entries
+ * hydrate instead of being discarded on a refresh.
+ */
+export function isCacheFresh(cachedAt: number): boolean {
+  return Date.now() - cachedAt <= GRAPH_CACHE_TTL_MS;
+}
 
 /** Load a snapshot from cache. Returns null if not cached. */
 export async function loadProjectSnapshot(path: string): Promise<ProjectSnapshot | null> {
