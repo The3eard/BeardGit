@@ -1,6 +1,7 @@
 //! Clean (untracked/ignored file removal) commands.
 
-use tauri::State;
+use mutation_events::MutationKind;
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
@@ -23,12 +24,20 @@ pub fn clean_dry_run(
 
 /// Permanently remove the specified paths from the working directory.
 ///
-/// Returns the number of items successfully deleted.
+/// Returns the number of items successfully deleted. Wraps the work inside a
+/// [`MutationGuard`][mutation_events::MutationGuard] scope so that on success
+/// a `project-mutated` event with [`MutationKind::StagingChange`] is emitted.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::clean::paths")]
-pub fn clean_paths(paths: Vec<String>, state: State<'_, AppState>) -> Result<u32, String> {
-    with_active_repo(&state, |repo| {
-        repo.clean_paths(&paths).map_err(|e| e.to_string())
+#[instrument(skip(state, app), name = "cmd::clean::paths")]
+pub fn clean_paths(
+    paths: Vec<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<u32, String> {
+    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
+        with_active_repo(&state, |repo| {
+            repo.clean_paths(&paths).map_err(|e| e.to_string())
+        })
     })
 }
 

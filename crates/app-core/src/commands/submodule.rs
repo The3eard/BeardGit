@@ -2,8 +2,9 @@
 
 use std::sync::Arc;
 
+use mutation_events::MutationKind;
 use task_runner::{TaskId, TaskManager};
-use tauri::State;
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
@@ -21,24 +22,33 @@ pub fn list_submodules(
 
 /// Initialize a submodule (register + set up working tree).
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::submodule::init")]
-pub fn init_submodule(path: String, state: State<'_, AppState>) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
-        repo.init_submodule(&path).map_err(|e| e.to_string())
+#[instrument(skip(state, app), name = "cmd::submodule::init")]
+pub fn init_submodule(
+    path: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
+        with_active_repo(&state, |repo| {
+            repo.init_submodule(&path).map_err(|e| e.to_string())
+        })
     })
 }
 
 /// Deinitialize a submodule.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::submodule::deinit")]
+#[instrument(skip(state, app), name = "cmd::submodule::deinit")]
 pub fn deinit_submodule(
     path: String,
     force: bool,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
-        repo.deinit_submodule(&path, force)
-            .map_err(|e| e.to_string())
+    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
+        with_active_repo(&state, |repo| {
+            repo.deinit_submodule(&path, force)
+                .map_err(|e| e.to_string())
+        })
     })
 }
 
@@ -48,10 +58,17 @@ pub fn deinit_submodule(
 /// - `url` – Remote URL of the submodule repository.
 /// - `path` – Relative path where the submodule will be placed.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::submodule::add")]
-pub fn add_submodule(url: String, path: String, state: State<'_, AppState>) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
-        repo.add_submodule(&url, &path).map_err(|e| e.to_string())
+#[instrument(skip(state, app), name = "cmd::submodule::add")]
+pub fn add_submodule(
+    url: String,
+    path: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
+        with_active_repo(&state, |repo| {
+            repo.add_submodule(&url, &path).map_err(|e| e.to_string())
+        })
     })
 }
 
@@ -60,10 +77,16 @@ pub fn add_submodule(url: String, path: String, state: State<'_, AppState>) -> R
 /// # Parameters
 /// - `path` – Relative path of the submodule to remove.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::submodule::remove")]
-pub fn remove_submodule(path: String, state: State<'_, AppState>) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
-        repo.remove_submodule(&path).map_err(|e| e.to_string())
+#[instrument(skip(state, app), name = "cmd::submodule::remove")]
+pub fn remove_submodule(
+    path: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
+        with_active_repo(&state, |repo| {
+            repo.remove_submodule(&path).map_err(|e| e.to_string())
+        })
     })
 }
 

@@ -1,6 +1,7 @@
 //! Conflict detection, resolution, abort, and continue commands.
 
-use tauri::State;
+use mutation_events::MutationKind;
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
@@ -31,16 +32,23 @@ pub fn get_conflict_file_contents(
 }
 
 /// Write resolved content to disk and mark the file as resolved in the index.
+///
+/// Wraps the work inside a [`MutationGuard`][mutation_events::MutationGuard]
+/// scope so that on success a `project-mutated` event with
+/// [`MutationKind::StagingChange`] is emitted — index-only mutation.
 #[tauri::command]
-#[instrument(skip(state, content), name = "cmd::conflict::write_resolved")]
+#[instrument(skip(state, content, app), name = "cmd::conflict::write_resolved")]
 pub fn write_resolved_file(
     path: String,
     content: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
-    with_active_repo(&state, |repo| {
-        repo.write_resolved_file(&path, &content)
-            .map_err(|e| e.to_string())
+    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
+        with_active_repo(&state, |repo| {
+            repo.write_resolved_file(&path, &content)
+                .map_err(|e| e.to_string())
+        })
     })
 }
 

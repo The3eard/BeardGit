@@ -1,6 +1,7 @@
 //! Patch creation, preview, and application commands.
 
-use tauri::State;
+use mutation_events::MutationKind;
+use tauri::{AppHandle, State};
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -58,15 +59,21 @@ pub fn save_patch_to_file(path: String, content: String) -> Result<(), String> {
 /// Apply a patch file to the working tree.
 ///
 /// When `three_way` is true, uses `--3way` for conflict-generating fallback.
+/// Wraps the work inside a [`MutationGuard`][mutation_events::MutationGuard]
+/// scope so that on success a `project-mutated` event with
+/// [`MutationKind::StagingChange`] is emitted — index/worktree only.
 #[tauri::command]
 pub fn apply_patch(
     path: String,
     three_way: bool,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
-        repo.apply_patch_file(&path, three_way)
-            .map_err(|e| e.to_string())
+    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
+        with_active_repo(&state, |repo| {
+            repo.apply_patch_file(&path, three_way)
+                .map_err(|e| e.to_string())
+        })
     })
 }
 
