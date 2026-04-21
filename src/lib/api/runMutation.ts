@@ -27,6 +27,7 @@
  */
 import { addToast } from "$lib/stores/toast";
 import { taskRunner } from "$lib/stores/taskRunner";
+import { openTasksPopover } from "$lib/stores/tasksPopover";
 
 /** Options passed to {@link runMutation}. */
 export interface MutationOpts<T> {
@@ -92,15 +93,27 @@ export async function runMutation<T>(opts: MutationOpts<T>): Promise<T> {
     if (taskId) taskRunner.complete(taskId, { ok: true });
     return result;
   } catch (err) {
+    // Always resolve an id the "See details" action can open: tracked
+    // tasks reuse their `taskId`; non-tracked mutations synthesise an
+    // ad-hoc error entry so the failure row is reachable from the
+    // Tasks popover even for one-shot ops like stage / commit.
+    let detailId: string;
     if (taskId) {
       taskRunner.complete(taskId, { ok: false, err });
+      detailId = taskId;
     } else {
-      taskRunner.createAdhoc(opts.kind, err);
+      detailId = taskRunner.createAdhoc(opts.kind, err);
     }
     addToast({
       type: "error",
       message: `${opts.failureToastPrefix} — ${firstLine(err)}`,
       duration: null,
+      actions: [
+        {
+          label: "See details",
+          onclick: () => openTasksPopover(detailId),
+        },
+      ],
     });
     throw err;
   }

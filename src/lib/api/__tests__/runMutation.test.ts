@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   createAdhoc: vi.fn<(kind: string, err: unknown) => string>().mockReturnValue(
     "adhoc-1",
   ),
+  openTasksPopover: vi.fn<(id?: string) => void>(),
 }));
 
 vi.mock("$lib/stores/toast", () => ({ addToast: mocks.addToast }));
@@ -39,15 +40,19 @@ vi.mock("$lib/stores/taskRunner", () => ({
     createAdhoc: mocks.createAdhoc,
   },
 }));
+vi.mock("$lib/stores/tasksPopover", () => ({
+  openTasksPopover: mocks.openTasksPopover,
+}));
 
 import { runMutation } from "../runMutation";
-const { addToast, begin, complete, createAdhoc } = mocks;
+const { addToast, begin, complete, createAdhoc, openTasksPopover } = mocks;
 
 beforeEach(() => {
   addToast.mockReset();
   begin.mockReset().mockReturnValue("task-1");
   complete.mockReset();
   createAdhoc.mockReset().mockReturnValue("adhoc-1");
+  openTasksPopover.mockReset();
 });
 
 describe("runMutation", () => {
@@ -82,6 +87,16 @@ describe("runMutation", () => {
         duration: null,
       }),
     );
+    // Sticky error toasts carry the "See details" escalation action.
+    const toastCall = addToast.mock.calls[0]?.[0] as
+      | { actions?: Array<{ label: string; onclick: () => void }> }
+      | undefined;
+    expect(toastCall?.actions).toHaveLength(1);
+    expect(toastCall?.actions?.[0]?.label).toBe("See details");
+    // Invoking the action opens the popover pre-selected on the ad-hoc
+    // error entry the failure path just created.
+    toastCall?.actions?.[0]?.onclick();
+    expect(openTasksPopover).toHaveBeenCalledWith("adhoc-1");
   });
 
   it("skips success toast when omitted (silent-set)", async () => {
@@ -117,5 +132,27 @@ describe("runMutation", () => {
       }),
     ).rejects.toBe(err);
     expect(createAdhoc).toHaveBeenCalledWith("commit", err);
+  });
+
+  it("routes the See details action to the tracked task id", async () => {
+    const err = new Error("fetch blew up");
+    await expect(
+      runMutation({
+        kind: "fetch",
+        invoke: async () => {
+          throw err;
+        },
+        failureToastPrefix: "Fetch failed",
+        trackAsTask: true,
+      }),
+    ).rejects.toBe(err);
+    const toastCall = addToast.mock.calls[0]?.[0] as
+      | { actions?: Array<{ label: string; onclick: () => void }> }
+      | undefined;
+    toastCall?.actions?.[0]?.onclick();
+    // Tracked failures route to the task id returned by `begin`, not a
+    // fresh ad-hoc record — the Tasks popover has one canonical row.
+    expect(openTasksPopover).toHaveBeenCalledWith("task-1");
+    expect(createAdhoc).not.toHaveBeenCalled();
   });
 });

@@ -133,6 +133,7 @@
       </button>
       <button
         class="toolbar-btn action-btn"
+        data-testid="push-button"
         disabled={pushInProgress || !$repoInfo?.head_branch}
         title={m.toolbar_push()}
         onclick={handlePush}

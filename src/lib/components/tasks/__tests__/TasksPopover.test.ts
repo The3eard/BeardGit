@@ -46,9 +46,17 @@ vi.mock("$lib/stores/tasks", () => ({
   cancelTaskById: (id: string) => mocks.cancelTaskByIdMock(id),
 }));
 
-vi.mock("$lib/stores/tasksPopover", () => ({
-  closeTasksPopover: vi.fn(),
-}));
+vi.mock("$lib/stores/tasksPopover", async () => {
+  const { writable } = await import("svelte/store");
+  return {
+    closeTasksPopover: vi.fn(),
+    // `TasksPopover` reads this store in its open-transition effect to
+    // pre-select a detail row (drives the toast "See details" flow).
+    // Tests here don't exercise pre-select, so expose a neutral store
+    // pinned to `null`.
+    tasksPopoverPendingDetail: writable<string | null>(null),
+  };
+});
 
 function makeEntry(over: Partial<TaskEntry> = {}): TaskEntry {
   return {

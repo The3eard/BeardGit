@@ -31,7 +31,11 @@
     cancelTaskById,
     markSeen,
   } from "$lib/stores/tasks";
-  import { closeTasksPopover } from "$lib/stores/tasksPopover";
+  import {
+    closeTasksPopover,
+    tasksPopoverPendingDetail,
+  } from "$lib/stores/tasksPopover";
+  import { get } from "svelte/store";
   import type { TaskEntry, TaskAction } from "$lib/types/tasks";
   import TaskEntryRow from "./TaskEntryRow.svelte";
   import TaskDetailPanel from "./TaskDetailPanel.svelte";
@@ -109,6 +113,15 @@
   $effect(() => {
     if (open) {
       markSeen();
+      // Pre-select a detail row when an opener passed a target id via
+      // `tasksPopoverPendingDetail` (e.g. the toast "See details"
+      // failure-escalation action). We consume+clear the pending id
+      // so the next open starts in list mode unless re-set.
+      const pending = get(tasksPopoverPendingDetail);
+      if (pending !== null) {
+        detailId = pending;
+        tasksPopoverPendingDetail.set(null);
+      }
       ready = false;
       void tick().then(() => {
         // Only flip `ready` true if the popover is still open — a
