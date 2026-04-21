@@ -36,6 +36,13 @@
   let detail = $derived($releaseDetail);
   let isGitHub = $derived($activeProvider?.kind === "github");
   let canPublish = $derived(isGitHub && detail?.summary.state === "draft");
+  // An "empty" release has no notes and no assets. We still render the
+  // assets table + upload zone so the user can seed a blank release;
+  // only the body section swaps to a neutral empty-state string instead
+  // of a lonely em-dash.
+  let isReleaseEmpty = $derived(
+    !detail?.body?.trim() && (detail?.assets?.length ?? 0) === 0,
+  );
 
   function formatSize(bytes: number): string {
     if (!bytes) return "—";
@@ -180,6 +187,10 @@
     <section class="body">
       {#if detail.body}
         <Xrefs text={detail.body} render={renderMarkdown} />
+      {:else if isReleaseEmpty}
+        <p class="empty-body">
+          {m.release_empty_blank({ tag: detail.summary.tag })}
+        </p>
       {:else}
         <p class="muted">—</p>
       {/if}
@@ -322,6 +333,12 @@
   .muted {
     color: var(--text-secondary);
     font-size: 12px;
+  }
+  .empty-body {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-style: italic;
   }
   .assets-header {
     display: flex;

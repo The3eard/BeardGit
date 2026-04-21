@@ -403,28 +403,32 @@
 
     <div class="section">
       <h4 class="section-title">{m.mrpr_changed_files({ count: $mrPrDiffFiles.length.toString() })}</h4>
-      <div class="file-list">
-        {#each $mrPrDiffFiles as file (file.path)}
-          <div class="file-row">
-            <span
-              class="file-status"
-              class:added={file.status === "added"}
-              class:deleted={file.status === "deleted"}
-            >
-              {file.status === "added"
-                ? "A"
-                : file.status === "deleted"
-                  ? "D"
-                  : file.status === "renamed"
-                    ? "R"
-                    : "M"}
-            </span>
-            <span class="file-path">{file.path}</span>
-            <span class="file-adds">+{file.additions}</span>
-            <span class="file-dels">-{file.deletions}</span>
-          </div>
-        {/each}
-      </div>
+      {#if $mrPrDiffFiles.length === 0}
+        <p class="empty-section">{m.mrpr_empty_no_changes()}</p>
+      {:else}
+        <div class="file-list">
+          {#each $mrPrDiffFiles as file (file.path)}
+            <div class="file-row">
+              <span
+                class="file-status"
+                class:added={file.status === "added"}
+                class:deleted={file.status === "deleted"}
+              >
+                {file.status === "added"
+                  ? "A"
+                  : file.status === "deleted"
+                    ? "D"
+                    : file.status === "renamed"
+                      ? "R"
+                      : "M"}
+              </span>
+              <span class="file-path">{file.path}</span>
+              <span class="file-adds">+{file.additions}</span>
+              <span class="file-dels">-{file.deletions}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     {#if detail.comments.length > 0}
@@ -873,6 +877,13 @@
 
   .file-list {
     font-size: 12px;
+  }
+
+  .empty-section {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-style: italic;
   }
 
   .file-row {
