@@ -2,8 +2,9 @@
 
 use std::sync::Arc;
 
+use mutation_events::MutationKind;
 use task_runner::{TaskId, TaskManager};
-use tauri::State;
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
@@ -58,56 +59,75 @@ pub async fn search_tags(
 /// - If `message` is provided and non-empty, creates an annotated tag.
 /// - Otherwise creates a lightweight tag.
 /// - If `target` is empty, tags HEAD.
+///
+/// Wraps the work inside a [`MutationGuard`][mutation_events::MutationGuard]
+/// scope so that on success a `project-mutated` event with
+/// [`MutationKind::TagCreate`] is emitted.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::tag::create")]
+#[instrument(skip(state, app), name = "cmd::tag::create")]
 pub async fn create_tag(
     name: String,
     target: String,
     message: Option<String>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let msg = message.as_deref().filter(|m| !m.is_empty());
-        let result = if target.is_empty() {
-            repo.create_tag(&name, msg).map_err(|e| e.to_string())?
-        } else {
-            match msg {
-                Some(m) => repo
-                    .git_cmd(&["tag", "-a", &name, &target, "-m", m])
-                    .map_err(|e| e.to_string())?,
-                None => repo
-                    .git_cmd(&["tag", &name, &target])
-                    .map_err(|e| e.to_string())?,
+    with_mutation_guard_async(&state, &app, MutationKind::TagCreate, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let msg = message.as_deref().filter(|m| !m.is_empty());
+            let result = if target.is_empty() {
+                repo.create_tag(&name, msg).map_err(|e| e.to_string())?
+            } else {
+                match msg {
+                    Some(m) => repo
+                        .git_cmd(&["tag", "-a", &name, &target, "-m", m])
+                        .map_err(|e| e.to_string())?,
+                    None => repo
+                        .git_cmd(&["tag", &name, &target])
+                        .map_err(|e| e.to_string())?,
+                }
+            };
+            if result.success {
+                Ok(())
+            } else {
+                Err(result.stderr)
             }
-        };
-        if result.success {
-            Ok(())
-        } else {
-            Err(result.stderr)
-        }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Delete a local tag by name.
+///
+/// Wraps the work inside a [`MutationGuard`][mutation_events::MutationGuard]
+/// scope so that on success a `project-mutated` event with
+/// [`MutationKind::TagDelete`] is emitted.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::tag::delete")]
-pub async fn delete_tag(name: String, state: State<'_, AppState>) -> Result<(), String> {
+#[instrument(skip(state, app), name = "cmd::tag::delete")]
+pub async fn delete_tag(
+    name: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let result = repo.delete_tag(&name).map_err(|e| e.to_string())?;
-        if result.success {
-            Ok(())
-        } else {
-            Err(result.stderr)
-        }
+    with_mutation_guard_async(&state, &app, MutationKind::TagDelete, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let result = repo.delete_tag(&name).map_err(|e| e.to_string())?;
+            if result.success {
+                Ok(())
+            } else {
+                Err(result.stderr)
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Push a tag to a remote as a background task.
