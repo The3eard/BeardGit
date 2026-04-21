@@ -80,4 +80,17 @@ describe("AiSettings provider icon", () => {
       "open_code icon",
     ]);
   });
+
+  // Spec 4 Phase 6 — the providers Card no longer carries a broken-glyph
+  // refresh button in its `actions` snippet. Detection re-runs on mount
+  // so the button is redundant; its `\uF021` glyph was also missing from
+  // the shipped Nerd Font, rendering a blank square.
+  it("does not render any button in the providers Card `actions` slot", async () => {
+    const { container } = render(AiSettings);
+    await tick();
+    const actionButtons = container.querySelectorAll(
+      ".bg-card__actions button",
+    );
+    expect(actionButtons.length).toBe(0);
+  });
 });
