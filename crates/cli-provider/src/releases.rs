@@ -387,6 +387,32 @@ mod tests {
     }
 
     #[test]
+    fn parses_gh_release_view_with_null_body() {
+        // Regression test for the "release blank pane" bug: `gh release
+        // view --json body,…` emits `"body": null` when the release was
+        // created with empty notes. `#[serde(default)]` alone rejects
+        // explicit null and fails the whole payload, so the detail pane
+        // rendered blank. With `null_as_default`, null must degrade to
+        // an empty string and the rest of the payload must parse.
+        let json = include_str!("../tests/fixtures/gh_release_view_null_body.json");
+        let detail = parse_gh_release_detail(json).unwrap();
+        assert_eq!(detail.body, "");
+        assert_eq!(detail.summary.tag, "v0.1.8");
+        assert_eq!(detail.assets.len(), 1);
+    }
+
+    #[test]
+    fn parses_gh_release_view_with_null_assets() {
+        // Same story for `"assets": null` — must degrade to an empty
+        // `Vec<ReleaseAsset>` instead of failing the whole parse.
+        let json = include_str!("../tests/fixtures/gh_release_view_null_assets.json");
+        let detail = parse_gh_release_detail(json).unwrap();
+        assert!(detail.assets.is_empty());
+        assert_eq!(detail.summary.asset_count, 0);
+        assert_eq!(detail.summary.tag, "v0.1.8");
+    }
+
+    #[test]
     fn gh_draft_release_maps_to_draft_state() {
         let json = r#"[{"tagName":"v1","name":"","isDraft":true,"isPrerelease":false,"publishedAt":null,"createdAt":"","author":{"login":"a"},"url":""}]"#;
         let r = parse_gh_releases(json).unwrap();
