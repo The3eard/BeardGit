@@ -1,0 +1,17 @@
+[package]
+name = "mutation-events"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+git-engine = { path = "../git-engine" }
+git2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { version = "2", features = [] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+git-engine = { path = "../git-engine", features = ["test-support"] }
+tempfile = "3"

@@ -16,6 +16,7 @@ members = [
     "crates/ai-provider",
     "crates/claude-code",
     "crates/codex",
+    "crates/mutation-events",
     "crates/opencode",
     "src-tauri",
 ]
