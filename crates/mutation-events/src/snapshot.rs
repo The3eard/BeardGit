@@ -40,11 +40,9 @@ pub struct Snapshot {
 impl Snapshot {
     /// Capture a snapshot of the repository rooted at `path`.
     pub fn capture(path: &Path) -> Result<Self, SnapshotError> {
-        let repo = git2::Repository::open(path).map_err(|source| {
-            SnapshotError::OpenRepo {
-                path: path.display().to_string(),
-                source,
-            }
+        let repo = git2::Repository::open(path).map_err(|source| SnapshotError::OpenRepo {
+            path: path.display().to_string(),
+            source,
         })?;
 
         let head_oid = match repo.head() {
@@ -77,7 +75,9 @@ impl Snapshot {
             .collect();
 
         let mut status_opts = git2::StatusOptions::new();
-        status_opts.include_untracked(true).recurse_untracked_dirs(false);
+        status_opts
+            .include_untracked(true)
+            .recurse_untracked_dirs(false);
         let status_dirty = !repo.statuses(Some(&mut status_opts))?.is_empty();
 
         Ok(Self {

@@ -19,7 +19,7 @@ mod guard;
 mod kind;
 mod snapshot;
 
-pub use emit::{emit_mutation, EmitError};
+pub use emit::{EmitError, emit_mutation};
 pub use flags::MutationFlags;
 pub use guard::{GuardError, MutationGuard};
 pub use kind::{AiSource, MutationKind};

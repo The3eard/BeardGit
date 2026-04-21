@@ -16,10 +16,10 @@ mod ai_sessions;
 pub use ai_config::{AiConfigChange, AiConfigWatcher, ConfigChangeScope};
 pub use ai_sessions::AiSessionWatcher;
 
-use mutation_events::{emit_mutation, MutationKind, Snapshot};
+use mutation_events::{MutationKind, Snapshot, emit_mutation};
 use notify_debouncer_mini::new_debouncer;
 use std::path::PathBuf;
-use std::sync::{mpsc, Mutex};
+use std::sync::{Mutex, mpsc};
 use std::time::Duration;
 use tauri::AppHandle;
 
