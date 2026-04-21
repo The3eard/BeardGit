@@ -107,3 +107,47 @@ describe("IntegrationsSettings — howto hoist (Phase 7.2)", () => {
     expect(parentCard).toBeNull();
   });
 });
+
+describe("IntegrationsSettings — unified Connections section (Phase 8)", () => {
+  it("renders exactly one .bg-card on the page (howto is not a card)", async () => {
+    const { container } = render(IntegrationsSettings);
+    await tick();
+
+    const cards = container.querySelectorAll(".bg-card");
+    expect(cards.length).toBe(1);
+  });
+
+  it("renders four rows — github, gitlab, gh, glab — each with testid", async () => {
+    const { container } = render(IntegrationsSettings);
+    await tick();
+
+    for (const kind of ["github", "gitlab", "gh", "glab"]) {
+      const row = container.querySelector(
+        `[data-testid="integrations-row-${kind}"]`,
+      );
+      expect(row, `row integrations-row-${kind} missing`).not.toBeNull();
+    }
+  });
+
+  it("each row contains a name, status label, and single action button", async () => {
+    const { container } = render(IntegrationsSettings);
+    await tick();
+
+    for (const kind of ["github", "gitlab", "gh", "glab"]) {
+      const row = container.querySelector(
+        `[data-testid="integrations-row-${kind}"]`,
+      )!;
+      expect(
+        row.querySelector('[data-role="name"]'),
+        `row ${kind} name`,
+      ).not.toBeNull();
+      expect(
+        row.querySelector('[data-role="status"]'),
+        `row ${kind} status`,
+      ).not.toBeNull();
+
+      const buttons = row.querySelectorAll('[data-role="action"] button');
+      expect(buttons.length, `row ${kind} action button count`).toBe(1);
+    }
+  });
+});
