@@ -5,11 +5,53 @@
 //! map it into the shared [`forge_provider::Release`] / [`ReleaseAsset`] /
 //! [`ReleaseDetail`] types. argv builders are pure functions so the command
 //! shape can be unit-tested without spawning subprocesses.
+//
+// DIAGNOSIS 2026-04-21 — "release blank pane" bug
+// ------------------------------------------------
+// Symptom: some releases render a blank detail pane in the UI.
+// Root cause: GitHub returns `"body": null` (and occasionally
+// `"assets": null`) for releases where the notes/assets fields were
+// left empty by `gh release create --notes ''` or similar flows.
+//
+// The current `parse_gh_release_detail` relies on `#[serde(default)]`
+// on `body: String` / `assets: Vec<GhAssetRow>`. `#[serde(default)]`
+// only substitutes a default when the KEY IS MISSING — it does NOT
+// accept an explicit JSON `null` value and fails the whole payload
+// with a serde decode error. That error surfaces as
+// `ForgeError::Cli`; the frontend's catch clears `releaseDetail` to
+// null, producing the blank pane.
+//
+// Fix path (upcoming phases): introduce a `null_as_default` custom
+// deserializer that treats both missing keys AND explicit `null` as
+// the `Default::default()` value, and apply it to the affected
+// fields (`body`, `assets`, and any other String/Vec fields that
+// GitHub may emit as null).
 
 use forge_provider::{
     CreateReleaseInput, EditReleasePatch, Release, ReleaseAsset, ReleaseDetail, ReleaseState,
 };
 use serde::Deserialize;
+
+/// Serde deserializer that maps JSON `null` to the type's `Default` value.
+///
+/// `gh release view --json body,assets` emits `null` (not an empty
+/// string / empty array) when those fields were never set at release
+/// creation time — same story for `glab release view -F json` on
+/// `description` / `assets`. Plain `#[serde(default)]` only substitutes
+/// a default when the KEY IS MISSING; it does not accept explicit null
+/// and fails the whole payload, which surfaced as a blank release
+/// detail pane in the UI.
+///
+/// Pair with `#[serde(default, deserialize_with = "null_as_default")]`
+/// so both shapes — missing key AND explicit null — degrade to
+/// `Default::default()`.
+fn null_as_default<'de, D, T>(d: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Default + serde::Deserialize<'de>,
+{
+    Ok(Option::<T>::deserialize(d)?.unwrap_or_default())
+}
 
 // ─── GitHub (gh) ────────────────────────────────────────────────────────────
 
@@ -41,13 +83,18 @@ struct GhAuthor {
 }
 
 /// Row from `gh release view --json ...` (summary + body + assets).
+///
+/// `body` and `assets` use `null_as_default` so releases created with
+/// `gh release create --notes ''` (which stores `null`, not `""`) still
+/// parse cleanly. Without this the whole payload fails to deserialize
+/// and the UI renders a blank detail pane.
 #[derive(Debug, Deserialize)]
 struct GhReleaseDetailRow {
     #[serde(flatten)]
     summary: GhReleaseRow,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     body: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     assets: Vec<GhAssetRow>,
 }
 
@@ -202,11 +249,11 @@ pub fn build_glab_upload_args(tag: &str, file: &str, _label: Option<&str>) -> Ve
 #[derive(Debug, Deserialize)]
 struct GlabReleaseRow {
     tag_name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     description: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     created_at: String,
     released_at: Option<String>,
     #[serde(default)]
@@ -215,7 +262,7 @@ struct GlabReleaseRow {
     author: GlabAuthor,
     #[serde(default, rename = "_links")]
     links: GlabLinks,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     assets: GlabAssets,
 }
 
@@ -235,7 +282,7 @@ struct GlabLinks {
 struct GlabAssets {
     #[serde(default)]
     count: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     links: Vec<GlabAssetLink>,
 }
 
@@ -363,6 +410,32 @@ mod tests {
         assert_eq!(detail.assets.len(), 1);
         assert_eq!(detail.assets[0].name, "beardgit-mac-arm64.dmg");
         assert_eq!(detail.summary.asset_count, 1);
+    }
+
+    #[test]
+    fn parses_gh_release_view_with_null_body() {
+        // Regression test for the "release blank pane" bug: `gh release
+        // view --json body,…` emits `"body": null` when the release was
+        // created with empty notes. `#[serde(default)]` alone rejects
+        // explicit null and fails the whole payload, so the detail pane
+        // rendered blank. With `null_as_default`, null must degrade to
+        // an empty string and the rest of the payload must parse.
+        let json = include_str!("../tests/fixtures/gh_release_view_null_body.json");
+        let detail = parse_gh_release_detail(json).unwrap();
+        assert_eq!(detail.body, "");
+        assert_eq!(detail.summary.tag, "v0.1.8");
+        assert_eq!(detail.assets.len(), 1);
+    }
+
+    #[test]
+    fn parses_gh_release_view_with_null_assets() {
+        // Same story for `"assets": null` — must degrade to an empty
+        // `Vec<ReleaseAsset>` instead of failing the whole parse.
+        let json = include_str!("../tests/fixtures/gh_release_view_null_assets.json");
+        let detail = parse_gh_release_detail(json).unwrap();
+        assert!(detail.assets.is_empty());
+        assert_eq!(detail.summary.asset_count, 0);
+        assert_eq!(detail.summary.tag, "v0.1.8");
     }
 
     #[test]

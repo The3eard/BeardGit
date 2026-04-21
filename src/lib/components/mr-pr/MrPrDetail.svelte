@@ -8,7 +8,10 @@
   import {
     mrPrDetail,
     mrPrDetailLoading,
+    mrPrDetailError,
     mrPrDiffFiles,
+    selectedMrPrNumber,
+    loadMrPrDetail,
     mergeMrPr,
     closeMrPr,
     approveMrPr,
@@ -28,6 +31,7 @@
     repoLabelsLoading,
     loadRepoLabels,
   } from "../../stores/mr-pr";
+  import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
   import { activeProvider } from "../../stores/provider";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { listen } from "@tauri-apps/api/event";
@@ -268,13 +272,20 @@
 
 <svelte:window onclick={handleWindowClick} />
 
-{#if $mrPrDetailLoading}
-  <div class="detail-empty">{m.mrpr_loading()}</div>
-{:else if !$mrPrDetail}
-  <div class="detail-empty">{selectMessage}</div>
-{:else}
-  {@const detail = $mrPrDetail}
-  <div class="mrpr-detail">
+<ForgeDetailShell
+  loading={$mrPrDetailLoading}
+  error={$mrPrDetailError}
+  isEmpty={!$mrPrDetail && !$mrPrDetailLoading && !$mrPrDetailError}
+  emptyMessage={selectMessage}
+  onRetry={() => {
+    const n = $selectedMrPrNumber;
+    if (n !== null) void loadMrPrDetail(n);
+  }}
+>
+  {#snippet content()}
+    {#if $mrPrDetail}
+      {@const detail = $mrPrDetail}
+      <div class="mrpr-detail">
     <div class="detail-header">
       <h3 class="detail-title">
         <span class="detail-number">#{detail.summary.number}</span>
@@ -392,28 +403,32 @@
 
     <div class="section">
       <h4 class="section-title">{m.mrpr_changed_files({ count: $mrPrDiffFiles.length.toString() })}</h4>
-      <div class="file-list">
-        {#each $mrPrDiffFiles as file (file.path)}
-          <div class="file-row">
-            <span
-              class="file-status"
-              class:added={file.status === "added"}
-              class:deleted={file.status === "deleted"}
-            >
-              {file.status === "added"
-                ? "A"
-                : file.status === "deleted"
-                  ? "D"
-                  : file.status === "renamed"
-                    ? "R"
-                    : "M"}
-            </span>
-            <span class="file-path">{file.path}</span>
-            <span class="file-adds">+{file.additions}</span>
-            <span class="file-dels">-{file.deletions}</span>
-          </div>
-        {/each}
-      </div>
+      {#if $mrPrDiffFiles.length === 0}
+        <p class="empty-section">{m.mrpr_empty_no_changes()}</p>
+      {:else}
+        <div class="file-list">
+          {#each $mrPrDiffFiles as file (file.path)}
+            <div class="file-row">
+              <span
+                class="file-status"
+                class:added={file.status === "added"}
+                class:deleted={file.status === "deleted"}
+              >
+                {file.status === "added"
+                  ? "A"
+                  : file.status === "deleted"
+                    ? "D"
+                    : file.status === "renamed"
+                      ? "R"
+                      : "M"}
+              </span>
+              <span class="file-path">{file.path}</span>
+              <span class="file-adds">+{file.additions}</span>
+              <span class="file-dels">-{file.deletions}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     {#if detail.comments.length > 0}
@@ -477,7 +492,9 @@
       </div>
     {/if}
   </div>
-{/if}
+    {/if}
+  {/snippet}
+</ForgeDetailShell>
 
 {#if showMergeConfirm && $mrPrDetail}
   <ConfirmDialog
@@ -549,15 +566,11 @@
 {/if}
 
 <style>
-  .detail-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
-
+  /*
+   * `.detail-empty` used to live here for the legacy loading/empty
+   * states — those are now owned by `ForgeDetailShell`, so the class
+   * was removed to avoid "unused selector" noise.
+   */
   .mrpr-detail {
     padding: 16px;
     overflow-y: auto;
@@ -864,6 +877,13 @@
 
   .file-list {
     font-size: 12px;
+  }
+
+  .empty-section {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-style: italic;
   }
 
   .file-row {

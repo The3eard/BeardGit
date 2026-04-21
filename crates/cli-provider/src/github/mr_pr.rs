@@ -3,6 +3,8 @@
 //! Covers list / get / diff / create / edit / merge / close / approve /
 //! request-changes / add-comment / add-inline-comment.
 
+use std::time::Duration;
+
 use forge_provider::{
     Comment, CreateMrPrInput, EditMrPrPatch, ForgeError, MergeStrategy, MrPr, MrPrDetail,
     MrPrDiffFile, MrPrFilter, ReviewStatus,
@@ -61,22 +63,15 @@ impl GitHubCli {
     }
 
     pub(super) fn get_mr_pr_diff_impl(&self, number: u64) -> Result<Vec<MrPrDiffFile>, ForgeError> {
-        let files: Vec<serde_json::Value> = self.run_json(&[
-            "api",
-            &format!("repos/{{owner}}/{{repo}}/pulls/{number}/files"),
-            "--paginate",
-        ])?;
-        Ok(files
-            .iter()
-            .map(|f| MrPrDiffFile {
-                path: f["filename"].as_str().unwrap_or("").to_string(),
-                old_path: f["previous_filename"].as_str().map(|s| s.to_string()),
-                status: f["status"].as_str().unwrap_or("modified").to_string(),
-                additions: f["additions"].as_u64().unwrap_or(0),
-                deletions: f["deletions"].as_u64().unwrap_or(0),
-                patch: f["patch"].as_str().map(|s| s.to_string()),
-            })
-            .collect())
+        let stdout = self.run_with_timeout(
+            &[
+                "api",
+                &format!("repos/{{owner}}/{{repo}}/pulls/{number}/files"),
+                "--paginate",
+            ],
+            DIFF_FETCH_TIMEOUT,
+        )?;
+        parse_diff_files(&stdout, MAX_DIFF_PAYLOAD_BYTES)
     }
 
     pub(super) fn create_mr_pr_impl(&self, input: CreateMrPrInput) -> Result<MrPr, ForgeError> {
@@ -204,6 +199,59 @@ impl GitHubCli {
     }
 }
 
+// ─── diff parsing ───────────────────────────────────────────────────────
+
+/// Upper bound on the JSON payload returned by `gh api
+/// repos/…/pulls/{n}/files --paginate`.
+///
+/// GitHub can return a few thousand file entries for large PRs (e.g.
+/// vendored dependency bumps), which has caused multi-minute hangs in
+/// `serde_json::from_str` on the Rust side. 50 MB is well above every
+/// real-world PR we've observed while keeping worst-case parse time
+/// bounded.
+pub(crate) const MAX_DIFF_PAYLOAD_BYTES: usize = 50 * 1024 * 1024;
+
+/// Wall-clock cap for the `gh api … /pulls/{n}/files --paginate` call.
+///
+/// The frontend applies a 15 s `withTimeout` cap on the Tauri invoke;
+/// this slightly-larger budget lets Rust emit a clean
+/// `ForgeError::Cli("command timed out …")` rather than the frontend
+/// abandoning a still-running child.
+const DIFF_FETCH_TIMEOUT: Duration = Duration::from_secs(20);
+
+/// Parse stdout from `gh api repos/…/pulls/{n}/files --paginate` into a
+/// list of [`MrPrDiffFile`]s.
+///
+/// Short-circuits with `ForgeError::Cli("diff payload too large …")` if
+/// the payload exceeds `max_bytes`, so the UI surfaces a clear error
+/// rather than sitting on an unbounded parse. `max_bytes` is passed in
+/// (instead of always using [`MAX_DIFF_PAYLOAD_BYTES`]) so tests can
+/// exercise the size guard with tiny fixtures.
+pub(crate) fn parse_diff_files(
+    stdout: &str,
+    max_bytes: usize,
+) -> Result<Vec<MrPrDiffFile>, ForgeError> {
+    if stdout.len() > max_bytes {
+        return Err(ForgeError::Cli(format!(
+            "diff payload too large ({} bytes, cap {max_bytes})",
+            stdout.len()
+        )));
+    }
+    let files: Vec<serde_json::Value> =
+        serde_json::from_str(stdout).map_err(|e| ForgeError::Cli(e.to_string()))?;
+    Ok(files
+        .iter()
+        .map(|f| MrPrDiffFile {
+            path: f["filename"].as_str().unwrap_or("").to_string(),
+            old_path: f["previous_filename"].as_str().map(|s| s.to_string()),
+            status: f["status"].as_str().unwrap_or("modified").to_string(),
+            additions: f["additions"].as_u64().unwrap_or(0),
+            deletions: f["deletions"].as_u64().unwrap_or(0),
+            patch: f["patch"].as_str().map(|s| s.to_string()),
+        })
+        .collect())
+}
+
 // ─── argv builders ──────────────────────────────────────────────────────
 
 /// Build argv for `gh pr list` from an [`MrPrFilter`] + limit.
@@ -246,7 +294,69 @@ pub(crate) fn build_gh_mr_pr_list_args(filter: &MrPrFilter, limit: u32) -> Vec<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use forge_provider::MrPrState;
+    use forge_provider::{ForgeError, MrPrState};
+
+    #[test]
+    fn parse_diff_files_rejects_payload_above_cap() {
+        // Simulate an oversized `gh api .../files --paginate` response: a
+        // valid JSON array whose serialized form exceeds the cap we pass
+        // in. `parse_diff_files` must bail with `ForgeError::Cli` carrying
+        // the phrase "too large" rather than attempt to deserialize.
+        let big_payload = format!("[{}]", "\"x\",".repeat(100).trim_end_matches(','));
+        let cap = 16;
+        assert!(big_payload.len() > cap);
+        let err = parse_diff_files(&big_payload, cap).expect_err("must reject oversized payload");
+        match err {
+            ForgeError::Cli(msg) => assert!(
+                msg.contains("too large"),
+                "error message should mention 'too large', got: {msg}"
+            ),
+            other => panic!("expected ForgeError::Cli, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_diff_files_parses_small_payload() {
+        let json = r#"[
+            {
+                "filename": "src/lib.rs",
+                "status": "modified",
+                "additions": 5,
+                "deletions": 2,
+                "patch": "@@ -1 +1 @@"
+            }
+        ]"#;
+        let files = parse_diff_files(json, 10 * 1024).expect("must parse");
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/lib.rs");
+        assert_eq!(files[0].status, "modified");
+        assert_eq!(files[0].additions, 5);
+        assert_eq!(files[0].deletions, 2);
+        assert_eq!(files[0].patch.as_deref(), Some("@@ -1 +1 @@"));
+        assert!(files[0].old_path.is_none());
+    }
+
+    #[test]
+    fn parse_diff_files_captures_previous_filename_for_renames() {
+        let json = r#"[
+            {
+                "filename": "new.rs",
+                "previous_filename": "old.rs",
+                "status": "renamed",
+                "additions": 0,
+                "deletions": 0
+            }
+        ]"#;
+        let files = parse_diff_files(json, 10 * 1024).expect("must parse");
+        assert_eq!(files[0].old_path.as_deref(), Some("old.rs"));
+        assert!(files[0].patch.is_none());
+    }
+
+    #[test]
+    fn parse_diff_files_rejects_invalid_json() {
+        let err = parse_diff_files("{not json}", 10 * 1024).expect_err("must fail");
+        assert!(matches!(err, ForgeError::Cli(_)));
+    }
 
     #[test]
     fn build_gh_mr_pr_list_args_default_requests_all_states() {

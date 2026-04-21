@@ -10,5 +10,6 @@ description = "CLI-based provider operations for gh and glab"
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+wait-timeout = "0.2"
 provider = { path = "../provider" }
 forge-provider = { path = "../forge-provider" }

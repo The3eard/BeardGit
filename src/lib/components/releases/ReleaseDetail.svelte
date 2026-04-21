@@ -8,7 +8,9 @@
   import {
     releaseDetail,
     releaseDetailLoading,
+    releaseDetailError,
     selectedReleaseTag,
+    selectRelease,
     doDeleteRelease,
     doPublishRelease,
     doUploadAsset,
@@ -16,6 +18,7 @@
     refreshSelectedDetail,
     completeUpload,
   } from "../../stores/releases";
+  import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
   import { activeProvider } from "../../stores/provider";
   import { renderMarkdown } from "../../utils/markdown";
   import { formatRelativeTime } from "../../utils/time";
@@ -33,6 +36,13 @@
   let detail = $derived($releaseDetail);
   let isGitHub = $derived($activeProvider?.kind === "github");
   let canPublish = $derived(isGitHub && detail?.summary.state === "draft");
+  // An "empty" release has no notes and no assets. We still render the
+  // assets table + upload zone so the user can seed a blank release;
+  // only the body section swaps to a neutral empty-state string instead
+  // of a lonely em-dash.
+  let isReleaseEmpty = $derived(
+    !detail?.body?.trim() && (detail?.assets?.length ?? 0) === 0,
+  );
 
   function formatSize(bytes: number): string {
     if (!bytes) return "—";
@@ -136,19 +146,26 @@
   }
 </script>
 
-{#if $releaseDetailLoading && !detail}
-  <div class="loading"><div class="spinner"></div></div>
-{:else if !detail}
-  <div class="empty">{m.release_detail_empty()}</div>
-{:else}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="detail"
-    class:drag-over={dragOver}
-    ondragover={onDragOver}
-    ondragleave={onDragLeave}
-    ondrop={onDrop}
-  >
+<ForgeDetailShell
+  loading={$releaseDetailLoading}
+  error={$releaseDetailError}
+  isEmpty={!detail && !$releaseDetailLoading && !$releaseDetailError}
+  emptyMessage={m.release_detail_empty()}
+  onRetry={() => {
+    const tag = $selectedReleaseTag;
+    if (tag) selectRelease(tag);
+  }}
+>
+  {#snippet content()}
+    {#if detail}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="detail"
+        class:drag-over={dragOver}
+        ondragover={onDragOver}
+        ondragleave={onDragLeave}
+        ondrop={onDrop}
+      >
     <header class="header">
       <span class="badge badge-{detail.summary.state}">
         {stateLabel(detail.summary.state)}
@@ -170,6 +187,10 @@
     <section class="body">
       {#if detail.body}
         <Xrefs text={detail.body} render={renderMarkdown} />
+      {:else if isReleaseEmpty}
+        <p class="empty-body">
+          {m.release_empty_blank({ tag: detail.summary.tag })}
+        </p>
       {:else}
         <p class="muted">—</p>
       {/if}
@@ -249,8 +270,10 @@
     {#if dragOver}
       <div class="drop-hint">{m.release_drop_hint()}</div>
     {/if}
-  </div>
-{/if}
+      </div>
+    {/if}
+  {/snippet}
+</ForgeDetailShell>
 
 <style>
   .detail {
@@ -310,6 +333,12 @@
   .muted {
     color: var(--text-secondary);
     font-size: 12px;
+  }
+  .empty-body {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-style: italic;
   }
   .assets-header {
     display: flex;
@@ -398,27 +427,12 @@
     color: var(--accent-red);
     border-color: var(--accent-red);
   }
-  .loading,
-  .empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-secondary);
-  }
-  .spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent-blue);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
+  /*
+   * Legacy `.loading`, `.empty`, `.spinner` + `@keyframes spin`
+   * lived here for the local loading/empty states. Those states are
+   * now rendered by `ForgeDetailShell`, which owns its own spinner,
+   * so the rules were removed to avoid dead CSS.
+   */
   .badge {
     font-size: 10px;
     padding: 1px 6px;

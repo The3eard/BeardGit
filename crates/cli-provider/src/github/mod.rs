@@ -7,6 +7,7 @@
 //! argv-builder / parser helpers colocated.
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use forge_provider::{
     CheckoutResult, CreateIssueInput, CreateMrPrInput, CreateReleaseInput, EditIssuePatch,
@@ -60,6 +61,17 @@ impl GitHubCli {
         stdin_data: &str,
     ) -> Result<String, ForgeError> {
         runner::run_with_stdin(&self.binary_path, &self.repo_path, args, stdin_data)
+            .map_err(Into::into)
+    }
+
+    /// Run `gh` with a hard wall-clock cap. See [`runner::run_with_timeout`]
+    /// for the kill-on-timeout semantics. Used by the diff fetch path.
+    pub(super) fn run_with_timeout(
+        &self,
+        args: &[&str],
+        timeout: Duration,
+    ) -> Result<String, ForgeError> {
+        runner::run_with_timeout(&self.binary_path, &self.repo_path, args, timeout)
             .map_err(Into::into)
     }
 }
