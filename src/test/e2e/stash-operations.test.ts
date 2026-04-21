@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { get } from "svelte/store";
-import { mockInvokeResponse } from "../setup";
+import { invokeMock, mockInvokeResponse } from "../setup";
 import type { StashEntry, FileDiff } from "$lib/types";
 
 import {
@@ -171,67 +171,65 @@ describe("stash operations workflow", () => {
   });
 
   // ── doStashPush ──────────────────────────────────────────────────────
+  //
+  // Stash-list refresh is now driven by the `project-mutated` event
+  // (see mutations.ts) rather than an inline `loadStashes()` call.
+  // These tests therefore assert the IPC invocation only; the refresh
+  // path is covered by mutations.test.ts.
 
-  it("doStashPush calls stash_push and refreshes list", async () => {
+  it("doStashPush invokes stash_push IPC with the message", async () => {
     mockInvokeResponse("stash_push", "stash{0}");
-    const updated: StashEntry[] = [
-      { index: 0, message: "WIP: new work", branch: "develop", timestamp: 1700002000, oid: "newstash" },
-      ...MOCK_STASHES.map((s) => ({ ...s, index: s.index + 1 })),
-    ];
-    mockInvokeResponse("stash_entries", updated);
 
     await doStashPush("WIP: new work");
 
-    expect(get(stashes)).toHaveLength(3);
-    expect(get(stashes)[0].message).toBe("WIP: new work");
+    const call = invokeMock.mock.calls.find((c) => c[0] === "stash_push");
+    expect(call).toBeDefined();
+    expect(call?.[1]).toEqual({ message: "WIP: new work" });
   });
 
   it("doStashPush accepts null message", async () => {
     mockInvokeResponse("stash_push", "stash{0}");
-    mockInvokeResponse("stash_entries", MOCK_STASHES);
 
     await doStashPush(null);
 
-    expect(get(stashes)).toHaveLength(2);
+    const call = invokeMock.mock.calls.find((c) => c[0] === "stash_push");
+    expect(call?.[1]).toEqual({ message: null });
   });
 
   // ── doStashPop ───────────────────────────────────────────────────────
 
-  it("doStashPop calls stash_pop and refreshes list", async () => {
+  it("doStashPop invokes stash_pop IPC with the index", async () => {
     stashes.set(MOCK_STASHES);
     mockInvokeResponse("stash_pop", "Applied stash{0}");
-    mockInvokeResponse("stash_entries", [MOCK_STASHES[1]]);
 
     await doStashPop(0);
 
-    expect(get(stashes)).toHaveLength(1);
-    expect(get(stashes)[0].index).toBe(1);
+    const call = invokeMock.mock.calls.find((c) => c[0] === "stash_pop");
+    expect(call?.[1]).toEqual({ index: 0 });
   });
 
   // ── doStashApply ──────────────────────────────────────────────────────
 
-  it("doStashApply calls stash_apply and refreshes list", async () => {
+  it("doStashApply invokes stash_apply IPC with the index", async () => {
     stashes.set(MOCK_STASHES);
     mockInvokeResponse("stash_apply", "Applied stash{0}");
-    mockInvokeResponse("stash_entries", MOCK_STASHES); // apply keeps the stash
 
     await doStashApply(0);
 
-    // stash list unchanged (apply doesn't remove)
-    expect(get(stashes)).toHaveLength(2);
+    const call = invokeMock.mock.calls.find((c) => c[0] === "stash_apply");
+    expect(call?.[1]).toEqual({ index: 0 });
   });
 
   // ── doStashDrop ───────────────────────────────────────────────────────
 
-  it("doStashDrop calls stash_drop and refreshes list", async () => {
+  it("doStashDrop invokes stash_drop IPC with the index", async () => {
     stashes.set(MOCK_STASHES);
     mockInvokeResponse("stash_drop", "Dropped stash{1}");
-    mockInvokeResponse("stash_entries", [MOCK_STASHES[0]]);
 
     await doStashDrop(1);
 
-    expect(get(stashes)).toHaveLength(1);
-    expect(get(stashes)[0].index).toBe(0);
+    const call = invokeMock.mock.calls.find((c) => c[0] === "stash_drop");
+    expect(call?.[1]).toEqual({ index: 1 });
   });
 
   // ── clearStashState ───────────────────────────────────────────────────
