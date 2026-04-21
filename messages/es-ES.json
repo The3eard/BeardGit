@@ -791,6 +791,7 @@
   "release_list_empty": "Aún no hay versiones",
   "release_list_empty_description": "Publica una release en tu forge para verla aquí.",
   "release_detail_empty": "Selecciona una versión para ver los detalles",
+  "release_load_failed": "No se pudo cargar la release {tag} — {error}",
   "release_no_provider": "Conecta un proveedor para ver las versiones",
   "release_no_provider_description": "Conecta un token de proveedor en Ajustes para listar releases.",
   "release_new_button": "Nueva versión",

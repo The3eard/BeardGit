@@ -791,6 +791,7 @@
   "release_list_empty": "No releases yet",
   "release_list_empty_description": "Publish a release on your forge to see it here.",
   "release_detail_empty": "Select a release to view details",
+  "release_load_failed": "Failed to load release {tag} — {error}",
   "release_no_provider": "Connect a provider to view releases",
   "release_no_provider_description": "Connect a provider token in Settings to list releases.",
   "release_new_button": "New release",
