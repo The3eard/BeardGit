@@ -37,16 +37,11 @@ vi.mock("../GeneralSettings.svelte", () => ({
       category: "general",
       anchor: "theme",
     },
-  ],
-}));
-vi.mock("../AppearanceSettings.svelte", () => ({
-  default: Stub,
-  settingsIndex: [
     {
-      id: "appearance.density",
+      id: "general.density",
       label: "Density",
       description: "Compact vs comfortable",
-      category: "appearance",
+      category: "general",
       anchor: "density",
     },
   ],
@@ -128,8 +123,9 @@ describe("SettingsPage shell", () => {
 
     const input = getByTestId("bg-search-input") as HTMLInputElement;
 
-    // General provides the "Theme" row, Appearance provides "Density" —
-    // the dropdown surfaces both, proving the aggregation works.
+    // General exposes "Theme" and "Density" rows — the dropdown
+    // surfaces both, proving the aggregation still works after
+    // Appearance was folded into General.
     await fireEvent.input(input, { target: { value: "the" } });
     await tick();
 
@@ -142,7 +138,7 @@ describe("SettingsPage shell", () => {
     await tick();
 
     const densityMatch = document.querySelector(
-      '[data-testid="settings-search-result-appearance.density"]',
+      '[data-testid="settings-search-result-general.density"]',
     );
     expect(densityMatch).not.toBeNull();
   });
@@ -181,7 +177,7 @@ describe("SettingsPage shell", () => {
     await tick();
 
     const button = document.querySelector(
-      '[data-testid="settings-search-result-appearance.density"]',
+      '[data-testid="settings-search-result-general.density"]',
     ) as HTMLButtonElement | null;
     expect(button).not.toBeNull();
 
@@ -189,11 +185,22 @@ describe("SettingsPage shell", () => {
     await tick();
 
     const route = get(settingsRoute);
-    expect(route.category).toBe("appearance");
+    expect(route.category).toBe("general");
     expect(route.anchor).toBe("density");
 
     // Clicking clears the query; the dropdown should no longer list
     // the match row.
     expect(input.value).toBe("");
+  });
+
+  it('legacy "appearance" deep-link falls back to the general category', async () => {
+    render(SettingsPage);
+    await tick();
+
+    pendingSettingsSection.set("appearance");
+    await tick();
+
+    expect(get(settingsRoute).category).toBe("general");
+    expect(get(pendingSettingsSection)).toBeNull();
   });
 });

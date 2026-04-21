@@ -29,8 +29,6 @@ import { pendingSettingsSection } from "./navigation";
 /** Canonical category slugs used by the shell + category components. */
 export const CATEGORY_IDS = [
   "general",
-  "appearance",
-  "editor",
   "git",
   "ai",
   "integrations",
@@ -61,7 +59,9 @@ const LEGACY_SECTION_MAP: Record<string, CategoryId> = {
   ai: "ai",
   integrations: "integrations",
   general: "general",
-  appearance: "appearance",
+  // Appearance tab was folded into General — legacy deep-links land
+  // on the Look & Feel card inside General.
+  appearance: "general",
   editor: "editor",
   advanced: "advanced",
 };
