@@ -246,7 +246,69 @@ pub(crate) fn build_gh_mr_pr_list_args(filter: &MrPrFilter, limit: u32) -> Vec<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use forge_provider::MrPrState;
+    use forge_provider::{ForgeError, MrPrState};
+
+    #[test]
+    fn parse_diff_files_rejects_payload_above_cap() {
+        // Simulate an oversized `gh api .../files --paginate` response: a
+        // valid JSON array whose serialized form exceeds the cap we pass
+        // in. `parse_diff_files` must bail with `ForgeError::Cli` carrying
+        // the phrase "too large" rather than attempt to deserialize.
+        let big_payload = format!("[{}]", "\"x\",".repeat(100).trim_end_matches(','));
+        let cap = 16;
+        assert!(big_payload.len() > cap);
+        let err = parse_diff_files(&big_payload, cap).expect_err("must reject oversized payload");
+        match err {
+            ForgeError::Cli(msg) => assert!(
+                msg.contains("too large"),
+                "error message should mention 'too large', got: {msg}"
+            ),
+            other => panic!("expected ForgeError::Cli, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_diff_files_parses_small_payload() {
+        let json = r#"[
+            {
+                "filename": "src/lib.rs",
+                "status": "modified",
+                "additions": 5,
+                "deletions": 2,
+                "patch": "@@ -1 +1 @@"
+            }
+        ]"#;
+        let files = parse_diff_files(json, 10 * 1024).expect("must parse");
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/lib.rs");
+        assert_eq!(files[0].status, "modified");
+        assert_eq!(files[0].additions, 5);
+        assert_eq!(files[0].deletions, 2);
+        assert_eq!(files[0].patch.as_deref(), Some("@@ -1 +1 @@"));
+        assert!(files[0].old_path.is_none());
+    }
+
+    #[test]
+    fn parse_diff_files_captures_previous_filename_for_renames() {
+        let json = r#"[
+            {
+                "filename": "new.rs",
+                "previous_filename": "old.rs",
+                "status": "renamed",
+                "additions": 0,
+                "deletions": 0
+            }
+        ]"#;
+        let files = parse_diff_files(json, 10 * 1024).expect("must parse");
+        assert_eq!(files[0].old_path.as_deref(), Some("old.rs"));
+        assert!(files[0].patch.is_none());
+    }
+
+    #[test]
+    fn parse_diff_files_rejects_invalid_json() {
+        let err = parse_diff_files("{not json}", 10 * 1024).expect_err("must fail");
+        assert!(matches!(err, ForgeError::Cli(_)));
+    }
 
     #[test]
     fn build_gh_mr_pr_list_args_default_requests_all_states() {
