@@ -19,6 +19,7 @@
   import * as m from "$lib/paraglide/messages";
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
   import BackgroundRunTranscript from "../ai/BackgroundRunTranscript.svelte";
+  import ProviderIcon from "./ProviderIcon.svelte";
   import type { AiSession } from "$lib/types";
 
   let session = $derived($selectedBackgroundSession);
@@ -98,6 +99,7 @@
   <div class="detail">
     <header class="header">
       <div class="title-row">
+        <ProviderIcon provider={session.provider} size={20} />
         <span class="provider">{session.provider.replace("_", " ")}</span>
         <BackgroundRunStatusBadge status={session.background_status} />
       </div>
@@ -147,6 +149,7 @@
   <div class="detail">
     <header class="header">
       <div class="title-row">
+        <ProviderIcon provider={session.provider} size={20} />
         <span class="provider">{session.provider.replace("_", " ")}</span>
       </div>
       <div class="wt-row">
