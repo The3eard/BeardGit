@@ -1,6 +1,7 @@
 //! Stash push, pop, apply, drop, list, and show commands.
 
-use tauri::State;
+use mutation_events::MutationKind;
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
@@ -14,25 +15,29 @@ use crate::state::AppState;
 /// # Returns
 /// The stdout of `git stash push` on success, or stderr as an error.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::stash::push")]
+#[instrument(skip(state, app), name = "cmd::stash::push")]
 pub async fn stash_push(
     message: Option<String>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let result = repo
-            .stash_push(message.as_deref())
-            .map_err(|e| e.to_string())?;
-        if result.success {
-            Ok(result.stdout)
-        } else {
-            Err(result.stderr)
-        }
+    with_mutation_guard_async(&state, &app, MutationKind::Stash, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let result = repo
+                .stash_push(message.as_deref())
+                .map_err(|e| e.to_string())?;
+            if result.success {
+                Ok(result.stdout)
+            } else {
+                Err(result.stderr)
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Pop (apply and drop) a stash entry.
@@ -43,20 +48,27 @@ pub async fn stash_push(
 /// # Returns
 /// The stdout of `git stash pop` on success, or stderr as an error.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::stash::pop")]
-pub async fn stash_pop(index: Option<usize>, state: State<'_, AppState>) -> Result<String, String> {
+#[instrument(skip(state, app), name = "cmd::stash::pop")]
+pub async fn stash_pop(
+    index: Option<usize>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let result = repo.stash_pop(index).map_err(|e| e.to_string())?;
-        if result.success {
-            Ok(result.stdout)
-        } else {
-            Err(result.stderr)
-        }
+    with_mutation_guard_async(&state, &app, MutationKind::StashPop, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let result = repo.stash_pop(index).map_err(|e| e.to_string())?;
+            if result.success {
+                Ok(result.stdout)
+            } else {
+                Err(result.stderr)
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Return a list of stash entry descriptions (one per stash entry).
@@ -81,23 +93,27 @@ pub async fn stash_list(state: State<'_, AppState>) -> Result<Vec<String>, Strin
 /// # Returns
 /// The stdout of `git stash apply` on success, or stderr as an error.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::stash::apply")]
+#[instrument(skip(state, app), name = "cmd::stash::apply")]
 pub async fn stash_apply(
     index: Option<usize>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let result = repo.stash_apply(index).map_err(|e| e.to_string())?;
-        if result.success {
-            Ok(result.stdout)
-        } else {
-            Err(result.stderr)
-        }
+    with_mutation_guard_async(&state, &app, MutationKind::StashPop, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let result = repo.stash_apply(index).map_err(|e| e.to_string())?;
+            if result.success {
+                Ok(result.stdout)
+            } else {
+                Err(result.stderr)
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Restore a single file from a stash entry into the working directory.
@@ -109,26 +125,30 @@ pub async fn stash_apply(
 /// # Returns
 /// The stdout of `git restore` on success, or stderr as an error.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::stash::apply_file")]
+#[instrument(skip(state, app), name = "cmd::stash::apply_file")]
 pub async fn stash_apply_file(
     index: usize,
     path: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let result = repo
-            .stash_apply_file(index, &path)
-            .map_err(|e| e.to_string())?;
-        if result.success {
-            Ok(result.stdout)
-        } else {
-            Err(result.stderr)
-        }
+    with_mutation_guard_async(&state, &app, MutationKind::StashPop, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let result = repo
+                .stash_apply_file(index, &path)
+                .map_err(|e| e.to_string())?;
+            if result.success {
+                Ok(result.stdout)
+            } else {
+                Err(result.stderr)
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Drop a stash entry without applying it.
@@ -139,23 +159,27 @@ pub async fn stash_apply_file(
 /// # Returns
 /// The stdout of `git stash drop` on success, or stderr as an error.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::stash::drop")]
+#[instrument(skip(state, app), name = "cmd::stash::drop")]
 pub async fn stash_drop(
     index: Option<usize>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let result = repo.stash_drop(index).map_err(|e| e.to_string())?;
-        if result.success {
-            Ok(result.stdout)
-        } else {
-            Err(result.stderr)
-        }
+    with_mutation_guard_async(&state, &app, MutationKind::StashDrop, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let result = repo.stash_drop(index).map_err(|e| e.to_string())?;
+            if result.success {
+                Ok(result.stdout)
+            } else {
+                Err(result.stderr)
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Return structured stash entries with parsed metadata.
