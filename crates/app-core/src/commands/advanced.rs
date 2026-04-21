@@ -1,6 +1,7 @@
 //! Advanced git commands: cherry-pick, revert, reset, blame, file history, interactive rebase.
 
-use tauri::State;
+use mutation_events::MutationKind;
+use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
@@ -14,21 +15,27 @@ use crate::state::AppState;
 /// # Returns
 /// The stdout of `git cherry-pick` on success, or stderr as an error.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::advanced::cherry_pick")]
-pub async fn cherry_pick(oid: String, state: State<'_, AppState>) -> Result<String, String> {
+#[instrument(skip(state, app), name = "cmd::advanced::cherry_pick")]
+pub async fn cherry_pick(
+    oid: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let result = repo.cherry_pick(&oid).map_err(|e| e.to_string())?;
-        if result.success {
-            Ok(result.stdout)
-        } else {
-            Err(result.stderr)
-        }
+    with_mutation_guard_async(&state, &app, MutationKind::CherryPick, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let result = repo.cherry_pick(&oid).map_err(|e| e.to_string())?;
+            if result.success {
+                Ok(result.stdout)
+            } else {
+                Err(result.stderr)
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Revert a commit, creating a new commit that undoes its changes.
@@ -39,21 +46,27 @@ pub async fn cherry_pick(oid: String, state: State<'_, AppState>) -> Result<Stri
 /// # Returns
 /// The stdout of `git revert` on success, or stderr as an error.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::advanced::revert")]
-pub async fn revert_commit(oid: String, state: State<'_, AppState>) -> Result<String, String> {
+#[instrument(skip(state, app), name = "cmd::advanced::revert")]
+pub async fn revert_commit(
+    oid: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let result = repo.revert_commit(&oid).map_err(|e| e.to_string())?;
-        if result.success {
-            Ok(result.stdout)
-        } else {
-            Err(result.stderr)
-        }
+    with_mutation_guard_async(&state, &app, MutationKind::Revert, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let result = repo.revert_commit(&oid).map_err(|e| e.to_string())?;
+            if result.success {
+                Ok(result.stdout)
+            } else {
+                Err(result.stderr)
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Reset HEAD to a specific commit.
@@ -66,20 +79,23 @@ pub async fn revert_commit(oid: String, state: State<'_, AppState>) -> Result<St
 /// `Ok(())` on success, or an error string if the mode is invalid or
 /// `git reset` exits with a non-zero status.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::advanced::reset")]
+#[instrument(skip(state, app), name = "cmd::advanced::reset")]
 pub async fn reset_to_commit(
     oid: String,
     mode: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
-
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.reset_to_commit(&oid, &mode).map_err(|e| e.to_string())
+    with_mutation_guard_async(&state, &app, MutationKind::Reset, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            repo.reset_to_commit(&oid, &mode).map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Get per-line blame information for a file, optionally at a specific commit.
@@ -148,20 +164,24 @@ pub async fn get_rebase_commits(
 /// `fixup`, `edit`, `drop`). The todo file is injected via `GIT_SEQUENCE_EDITOR`
 /// so no interactive terminal is required.
 #[tauri::command]
-#[instrument(skip(state, actions), name = "cmd::advanced::interactive_rebase")]
+#[instrument(skip(state, actions, app), name = "cmd::advanced::interactive_rebase")]
 pub async fn start_interactive_rebase(
     base_oid: String,
     actions: Vec<git_engine::RebaseAction>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.start_interactive_rebase(&base_oid, &actions)
-            .map_err(|e| e.to_string())
+    with_mutation_guard_async(&state, &app, MutationKind::Rebase, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            repo.start_interactive_rebase(&base_oid, &actions)
+                .map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Wipe the persistent graph-layout cache directory.

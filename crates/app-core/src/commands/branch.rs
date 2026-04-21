@@ -157,27 +157,37 @@ pub async fn merge_branch(
 
 /// Rebase the current branch onto another branch or commit via the git CLI.
 ///
+/// Wraps [`git_engine::Repository::rebase_branch`] inside a
+/// [`MutationGuard`][mutation_events::MutationGuard] scope so that on success a
+/// `project-mutated` event with [`MutationKind::Rebase`] is emitted.
+///
 /// # Parameters
 /// - `onto` – Branch name or commit SHA to rebase onto.
 ///
 /// # Returns
 /// The stdout of `git rebase` on success, or stderr as an error.
 #[tauri::command]
-#[instrument(skip(state), name = "cmd::branch::rebase")]
-pub async fn rebase_branch(onto: String, state: State<'_, AppState>) -> Result<String, String> {
+#[instrument(skip(state, app), name = "cmd::branch::rebase")]
+pub async fn rebase_branch(
+    onto: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        let result = repo.rebase_branch(&onto).map_err(|e| e.to_string())?;
-        if result.success {
-            Ok(result.stdout)
-        } else {
-            Err(result.stderr)
-        }
+    with_mutation_guard_async(&state, &app, MutationKind::Rebase, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let result = repo.rebase_branch(&onto).map_err(|e| e.to_string())?;
+            if result.success {
+                Ok(result.stdout)
+            } else {
+                Err(result.stderr)
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]
