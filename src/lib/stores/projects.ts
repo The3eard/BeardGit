@@ -32,7 +32,7 @@ import {
   loadingDetail,
 } from "./provider";
 import { refreshStatuses, clearChangesState } from "./changes";
-import { loadProjectSnapshot, saveCurrentSnapshot } from "./project-cache";
+import { loadProjectSnapshot, saveCurrentSnapshot, restorePersistedViewport } from "./project-cache";
 import { refreshUserEmails, clearGraphState, cacheViewport, restoreCachedViewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
 import { clearBranchState } from "./branches";
@@ -193,11 +193,20 @@ async function activateProjectTab(tabIndex: number) {
   clearReflogState();
   clearChangesState();
 
-  // Restore cached graph viewport instantly (no loading spinner for graph)
+  // Restore cached graph viewport instantly (no loading spinner for graph).
+  //
+  // Two-tier lookup: the in-memory tab cache is populated on
+  // `cacheViewport` (outgoing tab) and holds the full lane geometry;
+  // the disk-backed slice in `ProjectSnapshot.graph_viewport_cache` is
+  // populated by `saveCurrentSnapshot` and survives app restarts. When
+  // the tab cache misses we fall through to the persisted slice so
+  // cold starts still paint the graph synchronously (Phase 8).
   const tabs = get(openTabs);
   const targetTab = tabs[tabIndex];
   const targetPath = (targetTab?.kind === "project" || targetTab?.kind === "composite") ? targetTab.project.path : null;
-  const hasCachedGraph = targetPath ? restoreCachedViewport(targetPath) : false;
+  const hasCachedGraph = targetPath
+    ? (restoreCachedViewport(targetPath) || restorePersistedViewport(targetPath))
+    : false;
 
   // Replay any mutation-event flags buffered for this project while it
   // was in the background — ensures the incoming tab picks up backend
@@ -347,6 +356,15 @@ export async function initProjects() {
     const activeIdx = await apiGetActiveProjectIndex();
     const rustIdx = activeIdx !== null && activeIdx < projects.length ? activeIdx : 0;
     const tabIdx = projectIndexToTabIndex(rustIdx);
+
+    // Pre-warm the snapshot cache for the about-to-activate project so
+    // the first `switchToTab` can hit `restorePersistedViewport`
+    // synchronously and skip the skeleton paint on cold start (Phase 8).
+    const targetProject = projects[rustIdx];
+    if (targetProject) {
+      await loadProjectSnapshot(targetProject.path);
+    }
+
     await switchToTab(tabIdx >= 0 ? tabIdx : 0);
   }
 }

@@ -37,6 +37,33 @@ pub struct ProjectSnapshot {
     pub stash_count: usize,
     /// Total change count (staged + unstaged + untracked).
     pub change_count: usize,
+    /// Persisted commit-graph viewport slice — populated on save so a
+    /// cold start can paint the canvas synchronously. `#[serde(default)]`
+    /// keeps older on-disk snapshots (pre-Phase-8) deserialising cleanly.
+    #[serde(default)]
+    pub graph_viewport_cache: Option<GraphViewportCache>,
+}
+
+/// Persisted commit-graph viewport slice (see spec's cache shape).
+///
+/// Stored opaquely as `serde_json::Value` for `nodes` so the Rust side
+/// doesn't need to mirror the `LayoutNode` struct one-to-one; the TS
+/// layer owns the exact shape and drives validation. Size ≈ 60 KB.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GraphViewportCache {
+    /// Opaque `LayoutNode[]` JSON — Rust stores and forwards only.
+    pub nodes: serde_json::Value,
+    /// Total commit count at cache time.
+    pub total_count: usize,
+    /// HEAD OID at cache time; coarse staleness check.
+    pub head_oid: String,
+    /// First visible commit OID — primary scroll anchor for reconciliation.
+    pub top_oid: String,
+    /// Scroll offset captured at cache time.
+    pub offset: usize,
+    /// Epoch milliseconds when the cache was written; compared against
+    /// the frontend's 7-day TTL on load.
+    pub cached_at: i64,
 }
 
 /// Compute the cache filename for a project path using std DefaultHasher.
@@ -112,6 +139,7 @@ mod tests {
             conflicted: 0,
             stash_count: 1,
             change_count: 9,
+            graph_viewport_cache: None,
         };
         save_snapshot(tmp.path(), &snapshot).unwrap();
         let loaded = load_snapshot(tmp.path(), "/Users/test/project").unwrap();
@@ -121,6 +149,7 @@ mod tests {
         assert_eq!(loaded.ahead, 2);
         assert_eq!(loaded.change_count, 9);
         assert_eq!(loaded.head_branch, Some("main".to_string()));
+        assert!(loaded.graph_viewport_cache.is_none());
     }
 
     #[test]
@@ -144,6 +173,7 @@ mod tests {
             conflicted: 0,
             stash_count: 0,
             change_count: 0,
+            graph_viewport_cache: None,
         };
         save_snapshot(tmp.path(), &snapshot1).unwrap();
 
@@ -158,6 +188,7 @@ mod tests {
             conflicted: 0,
             stash_count: 0,
             change_count: 4,
+            graph_viewport_cache: None,
         };
         save_snapshot(tmp.path(), &snapshot2).unwrap();
 
@@ -166,5 +197,64 @@ mod tests {
             .unwrap();
         assert_eq!(loaded.head_branch, Some("feature".to_string()));
         assert_eq!(loaded.ahead, 5);
+    }
+
+    /// Pre-Phase-8 snapshots on disk lack the `graph_viewport_cache`
+    /// field. The `#[serde(default)]` attribute must let them
+    /// deserialise without error so existing users don't lose their
+    /// cached state on upgrade.
+    #[test]
+    fn test_legacy_snapshot_without_viewport_field_deserialises() {
+        let legacy_json = r#"{
+            "path": "/Users/test/legacy",
+            "head_branch": "main",
+            "ahead": 0,
+            "behind": 0,
+            "staged": 0,
+            "unstaged": 0,
+            "untracked": 0,
+            "conflicted": 0,
+            "stash_count": 0,
+            "change_count": 0
+        }"#;
+        let snap: ProjectSnapshot = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(snap.path, "/Users/test/legacy");
+        assert!(snap.graph_viewport_cache.is_none());
+    }
+
+    /// Round-trip a snapshot with a populated viewport slice to verify
+    /// the new field persists through save → load.
+    #[test]
+    fn test_snapshot_with_viewport_cache_roundtrips() {
+        let tmp = tempfile::tempdir().unwrap();
+        let snap = ProjectSnapshot {
+            path: "/Users/test/vp".to_string(),
+            head_branch: Some("main".to_string()),
+            ahead: 0,
+            behind: 0,
+            staged: 0,
+            unstaged: 0,
+            untracked: 0,
+            conflicted: 0,
+            stash_count: 0,
+            change_count: 0,
+            graph_viewport_cache: Some(GraphViewportCache {
+                nodes: serde_json::json!([{ "oid": "abc123" }]),
+                total_count: 42,
+                head_oid: "abc123".to_string(),
+                top_oid: "abc123".to_string(),
+                offset: 7,
+                cached_at: 1_700_000_000_000,
+            }),
+        };
+        save_snapshot(tmp.path(), &snap).unwrap();
+        let loaded = load_snapshot(tmp.path(), "/Users/test/vp")
+            .unwrap()
+            .unwrap();
+        let cache = loaded.graph_viewport_cache.expect("cache should persist");
+        assert_eq!(cache.total_count, 42);
+        assert_eq!(cache.top_oid, "abc123");
+        assert_eq!(cache.offset, 7);
+        assert_eq!(cache.cached_at, 1_700_000_000_000);
     }
 }
