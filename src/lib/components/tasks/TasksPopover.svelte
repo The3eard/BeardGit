@@ -23,7 +23,7 @@
     - Clicking the statusbar icon again (handled by the parent toggle).
 -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { tick } from "svelte";
   import {
     tasksStore,
     recentlyFinishedTasks,
@@ -86,27 +86,40 @@
   /** DOM root for outside-click detection. */
   let popoverEl: HTMLDivElement | undefined = $state();
   /**
-   * `true` one frame after mount — guards against the opening click
-   * bubbling up to the window handler and immediately closing the
-   * popover.
+   * Rising-edge guard for the opening click.
+   *
+   * The statusbar `TasksSlot` button flips `tasksPopoverOpen` to `true`
+   * on click; the same click event then bubbles up to our
+   * `<svelte:window onclick>` handler. By that point Svelte's render
+   * pass has already committed, so `popoverEl` is bound and the click
+   * target (the statusbar button) is outside the popover — without this
+   * guard, the click-outside handler would close the popover on the
+   * very frame it opened.
+   *
+   * We flip `ready` to `false` synchronously when `open` transitions
+   * `false → true`, then to `true` on the next microtask (`tick()`),
+   * after the opening click has finished bubbling. `handleClickOutside`
+   * short-circuits while `ready` is `false`.
    */
   let ready = $state(false);
 
-  onMount(() => {
-    requestAnimationFrame(() => {
-      ready = true;
-    });
-    if (open) markSeen();
-    return () => {
+  // React to `open` transitions: mark seen on open, reset detail on
+  // close, and arm the click-outside guard for exactly one frame so the
+  // opening click can't close the popover.
+  $effect(() => {
+    if (open) {
+      markSeen();
+      ready = false;
+      void tick().then(() => {
+        // Only flip `ready` true if the popover is still open — a
+        // close-then-open dance within a single tick would otherwise
+        // leave `ready` true for a future open.
+        if (open) ready = true;
+      });
+    } else {
       detailId = null;
       ready = false;
-    };
-  });
-
-  // Clear unseen-error dot whenever the popover transitions to open.
-  $effect(() => {
-    if (open) markSeen();
-    else detailId = null;
+    }
   });
 
   function handleClickOutside(event: MouseEvent) {
