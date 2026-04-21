@@ -11,6 +11,7 @@ use forge_provider::{
     CheckoutResult, CreateMrPrInput, EditMrPrPatch, ForgeProvider, Label, MergeStrategy, MrPr,
     MrPrDetail, MrPrDiffFile, MrPrFilter, MrPrState,
 };
+use mutation_events::MutationKind;
 use task_runner::{OutputLine, Stream as TaskStream, TaskId, TaskManager, TaskStatus};
 use tauri::{AppHandle, Emitter, State};
 use tracing::instrument;
@@ -62,9 +63,15 @@ pub async fn get_mr_pr_diff(
 }
 
 /// Create a new MR/PR.
+///
+/// Wraps the provider call inside a
+/// [`MutationGuard`][mutation_events::MutationGuard] scope so that on success a
+/// `project-mutated` event with [`MutationKind::Push`] is emitted — creating a
+/// PR/MR implies the source branch has (or will have) been pushed to the
+/// remote, so downstream consumers refresh as if a push happened.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip(state, body), name = "cmd::mr_pr::create")]
+#[instrument(skip(state, body, app), name = "cmd::mr_pr::create")]
 pub async fn create_mr_pr(
     source: String,
     target: String,
@@ -74,6 +81,7 @@ pub async fn create_mr_pr(
     labels: Vec<String>,
     reviewers: Vec<String>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<MrPr, String> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let input = CreateMrPrInput {
@@ -85,7 +93,10 @@ pub async fn create_mr_pr(
         labels,
         reviewers,
     };
-    run_blocking(move || provider.create_mr_pr(input).map_err(|e| e.to_string())).await
+    with_mutation_guard_async(&state, &app, MutationKind::Push, || async move {
+        run_blocking(move || provider.create_mr_pr(input).map_err(|e| e.to_string())).await
+    })
+    .await
 }
 
 /// Edit a MR/PR's title and/or description.

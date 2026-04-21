@@ -23,8 +23,9 @@ use std::sync::Arc;
 use forge_provider::{
     CreateReleaseInput, EditReleasePatch, ForgeProvider, Release, ReleaseAsset, ReleaseDetail,
 };
+use mutation_events::MutationKind;
 use task_runner::{TaskId, TaskManager};
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use super::helpers::*;
 use crate::state::AppState;
@@ -104,10 +105,22 @@ pub async fn delete_release(tag: String, state: State<'_, AppState>) -> Result<(
 }
 
 /// Publish a draft release. GitHub only — GitLab returns a NotSupported error.
+///
+/// Wraps the provider call inside a
+/// [`MutationGuard`][mutation_events::MutationGuard] scope so that on success a
+/// `project-mutated` event with [`MutationKind::TagCreate`] is emitted —
+/// publishing a release makes its tag ref visible on the remote.
 #[tauri::command]
-pub async fn publish_release(tag: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn publish_release(
+    tag: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.publish_release(&tag).map_err(|e| e.to_string())).await
+    with_mutation_guard_async(&state, &app, MutationKind::TagCreate, || async move {
+        run_blocking(move || provider.publish_release(&tag).map_err(|e| e.to_string())).await
+    })
+    .await
 }
 
 /// Delete a single release asset by ID.
