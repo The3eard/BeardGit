@@ -70,7 +70,6 @@
     SettingSection,
     FormRow,
     Field,
-    Button,
   } from "$lib/components/ui";
   // ProviderIcon is shared with AiSessions + Spec 4's generic-icon fix.
   import ProviderIcon from "$lib/components/ai-sessions/ProviderIcon.svelte";
@@ -81,7 +80,6 @@
     { kind: "open_code", label: () => m.ai_settings_provider_opencode() },
   ];
 
-  let refreshing = $state(false);
   let bgSettings = $state<AiBackgroundSettings>({
     worktree_root: null,
     concurrency_cap: 3,
@@ -119,15 +117,6 @@
     }
   }
 
-  async function handleRefresh() {
-    refreshing = true;
-    try {
-      await detectAiProviders();
-    } finally {
-      refreshing = false;
-    }
-  }
-
   async function handleSelect(kind: AiProviderKind) {
     const available = $aiProviders.some((p) => p.kind === kind);
     if (!available) return;
@@ -152,16 +141,6 @@
   title={m.settings_ai_providers_section_title()}
   description={m.settings_ai_providers_section_description()}
 >
-  {#snippet actions()}
-    <Button
-      variant="ghost"
-      size="sm"
-      loading={refreshing}
-      icon="\uF021"
-      onclick={handleRefresh}
-    />
-  {/snippet}
-
   <SettingSection title={m.ai_settings_title()}>
     <div class="provider-list" data-setting-anchor="provider">
       {#each ALL_KINDS as { kind, label } (kind)}
