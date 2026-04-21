@@ -46,9 +46,9 @@ pub fn log_directory() -> PathBuf {
 
 /// Delete log files older than `max_age_days` from `log_dir`.
 ///
-/// Only removes files whose names contain `"log"` (matching the
-/// `beardgit.log.*` naming convention from `tracing-appender`).
-/// Returns the number of files deleted.
+/// Only removes files whose names contain `"log"`. This matches both the
+/// current `beardgit.{date}.log` layout and any legacy `beardgit.log.{date}`
+/// files left behind by pre-rename installs. Returns the number of files deleted.
 ///
 /// # Errors
 /// Returns an I/O error if the directory cannot be read.
@@ -224,6 +224,34 @@ mod tests {
 
         let deleted = purge_old_logs(tmp.path(), 7).unwrap();
         assert_eq!(deleted, 0);
+    }
+
+    #[test]
+    fn purge_matches_new_filename_pattern() {
+        let tmp = tempfile::tempdir().unwrap();
+        // New shape — old enough to purge.
+        create_aged_log(tmp.path(), "beardgit.2026-04-01.log", 10);
+        // New shape — recent, should survive.
+        create_aged_log(tmp.path(), "beardgit.2026-04-20.log", 1);
+
+        let deleted = purge_old_logs(tmp.path(), 7).unwrap();
+        assert_eq!(deleted, 1);
+        assert!(!tmp.path().join("beardgit.2026-04-01.log").exists());
+        assert!(tmp.path().join("beardgit.2026-04-20.log").exists());
+    }
+
+    #[test]
+    fn purge_handles_legacy_filenames_without_crashing() {
+        // Legacy `beardgit.log.{date}` files may linger from pre-rename installs.
+        // Rotation should treat them like any other log file: age-based purge, no panic.
+        let tmp = tempfile::tempdir().unwrap();
+        create_aged_log(tmp.path(), "beardgit.log.2026-04-01", 10); // legacy, old
+        create_aged_log(tmp.path(), "beardgit.2026-04-20.log", 1); // new, recent
+
+        let deleted = purge_old_logs(tmp.path(), 7).unwrap();
+        assert_eq!(deleted, 1, "legacy old file should be purged by age");
+        assert!(!tmp.path().join("beardgit.log.2026-04-01").exists());
+        assert!(tmp.path().join("beardgit.2026-04-20.log").exists());
     }
 
     #[test]
