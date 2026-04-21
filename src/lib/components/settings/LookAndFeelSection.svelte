@@ -84,7 +84,8 @@
   }
 </script>
 
-<SettingSection title={m.settings_general_theme_section_title()}>
+<div data-testid="look-and-feel-heading">
+  <SettingSection title={m.settings_general_theme_section_title()}>
   <div data-setting-anchor="language">
     <FormRow label={m.settings_language()} for="language-select">
       <select
@@ -141,7 +142,8 @@
       </select>
     </FormRow>
   </div>
-</SettingSection>
+  </SettingSection>
+</div>
 
 <style>
   .bg-select {
