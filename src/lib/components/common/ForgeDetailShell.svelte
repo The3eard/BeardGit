@@ -61,17 +61,21 @@
     <span class="sr-only">{m.forge_detail_loading()}</span>
   </div>
 {:else if error}
-  <div class="shell shell-error" role="alert">
+  <div class="shell shell-error" role="alert" data-testid="forge-detail-error">
     <p class="error-title">{m.forge_detail_error_title()}</p>
     <p class="error-reason">{trim(error)}</p>
     {#if onRetry}
-      <button class="btn-retry" onclick={onRetry}
-        >{m.forge_detail_retry()}</button
+      <button
+        class="btn-retry"
+        data-testid="forge-detail-retry"
+        onclick={onRetry}>{m.forge_detail_retry()}</button
       >
     {/if}
   </div>
 {:else if isEmpty}
-  <div class="shell shell-empty">{emptyMessage}</div>
+  <div class="shell shell-empty" data-testid="forge-detail-empty">
+    {emptyMessage}
+  </div>
 {:else}
   {@render content?.()}
 {/if}
