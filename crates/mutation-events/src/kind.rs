@@ -61,6 +61,9 @@ pub enum MutationKind {
     StashPop,
     /// A stash entry was dropped without applying it.
     StashDrop,
+    /// The index or worktree changed without touching refs
+    /// (stage, unstage, discard, clean, conflict resolution, patch apply).
+    StagingChange,
     /// A linked worktree was added.
     WorktreeCreate,
     /// A linked worktree was removed.
@@ -101,5 +104,11 @@ mod tests {
     fn serializes_external_as_bare_tag() {
         let json = serde_json::to_string(&MutationKind::External).unwrap();
         assert_eq!(json, r#"{"type":"external"}"#);
+    }
+
+    #[test]
+    fn serializes_staging_change() {
+        let json = serde_json::to_string(&MutationKind::StagingChange).unwrap();
+        assert_eq!(json, r#"{"type":"staging_change"}"#);
     }
 }
