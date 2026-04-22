@@ -107,6 +107,43 @@
   const cliAuthenticated = $derived(cliStatus?.authenticated ?? false);
   const cliUsername = $derived(cliStatus?.username ?? null);
 
+  // When this row is a `gh` / `glab` row AND the CLI is authenticated
+  // AND there's a connected provider PAT of the matching kind whose
+  // username equals the CLI's current login, we can reasonably assume
+  // the CLI was piggybacked onto the PAT (either by the Phase 2
+  // fire-and-forget `pipe_token_to_cli` spawn, or by the user running
+  // the terminal-hosted flow under the same identity). In that case
+  // the status label should surface the piggyback — "Connected · via
+  // GitHub PAT" — rather than the plain "Signed in as alice", so the
+  // user can see at a glance that the two rows represent one identity
+  // rather than two independent authentications.
+  //
+  // Edge cases: if the user explicitly rebinds the CLI to a different
+  // account (`gh auth login` in a terminal as user B while the app
+  // keeps user A's PAT), usernames won't match and we fall through to
+  // the plain `cli_auth_username` / `cli_auth_authenticated` branch,
+  // which is the correct reflection of reality. Multi-provider case
+  // (two GitHub PATs, different instances) resolves to the first
+  // matching-username provider — good enough, the CLI can only be
+  // logged into one hostname per tool and username collisions across
+  // instances would be a user error we don't need to signal here.
+  //
+  // Returns the *provider display name* (localised via `m.provider_*`)
+  // so the `{provider}` slot in `cli_auth_connected_via_provider`
+  // receives a user-facing string, not a kind identifier.
+  const piggybackedVia = $derived.by<string | null>(() => {
+    if (isProviderKind(kind)) return null;
+    if (!cliAuthenticated || !cliUsername) return null;
+    const providerKind: ProviderKind = kind === "gh" ? "github" : "gitlab";
+    const match = $providerStatus.providers.find(
+      (p) => p.kind === providerKind && p.user.username === cliUsername,
+    );
+    if (!match) return null;
+    return providerKind === "github"
+      ? m.provider_github()
+      : m.provider_gitlab();
+  });
+
   async function refreshCli() {
     try {
       cliStatuses = await cliCheckAuthStatus();
@@ -174,6 +211,12 @@
     }
     if (!cliInstalled) return m.cli_auth_not_installed();
     if (cliAuthenticated) {
+      // Piggyback refinement: only fires when a matching provider PAT
+      // with the same username is connected. Usernames mismatch → fall
+      // through to the plain authenticated labels below.
+      if (piggybackedVia !== null) {
+        return m.cli_auth_connected_via_provider({ provider: piggybackedVia });
+      }
       return cliUsername
         ? m.cli_auth_username({ username: cliUsername })
         : m.cli_auth_authenticated();

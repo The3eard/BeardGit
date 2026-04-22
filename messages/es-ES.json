@@ -786,6 +786,7 @@
   "cli_auth_logout": "Cerrar sesión",
   "cli_auth_refresh": "Actualizar",
   "cli_auth_username": "Conectado como {username}",
+  "cli_auth_connected_via_provider": "Conectado · mediante PAT de {provider}",
   "error_dialog_title": "Algo sali\u00f3 mal",
   "error_dialog_copy": "Copiar error",
   "error_dialog_open_log": "Abrir archivo de log",

@@ -18,7 +18,22 @@ import { tick } from "svelte";
 
 vi.mock("$lib/stores/provider", async () => {
   const { writable, derived } = await import("svelte/store");
-  const providerStatus = writable({ providers: [], active_index: null });
+  const providerStatus = writable<{
+    providers: Array<{
+      kind: "github" | "gitlab";
+      instance_url: string;
+      user: {
+        id: number;
+        username: string;
+        display_name: string;
+        email: string | null;
+        avatar_url: string | null;
+        profile_url: string;
+      };
+      project_name: string | null;
+    }>;
+    active_index: number | null;
+  }>({ providers: [], active_index: null });
   const activeProvider = derived(providerStatus, () => null);
   const isConnected = derived(providerStatus, () => false);
   const hasActiveProvider = derived(providerStatus, () => false);
@@ -76,8 +91,57 @@ vi.mock("$lib/api/tauri", () => ({
 }));
 
 import IntegrationsSettings from "../IntegrationsSettings.svelte";
+import { providerStatus } from "$lib/stores/provider";
+import { cliCheckAuthStatus } from "$lib/api/tauri";
+import type { Writable } from "svelte/store";
 
-beforeEach(() => {});
+// Narrowed writable view of the mocked providerStatus store so tests
+// can push a synthetic providers list per-scenario. The shape mirrors
+// `ProviderStatusResponse` but is typed locally to avoid coupling the
+// test to the real store's generic signature.
+const providerStatusWritable = providerStatus as unknown as Writable<{
+  providers: Array<{
+    kind: "github" | "gitlab";
+    instance_url: string;
+    user: {
+      id: number;
+      username: string;
+      display_name: string;
+      email: string | null;
+      avatar_url: string | null;
+      profile_url: string;
+    };
+    project_name: string | null;
+  }>;
+  active_index: number | null;
+}>;
+
+const cliCheckAuthStatusMock = vi.mocked(cliCheckAuthStatus);
+
+const DEFAULT_CLI_STATUSES = [
+  {
+    tool: "gh" as const,
+    installed: true,
+    authenticated: true,
+    username: "octocat",
+    error: null,
+  },
+  {
+    tool: "glab" as const,
+    installed: true,
+    authenticated: false,
+    username: null,
+    error: null,
+  },
+];
+
+beforeEach(() => {
+  // Reset store + CLI mock to a clean slate so tests don't leak state
+  // into each other — the module-scoped `writable(...)` inside the
+  // `vi.mock` block is shared across every `describe` run.
+  providerStatusWritable.set({ providers: [], active_index: null });
+  cliCheckAuthStatusMock.mockResolvedValue(DEFAULT_CLI_STATUSES);
+});
 afterEach(() => cleanup());
 
 describe("IntegrationsSettings — howto hoist (Phase 7.2)", () => {
@@ -149,5 +213,102 @@ describe("IntegrationsSettings — unified Connections section (Phase 8)", () =>
       const buttons = row.querySelectorAll('[data-role="action"] button');
       expect(buttons.length, `row ${kind} action button count`).toBe(1);
     }
+  });
+});
+
+describe("IntegrationsSettings — CLI row piggyback label (Phase 5)", () => {
+  // The piggyback refinement on the gh/glab CLI rows: when the CLI is
+  // authenticated as user X AND a connected provider PAT of the
+  // matching kind is also user X, the CLI row's status label reads
+  // "Connected · via {Provider} PAT" instead of the plain per-row
+  // "Signed in as X" / "Connected". When usernames differ the label
+  // falls through to the plain form — the row is telling the truth
+  // about divergent identities rather than hiding the split.
+
+  const githubProvider = (username: string) => ({
+    kind: "github" as const,
+    instance_url: "https://api.github.com",
+    user: {
+      id: 1,
+      username,
+      display_name: username,
+      email: null,
+      avatar_url: null,
+      profile_url: `https://github.com/${username}`,
+    },
+    project_name: null,
+  });
+
+  it("gh row reads 'via GitHub PAT' when CLI + provider usernames match", async () => {
+    cliCheckAuthStatusMock.mockResolvedValue([
+      {
+        tool: "gh",
+        installed: true,
+        authenticated: true,
+        username: "alice",
+        error: null,
+      },
+      {
+        tool: "glab",
+        installed: false,
+        authenticated: false,
+        username: null,
+        error: null,
+      },
+    ]);
+    providerStatusWritable.set({
+      providers: [githubProvider("alice")],
+      active_index: 0,
+    });
+
+    const { container } = render(IntegrationsSettings);
+    // Two ticks: first resolves the `onMount` refresh, second lets
+    // Svelte flush the derived `statusLabel` against the updated
+    // `cliStatuses` state.
+    await tick();
+    await tick();
+
+    const row = container.querySelector(
+      '[data-testid="integrations-row-gh"]',
+    )!;
+    const status = row.querySelector('[data-role="status"]')!;
+    expect(status.textContent).toContain("via");
+    expect(status.textContent).toContain("GitHub");
+    expect(status.textContent).not.toContain("alice");
+  });
+
+  it("gh row falls through to plain label when usernames differ", async () => {
+    cliCheckAuthStatusMock.mockResolvedValue([
+      {
+        tool: "gh",
+        installed: true,
+        authenticated: true,
+        username: "alice",
+        error: null,
+      },
+      {
+        tool: "glab",
+        installed: false,
+        authenticated: false,
+        username: null,
+        error: null,
+      },
+    ]);
+    providerStatusWritable.set({
+      providers: [githubProvider("bob")],
+      active_index: 0,
+    });
+
+    const { container } = render(IntegrationsSettings);
+    await tick();
+    await tick();
+
+    const row = container.querySelector(
+      '[data-testid="integrations-row-gh"]',
+    )!;
+    const status = row.querySelector('[data-role="status"]')!;
+    // Plain "Signed in as alice" form — definitely no "via".
+    expect(status.textContent).toContain("alice");
+    expect(status.textContent).not.toContain("via");
   });
 });
