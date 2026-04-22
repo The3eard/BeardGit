@@ -4,10 +4,11 @@
  *   - Clicking a conversation row writes `selectedConversationId` and
  *     clears `selectedBackgroundSessionId`.
  *   - Clicking an active bg-run row writes `selectedBackgroundSessionId`
- *     via `focusTerminal` (kind === "bg") and the list contract keeps
- *     `selectedConversationId` untouched (the spec says bg focus doesn't
- *     affect conversation selection — the conv selection is only
- *     cleared when a DIFFERENT conversation is picked).
+ *     via `focusTerminal` (kind === "bg"). The List component itself
+ *     delegates to `focusTerminal` without touching either selection
+ *     store — the "clear selectedConversationId so the bg detail surfaces"
+ *     behaviour lives inside the real `focusTerminal` and is tested in
+ *     `aiConversationActions.test.ts`.
  *   - Clicking the Focus button on a tab/segment row calls
  *     `focusTerminal` without mutating either selection store.
  */

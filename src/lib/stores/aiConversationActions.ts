@@ -25,6 +25,7 @@ import { get } from "svelte/store";
 import { openTabs, activeTabIndex, resumeAiConversationTab } from "./tabs";
 import { providerName } from "$lib/data/ai-providers";
 import { selectedBackgroundSessionId } from "./aiBackground";
+import { selectedConversationId } from "./aiConversations";
 import type { AiConversation, Tab } from "$lib/types";
 import type { ActiveTerminal } from "./aiActiveTerminals";
 
@@ -38,8 +39,10 @@ import type { ActiveTerminal } from "./aiActiveTerminals";
  *   the project segment. Tabs are immutable, so we build a new array —
  *   same pattern as `focusSessionTab` in `aiSessionActions.ts`.
  * - `"bg"`      — set `selectedBackgroundSessionId` so the detail pane
- *   surfaces the run. Background runs don't own a tab; selection IS the
- *   focus for them.
+ *   surfaces the run, AND clear `selectedConversationId` because the
+ *   detail pane branches on conversation-selection first — without the
+ *   clear, the user would click a bg-run row and see the previous
+ *   conversation stuck on screen.
  *
  * Returns `true` in every branch today (all three are successful
  * focuses). The boolean signature is there so callers don't special-case
@@ -70,6 +73,7 @@ export function focusTerminal(active: ActiveTerminal): boolean {
     return true;
   }
   // kind === "bg"
+  selectedConversationId.set(null);
   selectedBackgroundSessionId.set(active.session.id);
   return true;
 }

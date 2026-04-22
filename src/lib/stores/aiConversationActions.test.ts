@@ -37,6 +37,7 @@ vi.mock("./tabs", async () => {
 
 import { openTabs, activeTabIndex } from "./tabs";
 import { selectedBackgroundSessionId } from "./aiBackground";
+import { selectedConversationId } from "./aiConversations";
 import {
   focusTerminal,
   resumeConversation,
@@ -62,6 +63,7 @@ function resetStores() {
   openTabs.set([]);
   activeTabIndex.set(-1);
   selectedBackgroundSessionId.set(null);
+  selectedConversationId.set(null);
   resumeAiConversationTabMock.mockReset();
 }
 
@@ -155,7 +157,8 @@ describe("focusTerminal", () => {
     expect(get(activeTabIndex)).toBe(0);
   });
 
-  it("kind='bg' sets selectedBackgroundSessionId and returns true", () => {
+  it("kind='bg' sets selectedBackgroundSessionId, clears selectedConversationId, returns true", () => {
+    selectedConversationId.set("some-conv");
     const session: AiSession = {
       id: "bg-42",
       provider: "claude_code",
@@ -168,6 +171,7 @@ describe("focusTerminal", () => {
     const active: ActiveTerminal = { kind: "bg", session };
     expect(focusTerminal(active)).toBe(true);
     expect(get(selectedBackgroundSessionId)).toBe("bg-42");
+    expect(get(selectedConversationId)).toBeNull();
   });
 });
 
