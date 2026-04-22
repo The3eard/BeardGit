@@ -420,8 +420,14 @@ pub fn ai_resume_session(
 // ─── Introspection ────────────────────────────────────────────────────────────
 
 /// List AI sessions for all detected providers in the current repository.
+///
+/// Runs the per-provider `list_sessions` calls off the IPC thread via
+/// `spawn_blocking` — the OpenCode implementation shells out to
+/// `opencode session list` synchronously, and historically that could stall
+/// the Tauri runtime long enough that clicking AI Sessions froze the whole
+/// app while pipelines / graph IPCs backed up behind it.
 #[tauri::command]
-pub fn ai_list_sessions(state: State<'_, AppState>) -> Result<Vec<AiSession>, String> {
+pub async fn ai_list_sessions(state: State<'_, AppState>) -> Result<Vec<AiSession>, String> {
     let cwd = get_active_project_path(&state)?;
     let providers = state
         .ai_providers
@@ -429,16 +435,20 @@ pub fn ai_list_sessions(state: State<'_, AppState>) -> Result<Vec<AiSession>, St
         .map_err(|e| e.to_string())?
         .clone();
 
-    let mut sessions: Vec<AiSession> = Vec::new();
-    for available in &providers {
-        let Ok(provider) = make_provider(available.kind) else {
-            continue;
-        };
-        if let Ok(mut s) = provider.list_sessions(&cwd) {
-            sessions.append(&mut s);
+    tokio::task::spawn_blocking(move || {
+        let mut sessions: Vec<AiSession> = Vec::new();
+        for available in &providers {
+            let Ok(provider) = make_provider(available.kind) else {
+                continue;
+            };
+            if let Ok(mut s) = provider.list_sessions(&cwd) {
+                sessions.append(&mut s);
+            }
         }
-    }
-    Ok(sessions)
+        Ok(sessions)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// List AI-created worktrees for all detected providers in the current repository.

@@ -158,6 +158,17 @@
     {@render afterHeader()}
   {/if}
 
+  <!-- Top loading bar on refresh when the list is already populated —
+       mirrors `PipelineList`'s pattern so every consumer of `List` gets
+       "click section → section appears instantly → bar animates while
+       fresh data loads" without having to open its own spinner. The
+       centred spinner below handles the empty-list case. -->
+  {#if loading && items.length > 0}
+    <div class="list-loading-bar" data-testid="list-loading-bar">
+      <div class="loading-bar-track"><div class="loading-bar-fill"></div></div>
+    </div>
+  {/if}
+
   <!-- Filter bar (only if filterFn is provided) -->
   {#if filterFn}
     <div class="filter-row">
@@ -226,5 +237,26 @@
     height: 100%;
     overflow: hidden;
     outline: none;
+  }
+
+  .list-loading-bar {
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .loading-bar-track {
+    height: 2px;
+    background: var(--overlay-hover);
+    overflow: hidden;
+  }
+  .loading-bar-fill {
+    height: 100%;
+    width: 40%;
+    background: var(--accent-blue);
+    border-radius: 1px;
+    animation: list-loading-slide 1s ease-in-out infinite;
+  }
+  @keyframes list-loading-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
   }
 </style>

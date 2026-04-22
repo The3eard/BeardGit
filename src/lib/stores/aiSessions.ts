@@ -46,8 +46,13 @@ export const mergedSessions = derived(
   },
 );
 
-/** True while loading sessions. */
-export const sessionsLoading = writable(false);
+/** True while loading sessions.
+ *
+ * Defaults to `true` so the very first paint of `AiSessionList` (before any
+ * refresh has fired) shows the spinner instead of the empty state — matches
+ * the pipelines UX of "click section → section appears → spinner → list".
+ * The first `refreshSessions` flips it back to `false` in its `finally`. */
+export const sessionsLoading = writable(true);
 
 // ─── Helpers ───
 
