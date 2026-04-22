@@ -32,6 +32,7 @@
     terminalWrite,
   } from "$lib/api/tauri";
   import { openStandaloneTerminal } from "$lib/stores/tabs";
+  import { Button } from "$lib/components/ui";
   import type { CliAuthStatus, ProviderKind } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
 
@@ -235,47 +236,47 @@
   <span class="action" data-role="action">
     {#if isProviderKind(kind)}
       {#if providerConnected}
-        <button
-          type="button"
-          class="btn btn-ghost"
+        <Button
+          variant="subtle"
+          size="sm"
           onclick={() => (formOpen = !formOpen)}
         >
           {m.settings_integrations_row_manage()}
-        </button>
+        </Button>
       {:else}
-        <button
-          type="button"
-          class="btn btn-primary"
+        <Button
+          variant="primary"
+          size="sm"
           onclick={() => (formOpen = !formOpen)}
         >
           {m.settings_integrations_row_connect()}
-        </button>
+        </Button>
       {/if}
     {:else if !cliInstalled}
       <!-- Nothing to do when the tool isn't installed, but keep a
            visual slot (disabled button) so every row has exactly one
            action button for layout + test consistency. -->
-      <button type="button" class="btn btn-ghost" disabled>
+      <Button variant="subtle" size="sm" disabled>
         {m.settings_integrations_row_connect()}
-      </button>
+      </Button>
     {:else if cliAuthenticated}
-      <button
-        type="button"
-        class="btn btn-ghost"
+      <Button
+        variant="subtle"
+        size="sm"
         disabled={cliLaunching}
         onclick={handleCliLogout}
       >
         {m.cli_auth_logout()}
-      </button>
+      </Button>
     {:else}
-      <button
-        type="button"
-        class="btn btn-primary"
+      <Button
+        variant="primary"
+        size="sm"
         disabled={cliLaunching}
         onclick={handleCliAuth}
       >
         {m.cli_auth_authenticate()}
-      </button>
+      </Button>
     {/if}
   </span>
 
@@ -287,13 +288,13 @@
             {provider.user.display_name} @{provider.user.username}
             <span class="existing-url">{provider.instance_url}</span>
           </span>
-          <button
-            type="button"
-            class="btn btn-danger"
+          <Button
+            variant="danger"
+            size="sm"
             onclick={() => handleDisconnect(provider.instance_url)}
           >
             {m.provider_disconnect()}
-          </button>
+          </Button>
         </div>
       {/each}
 
@@ -316,9 +317,10 @@
           bind:value={token}
           disabled={$isConnecting}
         />
-        <button
+        <Button
+          variant="primary"
+          size="sm"
           type="submit"
-          class="btn btn-primary"
           disabled={$isConnecting || !token.trim()}
         >
           {#if $isConnecting}
@@ -326,7 +328,7 @@
           {:else}
             {m.provider_connect()}
           {/if}
-        </button>
+        </Button>
         {#if $providerError}
           <div class="error">{$providerError}</div>
         {/if}
@@ -375,47 +377,6 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-  }
-
-  .btn {
-    font-size: 11px;
-    font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      border-color 0.15s,
-      opacity 0.15s;
-    font-family: inherit;
-  }
-  .btn:hover:not(:disabled) {
-    background: var(--overlay-hover);
-  }
-  .btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .btn-primary {
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
-    color: #fff;
-  }
-  .btn-primary:hover:not(:disabled) {
-    opacity: 0.9;
-    background: var(--accent-blue);
-  }
-
-  .btn-ghost {
-    color: var(--text-secondary);
-  }
-
-  .btn-danger {
-    color: var(--accent-red, #f85149);
   }
 
   .inline-form {
