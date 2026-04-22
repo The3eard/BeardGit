@@ -18,6 +18,7 @@ vi.mock("$lib/stores/ai", async () => {
     aiProviders: writable([
       { kind: "claude_code", binary_path: "/x", version: "1" },
     ]),
+    aiProvidersDetecting: writable(false),
     preferredAiProvider: writable("claude_code"),
     detectAiProviders: vi.fn(),
     setPreferredProvider: vi.fn(),

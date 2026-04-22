@@ -14,6 +14,17 @@ export const aiProviders = writable<AvailableAiProvider[]>([]);
 export const repoAiStatus = writable<RepoAiStatus[]>([]);
 export const preferredAiProvider = writable<AiProviderKind | null>(null);
 
+/**
+ * Whether an AI-provider detection pass is currently in progress.
+ *
+ * Defaults to `true` so the very first paint of `AiSettings` (before
+ * `detectAiProviders` has finished its PATH probes) shows a spinner per
+ * provider row instead of "Not found" — the `which claude` /
+ * `claude --version` subprocesses on a cold cache can take ~1 s.
+ * `detectAiProviders` flips this to `false` in its `finally` block.
+ */
+export const aiProvidersDetecting = writable(true);
+
 /** Whether at least one AI provider is installed. */
 export const hasAiProvider = derived(aiProviders, (p) => p.length > 0);
 
@@ -30,11 +41,23 @@ export const defaultAiProvider = derived(
 
 // ─── Detection ───
 
-/** Scan PATH for AI tool binaries and update store. */
+/**
+ * Scan PATH for AI tool binaries and update the store.
+ *
+ * Flips `aiProvidersDetecting` to `true` for the duration so the Settings
+ * page can render a spinner per row while the two IPC calls + their
+ * subprocess probes complete. Always clears the flag in the `finally`
+ * block so a failure doesn't leave the UI stuck.
+ */
 export async function detectAiProviders(): Promise<void> {
-  await api.aiRefreshDetection();
-  const providers = await api.aiGetProviders();
-  aiProviders.set(providers);
+  aiProvidersDetecting.set(true);
+  try {
+    await api.aiRefreshDetection();
+    const providers = await api.aiGetProviders();
+    aiProviders.set(providers);
+  } finally {
+    aiProvidersDetecting.set(false);
+  }
 }
 
 /** Load the preferred AI provider from persisted config. */

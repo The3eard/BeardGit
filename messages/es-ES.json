@@ -725,6 +725,7 @@
   "ai_settings_default_provider": "Proveedor predeterminado",
   "ai_settings_no_providers": "No se detectaron herramientas IA en este sistema",
   "ai_settings_detected": "Detectado",
+  "ai_settings_detecting": "Detectando…",
   "ai_settings_not_found": "No instalado",
   "ai_settings_version": "Versión {version}",
   "ai_settings_provider_claude": "Claude Code",

@@ -115,7 +115,10 @@
     {
       id: "ai",
       label: m.settings_cat_ai_title(),
-      icon: "\uF544", // robot
+      // \uF2DB (microchip) ships in every Nerd Font build; the
+      // previous \uF544 (robot, FA5-pro codepoint) rendered as
+      // tofu on the bundled Nerd Font variant the user has.
+      icon: "\uF2DB",
     },
     {
       id: "integrations",

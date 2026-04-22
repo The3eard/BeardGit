@@ -54,6 +54,7 @@
   import { onMount } from "svelte";
   import {
     aiProviders,
+    aiProvidersDetecting,
     preferredAiProvider,
     detectAiProviders,
     setPreferredProvider,
@@ -88,14 +89,21 @@
   let bgSaving = $state(false);
   let bgError = $state<string | null>(null);
 
-  onMount(async () => {
-    await detectAiProviders();
-    await loadPreferredProvider();
-    try {
-      bgSettings = await aiBackgroundGetSettings();
-    } catch (e) {
-      bgError = String(e);
-    }
+  // Fire-and-forget on mount: the Settings shell paints immediately while
+  // the three async operations populate their respective stores in the
+  // background. `detectAiProviders` runs PATH probes + `--version` calls
+  // that can take ~1 s on a cold cache — we render the provider list as
+  // "detecting..." during that window, not "Not found".
+  onMount(() => {
+    void detectAiProviders();
+    void loadPreferredProvider();
+    void (async () => {
+      try {
+        bgSettings = await aiBackgroundGetSettings();
+      } catch (e) {
+        bgError = String(e);
+      }
+    })();
   });
 
   async function saveBgSettings() {
@@ -147,6 +155,7 @@
         {@const detected = isDetected(kind)}
         {@const preferred = isPreferred(kind)}
         {@const version = getVersion(kind)}
+        {@const detecting = $aiProvidersDetecting && !detected}
         <button
           type="button"
           class="provider-row"
@@ -162,6 +171,11 @@
               <span class="provider-version"
                 >{m.ai_settings_version({ version })}</span
               >
+            {:else if detecting}
+              <span class="provider-status detecting">
+                <span class="detecting-spinner" aria-hidden="true"></span>
+                {m.ai_settings_detecting()}
+              </span>
             {:else if !detected}
               <span class="provider-status not-found"
                 >{m.ai_settings_not_found()}</span
@@ -179,7 +193,7 @@
       {/each}
     </div>
 
-    {#if $aiProviders.length === 0}
+    {#if !$aiProvidersDetecting && $aiProviders.length === 0}
       <div class="empty-state">{m.ai_settings_no_providers()}</div>
     {/if}
   </SettingSection>
@@ -309,6 +323,28 @@
     font-size: 11px;
     color: var(--text-secondary);
     font-style: italic;
+  }
+  .provider-status.detecting {
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .detecting-spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--text-secondary);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: ai-settings-spin 0.6s linear infinite;
+    opacity: 0.7;
+  }
+  @keyframes ai-settings-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .preferred-badge {
