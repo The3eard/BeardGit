@@ -9,7 +9,7 @@ import { writable, derived } from "svelte/store";
 import { listen } from "@tauri-apps/api/event";
 import * as api from "$lib/api/tauri";
 import type { AiSession } from "$lib/types";
-import { aiBackgroundRuns } from "./aiBackground";
+import { aiBackgroundRuns, selectedBackgroundSessionId } from "./aiBackground";
 
 // ─── State ───
 
@@ -18,8 +18,23 @@ export const sessions = writable<AiSession[]>([]);
 
 /**
  * Merged view: background runs (sorted first) followed by provider-reported
- * sessions. Dedupes by id so a session that exists in both lists is shown
- * once. Consumers reading "sessions for the sidebar" should pull from this.
+ * sessions. Two-pass dedupe:
+ *
+ * 1. **By `id`** — a session that shows up in both `aiBackgroundRuns` and the
+ *    provider-reported `sessions` list is kept once (bg-run wins).
+ * 2. **By `(provider, normalizedCwd)` on active-interactive entries** — when
+ *    the Rust side spawned an interactive Claude in a BeardGit tab *and*
+ *    provider file-watching reports the same process under a different id
+ *    (Claude writes its own UUID into `~/.claude/sessions/{pid}.json`), both
+ *    rows would otherwise appear with independent "Focus" buttons. We
+ *    collapse them, preferring the bg-run entry (richer metadata — it has a
+ *    `task_id`, a `worktree_path`, and a `background_status`); otherwise
+ *    the most recently started entry wins.
+ *
+ * Ended or headless rows are left untouched even when they share a cwd —
+ * they represent distinct historical sessions the user may want to dismiss
+ * independently, and collapsing them would hide information rather than
+ * deduplicate a bug.
  */
 export const mergedSessions = derived(
   [sessions, aiBackgroundRuns],
@@ -42,8 +57,58 @@ export const mergedSessions = derived(
     });
     const seen = new Set(bgList.map((s) => s.id));
     const tail = $sessions.filter((s) => !seen.has(s.id));
-    return [...bgList, ...tail];
+    const combined = [...bgList, ...tail];
+
+    // Second-pass dedupe: collapse active-interactive siblings that share
+    // `(provider, cwd)`. Stability of the original ordering matters here —
+    // we walk `combined` in its current order and only drop subsequent
+    // duplicates when the already-stored one "wins" the tie-break.
+    const result: AiSession[] = [];
+    const keyToIndex = new Map<string, number>();
+    for (const s of combined) {
+      if (!s.is_active || s.kind !== "interactive") {
+        result.push(s);
+        continue;
+      }
+      const key = `${s.provider}|${s.cwd.replace(/\/+$/, "")}`;
+      const existingIdx = keyToIndex.get(key);
+      if (existingIdx === undefined) {
+        keyToIndex.set(key, result.length);
+        result.push(s);
+      } else if (preferNewer(s, result[existingIdx])) {
+        result[existingIdx] = s;
+      }
+    }
+    return result;
   },
+);
+
+/**
+ * Tie-breaker for the `(provider, cwd)` dedupe pass. Prefers the entry that
+ * carries richer metadata (bg-run > PID-discovered), falling back to the
+ * most recent `started_at`. A `true` return means `candidate` should replace
+ * `current` in the deduped list.
+ */
+function preferNewer(candidate: AiSession, current: AiSession): boolean {
+  const candidateIsBg = candidate.background_status != null;
+  const currentIsBg = current.background_status != null;
+  if (candidateIsBg !== currentIsBg) return candidateIsBg;
+  return (candidate.started_at ?? 0) > (current.started_at ?? 0);
+}
+
+/**
+ * Currently selected session (any kind), resolved against the merged list.
+ *
+ * This is the store that `AiSessionDetail.svelte` consumes so *every* row
+ * type populates the detail pane — provider-reported sessions included.
+ * The narrower `selectedBackgroundSession` export in `./aiBackground` is
+ * still used for background-run-only concerns (transcripts, discard/cancel
+ * handlers that require a `background_status`).
+ */
+export const selectedSession = derived(
+  [mergedSessions, selectedBackgroundSessionId],
+  ([$list, $id]) =>
+    $id ? ($list.find((s) => s.id === $id) ?? null) : null,
 );
 
 /** True while loading sessions.
