@@ -251,7 +251,6 @@ pub fn run() {
             app_core::commands::remove_submodule,
             app_core::commands::submodule_abs_path,
             app_core::commands::is_cli_authenticated,
-            app_core::commands::cli_login,
             // MR/PR management
             app_core::commands::list_mr_prs,
             app_core::commands::get_mr_pr_detail,

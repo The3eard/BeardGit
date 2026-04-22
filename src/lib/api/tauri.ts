@@ -784,11 +784,6 @@ export async function isCliAuthenticated(kind: string): Promise<boolean> {
   return invoke<boolean>("is_cli_authenticated", { kind });
 }
 
-/** Start CLI OAuth login flow (opens browser). */
-export async function cliLogin(kind: string, instanceUrl?: string): Promise<ProviderUser> {
-  return invoke<ProviderUser>("cli_login", { kind, instanceUrl: instanceUrl ?? null });
-}
-
 /** Check auth status for both gh and glab CLIs. */
 export async function cliCheckAuthStatus(): Promise<CliAuthStatus[]> {
   return invoke<CliAuthStatus[]>("cli_check_auth_status");

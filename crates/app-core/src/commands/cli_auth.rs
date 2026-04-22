@@ -4,7 +4,6 @@ use tauri::State;
 use tracing::instrument;
 
 use super::helpers::*;
-use super::provider_auth::connect_provider;
 use crate::state::AppState;
 
 /// Check authentication status for both `gh` and `glab` CLIs.
@@ -81,74 +80,12 @@ pub async fn is_cli_authenticated(
     .map_err(|e| e.to_string())?
 }
 
-/// Start the CLI OAuth login flow and extract + store the token.
-///
-/// This is a blocking call — the browser opens for OAuth, and this
-/// command waits until login completes. Emits `oauth-device-code`
-/// event with the one-time code so the frontend can display it.
-#[tauri::command]
-#[instrument(skip(state, app), name = "cmd::cli_auth::login")]
-pub async fn cli_login(
-    kind: String,
-    instance_url: Option<String>,
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-) -> Result<provider::ProviderUser, String> {
-    let provider_kind = provider::ProviderKind::from_config_str(&kind)
-        .ok_or_else(|| format!("Unknown provider: {kind}"))?;
-    let binary = resolve_cli_binary(&state, provider_kind)?;
-    let url_ref = instance_url.clone();
-
-    // Start login process (captures device code, opens browser)
-    let process = {
-        let binary = binary.clone();
-        let url = url_ref.clone();
-        tokio::task::spawn_blocking(move || {
-            cli_provider::auth::start_cli_login(&binary, provider_kind, url.as_deref())
-        })
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?
-    };
-
-    // Emit the device code to the frontend BEFORE waiting for OAuth
-    use tauri::Emitter as _;
-    let _ = app.emit("oauth-device-code", &process.info);
-
-    // Now wait for OAuth completion (blocks until user finishes in browser)
-    {
-        tokio::task::spawn_blocking(move || process.wait())
-            .await
-            .map_err(|e| e.to_string())?
-            .map_err(|e| e.to_string())?;
-    }
-
-    // Extract token (also blocking — runs a subprocess)
-    let token = tokio::task::spawn_blocking(move || {
-        cli_provider::auth::extract_cli_token(&binary, provider_kind, url_ref.as_deref())
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
-
-    // Determine the effective URL for storing
-    let effective_url = instance_url.unwrap_or_else(|| match provider_kind {
-        provider::ProviderKind::GitHub => "https://api.github.com".to_string(),
-        provider::ProviderKind::GitLab => "https://gitlab.com".to_string(),
-    });
-
-    // Validate and store — reuse existing connect_provider logic
-    let user = connect_provider(provider_kind, effective_url, token, state).await?;
-    Ok(user)
-}
-
 #[cfg(test)]
 mod tests {
-    //! The OAuth and CLI-detection flows depend on the real `gh`/`glab`
-    //! binaries and a Tauri handle — those are integration-tested. What we
-    //! can unit-test are the two pure command wrappers
-    //! (`cli_get_auth_command`, `cli_get_logout_command`) plus the
-    //! not-installed status helper.
+    //! The CLI-detection flows depend on the real `gh`/`glab` binaries and a
+    //! Tauri handle — those are integration-tested. What we can unit-test
+    //! are the two pure command wrappers (`cli_get_auth_command`,
+    //! `cli_get_logout_command`) plus the not-installed status helper.
 
     use super::{cli_get_auth_command, cli_get_logout_command};
 
