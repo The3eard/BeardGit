@@ -186,6 +186,18 @@ pub trait AiProvider: Send + Sync {
         Ok(vec![])
     }
 
+    /// List on-disk conversation transcripts whose cwd matches `repo_path`.
+    ///
+    /// This is the transcript-first replacement for [`list_sessions`] — each
+    /// provider overrides it to read from its own transcript store (e.g. Claude
+    /// Code's `~/.claude/projects/{cwd-slug}/*.jsonl`). `list_sessions` is kept
+    /// alive during the feature-flagged rollout and will be removed once the
+    /// V2 UI becomes the default.
+    fn list_conversations(&self, repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
+        let _ = repo_path;
+        Ok(vec![])
+    }
+
     /// Check if a session process is still running.
     fn is_session_active(&self, session: &AiSession) -> bool {
         let _ = session;

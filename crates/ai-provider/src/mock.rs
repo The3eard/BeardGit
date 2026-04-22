@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::{
-    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AiSession, AiWorktree,
-    AttributionPattern, ExecuteOptions,
+    AiBackgroundRunInput, AiConfigFile, AiConversation, AiError, AiProvider, AiProviderKind,
+    AiSession, AiWorktree, AttributionPattern, ExecuteOptions,
 };
 
 /// A configurable mock [`AiProvider`] for tests.
@@ -44,6 +44,8 @@ pub struct MockAiProvider {
     pub in_repo: bool,
     /// Sessions returned by [`list_sessions`](AiProvider::list_sessions).
     pub sessions: Vec<AiSession>,
+    /// Conversations returned by [`list_conversations`](AiProvider::list_conversations).
+    pub conversations: Vec<AiConversation>,
     /// Worktrees returned by [`list_worktrees`](AiProvider::list_worktrees).
     pub worktrees: Vec<AiWorktree>,
     /// Config files returned by [`config_files`](AiProvider::config_files).
@@ -73,6 +75,7 @@ impl Default for MockAiProvider {
             version: Ok("1.0.0-mock".to_string()),
             in_repo: false,
             sessions: Vec::new(),
+            conversations: Vec::new(),
             worktrees: Vec::new(),
             config_files_value: Vec::new(),
             instruction_files_value: Vec::new(),
@@ -165,6 +168,10 @@ impl AiProvider for MockAiProvider {
 
     fn list_sessions(&self, _repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
         Ok(self.sessions.clone())
+    }
+
+    fn list_conversations(&self, _repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
+        Ok(self.conversations.clone())
     }
 
     fn is_session_active(&self, _session: &AiSession) -> bool {
@@ -268,5 +275,31 @@ mod tests {
     fn mock_is_object_safe_as_dyn_trait() {
         let mock: Arc<dyn AiProvider> = Arc::new(MockAiProvider::default());
         assert_eq!(mock.provider_kind(), AiProviderKind::ClaudeCode);
+    }
+
+    #[test]
+    fn list_conversations_returns_configured_vec() {
+        let convo = AiConversation {
+            id: "conv-1".into(),
+            provider: AiProviderKind::ClaudeCode,
+            cwd: PathBuf::from("/tmp/repo"),
+            created_at: 1_700_000_000_000,
+            last_activity_at: 1_700_000_100_000,
+            title: "hello".into(),
+            parent_id: None,
+        };
+        let mock = MockAiProvider {
+            conversations: vec![convo.clone()],
+            ..Default::default()
+        };
+        // Exercise via the trait object to cover object-safety + the new method.
+        let dyn_mock: Arc<dyn AiProvider> = Arc::new(mock);
+        let got = dyn_mock
+            .list_conversations(Path::new("/tmp/repo"))
+            .expect("mock should succeed");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].id, convo.id);
+        assert_eq!(got[0].title, convo.title);
+        assert!(got[0].parent_id.is_none());
     }
 }
