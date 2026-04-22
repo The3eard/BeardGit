@@ -1,46 +1,55 @@
 <script lang="ts">
   /**
-   * Detail pane for an AI Sessions row.
+   * Detail pane for the AI Sessions view — branches on whichever of the
+   * two selection stores is set.
    *
-   * For background runs: shows the status badge, elapsed time, token-usage
-   * readout, transcript panel, and the four action buttons from the Phase
-   * 10 spec (Switch to worktree, Open terminal here, View changes, Discard
-   * worktree). For ordinary provider sessions, shows a lightweight info
-   * card.
+   * 1. `$selectedConversation` non-null → conversation metadata
+   *    (provider, cwd, created/last-activity, optional forked-from,
+   *    Resume button). No transcript rendering in this slice per Phase-5
+   *    scope.
+   * 2. `$selectedBackgroundSession` non-null → bg-run detail (status
+   *    badge, transcript, cancel/open-terminal/switch/discard action
+   *    buttons, token/cost lines). Body is a near-verbatim copy of the
+   *    legacy bg-run branch.
+   * 3. Otherwise → empty-state placeholder.
+   *
+   * The selection stores are mutually exclusive (the list rows clear the
+   * other whenever one is set), so `$selectedConversation` takes
+   * precedence here only as a defensive ordering — in practice at most
+   * one is non-null.
    */
   import {
     aiBackgroundTranscripts,
     cancelAiBackgroundRun,
     discardAiBackgroundRunWorktree,
     openTerminalForAiBackgroundSession,
+    selectedBackgroundSession,
   } from "$lib/stores/aiBackground";
-  import { selectedSession, dismissSession } from "$lib/stores/aiSessions";
   import {
-    getSessionTier,
-    focusSessionTab,
-    resumeSession,
-  } from "$lib/stores/aiSessionActions";
+    selectedConversation,
+    selectedConversationId,
+  } from "$lib/stores/aiConversations";
+  import { resumeConversation } from "$lib/stores/aiConversationActions";
   import { openProjectTab } from "$lib/stores/projects";
   import { runMutation } from "$lib/api/runMutation";
   import { addToast } from "$lib/stores/toast";
   import { providerName } from "$lib/data/ai-providers";
+  import { formatDateTime, formatRelativeTimeMs } from "$lib/utils/time";
   import * as m from "$lib/paraglide/messages";
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
   import BackgroundRunTranscript from "../ai/BackgroundRunTranscript.svelte";
   import ProviderIcon from "./ProviderIcon.svelte";
-  import { Button } from "$lib/components/ui";
-  import type { AiSession } from "$lib/types";
 
-  // Resolved against the *merged* list so provider-reported sessions (Claude
-  // PID rollouts, Codex listings, OpenCode scans) also populate the pane —
-  // the narrower `selectedBackgroundSession` only resolves bg-run ids.
-  let session = $derived($selectedSession);
+  // ─── Conversation branch data ───
+  let conversation = $derived($selectedConversation);
+
+  // ─── Background-run branch data ───
+  let bgSession = $derived($selectedBackgroundSession);
   let transcript = $derived.by(() => {
-    if (!session) return [] as string[];
-    return $aiBackgroundTranscripts.get(session.id) ?? [];
+    if (!bgSession) return [] as string[];
+    return $aiBackgroundTranscripts.get(bgSession.id) ?? [];
   });
-
-  let status = $derived(session?.background_status ?? null);
+  let status = $derived(bgSession?.background_status ?? null);
 
   let tokenLine = $derived.by(() => {
     if (!status || status.state !== "completed") return null;
@@ -59,16 +68,20 @@
     return m.ai_background_token_cost({ cost: cost.toFixed(4) });
   });
 
-  let isRunning = $derived(status?.state === "running" || status?.state === "queued");
+  let isRunning = $derived(
+    status?.state === "running" || status?.state === "queued",
+  );
   let isTerminal = $derived(
     status?.state === "completed" ||
       status?.state === "failed" ||
       status?.state === "cancelled",
   );
 
+  // ─── Handlers: bg-run branch ───
+
   async function handleOpenTerminal() {
-    if (!session || !session.worktree_path || isRunning) return;
-    const id = session.id;
+    if (!bgSession || !bgSession.worktree_path || isRunning) return;
+    const id = bgSession.id;
     try {
       await runMutation({
         kind: "ai_open_terminal",
@@ -82,10 +95,10 @@
   }
 
   async function handleDiscard() {
-    if (!session || !isTerminal) return;
+    if (!bgSession || !isTerminal) return;
     // eslint-disable-next-line no-alert
     if (!window.confirm(m.ai_background_discard_confirm())) return;
-    const id = session.id;
+    const id = bgSession.id;
     try {
       await runMutation({
         kind: "ai_discard_worktree",
@@ -98,17 +111,17 @@
   }
 
   async function handleSwitchToWorktree() {
-    if (!session?.worktree_path) return;
+    if (!bgSession?.worktree_path) return;
     try {
-      await openProjectTab(session.worktree_path);
+      await openProjectTab(bgSession.worktree_path);
     } catch (e) {
       console.error("failed to open worktree tab", e);
     }
   }
 
   async function handleCancel() {
-    if (!session || !isRunning) return;
-    const id = session.id;
+    if (!bgSession || !isRunning) return;
+    const id = bgSession.id;
     try {
       await runMutation({
         kind: "ai_cancel_run",
@@ -120,21 +133,24 @@
     }
   }
 
+  // ─── Handlers: conversation branch ───
+
   /**
-   * Handlers for the provider-reported (non-bg) branch. Both delegate to
-   * the shared helpers in `aiSessionActions.ts` so the list row and the
-   * detail pane stay in lockstep — historically they drifted (see the
-   * Phase-10 "composite focus no-op" bug referenced in the spec).
+   * Prefer the conversation's stored title; fall back to the i18n'd
+   * "(no title)" placeholder when the transcript's first user message
+   * wasn't a parseable prompt.
    */
-  async function handleResumeProviderSession(s: AiSession) {
+  let convTitle = $derived.by(() => {
+    if (!conversation) return "";
+    return conversation.title && conversation.title.trim().length > 0
+      ? conversation.title
+      : m.ai_sessions_no_title();
+  });
+
+  async function handleResumeConversation() {
+    if (!conversation) return;
     try {
-      const attached = await resumeSession(s);
-      if (!attached) {
-        addToast({
-          message: m.ai_sessions_resume_not_supported(),
-          type: "warning",
-        });
-      }
+      await resumeConversation(conversation);
     } catch (err) {
       addToast({
         message: m.ai_sessions_resume_error({ error: String(err) }),
@@ -143,18 +159,69 @@
     }
   }
 
+  /** Clear conversation selection when the detail pane unmounts it. */
+  function clearConversationSelection() {
+    selectedConversationId.set(null);
+  }
+  // Silence unused-var warnings for handlers only referenced in conditional
+  // branches — Svelte's strict mode otherwise trips on the dev server.
+  void clearConversationSelection;
 </script>
 
-{#if !session}
-  <div class="empty">{m.ai_sessions_empty()}</div>
-{:else if session.background_status}
+{#if conversation}
+  <!-- ─── Conversation branch ─── -->
+  <div class="detail" data-testid="ai-session-detail-conversation">
+    <header class="header">
+      <div class="title-row">
+        <ProviderIcon provider={conversation.provider} size={20} />
+        <span class="provider">{providerName(conversation.provider)}</span>
+      </div>
+      <div class="title-line" data-testid="ai-session-detail-title">
+        {convTitle}
+      </div>
+      <div class="wt-row">
+        <code class="wt-path" data-testid="ai-session-detail-cwd">
+          {conversation.cwd}
+        </code>
+      </div>
+    </header>
+
+    <dl class="meta-grid">
+      <div class="meta-row">
+        <dt>{m.ai_sessions_created_at({ when: formatDateTime(Math.floor(conversation.created_at / 1000)) })}</dt>
+      </div>
+      <div class="meta-row">
+        <dt>{m.ai_sessions_last_activity({ when: formatRelativeTimeMs(conversation.last_activity_at) })}</dt>
+      </div>
+      {#if conversation.parent_id}
+        <div class="meta-row" data-testid="ai-session-detail-forked">
+          <dt>{m.ai_sessions_forked_from({ prefix: conversation.parent_id })}</dt>
+        </div>
+      {/if}
+    </dl>
+
+    <div class="actions">
+      <button
+        class="btn primary"
+        onclick={handleResumeConversation}
+        title={m.ai_sessions_resume_warning({
+          provider: providerName(conversation.provider),
+        })}
+        data-testid="ai-session-detail-resume"
+      >
+        {m.ai_sessions_resume_in_new_terminal()}
+      </button>
+    </div>
+  </div>
+{:else if bgSession}
+  <!-- ─── Background-run branch ─── -->
   <div class="detail" data-testid="ai-session-detail">
     <header class="header">
       <div class="title-row">
-        <ProviderIcon provider={session.provider} size={20} />
-        <span class="provider">{session.provider.replace("_", " ")}</span>
-        <BackgroundRunStatusBadge status={session.background_status} />
-        {#if !session.worktree_path}
+        <ProviderIcon provider={bgSession.provider} size={20} />
+        <span class="provider">{providerName(bgSession.provider)}</span>
+        <BackgroundRunStatusBadge status={bgSession.background_status!} />
+        {#if !bgSession.worktree_path}
           <span class="external-badge" data-testid="external-badge">
             {m.ai_sessions_external()}
           </span>
@@ -162,7 +229,7 @@
       </div>
       <div class="wt-row">
         <code class="wt-path" data-testid="ai-session-detail-wt-path">
-          {session.worktree_path ?? session.cwd}
+          {bgSession.worktree_path ?? bgSession.cwd}
         </code>
       </div>
     </header>
@@ -179,7 +246,7 @@
         <button class="btn danger" onclick={handleCancel}>
           {m.ai_background_cancel_run()}
         </button>
-        {#if session.worktree_path}
+        {#if bgSession.worktree_path}
           <button
             class="btn"
             disabled
@@ -189,7 +256,7 @@
             {m.ai_background_open_terminal()}
           </button>
         {/if}
-      {:else if session.worktree_path}
+      {:else if bgSession.worktree_path}
         <button
           class="btn"
           onclick={handleOpenTerminal}
@@ -198,7 +265,11 @@
           {m.ai_background_open_terminal()}
         </button>
       {/if}
-      <button class="btn" onclick={handleSwitchToWorktree} disabled={!session.worktree_path}>
+      <button
+        class="btn"
+        onclick={handleSwitchToWorktree}
+        disabled={!bgSession.worktree_path}
+      >
         {m.ai_background_switch_to_worktree()}
       </button>
       {#if isTerminal}
@@ -211,69 +282,8 @@
     <BackgroundRunTranscript lines={transcript} />
   </div>
 {:else}
-  <!-- Provider-reported session (Claude PID rollout, Codex `--resume`
-       listing, OpenCode scan, etc. — no `background_status`). -->
-  <div class="detail" data-testid="ai-session-detail">
-    <header class="header">
-      <div class="title-row">
-        <ProviderIcon provider={session.provider} size={20} />
-        <span class="provider">{providerName(session.provider)}</span>
-        {#if session.is_active}
-          <span class="session-badge active">ACTIVE</span>
-        {:else}
-          <span class="session-badge ended">ENDED</span>
-        {/if}
-        <span
-          class="session-badge kind"
-          class:headless={session.kind === "headless"}
-        >
-          {session.kind}
-        </span>
-        {#if !session.worktree_path}
-          <span class="external-badge" data-testid="external-badge">
-            {m.ai_sessions_external()}
-          </span>
-        {/if}
-      </div>
-      <div class="wt-row">
-        <code class="wt-path" data-testid="ai-session-detail-wt-path">
-          {session.cwd}
-        </code>
-      </div>
-    </header>
-
-    <div class="actions">
-      {#if session.is_active && session.kind === "interactive"}
-        {@const tier = getSessionTier(session)}
-        {#if tier === "focus"}
-          <Button
-            variant="secondary"
-            size="sm"
-            onclick={() => focusSessionTab(session)}
-            testid="ai-session-detail-focus"
-          >
-            {m.ai_sessions_focus()}
-          </Button>
-        {:else}
-          <Button
-            variant="primary"
-            size="sm"
-            onclick={() => handleResumeProviderSession(session)}
-            testid="ai-session-detail-open-terminal"
-          >
-            {m.ai_sessions_open_terminal()}
-          </Button>
-        {/if}
-      {/if}
-      <Button
-        variant="secondary"
-        size="sm"
-        onclick={() => dismissSession(session.id)}
-        testid="ai-session-detail-dismiss"
-      >
-        {m.ai_sessions_dismiss()}
-      </Button>
-    </div>
+  <div class="empty" data-testid="ai-session-detail-empty">
+    {m.ai_sessions_empty()}
   </div>
 {/if}
 
@@ -306,6 +316,14 @@
     text-transform: capitalize;
   }
 
+  .title-line {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
   .external-badge {
     font-size: 10px;
     font-weight: 600;
@@ -318,39 +336,6 @@
     border: 1px solid color-mix(in srgb, var(--text-secondary) 30%, transparent);
   }
 
-  /* Badges inside the provider-reported branch — matches AiSessionList row
-     styling so the two surfaces read as one component. */
-  .session-badge {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    padding: 1px 5px;
-    border-radius: 8px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .session-badge.active {
-    background: rgba(63, 185, 80, 0.15);
-    color: var(--accent-green);
-  }
-
-  .session-badge.ended {
-    background: rgba(128, 128, 128, 0.15);
-    color: var(--text-secondary);
-  }
-
-  .session-badge.kind {
-    background: rgba(88, 166, 255, 0.15);
-    color: var(--accent-blue);
-  }
-
-  .session-badge.kind.headless {
-    background: rgba(210, 153, 34, 0.15);
-    color: var(--accent-orange);
-  }
-
   .wt-row {
     font-size: 11px;
     color: var(--text-secondary);
@@ -360,6 +345,7 @@
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--accent-blue);
+    word-break: break-all;
   }
 
   .meta {
@@ -368,6 +354,23 @@
     gap: 6px;
     font-size: 11px;
     color: var(--text-secondary);
+  }
+
+  .meta-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+  }
+
+  .meta-row {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .meta-row dt {
+    margin: 0;
+    display: inline;
   }
 
   .dot {
@@ -398,6 +401,17 @@
   .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .btn.primary {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #ffffff;
+  }
+
+  .btn.primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent-blue) 85%, black);
+    color: #ffffff;
   }
 
   .btn.danger {

@@ -69,7 +69,7 @@
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
   import RepoConfigDialog from "$lib/components/repo-config/RepoConfigDialog.svelte";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
-  import { startSessionListeners, stopSessionListeners } from "$lib/stores/aiSessions";
+  import { startConversationListeners, stopConversationListeners } from "$lib/stores/aiConversations";
 
   let activeView = $state("graph");
   let showAiBackgroundDialog = $state(false);
@@ -456,10 +456,10 @@
    * async-first pattern as `TagView` / `BranchView` / `PipelineView`.
    */
   function refreshAiSessionListeners(): void {
-    stopSessionListeners();
+    stopConversationListeners();
     const proj = get(activeProject);
     if (proj?.path) {
-      void startSessionListeners(proj.path);
+      void startConversationListeners(proj.path);
     }
   }
 

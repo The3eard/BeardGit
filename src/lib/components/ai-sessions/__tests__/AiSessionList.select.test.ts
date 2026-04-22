@@ -1,48 +1,148 @@
 /**
- * Regression test: clicking any row (including sessions without a
- * `background_status`) writes the session id into
- * `selectedBackgroundSessionId`, so the detail pane populates for every
- * row type.
+ * AiSessionList — mutually-exclusive selection contract.
+ *
+ *   - Clicking a conversation row writes `selectedConversationId` and
+ *     clears `selectedBackgroundSessionId`.
+ *   - Clicking an active bg-run row writes `selectedBackgroundSessionId`
+ *     via `focusTerminal` (kind === "bg") and the list contract keeps
+ *     `selectedConversationId` untouched (the spec says bg focus doesn't
+ *     affect conversation selection — the conv selection is only
+ *     cleared when a DIFFERENT conversation is picked).
+ *   - Clicking the Focus button on a tab/segment row calls
+ *     `focusTerminal` without mutating either selection store.
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/svelte";
 import { get } from "svelte/store";
+import { tick } from "svelte";
+import type { AiConversation, AiSession, Tab } from "$lib/types";
 
-vi.mock("$lib/stores/aiSessions", async () => {
-  const { writable } = await import("svelte/store");
-  return {
-    mergedSessions: writable([
-      {
-        id: "plain",
-        provider: "open_code",
-        cwd: "/x",
-        kind: "interactive",
-        is_active: true,
-        started_at: 0,
-      },
-    ]),
-    sessionsLoading: writable(false),
-    refreshSessions: vi.fn(),
-    dismissSession: vi.fn(),
-    startSessionListeners: vi.fn(),
-    stopSessionListeners: vi.fn(),
-  };
+const { focusTerminal } = vi.hoisted(() => ({
+  focusTerminal: vi.fn(() => true),
+}));
+
+vi.mock("$lib/stores/aiConversationActions", async () => {
+  const actual = await vi.importActual<object>(
+    "$lib/stores/aiConversationActions",
+  );
+  return { ...actual, focusTerminal };
 });
 
 import AiSessionList from "../AiSessionList.svelte";
-import { selectedBackgroundSessionId } from "$lib/stores/aiBackground";
+import {
+  conversations,
+  conversationsLoading,
+  selectedConversationId,
+} from "$lib/stores/aiConversations";
+import {
+  aiBackgroundRuns,
+  selectedBackgroundSessionId,
+} from "$lib/stores/aiBackground";
+import { openTabs, activeTabIndex } from "$lib/stores/tabs";
 
+const CONVERSATION: AiConversation = {
+  id: "conv-1",
+  provider: "claude_code",
+  cwd: "/repos/demo",
+  created_at: 1_700_000_000_000,
+  last_activity_at: 1_700_000_000_000,
+  title: "Fix the login flow",
+};
+
+const BG_RUN: AiSession = {
+  id: "bg-1",
+  provider: "claude_code",
+  cwd: "/repos/demo",
+  started_at: 1_700_000_000,
+  kind: "headless",
+  is_active: true,
+  worktree_path: "/repos/demo/.wt/ai-bg",
+  background_status: { state: "running" },
+};
+
+function resetStores() {
+  conversations.set([]);
+  conversationsLoading.set(false);
+  selectedConversationId.set(null);
+  aiBackgroundRuns.set(new Map());
+  selectedBackgroundSessionId.set(null);
+  openTabs.set([]);
+  activeTabIndex.set(-1);
+  focusTerminal.mockClear();
+}
+
+beforeEach(resetStores);
 afterEach(() => {
   cleanup();
-  selectedBackgroundSessionId.set(null);
+  resetStores();
 });
 
 describe("AiSessionList selection", () => {
-  it("selects any row, not just background runs", async () => {
+  it("clicking a conversation row selects it and clears bg selection", async () => {
+    selectedBackgroundSessionId.set("some-bg");
+    conversations.set([CONVERSATION]);
+
     const { container } = render(AiSessionList);
-    const row = container.querySelector(".session-item") as HTMLElement;
+    await tick();
+
+    const row = container.querySelector(
+      '[data-testid="ai-conversation-row"]',
+    ) as HTMLElement;
     expect(row).toBeTruthy();
     await fireEvent.click(row);
-    expect(get(selectedBackgroundSessionId)).toBe("plain");
+
+    expect(get(selectedConversationId)).toBe(CONVERSATION.id);
+    expect(get(selectedBackgroundSessionId)).toBeNull();
+  });
+
+  it("clicking a bg-run active-row Focus button routes through focusTerminal", async () => {
+    aiBackgroundRuns.set(new Map([[BG_RUN.id, BG_RUN]]));
+    selectedConversationId.set("some-conv");
+
+    const { container } = render(AiSessionList);
+    await tick();
+
+    const focusBtn = container.querySelector(
+      '[data-testid="ai-active-row-focus"]',
+    ) as HTMLElement;
+    expect(focusBtn).toBeTruthy();
+    await fireEvent.click(focusBtn);
+
+    expect(focusTerminal).toHaveBeenCalledTimes(1);
+    const call = focusTerminal.mock.calls[0] as unknown as [
+      { kind: "bg"; session: AiSession },
+    ];
+    expect(call?.[0]?.kind).toBe("bg");
+    expect(call?.[0]?.session.id).toBe(BG_RUN.id);
+    // Conversation selection is a separate concern — focusTerminal on a bg
+    // row shouldn't alter it.
+    expect(get(selectedConversationId)).toBe("some-conv");
+  });
+
+  it("clicking Focus on a tab row calls focusTerminal without touching selection", async () => {
+    const tab: Tab = {
+      kind: "terminal",
+      terminal: {
+        sessionId: 42,
+        title: "Claude",
+        cwd: "/repos/demo",
+        provider: "claude_code",
+      },
+    };
+    openTabs.set([tab]);
+    selectedConversationId.set("keep-me");
+    selectedBackgroundSessionId.set("keep-me-too");
+
+    const { container } = render(AiSessionList);
+    await tick();
+
+    const focusBtn = container.querySelector(
+      '[data-testid="ai-active-row-focus"]',
+    ) as HTMLElement;
+    await fireEvent.click(focusBtn);
+
+    expect(focusTerminal).toHaveBeenCalledTimes(1);
+    expect(get(selectedConversationId)).toBe("keep-me");
+    expect(get(selectedBackgroundSessionId)).toBe("keep-me-too");
   });
 });

@@ -1,215 +1,172 @@
 <!--
-  AiSessionList — list of AI coding assistant sessions for the current
-  project (interactive + headless). Swaps the outer shell for <List>
-  while keeping session-specific row markup, styles, and lifecycle.
+  AiSessionList — two-section sidebar for the AI Sessions view.
+
+  Section 1: "Active terminals" — every BeardGit-owned PTY currently
+  running an AI provider (standalone tab, composite segment, background
+  run). Rendered via `ActiveRow`.
+
+  Section 2: "Conversations" — every on-disk AI transcript scoped to the
+  current project. Rendered via `ConversationRow`.
+
+  The two lists are structurally disjoint; a live bg-run may also have a
+  transcript but each row is a different affordance (Focus vs Resume) so
+  we intentionally let them coexist.
+
+  Selection is mutually exclusive: clicking a conversation row clears the
+  bg-run selection and vice versa. Focusing an Active row does NOT alter
+  selection — it just switches tabs/segments. Detail-pane branching lives
+  in `AiSessionDetail.svelte`.
+
+  Refresh runs BOTH `refreshConversations` and `refreshAiBackgroundRuns`
+  so the header refresh button covers both sections in a single click.
 -->
 <script lang="ts">
   import {
-    mergedSessions,
-    sessionsLoading,
-    refreshSessions,
-    dismissSession,
-  } from "../../stores/aiSessions";
-  import { activeBackgroundRunCount, selectedBackgroundSessionId, requestOpenCreateBackgroundRunDialog } from "../../stores/aiBackground";
+    conversations,
+    conversationsLoading,
+    refreshConversations,
+  } from "$lib/stores/aiConversations";
+  import { activeAiTerminals } from "$lib/stores/aiActiveTerminals";
   import {
-    getSessionTier,
-    focusSessionTab,
-    resumeSession,
-  } from "../../stores/aiSessionActions";
-  import { repoInfo } from "../../stores/repo";
-  import { formatRelativeTimeUnix } from "../../utils/time";
-  import { addToast } from "../../stores/toast";
-  import type { AiSession } from "$lib/types";
+    refreshAiBackgroundRuns,
+    requestOpenCreateBackgroundRunDialog,
+  } from "$lib/stores/aiBackground";
+  import { repoInfo } from "$lib/stores/repo";
   import * as m from "$lib/paraglide/messages";
-  import List from "../common/List.svelte";
-  import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
-  import ProviderIcon from "./ProviderIcon.svelte";
-  import { providerName } from "$lib/data/ai-providers";
+  import ActiveRow from "./ActiveRow.svelte";
+  import ConversationRow from "./ConversationRow.svelte";
 
-  interface Props {
-    onSelectSession?: (session: AiSession) => void;
-  }
-
-  let { onSelectSession }: Props = $props();
-
-  /** Extract last path segment for compact display. */
-  function shortCwd(fullPath: string): string {
-    const parts = fullPath.replace(/\\/g, "/").split("/").filter(Boolean);
-    return parts[parts.length - 1] ?? fullPath;
-  }
-
-  // No `onMount` on purpose — refresh + listener startup live on the
-  // `SplitView` refreshFn + app-shell init (see `AiSessionsView.svelte`
-  // and `+layout.svelte`). Keeping this component a dumb render of
-  // `$mergedSessions` matches `TagList` / `BranchList` / etc. so the
-  // view swap paints in the same frame as the rest of the sections.
-
-  function handleRefresh() {
+  /**
+   * Refresh both lists. Called from the header button and by
+   * `AiSessionsView`'s `refreshFn` on SplitView mount.
+   */
+  async function handleRefresh() {
     const path = $repoInfo?.path;
-    refreshSessions(path);
-  }
-
-  function getKey(session: AiSession): string {
-    return session.id;
+    await Promise.all([
+      refreshConversations(path),
+      refreshAiBackgroundRuns(),
+    ]);
   }
 
   function openNewRunDialog() {
     requestOpenCreateBackgroundRunDialog();
   }
-
-  function handleSelect(session: AiSession) {
-    // Every row populates the detail pane — interactive/headless sessions
-    // without a background_status still need to drive the selection store
-    // so the right-hand pane reflects what the user clicked. The detail
-    // pane reads the id through `selectedSession` (merged list) rather
-    // than `selectedBackgroundSession` (bg-runs only) — see aiSessions.ts.
-    selectedBackgroundSessionId.set(session.id);
-    onSelectSession?.(session);
-  }
-
-  async function handleResumeSession(session: AiSession) {
-    try {
-      const attached = await resumeSession(session);
-      if (!attached) {
-        addToast({
-          message: m.ai_sessions_resume_not_supported(),
-          type: "warning",
-        });
-      }
-    } catch (err) {
-      addToast({
-        message: m.ai_sessions_resume_error({ error: String(err) }),
-        type: "error",
-      });
-    }
-  }
 </script>
 
-<List
-  items={$mergedSessions}
-  loading={$sessionsLoading}
-  title={m.sidebar_ai_sessions()}
-  selectedKey={$selectedBackgroundSessionId}
-  {getKey}
-  onSelect={handleSelect}
-  onRefresh={handleRefresh}
->
-  {#snippet headerActions()}
-    {#if $activeBackgroundRunCount > 0}
-      <span class="count-badge">{$activeBackgroundRunCount}</span>
-    {:else if $mergedSessions.length > 0}
-      <span class="count-badge">{$mergedSessions.length}</span>
-    {/if}
-    <button
-      class="new-run-btn"
-      onclick={openNewRunDialog}
-      title={m.ai_background_tab_button_tooltip()}
-    >
-      + {m.ai_background_new_run_button()}
-    </button>
-    <button
-      class="refresh-btn nf"
-      onclick={handleRefresh}
-      disabled={$sessionsLoading}
-      title="Refresh"
-    >
-      {$sessionsLoading ? "\uF110" : "\uF021"}
-    </button>
-  {/snippet}
-
-  {#snippet emptyState()}
-    <div class="empty-state">
-      <span class="empty-icon nf">{"\uF489"}</span>
-      <span class="empty-text">{m.ai_sessions_empty()}</span>
-      <span class="empty-hint">{m.ai_sessions_empty_hint()}</span>
+<div class="list-panel" data-testid="ai-session-list">
+  <!-- Panel header: sits above both sections, hosts the global actions. -->
+  <div class="panel-header">
+    <span class="panel-title">{m.sidebar_ai_sessions()}</span>
+    <div class="panel-actions">
+      <button
+        class="new-run-btn"
+        onclick={openNewRunDialog}
+        title={m.ai_background_tab_button_tooltip()}
+        data-testid="ai-session-list-new-run"
+      >
+        + {m.ai_background_new_run_button()}
+      </button>
+      <button
+        class="refresh-btn nf"
+        onclick={handleRefresh}
+        disabled={$conversationsLoading}
+        title="Refresh"
+        data-testid="ai-session-list-refresh"
+      >
+        {$conversationsLoading ? "" : ""}
+      </button>
     </div>
-  {/snippet}
+  </div>
 
-  {#snippet row({ item }: { item: AiSession; selected: boolean })}
-    <div
-      class="session-item"
-      class:active={item.is_active}
-      class:ended={!item.is_active}
-      data-testid="ai-session-row"
-      data-session-id={item.id}
+  <div class="sections">
+    <!-- ─── Active terminals ─── -->
+    <section
+      class="section"
+      data-testid="ai-session-list-section-active"
     >
-      <ProviderIcon provider={item.provider} size={20} />
-      <div class="session-info">
-        <div class="session-row-top">
-          <span class="session-provider">{providerName(item.provider)}</span>
-          {#if item.background_status}
-            <BackgroundRunStatusBadge status={item.background_status} compact />
-          {:else if item.is_active}
-            <span class="session-badge active">ACTIVE</span>
-          {:else}
-            <span class="session-badge ended">ENDED</span>
-          {/if}
-          <span class="session-badge kind" class:headless={item.kind === "headless"}>
-            {item.kind}
-          </span>
+      <header class="section-header">
+        <span class="section-title">{m.ai_sessions_active_title()}</span>
+        <span class="section-count" data-testid="ai-session-list-active-count">
+          {$activeAiTerminals.length}
+        </span>
+      </header>
+      {#if $activeAiTerminals.length === 0}
+        <div class="section-empty" data-testid="ai-session-list-active-empty">
+          {m.ai_sessions_empty_active()}
         </div>
-        <div class="session-row-bottom">
-          <span class="session-cwd">{shortCwd(item.cwd)}</span>
-          {#if item.started_at}
-            <span class="session-time">{formatRelativeTimeUnix(item.started_at)}</span>
-          {/if}
+      {:else}
+        <ul class="row-list" role="list">
+          {#each $activeAiTerminals as active (active.kind === "bg" ? `bg:${active.session.id}` : active.kind === "tab" ? `tab:${active.tabIndex}` : `seg:${active.tabIndex}:${active.segmentIndex}`)}
+            <li class="row-item">
+              <ActiveRow {active} />
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+
+    <!-- ─── Conversations ─── -->
+    <section
+      class="section"
+      data-testid="ai-session-list-section-conversations"
+    >
+      <header class="section-header">
+        <span class="section-title">{m.ai_sessions_conversations_title()}</span>
+        <span class="section-count" data-testid="ai-session-list-conversations-count">
+          {$conversations.length}
+        </span>
+      </header>
+      {#if $conversations.length === 0 && !$conversationsLoading}
+        <div
+          class="section-empty"
+          data-testid="ai-session-list-conversations-empty"
+        >
+          {m.ai_sessions_empty_conversations()}
         </div>
-      </div>
-      <div class="session-meta">
-        {#if !item.worktree_path}
-          <span class="external-badge" data-testid="external-badge">
-            {m.ai_sessions_external()}
-          </span>
-        {/if}
-      </div>
-      <div class="session-actions">
-        {#if item.is_active && item.kind === "interactive"}
-          {@const tier = getSessionTier(item)}
-          {#if tier === "focus"}
-            <button
-              class="session-action-btn focus-btn"
-              onclick={() => focusSessionTab(item)}
-              title={m.ai_sessions_focus()}
-            >
-              <span class="action-label">{m.ai_sessions_focus()}</span>
-            </button>
-          {:else}
-            <button
-              class="session-action-btn resume-btn"
-              onclick={() => handleResumeSession(item)}
-              title={m.ai_sessions_open_terminal()}
-            >
-              <span class="action-label">{m.ai_sessions_open_terminal()}</span>
-            </button>
-          {/if}
-        {:else if item.is_active && item.kind === "headless"}
-          <button class="session-action-btn" title="Output">
-            <span class="nf">{"\uF15C"}</span>
-          </button>
-        {:else}
-          <button
-            class="session-action-btn dismiss"
-            onclick={() => dismissSession(item.id)}
-            title="Dismiss"
-          >
-            <span class="nf">{"\uF00D"}</span>
-          </button>
-        {/if}
-      </div>
-    </div>
-  {/snippet}
-</List>
+      {:else}
+        <ul class="row-list" role="list">
+          {#each $conversations as conversation (conversation.id)}
+            <li class="row-item">
+              <ConversationRow {conversation} />
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+  </div>
+</div>
 
 <style>
-  .count-badge {
-    font-size: 10px;
-    background: var(--accent-blue);
-    color: #ffffff;
-    border-radius: 8px;
-    padding: 0 5px;
-    min-width: 16px;
-    text-align: center;
-    line-height: 16px;
+  .list-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-primary);
+    flex-shrink: 0;
+    gap: 8px;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+  }
+
+  .panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .new-run-btn {
@@ -229,204 +186,96 @@
     background: color-mix(in srgb, var(--accent-blue) 14%, transparent);
   }
 
-  /* ─── Empty state ─── */
+  .refresh-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-icons);
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
 
-  .empty-state {
+  .refresh-btn:hover:not(:disabled) {
+    color: var(--text-primary);
+  }
+
+  .refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .sections {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .section-header {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 48px 24px;
     gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
 
-  .empty-icon {
-    font-size: 32px;
+  .section-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     color: var(--text-secondary);
-    opacity: 0.4;
-    font-family: var(--font-icons);
   }
 
-  .empty-text {
-    font-size: 13px;
-    color: var(--text-secondary);
+  .section-count {
+    font-size: 10px;
+    background: var(--accent-blue);
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 0 6px;
+    min-width: 18px;
+    text-align: center;
+    line-height: 16px;
+    font-weight: 600;
   }
 
-  .empty-hint {
+  .section-empty {
+    padding: 16px 12px;
     font-size: 11px;
     color: var(--text-secondary);
     opacity: 0.6;
     text-align: center;
-    max-width: 280px;
+    font-style: italic;
   }
 
-  /* ─── Session items ─── */
-
-  .session-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    padding: 8px;
-    transition: background 0.1s;
+  .row-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 
-  .session-item.ended {
-    opacity: 0.5;
+  .row-item {
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
   }
 
-  .session-info {
-    flex: 1;
-    min-width: 0;
+  .row-item:hover {
+    background: var(--overlay-hover);
   }
 
-  .session-row-top {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  .session-provider {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .session-badge {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    padding: 1px 5px;
-    border-radius: 8px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .session-badge.active {
-    background: rgba(63, 185, 80, 0.15);
-    color: var(--accent-green);
-  }
-
-  .session-badge.ended {
-    background: rgba(128, 128, 128, 0.15);
-    color: var(--text-secondary);
-  }
-
-  .session-badge.kind {
-    background: rgba(88, 166, 255, 0.15);
-    color: var(--accent-blue);
-  }
-
-  .session-badge.kind.headless {
-    background: rgba(210, 153, 34, 0.15);
-    color: var(--accent-orange);
-  }
-
-  .session-row-bottom {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 2px;
-  }
-
-  .session-cwd {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--accent-blue);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .session-time {
-    font-size: 10px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .session-meta {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
-  .external-badge {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    padding: 1px 5px;
-    border-radius: 8px;
-    background: rgba(128, 128, 128, 0.15);
-    color: var(--text-secondary);
-  }
-
-  .session-actions {
-    display: flex;
-    gap: 2px;
-    flex-shrink: 0;
-    opacity: 0;
-    transition: opacity 0.15s;
-  }
-
-  .session-item:hover .session-actions {
-    opacity: 1;
-  }
-
-  .session-action-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 14px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-  }
-
-  .session-action-btn:hover {
-    color: var(--text-primary);
-  }
-
-  .session-action-btn.dismiss:hover {
-    color: var(--accent-red);
-  }
-
-  .session-action-btn.focus-btn,
-  .session-action-btn.resume-btn {
-    font-size: 10px;
-    padding: 2px 8px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
-  }
-
-  .session-action-btn.focus-btn {
-    color: var(--accent-blue);
-    border-color: rgba(88, 166, 255, 0.3);
-  }
-
-  .session-action-btn.focus-btn:hover {
-    background: rgba(88, 166, 255, 0.1);
-  }
-
-  .session-action-btn.resume-btn {
-    color: var(--accent-green);
-    border-color: rgba(63, 185, 80, 0.3);
-  }
-
-  .session-action-btn.resume-btn:hover {
-    background: rgba(63, 185, 80, 0.1);
-  }
-
-  .action-label {
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+  .row-item:last-child {
+    border-bottom: none;
   }
 </style>
