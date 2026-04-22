@@ -1,11 +1,9 @@
 //! OpenCode conversation transcript discovery.
 //!
-//! Shells out to `opencode session list --format json` — the same CLI that
-//! [`super::sessions`] uses — and adapts the result into the transcript-first
-//! [`AiConversation`] shape expected by the AI Sessions UI. This is the
-//! moral equivalent of [`super::sessions::load_sessions`] but:
+//! Shells out to `opencode session list --format json` via the
+//! [`SessionRunner`] trait and adapts the result into the transcript-first
+//! [`AiConversation`] shape expected by the AI Sessions UI:
 //!
-//! * returns [`AiConversation`] rather than [`ai_provider::AiSession`],
 //! * filters by `repo_path` (matching `directory` from the JSON with
 //!   trailing-slash normalisation),
 //! * enforces the same 30-day [`DISCOVERY_WINDOW`] used by the Claude
@@ -13,9 +11,8 @@
 //! * sorts descending by `updated` (unix-ms) for the UI sidebar,
 //! * sets `parent_id` to `None` — OpenCode does not fork conversations.
 //!
-//! The legacy PID-scan path in [`super::sessions`] stays in place and is
-//! removed in Phase 8; both listers share the [`SessionRunner`] trait so
-//! tests can replay canned JSON without spawning `opencode`.
+//! All CLI shell-outs go through [`SessionRunner`] so tests can replay
+//! canned JSON without spawning `opencode`.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -66,9 +63,8 @@ struct RawSession {
 /// remainder sorted descending by `updated`.
 ///
 /// Returns `Ok(vec![])` on any runner error (e.g. binary not installed,
-/// non-zero exit) or unparseable JSON — matches the tolerance used by
-/// [`super::sessions::load_sessions`]: we never crash the UI because the
-/// sidecar's output shape changed.
+/// non-zero exit) or unparseable JSON — we never crash the UI because
+/// the sidecar's output shape changed.
 pub fn list_conversations(
     runner: &dyn SessionRunner,
     repo_path: &Path,
@@ -174,9 +170,6 @@ mod tests {
     use std::cell::RefCell;
 
     /// Deterministic mock runner that returns pre-canned stdout for tests.
-    ///
-    /// Mirrors the shape used in [`super::sessions`]'s tests so both
-    /// listers share a single test harness pattern.
     struct MockSessionRunner {
         stdout: std::io::Result<String>,
         calls: RefCell<Vec<Vec<String>>>,

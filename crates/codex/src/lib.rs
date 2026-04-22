@@ -17,8 +17,7 @@ use std::process::Command;
 
 use ai_provider::{
     AiBackgroundRunInput, AiConfigFile, AiConversation, AiError, AiProvider, AiProviderKind,
-    AiSession, AiWorktree, AttributionMatch, AttributionPattern, ConfigKind, ConfigScope,
-    ExecuteOptions,
+    AiWorktree, AttributionMatch, AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
 };
 
 /// AI provider for the Codex CLI.
@@ -122,52 +121,16 @@ impl AiProvider for CodexProvider {
         Some(commands::build_resume_session_cmd(binary, session_id, cwd))
     }
 
-    // ─── Session Introspection ───
-
-    /// List Codex sessions whose `cwd` matches `repo_path`.
-    ///
-    /// Reads `~/.codex/sessions/` (filtering by cwd) — Codex has no built-in
-    /// JSON session-list command, so we parse the on-disk JSONL rollouts
-    /// directly. See [`sessions`] for the format.
-    fn list_sessions(&self, repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
-        let Some(home) = dirs::home_dir() else {
-            return Ok(Vec::new());
-        };
-        let base_dir = home.join(".codex/sessions");
-        let all = sessions::load_sessions(&base_dir);
-        let target = repo_path;
-        Ok(all.into_iter().filter(|s| s.cwd == target).collect())
-    }
+    // ─── Conversation Introspection ───
 
     /// List Codex conversation transcripts whose rollout `cwd` matches
     /// `repo_path`.
     ///
-    /// Transcript-first sibling of [`AiProvider::list_sessions`] — reads
-    /// the same `~/.codex/sessions/` tree but surfaces every matching
-    /// rollout as an [`AiConversation`] regardless of live-process state.
-    /// See [`conversations`] for the walker + filter contract.
+    /// Reads `~/.codex/sessions/` and surfaces every matching rollout as
+    /// an [`AiConversation`]. See [`conversations`] for the walker + filter
+    /// contract.
     fn list_conversations(&self, repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
         conversations::list_conversations(repo_path)
-    }
-
-    /// Whether a Codex session is still "live".
-    ///
-    /// Codex does not record a PID in its session metadata, so liveness
-    /// falls back to a recency heuristic: sessions whose rollout file has
-    /// been written within [`sessions::ACTIVE_WINDOW`] are reported as
-    /// active. The [`AiSession::is_active`] field populated at discovery
-    /// time takes precedence; we re-scan the session directory only when
-    /// that flag is already false (the session may have been written to
-    /// since the last list).
-    fn is_session_active(&self, session: &AiSession) -> bool {
-        if session.is_active {
-            return true;
-        }
-        let Some(home) = dirs::home_dir() else {
-            return false;
-        };
-        let base_dir = home.join(".codex/sessions");
-        sessions::is_session_active(&base_dir, &session.id)
     }
 
     // ─── Worktree Introspection ───

@@ -19,7 +19,7 @@ use std::process::Command;
 
 use crate::{
     AiBackgroundRunInput, AiConfigFile, AiConversation, AiError, AiProvider, AiProviderKind,
-    AiSession, AiWorktree, AttributionPattern, ExecuteOptions,
+    AiWorktree, AttributionPattern, ExecuteOptions,
 };
 
 /// A configurable mock [`AiProvider`] for tests.
@@ -42,8 +42,6 @@ pub struct MockAiProvider {
     pub version: Result<String, AiError>,
     /// If true, [`detect_in_repo`](AiProvider::detect_in_repo) always returns true.
     pub in_repo: bool,
-    /// Sessions returned by [`list_sessions`](AiProvider::list_sessions).
-    pub sessions: Vec<AiSession>,
     /// Conversations returned by [`list_conversations`](AiProvider::list_conversations).
     pub conversations: Vec<AiConversation>,
     /// Worktrees returned by [`list_worktrees`](AiProvider::list_worktrees).
@@ -60,8 +58,6 @@ pub struct MockAiProvider {
     pub background_uses_stdin_prompt_value: bool,
     /// If true, [`cleanup_worktree`](AiProvider::cleanup_worktree) returns `Ok(())`; otherwise `NotSupported`.
     pub cleanup_worktree_ok: bool,
-    /// If true, [`is_session_active`](AiProvider::is_session_active) always returns true.
-    pub session_active: bool,
 }
 
 impl Default for MockAiProvider {
@@ -74,7 +70,6 @@ impl Default for MockAiProvider {
             is_installed_value: true,
             version: Ok("1.0.0-mock".to_string()),
             in_repo: false,
-            sessions: Vec::new(),
             conversations: Vec::new(),
             worktrees: Vec::new(),
             config_files_value: Vec::new(),
@@ -83,7 +78,6 @@ impl Default for MockAiProvider {
             background_supported: false,
             background_uses_stdin_prompt_value: false,
             cleanup_worktree_ok: false,
-            session_active: false,
         }
     }
 }
@@ -166,16 +160,8 @@ impl AiProvider for MockAiProvider {
         Ok(noop_command())
     }
 
-    fn list_sessions(&self, _repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
-        Ok(self.sessions.clone())
-    }
-
     fn list_conversations(&self, _repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
         Ok(self.conversations.clone())
-    }
-
-    fn is_session_active(&self, _session: &AiSession) -> bool {
-        self.session_active
     }
 
     fn list_worktrees(&self, _repo_path: &Path) -> Result<Vec<AiWorktree>, AiError> {

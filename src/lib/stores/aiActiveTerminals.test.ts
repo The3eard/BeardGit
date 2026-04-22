@@ -14,7 +14,6 @@ vi.mock("$lib/api/tauri", () => ({
   terminalSpawn: vi.fn().mockResolvedValue(100),
   terminalKill: vi.fn().mockResolvedValue(undefined),
   aiLaunchInteractive: vi.fn().mockResolvedValue(200),
-  aiResumeSession: vi.fn().mockResolvedValue(300),
   aiResumeConversation: vi.fn().mockResolvedValue(400),
   aiListBackgroundRuns: vi.fn().mockResolvedValue([]),
   aiStartBackgroundRun: vi.fn(),

@@ -8,8 +8,9 @@
 //! `.git/HEAD` are allowed through so that external commits and branch
 //! switches are detected.
 //!
-//! [`AiSessionWatcher`] watches AI provider session directories (e.g.
-//! `~/.claude/sessions/`) and fires on any change, without filtering.
+//! [`AiSessionWatcher`] watches AI provider transcript / rollout
+//! directories (e.g. `~/.claude/projects/`, `~/.codex/sessions/`) and
+//! fires on any change, without filtering.
 
 mod ai_config;
 mod ai_sessions;

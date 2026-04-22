@@ -1,9 +1,8 @@
 /**
- * Shared action helpers for the AI conversations v2 UI.
+ * Shared action helpers for the AI conversations UI.
  *
- * Parallel to `aiSessionActions.ts` but keyed on `AiConversation`
- * (transcript-first) rather than `AiSession` (PID-scan). Covers the two
- * things the v2 UI wants to do:
+ * Keyed on `AiConversation` (transcript-first, each row is an on-disk
+ * rollout). Covers the two things the UI wants to do:
  *
  * - Focus an already-open BeardGit-owned AI terminal — covers tab,
  *   composite segment, and background-run cases.
@@ -12,10 +11,9 @@
  * `resumeConversation` delegates to `resumeAiConversationTab` in
  * `tabs.ts`, which owns the Rust call and the promote/segment/standalone
  * placement rules. Keeping the boolean signature even though every
- * branch currently returns `true` future-proofs the API: Phase 6 adds
- * Codex/OpenCode parity, and if one of those providers grows a "resume
- * not allowed while running" case we already have the shape to surface
- * it.
+ * branch currently returns `true` future-proofs the API: if a provider
+ * ever grows a "resume not allowed while running" case we already have
+ * the shape to surface it.
  *
  * Intentionally does NOT re-export `dismissConversation` — that's a
  * store-level concern and lives in `aiConversations.ts`.
@@ -36,8 +34,7 @@ import type { ActiveTerminal } from "./aiActiveTerminals";
  * - `"tab"`     — set `activeTabIndex` to the tab's index.
  * - `"segment"` — set `activeTabIndex` AND rewrite the composite's
  *   `activeSegmentIndex` so the user lands on the terminal rather than
- *   the project segment. Tabs are immutable, so we build a new array —
- *   same pattern as `focusSessionTab` in `aiSessionActions.ts`.
+ *   the project segment. Tabs are immutable, so we build a new array.
  * - `"bg"`      — set `selectedBackgroundSessionId` so the detail pane
  *   surfaces the run, AND clear `selectedConversationId` because the
  *   detail pane branches on conversation-selection first — without the

@@ -59,16 +59,15 @@ export const activeBackgroundRunCount = derived(
 
 /**
  * Derived: currently selected session resolved against the **background run
- * map only**. Returns `null` for provider-reported sessions (e.g. Claude PID
- * rollouts or Codex `--resume` listings) even when they're selected in the
- * sidebar — those have no background_status and no transcript buffer.
+ * map only**. Returns `null` for provider-reported conversations (on-disk
+ * transcripts without a live coordinator) even when they're selected in
+ * the sidebar — those have no `background_status` and no transcript
+ * buffer.
  *
- * For the "populate the detail pane regardless of session kind" use-case,
- * consume `selectedSession` from `./aiSessions` instead. This narrower
- * variant is still exported because `BackgroundRunTranscript` and the
- * cancel/discard/worktree-open handlers in `AiSessionDetail.svelte`
- * specifically want bg-run-only semantics: if the selection isn't a bg run,
- * their UI branch shouldn't render at all.
+ * This narrower variant is exported because `BackgroundRunTranscript` and
+ * the cancel/discard/worktree-open handlers in `AiSessionDetail.svelte`
+ * specifically want bg-run-only semantics: if the selection isn't a bg
+ * run, their UI branch shouldn't render at all.
  */
 export const selectedBackgroundSession = derived(
   [aiBackgroundRuns, selectedBackgroundSessionId],

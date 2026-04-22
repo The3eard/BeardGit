@@ -1223,11 +1223,7 @@ export async function aiLaunchWorktree(provider: string, name?: string): Promise
   return invoke<number | null>("ai_launch_worktree", { provider, name: name ?? null });
 }
 
-export async function aiListSessions(): Promise<AiSession[]> {
-  return invoke<AiSession[]>("ai_list_sessions");
-}
-
-/** List AI conversation transcripts for the current repo. Transcript-first replacement for `aiListSessions`. */
+/** List AI conversation transcripts for the current repo. */
 export async function aiListConversations(): Promise<AiConversation[]> {
   return invoke<AiConversation[]>("ai_list_conversations");
 }
@@ -1260,11 +1256,6 @@ export async function aiWatchConfigDirs(): Promise<void> {
 /** Stop the AI config directory watcher. */
 export async function aiStopConfigWatcher(): Promise<void> {
   return invoke<void>("ai_stop_config_watcher");
-}
-
-/** Resume an existing AI session in a new terminal tab. Returns null if the provider does not support resume. */
-export async function aiResumeSession(provider: string, sessionId: string): Promise<number | null> {
-  return invoke<number | null>("ai_resume_session", { provider, sessionId });
 }
 
 /** Resume a conversation in a new terminal tab. Returns null if the provider does not support resume. */

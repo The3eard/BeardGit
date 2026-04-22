@@ -178,30 +178,18 @@ pub trait AiProvider: Send + Sync {
         None
     }
 
-    // ─── 6. Session & Worktree Introspection ───
-
-    /// List sessions for this provider in the given repo.
-    fn list_sessions(&self, repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
-        let _ = repo_path;
-        Ok(vec![])
-    }
+    // ─── 6. Conversation & Worktree Introspection ───
 
     /// List on-disk conversation transcripts whose cwd matches `repo_path`.
     ///
-    /// This is the transcript-first replacement for [`list_sessions`] — each
-    /// provider overrides it to read from its own transcript store (e.g. Claude
-    /// Code's `~/.claude/projects/{cwd-slug}/*.jsonl`). `list_sessions` is kept
-    /// alive during the feature-flagged rollout and will be removed once the
-    /// V2 UI becomes the default.
+    /// Each provider overrides it to read from its own transcript store
+    /// (e.g. Claude Code's `~/.claude/projects/{cwd-slug}/*.jsonl`, Codex's
+    /// `~/.codex/sessions/` rollouts, OpenCode's `opencode session list`
+    /// JSON). Providers that have no on-disk transcript just leave the
+    /// default (empty) implementation in place.
     fn list_conversations(&self, repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
         let _ = repo_path;
         Ok(vec![])
-    }
-
-    /// Check if a session process is still running.
-    fn is_session_active(&self, session: &AiSession) -> bool {
-        let _ = session;
-        false
     }
 
     /// List AI-created worktrees for this repo.

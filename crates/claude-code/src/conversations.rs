@@ -6,9 +6,8 @@
 //! module walks that directory for a given repo path and surfaces a list of
 //! [`AiConversation`] metadata rows suitable for the AI Sessions UI.
 //!
-//! Unlike [`super::sessions`] — which parses liveness PID files under
-//! `~/.claude/sessions/` — this module is transcript-first: a conversation
-//! row is emitted whether or not a live `claude` process is still attached.
+//! Transcript-first: a conversation row is emitted whether or not a live
+//! `claude` process is still attached to it.
 
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
@@ -25,9 +24,8 @@ use serde_json::Value;
 /// Claude Code never prunes `~/.claude/projects/{slug}/*.jsonl`, so repos
 /// the user has touched for years accumulate hundreds of stale transcripts
 /// that add noise to the AI Sessions view and slow its first paint. 30 days
-/// of retention matches the [`super::sessions::DISCOVERY_WINDOW`] used for
-/// PID files and covers typical "show me last month's runs" UX without
-/// scanning the full history.
+/// of retention mirrors the Codex walker's window and covers typical
+/// "show me last month's runs" UX without scanning the full history.
 const DISCOVERY_WINDOW: Duration = Duration::from_secs(30 * 24 * 60 * 60);
 
 /// Maximum character length of the extracted conversation title.

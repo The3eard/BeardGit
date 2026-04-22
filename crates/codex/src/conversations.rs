@@ -8,12 +8,9 @@
 //! AI Sessions UI can list Codex conversations transcript-first — no
 //! liveness PID file required.
 //!
-//! Unlike [`super::sessions`] which classifies each rollout as
-//! Interactive / Headless and decorates it with a recency-based liveness
-//! flag, this module is a pure metadata lister: it surfaces every rollout
-//! whose `cwd` matches the target repo, whether or not a live `codex`
-//! process is still attached. Sorting and discovery-window policy mirror
-//! the Claude Code implementation so all providers feel uniform.
+//! Sorting and discovery-window policy mirror the Claude Code
+//! implementation so all providers feel uniform. Shared constants and the
+//! `session_meta` deserialisation types live in [`super::sessions`].
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -63,10 +60,9 @@ pub(crate) fn list_conversations_in(
 /// Recursively descend into `dir`, appending one [`AiConversation`] per
 /// readable `*.jsonl` rollout whose `cwd` is `repo_path` (or a subpath).
 ///
-/// Mirrors the walker shape used by [`super::sessions::load_sessions`] so
-/// the two lister paths stay symmetric. Malformed / unparseable files are
-/// silently skipped rather than propagating errors — a single corrupt
-/// rollout must not poison the whole listing.
+/// Malformed / unparseable files are silently skipped rather than
+/// propagating errors — a single corrupt rollout must not poison the
+/// whole listing.
 fn collect_conversations(dir: &Path, repo_path: &Path, out: &mut Vec<AiConversation>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;

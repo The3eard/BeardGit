@@ -82,8 +82,7 @@ fn read_session_marker(worktree_path: &Path) -> Option<String> {
 
 /// Classify a worktree as Active / Clean / Orphaned.
 ///
-/// - **Active**: session marker present (we don't probe liveness here — the
-///   caller can cross-reference with `is_session_active` if needed).
+/// - **Active**: session marker present (we don't probe liveness here).
 /// - **Clean**: directory exists but no session marker.
 /// - **Orphaned**: path doesn't exist.
 fn determine_status(path: &Path) -> WorktreeStatus {

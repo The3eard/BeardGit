@@ -1,14 +1,9 @@
 /**
  * AI Conversations store — transcript-first listing for the current project.
  *
- * Mirrors `aiSessions.ts`'s shape (fetch + filter + auto-refresh via Tauri
- * events), but consumes `ai_list_conversations` so each row is a real
- * on-disk transcript rather than a PID-scanned live process. This is the
- * data source the transcript-first v2 UI (Phase 5) will render.
- *
- * Both stores deliberately coexist through Phase 5 — the legacy
- * `aiSessions.ts` keeps the old UI compiling until Phase 8 deletes the
- * PID-scan path outright.
+ * Consumes `ai_list_conversations` so each row is a real on-disk
+ * transcript rather than a PID-scanned live process. This is the data
+ * source the AI Sessions UI renders.
  */
 
 import { writable, derived } from "svelte/store";
@@ -24,10 +19,9 @@ export const conversations = writable<AiConversation[]>([]);
 /**
  * True while a refresh is in flight.
  *
- * Defaults to `true` so the initial paint of the v2 list shows a spinner
- * instead of an empty state — matches the behaviour of
- * `sessionsLoading` in `aiSessions.ts`. The first `refreshConversations`
- * flips it back to `false` in its `finally` block.
+ * Defaults to `true` so the initial paint of the list shows a spinner
+ * instead of an empty state. The first `refreshConversations` flips it
+ * back to `false` in its `finally` block.
  */
 export const conversationsLoading = writable(true);
 
