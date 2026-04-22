@@ -9,21 +9,31 @@
    * card.
    */
   import {
-    selectedBackgroundSession,
     aiBackgroundTranscripts,
     cancelAiBackgroundRun,
     discardAiBackgroundRunWorktree,
     openTerminalForAiBackgroundSession,
   } from "$lib/stores/aiBackground";
+  import { selectedSession, dismissSession } from "$lib/stores/aiSessions";
+  import {
+    getSessionTier,
+    focusSessionTab,
+    resumeSession,
+  } from "$lib/stores/aiSessionActions";
   import { openProjectTab } from "$lib/stores/projects";
   import { runMutation } from "$lib/api/runMutation";
+  import { providerName } from "$lib/data/ai-providers";
   import * as m from "$lib/paraglide/messages";
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
   import BackgroundRunTranscript from "../ai/BackgroundRunTranscript.svelte";
   import ProviderIcon from "./ProviderIcon.svelte";
+  import { Button } from "$lib/components/ui";
   import type { AiSession } from "$lib/types";
 
-  let session = $derived($selectedBackgroundSession);
+  // Resolved against the *merged* list so provider-reported sessions (Claude
+  // PID rollouts, Codex listings, OpenCode scans) also populate the pane —
+  // the narrower `selectedBackgroundSession` only resolves bg-run ids.
+  let session = $derived($selectedSession);
   let transcript = $derived.by(() => {
     if (!session) return [] as string[];
     return $aiBackgroundTranscripts.get(session.id) ?? [];
@@ -108,6 +118,23 @@
       // runMutation already surfaced a sticky failure toast.
     }
   }
+
+  /**
+   * Handlers for the provider-reported (non-bg) branch. Both delegate to
+   * the shared helpers in `aiSessionActions.ts` so the list row and the
+   * detail pane stay in lockstep — historically they drifted (see the
+   * Phase-10 "composite focus no-op" bug referenced in the spec).
+   */
+  async function handleResumeProviderSession(s: AiSession) {
+    try {
+      const attached = await resumeSession(s);
+      if (!attached) {
+        console.warn("Resume not supported for provider:", s.provider);
+      }
+    } catch (err) {
+      console.error("Failed to resume session:", err);
+    }
+  }
 </script>
 
 {#if !session}
@@ -176,19 +203,68 @@
     <BackgroundRunTranscript lines={transcript} />
   </div>
 {:else}
-  <!-- Provider-reported session (not a background run). -->
-  <div class="detail">
+  <!-- Provider-reported session (Claude PID rollout, Codex `--resume`
+       listing, OpenCode scan, etc. — no `background_status`). -->
+  <div class="detail" data-testid="ai-session-detail">
     <header class="header">
       <div class="title-row">
         <ProviderIcon provider={session.provider} size={20} />
-        <span class="provider">{session.provider.replace("_", " ")}</span>
+        <span class="provider">{providerName(session.provider)}</span>
+        {#if session.is_active}
+          <span class="session-badge active">ACTIVE</span>
+        {:else}
+          <span class="session-badge ended">ENDED</span>
+        {/if}
+        <span
+          class="session-badge kind"
+          class:headless={session.kind === "headless"}
+        >
+          {session.kind}
+        </span>
+        {#if !session.worktree_path}
+          <span class="external-badge" data-testid="external-badge">
+            {m.ai_sessions_external()}
+          </span>
+        {/if}
       </div>
       <div class="wt-row">
-        <code class="wt-path">{session.cwd}</code>
+        <code class="wt-path" data-testid="ai-session-detail-wt-path">
+          {session.cwd}
+        </code>
       </div>
     </header>
-    <div class="info">
-      {m.ai_sessions_external_terminal()}
+
+    <div class="actions">
+      {#if session.is_active && session.kind === "interactive"}
+        {@const tier = getSessionTier(session)}
+        {#if tier === "focus"}
+          <Button
+            variant="secondary"
+            size="sm"
+            onclick={() => focusSessionTab(session)}
+            testid="ai-session-detail-focus"
+          >
+            {m.ai_sessions_focus()}
+          </Button>
+        {:else}
+          <Button
+            variant="primary"
+            size="sm"
+            onclick={() => handleResumeProviderSession(session)}
+            testid="ai-session-detail-open-terminal"
+          >
+            {m.ai_sessions_open_terminal()}
+          </Button>
+        {/if}
+      {/if}
+      <Button
+        variant="secondary"
+        size="sm"
+        onclick={() => dismissSession(session.id)}
+        testid="ai-session-detail-dismiss"
+      >
+        {m.ai_sessions_dismiss()}
+      </Button>
     </div>
   </div>
 {/if}
@@ -232,6 +308,39 @@
     background: color-mix(in srgb, var(--text-secondary) 15%, transparent);
     color: var(--text-secondary);
     border: 1px solid color-mix(in srgb, var(--text-secondary) 30%, transparent);
+  }
+
+  /* Badges inside the provider-reported branch — matches AiSessionList row
+     styling so the two surfaces read as one component. */
+  .session-badge {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .session-badge.active {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--accent-green);
+  }
+
+  .session-badge.ended {
+    background: rgba(128, 128, 128, 0.15);
+    color: var(--text-secondary);
+  }
+
+  .session-badge.kind {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent-blue);
+  }
+
+  .session-badge.kind.headless {
+    background: rgba(210, 153, 34, 0.15);
+    color: var(--accent-orange);
   }
 
   .wt-row {
@@ -292,8 +401,7 @@
     background: color-mix(in srgb, #f85149 10%, transparent);
   }
 
-  .empty,
-  .info {
+  .empty {
     padding: 24px;
     color: var(--text-secondary);
     text-align: center;

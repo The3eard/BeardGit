@@ -762,6 +762,7 @@
   "ai_sessions_open_terminal": "Abrir en terminal",
   "ai_sessions_resume_not_supported": "Reanudar no soportado para este proveedor",
   "ai_sessions_ended": "Sesion finalizada",
+  "ai_sessions_dismiss": "Descartar",
   "sidebar_bisect": "Bisect",
   "bisect_start": "Iniciar Bisect",
   "bisect_good": "Bueno",

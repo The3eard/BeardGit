@@ -11,9 +11,13 @@
     dismissSession,
   } from "../../stores/aiSessions";
   import { activeBackgroundRunCount, selectedBackgroundSessionId, requestOpenCreateBackgroundRunDialog } from "../../stores/aiBackground";
+  import {
+    getSessionTier,
+    focusSessionTab,
+    resumeSession,
+  } from "../../stores/aiSessionActions";
   import { repoInfo } from "../../stores/repo";
   import { formatRelativeTimeUnix } from "../../utils/time";
-  import { openTabs, activeTabIndex, resumeAiSessionTab } from "../../stores/tabs";
   import type { AiSession } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import List from "../common/List.svelte";
@@ -48,63 +52,6 @@
     return session.id;
   }
 
-  /** Compare two paths ignoring trailing slashes. */
-  function normalizedMatch(a: string, b: string): boolean {
-    return a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
-  }
-
-  /** Determine the action tier for a session.
-   * - "focus": session has a linked terminal tab in the app
-   * - "resume": session is active but no linked terminal tab
-   * - "ended": session has ended
-   */
-  function getSessionTier(session: AiSession): "focus" | "resume" | "ended" {
-    if (!session.is_active) return "ended";
-
-    // Check if any open tab has a terminal matching this provider + cwd
-    const currentTabs = $openTabs;
-    for (const tab of currentTabs) {
-      if (tab.kind === "terminal" && tab.terminal.provider === session.provider) {
-        if (normalizedMatch(tab.terminal.cwd, session.cwd)) return "focus";
-      }
-      if (tab.kind === "composite") {
-        for (const seg of tab.segments) {
-          if (seg.type === "terminal" && seg.info.provider === session.provider) {
-            if (normalizedMatch(seg.info.cwd, session.cwd)) return "focus";
-          }
-        }
-      }
-    }
-
-    return "resume";
-  }
-
-  function handleFocusSession(session: AiSession) {
-    // Find the matching tab and switch to it
-    const currentTabs = $openTabs;
-    for (let i = 0; i < currentTabs.length; i++) {
-      const tab = currentTabs[i];
-      if (tab.kind === "terminal" && tab.terminal.provider === session.provider) {
-        if (normalizedMatch(tab.terminal.cwd, session.cwd)) {
-          activeTabIndex.set(i);
-          return;
-        }
-      }
-      if (tab.kind === "composite") {
-        for (let s = 0; s < tab.segments.length; s++) {
-          const seg = tab.segments[s];
-          if (seg.type === "terminal" && seg.info.provider === session.provider) {
-            if (normalizedMatch(seg.info.cwd, session.cwd)) {
-              activeTabIndex.set(i);
-              // Also switch to the terminal segment within the composite
-              return;
-            }
-          }
-        }
-      }
-    }
-  }
-
   function openNewRunDialog() {
     requestOpenCreateBackgroundRunDialog();
   }
@@ -112,19 +59,16 @@
   function handleSelect(session: AiSession) {
     // Every row populates the detail pane — interactive/headless sessions
     // without a background_status still need to drive the selection store
-    // so the right-hand pane reflects what the user clicked.
+    // so the right-hand pane reflects what the user clicked. The detail
+    // pane reads the id through `selectedSession` (merged list) rather
+    // than `selectedBackgroundSession` (bg-runs only) — see aiSessions.ts.
     selectedBackgroundSessionId.set(session.id);
     onSelectSession?.(session);
   }
 
   async function handleResumeSession(session: AiSession) {
     try {
-      const attached = await resumeAiSessionTab(
-        session.cwd,
-        providerName(session.provider),
-        session.provider,
-        session.id,
-      );
+      const attached = await resumeSession(session);
       if (!attached) {
         console.warn("Resume not supported for provider:", session.provider);
       }
@@ -217,7 +161,7 @@
           {#if tier === "focus"}
             <button
               class="session-action-btn focus-btn"
-              onclick={() => handleFocusSession(item)}
+              onclick={() => focusSessionTab(item)}
               title={m.ai_sessions_focus()}
             >
               <span class="action-label">{m.ai_sessions_focus()}</span>
