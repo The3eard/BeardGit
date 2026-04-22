@@ -18,6 +18,7 @@
   } from "../../stores/aiSessionActions";
   import { repoInfo } from "../../stores/repo";
   import { formatRelativeTimeUnix } from "../../utils/time";
+  import { addToast } from "../../stores/toast";
   import type { AiSession } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import List from "../common/List.svelte";
@@ -70,10 +71,16 @@
     try {
       const attached = await resumeSession(session);
       if (!attached) {
-        console.warn("Resume not supported for provider:", session.provider);
+        addToast({
+          message: m.ai_sessions_resume_not_supported(),
+          type: "warning",
+        });
       }
     } catch (err) {
-      console.error("Failed to resume session:", err);
+      addToast({
+        message: m.ai_sessions_resume_error({ error: String(err) }),
+        type: "error",
+      });
     }
   }
 </script>

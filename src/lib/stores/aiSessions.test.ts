@@ -116,15 +116,17 @@ describe("aiSessions store", () => {
   });
 });
 
-describe("mergedSessions (provider, cwd) dedupe", () => {
+describe("mergedSessions cross-store dedupe", () => {
   beforeEach(() => {
     sessions.set([]);
     aiBackgroundRuns.set(new Map());
     selectedBackgroundSessionId.set(null);
   });
 
-  it("collapses two active-interactive rows sharing (provider, cwd)", () => {
-    // Two provider-reported entries with different ids but same process.
+  it("keeps both provider-reported rows when they share (provider, cwd) but have different ids", () => {
+    // Two distinct Claude processes in the same repo are legitimate — user
+    // opens Claude in two separate terminal tabs, each with its own PID and
+    // conversation. Collapsing them would hide the second from the list.
     sessions.set([
       {
         id: "pid-123",
@@ -135,7 +137,7 @@ describe("mergedSessions (provider, cwd) dedupe", () => {
         is_active: true,
       },
       {
-        id: "claude-uuid-abc",
+        id: "pid-456",
         provider: "claude_code",
         cwd: "/repo/",
         started_at: 2000,
@@ -144,17 +146,18 @@ describe("mergedSessions (provider, cwd) dedupe", () => {
       },
     ]);
     const list = get(mergedSessions);
-    expect(list).toHaveLength(1);
-    // Newer started_at wins the tie-break.
-    expect(list[0].id).toBe("claude-uuid-abc");
+    expect(list).toHaveLength(2);
+    expect(list.map((s) => s.id).sort()).toEqual(["pid-123", "pid-456"]);
   });
 
-  it("prefers the bg-run entry over a PID-discovered sibling", () => {
+  it("drops the provider-reported shadow when a bg-run shares the same id", () => {
+    // Cross-store collision — the Rust side registered a bg-run and the
+    // provider file-watcher observed the same process. Same id, bg-run wins.
     const bgRun: AiSession = {
-      id: "bg-1",
+      id: "shared-id",
       provider: "claude_code",
       cwd: "/repo",
-      started_at: 500, // older than the PID entry below
+      started_at: 500,
       kind: "interactive",
       is_active: true,
       worktree_path: "/repo/.wt/ai-bg-1",
@@ -164,17 +167,45 @@ describe("mergedSessions (provider, cwd) dedupe", () => {
     aiBackgroundRuns.set(new Map([[bgRun.id, bgRun]]));
     sessions.set([
       {
-        id: "pid-999",
+        id: "shared-id", // same id — this is the shadow, dropped
         provider: "claude_code",
         cwd: "/repo",
-        started_at: 9000, // newer, but PID entry loses to bg-run
+        started_at: 9000,
         kind: "interactive",
         is_active: true,
       },
     ]);
     const list = get(mergedSessions);
     expect(list).toHaveLength(1);
-    expect(list[0].id).toBe("bg-1");
+    expect(list[0].background_status?.state).toBe("running");
+  });
+
+  it("keeps a bg-run and a distinct provider-reported row side by side", () => {
+    // Different ids, different processes — keep both even if cwd matches.
+    const bgRun: AiSession = {
+      id: "bg-1",
+      provider: "claude_code",
+      cwd: "/repo",
+      started_at: 500,
+      kind: "interactive",
+      is_active: true,
+      worktree_path: "/repo/.wt/ai-bg-1",
+      background_status: { state: "running" },
+    };
+    aiBackgroundRuns.set(new Map([[bgRun.id, bgRun]]));
+    sessions.set([
+      {
+        id: "pid-999",
+        provider: "claude_code",
+        cwd: "/repo",
+        started_at: 9000,
+        kind: "interactive",
+        is_active: true,
+      },
+    ]);
+    const list = get(mergedSessions);
+    expect(list).toHaveLength(2);
+    expect(list.map((s) => s.id).sort()).toEqual(["bg-1", "pid-999"]);
   });
 
   it("keeps ended and headless rows with the same cwd independent", () => {

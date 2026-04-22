@@ -22,6 +22,7 @@
   } from "$lib/stores/aiSessionActions";
   import { openProjectTab } from "$lib/stores/projects";
   import { runMutation } from "$lib/api/runMutation";
+  import { addToast } from "$lib/stores/toast";
   import { providerName } from "$lib/data/ai-providers";
   import * as m from "$lib/paraglide/messages";
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
@@ -129,12 +130,19 @@
     try {
       const attached = await resumeSession(s);
       if (!attached) {
-        console.warn("Resume not supported for provider:", s.provider);
+        addToast({
+          message: m.ai_sessions_resume_not_supported(),
+          type: "warning",
+        });
       }
     } catch (err) {
-      console.error("Failed to resume session:", err);
+      addToast({
+        message: m.ai_sessions_resume_error({ error: String(err) }),
+        type: "error",
+      });
     }
   }
+
 </script>
 
 {#if !session}
