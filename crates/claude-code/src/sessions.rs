@@ -37,6 +37,17 @@ struct ClaudeSessionFile {
 }
 
 /// List Claude Code sessions whose `cwd` matches `repo_path`.
+///
+/// Claude writes `~/.claude/sessions/{pid}.json` where `sessionId` is the
+/// *conversation* UUID — not a per-process identifier. When the user
+/// resumes the same conversation in a new process, a second PID file
+/// appears sharing the same `sessionId`. We dedupe by `(session_id, cwd)`
+/// here so callers get at most one row per logical conversation, picking:
+///
+/// 1. the entry whose PID is both alive *and* actually owned by a
+///    `claude` process (guards against macOS reusing a long-dead PID for
+///    something completely unrelated), then
+/// 2. the most recent `started_at` as the tie-break.
 pub fn list_sessions(repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
     let sessions_dir = match dirs::home_dir() {
         Some(home) => home.join(".claude/sessions"),
@@ -47,10 +58,15 @@ pub fn list_sessions(repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
         return Ok(vec![]);
     }
 
-    let mut sessions = Vec::new();
     let entries = fs::read_dir(&sessions_dir)?;
-
     let now = SystemTime::now();
+
+    // Collect (session_id -> best candidate so far) and resolve conflicts
+    // with `prefer_candidate` below. Keying by session_id alone is fine —
+    // we also filter by cwd, so two sessions with the same id *must* be
+    // referring to the same conversation.
+    let mut by_session_id: std::collections::HashMap<String, AiSession> =
+        std::collections::HashMap::new();
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -58,11 +74,9 @@ pub fn list_sessions(repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
             continue;
         }
 
-        // Cheap `stat` before the read — files older than the
-        // discovery window can't be active (their PIDs are long dead)
-        // and aren't worth parsing. This is the difference between a
-        // click-blocking O(total session history) scan and a fast
-        // O(recently-active) scan.
+        // Cheap `stat` before the read — files older than the discovery
+        // window can't represent an active conversation (their PIDs are
+        // long dead) and aren't worth parsing.
         if let Ok(meta) = entry.metadata()
             && let Ok(modified) = meta.modified()
             && now
@@ -82,15 +96,14 @@ pub fn list_sessions(repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
             Err(_) => continue,
         };
 
-        // Filter: only sessions whose cwd matches this repo
         let session_cwd = Path::new(&file.cwd);
         if session_cwd != repo_path {
             continue;
         }
 
-        let is_active = process_alive(file.pid);
-        sessions.push(AiSession {
-            id: file.session_id,
+        let is_active = is_claude_process(file.pid);
+        let candidate = AiSession {
+            id: file.session_id.clone(),
             provider: AiProviderKind::ClaudeCode,
             cwd: session_cwd.to_path_buf(),
             started_at: Some(file.started_at),
@@ -102,10 +115,34 @@ pub fn list_sessions(repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
             worktree_path: None,
             background_status: None,
             task_id: None,
-        });
+        };
+
+        match by_session_id.get(&file.session_id) {
+            None => {
+                by_session_id.insert(file.session_id, candidate);
+            }
+            Some(existing) if prefer_candidate(&candidate, existing) => {
+                by_session_id.insert(file.session_id, candidate);
+            }
+            Some(_) => {}
+        }
     }
 
-    Ok(sessions)
+    Ok(by_session_id.into_values().collect())
+}
+
+/// Tie-break rule for duplicate `session_id` rows (same logical conversation
+/// observed across multiple PID files). `true` means `candidate` replaces
+/// the stored entry:
+///
+/// 1. A live-PID row always beats a dead-PID row.
+/// 2. Same liveness → newer `started_at` wins.
+/// 3. Same liveness + same `started_at` → incumbent wins (stable iter).
+fn prefer_candidate(candidate: &AiSession, current: &AiSession) -> bool {
+    if candidate.is_active != current.is_active {
+        return candidate.is_active;
+    }
+    candidate.started_at.unwrap_or(0) > current.started_at.unwrap_or(0)
 }
 
 /// Check if a session is still active by re-checking PID liveness.
@@ -113,9 +150,17 @@ pub fn is_session_active(session: &AiSession) -> bool {
     session.is_active
 }
 
-/// Check if a PID is still running.
+/// Return true if the given PID is alive *and* the process is Claude Code.
+///
+/// macOS recycles PIDs aggressively — a crashed-and-never-cleaned
+/// `{pid}.json` whose PID is now owned by Safari or `mdworker` would
+/// otherwise look "active" forever to the UI. We run `ps -p {pid} -o
+/// comm=` and require the command string to contain `"claude"` (the
+/// Mach-O binary's basename, resilient to the full `comm` either being
+/// `claude` or the Bun-bundled `/Users/...local/bin/claude` truncated
+/// form depending on how the user launched it).
 #[cfg(unix)]
-fn process_alive(pid: u64) -> bool {
+fn is_claude_process(pid: u64) -> bool {
     // pid_t is i32 on most platforms; reject values that would overflow or be invalid.
     let Ok(pid_t) = libc::pid_t::try_from(pid) else {
         return false;
@@ -123,12 +168,38 @@ fn process_alive(pid: u64) -> bool {
     if pid_t <= 0 {
         return false;
     }
+    // Cheap liveness pre-check — if kill(0) fails, ps can't tell us
+    // anything useful anyway.
     // SAFETY: kill(pid, 0) only checks existence, sends no signal.
-    unsafe { libc::kill(pid_t, 0) == 0 }
+    if unsafe { libc::kill(pid_t, 0) } != 0 {
+        return false;
+    }
+    let pid_str = pid_t.to_string();
+    let Ok(output) = std::process::Command::new("ps")
+        .args(["-p", &pid_str, "-o", "comm="])
+        .output()
+    else {
+        return false;
+    };
+    if !output.status.success() {
+        return false;
+    }
+    // `ps -o comm=` prints the full command path (not the trailing
+    // basename) on macOS. Strip any leading dirs and match the basename
+    // exactly — "contains claude" is too loose (it would accept the
+    // `claude-code-<hash>` test binary that happens to share a prefix).
+    let comm = String::from_utf8_lossy(&output.stdout);
+    let name = comm
+        .trim()
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or("")
+        .to_lowercase();
+    name == "claude"
 }
 
 #[cfg(not(unix))]
-fn process_alive(_pid: u64) -> bool {
+fn is_claude_process(_pid: u64) -> bool {
     false
 }
 
@@ -180,14 +251,18 @@ mod tests {
     }
 
     #[test]
-    fn current_process_is_alive() {
+    fn current_process_is_not_a_claude_process() {
+        // The test harness (`cargo test`) obviously isn't Claude, so
+        // `is_claude_process` must reject the runner's own PID even
+        // though `kill(pid, 0)` succeeds. Also protects against PID
+        // recycling false-positives in production.
         let pid = std::process::id() as u64;
-        assert!(process_alive(pid));
+        assert!(!is_claude_process(pid));
     }
 
     #[test]
-    fn nonexistent_pid_is_not_alive() {
-        assert!(!process_alive(4_294_967_295));
+    fn nonexistent_pid_is_not_a_claude_process() {
+        assert!(!is_claude_process(4_294_967_295));
     }
 
     #[test]
