@@ -875,6 +875,27 @@
     border-radius: 4px;
   }
 
+  /*
+   * GFM additions — tables + task-list checkboxes. The pre/code/a/list
+   * rules above already cover the rest of the spec's markdown-body
+   * ruleset; only the net-new GFM output tags need new rules.
+   * Theme tokens only: `--border` for grid lines, no hard-coded colour.
+   */
+  .description-body :global(table) {
+    border-collapse: collapse;
+    margin: 6px 0;
+  }
+  .description-body :global(th),
+  .description-body :global(td) {
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+  }
+  .description-body :global(input[type="checkbox"]) {
+    margin-right: 4px;
+    /* Task-list checkboxes are display-only. */
+    pointer-events: none;
+  }
+
   .file-list {
     font-size: 12px;
   }
@@ -964,6 +985,43 @@
   .comment-body :global(a) {
     color: var(--accent-blue);
     text-decoration: none;
+  }
+
+  /* GFM additions for inline comments — same rationale as
+   * `.description-body`. pre/ul/ol inherit from the comment-body
+   * text defaults; only net-new GFM output needs explicit rules. */
+  .comment-body :global(pre) {
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    margin: 6px 0;
+  }
+  .comment-body :global(pre code) {
+    padding: 0;
+    background: none;
+  }
+  .comment-body :global(table) {
+    border-collapse: collapse;
+    margin: 6px 0;
+  }
+  .comment-body :global(th),
+  .comment-body :global(td) {
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+  }
+  .comment-body :global(input[type="checkbox"]) {
+    margin-right: 4px;
+    pointer-events: none;
+  }
+  .comment-body :global(ul),
+  .comment-body :global(ol) {
+    padding-left: 20px;
+    margin: 4px 0;
   }
 
   .comment-input-section {

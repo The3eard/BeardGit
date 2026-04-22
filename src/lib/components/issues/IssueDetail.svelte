@@ -424,12 +424,52 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
   }
-  .description-body :global(code) {
+  /*
+   * Markdown-body rules — content comes in via `{@html}` so every
+   * descendant selector is `:global(...)`. Theme tokens only; rules
+   * duplicated (intentionally) in `.comment-body` below because
+   * scoped Svelte styles cannot be shared across sibling wrappers
+   * without pushing the stylesheet to the global layer.
+   */
+  .description-body :global(pre) {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .description-body :global(code:not(pre code)) {
     padding: 1px 4px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--bg-secondary);
     border-radius: 3px;
     font-family: var(--font-mono);
     font-size: 12px;
+  }
+  .description-body :global(table) {
+    border-collapse: collapse;
+    margin: 6px 0;
+  }
+  .description-body :global(th),
+  .description-body :global(td) {
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+  }
+  .description-body :global(input[type="checkbox"]) {
+    margin-right: 4px;
+    pointer-events: none;
+  }
+  .description-body :global(a) {
+    color: var(--accent-blue);
+    text-decoration: none;
+  }
+  .description-body :global(a:hover) {
+    text-decoration: underline;
+  }
+  .description-body :global(ul),
+  .description-body :global(ol) {
+    padding-left: 20px;
   }
   .label-list, .assignee-list {
     display: flex;
@@ -480,6 +520,46 @@
     line-height: 1.4;
     word-wrap: break-word;
     overflow-wrap: break-word;
+  }
+  .comment-body :global(pre) {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .comment-body :global(code:not(pre code)) {
+    padding: 1px 4px;
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .comment-body :global(table) {
+    border-collapse: collapse;
+    margin: 6px 0;
+  }
+  .comment-body :global(th),
+  .comment-body :global(td) {
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+  }
+  .comment-body :global(input[type="checkbox"]) {
+    margin-right: 4px;
+    pointer-events: none;
+  }
+  .comment-body :global(a) {
+    color: var(--accent-blue);
+    text-decoration: none;
+  }
+  .comment-body :global(a:hover) {
+    text-decoration: underline;
+  }
+  .comment-body :global(ul),
+  .comment-body :global(ol) {
+    padding-left: 20px;
   }
   .comment-input-section {
     border-top: 1px solid var(--border);

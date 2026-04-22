@@ -330,6 +330,56 @@
     font-size: 13px;
     line-height: 1.5;
   }
+  /*
+   * Markdown-body rules. Content is injected via `{@html}` so every
+   * descendant selector has to be `:global(...)` — Svelte's scoped
+   * hashing doesn't reach nodes added at runtime.
+   *
+   * All colours/fonts go through theme tokens (`--bg-secondary`,
+   * `--border`, `--font-mono`, `--accent-blue`); no hard-coded values.
+   */
+  .body :global(pre) {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .body :global(code:not(pre code)) {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    padding: 0 4px;
+    font-family: var(--font-mono);
+    font-size: 0.95em;
+  }
+  .body :global(table) {
+    border-collapse: collapse;
+    margin: 6px 0;
+  }
+  .body :global(th),
+  .body :global(td) {
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+  }
+  .body :global(input[type="checkbox"]) {
+    margin-right: 4px;
+    /* Task-list items are display-only — clicking doesn't update the
+     * authored markdown source. */
+    pointer-events: none;
+  }
+  .body :global(a) {
+    color: var(--accent-blue);
+    text-decoration: none;
+  }
+  .body :global(a:hover) {
+    text-decoration: underline;
+  }
+  .body :global(ul),
+  .body :global(ol) {
+    padding-left: 20px;
+  }
   .muted {
     color: var(--text-secondary);
     font-size: 12px;
