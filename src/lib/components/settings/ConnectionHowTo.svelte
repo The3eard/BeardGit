@@ -1,15 +1,23 @@
 <!--
   ConnectionHowTo — compact top-of-page dropdown for the Integrations
-  category (Spec 4 Phase 7).
+  category.
 
   Was: a bordered, standalone collapsible card whose body dumped the
   entire OAuth / PAT / CLI walkthrough at once.
 
   Now: a flush inline control — a "How to connect:" label plus a <select>
-  with three methods (OAuth / PAT / CLI). Body stays collapsed until the
+  with three methods (PAT / OAuth / CLI). Body stays collapsed until the
   user toggles the chevron; once open, it shows only the section for the
   chosen method. A trailing troubleshooting block is rendered regardless
   of mode, because each troubleshooting item applies to every path.
+
+  PAT is the primary-recommended path and is selected by default: a
+  successful PAT connect pipes the token into the matching CLI in the
+  background, so users don't have to run a terminal step. The PAT body
+  surfaces the Classic/Legacy-vs-fine-grained caveat (cli/cli#6680), SSO
+  guidance, and a collapsed manual-login command reference for
+  troubleshooting. Template copy puts `<YOUR_PAT>` placeholders on the
+  clipboard — no real token ever touches this component.
 
   Lives as the Integrations page's very first child — no enclosing Card
   — so the page hierarchy is "howto → Connections Card". See
@@ -17,11 +25,14 @@
 -->
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import { Button } from "$lib/components/ui";
 
-  type Mode = "oauth" | "pat" | "cli";
+  type Mode = "pat" | "oauth" | "cli";
 
   let open = $state(false);
-  let mode = $state<Mode>("oauth");
+  let mode = $state<Mode>("pat");
+  /** Which template block last received a copy, used for transient feedback. */
+  let copiedKey = $state<string | null>(null);
 
   function toggle() {
     open = !open;
@@ -34,6 +45,45 @@
     // expressed intent to read a specific walkthrough.
     open = true;
   }
+
+  /** Copy the literal template to the clipboard with `<YOUR_PAT>` intact. */
+  function copyTemplate(text: string, key: string) {
+    void navigator.clipboard?.writeText(text);
+    copiedKey = key;
+    window.setTimeout(() => {
+      if (copiedKey === key) copiedKey = null;
+    }, 1500);
+  }
+
+  /**
+   * Render a localized string with `**bold**` spans as `<strong>` elements.
+   * Inputs come from our own i18n files (trusted), but we still HTML-escape
+   * non-bold text defensively so `<`/`>` in future translations can't break
+   * the DOM.
+   */
+  function renderBold(text: string): string {
+    const escape = (s: string) =>
+      s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    return text.replace(/\*\*([^*]+)\*\*/g, (_m, inner) => {
+      return `<strong>${escape(inner)}</strong>`;
+    });
+  }
+
+  // Literal manual-login templates. `<YOUR_PAT>` is a placeholder — we
+  // never substitute a real token here; users paste their own in-terminal.
+  const ghInsecureTemplate =
+    'echo "<YOUR_PAT>" | gh auth login --with-token --hostname github.com';
+  const glabInsecureTemplate =
+    'echo "<YOUR_PAT>" | glab auth login --stdin --hostname gitlab.com';
+  const ghSecureTemplate =
+    'read -rs -p "Paste PAT: " T && echo "$T" | gh auth login --with-token --hostname github.com';
+  const glabSecureTemplate =
+    'read -rs -p "Paste PAT: " T && echo "$T" | glab auth login --stdin --hostname gitlab.com';
+  const insecureTemplate = `${ghInsecureTemplate}\n${glabInsecureTemplate}`;
+  const secureTemplate = `${ghSecureTemplate}\n${glabSecureTemplate}`;
 </script>
 
 <div class="howto-inline" data-testid="integrations-howto">
@@ -58,11 +108,11 @@
       value={mode}
       onchange={onModeChange}
     >
-      <option value="oauth"
-        >{m.settings_integrations_howto_option_oauth()}</option
-      >
       <option value="pat"
         >{m.settings_integrations_howto_option_pat()}</option
+      >
+      <option value="oauth"
+        >{m.settings_integrations_howto_option_oauth()}</option
       >
       <option value="cli"
         >{m.settings_integrations_howto_option_cli()}</option
@@ -74,19 +124,37 @@
     <div class="howto-body">
       <p class="lead">{m.connection_howto_lead()}</p>
 
-      {#if mode === "oauth"}
-        <h4 class="path-title">
-          {m.connection_howto_selfhosted_oauth_title()}
-        </h4>
-        <p>{m.connection_howto_selfhosted_description()}</p>
-        <p>{m.connection_howto_selfhosted_oauth_body()}</p>
-        <pre><code>glab config set client_id &lt;client_id&gt; -g --host &lt;your-gitlab-host&gt;
-glab auth login --hostname &lt;your-gitlab-host&gt;</code></pre>
-      {:else if mode === "pat"}
+      {#if mode === "pat"}
         <h4 class="path-title">
           {m.connection_howto_standard_title()}
         </h4>
-        <p>{m.connection_howto_standard_description()}</p>
+        <p class="lead" data-testid="pat-intro">
+          {m.connection_howto_pat_intro()}
+        </p>
+
+        <div
+          class="callout callout--warning"
+          data-testid="pat-token-type-callout"
+        >
+          <p>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html renderBold(m.connection_howto_pat_token_type_label())}
+          </p>
+          <p>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html renderBold(m.connection_howto_pat_token_type_warning())}
+          </p>
+          <p class="small">
+            <a
+              href="https://github.com/cli/cli/issues/6680"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {m.connection_howto_pat_token_type_link_label()}
+            </a>
+          </p>
+        </div>
+
         <ul>
           <li>
             <strong>{m.connection_howto_standard_token_label()}</strong>
@@ -114,12 +182,81 @@ glab auth login --hostname &lt;your-gitlab-host&gt;</code></pre>
           </li>
         </ul>
 
+        <div class="callout" data-testid="pat-sso-callout">
+          <p class="callout-title">
+            {m.connection_howto_pat_sso_title()}
+          </p>
+          <p>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html renderBold(m.connection_howto_pat_sso_body())}
+          </p>
+        </div>
+
         <h5 class="sub-title">
           {m.connection_howto_selfhosted_token_title()}
         </h5>
         <p>{m.connection_howto_selfhosted_token_body()}</p>
-        <pre><code>glab auth login --hostname &lt;your-gitlab-host&gt; --token &lt;your-PAT&gt; --api-protocol https</code></pre>
+        <pre><code
+            >glab auth login --hostname &lt;your-gitlab-host&gt; --token &lt;your-PAT&gt; --api-protocol https</code
+          ></pre>
         <p class="small">{m.connection_howto_selfhosted_token_scope_hint()}</p>
+
+        <details class="manual-details" data-testid="pat-manual-details">
+          <summary>{m.connection_howto_pat_manual_title()}</summary>
+          <p class="small">{m.connection_howto_pat_manual_body()}</p>
+
+          <div class="manual-cmd-block">
+            <div class="manual-cmd-header">
+              <span class="manual-cmd-label"
+                >{m.connection_howto_pat_manual_insecure_label()}</span
+              >
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={""}
+                testid="copy-template-insecure"
+                onclick={() => copyTemplate(insecureTemplate, "insecure")}
+              >
+                {copiedKey === "insecure"
+                  ? m.connection_howto_copy_template_copied()
+                  : m.connection_howto_copy_template()}
+              </Button>
+            </div>
+            <pre><code data-testid="manual-insecure-code"
+                >{insecureTemplate}</code
+              ></pre>
+          </div>
+
+          <div class="manual-cmd-block">
+            <div class="manual-cmd-header">
+              <span class="manual-cmd-label"
+                >{m.connection_howto_pat_manual_secure_label()}</span
+              >
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={""}
+                testid="copy-template-secure"
+                onclick={() => copyTemplate(secureTemplate, "secure")}
+              >
+                {copiedKey === "secure"
+                  ? m.connection_howto_copy_template_copied()
+                  : m.connection_howto_copy_template()}
+              </Button>
+            </div>
+            <pre><code data-testid="manual-secure-code"
+                >{secureTemplate}</code
+              ></pre>
+          </div>
+        </details>
+      {:else if mode === "oauth"}
+        <h4 class="path-title">
+          {m.connection_howto_selfhosted_oauth_title()}
+        </h4>
+        <p>{m.connection_howto_selfhosted_description()}</p>
+        <p>{m.connection_howto_selfhosted_oauth_body()}</p>
+        <pre><code>glab config set client_id &lt;client_id&gt; -g --host &lt;your-gitlab-host&gt;
+glab auth login --hostname &lt;your-gitlab-host&gt;</code></pre>
       {:else}
         <h4 class="path-title">
           {m.connection_howto_standard_title()}
@@ -299,5 +436,81 @@ glab auth status</code></pre>
     font-size: 12px;
     color: var(--text-secondary);
     margin: 4px 0 0 0;
+  }
+
+  /*
+   * Callouts — lightweight highlighted blocks used for the token-type
+   * warning and the SSO note. Tokens come from the existing theme
+   * palette; no new colour variables.
+   */
+  .callout {
+    margin: 10px 0;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-left-width: 3px;
+    border-radius: 4px;
+    background: var(--bg-primary);
+  }
+
+  .callout p {
+    margin: 4px 0;
+  }
+
+  .callout .callout-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 4px 0;
+  }
+
+  .callout--warning {
+    border-left-color: var(--accent-blue);
+  }
+
+  .callout--warning :global(strong) {
+    color: var(--text-primary);
+  }
+
+  /*
+   * Collapsed manual-login commands. Each block stacks a label row
+   * (title + copy button) above a <pre><code>; the <details> element
+   * keeps everything out of the way until the user opts in.
+   */
+  .manual-details {
+    margin-top: 14px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-primary);
+  }
+
+  .manual-details > summary {
+    cursor: pointer;
+    font-size: 12.5px;
+    color: var(--text-primary);
+    padding: 2px 0;
+    user-select: none;
+  }
+
+  .manual-details[open] > summary {
+    margin-bottom: 4px;
+  }
+
+  .manual-cmd-block {
+    margin: 10px 0;
+  }
+
+  .manual-cmd-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+  }
+
+  .manual-cmd-label {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    font-weight: 600;
   }
 </style>
