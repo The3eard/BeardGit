@@ -65,6 +65,13 @@ The WebdriverIO + tauri-driver suite is removed while the app is in heavy flux. 
 - Removed `@wdio/*` devDependencies + the `npm run e2e*` scripts from `package.json`.
 - Dropped the `window.__E2E__` surface + `VITE_BEARDGIT_E2E` gate from `src/routes/+layout.svelte`.
 
+### Auth & Integrations
+
+- Connecting a forge PAT now also logs the matching `gh`/`glab` CLI in automatically via a fire-and-forget background task; disconnecting logs it out. Users get both API and CLI auth in one action, under the same identity.
+- `ConnectionHowTo` PAT guidance rewritten: defaults to the PAT mode, explicit warning against fine-grained tokens (they break `gh`/`glab` via missing GraphQL support — see cli/cli#6680), SSO callout for GitHub orgs, and a collapsed "manual login command" reference block with `<YOUR_PAT>` placeholders and a no-history `read -rs` variant.
+- CLI row in the Connections card now labels itself **"Connected · via {Provider} PAT"** when its authenticated username matches a connected forge provider — surfacing that both halves share one identity.
+- Removed orphan programmatic OAuth device-code flow (`cli_login` Tauri command, `start_cli_login`, `OAuthLoginProcess`, `OAuthLoginInfo`, `oauth-device-code` event emit). Superseded by the terminal-hosted `gh auth login` flow shipped with xterm.js in v0.1.5 and the new PAT-pipe flow above.
+
 ### Testing
 
 - **Rust:** 965 tests across 22 crates, clippy clean on `--workspace --all-targets`.
