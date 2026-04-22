@@ -118,35 +118,43 @@ pub fn ai_get_repo_status(state: State<'_, AppState>) -> Result<Vec<RepoAiStatus
 
 /// Scan PATH for all supported AI tool binaries and update application state.
 ///
-/// Replaces the current provider list in state. Cheap local operation — runs
-/// `which` and `--version` for each candidate. After detection, starts the
-/// [`watcher::AiSessionWatcher`] if not already running.
+/// Replaces the current provider list in state. Runs `which` + `--version`
+/// per candidate — cheap on a warm cache but `--version` can stall for ~1 s
+/// on cold first launches while Claude's V8 spins up.
+///
+/// Runs on the blocking pool via `spawn_blocking` so the IPC thread stays
+/// free and Settings → AI paints the spinner frame without waiting for the
+/// probes. Same pattern as `ai_list_sessions`.
 #[tauri::command]
-pub fn ai_refresh_detection(
+pub async fn ai_refresh_detection(
     app_handle: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let kinds = [
-        AiProviderKind::ClaudeCode,
-        AiProviderKind::Codex,
-        AiProviderKind::OpenCode,
-    ];
-
-    let mut detected: Vec<AvailableAiProvider> = Vec::new();
-    for kind in kinds {
-        // Only ClaudeCode has a real implementation — skip unsupported silently.
-        let Ok(provider) = make_provider(kind) else {
-            continue;
-        };
-        if let Some(binary_path) = provider.detect_binary() {
-            let version = provider.version().ok();
-            detected.push(AvailableAiProvider {
-                kind,
-                binary_path,
-                version,
-            });
+    let detected = tokio::task::spawn_blocking(|| {
+        let kinds = [
+            AiProviderKind::ClaudeCode,
+            AiProviderKind::Codex,
+            AiProviderKind::OpenCode,
+        ];
+        let mut detected: Vec<AvailableAiProvider> = Vec::new();
+        for kind in kinds {
+            // Only ClaudeCode has a real implementation — skip unsupported silently.
+            let Ok(provider) = make_provider(kind) else {
+                continue;
+            };
+            if let Some(binary_path) = provider.detect_binary() {
+                let version = provider.version().ok();
+                detected.push(AvailableAiProvider {
+                    kind,
+                    binary_path,
+                    version,
+                });
+            }
         }
-    }
+        detected
+    })
+    .await
+    .map_err(|e| e.to_string())?;
 
     let mut guard = state.ai_providers.lock().map_err(|e| e.to_string())?;
     *guard = detected;
@@ -328,6 +336,7 @@ pub fn ai_launch_interactive(
     let p = make_provider(kind)?;
     let cmd = p.build_interactive_cmd(&cwd).map_err(|e| e.to_string())?;
     let (program, args) = command_to_parts(&cmd);
+    verify_executable(&program)?;
     let shell_cmd = if args.is_empty() {
         program
     } else {
@@ -385,6 +394,13 @@ pub fn ai_launch_worktree(
 /// Looks up the provider's resume command for the given session ID.
 /// Returns `None` if the provider doesn't support resuming (no error).
 /// Returns `Some(SessionId)` on success.
+///
+/// The CLI resolution path (`which::which`) occasionally returns a stale
+/// entry — e.g. an old `~/.local/bin/claude` symlink left behind by a
+/// previous installer — so we verify the binary still exists and is
+/// executable before handing the command to `portable-pty`. A bogus path
+/// would otherwise fail with a bare `ENOENT` from `execvp`, which is a
+/// poor user-facing error.
 #[tauri::command]
 pub fn ai_resume_session(
     provider: String,
@@ -401,6 +417,7 @@ pub fn ai_resume_session(
     };
 
     let (program, args) = command_to_parts(&cmd);
+    verify_executable(&program)?;
     let shell_cmd = if args.is_empty() {
         program
     } else {
@@ -415,6 +432,34 @@ pub fn ai_resume_session(
     };
     let session = terminal_manager.spawn(config).map_err(|e| e.to_string())?;
     Ok(Some(session))
+}
+
+/// Verify a detected CLI binary is still present and executable.
+///
+/// `which::which` can return stale PATH entries (broken symlinks from a
+/// previous installer, files removed since last cache refresh). Turning
+/// those into a clear error here is strictly better than letting
+/// `execvp` fail deep inside `portable-pty` with a bare `ENOENT`.
+fn verify_executable(path: &str) -> Result<(), String> {
+    let p = Path::new(path);
+    let Ok(meta) = std::fs::metadata(p) else {
+        return Err(format!(
+            "{path} resolved from PATH but no longer exists. The binary \
+             may have been moved or uninstalled. Re-run the installer, or \
+             remove the stale entry from your shell PATH and relaunch BeardGit."
+        ));
+    };
+    if !meta.is_file() {
+        return Err(format!("{path} is not a regular file"));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if meta.permissions().mode() & 0o111 == 0 {
+            return Err(format!("{path} is not executable"));
+        }
+    }
+    Ok(())
 }
 
 // ─── Introspection ────────────────────────────────────────────────────────────
