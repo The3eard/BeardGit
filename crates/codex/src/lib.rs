@@ -142,10 +142,10 @@ impl AiProvider for CodexProvider {
     /// List Codex conversation transcripts whose rollout `cwd` matches
     /// `repo_path`.
     ///
-    /// Transcript-first sibling of [`list_sessions`] — reads the same
-    /// `~/.codex/sessions/` tree but surfaces every matching rollout as
-    /// an [`AiConversation`] regardless of live-process state. See
-    /// [`conversations`] for the walker + filter contract.
+    /// Transcript-first sibling of [`AiProvider::list_sessions`] — reads
+    /// the same `~/.codex/sessions/` tree but surfaces every matching
+    /// rollout as an [`AiConversation`] regardless of live-process state.
+    /// See [`conversations`] for the walker + filter contract.
     fn list_conversations(&self, repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
         conversations::list_conversations(repo_path)
     }

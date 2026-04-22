@@ -130,10 +130,10 @@ impl AiProvider for OpenCodeProvider {
 
     /// List OpenCode conversation transcripts scoped to `repo_path`.
     ///
-    /// Transcript-first sibling of [`list_sessions`] — shells out to the
-    /// same `opencode session list --format json` command but returns
-    /// [`AiConversation`] rows filtered by `directory` / `repo_path`.
-    /// See [`conversations`] for the filter + sort contract.
+    /// Transcript-first sibling of [`AiProvider::list_sessions`] — shells
+    /// out to the same `opencode session list --format json` command but
+    /// returns [`AiConversation`] rows filtered by `directory` /
+    /// `repo_path`. See [`conversations`] for the filter + sort contract.
     ///
     /// Returns `Ok(Vec::new())` when the binary isn't installed.
     fn list_conversations(&self, repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {

@@ -25,8 +25,8 @@ use crate::sessions::{DISCOVERY_WINDOW, SessionMeta, parse_rfc3339_to_unix_milli
 
 /// List Codex conversations whose rollout `cwd` matches `repo_path`.
 ///
-/// Resolves `~/.codex/sessions/` and delegates to
-/// [`list_conversations_in`]. Returns `Ok(vec![])` when `$HOME` can't be
+/// Resolves `~/.codex/sessions/` and delegates to the internal
+/// `list_conversations_in` core. Returns `Ok(vec![])` when `$HOME` can't be
 /// resolved or the base directory doesn't exist yet — neither is an error
 /// condition, it just means the user hasn't run Codex here.
 pub fn list_conversations(repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {

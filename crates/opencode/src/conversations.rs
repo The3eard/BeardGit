@@ -27,9 +27,9 @@ use crate::sessions::SessionRunner;
 
 /// Conversations whose `updated` mtime is older than this are skipped.
 ///
-/// Matches the 30-day window used by [`claude_code::conversations`] and
-/// [`super::conversations_codex`-style] Codex listers so the UI shows a
-/// consistent "recent activity" horizon across providers. OpenCode's
+/// Matches the 30-day window used by the Claude Code and Codex
+/// transcript listers so the UI shows a consistent "recent activity"
+/// horizon across providers. OpenCode's
 /// `session list` does not prune on its own, so without this the sidebar
 /// would surface multi-year-old sessions on every refresh.
 pub const DISCOVERY_WINDOW: Duration = Duration::from_secs(30 * 24 * 60 * 60);
