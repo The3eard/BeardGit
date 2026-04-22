@@ -16,6 +16,12 @@ use crate::state::AppState;
 /// After connecting, re-runs active provider detection against the current
 /// repo's remote URL and persists all providers to `settings.json`.
 ///
+/// As a fire-and-forget side effect, the same PAT is piped into the
+/// matching CLI (`gh` / `glab`) on a background task so the CLI half of
+/// the integration authenticates under the same identity in one action.
+/// Failures of the CLI pipe are logged only — the API half is already
+/// persisted and the command never blocks or errors on the subprocess.
+///
 /// # Parameters
 /// - `kind`         – Provider type (`"gitlab"` or `"github"`).
 /// - `instance_url` – Base URL (e.g. `"https://gitlab.com"` or `"https://api.github.com"`).
@@ -78,6 +84,37 @@ pub async fn connect_provider(
     save_providers_to_config(&state);
     detect_active_provider(&state).await;
 
+    // Fire-and-forget: pipe the same PAT into the matching CLI so `gh`/`glab`
+    // are logged in under the app's identity. Failures are silent — the CLI
+    // row's existing status poll will reflect the outcome on its own, and the
+    // API half is already persisted. Never block the user on this.
+    if let Ok(binary) = resolve_cli_binary(&state, kind) {
+        let instance = instance_url.clone();
+        let token_bg = token.clone();
+        tokio::spawn(async move {
+            let outcome = tokio::task::spawn_blocking(move || {
+                cli_provider::auth::pipe_token_to_cli(&binary, kind, &instance, &token_bg)
+            })
+            .await;
+            match outcome {
+                Ok(Ok(())) => tracing::info!(
+                    target: "cmd::provider::connect",
+                    "CLI auto-login succeeded"
+                ),
+                Ok(Err(e)) => tracing::warn!(
+                    target: "cmd::provider::connect",
+                    error = %e,
+                    "CLI auto-login failed (non-fatal)"
+                ),
+                Err(join_err) => tracing::warn!(
+                    target: "cmd::provider::connect",
+                    error = %join_err,
+                    "CLI auto-login task panicked (non-fatal)"
+                ),
+            }
+        });
+    }
+
     Ok(user)
 }
 
@@ -87,6 +124,11 @@ pub async fn connect_provider(
 /// from the encrypted store, saves the updated config, and re-runs
 /// active provider detection.
 ///
+/// As a fire-and-forget side effect, the matching CLI (`gh` / `glab`) is
+/// logged out on a background task so the CLI half of the integration
+/// mirrors the app's state. Failures (including the CLI already being
+/// logged out) are logged only and never affect the command result.
+///
 /// # Parameters
 /// - `instance_url` – Base URL of the provider to disconnect.
 #[tauri::command]
@@ -95,6 +137,16 @@ pub async fn disconnect_provider(
     instance_url: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    // Capture kind before retain() drops the entry, so we can run the CLI
+    // logout as a background task after unwinding the in-memory state.
+    let kind_for_cli: Option<provider::ProviderKind> = {
+        let providers = state.providers.lock().unwrap();
+        providers
+            .iter()
+            .find(|p| p.instance_url == instance_url)
+            .map(|p| p.kind)
+    };
+
     // Remove from providers vec
     {
         let mut providers = state.providers.lock().unwrap();
@@ -107,6 +159,38 @@ pub async fn disconnect_provider(
     // Save config and re-detect
     save_providers_to_config(&state);
     detect_active_provider(&state).await;
+
+    // Fire-and-forget: log the matching CLI out so `gh`/`glab` state mirrors
+    // the app. `clear_cli_auth` is idempotent (a "not logged in" stderr maps
+    // to Ok), and any real failure is logged rather than surfaced — the
+    // command has already torn down the in-memory + keyring state.
+    if let Some(kind) = kind_for_cli
+        && let Ok(binary) = resolve_cli_binary(&state, kind)
+    {
+        let instance = instance_url.clone();
+        tokio::spawn(async move {
+            let outcome = tokio::task::spawn_blocking(move || {
+                cli_provider::auth::clear_cli_auth(&binary, kind, &instance)
+            })
+            .await;
+            match outcome {
+                Ok(Ok(())) => tracing::info!(
+                    target: "cmd::provider::disconnect",
+                    "CLI auto-logout succeeded"
+                ),
+                Ok(Err(e)) => tracing::warn!(
+                    target: "cmd::provider::disconnect",
+                    error = %e,
+                    "CLI auto-logout failed (non-fatal)"
+                ),
+                Err(join_err) => tracing::warn!(
+                    target: "cmd::provider::disconnect",
+                    error = %join_err,
+                    "CLI auto-logout task panicked (non-fatal)"
+                ),
+            }
+        });
+    }
 
     Ok(())
 }
@@ -228,7 +312,14 @@ pub async fn detect_project(state: State<'_, AppState>) -> Result<(), String> {
 mod tests {
     //! The `connect_provider` / `disconnect_provider` / `try_auto_connect`
     //! flows touch the network, the OS keyring, and Tauri state — not
-    //! unit-testable here. What we can test:
+    //! unit-testable here. The background CLI pipe that
+    //! `connect_provider` / `disconnect_provider` spawn on success is
+    //! likewise out of reach from this module: it requires a live tokio
+    //! runtime plus a real `gh`/`glab` subprocess (or a mock rig). The
+    //! helpers it invokes (`cli_provider::auth::pipe_token_to_cli` and
+    //! `clear_cli_auth`) are covered directly in `crates/cli-provider`.
+    //!
+    //! What we can test here:
     //!
     //!   * `provider::ProviderKind::from_config_str` — the round-trip
     //!     used by `try_auto_connect` to parse saved config values.
