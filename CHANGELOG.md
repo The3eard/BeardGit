@@ -511,7 +511,7 @@ Pure refactor. `provider/lib.rs` (883 LOC of trait + types + kind + error) split
 - List layout aligned with pipeline section pattern (3-column horizontal rows with state icon, title, time)
 - Removed filter tabs (Open/Closed/Merged/All), replaced with SearchBar state filter (default: state:open)
 - Added search/filter bar with state, author, branch, and label filters
-- Markdown rendering in descriptions and comments (snarkdown + allowlist-based XSS sanitizer, links open externally)
+- Markdown rendering in descriptions and comments (minimal parser + allowlist-based XSS sanitizer, links open externally)
 - Redesigned merge action buttons: split-button with dropdown menu for merge strategy (merge/squash/rebase)
 - Added refresh button and "no provider" empty state
 - Provider readiness guard prevents empty list on startup

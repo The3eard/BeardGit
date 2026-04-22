@@ -3,9 +3,9 @@
  * powers the body/comment/description surfaces in `ReleaseDetail`,
  * `IssueDetail`, and `MrPrDetail`.
  *
- * Coverage focuses on the GFM features that `snarkdown` (the previous
- * renderer) either dropped or garbled — fenced code blocks, GFM tables,
- * task lists — plus a handful of XSS regressions against the sanitiser.
+ * Coverage focuses on the GFM features the previous minimal renderer
+ * either dropped or garbled — fenced code blocks, GFM tables, task
+ * lists — plus a handful of XSS regressions against the sanitiser.
  */
 import { describe, expect, it } from "vitest";
 import { renderMarkdown } from "../markdown";

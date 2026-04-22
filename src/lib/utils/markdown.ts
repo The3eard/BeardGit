@@ -5,8 +5,8 @@
  * Rendering is delegated to {@link https://marked.js.org/ | marked} v13+
  * in synchronous mode, with `marked-gfm-heading-id` plugged in for stable
  * anchor ids on headings. `marked` handles GFM tables, fenced code blocks,
- * task lists, strikethrough, and autolinks out of the box — features that
- * the previous `snarkdown`-based renderer either dropped or garbled.
+ * task lists, strikethrough, and autolinks out of the box — features
+ * the previous minimal renderer either dropped or garbled.
  *
  * Sanitisation is a small allow-list pass:
  *   1. Event-handler attributes are stripped from every tag.
