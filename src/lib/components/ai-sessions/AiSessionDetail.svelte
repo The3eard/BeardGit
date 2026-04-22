@@ -27,7 +27,6 @@
   } from "$lib/stores/aiBackground";
   import {
     selectedConversation,
-    selectedConversationId,
   } from "$lib/stores/aiConversations";
   import { resumeConversation } from "$lib/stores/aiConversationActions";
   import { openProjectTab } from "$lib/stores/projects";
@@ -159,13 +158,6 @@
     }
   }
 
-  /** Clear conversation selection when the detail pane unmounts it. */
-  function clearConversationSelection() {
-    selectedConversationId.set(null);
-  }
-  // Silence unused-var warnings for handlers only referenced in conditional
-  // branches — Svelte's strict mode otherwise trips on the dev server.
-  void clearConversationSelection;
 </script>
 
 {#if conversation}

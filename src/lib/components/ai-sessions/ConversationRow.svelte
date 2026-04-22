@@ -65,15 +65,24 @@
       });
     }
   }
+
+  /** Keyboard activation — Space/Enter on the row select the conversation. */
+  function onRowKeydown(ev: KeyboardEvent) {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      onRowClick();
+    }
+  }
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="session-item"
+  role="button"
+  tabindex="0"
   data-testid="ai-conversation-row"
   data-conversation-id={conversation.id}
   onclick={onRowClick}
+  onkeydown={onRowKeydown}
 >
   <ProviderIcon provider={conversation.provider} size={20} />
   <div class="session-info">
@@ -93,6 +102,7 @@
   </div>
   <div class="session-actions">
     <button
+      type="button"
       class="session-action-btn resume-btn"
       onclick={onResumeClick}
       title={m.ai_sessions_resume_warning({
@@ -116,6 +126,15 @@
     min-height: 48px;
     box-sizing: border-box;
     cursor: pointer;
+  }
+
+  .session-item:hover {
+    background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+  }
+
+  .session-item:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: -2px;
   }
 
   .session-info {
