@@ -72,11 +72,19 @@ The WebdriverIO + tauri-driver suite is removed while the app is in heavy flux. 
 - CLI row in the Connections card now labels itself **"Connected · via {Provider} PAT"** when its authenticated username matches a connected forge provider — surfacing that both halves share one identity.
 - Removed orphan programmatic OAuth device-code flow (`cli_login` Tauri command, `start_cli_login`, `OAuthLoginProcess`, `OAuthLoginInfo`, `oauth-device-code` event emit). Superseded by the terminal-hosted `gh auth login` flow shipped with xterm.js in v0.1.5 and the new PAT-pipe flow above.
 
+### Wave A polish — buttons, markdown, AI sessions
+
+Three disjoint-file slices shipped in parallel worktrees, merged sequentially to `beta`.
+
+- **Button primitive.** `ui/Button` gains a `subtle` variant (theme-token tonal fill + accent-blue hover border) that sits between `primary` and `ghost` for actions that need to read as actionable without going loud. `secondary`'s baseline moved from `--overlay-hover` (a hover state, never a fill) to `--bg-secondary` — fixes the task-row action buttons rendering as near-white on the default dark theme. `ConnectionRow.svelte` fully migrated: every button routes through the primitive, 39 lines of shadowed local `.btn-*` CSS gone. Manage button no longer reads as disabled.
+- **Markdown renderer.** Release / Issue / MR-PR detail bodies now render full GitHub-flavored markdown (fenced code blocks, tables, task lists, autolinks, strikethrough) via `marked`. Replaces the minimal `snarkdown` renderer that dropped or garbled those elements. Sanitiser extended to allow `<input type="checkbox">` for task lists and to rewrite `href="javascript:…"` to `href="#"`. Scoped `.body` styles added per detail component using theme tokens.
+- **AI Sessions interactions.** Fixed four bugs that made the view feel broken: clicking an external (provider-reported) session now populates the detail pane (was always empty — the derived selection only looked in the background-run map); the detail pane gains real Focus / Open-Terminal / Dismiss actions instead of a placeholder "external terminal" label; the Focus button on a composite-tab-hosted terminal now sets both `activeTabIndex` and the composite's `activeSegmentIndex` so the user actually sees the terminal; the merged-sessions list dedupes by `(provider, cwd)` for active-interactive rows so a single Claude process doesn't show as two entries with different IDs. Tier/focus/resume logic extracted to a shared `aiSessionActions.ts` so list and detail share one implementation.
+
 ### Testing
 
-- **Rust:** 965 tests across 22 crates, clippy clean on `--workspace --all-targets`.
-- **Frontend:** 595 Vitest tests across 86 files.
-- **svelte-check:** 0 errors / 0 warnings across 2 618 files.
+- **Rust:** 1 034 tests across the workspace, clippy clean on `--workspace --all-targets -- -D warnings`.
+- **Frontend:** 639 Vitest tests across 90 files.
+- **svelte-check:** 0 errors / 0 warnings across 2 989 files.
 
 ## [0.1.8] — Phases 6–10: Bisect, CLI Auth, AI Stack, Forge Integration, Bundled CLIs, Refactor, E2E, Performance
 
