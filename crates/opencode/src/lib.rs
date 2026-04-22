@@ -6,6 +6,7 @@
 
 pub mod attribution;
 pub mod commands;
+pub mod conversations;
 pub mod detect;
 pub mod errors;
 pub mod sessions;
@@ -15,8 +16,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ai_provider::{
-    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AiSession, AiWorktree,
-    AttributionMatch, AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
+    AiBackgroundRunInput, AiConfigFile, AiConversation, AiError, AiProvider, AiProviderKind,
+    AiSession, AiWorktree, AttributionMatch, AttributionPattern, ConfigKind, ConfigScope,
+    ExecuteOptions,
 };
 
 /// AI provider for the OpenCode CLI.
@@ -124,6 +126,22 @@ impl AiProvider for OpenCodeProvider {
         };
         let runner = sessions::CliSessionRunner::new(binary);
         Ok(sessions::load_sessions(&runner))
+    }
+
+    /// List OpenCode conversation transcripts scoped to `repo_path`.
+    ///
+    /// Transcript-first sibling of [`list_sessions`] — shells out to the
+    /// same `opencode session list --format json` command but returns
+    /// [`AiConversation`] rows filtered by `directory` / `repo_path`.
+    /// See [`conversations`] for the filter + sort contract.
+    ///
+    /// Returns `Ok(Vec::new())` when the binary isn't installed.
+    fn list_conversations(&self, repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
+        let Some(binary) = self.binary.clone() else {
+            return Ok(Vec::new());
+        };
+        let runner = sessions::CliSessionRunner::new(binary);
+        conversations::list_conversations(&runner, repo_path)
     }
 
     /// Whether an OpenCode session is still "live".

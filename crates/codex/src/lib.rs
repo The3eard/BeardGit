@@ -6,6 +6,7 @@
 
 pub mod attribution;
 pub mod commands;
+pub mod conversations;
 pub mod detect;
 pub mod errors;
 pub mod sessions;
@@ -15,8 +16,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ai_provider::{
-    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AiSession, AiWorktree,
-    AttributionMatch, AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
+    AiBackgroundRunInput, AiConfigFile, AiConversation, AiError, AiProvider, AiProviderKind,
+    AiSession, AiWorktree, AttributionMatch, AttributionPattern, ConfigKind, ConfigScope,
+    ExecuteOptions,
 };
 
 /// AI provider for the Codex CLI.
@@ -135,6 +137,17 @@ impl AiProvider for CodexProvider {
         let all = sessions::load_sessions(&base_dir);
         let target = repo_path;
         Ok(all.into_iter().filter(|s| s.cwd == target).collect())
+    }
+
+    /// List Codex conversation transcripts whose rollout `cwd` matches
+    /// `repo_path`.
+    ///
+    /// Transcript-first sibling of [`list_sessions`] — reads the same
+    /// `~/.codex/sessions/` tree but surfaces every matching rollout as
+    /// an [`AiConversation`] regardless of live-process state. See
+    /// [`conversations`] for the walker + filter contract.
+    fn list_conversations(&self, repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
+        conversations::list_conversations(repo_path)
     }
 
     /// Whether a Codex session is still "live".

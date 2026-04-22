@@ -67,20 +67,20 @@ pub const DISCOVERY_WINDOW: Duration = Duration::from_secs(30 * 24 * 60 * 60);
 
 /// First-line JSON shape — only the fields we read.
 #[derive(Debug, Deserialize)]
-struct SessionMeta {
+pub(crate) struct SessionMeta {
     #[serde(rename = "type")]
-    kind: String,
-    payload: SessionMetaPayload,
+    pub(crate) kind: String,
+    pub(crate) payload: SessionMetaPayload,
 }
 
 #[derive(Debug, Deserialize)]
-struct SessionMetaPayload {
-    id: String,
+pub(crate) struct SessionMetaPayload {
+    pub(crate) id: String,
     /// ISO 8601 timestamp — e.g. `"2026-04-20T21:58:54.320Z"`.
-    timestamp: Option<String>,
-    cwd: Option<String>,
+    pub(crate) timestamp: Option<String>,
+    pub(crate) cwd: Option<String>,
     /// `"exec"` → headless, anything else (interactive, tui, …) → interactive.
-    source: Option<String>,
+    pub(crate) source: Option<String>,
 }
 
 /// Walk `base_dir` (expected shape: `YYYY/MM/DD/rollout-*.jsonl`) and return
@@ -184,7 +184,7 @@ fn parse_session_file(path: &Path) -> Option<AiSession> {
 
 /// Very small RFC-3339 parser — avoids pulling `chrono` just to convert the
 /// timestamp to Unix milliseconds. Returns `None` on any parsing failure.
-fn parse_rfc3339_to_unix_millis(ts: &str) -> Option<u64> {
+pub(crate) fn parse_rfc3339_to_unix_millis(ts: &str) -> Option<u64> {
     // Expected: `YYYY-MM-DDTHH:MM:SS[.fff]Z`
     let (date, rest) = ts.split_once('T')?;
     let time = rest.strip_suffix('Z').unwrap_or(rest);
