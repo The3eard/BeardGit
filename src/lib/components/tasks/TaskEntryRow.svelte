@@ -21,6 +21,7 @@
   import type { AiProviderKind } from "$lib/types";
   import { formatRelativeTimeMs } from "$lib/utils/time";
   import ProviderIcon from "$lib/components/ai-sessions/ProviderIcon.svelte";
+  import { Button } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -165,16 +166,14 @@
   {#if entry.actions.length > 0}
     <div class="task-row__actions">
       {#each entry.actions as action (action.id)}
-        <button
-          type="button"
-          class="btn task-row__action task-row__action--{action.variant ??
-            'secondary'}"
-          data-testid="task-row-action"
-          data-action-id={action.id}
+        <Button
+          variant={action.variant ?? "secondary"}
+          size="sm"
+          testid={`task-row-action-${action.id}`}
           onclick={() => onAction(action.id)}
         >
           {action.label}
-        </button>
+        </Button>
       {/each}
     </div>
   {/if}
@@ -293,10 +292,5 @@
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
-  }
-
-  .task-row__action {
-    padding: 3px 10px;
-    font-size: 11px;
   }
 </style>

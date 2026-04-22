@@ -44,8 +44,7 @@ describe("TaskEntryRow", () => {
     });
 
     const { getByTestId } = render(TaskEntryRow, { props: { entry, onAction } });
-    const btn = getByTestId("task-row-action");
-    expect(btn.getAttribute("data-action-id")).toBe("cancel");
+    const btn = getByTestId("task-row-action-cancel");
 
     await fireEvent.click(btn);
     expect(onAction).toHaveBeenCalledWith("cancel");
@@ -65,12 +64,13 @@ describe("TaskEntryRow", () => {
       props: { entry, onAction: vi.fn() },
     });
 
-    const actions = getAllByTestId("task-row-action");
+    const actions = getAllByTestId(/^task-row-action-/);
     expect(actions).toHaveLength(2);
-    expect(actions.map((a) => a.getAttribute("data-action-id"))).toEqual([
-      "retry",
-      "dismiss",
-    ]);
+    expect(
+      actions.map((a) =>
+        (a.getAttribute("data-testid") ?? "").replace("task-row-action-", ""),
+      ),
+    ).toEqual(["retry", "dismiss"]);
 
     expect(getByTestId("task-row-error").textContent).toBe("remote rejected");
   });
@@ -86,9 +86,11 @@ describe("TaskEntryRow", () => {
       props: { entry, onAction: vi.fn() },
     });
 
-    const actions = getAllByTestId("task-row-action");
+    const actions = getAllByTestId(/^task-row-action-/);
     expect(actions).toHaveLength(1);
-    expect(actions[0].getAttribute("data-action-id")).toBe("dismiss");
+    expect(actions[0].getAttribute("data-testid")).toBe(
+      "task-row-action-dismiss",
+    );
   });
 
   it("determinate progress renders a bar with the correct percent", () => {
