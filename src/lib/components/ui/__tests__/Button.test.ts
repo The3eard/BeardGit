@@ -30,12 +30,36 @@ describe("Button", () => {
   });
 
   it("applies the correct class for each variant", () => {
-    for (const variant of ["primary", "secondary", "ghost", "danger"] as const) {
+    for (const variant of [
+      "primary",
+      "secondary",
+      "subtle",
+      "ghost",
+      "danger",
+    ] as const) {
       const { container, unmount } = render(Button, { props: { variant } });
       const btn = container.querySelector("button")!;
       expect(btn.classList.contains(`bg-btn--${variant}`)).toBe(true);
       unmount();
     }
+  });
+
+  it("renders the subtle variant with the expected class + data attribute", () => {
+    const { container } = render(Button, { props: { variant: "subtle" } });
+    const btn = container.querySelector("button")!;
+    expect(btn.classList.contains("bg-btn--subtle")).toBe(true);
+    expect(btn.getAttribute("data-variant")).toBe("subtle");
+  });
+
+  it("suppresses onclick on the subtle variant when disabled", async () => {
+    const onclick = vi.fn();
+    const { container } = render(Button, {
+      props: { variant: "subtle", disabled: true, onclick },
+    });
+    const btn = container.querySelector("button")!;
+    expect(btn.disabled).toBe(true);
+    await fireEvent.click(btn);
+    expect(onclick).not.toHaveBeenCalled();
   });
 
   it("applies the correct class for each size", () => {

@@ -20,8 +20,25 @@
 -->
 <script lang="ts">
   interface Props {
-    /** Visual variant — picks colour/border tokens. Default `'secondary'`. */
-    variant?: "primary" | "secondary" | "ghost" | "danger";
+    /**
+     * Visual variant — picks colour/border tokens. Default `'secondary'`.
+     *
+     * - `primary`: loud, accent-blue fill. Use for the single most
+     *   important action in a row (Connect, Save, Submit).
+     * - `secondary`: tonal baseline fill, borderless, softer than
+     *   `subtle`. The default. Use when you want "this is a button" but
+     *   the row already has another button carrying the action weight.
+     * - `subtle`: tonal fill with a visible border — reads as
+     *   actionable but not primary. Use for Manage / Edit / secondary
+     *   toggles where `ghost` would read as disabled and `secondary`
+     *   is too flat.
+     * - `ghost`: transparent baseline, inherits the row colour. Use
+     *   for inline icon buttons (close, dismiss, row-chevron) where a
+     *   fill would feel heavy.
+     * - `danger`: loud, accent-red fill. Use for destructive actions
+     *   (Disconnect, Delete).
+     */
+    variant?: "primary" | "secondary" | "subtle" | "ghost" | "danger";
     /** Vertical rhythm/padding scale. Default `'md'`. */
     size?: "sm" | "md" | "lg";
     /** When true, swap the icon for a spinner and suppress clicks. */
@@ -141,11 +158,22 @@
   }
 
   .bg-btn--secondary {
-    background: var(--overlay-hover);
+    background: var(--bg-secondary);
+    border-color: transparent;
     color: var(--text-primary);
   }
   .bg-btn--secondary:hover:not(:disabled) {
-    background: var(--overlay-active);
+    background: var(--overlay-hover);
+  }
+
+  .bg-btn--subtle {
+    background: var(--bg-secondary);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+  .bg-btn--subtle:hover:not(:disabled) {
+    background: var(--overlay-hover);
+    border-color: var(--accent-blue);
   }
 
   .bg-btn--ghost {
