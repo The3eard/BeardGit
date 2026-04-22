@@ -2,9 +2,24 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [Unreleased] — Reactivity foundation, AI sessions UX, forge data fixes, settings IA polish, log rename, E2E retirement
+## [Unreleased] — Reactivity foundation, AI sessions UX, forge data fixes, settings IA polish, log rename, E2E retirement, AI sessions transcript-first rewrite
 
-Six sequential specs brainstormed and shipped on 2026-04-21. Each spec merged into `beta` on its own feature branch with a dedicated design + plan document.
+Six sequential specs brainstormed and shipped on 2026-04-21. Each spec merged into `beta` on its own feature branch with a dedicated design + plan document. A seventh spec — the AI sessions transcript-first rewrite — landed on 2026-04-22.
+
+### AI sessions — transcript-first rewrite (Spec 7, 2026-04-22)
+
+The AI Sessions view no longer treats `~/.claude/sessions/{pid}.json` as the source of truth. Each provider now reads its own on-disk transcript store and surfaces conversations as first-class rows; terminal tabs BeardGit actually owns are a separate "Active" list that supports real focus. Root cause ticket: [claude-code#12235](https://github.com/anthropics/claude-code/issues/12235) — every Claude `--resume` spawns a fresh process with a new UUID; attaching to a running CLI was never possible, so the old "Focus external" button was always a lie.
+
+- **New `AiConversation` type** (Rust `ai_provider::AiConversation`, TS mirror) — id, provider, cwd, created/last_activity unix-ms timestamps, title, optional `parent_id` 8-char prefix when the transcript was forked.
+- **New `AiProvider::list_conversations` trait method**. `list_sessions` and `is_session_active` deleted from the trait; `AiSession` the type stays (background runs still use it).
+- **Claude Code** reads `~/.claude/projects/{cwd-slug}/*.jsonl`. Title walks for the first non-meta `type: "user"` record with extractable text (supports both string content and `{type, text}` arrays; skips `<command-name>` / `<local-command-caveat>` envelopes). Fork detection from the first record's `parentUuid`.
+- **Codex** walks `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, parses the first-line `session_meta` payload for id/cwd/timestamp. Title is MVP-empty (follow-up extracts the first user prompt from later lines).
+- **OpenCode** shells out to `opencode session list --format json` and maps `directory → cwd`, `updated → last_activity_at`, `title` verbatim.
+- **Two new Tauri commands** — `ai_list_conversations` and `ai_resume_conversation`. The old `ai_list_sessions` / `ai_resume_session` / `aiListSessions` / `aiResumeSession` are deleted.
+- **Two-section UI** — `AiSessionList.svelte` renders Active (BeardGit-owned terminal tabs + segments + running/queued bg-runs) above Conversations (on-disk transcripts for the current repo). Mutually-exclusive selection between conversation and bg-run in the detail pane. Row action for Conversations is labelled "Resume in new terminal" with a tooltip naming the forking semantics explicitly.
+- **Dropped** the `~/.claude/sessions/{pid}.json` scanner, `is_claude_process`, `process_alive`, `is_file_active`, `AiSessionWatcher` pointing at the dead PID dir (repointed to `~/.claude/projects/` + `~/.codex/sessions/`).
+- **i18n** — 10 new `ai_sessions_*` keys in en-US + es-ES (peninsular tuteo). `ConversationRow` is keyboard-reachable (`role="button"` + Enter/Space).
+- **Testing**: Rust workspace 1 045 tests (−31 for deleted legacy tests), Vitest 653 tests across 91 files (−25 for deleted stores), clippy clean, svelte-check 0/0.
 
 ### Reactivity & feedback foundation (Spec 1)
 
