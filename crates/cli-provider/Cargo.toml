@@ -13,3 +13,6 @@ thiserror = { workspace = true }
 wait-timeout = "0.2"
 provider = { path = "../provider" }
 forge-provider = { path = "../forge-provider" }
+
+[dev-dependencies]
+tempfile = "3"
