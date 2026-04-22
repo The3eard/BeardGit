@@ -14,7 +14,16 @@ pub struct TerminalConfig {
     /// Working directory for the shell.
     pub cwd: PathBuf,
     /// Override the default shell. If `None`, auto-detect from system.
+    ///
+    /// Historically this field was also abused to smuggle a full command
+    /// line (`"/abs/path/to/bin --flag value"`) because no `args` field
+    /// existed. `portable-pty` treats the shell value as one filename, so
+    /// that usage failed with `ENOENT` on any non-trivial invocation —
+    /// see `args` below for the right way to pass arguments.
     pub shell: Option<String>,
+    /// Arguments to pass to the shell/command. Each element is a single
+    /// argv entry; no tokenisation happens on spaces.
+    pub args: Vec<String>,
     /// Additional environment variables to set.
     pub env: HashMap<String, String>,
     /// Initial terminal width in columns.

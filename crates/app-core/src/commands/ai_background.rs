@@ -213,15 +213,11 @@ pub fn ai_open_background_terminal(
         .get_args()
         .map(|a| a.to_string_lossy().to_string())
         .collect();
-    let shell_cmd = if args.is_empty() {
-        program
-    } else {
-        format!("{} {}", program, args.join(" "))
-    };
 
     let config = TerminalConfig {
         cwd: worktree_path,
-        shell: Some(shell_cmd),
+        shell: Some(program),
+        args,
         env: HashMap::new(),
         cols: 220,
         rows: 50,

@@ -73,6 +73,9 @@ impl TerminalManager {
 
         let mut cmd = CommandBuilder::new(&shell);
         cmd.cwd(&config.cwd);
+        for arg in &config.args {
+            cmd.arg(arg);
+        }
         for (key, value) in &config.env {
             cmd.env(key, value);
         }
@@ -346,6 +349,7 @@ mod tests {
         let config = TerminalConfig {
             cwd: std::env::temp_dir(),
             shell: None,
+            args: Vec::new(),
             env: HashMap::new(),
             cols: 80,
             rows: 24,
@@ -395,6 +399,7 @@ mod tests {
         let config = TerminalConfig {
             cwd: std::env::temp_dir(),
             shell: None,
+            args: Vec::new(),
             env: HashMap::new(),
             cols: 80,
             rows: 24,
@@ -418,6 +423,7 @@ mod tests {
         let config = TerminalConfig {
             cwd: std::env::temp_dir(),
             shell: None,
+            args: Vec::new(),
             env: HashMap::new(),
             cols: 80,
             rows: 24,

@@ -337,14 +337,10 @@ pub fn ai_launch_interactive(
     let cmd = p.build_interactive_cmd(&cwd).map_err(|e| e.to_string())?;
     let (program, args) = command_to_parts(&cmd);
     verify_executable(&program)?;
-    let shell_cmd = if args.is_empty() {
-        program
-    } else {
-        format!("{} {}", program, args.join(" "))
-    };
     let config = TerminalConfig {
         cwd: cwd.to_path_buf(),
-        shell: Some(shell_cmd),
+        shell: Some(program),
+        args,
         env: HashMap::new(),
         cols: 220,
         rows: 50,
@@ -373,14 +369,11 @@ pub fn ai_launch_worktree(
     };
 
     let (program, args) = command_to_parts(&cmd);
-    let shell_cmd = if args.is_empty() {
-        program
-    } else {
-        format!("{} {}", program, args.join(" "))
-    };
+    verify_executable(&program)?;
     let config = TerminalConfig {
         cwd: cwd.to_path_buf(),
-        shell: Some(shell_cmd),
+        shell: Some(program),
+        args,
         env: HashMap::new(),
         cols: 220,
         rows: 50,
@@ -418,14 +411,10 @@ pub fn ai_resume_session(
 
     let (program, args) = command_to_parts(&cmd);
     verify_executable(&program)?;
-    let shell_cmd = if args.is_empty() {
-        program
-    } else {
-        format!("{} {}", program, args.join(" "))
-    };
     let config = TerminalConfig {
         cwd: cwd.to_path_buf(),
-        shell: Some(shell_cmd),
+        shell: Some(program),
+        args,
         env: HashMap::new(),
         cols: 220,
         rows: 50,

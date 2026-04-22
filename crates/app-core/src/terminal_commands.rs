@@ -18,6 +18,7 @@ pub fn terminal_spawn(
     let config = TerminalConfig {
         cwd: PathBuf::from(cwd),
         shell: None,
+        args: Vec::new(),
         env: HashMap::new(),
         cols,
         rows,
