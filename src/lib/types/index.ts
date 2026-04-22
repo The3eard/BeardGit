@@ -912,6 +912,29 @@ export interface AiSession {
   task_id?: number | null;
 }
 
+/**
+ * A conversation transcript on disk — the canonical source for a
+ * provider-hosted AI session. Mirrors `ai_provider::AiConversation` (Rust).
+ *
+ * Replaces `AiSession` for the AI sessions listing UI; `AiSession` is kept
+ * for background runs, which carry `task_id` + `background_status`.
+ */
+export interface AiConversation {
+  /** Conversation UUID — filename stem of the provider's transcript file. */
+  id: string;
+  provider: AiProviderKind;
+  /** Repo path the conversation was scoped to. */
+  cwd: string;
+  /** Unix ms of the first parseable message (falls back to file mtime). */
+  created_at: number;
+  /** Unix ms of the transcript file's mtime — "last activity". */
+  last_activity_at: number;
+  /** First real user prompt, ~80 chars. Empty string if no suitable message. */
+  title: string;
+  /** First 8 chars of the parent UUID when the transcript was forked, else absent. */
+  parent_id?: string | null;
+}
+
 /** Lifecycle state of an AI background run. Discriminated on `state`. */
 export type AiBackgroundRunStatus =
   | { state: "queued" }

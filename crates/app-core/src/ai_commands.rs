@@ -12,8 +12,8 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
 use ai_provider::{
-    AiConfigFile, AiProvider, AiProviderKind, AiSession, AiWorktree, AvailableAiProvider,
-    ConfigKind, ConfigScope, RepoAiStatus,
+    AiConfigFile, AiConversation, AiProvider, AiProviderKind, AiSession, AiWorktree,
+    AvailableAiProvider, ConfigKind, ConfigScope, RepoAiStatus,
 };
 use task_runner::{TaskId, TaskManager};
 use terminal::{SessionId, TerminalConfig, TerminalManager};
@@ -423,6 +423,40 @@ pub fn ai_resume_session(
     Ok(Some(session))
 }
 
+/// Spawn a new terminal resuming a conversation by id.
+///
+/// Note: with Claude Code, every `--resume` creates a NEW conversation UUID
+/// that forks from the named one. The frontend labels the button
+/// "Resume in new terminal" so this forking semantics is obvious.
+#[tauri::command]
+pub fn ai_resume_conversation(
+    provider: String,
+    conversation_id: String,
+    state: State<'_, AppState>,
+    terminal_manager: State<'_, Arc<TerminalManager>>,
+) -> Result<Option<SessionId>, String> {
+    let cwd = get_active_project_path(&state)?;
+    let kind = parse_kind(&provider)?;
+    let p = make_provider(kind)?;
+
+    let Some(cmd) = p.build_resume_session_cmd(&conversation_id, &cwd) else {
+        return Ok(None);
+    };
+
+    let (program, args) = command_to_parts(&cmd);
+    verify_executable(&program)?;
+    let config = TerminalConfig {
+        cwd: cwd.to_path_buf(),
+        shell: Some(program),
+        args,
+        env: HashMap::new(),
+        cols: 220,
+        rows: 50,
+    };
+    let session = terminal_manager.spawn(config).map_err(|e| e.to_string())?;
+    Ok(Some(session))
+}
+
 /// Verify a detected CLI binary is still present and executable.
 ///
 /// `which::which` can return stale PATH entries (broken symlinks from a
@@ -480,6 +514,39 @@ pub async fn ai_list_sessions(state: State<'_, AppState>) -> Result<Vec<AiSessio
             }
         }
         Ok(sessions)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// List AI conversation transcripts for all detected providers in the current repo.
+///
+/// Replaces [`ai_list_sessions`] for the AI-sessions view. Runs the
+/// per-provider `list_conversations` calls off the IPC thread via
+/// `spawn_blocking` — OpenCode still shells out synchronously under the
+/// hood, so the same "don't stall IPC" pattern applies.
+#[tauri::command]
+pub async fn ai_list_conversations(
+    state: State<'_, AppState>,
+) -> Result<Vec<AiConversation>, String> {
+    let cwd = get_active_project_path(&state)?;
+    let providers = state
+        .ai_providers
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone();
+
+    tokio::task::spawn_blocking(move || {
+        let mut conversations: Vec<AiConversation> = Vec::new();
+        for available in &providers {
+            let Ok(provider) = make_provider(available.kind) else {
+                continue;
+            };
+            if let Ok(mut c) = provider.list_conversations(&cwd) {
+                conversations.append(&mut c);
+            }
+        }
+        Ok(conversations)
     })
     .await
     .map_err(|e| e.to_string())?
