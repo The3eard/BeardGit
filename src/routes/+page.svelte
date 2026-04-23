@@ -86,6 +86,8 @@
     postReviewComment,
     resolveDiscussion,
     unresolveDiscussion,
+    registerPrDiffShortcuts,
+    unregisterPrDiffShortcuts,
   } from "$lib/stores/mr-pr";
   import type { DiffCommentsLayerProps } from "$lib/components/editor/diff-comments-layer";
 
@@ -612,6 +614,17 @@
     const next = (idx + delta + files.length) % files.length;
     void handlePrFileClick(files[next].path);
   }
+
+  // Register bracket-key shortcuts while the merge-requests view is active.
+  $effect(() => {
+    if (activeView === "merge-requests") {
+      registerPrDiffShortcuts({
+        onPrev: () => handlePrFileNav(-1),
+        onNext: () => handlePrFileNav(1),
+      });
+      return () => unregisterPrDiffShortcuts();
+    }
+  });
 
   /** Build the per-file comments layer from the current PR detail. */
   function commentsLayerFor(path: string): DiffCommentsLayerProps | undefined {

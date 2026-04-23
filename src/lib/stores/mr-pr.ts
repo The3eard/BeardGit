@@ -527,3 +527,47 @@ export function closePrFileDiff(): void {
   prFileDiffError.set(null);
   selectedPrFilePath.set(null);
 }
+
+// ---------------------------------------------------------------------------
+// PR diff keyboard shortcuts
+// ---------------------------------------------------------------------------
+
+import { registerShortcuts, unregisterShortcuts } from "./shortcuts";
+
+/**
+ * Handlers supplied by `+page.svelte` so the store doesn't depend on
+ * route-local scope. `onPrev` / `onNext` cycle the PR file selection.
+ */
+export interface PrDiffShortcutHandlers {
+  onPrev: () => void;
+  onNext: () => void;
+}
+
+/**
+ * Register bracket-key file navigation bindings. `[` for prev, `]` for
+ * next. Registration is idempotent — duplicate calls replace the prior
+ * handlers.
+ */
+export function registerPrDiffShortcuts(h: PrDiffShortcutHandlers): void {
+  registerShortcuts([
+    {
+      id: "prDiff.prev",
+      keys: { key: "[" },
+      label: "Previous file in PR",
+      category: "PR",
+      action: h.onPrev,
+    },
+    {
+      id: "prDiff.next",
+      keys: { key: "]" },
+      label: "Next file in PR",
+      category: "PR",
+      action: h.onNext,
+    },
+  ]);
+}
+
+/** Remove the PR file-nav shortcuts from the global registry. */
+export function unregisterPrDiffShortcuts(): void {
+  unregisterShortcuts(["prDiff.prev", "prDiff.next"]);
+}
