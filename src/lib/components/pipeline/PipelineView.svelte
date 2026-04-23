@@ -50,7 +50,7 @@
   }
 </script>
 
-<SplitView refreshFn={refresh}>
+<SplitView refreshFn={refresh} defaultWidth={420}>
   {#snippet left()}
     <PipelineList />
   {/snippet}

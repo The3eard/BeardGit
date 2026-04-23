@@ -8,7 +8,7 @@
   import { refreshIssueList } from "../../stores/issues";
 </script>
 
-<SplitView refreshFn={refreshIssueList}>
+<SplitView refreshFn={refreshIssueList} defaultWidth={420}>
   {#snippet left()}<IssueList />{/snippet}
   {#snippet right()}<IssueDetail />{/snippet}
 </SplitView>
