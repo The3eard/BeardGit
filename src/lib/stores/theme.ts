@@ -53,6 +53,26 @@ export function buildGraphTheme(theme: ThemeData): GraphTheme {
   };
 }
 
+/**
+ * Derive six `--overlay-accent-*` CSS variables from the active theme's accent
+ * colours and `text_secondary`, each at 10 % alpha.  These are written to
+ * `document.documentElement` by `applyTheme` alongside the base tokens and
+ * the existing `--overlay-hover/active/shadow` set.
+ *
+ * Theme JSON files do NOT need to declare these — they are computed at runtime
+ * from the existing `ThemeData.derived` fields via `hexToRgb`.
+ */
+function computeAccentOverlays(d: ThemeData["derived"]): Record<string, string> {
+  return {
+    "--overlay-accent-blue":   `rgba(${hexToRgb(d.accent_blue)}, 0.1)`,
+    "--overlay-accent-red":    `rgba(${hexToRgb(d.accent_red)}, 0.1)`,
+    "--overlay-accent-green":  `rgba(${hexToRgb(d.accent_green)}, 0.1)`,
+    "--overlay-accent-orange": `rgba(${hexToRgb(d.accent_orange)}, 0.1)`,
+    "--overlay-accent-purple": `rgba(${hexToRgb(d.accent_purple)}, 0.1)`,
+    "--overlay-accent-muted":  `rgba(${hexToRgb(d.text_secondary)}, 0.1)`,
+  };
+}
+
 function computeOverlays(mode: string): Record<string, string> {
   if (mode === "light") {
     return {
@@ -88,6 +108,11 @@ export function applyTheme(theme: ThemeData): void {
 
   const overlays = computeOverlays(theme.meta.mode);
   for (const [key, value] of Object.entries(overlays)) {
+    el.setProperty(key, value);
+  }
+
+  const accentOverlays = computeAccentOverlays(d);
+  for (const [key, value] of Object.entries(accentOverlays)) {
     el.setProperty(key, value);
   }
 
