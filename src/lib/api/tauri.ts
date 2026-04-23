@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
@@ -1223,8 +1223,9 @@ export async function aiLaunchWorktree(provider: string, name?: string): Promise
   return invoke<number | null>("ai_launch_worktree", { provider, name: name ?? null });
 }
 
-export async function aiListSessions(): Promise<AiSession[]> {
-  return invoke<AiSession[]>("ai_list_sessions");
+/** List AI conversation transcripts for the current repo. */
+export async function aiListConversations(): Promise<AiConversation[]> {
+  return invoke<AiConversation[]>("ai_list_conversations");
 }
 
 export async function aiListWorktrees(): Promise<AiWorktree[]> {
@@ -1257,9 +1258,9 @@ export async function aiStopConfigWatcher(): Promise<void> {
   return invoke<void>("ai_stop_config_watcher");
 }
 
-/** Resume an existing AI session in a new terminal tab. Returns null if the provider does not support resume. */
-export async function aiResumeSession(provider: string, sessionId: string): Promise<number | null> {
-  return invoke<number | null>("ai_resume_session", { provider, sessionId });
+/** Resume a conversation in a new terminal tab. Returns null if the provider does not support resume. */
+export async function aiResumeConversation(provider: string, conversationId: string): Promise<number | null> {
+  return invoke<number | null>("ai_resume_conversation", { provider, conversationId });
 }
 
 export async function aiReadConfigFile(path: string): Promise<string> {

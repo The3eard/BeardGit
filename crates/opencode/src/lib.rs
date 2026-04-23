@@ -6,6 +6,7 @@
 
 pub mod attribution;
 pub mod commands;
+pub mod conversations;
 pub mod detect;
 pub mod errors;
 pub mod sessions;
@@ -15,8 +16,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ai_provider::{
-    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AiSession, AiWorktree,
-    AttributionMatch, AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
+    AiBackgroundRunInput, AiConfigFile, AiConversation, AiError, AiProvider, AiProviderKind,
+    AiWorktree, AttributionMatch, AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
 };
 
 /// AI provider for the OpenCode CLI.
@@ -108,41 +109,19 @@ impl AiProvider for OpenCodeProvider {
         Some(commands::build_resume_session_cmd(binary, session_id, cwd))
     }
 
-    /// List OpenCode sessions by shelling out to
-    /// `opencode session list --format json` via [`sessions::CliSessionRunner`].
+    /// List OpenCode conversation transcripts scoped to `repo_path`.
     ///
-    /// OpenCode stores sessions in a SQLite DB; rather than parsing the DB
-    /// directly we use the CLI's built-in JSON output. The returned `Vec`
-    /// includes ALL sessions — OpenCode's session model doesn't carry a
-    /// first-class `cwd` filter arg, so the provider layer / UI can filter
-    /// on [`AiSession::cwd`] if per-repo scoping becomes required.
+    /// Shells out to `opencode session list --format json` and returns
+    /// [`AiConversation`] rows filtered by `directory` / `repo_path`. See
+    /// [`conversations`] for the filter + sort contract.
     ///
     /// Returns `Ok(Vec::new())` when the binary isn't installed.
-    fn list_sessions(&self, _repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
+    fn list_conversations(&self, repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
         let Some(binary) = self.binary.clone() else {
             return Ok(Vec::new());
         };
         let runner = sessions::CliSessionRunner::new(binary);
-        Ok(sessions::load_sessions(&runner))
-    }
-
-    /// Whether an OpenCode session is still "live".
-    ///
-    /// OpenCode reports `updated` as a Unix-millis timestamp in its
-    /// `session list` output. We treat a session as active when its
-    /// `updated` is within [`sessions::ACTIVE_WINDOW`] of now. The
-    /// [`AiSession::is_active`] flag populated at discovery time takes
-    /// precedence; only when it's stale do we re-shell-out to the CLI so
-    /// the UI can pick up activity that happened between refreshes.
-    fn is_session_active(&self, session: &AiSession) -> bool {
-        if session.is_active {
-            return true;
-        }
-        let Some(binary) = self.binary.clone() else {
-            return false;
-        };
-        let runner = sessions::CliSessionRunner::new(binary);
-        sessions::is_session_active_by_id(&runner, &session.id)
+        conversations::list_conversations(&runner, repo_path)
     }
 
     /// List BeardGit-spawned OpenCode worktrees under

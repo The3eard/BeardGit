@@ -130,7 +130,6 @@ export async function aiLaunchWorktree(
 
 // ─── Introspection (re-export from API) ───
 
-export const aiListSessions = api.aiListSessions;
 export const aiListWorktrees = api.aiListWorktrees;
 export const aiCleanupWorktree = api.aiCleanupWorktree;
 export const aiGetConfigFiles = api.aiGetConfigFiles;

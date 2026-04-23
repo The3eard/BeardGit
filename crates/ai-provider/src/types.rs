@@ -54,6 +54,37 @@ pub struct AiSession {
     pub task_id: Option<u64>,
 }
 
+/// A conversation transcript on disk — the canonical source of truth for a
+/// provider-hosted AI session.
+///
+/// Replaces [`AiSession`] for the on-disk listing path. `AiSession` stays in
+/// place for background runs, which are BeardGit-owned processes with a
+/// `task_id` + `background_status`, not transcript files on disk.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiConversation {
+    /// Conversation UUID — the filename stem of the transcript (Claude:
+    /// `{uuid}.jsonl`; Codex/OpenCode: provider-specific).
+    pub id: String,
+    /// Which AI tool produced the transcript.
+    pub provider: AiProviderKind,
+    /// Repo path the conversation was scoped to at creation.
+    pub cwd: PathBuf,
+    /// Unix ms timestamp of the earliest parseable message's own timestamp,
+    /// falling back to the file's mtime when no timestamp can be extracted.
+    pub created_at: u64,
+    /// Unix ms timestamp from the file's mtime — "last activity".
+    pub last_activity_at: u64,
+    /// First real user prompt truncated to ~80 chars (internal newlines
+    /// collapsed to spaces). Empty string when the transcript holds no
+    /// suitable user message.
+    pub title: String,
+    /// First 8 chars of the first record's `parentUuid` when non-null —
+    /// signals this transcript was forked from another. The UI shows this
+    /// as a "Forked from abcd…" badge. `None` for root conversations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<String>,
+}
+
 /// Whether a session was interactive (REPL) or headless (single-shot).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -413,6 +444,54 @@ mod tests {
         assert!(session.worktree_path.is_none());
         assert!(session.background_status.is_none());
         assert!(session.task_id.is_none());
+    }
+
+    #[test]
+    fn ai_conversation_serializes() {
+        let convo = AiConversation {
+            id: "abc-123".into(),
+            provider: AiProviderKind::ClaudeCode,
+            cwd: "/tmp/repo".into(),
+            created_at: 1_700_000_000_000,
+            last_activity_at: 1_700_000_100_000,
+            title: "fix the flaky test".into(),
+            parent_id: None,
+        };
+        let json = serde_json::to_string(&convo).unwrap();
+        assert!(json.contains("\"id\":\"abc-123\""));
+        assert!(json.contains("\"provider\":\"claude_code\""));
+        assert!(json.contains("\"cwd\":\"/tmp/repo\""));
+        assert!(json.contains("\"created_at\":1700000000000"));
+        assert!(json.contains("\"last_activity_at\":1700000100000"));
+        assert!(json.contains("\"title\":\"fix the flaky test\""));
+        // `parent_id` must be omitted when `None`.
+        assert!(
+            !json.contains("parent_id"),
+            "parent_id should be skipped when None, got {json}"
+        );
+    }
+
+    #[test]
+    fn ai_conversation_roundtrip() {
+        let convo = AiConversation {
+            id: "abc-123".into(),
+            provider: AiProviderKind::ClaudeCode,
+            cwd: "/tmp/repo".into(),
+            created_at: 1_700_000_000_000,
+            last_activity_at: 1_700_000_100_000,
+            title: "fix the flaky test".into(),
+            parent_id: Some("deadbeef".into()),
+        };
+        let json = serde_json::to_string(&convo).unwrap();
+        assert!(json.contains("\"parent_id\":\"deadbeef\""));
+        let decoded: AiConversation = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.id, convo.id);
+        assert_eq!(decoded.provider, convo.provider);
+        assert_eq!(decoded.cwd, convo.cwd);
+        assert_eq!(decoded.created_at, convo.created_at);
+        assert_eq!(decoded.last_activity_at, convo.last_activity_at);
+        assert_eq!(decoded.title, convo.title);
+        assert_eq!(decoded.parent_id, convo.parent_id);
     }
 
     #[test]

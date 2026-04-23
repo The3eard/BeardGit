@@ -235,7 +235,7 @@ mod tests {
 
     use super::parse_kind;
     use ai_provider::mock::MockAiProvider;
-    use ai_provider::{AiBackgroundRunInput, AiError, AiProvider, AiProviderKind, AiSession};
+    use ai_provider::{AiBackgroundRunInput, AiError, AiProvider, AiProviderKind};
     use std::path::PathBuf;
 
     #[test]
@@ -297,16 +297,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn mock_provider_list_sessions_returns_configured_vec() {
-        let mock = MockAiProvider {
-            sessions: Vec::<AiSession>::new(),
-            ..Default::default()
-        };
-        let sessions = mock.list_sessions(std::path::Path::new("/tmp")).unwrap();
-        assert!(
-            sessions.is_empty(),
-            "mock with empty sessions vec should return empty"
-        );
-    }
 }

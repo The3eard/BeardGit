@@ -1,22 +1,22 @@
 //! Claude Code AI provider implementation.
 //!
 //! Implements [`ai_provider::AiProvider`] for the Claude Code CLI tool.
-//! Handles binary detection, headless command building, session/worktree
+//! Handles binary detection, headless command building, conversation/worktree
 //! introspection, config discovery, and commit attribution.
 
 pub mod attribution;
 pub mod commands;
 pub mod config;
+pub mod conversations;
 pub mod detect;
-pub mod sessions;
 pub mod worktrees;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ai_provider::{
-    AiBackgroundRunInput, AiConfigFile, AiError, AiProvider, AiProviderKind, AiSession, AiWorktree,
-    AttributionPattern, ExecuteOptions,
+    AiBackgroundRunInput, AiConfigFile, AiConversation, AiError, AiProvider, AiProviderKind,
+    AiWorktree, AttributionPattern, ExecuteOptions,
 };
 
 /// AI provider for the Claude Code CLI.
@@ -92,12 +92,8 @@ impl AiProvider for ClaudeCodeProvider {
         Some(cmd)
     }
 
-    fn list_sessions(&self, repo_path: &Path) -> Result<Vec<AiSession>, AiError> {
-        sessions::list_sessions(repo_path)
-    }
-
-    fn is_session_active(&self, session: &AiSession) -> bool {
-        sessions::is_session_active(session)
+    fn list_conversations(&self, repo_path: &Path) -> Result<Vec<AiConversation>, AiError> {
+        conversations::list_conversations(repo_path)
     }
 
     fn list_worktrees(&self, repo_path: &Path) -> Result<Vec<AiWorktree>, AiError> {

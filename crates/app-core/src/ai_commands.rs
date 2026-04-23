@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
 use ai_provider::{
-    AiConfigFile, AiProvider, AiProviderKind, AiSession, AiWorktree, AvailableAiProvider,
+    AiConfigFile, AiConversation, AiProvider, AiProviderKind, AiWorktree, AvailableAiProvider,
     ConfigKind, ConfigScope, RepoAiStatus,
 };
 use task_runner::{TaskId, TaskManager};
@@ -103,7 +103,15 @@ pub fn ai_get_repo_status(state: State<'_, AppState>) -> Result<Vec<RepoAiStatus
     for available in &providers {
         let provider = make_provider(available.kind)?;
         let has_config = provider.detect_in_repo(&cwd);
-        let session_count = provider.list_sessions(&cwd).map(|s| s.len()).unwrap_or(0);
+        // `session_count` is the per-provider badge the AI Settings panel
+        // renders; after the transcript-first rewrite the source of truth
+        // is `list_conversations`, which counts on-disk transcripts
+        // regardless of live-process state. The field name stays the same
+        // for IPC back-compat.
+        let session_count = provider
+            .list_conversations(&cwd)
+            .map(|c| c.len())
+            .unwrap_or(0);
         let worktree_count = provider.list_worktrees(&cwd).map(|w| w.len()).unwrap_or(0);
         statuses.push(RepoAiStatus {
             kind: available.kind,
@@ -124,7 +132,7 @@ pub fn ai_get_repo_status(state: State<'_, AppState>) -> Result<Vec<RepoAiStatus
 ///
 /// Runs on the blocking pool via `spawn_blocking` so the IPC thread stays
 /// free and Settings → AI paints the spinner frame without waiting for the
-/// probes. Same pattern as `ai_list_sessions`.
+/// probes. Same pattern as `ai_list_conversations`.
 #[tauri::command]
 pub async fn ai_refresh_detection(
     app_handle: AppHandle,
@@ -160,19 +168,32 @@ pub async fn ai_refresh_detection(
     *guard = detected;
     drop(guard);
 
-    // Start the AI session directory watcher (once) so the frontend receives
-    // live updates when session files change on disk.
+    // Start the AI transcript directory watcher (once) so the frontend
+    // receives live updates when rollout / transcript files change on
+    // disk. Each provider stores transcripts in its own tree:
+    //
+    // - Claude Code: `~/.claude/projects/{cwd-slug}/*.jsonl`
+    // - Codex: `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`
+    // - OpenCode: SQLite DB — no fs watch, that provider's list refreshes
+    //   on the existing `terminal-closed` trigger instead.
+    //
+    // We watch the parent directory of each tree so a provider writing
+    // its very first transcript still fires a change event. The
+    // `ai-sessions-changed` event name is kept for back-compat with the
+    // TypeScript listeners in `aiConversations.ts`.
     {
         let mut watcher_guard = state.ai_session_watcher.lock().map_err(|e| e.to_string())?;
         if watcher_guard.is_none() {
-            let session_dirs: Vec<std::path::PathBuf> =
-                vec![dirs::home_dir().map(|h| h.join(".claude").join("sessions"))]
-                    .into_iter()
-                    .flatten()
-                    .collect();
+            let transcript_dirs: Vec<std::path::PathBuf> = [
+                dirs::home_dir().map(|h| h.join(".claude").join("projects")),
+                dirs::home_dir().map(|h| h.join(".codex").join("sessions")),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
 
             let handle = app_handle.clone();
-            *watcher_guard = watcher::AiSessionWatcher::start(&session_dirs, move || {
+            *watcher_guard = watcher::AiSessionWatcher::start(&transcript_dirs, move || {
                 let _ = handle.emit("ai-sessions-changed", ());
             });
         }
@@ -382,22 +403,15 @@ pub fn ai_launch_worktree(
     Ok(Some(session_id))
 }
 
-/// Resume an existing AI session in a new terminal tab.
+/// Spawn a new terminal resuming a conversation by id.
 ///
-/// Looks up the provider's resume command for the given session ID.
-/// Returns `None` if the provider doesn't support resuming (no error).
-/// Returns `Some(SessionId)` on success.
-///
-/// The CLI resolution path (`which::which`) occasionally returns a stale
-/// entry — e.g. an old `~/.local/bin/claude` symlink left behind by a
-/// previous installer — so we verify the binary still exists and is
-/// executable before handing the command to `portable-pty`. A bogus path
-/// would otherwise fail with a bare `ENOENT` from `execvp`, which is a
-/// poor user-facing error.
+/// Note: with Claude Code, every `--resume` creates a NEW conversation UUID
+/// that forks from the named one. The frontend labels the button
+/// "Resume in new terminal" so this forking semantics is obvious.
 #[tauri::command]
-pub fn ai_resume_session(
+pub fn ai_resume_conversation(
     provider: String,
-    session_id: String,
+    conversation_id: String,
     state: State<'_, AppState>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
 ) -> Result<Option<SessionId>, String> {
@@ -405,7 +419,7 @@ pub fn ai_resume_session(
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
 
-    let Some(cmd) = p.build_resume_session_cmd(&session_id, &cwd) else {
+    let Some(cmd) = p.build_resume_session_cmd(&conversation_id, &cwd) else {
         return Ok(None);
     };
 
@@ -453,15 +467,16 @@ fn verify_executable(path: &str) -> Result<(), String> {
 
 // ─── Introspection ────────────────────────────────────────────────────────────
 
-/// List AI sessions for all detected providers in the current repository.
+/// List AI conversation transcripts for all detected providers in the current repo.
 ///
-/// Runs the per-provider `list_sessions` calls off the IPC thread via
-/// `spawn_blocking` — the OpenCode implementation shells out to
-/// `opencode session list` synchronously, and historically that could stall
-/// the Tauri runtime long enough that clicking AI Sessions froze the whole
-/// app while pipelines / graph IPCs backed up behind it.
+/// Runs the per-provider `list_conversations` calls off the IPC thread via
+/// `spawn_blocking` — OpenCode still shells out synchronously under the
+/// hood, so a PATH-walking provider can't stall the Tauri runtime long
+/// enough to back up other IPC calls behind it.
 #[tauri::command]
-pub async fn ai_list_sessions(state: State<'_, AppState>) -> Result<Vec<AiSession>, String> {
+pub async fn ai_list_conversations(
+    state: State<'_, AppState>,
+) -> Result<Vec<AiConversation>, String> {
     let cwd = get_active_project_path(&state)?;
     let providers = state
         .ai_providers
@@ -470,16 +485,16 @@ pub async fn ai_list_sessions(state: State<'_, AppState>) -> Result<Vec<AiSessio
         .clone();
 
     tokio::task::spawn_blocking(move || {
-        let mut sessions: Vec<AiSession> = Vec::new();
+        let mut conversations: Vec<AiConversation> = Vec::new();
         for available in &providers {
             let Ok(provider) = make_provider(available.kind) else {
                 continue;
             };
-            if let Ok(mut s) = provider.list_sessions(&cwd) {
-                sessions.append(&mut s);
+            if let Ok(mut c) = provider.list_conversations(&cwd) {
+                conversations.append(&mut c);
             }
         }
-        Ok(sessions)
+        Ok(conversations)
     })
     .await
     .map_err(|e| e.to_string())?

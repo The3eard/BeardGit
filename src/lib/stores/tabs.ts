@@ -12,7 +12,7 @@
 
 import { writable, derived, get } from "svelte/store";
 import type { Tab, ProjectInfo, TerminalTabInfo, LinkedSegment, AiProviderKind } from "../types";
-import { terminalSpawn, terminalKill, aiLaunchInteractive, aiResumeSession } from "../api/tauri";
+import { terminalSpawn, terminalKill, aiLaunchInteractive, aiResumeConversation } from "../api/tauri";
 import { onTerminalOutput, offTerminalOutput } from "./terminal";
 
 export const openTabs = writable<Tab[]>([]);
@@ -282,20 +282,22 @@ export async function openAiTerminalTab(
 }
 
 /**
- * Resume an existing AI session in a terminal tab.
+ * Resume an existing AI conversation in a terminal tab.
  *
- * The Rust side has already spawned the PTY via `ai_resume_session`; this
- * helper attaches the returned session id to the UI using the same
- * promote/segment/standalone rules as `openAiTerminalTab`. Returns `true`
- * on success, `false` when the provider doesn't advertise a resume command.
+ * Calls the Tauri `ai_resume_conversation` command, which looks up the
+ * provider's resume command for the given conversation UUID and spawns a
+ * PTY attached to the repo root. The returned session id is then placed
+ * using the same promote/segment/standalone rules as `openAiTerminalTab`.
+ * Returns `true` on success, `false` when the provider does not
+ * advertise a resume command.
  */
-export async function resumeAiSessionTab(
+export async function resumeAiConversationTab(
   cwd: string,
   title: string,
   provider: AiProviderKind,
-  aiSessionId: string,
+  conversationId: string,
 ): Promise<boolean> {
-  const sessionId = await aiResumeSession(provider, aiSessionId);
+  const sessionId = await aiResumeConversation(provider, conversationId);
   if (sessionId === null) return false;
 
   const info: TerminalTabInfo = { sessionId, title, cwd, provider };

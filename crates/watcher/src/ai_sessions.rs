@@ -1,18 +1,21 @@
-//! Watcher for AI session directories (`~/.claude/sessions/`, etc.).
+//! Watcher for AI transcript / rollout directories.
 //!
-//! Fires a callback whenever session files are created, modified, or deleted.
-//! Unlike [`RepoWatcher`], this watches a global directory and does not filter
-//! events — every change inside the watched directories triggers the callback.
+//! Fires a callback whenever transcript files are created, modified, or
+//! deleted. Unlike [`RepoWatcher`], this watches global directories (e.g.
+//! `~/.claude/projects/`, `~/.codex/sessions/`) and does not filter
+//! events — every change inside the watched directories triggers the
+//! callback.
 
 use notify_debouncer_mini::new_debouncer;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
 
-/// A live filesystem watcher for AI session directories.
+/// A live filesystem watcher for AI transcript / rollout directories.
 ///
-/// Watches `~/.claude/sessions/` (and other provider session dirs) for changes.
-/// Fires the callback on any file event. Drop to stop watching.
+/// Watches each provider's transcript tree (e.g. `~/.claude/projects/`,
+/// `~/.codex/sessions/`) and fires the callback on any file event.
+/// Drop to stop watching.
 pub struct AiSessionWatcher {
     _debouncer: notify_debouncer_mini::Debouncer<notify::RecommendedWatcher>,
 }
