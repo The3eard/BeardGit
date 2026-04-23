@@ -1038,3 +1038,20 @@ export interface DebugInfo {
   git_version: string | null;
   log_path: string;
 }
+
+// Sidebar layout
+// ---------------------------------------------------------------------------
+
+/**
+ * User's persisted Navigation sidebar layout — mirrors the Rust
+ * `SidebarNavLayout` DTO in `crates/app-core/src/commands/settings.rs`.
+ *
+ * `order` is the id sequence (subset of the default order plus any
+ * user-reordered ids). `hidden` lists ids the user has toggled off.
+ * The two arrays are independent so restoring a hidden item preserves
+ * its saved position.
+ */
+export interface SidebarNavLayout {
+  order: string[];
+  hidden: string[];
+}
