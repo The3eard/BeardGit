@@ -28,7 +28,10 @@
   import {
     selectedConversation,
   } from "$lib/stores/aiConversations";
-  import { resumeConversation } from "$lib/stores/aiConversationActions";
+  import {
+    focusTerminal,
+    resumeConversation,
+  } from "$lib/stores/aiConversationActions";
   import { openProjectTab } from "$lib/stores/projects";
   import { runMutation } from "$lib/api/runMutation";
   import { addToast } from "$lib/stores/toast";
@@ -77,6 +80,12 @@
   );
 
   // ─── Handlers: bg-run branch ───
+
+  /** Focus the bg-run's live PTY. */
+  function handleFocusBg() {
+    if (!bgSession) return;
+    focusTerminal({ kind: "bg", session: bgSession });
+  }
 
   async function handleOpenTerminal() {
     if (!bgSession || !bgSession.worktree_path || isRunning) return;
@@ -234,6 +243,13 @@
     {/if}
 
     <div class="actions">
+      <button
+        class="btn"
+        onclick={handleFocusBg}
+        data-testid="ai-session-detail-focus"
+      >
+        {m.ai_sessions_focus()}
+      </button>
       {#if isRunning}
         <button class="btn danger" onclick={handleCancel}>
           {m.ai_background_cancel_run()}
