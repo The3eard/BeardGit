@@ -41,6 +41,10 @@
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
   import BackgroundRunTranscript from "../ai/BackgroundRunTranscript.svelte";
   import ProviderIcon from "./ProviderIcon.svelte";
+  import {
+    selectedActiveTerminal,
+    type ActiveTerminal,
+  } from "$lib/stores/aiActiveTerminals";
 
   // ─── Conversation branch data ───
   let conversation = $derived($selectedConversation);
@@ -167,6 +171,47 @@
     }
   }
 
+  // ─── Active (tab / segment) branch data ───
+
+  /** Current tab/segment selection, or null when not in this branch. */
+  let activeTermRaw = $derived($selectedActiveTerminal);
+
+  /**
+   * Only surface the active-pane branch for tab/segment selections —
+   * bg-kind ActiveTerminals are rendered via the richer bg-run branch
+   * keyed on `selectedBackgroundSessionId`.
+   */
+  let activeTerm = $derived.by<ActiveTerminal | null>(() => {
+    const sel = activeTermRaw;
+    if (!sel) return null;
+    if (sel.kind === "bg") return null;
+    return sel;
+  });
+
+  /** Last path segment for compact display. Mirrors ActiveRow's helper. */
+  function shortCwd(fullPath: string): string {
+    const parts = fullPath.replace(/\\/g, "/").split("/").filter(Boolean);
+    return parts[parts.length - 1] ?? fullPath;
+  }
+
+  let activeProvider = $derived.by(() => {
+    if (!activeTerm) return null;
+    return activeTerm.info.provider!;
+  });
+
+  let activeTitle = $derived.by(() => {
+    if (!activeTerm) return "";
+    if (activeTerm.kind === "tab") return `Terminal ${activeTerm.tabIndex + 1}`;
+    return `Terminal in ${shortCwd(activeTerm.info.cwd)}`;
+  });
+
+  let activeCwd = $derived(activeTerm?.info.cwd ?? null);
+
+  function handleFocusActive() {
+    if (!activeTerm) return;
+    focusTerminal(activeTerm);
+  }
+
 </script>
 
 {#if conversation}
@@ -288,6 +333,38 @@
     </div>
 
     <BackgroundRunTranscript lines={transcript} />
+  </div>
+{:else if activeTerm}
+  <!-- ─── Active tab/segment branch ─── -->
+  <div class="detail" data-testid="ai-session-detail-active">
+    <header class="header">
+      <div class="title-row">
+        {#if activeProvider}
+          <ProviderIcon provider={activeProvider} size={20} />
+          <span class="provider">{providerName(activeProvider)}</span>
+        {/if}
+      </div>
+      <div class="title-line" data-testid="ai-session-detail-active-title">
+        {activeTitle}
+      </div>
+      {#if activeCwd}
+        <div class="wt-row">
+          <code class="wt-path" data-testid="ai-session-detail-active-cwd">
+            {activeCwd}
+          </code>
+        </div>
+      {/if}
+    </header>
+
+    <div class="actions">
+      <button
+        class="btn primary"
+        onclick={handleFocusActive}
+        data-testid="ai-session-detail-focus"
+      >
+        {m.ai_sessions_focus()}
+      </button>
+    </div>
   </div>
 {:else}
   <div class="empty" data-testid="ai-session-detail-empty">
