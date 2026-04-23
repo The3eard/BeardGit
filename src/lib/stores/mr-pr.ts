@@ -433,3 +433,71 @@ export async function unresolveDiscussion(number: number, discussionId: string):
 export async function checkoutMrPrLocally(number: number): Promise<TaskId> {
   return apiCheckoutLocally(number);
 }
+
+// ─── PR per-file diff panel ──────────────────────────────────────────────────
+
+import type { RawDiffContent } from "./graph";
+
+/**
+ * Currently-viewed PR per-file diff payload. Null when no file is selected.
+ * Shares the `RawDiffContent` shape with the graph/branch/reflog diff panels
+ * so `DiffEditor.svelte` can render it unchanged, plus an optional
+ * `binary: boolean` flag for the placeholder branch.
+ */
+export interface PrRawDiffContent extends RawDiffContent {
+  /** True when either side's blob was flagged binary. */
+  binary: boolean;
+}
+
+/** Diff content for the currently-selected PR file, or `null` if none. */
+export const prFileDiff = writable<PrRawDiffContent | null>(null);
+/** True while `loadPrFileDiff` is in flight. */
+export const loadingPrFileDiff = writable(false);
+/** Last error raised during `loadPrFileDiff`, or `null`. */
+export const prFileDiffError = writable<string | null>(null);
+
+/**
+ * Currently selected file path in the PR file list. Drives the
+ * `selected` row highlight + prev/next navigation cursor.
+ */
+export const selectedPrFilePath = writable<string | null>(null);
+
+/**
+ * Loads the diff for `path` in the PR summarised by `detail`. Ensures
+ * the head commit is local (fork PRs), then reads both base and head
+ * blobs in parallel. Swaps to a binary placeholder if either blob is
+ * flagged binary. Sets `prFileDiffError` on failure.
+ */
+export async function loadPrFileDiff(detail: MrPrDetail, path: string): Promise<void> {
+  const { base_sha, head_sha, head_repo_url } = detail.summary;
+  prFileDiff.set(null);
+  prFileDiffError.set(null);
+  loadingPrFileDiff.set(true);
+  selectedPrFilePath.set(path);
+  try {
+    const { ensureCommitLocal, getFileAtCommit } = await import("../api/tauri");
+    await ensureCommitLocal(head_sha, head_repo_url);
+    const [oldR, newR] = await Promise.all([
+      getFileAtCommit(base_sha, path).catch(() => ({ kind: "text" as const, data: "" })),
+      getFileAtCommit(head_sha, path).catch(() => ({ kind: "text" as const, data: "" })),
+    ]);
+    const binary = oldR.kind === "binary" || newR.kind === "binary";
+    prFileDiff.set({
+      oldContent: oldR.kind === "text" ? oldR.data : "",
+      newContent: newR.kind === "text" ? newR.data : "",
+      filename: path,
+      binary,
+    });
+  } catch (e) {
+    prFileDiffError.set(e instanceof Error ? e.message : String(e));
+  } finally {
+    loadingPrFileDiff.set(false);
+  }
+}
+
+/** Close the PR diff panel (back-to-list affordance). */
+export function closePrFileDiff(): void {
+  prFileDiff.set(null);
+  prFileDiffError.set(null);
+  selectedPrFilePath.set(null);
+}
