@@ -551,10 +551,31 @@ impl Repository {
         self.git_cmd(&["pull", remote, branch])
     }
 
-    /// Push `branch` to `remote`.
-    #[instrument(skip(self), fields(remote = %remote, branch = %branch))]
-    pub fn push_remote(&self, remote: &str, branch: &str) -> Result<GitCliResult, GitError> {
-        self.git_cmd(&["push", remote, branch])
+    /// Build the argv vector for `git push`. Extracted so callers can
+    /// unit-test the flag composition without shelling out.
+    pub fn push_args<'a>(&self, remote: &'a str, branch: &'a str, force: bool) -> Vec<&'a str> {
+        let mut args: Vec<&str> = vec!["push", "-u"];
+        if force {
+            args.push("--force-with-lease");
+        }
+        args.push(remote);
+        args.push(branch);
+        args
+    }
+
+    /// Push `branch` to `remote`, optionally with `--force-with-lease`.
+    ///
+    /// Always passes `-u` so the first successful push establishes the
+    /// upstream tracking ref; subsequent pushes are idempotent.
+    #[instrument(skip(self), fields(remote = %remote, branch = %branch, force))]
+    pub fn push_remote(
+        &self,
+        remote: &str,
+        branch: &str,
+        force: bool,
+    ) -> Result<GitCliResult, GitError> {
+        let args = self.push_args(remote, branch, force);
+        self.git_cmd(&args)
     }
 }
 
@@ -928,5 +949,21 @@ mod tests {
         // Lowercase query should NOT match the uppercase tag (case-sensitive glob).
         let no_results = repo.search_tags("rc").unwrap();
         assert!(no_results.is_empty());
+    }
+
+    #[test]
+    fn push_remote_builds_force_with_lease_args() {
+        // Verifies the CLI wrapper passes `--force-with-lease` when
+        // `force=true` by asserting the arg vector through `push_args`.
+        let (_dir, repo) = create_test_repo();
+        let args = repo.push_args("origin", "main", true);
+        assert_eq!(args, vec!["push", "-u", "--force-with-lease", "origin", "main"]);
+    }
+
+    #[test]
+    fn push_remote_builds_plain_args() {
+        let (_dir, repo) = create_test_repo();
+        let args = repo.push_args("origin", "main", false);
+        assert_eq!(args, vec!["push", "-u", "origin", "main"]);
     }
 }

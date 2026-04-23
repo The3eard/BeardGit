@@ -71,23 +71,38 @@ pub async fn pull_remote(
 
 /// Push a branch to a remote as a background task.
 ///
-/// Spawns `git push <remote> <branch>` via the task manager.
+/// Spawns `git push -u [--force-with-lease] <remote> <branch>` via
+/// the task manager. `-u` is always passed so the first push
+/// establishes the upstream; subsequent pushes are no-ops on that
+/// flag. `--force-with-lease` is added only when `force` is true.
 #[tauri::command]
 #[instrument(skip(state, task_manager), name = "cmd::remote::push")]
 pub async fn push_remote(
     remote: String,
     branch: String,
+    force: bool,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
 ) -> Result<TaskId, String> {
     let cwd = get_active_project_path(&state)?;
 
-    let label = format!("Push {}/{}", remote, branch);
+    let mut args: Vec<&str> = vec!["push", "-u"];
+    if force {
+        args.push("--force-with-lease");
+    }
+    args.push(&remote);
+    args.push(&branch);
+
+    let label = if force {
+        format!("Push (force) {}/{}", remote, branch)
+    } else {
+        format!("Push {}/{}", remote, branch)
+    };
     let id = task_manager
         .spawn_with_options(SpawnOptions {
             label,
             command: "git",
-            args: &["push", &remote, &branch],
+            args: &args,
             cwd: &cwd,
             cancellable: true,
             kind: TaskKind::GitPush,

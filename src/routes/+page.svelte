@@ -305,7 +305,7 @@
           try {
             await runMutation({
               kind: "push",
-              invoke: () => api.pushRemote("origin", branch),
+              invoke: () => api.pushRemote("origin", branch, false),
               successToast: () => `Pushed to origin/${branch}`,
               failureToastPrefix: "Push failed",
               trackAsTask: true,
