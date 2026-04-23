@@ -190,3 +190,51 @@ describe("computeOverlays", () => {
     expect(overlays["--overlay-hover"]).toBe("rgba(255,255,255,0.06)");
   });
 });
+
+// --- new --overlay-accent-* tokens ---------------------------------------
+
+function computeAccentOverlays(d: ThemeData["derived"]): Record<string, string> {
+  return {
+    "--overlay-accent-blue":   `rgba(${hexToRgb(d.accent_blue)}, 0.1)`,
+    "--overlay-accent-red":    `rgba(${hexToRgb(d.accent_red)}, 0.1)`,
+    "--overlay-accent-green":  `rgba(${hexToRgb(d.accent_green)}, 0.1)`,
+    "--overlay-accent-orange": `rgba(${hexToRgb(d.accent_orange)}, 0.1)`,
+    "--overlay-accent-purple": `rgba(${hexToRgb(d.accent_purple)}, 0.1)`,
+    "--overlay-accent-muted":  `rgba(${hexToRgb(d.text_secondary)}, 0.1)`,
+  };
+}
+
+describe("computeAccentOverlays", () => {
+  it("derives rgba(0.1) overlays from the five accents + text_secondary", () => {
+    const o = computeAccentOverlays(MOCK_THEME.derived);
+
+    // #8be9fd -> 139, 233, 253
+    expect(o["--overlay-accent-blue"]).toBe("rgba(139, 233, 253, 0.1)");
+    // #ff5555 -> 255, 85, 85
+    expect(o["--overlay-accent-red"]).toBe("rgba(255, 85, 85, 0.1)");
+    // #50fa7b -> 80, 250, 123
+    expect(o["--overlay-accent-green"]).toBe("rgba(80, 250, 123, 0.1)");
+    // #ffb86c -> 255, 184, 108
+    expect(o["--overlay-accent-orange"]).toBe("rgba(255, 184, 108, 0.1)");
+    // #bd93f9 -> 189, 147, 249
+    expect(o["--overlay-accent-purple"]).toBe("rgba(189, 147, 249, 0.1)");
+    // #6272a4 -> 98, 114, 164
+    expect(o["--overlay-accent-muted"]).toBe("rgba(98, 114, 164, 0.1)");
+  });
+
+  it("also works for a light-mode theme", () => {
+    const light: ThemeData = {
+      ...MOCK_THEME,
+      meta: { ...MOCK_THEME.meta, mode: "light" },
+      derived: {
+        ...MOCK_THEME.derived,
+        accent_blue: "#0969da",   // 9, 105, 218
+        text_secondary: "#57606a", // 87, 96, 106
+      },
+    };
+
+    const o = computeAccentOverlays(light.derived);
+    expect(o["--overlay-accent-blue"]).toBe("rgba(9, 105, 218, 0.1)");
+    expect(o["--overlay-accent-muted"]).toBe("rgba(87, 96, 106, 0.1)");
+  });
+});
