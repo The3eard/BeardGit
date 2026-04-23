@@ -142,6 +142,7 @@ pub fn run() {
             app_core::commands::create_branch_at,
             app_core::commands::checkout_detached,
             app_core::commands::delete_branch,
+            app_core::commands::rename_branch,
             app_core::commands::checkout_branch,
             app_core::commands::get_diff_workdir,
             app_core::commands::get_diff_index,

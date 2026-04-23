@@ -292,6 +292,11 @@ export async function pushRemote(remote: string, branch: string, force: boolean)
   return invoke<number>("push_remote", { remote, branch, force });
 }
 
+/** Rename a local branch. Works for the currently checked-out branch too. */
+export async function renameBranch(oldName: string, newName: string): Promise<void> {
+  return invoke("rename_branch", { oldName, newName });
+}
+
 export async function getRemotes(): Promise<RemoteInfo[]> {
   return invoke<RemoteInfo[]>("get_remotes");
 }

@@ -37,6 +37,7 @@ pub mod operations;
 pub mod patch;
 pub mod reflog;
 pub mod remote;
+pub mod rename_branch;
 pub mod repository;
 pub mod reset;
 pub mod staging;

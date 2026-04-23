@@ -190,6 +190,38 @@ pub async fn rebase_branch(
     .await
 }
 
+/// Rename a local branch.
+///
+/// Wraps [`git_engine::Repository::rename_branch`] inside a
+/// [`MutationGuard`][mutation_events::MutationGuard] scope so that on
+/// success a `project-mutated` event with
+/// [`MutationKind::BranchRename`] is emitted. Works for the
+/// currently-checked-out branch too.
+///
+/// # Parameters
+/// - `old_name` – Existing branch to rename.
+/// - `new_name` – New branch name.
+#[tauri::command]
+#[instrument(skip(state, app), name = "cmd::branch::rename")]
+pub async fn rename_branch(
+    old_name: String,
+    new_name: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::BranchRename, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            repo.rename_branch(&old_name, &new_name)
+                .map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    })
+    .await
+}
+
 #[cfg(test)]
 mod tests {
     use git_engine::Repository;
