@@ -2,6 +2,20 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Theme color audit groundwork
+
+### Theme — six new `--overlay-accent-*` tokens
+
+`feat(theme): derive six --overlay-accent-* tokens in applyTheme`. The runtime theme now exposes `--overlay-accent-blue`, `--overlay-accent-red`, `--overlay-accent-green`, `--overlay-accent-orange`, `--overlay-accent-purple`, and `--overlay-accent-muted`, each derived at `applyTheme` time from the matching `ThemeData.derived` accent (or `text_secondary` for "muted") at 10 % alpha. Theme JSON files are unchanged — this is a pure runtime extension, ready to be consumed by the upcoming component color sweep.
+
+### Brand allowlist
+
+`feat(theme): add brand-colors.ts allowlist with snapshot test`. Log/provider brand colors (Anthropic, GitHub, GitLab, OpenAI, Codex, Gemini) now live in a single `src/lib/ui/brand-colors.ts` module. The component sweep will migrate every hardcoded brand hex onto these constants.
+
+### Playwright visual baseline
+
+`chore(test): install Playwright + visual baseline spec for top-level routes`. Added `tests/visual/routes.spec.ts` covering every top-level sidebar route in dark and light mode, so the upcoming component color sweep can diff against a known-good paint. The spec waits for `--overlay-accent-blue` to confirm `applyTheme` has run before snapping. Baseline screenshots will be captured on the first CI run where the full Tauri runtime is available (the Vite-only dev server lacks Tauri IPC, so `applyTheme` cannot fire locally).
+
 ## [Unreleased] — Branches UI feature-complete
 
 ### Branches — new-branch entry points + rename + force-push + shortcut
