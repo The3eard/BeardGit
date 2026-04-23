@@ -905,8 +905,17 @@
                   isDark={$activeTheme?.meta.mode !== 'light'}
                   placeholder={$prFileDiff.binary ? m.diff_binary_file() : undefined}
                   commentsLayer={commentsLayerFor($prFileDiff.filename)}
-                  onClose={closePrFileDiff}
-                />
+                >
+                  {#snippet toolbar()}
+                    {@const files = $mrPrDiffFiles}
+                    {@const idx = files.findIndex((f) => f.path === $prFileDiff?.filename)}
+                    <button class="nav-btn" aria-label="Previous file" onclick={() => handlePrFileNav(-1)}>&#x276E;</button>
+                    <button class="nav-btn" aria-label="Next file" onclick={() => handlePrFileNav(1)}>&#x276F;</button>
+                    <span class="diff-filename">{$prFileDiff?.filename ?? ""}</span>
+                    <span class="diff-position">{idx + 1} / {files.length}</span>
+                    <button class="diff-close" onclick={closePrFileDiff}>&#xF00D;</button>
+                  {/snippet}
+                </DiffEditor>
               {/if}
             </div>
           {/if}
@@ -1256,5 +1265,20 @@
     gap: 8px;
   }
 
+  .nav-btn {
+    background: none; border: none; color: var(--text-secondary);
+    font-size: 12px;
+    padding: 2px 6px; cursor: pointer;
+  }
+  .nav-btn:hover { color: var(--text-primary); }
+  .diff-position {
+    color: var(--text-secondary); font-size: 11px; margin-left: auto;
+    padding-right: 8px;
+  }
+  .diff-error {
+    padding: 12px 16px;
+    color: var(--text-error, #f85149);
+    font-size: 13px;
+  }
 
 </style>
