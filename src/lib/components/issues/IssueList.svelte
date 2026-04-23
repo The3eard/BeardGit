@@ -16,6 +16,8 @@
   import CreateIssueDialog from "./CreateIssueDialog.svelte";
   import SearchBar from "../common/SearchBar.svelte";
   import List from "../common/List.svelte";
+  import TwoLineRow from "../common/TwoLineRow.svelte";
+  import AssigneeStack from "../common/AssigneeStack.svelte";
   import type { SearchTag } from "../../search/types";
   import { issueFilters, filterIssuesLocal } from "../../search/issue-provider";
 
@@ -135,41 +137,46 @@
     </div>
   {/snippet}
 
-  {#snippet row({ item })}
-    <div class="row-status">
-      {#if item.state === "closed"}
-        <span class="state-icon state-icon--closed nf">&#xF00D;</span>
-      {:else}
-        <span class="state-icon state-icon--open nf">&#xF41E;</span>
-      {/if}
-    </div>
-    <div class="row-center">
-      <div class="row-title">
+  {#snippet row({ item, selected })}
+    <TwoLineRow {selected}>
+      {#snippet leadIcon()}
+        {#if item.state === "closed"}
+          <span class="state-icon state-icon--closed nf" aria-hidden="true">&#xF00D;</span>
+        {:else}
+          <span class="state-icon state-icon--open nf" aria-hidden="true">&#xF41E;</span>
+        {/if}
+      {/snippet}
+      {#snippet keyLabel()}
         <span class="issue-number">#{item.number}</span>
+      {/snippet}
+      {#snippet title()}
         <span class="issue-title-text">{item.title}</span>
-      </div>
-      <div class="row-meta">
+      {/snippet}
+      {#snippet trailingDate()}
+        <span class="row-time">{formatDate(item.created_at)}</span>
+      {/snippet}
+      {#snippet meta()}
         <span class="issue-author">{item.author}</span>
-        {#if item.labels.length > 0}
-          <span class="label-pills">
-            {#each item.labels.slice(0, 3) as label}
-              <span
-                class="label-pill"
-                style:background={label.color ? `#${label.color}20` : "rgba(255,255,255,0.1)"}
-                style:color={label.color ? `#${label.color}` : "var(--text-secondary)"}
-              >{label.name}</span>
-            {/each}
-            {#if item.labels.length > 3}
-              <span class="label-overflow">+{item.labels.length - 3}</span>
-            {/if}
+        {#each item.labels as label (label.name)}
+          <span
+            class="label-pill"
+            style:background={label.color ? `#${label.color}20` : "rgba(255,255,255,0.1)"}
+            style:color={label.color ? `#${label.color}` : "var(--text-secondary)"}
+          >{label.name}</span>
+        {/each}
+        {#if item.assignees.length > 0}
+          <AssigneeStack assignees={item.assignees} max={3} />
+        {/if}
+        {#if item.milestone}
+          <span class="milestone-chip nf" aria-label={m.issues_milestone_icon_aria()}>
+            {""} {item.milestone.title}
           </span>
         {/if}
         {#if item.comments_count > 0}
-          <span class="comment-count nf">{"\uF075"} {item.comments_count}</span>
+          <span class="comment-count nf">{""} {item.comments_count}</span>
         {/if}
-      </div>
-    </div>
-    <div class="row-time">{formatDate(item.created_at)}</div>
+      {/snippet}
+    </TwoLineRow>
   {/snippet}
 </List>
 
@@ -190,79 +197,20 @@
   }
   .action-btn-create:hover { opacity: 0.9; }
 
-  .row-status {
-    display: flex;
-    align-items: flex-start;
-    min-width: 28px;
-    flex-shrink: 0;
-    padding-top: 1px;
-  }
-  .state-icon {
-    font-size: 14px;
-    font-family: var(--font-icons);
-  }
-  .state-icon--open { color: var(--accent-green); }
-  .state-icon--closed { color: var(--accent-purple); }
-
-  .row-center {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
+  .milestone-chip {
+    font-size: 10px;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
     gap: 4px;
   }
-  .row-title {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    overflow: hidden;
-  }
-  .issue-number {
-    font-size: 11px;
-    color: var(--text-secondary);
-    font-family: var(--font-mono);
-    flex-shrink: 0;
-  }
-  .issue-title-text {
-    font-size: 12px;
-    font-weight: 500;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .row-meta {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    font-size: 11px;
-    color: var(--text-secondary);
-    overflow: hidden;
-  }
-  .issue-author {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .label-pills { display: flex; gap: 4px; }
-  .label-pill {
-    padding: 1px 6px;
-    border-radius: 10px;
-    font-size: 10px;
-  }
-  .label-overflow {
-    font-size: 10px;
-    color: var(--text-secondary);
-  }
-  .comment-count {
-    font-size: 10px;
-    color: var(--text-secondary);
-  }
-  .row-time {
-    font-size: 11px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
+  .state-icon { font-size: 14px; font-family: var(--font-icons); }
+  .state-icon--open { color: var(--accent-green); }
+  .state-icon--closed { color: var(--accent-purple); }
+  .issue-number { font-family: var(--font-mono); color: var(--text-secondary); font-size: 11px; }
+  .issue-author { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .label-pill { padding: 1px 6px; border-radius: 10px; font-size: 10px; }
+  .comment-count { font-size: 10px; color: var(--text-secondary); }
+  .row-time { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+  .issue-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
