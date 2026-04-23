@@ -75,7 +75,7 @@
     border-radius: 6px;
     font-size: 12px;
     color: var(--text-primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: drop shadow neutral */
     transform: translateX(120%);
     opacity: 0;
     transition: transform 0.2s ease, opacity 0.2s ease;
@@ -94,9 +94,9 @@
     flex-shrink: 0;
   }
   .toast--info .toast__accent { background: var(--accent-blue); }
-  .toast--success .toast__accent { background: var(--accent-green, #3fb950); }
-  .toast--warning .toast__accent { background: var(--accent-orange, #d29922); }
-  .toast--error .toast__accent { background: var(--accent-red, #f85149); }
+  .toast--success .toast__accent { background: var(--accent-green); }
+  .toast--warning .toast__accent { background: var(--accent-orange); }
+  .toast--error .toast__accent { background: var(--accent-red); }
   .toast__body {
     flex: 1;
     display: flex;
@@ -110,7 +110,7 @@
   .toast__progress {
     width: 100%;
     height: 3px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     border-radius: 2px;
     overflow: hidden;
   }

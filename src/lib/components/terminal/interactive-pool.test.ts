@@ -139,6 +139,7 @@ describe('interactive terminal pool', () => {
     const inst = acquireInteractive();
     releaseInteractive(inst);
 
+    /* beardgit:allow-hex: test fixture data matching ThemeData schema — not live CSS */
     const theme = {
       colors: {
         background: '#1e1e1e',
