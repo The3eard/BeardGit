@@ -103,7 +103,7 @@
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 99;
     border: none;
     padding: 0;
@@ -122,7 +122,7 @@
     border-radius: 8px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: shadow neutral always-dark */
   }
   .picker-search {
     margin: 12px;
@@ -153,10 +153,10 @@
     text-align: left;
   }
   .picker-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   }
   .picker-item.selected {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
   }
   .color-swatch {
     width: 12px;
@@ -188,7 +188,7 @@
   .btn-primary {
     padding: 5px 12px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: none;
     border-radius: 4px;
     font-size: 12px;

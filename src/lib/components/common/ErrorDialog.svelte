@@ -123,7 +123,7 @@
   .error-icon {
     font-family: var(--font-icons);
     font-size: 18px;
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
   }
 
   .dialog-title {
@@ -169,7 +169,7 @@
   .details-content {
     margin: 0 0 16px;
     padding: 8px 10px;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     border-radius: 6px;
     font-size: 11px;

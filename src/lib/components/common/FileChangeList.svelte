@@ -108,11 +108,11 @@
   }
 
   .file-item:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
   }
 
   .file-item.selected {
-    background: rgba(88, 166, 255, 0.08);
+    background: var(--overlay-accent-blue);
   }
 
   .file-status {
@@ -124,9 +124,9 @@
     text-align: center;
   }
 
-  .status-added    { color: #3fb950; }
-  .status-deleted  { color: #f85149; }
-  .status-modified { color: #d29922; }
+  .status-added    { color: var(--accent-green); }
+  .status-deleted  { color: var(--accent-red); }
+  .status-modified { color: var(--accent-orange); }
   .status-renamed  { color: var(--accent-purple); }
   .status-copied   { color: var(--accent-blue); }
 

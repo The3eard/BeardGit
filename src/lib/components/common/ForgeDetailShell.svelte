@@ -115,7 +115,7 @@
     margin-top: 4px;
     padding: 5px 14px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: none;
     border-radius: 4px;
     font-size: 12px;
