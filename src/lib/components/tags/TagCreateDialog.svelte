@@ -125,7 +125,7 @@
   .dialog-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.6); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 999;
     display: flex;
     align-items: center;
@@ -138,7 +138,7 @@
     border-radius: 8px;
     width: 100%;
     max-width: 420px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: shadow neutral always-dark */
     z-index: 1000;
     overflow: hidden;
   }
@@ -238,10 +238,10 @@
 
   .error-msg {
     font-size: 12px;
-    color: #f85149;
+    color: var(--accent-red);
     padding: 6px 10px;
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.25);
+    background: var(--overlay-accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 25%, transparent);
     border-radius: 5px;
   }
 

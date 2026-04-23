@@ -445,7 +445,7 @@
 
   .header-btn:hover:not(:disabled) {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .header-btn:disabled {
@@ -486,7 +486,7 @@
   }
 
   .section-header:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
   }
 
   .section-chevron {
@@ -516,7 +516,7 @@
   .section-count {
     font-size: 10px;
     color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     padding: 1px 6px;
     border-radius: 10px;
   }

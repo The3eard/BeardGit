@@ -32,11 +32,11 @@
     open_code: "OpenCode",
   };
 
-  /** Badge color per AI provider. */
+  /** Badge color per AI provider. These use CSS token references for theme compatibility. */
   const PROVIDER_COLOR: Record<AiProviderKind, string> = {
-    claude_code: "#d97706",
-    codex: "#22c55e",
-    open_code: "#6366f1",
+    claude_code: "var(--accent-orange)",
+    codex: "var(--accent-green)",
+    open_code: "var(--accent-purple)",
   };
 
   let showCreateDialog = $state(false);
@@ -341,12 +341,12 @@
   }
 
   .wt-badge.main {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
   }
 
   .wt-badge.locked {
-    background: rgba(210, 153, 34, 0.15);
+    background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
     color: var(--accent-orange);
   }
 
@@ -356,17 +356,17 @@
   }
 
   .wt-badge.ai-status.active {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
   }
 
   .wt-badge.ai-status.orphaned {
-    background: rgba(248, 81, 73, 0.15);
+    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
     color: var(--accent-red);
   }
 
   .wt-badge.ai-status.clean {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     color: var(--accent-blue);
   }
 
