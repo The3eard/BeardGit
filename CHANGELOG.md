@@ -2,9 +2,71 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [Unreleased] — Reactivity foundation, AI sessions UX, forge data fixes, settings IA polish, log rename, E2E retirement, AI sessions transcript-first rewrite
+## [0.1.9-beta] — Auto-update, viewport-windowed graph, lean statusbar, landing page, quick wins, reactivity foundation, AI sessions UX, forge data fixes, settings IA polish, log rename, E2E retirement, AI sessions transcript-first rewrite
 
-Six sequential specs brainstormed and shipped on 2026-04-21. Each spec merged into `beta` on its own feature branch with a dedicated design + plan document. A seventh spec — the AI sessions transcript-first rewrite — landed on 2026-04-22.
+Two distinct waves of work since `v0.1.8-beta`. Wave one (2026-04-20) landed the in-app auto-updater, viewport-windowed commit walking, the lean statusbar + unified tasks drawer, a persistent graph layout cache, the GitHub Pages landing page, and the "Quick Wins" refactor bundle. Wave two (2026-04-21 / 2026-04-22) shipped seven sequential specs — each on its own feature branch with a dedicated design + plan doc — culminating in the AI sessions transcript-first rewrite.
+
+### In-app auto-update
+
+`feat(update): in-app auto-update with re-auth notice`. The app now self-updates from the tauri-updater feed without sending the user back to the download page. When the update lands on a build that needs a re-auth (token schema bump, new scope), the updater surfaces a one-time notice so users don't hit a silent failure on first post-update connect.
+
+### Graph — viewport-windowed commit walking (MT-1)
+
+`feat(MT-1): viewport-windowed commit walking (#4)`. The graph builder no longer materializes the entire history on cold start. The walker pages the commit list against the viewport window and extends as the user scrolls, so repos with 100k+ commits paint in milliseconds instead of seconds. Pair this with the Spec-1 `GraphViewportCache` slice and cold-start paint is now synchronous from persisted state.
+
+### Lean statusbar + unified tasks drawer
+
+`feat(ui): lean statusbar + unified tasks drawer`. The statusbar is compacted to the essentials — branch, provider, tasks indicator, AI slot — with everything else collapsing into dropdowns. The old tasks footer and the floating task toasts are unified into a single tasks drawer that slides up from the statusbar; it doubles as the "See details" target for sticky failure toasts.
+
+Follow-up fixes in the same slice: `fix: statusbar tasks + ai-slot navigation + post-commit graph refresh` restored navigation when clicking a task row; `fix(tasks): restore popover UX + spinning state-coloured icon` brought back the running-state animation that the migration had dropped; `fix(tabbar): AI background button renders play + branch glyph` and `fix(tabbar): AI background button shows bold AI/IA text label` finished the tab-bar entry point for background runs.
+
+### Persistent graph layout cache
+
+`feat: persistent graph layout cache`. Graph lane assignments and row positions are now persisted per-repo so the second-and-subsequent open of a project hits warm layout state. This is the storage half of the Spec-1 cache-first paint path.
+
+### Repo config — configure remote repo via gh/glab CLI
+
+`feat(repo-config): configure remote repo via gh/glab CLI`. The "Configure remote" flow now delegates to `gh repo edit` / `glab repo update` for supported fields (description, homepage, topics, default branch) instead of inventing a bespoke REST surface. Keeps the provider abstraction thin and picks up any field support upstream adds for free.
+
+### AI — Codex + OpenCode provider parity
+
+`feat(ai): Codex + OpenCode provider parity`. Fills the remaining gaps between the three providers so the sessions / background / settings surfaces behave identically across Claude Code, Codex, and OpenCode. Session detection, argv builders, config-file paths, and brand wiring all line up — no more per-provider "coming soon" states in the UI.
+
+### Landing page (docs/)
+
+`site(landing): add GitHub Pages landing page under docs/`. BeardGit now has a public landing page served from `docs/` on GitHub Pages.
+
+- `site(landing): wire real screenshots with theme-aware swap and lightbox` — replaces the placeholder art with actual app screenshots; each shot has dark + light variants that swap based on the visitor's `prefers-color-scheme`, and clicking opens a lightbox.
+- `fix(landing): responsive breakpoints for mobile + tablet` — layout no longer breaks under 768 px.
+
+### Forge — pre-releases + closed PRs on GitHub
+
+`fix(forge): surface pre-releases + closed PRs on GitHub`. The GitHub list queries were filtering out prereleases and closed PRs by default; both now appear in the respective views alongside stable releases and open PRs.
+
+### AI sessions polish (pre-Wave A)
+
+`fix(ai): session list polish, resume-in-terminal, and dialog alignment`. Pre-spec round of fixes on the AI Sessions view — row alignment, dialog chrome consistency, and the resume-in-terminal action wiring — preceding the Spec-2 UX pass further down.
+
+### Quick Wins bundle
+
+Seven disjoint-file branches merged sequentially into `feat/quick-wins`, then into `beta`. No single slice warrants a full section but together they tighten the component story meaningfully.
+
+- **Shared empty-state partial** — `feat(frontend): shared empty-state partial + descriptions for issues/pipelines/releases`. Empty states across Issues, Pipelines, and Releases now render from one primitive with per-view descriptive copy, instead of three near-duplicate empty blocks.
+- **Picker consolidation** — `refactor(mr-pr): migrate MrPrDetail to common/LabelPicker`, `chore(mr-pr): drop duplicate LabelPicker component`, `refactor(issues): adopt shared dialog chrome in AssigneePicker`, `refactor(mr-pr): adopt shared dialog chrome in ReviewerPicker`. The MR-PR view stops shipping its own `LabelPicker` copy; AssigneePicker and ReviewerPicker drop their hand-rolled dialog styles in favour of the shared chrome.
+- **`.btn-icon` refactor** — nerd-font glyph-only buttons across `ShortcutOverlay`, `CommitDetail`, `BlameView`, `StagingDiffEditor`, `TriggerWorkflowDialog`, `PipelineView`, `TaskPopover`, `TaskPanel`, and the dialog close buttons in `RebaseEditor` / `CreateReleaseDialog` / `CreateIssueDialog` / `TriggerWorkflowDialog` now share one `.btn-icon` class on `dialog.css`. `refactor(frontend): resolve .btn-icon naming collisions` cleans up the one place two different components had collided on the name.
+- **Graph refresh on branch-from-context-menu** — `fix(graph): reload graph after creating a branch from context menu`. The graph didn't pick up branches created from the context menu until the next manual refresh; it now reacts immediately.
+- **Console-noise cleanup** — `fix(frontend): route theme/branch errors through toast, drop console noise`. Theme-load and branch-switch failures used to log to the console and vanish; they now surface in the toast system where the user actually sees them.
+- **E2E on feature branches** — `ci: run E2E suite on all branches, not just main/beta`. Catches regressions before the `beta` merge, not after. (Later disabled temporarily while the 2026-04-21 spec set lands, then removed entirely with the Spec-6 E2E retirement below.)
+
+### Tests — app-core command coverage
+
+`test(app-core): unit tests for all command modules`. The 24 command modules split out of the old monolithic `commands.rs` in v0.1.8 now have unit test coverage across the board, not just the three or four hot paths.
+
+---
+
+## Wave two — the 2026-04-21 / 2026-04-22 spec cycle
+
+Seven sequential specs brainstormed and shipped across two days. Each spec merged into `beta` on its own feature branch with a dedicated design + plan document.
 
 ### AI sessions — transcript-first rewrite (Spec 7, 2026-04-22)
 
