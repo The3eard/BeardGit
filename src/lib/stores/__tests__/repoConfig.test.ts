@@ -8,7 +8,6 @@
  *   - Store lifecycle: `setLoading` → `setLoadedConfig` → `updateCurrent`
  *     → `commitSavedConfig` → `resetRepoConfigStore`.
  *   - Derived `repoConfigDirty` flips with `current` mutations.
- *   - Dialog-open toggle helpers.
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
@@ -25,9 +24,6 @@ import {
   repoConfigStore,
   repoConfigDirty,
   repoConfigPatch,
-  repoConfigDialogOpen,
-  openRepoConfigDialog,
-  closeRepoConfigDialog,
 } from "../repoConfig";
 import type { RemoteRepoConfig } from "../../types/repoConfig";
 
@@ -48,7 +44,6 @@ function baseConfig(): RemoteRepoConfig {
 
 beforeEach(() => {
   resetRepoConfigStore();
-  closeRepoConfigDialog();
 });
 
 describe("buildPatch", () => {
@@ -233,19 +228,5 @@ describe("store lifecycle", () => {
     expect(s.current).toBeNull();
     expect(s.loading).toBe(false);
     expect(s.error).toBeNull();
-  });
-});
-
-describe("dialog open/closed helpers", () => {
-  it("openRepoConfigDialog flips the flag on", () => {
-    expect(get(repoConfigDialogOpen)).toBe(false);
-    openRepoConfigDialog();
-    expect(get(repoConfigDialogOpen)).toBe(true);
-  });
-
-  it("closeRepoConfigDialog flips the flag off", () => {
-    openRepoConfigDialog();
-    closeRepoConfigDialog();
-    expect(get(repoConfigDialogOpen)).toBe(false);
   });
 });

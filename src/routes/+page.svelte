@@ -67,7 +67,6 @@
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
   import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
-  import RepoConfigDialog from "$lib/components/repo-config/RepoConfigDialog.svelte";
   import RepoConfigPage from "$lib/components/repo-config/RepoConfigPage.svelte";
   import { initRepoConfigRouteSync } from "$lib/stores/repoConfigRoute";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
@@ -917,8 +916,6 @@
   <StatusBar />
 
   <TasksPopover open={$tasksPopoverOpen} onClose={closeTasksPopover} />
-
-  <RepoConfigDialog />
 
   {#if showAiBackgroundDialog}
     <CreateBackgroundRunDialog onClose={() => (showAiBackgroundDialog = false)} />
