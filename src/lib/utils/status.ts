@@ -1,6 +1,10 @@
 import * as m from "$lib/paraglide/messages";
 import { getThemedStatusColor } from "../stores/theme";
 
+/* stylelint-disable color-no-hex -- Pre-theme-load fallback map. These
+ * hexes are rendered only for the single frame before `applyTheme` runs
+ * in `+page.svelte` onMount; theme-load makes them unreachable. Keep
+ * aligned with `src/lib/stores/theme.ts` `updateCachedStatusColors`. */
 const FALLBACK_COLORS: Record<string, string> = {
   success: "#3fb950",
   failed: "#f85149",

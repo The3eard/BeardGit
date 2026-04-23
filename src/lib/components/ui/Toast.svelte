@@ -129,7 +129,7 @@
     padding: 3px 10px;
     border-radius: 4px;
     background: var(--accent-blue);
-    color: white;
+    color: var(--text-primary);
     border: none;
     font-size: 11px;
     cursor: pointer;

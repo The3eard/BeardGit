@@ -32,6 +32,7 @@
 {#if assignees.length > 0}
   <span class="assignee-stack" aria-label={ariaLabel}>
     {#each visible as login (login)}
+      <!-- beardgit:allow-hex: deterministic avatar hue — runtime-computed from username, not a theme surface -->
       <span
         class="assignee-avatar"
         title={login}
