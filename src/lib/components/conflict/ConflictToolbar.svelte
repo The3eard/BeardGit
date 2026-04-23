@@ -172,8 +172,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 6px 12px;
-    background: rgba(210, 153, 34, 0.1);
-    border-bottom: 1px solid rgba(210, 153, 34, 0.3);
+    background: color-mix(in srgb, var(--accent-orange) 10%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--accent-orange) 30%, transparent);
     flex-shrink: 0;
   }
 
@@ -186,13 +186,13 @@
 
   .conflict-icon {
     font-family: var(--font-icons);
-    color: #d29922;
+    color: var(--accent-orange);
     font-size: 14px;
   }
 
   .conflict-state {
     font-weight: 700;
-    color: #d29922;
+    color: var(--accent-orange);
     font-size: 11px;
     letter-spacing: 0.5px;
   }
@@ -246,19 +246,19 @@
   }
 
   .btn-abort {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     color: var(--text-primary);
   }
 
   .btn-abort:hover {
-    background: rgba(248, 81, 73, 0.15);
-    border-color: #f85149;
-    color: #f85149;
+    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
+    border-color: var(--accent-red);
+    color: var(--accent-red);
   }
 
   .btn-continue {
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border-color: var(--accent-blue);
   }
 
@@ -274,8 +274,8 @@
   .conflict-file-list {
     display: flex;
     flex-direction: column;
-    background: rgba(210, 153, 34, 0.05);
-    border-bottom: 1px solid rgba(210, 153, 34, 0.2);
+    background: color-mix(in srgb, var(--accent-orange) 5%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--accent-orange) 20%, transparent);
   }
 
   .conflict-file-item {
@@ -292,14 +292,14 @@
   }
 
   .conflict-file-item:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     color: var(--accent-blue);
   }
 
   .file-icon {
     font-family: var(--font-icons);
     font-size: 12px;
-    color: #d29922;
+    color: var(--accent-orange);
     flex-shrink: 0;
   }
 

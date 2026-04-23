@@ -242,7 +242,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.6); /* beardgit:allow-hex: modal backdrop neutral */
     backdrop-filter: blur(4px);
   }
 
@@ -254,7 +254,7 @@
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 10px;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: drop shadow neutral */
     overflow: hidden;
   }
 
@@ -276,7 +276,7 @@
   .rebase-count {
     font-size: 11px;
     color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     padding: 2px 8px;
     border-radius: 10px;
   }
@@ -319,7 +319,7 @@
   }
 
   .rebase-row:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
   }
 
   .rebase-row.dragging {
@@ -332,10 +332,10 @@
 
   /* Action-based left border colors */
   .rebase-row.action-pick { border-left-color: var(--accent-green); }
-  .rebase-row.action-squash { border-left-color: #d29922; }
-  .rebase-row.action-fixup { border-left-color: var(--accent-purple, #a371f7); }
+  .rebase-row.action-squash { border-left-color: var(--accent-orange); }
+  .rebase-row.action-fixup { border-left-color: var(--accent-purple); }
   .rebase-row.action-edit { border-left-color: var(--accent-blue); }
-  .rebase-row.action-drop { border-left-color: #f85149; }
+  .rebase-row.action-drop { border-left-color: var(--accent-red); }
 
   .rebase-row.is-drop {
     opacity: 0.45;
@@ -366,7 +366,7 @@
   .commit-oid {
     font-family: var(--font-mono);
     font-size: 11px;
-    color: var(--accent-purple, #a371f7);
+    color: var(--accent-purple);
     flex-shrink: 0;
     width: 56px;
   }
@@ -420,10 +420,10 @@
   }
 
   .legend-dot.pick { background: var(--accent-green); }
-  .legend-dot.squash { background: #d29922; }
-  .legend-dot.fixup { background: var(--accent-purple, #a371f7); }
+  .legend-dot.squash { background: var(--accent-orange); }
+  .legend-dot.fixup { background: var(--accent-purple); }
   .legend-dot.edit { background: var(--accent-blue); }
-  .legend-dot.drop { background: #f85149; }
+  .legend-dot.drop { background: var(--accent-red); }
 
   .rebase-footer {
     display: flex;
@@ -435,7 +435,7 @@
 
   .btn-start {
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border-color: var(--accent-blue);
     min-width: 110px;
     display: flex;

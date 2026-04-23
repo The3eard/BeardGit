@@ -334,7 +334,7 @@
   }
 
   .action-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   }
 
   .action-btn:disabled {
@@ -380,7 +380,7 @@
 
   .add-error {
     font-size: 11px;
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
   }
 
   .sub-info {

@@ -292,7 +292,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(88, 166, 255, 0.08);
+    background: color-mix(in srgb, var(--accent-blue) 8%, transparent);
     font-size: 14px;
     font-weight: 600;
     color: var(--accent-blue);
@@ -406,7 +406,7 @@
   .btn-small {
     padding: 4px 10px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: none;
     border-radius: 4px;
     font-size: 11px;
@@ -446,7 +446,7 @@
   }
   .btn-icon:hover:not(:disabled) {
     color: var(--accent-red);
-    background: rgba(248, 81, 73, 0.12);
+    background: var(--overlay-accent-red);
   }
   .btn-icon .nf {
     font-family: var(--font-icons);
@@ -469,7 +469,7 @@
   }
   .btn-confirm {
     background: var(--accent-green);
-    color: #fff;
+    color: var(--text-primary);
     border-color: transparent;
   }
   .btn-danger {
@@ -491,21 +491,21 @@
     text-transform: uppercase;
   }
   .badge-draft {
-    background: rgba(255, 193, 7, 0.15);
-    color: var(--accent-amber, #ffc107);
+    background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
+    color: var(--accent-orange);
   }
   .badge-prerelease {
-    background: rgba(33, 150, 243, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     color: var(--accent-blue);
   }
   .badge-published {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
   }
   .error-msg {
     padding: 6px 10px;
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    background: var(--overlay-accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
     font-size: 12px;

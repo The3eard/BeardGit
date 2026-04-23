@@ -126,7 +126,7 @@
 
   .apply-file-btn {
     padding: 2px 8px;
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     border: 1px solid var(--border);
     color: var(--text-primary);
     border-radius: 4px;
@@ -136,7 +136,7 @@
   }
 
   .apply-file-btn:hover {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     border-color: var(--accent-green);
     color: var(--accent-green);
   }
@@ -151,7 +151,7 @@
   }
 
   .stat-del {
-    color: #f85149;
+    color: var(--accent-red);
   }
 
   .stash-diff-editor {
