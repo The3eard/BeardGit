@@ -43,6 +43,7 @@ import {
   unresolveDiscussion as apiUnresolveDiscussion,
   listLabels as apiListLabels,
   checkoutMrPrLocally as apiCheckoutLocally,
+  addMrPrInlineComment as apiAddInlineComment,
 } from "../api/tauri";
 import { runMutation } from "../api/runMutation";
 import { fetchIntoStore } from "../utils/store-helpers";
@@ -298,6 +299,31 @@ export async function addMrPrComment(number: number, body: string): Promise<void
     invoke: () => apiAddComment(number, body),
     successToast: () => `Commented on PR #${number}`,
     failureToastPrefix: "Comment failed",
+  });
+  await loadMrPrDetail(number);
+}
+
+/**
+ * Post an inline review comment on a file + line, then refresh the
+ * detail so the new comment appears in both the bottom comments section
+ * and the inline gutter layer. `number` is taken from the caller's scope
+ * so the function stays usable from outside the store (e.g. the
+ * +page.svelte commentsLayerFor factory).
+ */
+export async function postReviewComment(
+  number: number,
+  path: string,
+  line: number,
+  body: string,
+): Promise<void> {
+  const detail = get(mrPrDetail);
+  if (!detail) throw new Error("no PR detail loaded");
+  const { base_sha, head_sha } = detail.summary;
+  await runMutation({
+    kind: "pr_comment_post",
+    invoke: () => apiAddInlineComment(number, path, line, body, base_sha, head_sha),
+    successToast: () => "Comment posted",
+    failureToastPrefix: "Post failed",
   });
   await loadMrPrDetail(number);
 }
