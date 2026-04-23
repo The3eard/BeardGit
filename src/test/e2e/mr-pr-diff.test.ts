@@ -18,6 +18,13 @@ beforeEach(() => {
   mockInvokeResponse("get_file_at_commit", (args: { oid: string }) =>
     args.oid === "bbbb" ? { kind: "text", data: "OLD" } : { kind: "text", data: "NEW" },
   );
+  // Page.onMount also hydrates sidebar layout + collapsed state + project
+  // state; silence those paths so unhandled rejections don't pollute the
+  // test output.
+  mockInvokeResponse("get_sidebar_nav_layout", { order: [], hidden: [] });
+  mockInvokeResponse("get_sidebar_collapsed", false);
+  mockInvokeResponse("restore_projects", []);
+  mockInvokeResponse("get_active_project_index", null);
 });
 
 describe("PR diff panel wiring", () => {
