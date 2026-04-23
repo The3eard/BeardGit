@@ -2,6 +2,14 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Sidebar customization
+
+### Sidebar — reorder and hide Navigation items
+
+`feat(sidebar): user-customisable Navigation order + hide toggles`. The Navigation section of the sidebar now has an explicit edit mode — click the pencil in the `NAVIGATION` label to enter. In edit mode each row gets a drag handle, an eye toggle, and the section header gains `Reset` + `Done` buttons. Drag-and-drop reorders items (keyboard: `ArrowUp`/`ArrowDown` on the drag handle); the eye toggles individual items between visible and hidden with a guardrail preventing the user from hiding every last section. Layout is persisted app-wide (not per-repo) via two new `AppConfig` fields (`sidebar_nav_order`, `sidebar_nav_hidden`) and debounced by 250 ms. When a future release ships a new nav item, it appears automatically at the end of the saved order.
+
+The Provider section (GitHub / GitLab) is no longer user-managed — it auto-hides when no provider is connected, and if the user was viewing a provider-scoped route (`pipelines`, `issues`, `merge-requests`, `releases`, `repo-config`) at disconnect time, the app reroutes them back to the Graph.
+
 ## [unreleased] — AI sessions list trim
 
 ### AI sessions — one-line rows, detail-pane actions
