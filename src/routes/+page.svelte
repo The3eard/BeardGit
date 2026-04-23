@@ -32,13 +32,14 @@
   import MrPrView from "$lib/components/mr-pr/MrPrView.svelte";
   import IssueView from "$lib/components/issues/IssueView.svelte";
   import ReleaseView from "$lib/components/releases/ReleaseView.svelte";
-  import { activeViewStore } from "$lib/stores/navigation";
+  import { activeViewStore, installProviderDisconnectReroute } from "$lib/stores/navigation";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
   import TerminalView from "$lib/components/terminal/TerminalView.svelte";
   import { initTerminalEvents } from "$lib/stores/terminal";
   import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment, openTabs, getActiveTerminalSegment, getCompositeTerminals } from "$lib/stores/tabs";
   import { getSidebarCollapsed, setSidebarCollapsed, resolveStartupTheme } from "$lib/api/tauri";
+  import { loadSidebarLayout } from "$lib/stores/sidebarLayout";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
   import AiConfigEditor from "$lib/components/ai-config/AiConfigEditor.svelte";
   import AiSessionsView from "$lib/components/ai-sessions/AiSessionsView.svelte";
@@ -77,6 +78,7 @@
   let activeView = $state("graph");
   let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
   let teardownRepoConfigRoute: (() => void) | null = null;
+  let teardownProviderReroute: (() => void) | null = null;
   let showAiBackgroundDialog = $state(false);
 
   // Open the dialog whenever any entry point pings the shared signal store.
@@ -157,6 +159,7 @@
     }
     await listenThemeChanges();
 
+    teardownProviderReroute = installProviderDisconnectReroute();
     initProjects();
     initTerminalEvents();
     detectAiProviders();
@@ -176,6 +179,10 @@
     } catch {
       // Default to expanded
     }
+    // Hydrate the customised Navigation layout in parallel with the
+    // other settings so the first Sidebar render uses the persisted
+    // order + hidden set instead of flashing the default order first.
+    await loadSidebarLayout();
 
     // Reset view to graph on project tab switch for instant responsiveness
     onProjectSwitch(() => {
@@ -461,6 +468,8 @@
     }
     teardownRepoConfigRoute?.();
     teardownRepoConfigRoute = null;
+    teardownProviderReroute?.();
+    teardownProviderReroute = null;
   });
 
   /**

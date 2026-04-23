@@ -9,10 +9,38 @@
  * (`"graph"`, `"changes"`, `"merge-requests"`, `"issues"`, …).
  */
 
-import { writable } from "svelte/store";
+import { writable, get } from "svelte/store";
+import { hasActiveProvider } from "./provider";
 
 /** Currently active sidebar view identifier. */
 export const activeViewStore = writable<string>("graph");
+
+/**
+ * Views that are only meaningful when a forge provider (GitHub / GitLab)
+ * is connected. When the provider disconnects while the user is on one
+ * of these views, `installProviderDisconnectReroute()` flips the active
+ * view back to `graph` so they don't stare at a blank panel.
+ */
+export const PROVIDER_VIEWS: readonly string[] = [
+  "pipelines",
+  "issues",
+  "merge-requests",
+  "releases",
+  "repo-config",
+];
+
+/**
+ * Subscribe to `hasActiveProvider`; when it goes falsy and the current
+ * view is provider-scoped, reroute to `graph`. Returns an unsubscribe
+ * function so callers (app-shell `onMount`) can tear down on destroy.
+ */
+export function installProviderDisconnectReroute(): () => void {
+  return hasActiveProvider.subscribe((active) => {
+    if (!active && PROVIDER_VIEWS.includes(get(activeViewStore))) {
+      activeViewStore.set("graph");
+    }
+  });
+}
 
 /**
  * Deep-link target for the Settings view.
