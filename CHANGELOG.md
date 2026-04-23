@@ -2,7 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [0.1.9-beta] — Auto-update, viewport-windowed graph, lean statusbar, landing page, quick wins, reactivity foundation, AI sessions UX, forge data fixes, settings IA polish, log rename, E2E retirement, AI sessions transcript-first rewrite
+## [0.1.9] — Auto-update, viewport-windowed graph, lean statusbar, landing page, quick wins, reactivity foundation, AI sessions UX, forge data fixes, settings IA polish, log rename, E2E retirement, AI sessions transcript-first rewrite
 
 Two distinct waves of work since `v0.1.8-beta`. Wave one (2026-04-20) landed the in-app auto-updater, viewport-windowed commit walking, the lean statusbar + unified tasks drawer, a persistent graph layout cache, the GitHub Pages landing page, and the "Quick Wins" refactor bundle. Wave two (2026-04-21 / 2026-04-22) shipped seven sequential specs — each on its own feature branch with a dedicated design + plan doc — culminating in the AI sessions transcript-first rewrite.
 
