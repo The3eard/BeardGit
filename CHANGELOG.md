@@ -8,6 +8,12 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 `feat(ai-sessions): trim list rows to icon + title + date`. The Active terminals and Conversations sections in the AI Sessions view now render one line per row: provider icon, title, relative date. Everything else — provider name, cwd, forked-from badge, bg-run status badge, Resume / Focus buttons — moves to the detail pane. Tab and segment rows, which previously had no detail branch, gain one: selecting them surfaces the provider, title, cwd, and a Focus button so keyboard users can reach the action without chasing a hover affordance. Three selection stores (`selectedConversationId`, `selectedBackgroundSessionId`, `selectedActiveTerminal`) now coordinate through a shared `selectAiSessionRow` helper so at most one row is selected at any time.
 
+## [Unreleased]
+
+### Changed
+
+- `refactor(toolbar): AI becomes a dropdown, terminal becomes a plain button`. The toolbar's terminal split-button is now a single button (its old dropdown only surfaced the project-root fallback that the button itself already does). The "AI" / "IA" button is now an always-dropdown listing every installed AI CLI provider plus a "Launch session in background…" entry, which is where the per-provider launchers used to live under the terminal chevron. Escape / outside-click close the menu; aria-haspopup / aria-expanded / role=menu land for screen-reader parity.
+
 ## [0.1.10-beta] — Repo settings in the sidebar
 
 ### Repo settings — sidebar view replaces the modal
