@@ -105,4 +105,17 @@ describe("AiSessionDetail conversation branch", () => {
       "(no title)",
     );
   });
+
+  it("handles resumeConversation rejection without crashing", async () => {
+    resumeConversation.mockRejectedValueOnce(new Error("boom"));
+    conversations.set([CONVERSATION]);
+    selectedConversationId.set(CONVERSATION.id);
+
+    const { getByTestId } = render(AiSessionDetail);
+    await tick();
+    await fireEvent.click(getByTestId("ai-session-detail-resume"));
+    await tick();
+
+    expect(resumeConversation).toHaveBeenCalledTimes(1);
+  });
 });

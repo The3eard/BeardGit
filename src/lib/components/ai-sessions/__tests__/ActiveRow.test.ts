@@ -1,28 +1,32 @@
 /**
- * ActiveRow — three-branch (tab / segment / bg) render + focus wiring.
+ * ActiveRow — wraps `SessionRow` with derivations for the three active
+ * discriminators (tab / segment / bg).
  *
- * Uses `vi.hoisted` to mock `focusTerminal` before the component module
- * loads, then asserts each discriminator renders the expected copy and
- * that the Focus button routes through the mock.
+ * After the list-trim refactor the row renders ONLY:
+ *   [provider icon] [title] [relative date-or-em-dash]
+ *
+ * Title copy:
+ *   - tab     → "Terminal N+1"
+ *   - segment → "Terminal in <basename(cwd)>"
+ *   - bg      → provider display name (e.g. "Claude Code")
+ *
+ * Date:
+ *   - bg      → `formatRelativeTimeUnix(started_at)`
+ *   - others  → null (renders "—" in SessionRow)
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/svelte";
+import { get } from "svelte/store";
 import { tick } from "svelte";
 import type { AiSession, TerminalTabInfo } from "$lib/types";
 import type { ActiveTerminal } from "$lib/stores/aiActiveTerminals";
 
-const { focusTerminal } = vi.hoisted(() => ({
-  focusTerminal: vi.fn(() => true),
-}));
-
-vi.mock("$lib/stores/aiConversationActions", async () => {
-  const actual = await vi.importActual<object>(
-    "$lib/stores/aiConversationActions",
-  );
-  return { ...actual, focusTerminal };
-});
-
 import ActiveRow from "../ActiveRow.svelte";
+import {
+  selectedActiveTerminal,
+} from "$lib/stores/aiActiveTerminals";
+import { selectedConversationId } from "$lib/stores/aiConversations";
+import { selectedBackgroundSessionId } from "$lib/stores/aiBackground";
 
 const TAB_INFO: TerminalTabInfo = {
   sessionId: 42,
@@ -42,7 +46,7 @@ const BG_SESSION: AiSession = {
   id: "bg-1",
   provider: "open_code",
   cwd: "/repos/demo",
-  started_at: 1_700_000_000,
+  started_at: Math.floor(Date.now() / 1000) - 120, // 2 minutes ago
   kind: "headless",
   is_active: true,
   worktree_path: "/repos/demo/.wt/ai-bg",
@@ -50,25 +54,28 @@ const BG_SESSION: AiSession = {
 };
 
 beforeEach(() => {
-  focusTerminal.mockClear();
+  selectedConversationId.set(null);
+  selectedBackgroundSessionId.set(null);
+  selectedActiveTerminal.set(null);
 });
-
 afterEach(() => cleanup());
 
-describe("ActiveRow", () => {
-  it("renders the tab branch with provider name and cwd", async () => {
+describe("ActiveRow (trimmed)", () => {
+  it("tab branch: title is 'Terminal N+1', date renders em-dash", async () => {
     const active: ActiveTerminal = { kind: "tab", tabIndex: 2, info: TAB_INFO };
     const { container } = render(ActiveRow, { props: { active } });
     await tick();
 
-    const row = container.querySelector('[data-testid="ai-active-row"]');
-    expect(row).toBeTruthy();
-    expect(row?.getAttribute("data-kind")).toBe("tab");
-    expect(container.textContent).toContain("Claude Code");
-    expect(container.textContent).toContain("demo");
+    expect(container.textContent).toContain("Terminal 3");
+    expect(container.textContent).toContain("—");
+    // Legacy artefacts are gone.
+    expect(
+      container.querySelector('[data-testid="ai-active-row-focus"]'),
+    ).toBeNull();
+    expect(container.querySelector(".badge")).toBeNull();
   });
 
-  it("renders the segment branch with a cwd-aware title", async () => {
+  it("segment branch: title references the cwd basename", async () => {
     const active: ActiveTerminal = {
       kind: "segment",
       tabIndex: 0,
@@ -78,32 +85,70 @@ describe("ActiveRow", () => {
     const { container } = render(ActiveRow, { props: { active } });
     await tick();
 
-    const row = container.querySelector('[data-testid="ai-active-row"]');
-    expect(row?.getAttribute("data-kind")).toBe("segment");
-    expect(container.textContent).toContain("Codex");
-    // segment title references the cwd basename
-    expect(container.textContent).toContain("sub");
+    expect(container.textContent).toContain("Terminal in sub");
+    expect(container.textContent).toContain("—");
   });
 
-  it("renders the bg branch with a status badge", async () => {
+  it("bg branch: title is provider name, date is a relative time", async () => {
     const active: ActiveTerminal = { kind: "bg", session: BG_SESSION };
     const { container } = render(ActiveRow, { props: { active } });
     await tick();
 
-    const row = container.querySelector('[data-testid="ai-active-row"]');
-    expect(row?.getAttribute("data-kind")).toBe("bg");
     expect(container.textContent?.toLowerCase()).toContain("opencode");
-    // BackgroundRunStatusBadge renders a .badge element
-    expect(container.querySelector(".badge")).toBeTruthy();
+    expect(container.textContent?.toLowerCase()).toMatch(/ago|just now/);
+    // Status badge is gone from the row.
+    expect(container.querySelector(".badge")).toBeNull();
   });
 
-  it("Focus button routes through focusTerminal with the active payload", async () => {
+  it("row click writes selectedActiveTerminal and clears the other two", async () => {
+    selectedConversationId.set("some-conv");
+    selectedBackgroundSessionId.set("some-bg");
+
     const active: ActiveTerminal = { kind: "tab", tabIndex: 0, info: TAB_INFO };
-    const { getByTestId } = render(ActiveRow, { props: { active } });
+    const { container } = render(ActiveRow, { props: { active } });
     await tick();
 
-    await fireEvent.click(getByTestId("ai-active-row-focus"));
-    expect(focusTerminal).toHaveBeenCalledTimes(1);
-    expect(focusTerminal).toHaveBeenCalledWith(active);
+    const row = container.querySelector('[data-testid="ai-active-row"]') as HTMLElement;
+    await fireEvent.click(row);
+
+    expect(get(selectedActiveTerminal)).toEqual(active);
+    expect(get(selectedConversationId)).toBeNull();
+    expect(get(selectedBackgroundSessionId)).toBeNull();
+  });
+
+  it("bg row selection stores the same bg variant in selectedActiveTerminal", async () => {
+    const active: ActiveTerminal = { kind: "bg", session: BG_SESSION };
+    const { container } = render(ActiveRow, { props: { active } });
+    await tick();
+    await fireEvent.click(
+      container.querySelector('[data-testid="ai-active-row"]') as HTMLElement,
+    );
+    const sel = get(selectedActiveTerminal);
+    expect(sel?.kind).toBe("bg");
+    if (sel?.kind === "bg") {
+      expect(sel.session.id).toBe(BG_SESSION.id);
+    }
+  });
+
+  it("selected class reflects store state for tab kind", async () => {
+    const active: ActiveTerminal = { kind: "tab", tabIndex: 2, info: TAB_INFO };
+    selectedActiveTerminal.set(active);
+    const { container } = render(ActiveRow, { props: { active } });
+    await tick();
+    const row = container.querySelector(".session-row") as HTMLElement;
+    expect(row.classList.contains("selected")).toBe(true);
+  });
+
+  it("selected class reflects store state for segment kind (matches on both indices)", async () => {
+    const active: ActiveTerminal = {
+      kind: "segment",
+      tabIndex: 0,
+      segmentIndex: 1,
+      info: SEG_INFO,
+    };
+    selectedActiveTerminal.set(active);
+    const { container } = render(ActiveRow, { props: { active } });
+    await tick();
+    expect(container.querySelector(".session-row.selected")).toBeTruthy();
   });
 });
