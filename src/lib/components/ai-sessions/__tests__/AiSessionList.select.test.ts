@@ -1,33 +1,19 @@
 /**
- * AiSessionList — mutually-exclusive selection contract.
+ * AiSessionList — mutually-exclusive selection contract across the three
+ * selection stores:
+ *   - `selectedConversationId`
+ *   - `selectedBackgroundSessionId`
+ *   - `selectedActiveTerminal`
  *
- *   - Clicking a conversation row writes `selectedConversationId` and
- *     clears `selectedBackgroundSessionId`.
- *   - Clicking an active bg-run row writes `selectedBackgroundSessionId`
- *     via `focusTerminal` (kind === "bg"). The List component itself
- *     delegates to `focusTerminal` without touching either selection
- *     store — the "clear selectedConversationId so the bg detail surfaces"
- *     behaviour lives inside the real `focusTerminal` and is tested in
- *     `aiConversationActions.test.ts`.
- *   - Clicking the Focus button on a tab/segment row calls
- *     `focusTerminal` without mutating either selection store.
+ * Each row's `onSelect` goes through `selectAiSessionRow`, which sets the
+ * appropriate store and clears the other two. The three tests below cover
+ * every pair-wise transition end-to-end through the real list component.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import { tick } from "svelte";
 import type { AiConversation, AiSession, Tab } from "$lib/types";
-
-const { focusTerminal } = vi.hoisted(() => ({
-  focusTerminal: vi.fn(() => true),
-}));
-
-vi.mock("$lib/stores/aiConversationActions", async () => {
-  const actual = await vi.importActual<object>(
-    "$lib/stores/aiConversationActions",
-  );
-  return { ...actual, focusTerminal };
-});
 
 import AiSessionList from "../AiSessionList.svelte";
 import {
@@ -39,6 +25,7 @@ import {
   aiBackgroundRuns,
   selectedBackgroundSessionId,
 } from "$lib/stores/aiBackground";
+import { selectedActiveTerminal } from "$lib/stores/aiActiveTerminals";
 import { openTabs, activeTabIndex } from "$lib/stores/tabs";
 
 const CONVERSATION: AiConversation = {
@@ -61,15 +48,25 @@ const BG_RUN: AiSession = {
   background_status: { state: "running" },
 };
 
+const TAB: Tab = {
+  kind: "terminal",
+  terminal: {
+    sessionId: 42,
+    title: "Claude",
+    cwd: "/repos/demo",
+    provider: "claude_code",
+  },
+};
+
 function resetStores() {
   conversations.set([]);
   conversationsLoading.set(false);
   selectedConversationId.set(null);
   aiBackgroundRuns.set(new Map());
   selectedBackgroundSessionId.set(null);
+  selectedActiveTerminal.set(null);
   openTabs.set([]);
   activeTabIndex.set(-1);
-  focusTerminal.mockClear();
 }
 
 beforeEach(resetStores);
@@ -78,72 +75,65 @@ afterEach(() => {
   resetStores();
 });
 
-describe("AiSessionList selection", () => {
-  it("clicking a conversation row selects it and clears bg selection", async () => {
+describe("AiSessionList selection — mutual exclusion", () => {
+  it("conversation row sets selectedConversationId and clears the other two", async () => {
     selectedBackgroundSessionId.set("some-bg");
+    selectedActiveTerminal.set({ kind: "tab", tabIndex: 0, info: TAB.terminal });
     conversations.set([CONVERSATION]);
 
     const { container } = render(AiSessionList);
     await tick();
 
     const row = container.querySelector(
-      '[data-testid="ai-conversation-row"]',
+      '[data-testid="ai-conversation-row"] .session-row',
     ) as HTMLElement;
-    expect(row).toBeTruthy();
     await fireEvent.click(row);
 
     expect(get(selectedConversationId)).toBe(CONVERSATION.id);
     expect(get(selectedBackgroundSessionId)).toBeNull();
+    expect(get(selectedActiveTerminal)).toBeNull();
   });
 
-  it("clicking a bg-run active-row Focus button routes through focusTerminal", async () => {
+  it("tab active-row sets selectedActiveTerminal and clears conversation + bg", async () => {
+    openTabs.set([TAB]);
+    selectedConversationId.set("keep-nothing");
+    selectedBackgroundSessionId.set("also-nothing");
+
+    const { container } = render(AiSessionList);
+    await tick();
+
+    const row = container.querySelector(
+      '[data-testid="ai-active-row"] .session-row',
+    ) as HTMLElement;
+    expect(row).toBeTruthy();
+    await fireEvent.click(row);
+
+    const sel = get(selectedActiveTerminal);
+    expect(sel?.kind).toBe("tab");
+    expect(get(selectedConversationId)).toBeNull();
+    expect(get(selectedBackgroundSessionId)).toBeNull();
+  });
+
+  it("bg active-row stores the bg variant in selectedActiveTerminal", async () => {
     aiBackgroundRuns.set(new Map([[BG_RUN.id, BG_RUN]]));
-    selectedConversationId.set("some-conv");
+    selectedConversationId.set("keep-nothing");
+    selectedBackgroundSessionId.set("also-nothing");
 
     const { container } = render(AiSessionList);
     await tick();
 
-    const focusBtn = container.querySelector(
-      '[data-testid="ai-active-row-focus"]',
+    const row = container.querySelector(
+      '[data-testid="ai-active-row"][data-kind="bg"] .session-row',
     ) as HTMLElement;
-    expect(focusBtn).toBeTruthy();
-    await fireEvent.click(focusBtn);
+    expect(row).toBeTruthy();
+    await fireEvent.click(row);
 
-    expect(focusTerminal).toHaveBeenCalledTimes(1);
-    const call = focusTerminal.mock.calls[0] as unknown as [
-      { kind: "bg"; session: AiSession },
-    ];
-    expect(call?.[0]?.kind).toBe("bg");
-    expect(call?.[0]?.session.id).toBe(BG_RUN.id);
-    // Conversation selection is a separate concern — focusTerminal on a bg
-    // row shouldn't alter it.
-    expect(get(selectedConversationId)).toBe("some-conv");
-  });
-
-  it("clicking Focus on a tab row calls focusTerminal without touching selection", async () => {
-    const tab: Tab = {
-      kind: "terminal",
-      terminal: {
-        sessionId: 42,
-        title: "Claude",
-        cwd: "/repos/demo",
-        provider: "claude_code",
-      },
-    };
-    openTabs.set([tab]);
-    selectedConversationId.set("keep-me");
-    selectedBackgroundSessionId.set("keep-me-too");
-
-    const { container } = render(AiSessionList);
-    await tick();
-
-    const focusBtn = container.querySelector(
-      '[data-testid="ai-active-row-focus"]',
-    ) as HTMLElement;
-    await fireEvent.click(focusBtn);
-
-    expect(focusTerminal).toHaveBeenCalledTimes(1);
-    expect(get(selectedConversationId)).toBe("keep-me");
-    expect(get(selectedBackgroundSessionId)).toBe("keep-me-too");
+    const sel = get(selectedActiveTerminal);
+    expect(sel?.kind).toBe("bg");
+    if (sel?.kind === "bg") {
+      expect(sel.session.id).toBe(BG_RUN.id);
+    }
+    expect(get(selectedConversationId)).toBeNull();
+    expect(get(selectedBackgroundSessionId)).toBeNull();
   });
 });
