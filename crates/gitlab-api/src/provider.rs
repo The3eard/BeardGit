@@ -283,7 +283,7 @@ fn pipeline_to_ci_run(p: types::Pipeline) -> CiRun {
         sha: p.sha,
         source: p.source,
         name: p.name,
-        actor: None,
+        actor: p.user.map(|u| u.username),
         created_at: p.created_at,
         updated_at: p.updated_at,
         web_url: p.web_url,
@@ -400,6 +400,7 @@ mod tests {
             sha: "abc123".to_string(),
             source: Some("push".to_string()),
             name: Some("Build Pipeline".to_string()),
+            user: None,
             created_at: Some("2026-01-01T00:00:00Z".to_string()),
             updated_at: Some("2026-01-01T00:05:00Z".to_string()),
             web_url: "https://gitlab.com/p/100".to_string(),
@@ -503,5 +504,34 @@ mod tests {
         assert_eq!(pu.display_name, "John Doe");
         assert_eq!(pu.email, Some("john@example.com".to_string()));
         assert_eq!(pu.profile_url, "https://gitlab.com/john");
+    }
+
+    #[test]
+    fn pipeline_to_ci_run_copies_user_username() {
+        let raw = r#"{
+            "id": 99, "iid": 12, "project_id": 1,
+            "status": "success", "ref": "main", "sha": "s",
+            "source": "push", "name": null,
+            "created_at": null, "updated_at": null,
+            "web_url": "https://gitlab.example/pipelines/99",
+            "user": { "username": "alice" }
+        }"#;
+        let p: crate::types::Pipeline = serde_json::from_str(raw).unwrap();
+        let run = super::pipeline_to_ci_run(p);
+        assert_eq!(run.actor.as_deref(), Some("alice"));
+    }
+
+    #[test]
+    fn pipeline_to_ci_run_actor_none_when_user_missing() {
+        let raw = r#"{
+            "id": 1, "iid": 1, "project_id": 1,
+            "status": "running", "ref": "main", "sha": "s",
+            "source": null, "name": null,
+            "created_at": null, "updated_at": null,
+            "web_url": "u"
+        }"#;
+        let p: crate::types::Pipeline = serde_json::from_str(raw).unwrap();
+        let run = super::pipeline_to_ci_run(p);
+        assert!(run.actor.is_none());
     }
 }
