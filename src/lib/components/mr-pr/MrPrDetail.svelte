@@ -445,7 +445,7 @@
           {m.mrpr_comments({ count: detail.comments.length.toString() })}
         </h4>
         <div class="comment-list">
-          {#each detail.comments as comment (comment.id)}
+          {#each detail.comments as comment, i (comment.id !== 0 ? `id-${comment.id}` : `idx-${i}`)}
             <div class="comment" class:resolved={comment.resolved === true}>
               <div class="comment-header">
                 <span class="comment-author">{comment.author}</span>

@@ -19,6 +19,7 @@
   import { Button, Card, CategoryNav } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
   import { activeProject } from "$lib/stores/projects";
+  import { activeProvider } from "$lib/stores/provider";
   import { addToast } from "$lib/stores/toast";
   import {
     activeViewStore,
@@ -63,10 +64,13 @@
   type Forge = "github" | "gitlab";
 
   let repoPath = $derived($activeProject?.path ?? null);
+  // Matches the gating logic used by the sidebar entry — both hinge on
+  // the globally-active provider connection. `ProjectInfo` doesn't
+  // carry a `provider` field, so trying to derive one off `$activeProject`
+  // always collapses to null and renders the "not supported" card even
+  // for repos the user has full access to.
   let providerKind = $derived.by<Forge | null>(() => {
-    const repo = $activeProject;
-    if (!repo) return null;
-    const k = (repo as unknown as { provider?: string }).provider;
+    const k = $activeProvider?.kind;
     return k === "github" || k === "gitlab" ? k : null;
   });
 
