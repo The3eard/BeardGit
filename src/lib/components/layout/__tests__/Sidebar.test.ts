@@ -5,8 +5,10 @@ import { providerStatus } from "$lib/stores/provider";
 
 afterEach(() => cleanup());
 
-beforeEach(() => {
+beforeEach(async () => {
   providerStatus.set({ providers: [], active_index: null });
+  const { sidebarLayout } = await import("$lib/stores/sidebarLayout");
+  sidebarLayout.set({ order: [], hidden: [] });
 });
 
 describe("Sidebar — repo-config entry", () => {
@@ -50,5 +52,33 @@ describe("Sidebar — repo-config entry", () => {
       props: { activeView: "graph" },
     });
     expect(getByTestId("nav-repo-config")).toBeTruthy();
+  });
+});
+
+describe("Sidebar — nav layout integration", () => {
+  it("hides items listed in sidebarLayout.hidden in normal mode", async () => {
+    const { sidebarLayout } = await import("$lib/stores/sidebarLayout");
+    sidebarLayout.set({ order: [], hidden: ["bisect"] });
+    const { queryByTestId } = render(Sidebar, { props: { activeView: "graph" } });
+    expect(queryByTestId("nav-bisect")).toBeNull();
+    expect(queryByTestId("nav-graph")).toBeTruthy();
+  });
+
+  it("respects sidebarLayout.order in normal mode", async () => {
+    const { sidebarLayout } = await import("$lib/stores/sidebarLayout");
+    sidebarLayout.set({
+      order: ["ai-sessions", "graph"],
+      hidden: [],
+    });
+    const { container } = render(Sidebar, { props: { activeView: "graph" } });
+    const items = container.querySelectorAll("[data-testid^='nav-']");
+    // The Navigation section is the first nav; find the first two
+    // buttons and confirm the order.
+    const testIds = Array.from(items).map((el) => el.getAttribute("data-testid"));
+    const aiIdx = testIds.indexOf("nav-ai-sessions");
+    const graphIdx = testIds.indexOf("nav-graph");
+    expect(aiIdx).toBeGreaterThan(-1);
+    expect(graphIdx).toBeGreaterThan(-1);
+    expect(aiIdx).toBeLessThan(graphIdx);
   });
 });

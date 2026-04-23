@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { repoInfo } from "../../stores/repo";
   import { fileStatuses } from "../../stores/changes";
   import { hasActiveProvider, activeProvider } from "../../stores/provider";
+  import { sidebarLayout } from "../../stores/sidebarLayout";
+  import { applyLayout, type SidebarNavItem } from "../../utils/applyLayout";
   import * as m from "$lib/paraglide/messages";
 
   let {
@@ -16,9 +17,11 @@
     onToggleCollapse?: () => void;
   } = $props();
 
-  type NavItem = { label: string; icon: string; id: string };
-
-  const navItems: NavItem[] = [
+  /** All registered Navigation items — the source of truth for what
+   *  `applyLayout` can choose from. Order here is irrelevant; the
+   *  canonical default order lives in `DEFAULT_ORDER` inside
+   *  `applyLayout.ts`. */
+  const navItems: SidebarNavItem[] = [
     { label: m.sidebar_graph(), icon: "\uE728", id: "graph" },
     { label: m.sidebar_changes(), icon: "\uF440", id: "changes" },
     { label: m.sidebar_branches(), icon: "\uE725", id: "branches" },
@@ -32,12 +35,17 @@
     { label: m.sidebar_ai_sessions(), icon: "\uF489", id: "ai-sessions" },
   ];
 
+  /** Render list in normal mode: saved order + fallback, minus hidden ids. */
+  let visibleNavItems = $derived(
+    applyLayout(navItems, $sidebarLayout.order, $sidebarLayout.hidden),
+  );
+
   // MR/PR label depends on the active forge — GitHub says "Pull requests",
   // everyone else (GitLab, and future forges that inherit the term) says
   // "Merge requests". Keeping the id stable so activeView routing doesn't
   // care which terminology we render.
-  let providerItems = $derived.by<NavItem[]>(() => {
-    const base: NavItem[] = [
+  let providerItems = $derived.by<SidebarNavItem[]>(() => {
+    const base: SidebarNavItem[] = [
       { label: m.sidebar_pipelines(), icon: "\uF144", id: "pipelines" },
       { label: m.sidebar_issues(), icon: "\uF188", id: "issues" },
       {
@@ -73,7 +81,7 @@
     {#if !collapsed}
       <div class="section-label">{m.sidebar_navigation()}</div>
     {/if}
-    {#each navItems as item}
+    {#each visibleNavItems as item}
       <button
         class="nav-item"
         class:active={activeView === item.id}
@@ -92,28 +100,30 @@
     {/each}
   </nav>
 
-  <nav class="nav-section">
-    {#if !collapsed}
-      <div class="section-label">
-        <span class="provider-status-dot" class:connected={$hasActiveProvider}></span>
-        {$activeProvider?.kind === 'github' ? m.provider_github() : m.provider_gitlab()}
-      </div>
-    {/if}
-    {#each providerItems as item}
-      <button
-        class="nav-item"
-        class:active={activeView === item.id}
-        onclick={() => handleNav(item.id)}
-        title={collapsed ? item.label : undefined}
-        data-testid="nav-{item.id}"
-      >
-        <span class="nav-icon">{item.icon}</span>
-        {#if !collapsed}
-          <span class="nav-label">{item.label}</span>
-        {/if}
-      </button>
-    {/each}
-  </nav>
+  {#if $hasActiveProvider}
+    <nav class="nav-section">
+      {#if !collapsed}
+        <div class="section-label">
+          <span class="provider-status-dot connected"></span>
+          {$activeProvider?.kind === 'github' ? m.provider_github() : m.provider_gitlab()}
+        </div>
+      {/if}
+      {#each providerItems as item}
+        <button
+          class="nav-item"
+          class:active={activeView === item.id}
+          onclick={() => handleNav(item.id)}
+          title={collapsed ? item.label : undefined}
+          data-testid="nav-{item.id}"
+        >
+          <span class="nav-icon">{item.icon}</span>
+          {#if !collapsed}
+            <span class="nav-label">{item.label}</span>
+          {/if}
+        </button>
+      {/each}
+    </nav>
+  {/if}
 
   <div class="spacer"></div>
 
