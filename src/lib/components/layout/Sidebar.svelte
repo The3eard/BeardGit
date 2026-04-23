@@ -1,8 +1,14 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { fileStatuses } from "../../stores/changes";
   import { hasActiveProvider, activeProvider } from "../../stores/provider";
-  import { sidebarLayout } from "../../stores/sidebarLayout";
-  import { applyLayout, type SidebarNavItem } from "../../utils/applyLayout";
+  import { sidebarLayout, updateLayout } from "../../stores/sidebarLayout";
+  import {
+    applyLayout,
+    DEFAULT_ORDER,
+    type SidebarNavItem,
+  } from "../../utils/applyLayout";
+  import { addToast } from "../../stores/toast";
   import * as m from "$lib/paraglide/messages";
 
   let {
@@ -17,52 +23,81 @@
     onToggleCollapse?: () => void;
   } = $props();
 
-  /** All registered Navigation items — the source of truth for what
-   *  `applyLayout` can choose from. Order here is irrelevant; the
-   *  canonical default order lives in `DEFAULT_ORDER` inside
-   *  `applyLayout.ts`. */
+  /** All registered Navigation items. */
   const navItems: SidebarNavItem[] = [
-    { label: m.sidebar_graph(), icon: "\uE728", id: "graph" },
-    { label: m.sidebar_changes(), icon: "\uF440", id: "changes" },
-    { label: m.sidebar_branches(), icon: "\uE725", id: "branches" },
-    { label: m.sidebar_tags(), icon: "\uF02B", id: "tags" },
-    { label: m.sidebar_stashes(), icon: "\uF187", id: "stashes" },
-    { label: m.sidebar_worktrees(), icon: "\uE728", id: "worktrees" },
-    { label: m.sidebar_reflog(), icon: "\uF1DA", id: "reflog" },
-    { label: m.sidebar_bisect(), icon: "\uF002", id: "bisect" },
-    { label: m.sidebar_submodules(), icon: "\uF1E6", id: "submodules" },
-    { label: m.sidebar_ai_config(), icon: "\uF085", id: "ai-config" },
-    { label: m.sidebar_ai_sessions(), icon: "\uF489", id: "ai-sessions" },
+    { label: m.sidebar_graph(), icon: "", id: "graph" },
+    { label: m.sidebar_changes(), icon: "", id: "changes" },
+    { label: m.sidebar_branches(), icon: "", id: "branches" },
+    { label: m.sidebar_tags(), icon: "", id: "tags" },
+    { label: m.sidebar_stashes(), icon: "", id: "stashes" },
+    { label: m.sidebar_worktrees(), icon: "", id: "worktrees" },
+    { label: m.sidebar_reflog(), icon: "", id: "reflog" },
+    { label: m.sidebar_bisect(), icon: "", id: "bisect" },
+    { label: m.sidebar_submodules(), icon: "", id: "submodules" },
+    { label: m.sidebar_ai_config(), icon: "", id: "ai-config" },
+    { label: m.sidebar_ai_sessions(), icon: "", id: "ai-sessions" },
   ];
 
-  /** Render list in normal mode: saved order + fallback, minus hidden ids. */
+  // Edit-mode state.
+  let editMode = $state(false);
+  let dragIndex = $state<number | null>(null);
+  let dragOverIndex = $state<number | null>(null);
+  let sidebarEl: HTMLElement | undefined = $state();
+
+  /** Normal-mode list: respects order + hidden. */
   let visibleNavItems = $derived(
     applyLayout(navItems, $sidebarLayout.order, $sidebarLayout.hidden),
   );
 
-  // MR/PR label depends on the active forge — GitHub says "Pull requests",
-  // everyone else (GitLab, and future forges that inherit the term) says
-  // "Merge requests". Keeping the id stable so activeView routing doesn't
-  // care which terminology we render.
+  /** Edit-mode list: full set in saved order, hidden items included
+   *  (rendered with `.nav-item--hidden` styling). */
+  let editModeItems = $derived(
+    applyLayout(navItems, $sidebarLayout.order, []),
+  );
+
+  /** Force-exit edit mode if the sidebar collapses. */
+  $effect(() => {
+    if (collapsed && editMode) editMode = false;
+  });
+
+  /** Escape + outside-click handlers while in edit mode. */
+  $effect(() => {
+    if (!editMode) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") editMode = false;
+    }
+    function onPointer(e: MouseEvent) {
+      if (!sidebarEl) return;
+      if (!sidebarEl.contains(e.target as Node)) editMode = false;
+    }
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onPointer);
+    };
+  });
+
+  // MR/PR label depends on the active forge.
   let providerItems = $derived.by<SidebarNavItem[]>(() => {
     const base: SidebarNavItem[] = [
-      { label: m.sidebar_pipelines(), icon: "\uF144", id: "pipelines" },
-      { label: m.sidebar_issues(), icon: "\uF188", id: "issues" },
+      { label: m.sidebar_pipelines(), icon: "", id: "pipelines" },
+      { label: m.sidebar_issues(), icon: "", id: "issues" },
       {
         label:
           $activeProvider?.kind === "github"
             ? m.sidebar_pull_requests()
             : m.sidebar_merge_requests(),
-        icon: "\uF407",
+        icon: "",
         id: "merge-requests",
       },
-      { label: m.sidebar_releases(), icon: "\uF135", id: "releases" },
+      { label: m.sidebar_releases(), icon: "", id: "releases" },
     ];
     const kind = $activeProvider?.kind;
     if (kind === "github" || kind === "gitlab") {
       base.push({
         label: m.sidebar_repo_config(),
-        icon: "\uF013",
+        icon: "",
         id: "repo-config",
       });
     }
@@ -70,34 +105,219 @@
   });
 
   function handleNav(id: string) {
+    if (editMode) return; // Clicks on the row are reorder/toggle targets,
+                          // not navigation, while editing.
     onNavigate?.(id);
+  }
+
+  /** Toggle an id between visible and hidden, guarding "at least one visible". */
+  function toggleHidden(id: string) {
+    const hidden = new Set($sidebarLayout.hidden);
+    if (hidden.has(id)) {
+      hidden.delete(id);
+      updateLayout({ hidden: [...hidden] });
+      return;
+    }
+    // About to hide → ensure at least one other item remains visible.
+    const nextHidden = new Set(hidden);
+    nextHidden.add(id);
+    const remainingVisible = navItems.filter((i) => !nextHidden.has(i.id));
+    if (remainingVisible.length === 0) {
+      addToast({ message: m.sidebar_min_visible(), type: "warning" });
+      return;
+    }
+    updateLayout({ hidden: [...nextHidden] });
+  }
+
+  /** Compute the current saved-order array, filling any gaps with DEFAULT_ORDER. */
+  function currentOrder(): string[] {
+    const saved = $sidebarLayout.order;
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const id of saved) {
+      if (!seen.has(id) && navItems.some((n) => n.id === id)) {
+        out.push(id);
+        seen.add(id);
+      }
+    }
+    for (const id of DEFAULT_ORDER) {
+      if (!seen.has(id)) {
+        out.push(id);
+        seen.add(id);
+      }
+    }
+    return out;
+  }
+
+  function moveItem(id: string, delta: number) {
+    const order = currentOrder();
+    const from = order.indexOf(id);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= order.length) return;
+    const next = [...order];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    updateLayout({ order: next });
+  }
+
+  function handleKeydownHandle(e: KeyboardEvent, id: string) {
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      moveItem(id, -1);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveItem(id, 1);
+    }
+  }
+
+  function handleDragStart(e: DragEvent, index: number) {
+    dragIndex = index;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+    }
+  }
+
+  function handleDragOver(e: DragEvent, index: number) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    dragOverIndex = index;
+  }
+
+  function handleDragLeave() {
+    dragOverIndex = null;
+  }
+
+  function handleDrop(e: DragEvent, targetIndex: number) {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === targetIndex) {
+      dragIndex = null;
+      dragOverIndex = null;
+      return;
+    }
+    const order = currentOrder();
+    const next = [...order];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(targetIndex, 0, moved);
+    updateLayout({ order: next });
+    dragIndex = null;
+    dragOverIndex = null;
+  }
+
+  function handleDragEnd() {
+    dragIndex = null;
+    dragOverIndex = null;
+  }
+
+  function resetLayout() {
+    updateLayout({ order: [...DEFAULT_ORDER], hidden: [] });
   }
 
   let changeCount = $derived($fileStatuses.length);
 </script>
 
-<aside class="sidebar" class:collapsed>
+<aside
+  class="sidebar"
+  class:collapsed
+  class:edit-mode={editMode}
+  bind:this={sidebarEl}
+>
   <nav class="nav-section">
     {#if !collapsed}
-      <div class="section-label">{m.sidebar_navigation()}</div>
-    {/if}
-    {#each visibleNavItems as item}
-      <button
-        class="nav-item"
-        class:active={activeView === item.id}
-        onclick={() => handleNav(item.id)}
-        title={collapsed ? item.label : undefined}
-        data-testid="nav-{item.id}"
-      >
-        <span class="nav-icon">{item.icon}</span>
-        {#if !collapsed}
-          <span class="nav-label">{item.label}</span>
-          {#if item.id === "changes" && changeCount > 0}
-            <span class="nav-badge">{changeCount}</span>
-          {/if}
+      <div class="section-label nav-header">
+        <span>{m.sidebar_navigation()}</span>
+        {#if editMode}
+          <span class="edit-actions">
+            <button
+              type="button"
+              class="edit-action"
+              data-testid="sidebar-edit-reset"
+              onclick={resetLayout}
+            >{m.sidebar_reset()}</button>
+            <button
+              type="button"
+              class="edit-action primary"
+              data-testid="sidebar-edit-done"
+              onclick={() => (editMode = false)}
+            >{m.sidebar_done()}</button>
+          </span>
+        {:else}
+          <button
+            type="button"
+            class="edit-toggle"
+            data-testid="sidebar-edit-toggle"
+            title={m.sidebar_customize()}
+            aria-label={m.sidebar_customize()}
+            onclick={() => (editMode = true)}
+          >{""}</button>
         {/if}
-      </button>
-    {/each}
+      </div>
+    {/if}
+
+    {#if editMode}
+      <div class="sr-only" role="status" aria-live="polite">
+        {m.sidebar_customize()}. Press Escape to finish.
+      </div>
+      {#each editModeItems as item, i (item.id)}
+        {@const isHidden = $sidebarLayout.hidden.includes(item.id)}
+        {@const visibleCount = navItems.length - $sidebarLayout.hidden.length}
+        {@const isLastVisible = !isHidden && visibleCount <= 1}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="nav-item edit-row"
+          class:nav-item--hidden={isHidden}
+          class:dragging={dragIndex === i}
+          class:drag-over={dragOverIndex === i}
+          data-testid="nav-{item.id}"
+          draggable="true"
+          ondragstart={(e) => handleDragStart(e, i)}
+          ondragover={(e) => handleDragOver(e, i)}
+          ondragleave={handleDragLeave}
+          ondrop={(e) => handleDrop(e, i)}
+          ondragend={handleDragEnd}
+        >
+          <button
+            type="button"
+            class="drag-handle"
+            data-testid="sidebar-reorder-{item.id}"
+            aria-label={m.sidebar_reorder_aria({ label: item.label })}
+            onkeydown={(e) => handleKeydownHandle(e, item.id)}
+          >{"☰"}</button>
+          <span class="nav-icon">{item.icon}</span>
+          <span class="nav-label">{item.label}</span>
+          <button
+            type="button"
+            class="eye-toggle"
+            data-testid="sidebar-hide-{item.id}"
+            aria-pressed={!isHidden}
+            aria-disabled={isLastVisible}
+            disabled={isLastVisible}
+            aria-label={isHidden
+              ? m.sidebar_show_aria({ label: item.label })
+              : m.sidebar_hide_aria({ label: item.label })}
+            onclick={() => toggleHidden(item.id)}
+          >{isHidden ? "" : ""}</button>
+        </div>
+      {/each}
+    {:else}
+      {#each visibleNavItems as item}
+        <button
+          class="nav-item"
+          class:active={activeView === item.id}
+          onclick={() => handleNav(item.id)}
+          title={collapsed ? item.label : undefined}
+          data-testid="nav-{item.id}"
+        >
+          <span class="nav-icon">{item.icon}</span>
+          {#if !collapsed}
+            <span class="nav-label">{item.label}</span>
+            {#if item.id === "changes" && changeCount > 0}
+              <span class="nav-badge">{changeCount}</span>
+            {/if}
+          {/if}
+        </button>
+      {/each}
+    {/if}
   </nav>
 
   {#if $hasActiveProvider}
@@ -135,7 +355,7 @@
       title={collapsed ? m.sidebar_settings() : undefined}
       data-testid="nav-settings"
     >
-      <span class="nav-icon">{"\uF013"}</span>
+      <span class="nav-icon">{""}</span>
       {#if !collapsed}
         <span class="nav-label">{m.sidebar_settings()}</span>
       {/if}
@@ -145,7 +365,7 @@
       onclick={onToggleCollapse}
       title={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
     >
-      <span class="nav-icon">{collapsed ? "\uF054" : "\uF053"}</span>
+      <span class="nav-icon">{collapsed ? "" : ""}</span>
       {#if !collapsed}
         <span class="nav-label">{m.sidebar_collapse()}</span>
       {/if}
@@ -196,6 +416,55 @@
     white-space: nowrap;
   }
 
+  .nav-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .edit-toggle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-icons);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+
+  .edit-toggle:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .edit-actions {
+    display: inline-flex;
+    gap: 6px;
+  }
+
+  .edit-action {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .edit-action:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .edit-action.primary {
+    color: var(--accent-blue);
+    border-color: var(--accent-blue);
+  }
+
   .nav-item {
     display: flex;
     align-items: center;
@@ -222,12 +491,12 @@
     background: rgba(255, 255, 255, 0.05);
   }
 
-  .nav-item.active {
+  .sidebar:not(.edit-mode) .nav-item.active {
     background: rgba(88, 166, 255, 0.1);
     color: var(--accent-blue);
   }
 
-  .nav-item.active .nav-icon {
+  .sidebar:not(.edit-mode) .nav-item.active .nav-icon {
     color: var(--accent-blue);
   }
 
@@ -277,5 +546,72 @@
 
   .collapse-btn .nav-icon {
     font-size: 12px;
+  }
+
+  /* Edit-mode row layout: [drag][icon][label][eye] */
+  .edit-row {
+    cursor: grab;
+  }
+
+  .edit-row.dragging {
+    opacity: 0.5;
+  }
+
+  .edit-row.drag-over {
+    background: rgba(88, 166, 255, 0.15);
+  }
+
+  .drag-handle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: grab;
+    padding: 0 2px;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .drag-handle:focus {
+    outline: 1px solid var(--accent-blue);
+    border-radius: 2px;
+  }
+
+  .eye-toggle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-icons);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+
+  .eye-toggle:hover:not([disabled]) {
+    color: var(--text-primary);
+  }
+
+  .eye-toggle[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .nav-item--hidden {
+    opacity: 0.5;
+  }
+
+  .nav-item--hidden .nav-label {
+    text-decoration: line-through;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>
