@@ -2,6 +2,12 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [unreleased] — AI sessions list trim
+
+### AI sessions — one-line rows, detail-pane actions
+
+`feat(ai-sessions): trim list rows to icon + title + date`. The Active terminals and Conversations sections in the AI Sessions view now render one line per row: provider icon, title, relative date. Everything else — provider name, cwd, forked-from badge, bg-run status badge, Resume / Focus buttons — moves to the detail pane. Tab and segment rows, which previously had no detail branch, gain one: selecting them surfaces the provider, title, cwd, and a Focus button so keyboard users can reach the action without chasing a hover affordance. Three selection stores (`selectedConversationId`, `selectedBackgroundSessionId`, `selectedActiveTerminal`) now coordinate through a shared `selectAiSessionRow` helper so at most one row is selected at any time.
+
 ## [0.1.10-beta] — Repo settings in the sidebar
 
 ### Repo settings — sidebar view replaces the modal
