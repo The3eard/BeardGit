@@ -11,7 +11,7 @@
  * - Escape and outside-click close the menu.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/svelte";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import { aiProviders } from "$lib/stores/ai";
 import { openTabs, activeTabIndex } from "$lib/stores/tabs";
@@ -72,7 +72,11 @@ describe("TabBar — terminal button", () => {
   it("calls openStandaloneTerminal with the home path when no project tab is active", async () => {
     const { getByTestId } = render(TabBar);
     await fireEvent.click(getByTestId("toolbar-terminal-btn"));
-    expect(tabsMocks.openStandaloneTerminal).toHaveBeenCalledTimes(1);
+    // handleTerminalClick is async (awaits a dynamic import); waitFor
+    // lets microtasks settle before asserting.
+    await waitFor(() =>
+      expect(tabsMocks.openStandaloneTerminal).toHaveBeenCalledTimes(1),
+    );
     expect(tabsMocks.openStandaloneTerminal.mock.calls[0][0]).toBe("/Users/test");
   });
 });
