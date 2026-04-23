@@ -168,17 +168,17 @@
     const overlayY = 8;
 
     // Semi-transparent background
-    ctx2.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx2.fillStyle = 'rgba(0, 0, 0, 0.75)'; /* beardgit:allow-hex: canvas-modal-backdrop, always dark */
     ctx2.fillRect(overlayX, overlayY, overlayWidth, overlayHeight);
 
     // Border
-    ctx2.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx2.strokeStyle = 'rgba(255, 255, 255, 0.2)'; /* beardgit:allow-hex: canvas ctx requires concrete color */
     ctx2.lineWidth = 1;
     ctx2.strokeRect(overlayX, overlayY, overlayWidth, overlayHeight);
 
     // Text
     ctx2.font = '11px "SF Mono", "Fira Code", monospace';
-    ctx2.fillStyle = '#00ff88';
+    ctx2.fillStyle = '#00ff88'; /* beardgit:allow-hex: canvas perf overlay accent, not a UI surface */
     ctx2.textAlign = 'left';
     ctx2.textBaseline = 'top';
 
@@ -207,7 +207,7 @@
       if ($viewport === null && !filteredViewport && !isFiltering && !searchLoading) {
         return;
       }
-      ctx.fillStyle = "#888888";
+      ctx.fillStyle = "#888888"; /* beardgit:allow-hex: canvas ctx requires concrete color; read from theme at call site would require async */
       ctx.font = "14px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -977,7 +977,7 @@
 
   .columns-btn {
     padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-secondary);
@@ -987,7 +987,7 @@
   }
 
   .columns-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
     color: var(--text-primary);
   }
 
@@ -1002,7 +1002,7 @@
     padding: 6px 0;
     min-width: 140px;
     z-index: 100;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */
   }
 
   .column-option {
@@ -1016,7 +1016,7 @@
   }
 
   .column-option:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .column-option input[type="checkbox"] {

@@ -208,7 +208,7 @@
     right: 0;
     bottom: 0;
     z-index: 1001;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
   }
 
   .dialog {
@@ -223,7 +223,7 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: shadow neutral always-dark */
   }
 
   .dialog-title {
@@ -320,7 +320,7 @@
   }
 
   .source-option:hover {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
   }
 
   .source-empty {
@@ -359,7 +359,7 @@
 
   .btn-confirm {
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border-color: var(--accent-blue);
   }
 

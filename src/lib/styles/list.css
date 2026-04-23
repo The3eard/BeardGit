@@ -129,9 +129,9 @@
 }
 
 .list-row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
 }
 
 .list-row.selected {
-  background: rgba(88, 166, 255, 0.08);
+  background: color-mix(in srgb, var(--accent-blue) 8%, transparent);
 }

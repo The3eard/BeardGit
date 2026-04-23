@@ -63,11 +63,11 @@
   .tab-tooltip {
     position: fixed;
     background: var(--bg-toolbar);
-    border: 1px solid rgba(240, 246, 252, 0.15);
+    border: 1px solid color-mix(in srgb, var(--text-primary) 15%, transparent);
     border-radius: 8px;
     padding: 10px 14px;
     min-width: 210px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: shadow neutral always-dark */
     z-index: 9999;
     pointer-events: none;
   }
@@ -119,7 +119,7 @@
 
   .separator {
     height: 1px;
-    background: rgba(240, 246, 252, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     margin: 2px 0;
   }
 
@@ -128,27 +128,27 @@
     border-radius: 10px;
     font-weight: 500;
     font-size: 11px;
-    background: rgba(139, 148, 158, 0.1);
+    background: var(--overlay-accent-muted);
     color: var(--text-secondary);
   }
 
   .badge.green {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
   }
 
   .badge.orange {
-    background: rgba(240, 136, 62, 0.15);
+    background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
     color: var(--accent-orange);
   }
 
   .badge.purple {
-    background: rgba(188, 140, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-purple) 15%, transparent);
     color: var(--accent-purple);
   }
 
   .badge.dimmed {
-    background: rgba(139, 148, 158, 0.1);
+    background: var(--overlay-accent-muted);
     color: var(--text-secondary);
     opacity: 0.5;
   }

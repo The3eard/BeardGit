@@ -160,8 +160,8 @@
         {#each item.labels as label (label.name)}
           <span
             class="label-pill"
-            style:background={label.color ? `#${label.color}20` : "rgba(255,255,255,0.1)"}
-            style:color={label.color ? `#${label.color}` : "var(--text-secondary)"}
+            style:background={label.color ? `#${label.color}20` : "color-mix(in srgb, var(--text-primary) 10%, transparent)"} /* beardgit:allow-hex: dynamic GitHub API label color */
+            style:color={label.color ? `#${label.color}` : "var(--text-secondary)"} /* beardgit:allow-hex: dynamic GitHub API label color */
           >{label.name}</span>
         {/each}
         {#if item.assignees.length > 0}
@@ -188,7 +188,7 @@
   .action-btn-create {
     padding: 4px 10px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: none;
     border-radius: 4px;
     font-size: 11px;

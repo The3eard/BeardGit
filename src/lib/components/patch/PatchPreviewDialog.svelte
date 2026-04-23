@@ -67,7 +67,7 @@
     max-height: 70vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: shadow neutral always-dark */
   }
 
   .dialog-title {
@@ -93,12 +93,12 @@
   }
 
   .status-badge.clean {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
   }
 
   .status-badge.conflict {
-    background: rgba(248, 81, 73, 0.15);
+    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
     color: var(--accent-red);
   }
 
@@ -154,11 +154,11 @@
 
   .action-btn.primary {
     background: var(--accent-blue);
-    color: #ffffff;
+    color: var(--text-primary);
     border-color: var(--accent-blue);
   }
 
   .action-btn.secondary:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   }
 </style>

@@ -162,13 +162,13 @@
   }
 
   .badge-head {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     color: var(--accent-blue);
   }
 
   .badge-remote {
-    background: rgba(163, 113, 247, 0.15);
-    color: var(--accent-purple, #a371f7);
+    background: color-mix(in srgb, var(--accent-purple) 15%, transparent);
+    color: var(--accent-purple);
   }
 
   .detail-meta {
@@ -223,7 +223,7 @@
   }
 
   .commit-row:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
     cursor: pointer;
   }
 
@@ -295,26 +295,26 @@
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     color: var(--text-primary);
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
 
   .action-checkout:hover {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     border-color: var(--accent-blue);
     color: var(--accent-blue);
   }
 
   .action-merge:hover {
-    background: rgba(63, 185, 80, 0.15);
-    border-color: #3fb950;
-    color: #3fb950;
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
+    border-color: var(--accent-green);
+    color: var(--accent-green);
   }
 
   .action-delete:hover {
-    background: rgba(248, 81, 73, 0.15);
-    border-color: #f85149;
-    color: #f85149;
+    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
+    border-color: var(--accent-red);
+    color: var(--accent-red);
   }
 </style>

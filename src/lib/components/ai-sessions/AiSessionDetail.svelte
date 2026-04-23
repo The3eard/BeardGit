@@ -493,21 +493,21 @@
   .btn.primary {
     background: var(--accent-blue);
     border-color: var(--accent-blue);
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   .btn.primary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-blue) 85%, black);
-    color: #ffffff;
+    background: color-mix(in srgb, var(--accent-blue) 85%, transparent);
+    color: var(--text-primary);
   }
 
   .btn.danger {
-    color: #f85149;
-    border-color: color-mix(in srgb, #f85149 40%, transparent);
+    color: var(--accent-red);
+    border-color: color-mix(in srgb, var(--accent-red) 40%, transparent);
   }
 
   .btn.danger:hover {
-    background: color-mix(in srgb, #f85149 10%, transparent);
+    background: color-mix(in srgb, var(--accent-red) 10%, transparent);
   }
 
   .empty {

@@ -59,6 +59,7 @@ describe('getLanguageExtensionName', () => {
   });
 });
 
+/* beardgit:allow-hex: test fixture data matching ThemeEditorData schema — not live CSS */
 describe('createCodemirrorTheme', () => {
   it('returns an Extension from editor theme data', () => {
     const editorData = {

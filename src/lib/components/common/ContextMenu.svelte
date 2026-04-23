@@ -129,7 +129,7 @@
     border-radius: 6px;
     padding: 4px 0;
     min-width: 180px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: shadow neutral always-dark */
   }
 
   .menu-item-wrap {
@@ -160,7 +160,7 @@
   }
 
   .menu-item:hover:not(.disabled) {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
   }
 
   .menu-item.disabled {

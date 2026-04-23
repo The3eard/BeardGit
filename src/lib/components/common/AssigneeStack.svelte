@@ -59,7 +59,7 @@
     border-radius: 50%;
     font-size: 9px;
     font-weight: 600;
-    color: #fff;
+    color: var(--text-primary);
     border: 1px solid var(--bg-primary);
     margin-left: -4px;
     flex-shrink: 0;

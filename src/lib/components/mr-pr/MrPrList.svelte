@@ -181,7 +181,7 @@
   .action-btn-create {
     padding: 4px 10px;
     background: var(--accent-blue);
-    color: #ffffff;
+    color: var(--text-primary);
     border: none;
     border-radius: 4px;
     font-size: 11px;
@@ -209,7 +209,7 @@
   }
 
   .error-title {
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
     font-weight: 600;
     font-size: 13px;
   }
@@ -297,7 +297,7 @@
     font-weight: 700;
     padding: 1px 5px;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
     color: var(--text-secondary);
     flex-shrink: 0;
   }

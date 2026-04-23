@@ -135,8 +135,8 @@
     font-family: var(--font-mono); font-size: 12px;
     color: var(--text-primary); padding: 3px 10px;
   }
-  .folder:hover, .leaf:hover { background: rgba(255,255,255,0.04); }
-  .leaf.selected { background: rgba(88,166,255,0.10); }
+  .folder:hover, .leaf:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
+  .leaf.selected { background: var(--overlay-accent-blue); }
   .chev { font-family: var(--font-icons); font-size: 9px; width: 10px; color: var(--text-secondary); }
   .agg { margin-left: auto; font-size: 11px; color: var(--text-secondary); }
 </style>

@@ -304,7 +304,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 8px;
-    box-shadow: 0 -4px 24px var(--overlay-shadow, rgba(0, 0, 0, 0.35));
+    box-shadow: 0 -4px 24px var(--overlay-shadow);
     z-index: 1000;
     display: flex;
     flex-direction: column;
@@ -342,7 +342,7 @@
   }
 
   .header-badge {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     color: var(--text-secondary);
     padding: 0 6px;
     border-radius: 8px;

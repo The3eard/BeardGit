@@ -305,13 +305,13 @@
   }
 
   .badge-scope {
-    background: rgba(88, 166, 255, 0.12);
+    background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
     color: var(--accent-blue);
-    border: 1px solid rgba(88, 166, 255, 0.2);
+    border: 1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent);
   }
 
   .badge-lang {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     color: var(--text-secondary);
     border: 1px solid var(--border);
   }
@@ -325,7 +325,7 @@
     align-items: center;
     gap: 6px;
     padding: 4px 12px;
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     border: 1px solid var(--border);
     border-radius: 5px;
     font-size: 12px;
@@ -343,7 +343,7 @@
   .save-btn.highlight {
     background: var(--accent-blue);
     border-color: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     opacity: 1;
   }
 
@@ -367,7 +367,7 @@
     align-items: center;
     gap: 8px;
     padding: 4px 8px;
-    background: rgba(227, 179, 65, 0.15);
+    background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
     border-radius: 4px;
     font-size: 11px;
     color: var(--accent-orange);
@@ -384,7 +384,7 @@
   }
 
   .notice-btn:hover {
-    background: rgba(227, 179, 65, 0.1);
+    background: color-mix(in srgb, var(--accent-orange) 10%, transparent);
   }
 
   .notice-btn.dismiss {
@@ -393,7 +393,7 @@
   }
 
   .notice-btn.dismiss:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   /* ─── Editor area ─── */

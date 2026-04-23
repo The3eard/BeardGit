@@ -242,7 +242,7 @@
   .task-row__progress {
     position: relative;
     height: 6px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     border-radius: 3px;
     overflow: hidden;
   }
@@ -285,7 +285,7 @@
   .task-row__error {
     margin: 0;
     font-size: 11px;
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
   }
 
   .task-row__actions {

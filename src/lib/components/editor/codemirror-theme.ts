@@ -31,6 +31,10 @@ export function createCodemirrorTheme(
 // Chrome theme (editor background, gutters, diff colors, etc.)
 // ---------------------------------------------------------------------------
 
+/* beardgit:allow-hex: CodeMirror requires concrete color strings (not CSS vars).
+ * The hex literals below are JS-level fallbacks for getCssVar() calls; they are
+ * equivalent to the pre-theme-load fallbacks in status.ts and are never exposed
+ * as raw CSS. applyTheme() writes the actual values before editors mount. */
 function buildChromeTheme(editor: ThemeEditorData | null, isDark: boolean): Extension {
   const bg = editor?.background ?? getCssVar('--bg-primary', '#0d1117');
   const bgSecondary = getCssVar('--bg-secondary', '#161b22');

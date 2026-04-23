@@ -297,7 +297,7 @@
   }
 
   .section-header:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
   }
 
   .section-chevron {
@@ -327,7 +327,7 @@
   .section-count {
     font-size: 10px;
     color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     padding: 1px 6px;
     border-radius: 10px;
   }
@@ -345,7 +345,7 @@
 
   .section-add:hover {
     color: var(--accent-blue);
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   /* ─── No CLAUDE.md banner ─── */
@@ -356,8 +356,8 @@
     gap: 8px;
     padding: 10px 12px;
     margin: 6px 8px;
-    background: rgba(88, 166, 255, 0.06);
-    border: 1px solid rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-blue) 15%, transparent);
     border-radius: 4px;
   }
 
@@ -399,7 +399,7 @@
   }
 
   .tree-folder:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
     color: var(--text-primary);
   }
 
@@ -442,11 +442,11 @@
   }
 
   .tree-leaf:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
   }
 
   .tree-leaf.selected {
-    background: rgba(88, 166, 255, 0.1);
+    background: var(--overlay-accent-blue);
   }
 
   .file-icon {

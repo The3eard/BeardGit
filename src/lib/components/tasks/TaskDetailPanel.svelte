@@ -275,7 +275,7 @@
   }
 
   .detail__error {
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
     white-space: pre-wrap !important;
   }
 
@@ -312,6 +312,6 @@
   }
 
   .detail__line--stderr {
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
   }
 </style>

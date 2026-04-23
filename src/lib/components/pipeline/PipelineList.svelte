@@ -379,7 +379,7 @@
   .header-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .ctx-overlay { position: fixed; inset: 0; z-index: 900; }
-  .ctx-menu { position: fixed; z-index: 901; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 4px 0; min-width: 180px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+  .ctx-menu { position: fixed; z-index: 901; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 4px 0; min-width: 180px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */ }
   .ctx-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 12px; cursor: pointer; }
   .ctx-menu button:hover { background: color-mix(in srgb, var(--text-primary) 6%, transparent); }
 </style>

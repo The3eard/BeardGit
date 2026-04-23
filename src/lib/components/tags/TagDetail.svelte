@@ -272,8 +272,8 @@
     font-weight: 600;
     padding: 2px 6px;
     border-radius: 3px;
-    background: rgba(240, 136, 62, 0.15);
-    color: #f0883e;
+    background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
+    color: var(--accent-orange);
     text-transform: uppercase;
   }
 
@@ -282,8 +282,8 @@
     font-weight: 600;
     padding: 2px 6px;
     border-radius: 3px;
-    background: rgba(139, 148, 158, 0.15);
-    color: #8b949e;
+    background: var(--overlay-accent-muted);
+    color: var(--text-secondary);
     text-transform: uppercase;
   }
 
@@ -297,7 +297,7 @@
 
   .meta-oid {
     font-family: var(--font-mono);
-    color: #f0883e;
+    color: var(--accent-orange);
   }
 
   .detail-body {
@@ -396,11 +396,11 @@
   }
 
   .stat-additions {
-    color: #3fb950;
+    color: var(--accent-green);
   }
 
   .stat-deletions {
-    color: #f85149;
+    color: var(--accent-red);
   }
 
   .stats-bar {
@@ -412,11 +412,11 @@
   }
 
   .stats-bar-add {
-    background: #3fb950;
+    background: var(--accent-green);
   }
 
   .stats-bar-del {
-    background: #f85149;
+    background: var(--accent-red);
   }
 
   .parents-row {
@@ -429,7 +429,7 @@
     font-size: 11px;
     font-family: var(--font-mono);
     color: var(--accent-blue);
-    background: rgba(88, 166, 255, 0.08);
+    background: var(--overlay-accent-blue);
     padding: 2px 8px;
     border-radius: 4px;
   }
@@ -441,7 +441,7 @@
 
   .parent-oid.clickable:hover {
     text-decoration: underline;
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
   }
 
   .tag-diff-preview {
@@ -479,19 +479,19 @@
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     color: var(--text-primary);
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
 
   .action-push:hover {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     border-color: var(--accent-green);
     color: var(--accent-green);
   }
 
   .action-delete:hover {
-    background: rgba(248, 81, 73, 0.15);
+    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
     border-color: var(--accent-red);
     color: var(--accent-red);
   }

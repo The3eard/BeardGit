@@ -181,7 +181,7 @@
 
 <style>
   .dialog-overlay {
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
     display: flex; align-items: center; justify-content: center; z-index: 1000;
   }
   .dialog {
@@ -214,7 +214,7 @@
     padding: 12px 16px; border-top: 1px solid var(--border);
     display: flex; justify-content: flex-end; gap: 8px;
   }
-  .dialog-error { color: var(--accent-red); font-size: 12px; background: rgba(248, 81, 73, 0.1); padding: 6px 8px; border-radius: 4px; }
+  .dialog-error { color: var(--accent-red); font-size: 12px; background: var(--overlay-accent-red); padding: 6px 8px; border-radius: 4px; }
   .empty { color: var(--text-secondary); font-size: 12px; }
   .spinner { border: 2px solid var(--border); border-top-color: var(--accent-blue); border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; align-self: center; }
   .spinner--sm { width: 10px; height: 10px; border-width: 1.5px; }

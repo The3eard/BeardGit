@@ -68,7 +68,7 @@
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 99;
     border: none;
     cursor: pointer;
@@ -88,7 +88,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: drop shadow neutral */
   }
   .picker-title {
     margin: 0;
@@ -117,10 +117,10 @@
     text-align: left;
   }
   .picker-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   }
   .picker-item.selected {
-    background: rgba(88, 166, 255, 0.1);
+    background: var(--overlay-accent-blue);
     color: var(--accent-blue);
     border-color: var(--accent-blue);
   }

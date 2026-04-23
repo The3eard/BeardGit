@@ -23,6 +23,9 @@ export const TEXT_PADDING = 14;
 export const REF_BADGE_HEIGHT = 16;
 export const REF_BADGE_PADDING = 6;
 
+/* beardgit:allow-hex: DEFAULT_GRAPH_THEME is a canvas-API fallback (GraphTheme interface
+ * uses string colors passed to ctx.fillStyle/strokeStyle, not CSS custom properties).
+ * The runtime theme overwrites these via GitGraph.svelte's applyTheme / graphTheme store. */
 export const DEFAULT_GRAPH_THEME: GraphTheme = {
   background: "#0d1117",
   currentLine: "#161b22",
@@ -133,18 +136,18 @@ function drawMrPrBadge(
   const height = 14;
 
   // Draw pill background — purple tint
-  ctx.fillStyle = "rgba(137, 87, 229, 0.2)";
+  ctx.fillStyle = "rgba(137, 87, 229, 0.2)"; /* beardgit:allow-hex: canvas ctx.fillStyle requires concrete color */
   ctx.beginPath();
   roundRect(ctx, x, y - height / 2, width, height, 3);
   ctx.fill();
 
   // Draw border
-  ctx.strokeStyle = "rgba(163, 113, 247, 0.4)";
+  ctx.strokeStyle = "rgba(163, 113, 247, 0.4)"; /* beardgit:allow-hex: canvas ctx.strokeStyle requires concrete color */
   ctx.lineWidth = 1;
   ctx.stroke();
 
   // Draw text
-  ctx.fillStyle = "#a371f7";
+  ctx.fillStyle = "#a371f7"; /* beardgit:allow-hex: canvas ctx.fillStyle requires concrete color */
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
   ctx.fillText(text, x + padding, y);
@@ -629,7 +632,7 @@ export function renderGraph(
       ctx.font = isMyCommit
         ? `bold 13px -apple-system, BlinkMacSystemFont, sans-serif`
         : `13px -apple-system, BlinkMacSystemFont, sans-serif`;
-      ctx.fillStyle = isSelected ? "#ffffff" : theme.textPrimary;
+      ctx.fillStyle = isSelected ? "#ffffff" : theme.textPrimary; /* beardgit:allow-hex: canvas requires concrete color; selected row inverts text */
       ctx.textBaseline = "middle";
       ctx.textAlign = "left";
       const summary = truncateText(ctx, node.summary, maxSummaryWidth - 4);

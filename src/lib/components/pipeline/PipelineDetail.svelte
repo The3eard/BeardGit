@@ -274,7 +274,7 @@
     letter-spacing: 0.5px;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.02);
+    background: color-mix(in srgb, var(--text-primary) 2%, transparent);
   }
 
   .stage-jobs {
@@ -314,7 +314,7 @@
   }
 
   .job-row:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
   }
 
   .job-row.selected {

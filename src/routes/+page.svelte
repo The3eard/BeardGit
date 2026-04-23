@@ -1139,7 +1139,7 @@
     margin-top: 8px;
     padding: 8px 24px;
     background: var(--accent-blue);
-    color: #ffffff;
+    color: var(--text-primary);
     border: none;
     border-radius: 6px;
     font-size: 13px;

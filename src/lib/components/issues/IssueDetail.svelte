@@ -180,8 +180,8 @@
         {#each detail.summary.labels as label}
           <span
             class="label-tag"
-            style:background={label.color ? `#${label.color}20` : "rgba(255,255,255,0.1)"}
-            style:color={label.color ? `#${label.color}` : "var(--text-secondary)"}
+            style:background={label.color ? `#${label.color}20` : "color-mix(in srgb, var(--text-primary) 10%, transparent)"} /* beardgit:allow-hex: dynamic GitHub API label color */
+            style:color={label.color ? `#${label.color}` : "var(--text-secondary)"} /* beardgit:allow-hex: dynamic GitHub API label color */
           >{label.name}</span>
         {/each}
         {#if detail.summary.labels.length === 0}
@@ -351,11 +351,11 @@
     border-radius: 10px;
     font-size: 11px;
     font-weight: 600;
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
   }
   .state-badge.closed {
-    background: rgba(163, 113, 247, 0.15);
+    background: color-mix(in srgb, var(--accent-purple) 15%, transparent);
     color: var(--accent-purple);
   }
   .detail-actions {
@@ -367,29 +367,29 @@
   }
   .close-btn {
     padding: 5px 12px;
-    background: rgba(248, 81, 73, 0.1);
+    background: var(--overlay-accent-red);
     color: var(--accent-red);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
   }
-  .close-btn:hover { background: rgba(248, 81, 73, 0.2); }
+  .close-btn:hover { background: color-mix(in srgb, var(--accent-red) 20%, transparent); }
   .reopen-btn {
     padding: 5px 12px;
-    background: rgba(63, 185, 80, 0.1);
+    background: var(--overlay-accent-green);
     color: var(--accent-green);
-    border: 1px solid rgba(63, 185, 80, 0.3);
+    border: 1px solid color-mix(in srgb, var(--accent-green) 30%, transparent);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
   }
-  .reopen-btn:hover { background: rgba(63, 185, 80, 0.2); }
+  .reopen-btn:hover { background: color-mix(in srgb, var(--accent-green) 20%, transparent); }
   .error-msg {
     margin: 0 0 12px;
     padding: 6px 10px;
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    background: var(--overlay-accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
     font-size: 12px;
@@ -484,7 +484,7 @@
   .assignee-tag {
     padding: 2px 8px;
     border-radius: 12px;
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     color: var(--accent-blue);
     font-size: 11px;
   }
@@ -587,7 +587,7 @@
   .btn-comment {
     padding: 5px 12px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: 1px solid var(--accent-blue);
     border-radius: 4px;
     font-size: 11px;

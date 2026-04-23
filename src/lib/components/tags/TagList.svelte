@@ -190,8 +190,8 @@
 <style>
   .btn-create {
     padding: 3px 10px;
-    background: rgba(88, 166, 255, 0.1);
-    border: 1px solid rgba(88, 166, 255, 0.3);
+    background: var(--overlay-accent-blue);
+    border: 1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-blue);
     font-size: 11px;
@@ -201,7 +201,7 @@
   }
 
   .btn-create:hover {
-    background: rgba(88, 166, 255, 0.18);
+    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
   }
 
   .tag-content {
@@ -267,7 +267,7 @@
 
   .action-btn {
     padding: 2px 8px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     border: 1px solid var(--border);
     color: var(--text-primary);
     border-radius: 4px;
@@ -277,17 +277,17 @@
   }
 
   .action-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: color-mix(in srgb, var(--text-primary) 15%, transparent);
   }
 
   .action-btn-push:hover {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     border-color: var(--accent-green);
     color: var(--accent-green);
   }
 
   .action-btn-danger:hover {
-    background: rgba(248, 81, 73, 0.2);
+    background: color-mix(in srgb, var(--accent-red) 20%, transparent);
     border-color: var(--accent-red);
     color: var(--accent-red);
   }
@@ -308,7 +308,7 @@
   }
 
   .push-all-btn:hover {
-    background: rgba(88, 166, 255, 0.05);
+    background: color-mix(in srgb, var(--accent-blue) 5%, transparent);
     opacity: 1;
   }
 
@@ -317,8 +317,8 @@
     font-weight: 600;
     padding: 1px 5px;
     border-radius: 3px;
-    background: rgba(240, 136, 62, 0.15);
-    color: #f0883e;
+    background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
+    color: var(--accent-orange);
     text-transform: uppercase;
     letter-spacing: 0.3px;
   }
@@ -346,7 +346,7 @@
   }
 
   .load-more-btn:hover:not(:disabled) {
-    background: rgba(88, 166, 255, 0.05);
+    background: color-mix(in srgb, var(--accent-blue) 5%, transparent);
   }
 
   .load-more-btn:disabled {

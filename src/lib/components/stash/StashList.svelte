@@ -158,7 +158,7 @@
 
   .btn-small {
     padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     border: 1px solid var(--border);
     color: var(--text-primary);
     border-radius: 4px;
@@ -167,12 +167,12 @@
   }
 
   .btn-small:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
   .btn-stash {
     padding: 6px 12px;
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     border: 1px solid var(--border);
     color: var(--text-primary);
     border-radius: 6px;
@@ -182,7 +182,7 @@
   }
 
   .btn-stash:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
   .stash-top {
@@ -252,7 +252,7 @@
 
   .action-btn {
     padding: 2px 8px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     border: 1px solid var(--border);
     color: var(--text-primary);
     border-radius: 4px;
@@ -262,24 +262,24 @@
   }
 
   .action-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: color-mix(in srgb, var(--text-primary) 15%, transparent);
   }
 
   .action-btn-apply:hover {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     border-color: var(--accent-green);
     color: var(--accent-green);
   }
 
   .action-btn-pop:hover {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     border-color: var(--accent-blue);
     color: var(--accent-blue);
   }
 
   .action-btn-danger:hover {
-    background: rgba(248, 81, 73, 0.2);
-    border-color: #f85149;
-    color: #f85149;
+    background: color-mix(in srgb, var(--accent-red) 20%, transparent);
+    border-color: var(--accent-red);
+    color: var(--accent-red);
   }
 </style>

@@ -131,7 +131,7 @@
   .action-btn-create {
     padding: 4px 10px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: none;
     border-radius: 4px;
     font-size: 11px;
@@ -213,15 +213,15 @@
     letter-spacing: 0.3px;
   }
   .badge-draft {
-    background: rgba(255, 193, 7, 0.15);
-    color: var(--accent-amber, #ffc107);
+    background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
+    color: var(--accent-orange);
   }
   .badge-prerelease {
-    background: rgba(33, 150, 243, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     color: var(--accent-blue);
   }
   .badge-published {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
   }
 </style>

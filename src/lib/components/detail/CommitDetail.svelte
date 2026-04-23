@@ -90,11 +90,12 @@
 
   function refStyle(ref: string): string {
     if (ref === "HEAD") {
-      return 'color: #f778ba; background: rgba(247, 120, 186, 0.12); border: 1px solid rgba(247, 120, 186, 0.3)';
+      return 'color: var(--accent-purple); background: color-mix(in srgb, var(--accent-purple) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-purple) 30%, transparent)';
     }
     const idx = refColorIndex(ref);
-    const { color, rgb } = REF_COLORS[idx];
-    return `color: ${color}; background: rgba(${rgb}, 0.12); border: 1px solid rgba(${rgb}, 0.3)`;
+    const { color } = REF_COLORS[idx];
+    /* beardgit:allow-hex: inline style using theme-token color vars via color-mix */
+    return `color: ${color}; background: color-mix(in srgb, ${color} 12%, transparent); border: 1px solid color-mix(in srgb, ${color} 30%, transparent)`;
   }
 
 </script>
@@ -241,7 +242,7 @@
   }
 
   .header-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
     color: var(--text-primary);
   }
 

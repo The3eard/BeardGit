@@ -177,7 +177,7 @@
   }
 
   .action-btn:hover {
-    background: rgba(88, 166, 255, 0.1);
+    background: var(--overlay-accent-blue);
   }
 
   .action-btn .nf {
@@ -190,7 +190,7 @@
   }
 
   .action-btn-danger:hover {
-    background: rgba(255, 166, 87, 0.1);
+    background: color-mix(in srgb, var(--accent-orange) 10%, transparent);
   }
 
   .action-btn-subtle {
@@ -199,7 +199,7 @@
 
   .action-btn-subtle:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .reset-wrapper {
@@ -217,7 +217,7 @@
     padding: 4px 0;
     z-index: 10;
     min-width: 200px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */
   }
 
   .reset-option {
@@ -234,11 +234,11 @@
   }
 
   .reset-option:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .reset-option-danger {
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
   }
 
   .detail-error {

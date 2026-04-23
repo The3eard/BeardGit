@@ -435,6 +435,6 @@
   .error {
     grid-column: 1 / -1;
     font-size: 11px;
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
   }
 </style>

@@ -222,7 +222,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 100;
     border: none;
     padding: 0;
@@ -241,7 +241,7 @@
     max-width: 560px;
     max-height: 80vh;
     overflow-y: auto;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: drop shadow neutral */
   }
   .dialog-title {
     margin: 0 0 16px;
@@ -304,12 +304,12 @@
   }
   .tab.active {
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
   }
   .error-msg {
     padding: 6px 10px;
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    background: var(--overlay-accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
     font-size: 12px;

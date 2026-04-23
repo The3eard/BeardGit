@@ -6,7 +6,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
   z-index: 999;
 }
 
@@ -21,7 +21,7 @@
   border-radius: 10px;
   padding: 20px 24px;
   z-index: 1000;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: drop shadow neutral */
 }
 
 /* Dialog title */
@@ -59,12 +59,12 @@
 
 /* Cancel / secondary button */
 .btn-cancel {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   color: var(--text-primary);
 }
 
 .btn-cancel:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
 }
 
 /* Primary / confirm button */
@@ -72,7 +72,7 @@
 .btn-confirm,
 .btn-create {
   background: var(--accent-blue);
-  color: #fff;
+  color: var(--text-primary);
   border-color: var(--accent-blue);
 }
 
@@ -85,7 +85,7 @@
 /* Destructive action button */
 .btn-destructive {
   background: var(--accent-red, #f85149);
-  color: #fff;
+  color: var(--text-primary);
   border-color: var(--accent-red, #f85149);
 }
 
@@ -111,7 +111,7 @@
 
 .btn-icon:hover:not(:disabled) {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
 }
 
 .btn-icon:disabled {

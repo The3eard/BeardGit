@@ -87,7 +87,7 @@
   }
 
   .tree-folder:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
     color: var(--text-primary);
   }
 
@@ -129,11 +129,11 @@
   }
 
   .tree-leaf:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
   }
 
   .tree-leaf.selected {
-    background: rgba(88, 166, 255, 0.1);
+    background: var(--overlay-accent-blue);
   }
 
   .tree-leaf.is-remote {

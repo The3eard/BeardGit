@@ -984,12 +984,12 @@
 
   .merge-btn.cancel {
     color: var(--accent-red);
-    border-color: rgba(248, 81, 73, 0.3);
-    background: rgba(248, 81, 73, 0.1);
+    border-color: color-mix(in srgb, var(--accent-red) 30%, transparent);
+    background: var(--overlay-accent-red);
   }
 
   .merge-btn.cancel:hover {
-    background: rgba(248, 81, 73, 0.2);
+    background: color-mix(in srgb, var(--accent-red) 20%, transparent);
   }
 
   .conflict-counter {

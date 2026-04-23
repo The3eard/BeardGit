@@ -436,7 +436,7 @@
 
   .edit-toggle:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   }
 
   .edit-actions {
@@ -457,7 +457,7 @@
   }
 
   .edit-action:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .edit-action.primary {
@@ -488,11 +488,11 @@
   }
 
   .nav-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   }
 
   .sidebar:not(.edit-mode) .nav-item.active {
-    background: rgba(88, 166, 255, 0.1);
+    background: var(--overlay-accent-blue);
     color: var(--accent-blue);
   }
 
@@ -518,7 +518,7 @@
   .nav-badge {
     font-size: 10px;
     background: var(--accent-blue);
-    color: #ffffff;
+    color: var(--text-primary);
     border-radius: 8px;
     padding: 0 5px;
     min-width: 16px;
@@ -531,13 +531,13 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #666666;
+    background: var(--text-secondary);
     margin-right: 4px;
     vertical-align: middle;
   }
 
   .provider-status-dot.connected {
-    background: #3fb950;
+    background: var(--accent-green);
   }
 
   .spacer {
@@ -558,7 +558,7 @@
   }
 
   .edit-row.drag-over {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
   }
 
   .drag-handle {

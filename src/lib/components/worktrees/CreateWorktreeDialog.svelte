@@ -171,10 +171,10 @@
 
   .error-text {
     font-size: 12px;
-    color: #f85149;
+    color: var(--accent-red);
     margin: 0 0 12px;
     padding: 6px 10px;
-    background: rgba(248, 81, 73, 0.08);
+    background: var(--overlay-accent-red);
     border-radius: 6px;
     word-break: break-word;
   }

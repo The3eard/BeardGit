@@ -239,7 +239,7 @@
 
   .tab-btn.active {
     background: var(--accent-blue);
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   .tab-btn:not(.active):hover {

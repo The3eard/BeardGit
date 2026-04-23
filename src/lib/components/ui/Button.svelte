@@ -151,7 +151,7 @@
   .bg-btn--primary {
     background: var(--accent-blue);
     border-color: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
   }
   .bg-btn--primary:hover:not(:disabled) {
     opacity: 0.9;
@@ -189,7 +189,7 @@
   .bg-btn--danger {
     background: var(--accent-red);
     border-color: var(--accent-red);
-    color: #fff;
+    color: var(--text-primary);
   }
   .bg-btn--danger:hover:not(:disabled) {
     opacity: 0.9;

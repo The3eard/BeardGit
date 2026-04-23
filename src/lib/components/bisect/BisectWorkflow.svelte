@@ -336,8 +336,8 @@
     align-items: center;
     gap: 10px;
     padding: 10px 14px;
-    background: rgba(88, 166, 255, 0.08);
-    border: 1px solid rgba(88, 166, 255, 0.2);
+    background: var(--overlay-accent-blue);
+    border: 1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent);
     border-radius: 8px;
   }
 
@@ -362,33 +362,33 @@
   }
 
   .btn-good {
-    background: rgba(63, 185, 80, 0.12);
-    color: var(--accent-green, #3fb950);
-    border: 1px solid rgba(63, 185, 80, 0.3);
+    background: color-mix(in srgb, var(--accent-green) 12%, transparent);
+    color: var(--accent-green);
+    border: 1px solid color-mix(in srgb, var(--accent-green) 30%, transparent);
   }
 
   .btn-good:hover:not(:disabled) {
-    background: rgba(63, 185, 80, 0.2);
+    background: color-mix(in srgb, var(--accent-green) 20%, transparent);
   }
 
   .btn-bad {
-    background: rgba(248, 81, 73, 0.12);
-    color: var(--accent-red, #f85149);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    background: color-mix(in srgb, var(--accent-red) 12%, transparent);
+    color: var(--accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
   }
 
   .btn-bad:hover:not(:disabled) {
-    background: rgba(248, 81, 73, 0.2);
+    background: color-mix(in srgb, var(--accent-red) 20%, transparent);
   }
 
   .btn-skip {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     color: var(--text-secondary);
     border: 1px solid var(--border);
   }
 
   .btn-skip:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
   .label-icon {
@@ -409,13 +409,13 @@
   }
 
   .mark-badge.good {
-    background: rgba(63, 185, 80, 0.12);
-    color: var(--accent-green, #3fb950);
+    background: color-mix(in srgb, var(--accent-green) 12%, transparent);
+    color: var(--accent-green);
   }
 
   .mark-badge.bad {
-    background: rgba(248, 81, 73, 0.12);
-    color: var(--accent-red, #f85149);
+    background: color-mix(in srgb, var(--accent-red) 12%, transparent);
+    color: var(--accent-red);
   }
 
   .auto-section {
@@ -425,13 +425,13 @@
   }
 
   .btn-auto {
-    background: rgba(136, 98, 235, 0.12);
-    color: var(--accent-purple, #8862eb);
-    border: 1px solid rgba(136, 98, 235, 0.3);
+    background: color-mix(in srgb, var(--accent-purple) 12%, transparent);
+    color: var(--accent-purple);
+    border: 1px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
   }
 
   .btn-auto:hover:not(:disabled) {
-    background: rgba(136, 98, 235, 0.2);
+    background: color-mix(in srgb, var(--accent-purple) 20%, transparent);
   }
 
   .loading-indicator {

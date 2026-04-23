@@ -84,13 +84,13 @@
   }
 
   .badge-completed {
-    background: color-mix(in srgb, var(--accent-green, #2ea043) 18%, transparent);
-    color: var(--accent-green, #2ea043);
+    background: color-mix(in srgb, var(--accent-green) 18%, transparent);
+    color: var(--accent-green);
   }
 
   .badge-failed {
-    background: color-mix(in srgb, #f85149 18%, transparent);
-    color: #f85149;
+    background: color-mix(in srgb, var(--accent-red) 18%, transparent);
+    color: var(--accent-red);
   }
 
   .badge-cancelled {

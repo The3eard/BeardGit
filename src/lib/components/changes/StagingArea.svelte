@@ -380,8 +380,8 @@
     align-items: center;
     justify-content: center;
     border-radius: 5px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid color-mix(in srgb, var(--text-primary) 6%, transparent);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     color: var(--text-secondary);
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -393,7 +393,7 @@
 
   .toolbar-icon-btn:hover {
     background: var(--overlay-hover);
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: color-mix(in srgb, var(--text-primary) 10%, transparent);
     color: var(--text-primary);
   }
 
@@ -405,23 +405,23 @@
   .toolbar-icon-btn.ai-commit {
     color: var(--accent-purple);
     background: var(--overlay-accent-purple);
-    border-color: rgba(188, 140, 255, 0.12);
+    border-color: color-mix(in srgb, var(--accent-purple) 12%, transparent);
   }
 
   .toolbar-icon-btn.ai-commit:hover:not(:disabled) {
-    background: rgba(188, 140, 255, 0.18);
-    border-color: rgba(188, 140, 255, 0.25);
+    background: color-mix(in srgb, var(--accent-purple) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-purple) 25%, transparent);
   }
 
   .toolbar-icon-btn.ai-review {
     color: var(--accent-blue);
     background: var(--overlay-accent-blue);
-    border-color: rgba(137, 180, 250, 0.12);
+    border-color: color-mix(in srgb, var(--accent-blue) 12%, transparent);
   }
 
   .toolbar-icon-btn.ai-review:hover:not(:disabled) {
-    background: rgba(137, 180, 250, 0.18);
-    border-color: rgba(137, 180, 250, 0.25);
+    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-blue) 25%, transparent);
   }
 
   /* ── Overflow menu ───────────────────────────────────── */
@@ -474,7 +474,7 @@
   .commit-btn {
     padding: 6px 16px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: none;
     border-radius: 6px;
     font-size: 12px;
@@ -497,7 +497,7 @@
     display: inline-block;
     width: 12px;
     height: 12px;
-    border: 1.5px solid rgba(188, 140, 255, 0.3);
+    border: 1.5px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
     border-top-color: var(--accent-purple);
     border-radius: 50%;
     animation: ai-spin 0.6s linear infinite;
@@ -523,7 +523,7 @@
   .patch-btn:hover {
     background: var(--overlay-hover);
     color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: color-mix(in srgb, var(--text-primary) 15%, transparent);
   }
 
   .patch-btn.secondary {

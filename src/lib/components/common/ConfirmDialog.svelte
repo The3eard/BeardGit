@@ -72,7 +72,7 @@
   .dialog-detail {
     margin: 0 0 12px;
     padding: 8px 10px;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     border-radius: 6px;
     font-size: 12px;
@@ -90,7 +90,7 @@
   }
 
   .btn-confirm.destructive {
-    background: var(--accent-red, #f85149);
-    border-color: var(--accent-red, #f85149);
+    background: var(--accent-red);
+    border-color: var(--accent-red);
   }
 </style>

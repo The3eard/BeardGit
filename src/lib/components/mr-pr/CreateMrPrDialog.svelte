@@ -203,8 +203,8 @@
   .error-msg {
     margin: 0 0 12px;
     padding: 6px 10px;
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    background: var(--overlay-accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
     font-size: 12px;
