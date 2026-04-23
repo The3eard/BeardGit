@@ -976,5 +976,12 @@
   "repo_config_authenticate_body": "Inicia sesión en la CLI del forge para que BeardGit pueda leer y escribir los ajustes del repositorio.",
   "repo_config_go_to_integrations": "Ir a Ajustes → Integraciones",
   "repo_config_saved_toast": "Ajustes del repositorio guardados",
+  "sidebar_customize": "Personalizar barra lateral",
+  "sidebar_done": "Hecho",
+  "sidebar_reset": "Restablecer",
+  "sidebar_min_visible": "Debe haber al menos una sección visible.",
+  "sidebar_reorder_aria": "Reordenar {label}",
+  "sidebar_hide_aria": "Ocultar {label}",
+  "sidebar_show_aria": "Mostrar {label}",
   "theme_load_failed": "No se pudo cargar el tema. Se usarán los valores predeterminados."
 }
