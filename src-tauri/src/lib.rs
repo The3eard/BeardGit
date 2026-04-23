@@ -303,6 +303,8 @@ pub fn run() {
             // Sidebar
             app_core::commands::get_sidebar_collapsed,
             app_core::commands::set_sidebar_collapsed,
+            app_core::commands::get_sidebar_nav_layout,
+            app_core::commands::set_sidebar_nav_layout,
             // Auto-update preference
             app_core::commands::get_auto_check_updates,
             app_core::commands::set_auto_check_updates,

@@ -128,6 +128,48 @@ pub fn set_reauth_dismissed(
     config.save(&state.config_path).map_err(|e| e.to_string())
 }
 
+// ─── Sidebar nav layout (Phase 11) ───────────────────────────────────
+
+/// Serialisable view of the user's customised Navigation sidebar layout.
+///
+/// `order` is the id sequence (subset of the default order, plus any ids
+/// reordered by the user). `hidden` lists ids the user has toggled off.
+/// The two vecs are independent — a hidden item can still appear in
+/// `order` so restoring it preserves its position.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SidebarNavLayout {
+    /// Persisted id order, e.g. `["changes", "graph", "branches", …]`.
+    pub order: Vec<String>,
+    /// Ids the user has chosen to hide from the Navigation section.
+    pub hidden: Vec<String>,
+}
+
+/// Read the current Navigation sidebar layout.
+#[tauri::command]
+pub fn get_sidebar_nav_layout(
+    state: State<'_, AppState>,
+) -> Result<SidebarNavLayout, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(SidebarNavLayout {
+        order: config.sidebar_nav_order.clone(),
+        hidden: config.sidebar_nav_hidden.clone(),
+    })
+}
+
+/// Persist the Navigation sidebar layout. The frontend debounces writes
+/// by ~250 ms so rapid drag or eye-toggle interactions don't thrash the
+/// config file.
+#[tauri::command]
+pub fn set_sidebar_nav_layout(
+    layout: SidebarNavLayout,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.sidebar_nav_order = layout.order;
+    config.sidebar_nav_hidden = layout.hidden;
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
 // ─── AI background settings (Phase 10) ───────────────────────────────────
 
 /// Serialisable view of the AI background settings.
@@ -275,5 +317,28 @@ mod tests {
             !loaded.locale.is_empty(),
             "default config should have a non-empty locale"
         );
+    }
+
+    #[test]
+    fn app_config_sidebar_nav_layout_roundtrips() {
+        // Proves the persistence contract that `get/set_sidebar_nav_layout`
+        // rely on. The command wrappers themselves can't be exercised here
+        // without a `State<AppState>`, but they are thin pass-throughs over
+        // the same `config.save(path)` → `AppConfig::load(path)` path this
+        // test drives.
+        let tmp = tempdir().unwrap();
+        let path = tmp.path().join("config.json");
+        let mut cfg = AppConfig::default();
+        cfg.sidebar_nav_order =
+            vec!["changes".into(), "graph".into(), "ai-sessions".into()];
+        cfg.sidebar_nav_hidden = vec!["submodules".into(), "reflog".into()];
+        cfg.save(&path).expect("save");
+
+        let loaded = AppConfig::load(&path).expect("load");
+        assert_eq!(
+            loaded.sidebar_nav_order,
+            vec!["changes", "graph", "ai-sessions"]
+        );
+        assert_eq!(loaded.sidebar_nav_hidden, vec!["submodules", "reflog"]);
     }
 }
