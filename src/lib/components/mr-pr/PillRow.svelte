@@ -86,7 +86,7 @@
     gap: 4px;
     padding: 2px 4px 2px 8px;
     border-radius: 12px;
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     color: var(--accent-blue);
     font-size: 11px;
   }
@@ -109,7 +109,7 @@
     justify-content: center;
     padding: 0;
   }
-  .pill-remove:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+  .pill-remove:hover { opacity: 1; background: color-mix(in srgb, var(--text-primary) 10%, transparent); }
   .pill-remove:disabled { opacity: 0.3; cursor: not-allowed; }
   .pill-empty {
     color: var(--text-secondary);

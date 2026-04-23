@@ -166,7 +166,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 99;
     border: none;
     cursor: pointer;
@@ -185,7 +185,7 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 18px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: drop shadow neutral */
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -231,7 +231,7 @@
   .chip {
     padding: 2px 6px 2px 8px;
     border-radius: 10px;
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     color: var(--accent-blue);
     font-size: 11px;
     display: inline-flex;
@@ -268,8 +268,8 @@
   .error-msg {
     margin: 0;
     padding: 6px 10px;
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    background: var(--overlay-accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
     font-size: 12px;

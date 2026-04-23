@@ -668,11 +668,11 @@
   }
 
   .merge-status.mergeable {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
   }
   .merge-status.not-mergeable {
-    background: rgba(248, 81, 73, 0.15);
+    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
     color: var(--accent-red);
   }
 
@@ -681,17 +681,17 @@
     border-radius: 3px;
     font-size: 10px;
     font-weight: 600;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     color: var(--text-secondary);
   }
 
   .review-badge.approved {
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
   }
 
   .review-badge.changes-requested {
-    background: rgba(248, 81, 73, 0.15);
+    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
     color: var(--accent-red);
   }
 
@@ -706,9 +706,9 @@
 
   .action-btn-approve {
     padding: 5px 14px;
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
-    border: 1px solid rgba(63, 185, 80, 0.3);
+    border: 1px solid color-mix(in srgb, var(--accent-green) 30%, transparent);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
@@ -716,7 +716,7 @@
   }
 
   .action-btn-approve:hover {
-    background: rgba(63, 185, 80, 0.25);
+    background: color-mix(in srgb, var(--accent-green) 25%, transparent);
   }
 
   .merge-group {
@@ -728,7 +728,7 @@
   .merge-btn-main {
     padding: 5px 14px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: 1px solid var(--accent-blue);
     border-radius: 4px 0 0 4px;
     font-size: 11px;
@@ -744,9 +744,9 @@
   .merge-dropdown-trigger {
     padding: 5px 8px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: 1px solid var(--accent-blue);
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid color-mix(in srgb, var(--text-primary) 20%, transparent);
     border-radius: 0 4px 4px 0;
     font-family: var(--font-icons);
     font-size: 9px;
@@ -768,7 +768,7 @@
     padding: 4px;
     min-width: 160px;
     z-index: 10;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: drop shadow neutral */
   }
 
   .merge-dropdown-menu button {
@@ -785,7 +785,7 @@
   }
 
   .merge-dropdown-menu button:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .merge-dropdown-menu button.active {
@@ -795,22 +795,22 @@
 
   .close-btn {
     padding: 5px 12px;
-    background: rgba(248, 81, 73, 0.1);
+    background: var(--overlay-accent-red);
     color: var(--accent-red);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
     margin-left: auto;
   }
 
-  .close-btn:hover { background: rgba(248, 81, 73, 0.2); }
+  .close-btn:hover { background: color-mix(in srgb, var(--accent-red) 20%, transparent); }
 
   .error-msg {
     margin: 0 0 12px;
     padding: 6px 10px;
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    background: var(--overlay-accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
     font-size: 12px;
@@ -850,7 +850,7 @@
 
   .description-body :global(code) {
     padding: 1px 4px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     border-radius: 3px;
     font-family: var(--font-mono);
     font-size: 12px;
@@ -858,7 +858,7 @@
 
   .description-body :global(pre) {
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     border-radius: 6px;
     overflow-x: auto;
@@ -945,7 +945,7 @@
   .diff-error {
     margin: 0;
     padding: 6px 10px;
-    background: var(--overlay-accent-red, rgba(248, 81, 73, 0.12));
+    background: var(--overlay-accent-red);
     color: var(--accent-red);
     font-size: 12px;
     border-radius: 4px;
@@ -966,8 +966,8 @@
     color: var(--text-primary);
     border-radius: 3px;
   }
-  .file-row:hover { background: rgba(255, 255, 255, 0.04); }
-  .file-row.selected { background: rgba(88, 166, 255, 0.10); }
+  .file-row:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
+  .file-row.selected { background: var(--overlay-accent-blue); }
 
   .file-status {
     width: 14px;
@@ -1031,7 +1031,7 @@
 
   .comment-body :global(code) {
     padding: 1px 4px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     border-radius: 3px;
     font-family: var(--font-mono);
     font-size: 11px;
@@ -1108,7 +1108,7 @@
   .btn-comment {
     padding: 5px 12px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-primary);
     border: 1px solid var(--accent-blue);
     border-radius: 4px;
     font-size: 11px;
@@ -1120,15 +1120,15 @@
 
   .btn-request-changes {
     padding: 5px 12px;
-    background: rgba(248, 81, 73, 0.1);
+    background: var(--overlay-accent-red);
     color: var(--accent-red);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
   }
 
-  .btn-request-changes:hover { background: rgba(248, 81, 73, 0.2); }
+  .btn-request-changes:hover { background: color-mix(in srgb, var(--accent-red) 20%, transparent); }
   .btn-request-changes:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .draft-toggle-btn {
@@ -1140,31 +1140,31 @@
     font-size: 11px;
     cursor: pointer;
   }
-  .draft-toggle-btn:hover { background: rgba(255, 255, 255, 0.05); }
+  .draft-toggle-btn:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
 
   .checkout-btn {
     padding: 5px 12px;
-    background: rgba(88, 166, 255, 0.1);
+    background: var(--overlay-accent-blue);
     color: var(--accent-blue);
-    border: 1px solid rgba(88, 166, 255, 0.3);
+    border: 1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
   }
-  .checkout-btn:hover { background: rgba(88, 166, 255, 0.2); }
+  .checkout-btn:hover { background: color-mix(in srgb, var(--accent-blue) 20%, transparent); }
   .checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .action-btn-reopen {
     padding: 5px 12px;
-    background: rgba(63, 185, 80, 0.15);
+    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
-    border: 1px solid rgba(63, 185, 80, 0.3);
+    border: 1px solid color-mix(in srgb, var(--accent-green) 30%, transparent);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;
     margin-left: auto;
   }
-  .action-btn-reopen:hover { background: rgba(63, 185, 80, 0.25); }
+  .action-btn-reopen:hover { background: color-mix(in srgb, var(--accent-green) 25%, transparent); }
 
   .comment.resolved { opacity: 0.6; }
 
@@ -1191,7 +1191,7 @@
     border-radius: 6px;
     color: var(--text-primary);
     font-size: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: drop shadow neutral */
     z-index: 100;
   }
   .toast-sub { color: var(--text-secondary); font-size: 11px; }
