@@ -68,10 +68,14 @@
   import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
   import RepoConfigDialog from "$lib/components/repo-config/RepoConfigDialog.svelte";
+  import RepoConfigPage from "$lib/components/repo-config/RepoConfigPage.svelte";
+  import { initRepoConfigRouteSync } from "$lib/stores/repoConfigRoute";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
   import { startConversationListeners, stopConversationListeners } from "$lib/stores/aiConversations";
 
   let activeView = $state("graph");
+  let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
+  let teardownRepoConfigRoute: (() => void) | null = null;
   let showAiBackgroundDialog = $state(false);
 
   // Open the dialog whenever any entry point pings the shared signal store.
@@ -174,7 +178,7 @@
 
     // Reset view to graph on project tab switch for instant responsiveness
     onProjectSwitch(() => {
-      activeView = "graph";
+      tryChangeView("graph");
       selectedDiff = null;
       selectedStagingFile = null;
       // Point the AI session listeners at the freshly active project.
@@ -439,12 +443,16 @@
     ];
     registerShortcuts(allShortcutIds);
     registeredShortcutIds = allShortcutIds.map((s) => s.id);
+
+    teardownRepoConfigRoute = initRepoConfigRouteSync();
   });
 
   onDestroy(() => {
     if (registeredShortcutIds.length > 0) {
       unregisterShortcuts(registeredShortcutIds);
     }
+    teardownRepoConfigRoute?.();
+    teardownRepoConfigRoute = null;
   });
 
   /**
@@ -463,6 +471,22 @@
     }
   }
 
+  /**
+   * Route any proposed `activeView` change through `RepoConfigPage`'s
+   * navigation guard when the user is currently on the repo-config view
+   * and has unsaved edits in the active section. Outside that view the
+   * assignment runs straight through.
+   */
+  function tryChangeView(nextView: string): void {
+    if (activeView === "repo-config" && repoConfigPageRef) {
+      repoConfigPageRef.requestGuardedNavigation(() => {
+        activeView = nextView;
+      });
+    } else {
+      activeView = nextView;
+    }
+  }
+
   async function handleNavigate(view: string) {
     // If a terminal tab is active, switch to the last project tab first
     const tab = get(activeTab);
@@ -470,7 +494,7 @@
       const projIdx = findLastProjectTabIndex();
       if (projIdx >= 0) {
         await switchToTab(projIdx);
-        activeView = view;
+        tryChangeView(view);
         selectedDiff = null;
         selectedStagingFile = null;
       }
@@ -481,7 +505,7 @@
       // Switch to project segment of the same composite tab
       const idx = get(activeTabIndex);
       switchSegment(idx, -1);
-      activeView = view;
+      tryChangeView(view);
       selectedDiff = null;
       selectedStagingFile = null;
       return;
@@ -490,7 +514,7 @@
     if (view === "blame") {
       blamePreviousView.set(activeView);
     }
-    activeView = view;
+    tryChangeView(view);
     selectedDiff = null;
     selectedStagingFile = null;
   }
@@ -666,7 +690,7 @@
   });
   $effect(() => {
     const v = $activeViewStore;
-    if (v !== activeView) activeView = v;
+    if (v !== activeView) tryChangeView(v);
   });
 </script>
 
@@ -770,13 +794,15 @@
       {:else if activeView === "ai-sessions"}
         <AiSessionsView />
       {:else if activeView === "blame"}
-        <BlameView onNavigateBack={(view) => { activeView = view; }} />
+        <BlameView onNavigateBack={(view) => tryChangeView(view)} />
       {:else if activeView === "merge-requests"}
         <MrPrView />
       {:else if activeView === "issues"}
         <IssueView />
       {:else if activeView === "releases"}
         <ReleaseView />
+      {:else if activeView === "repo-config"}
+        <RepoConfigPage bind:this={repoConfigPageRef} />
       {:else if $isLoading}
         <div class="welcome-screen">
           <div class="spinner spinner--large"></div>
