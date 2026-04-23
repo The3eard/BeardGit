@@ -8,6 +8,14 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 `feat(branches): unified create-branch dialog, rename, force-push, Cmd+Shift+B`. The Branches panel gains a visible "+" in its header that opens a new `CreateBranchDialog`, the single entry point used by every create-branch call site (header, context menu, graph, reflog, and the new global `⌘⇧B` / `Ctrl+Shift+B` shortcut). The dialog pre-fills the local name by stripping the matching remote prefix when branching from a remote ref, offers a "From" picker covering local and remote branches, and chains a `checkoutBranch` when "Check out new branch" is ticked (default on). Two previously WIP context-menu items are live: "New branch from here" opens the dialog with the clicked ref as the source; "Push" fires directly to the single configured remote or expands to a submenu when multiple remotes exist. Branch rename ships as a new dialog + `rename_branch` Tauri command; renaming the checked-out branch updates HEAD automatically and the panel's selection follows the new name. Force-push gets its own submenu that always requires a destructive confirm — even for single-remote repos — and passes `--force-with-lease` to `git push` along with `-u` so first-time pushes establish the upstream tracking ref. The `graph_branch_name_prompt` `window.prompt()` calls in the graph and reflog are retired.
 
+## [Unreleased] — Sidebar customization
+
+### Sidebar — reorder and hide Navigation items
+
+`feat(sidebar): user-customisable Navigation order + hide toggles`. The Navigation section of the sidebar now has an explicit edit mode — click the pencil in the `NAVIGATION` label to enter. In edit mode each row gets a drag handle, an eye toggle, and the section header gains `Reset` + `Done` buttons. Drag-and-drop reorders items (keyboard: `ArrowUp`/`ArrowDown` on the drag handle); the eye toggles individual items between visible and hidden with a guardrail preventing the user from hiding every last section. Layout is persisted app-wide (not per-repo) via two new `AppConfig` fields (`sidebar_nav_order`, `sidebar_nav_hidden`) and debounced by 250 ms. When a future release ships a new nav item, it appears automatically at the end of the saved order.
+
+The Provider section (GitHub / GitLab) is no longer user-managed — it auto-hides when no provider is connected, and if the user was viewing a provider-scoped route (`pipelines`, `issues`, `merge-requests`, `releases`, `repo-config`) at disconnect time, the app reroutes them back to the Graph.
+
 ## [unreleased] — AI sessions list trim
 
 ### AI sessions — one-line rows, detail-pane actions
