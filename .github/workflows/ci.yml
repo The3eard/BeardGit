@@ -30,6 +30,31 @@ jobs:
       - name: Svelte check
         run: npm run check
 
+  lint:
+    name: Lint (stylelint + eslint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Paraglide messages
+        # Paraglide output is gitignored; lint imports from $lib/paraglide so
+        # it must exist before eslint/svelte-eslint-parser can parse .svelte files.
+        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+
+      - name: Stylelint (color-no-hex)
+        run: npm run lint:style
+
+      - name: ESLint (no-hex-in-svelte)
+        run: npm run lint:js
+
   rust-checks:
     name: Rust checks
     runs-on: ubuntu-latest
