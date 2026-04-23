@@ -179,6 +179,8 @@ export interface CiRun {
   sha: string;
   source: string | null;
   name: string | null;
+  /** Username of the user/bot that triggered this run. */
+  actor: string | null;
   created_at: string | null;
   updated_at: string | null;
   web_url: string;
