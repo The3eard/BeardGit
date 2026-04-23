@@ -16,6 +16,7 @@ import { refreshStatuses } from "./changes";
 import { refreshStashes } from "./stashes";
 import { refreshWorktrees } from "./worktrees";
 import { refreshRepoConfig } from "./repoConfig";
+import { refreshRemotes } from "./remotes";
 
 /** Shape emitted by `mutation_events::emit_mutation`. */
 export interface MutationFlags {
@@ -67,7 +68,10 @@ export function dispatchRefresh(flags: MutationFlags): void {
   }
   if (flags.stashes_changed) void refreshStashes();
   if (flags.worktrees_changed) void refreshWorktrees();
-  if (flags.remotes_changed) void refreshRepoConfig();
+  if (flags.remotes_changed) {
+    void refreshRepoConfig();
+    void refreshRemotes();
+  }
 }
 
 function flush(): void {
