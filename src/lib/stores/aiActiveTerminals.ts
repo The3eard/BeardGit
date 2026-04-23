@@ -20,9 +20,13 @@
  * row is a different affordance.
  */
 
-import { derived } from "svelte/store";
+import { derived, writable } from "svelte/store";
 import { openTabs } from "./tabs";
-import { aiBackgroundRuns } from "./aiBackground";
+import {
+  aiBackgroundRuns,
+  selectedBackgroundSessionId,
+} from "./aiBackground";
+import { selectedConversationId } from "./aiConversations";
 import type { TerminalTabInfo, AiSession } from "$lib/types";
 
 /**
@@ -99,4 +103,58 @@ export const activeAiTerminals = derived(
  */
 export function countActiveAiTerminals(list: ActiveTerminal[]): number {
   return list.length;
+}
+
+/**
+ * Currently selected active terminal (tab / segment / bg), or null.
+ *
+ * Added in the "AI sessions list trim" slice so tab/segment rows — which
+ * previously had no detail branch — gain a selection target used by
+ * `AiSessionDetail.svelte`. Mutually exclusive with
+ * `selectedConversationId` and `selectedBackgroundSessionId`; use
+ * `selectAiSessionRow` to write any of the three so the others clear.
+ */
+export const selectedActiveTerminal = writable<ActiveTerminal | null>(null);
+
+/**
+ * Mutually-exclusive selection across the three AI-session selection
+ * stores. Callers set the kind of row they're selecting and this helper
+ * writes the right store while clearing the other two in lockstep, so the
+ * detail pane never renders stale selection from a previous branch.
+ *
+ * The discriminant matches the three detail-pane branches in
+ * `AiSessionDetail.svelte`:
+ * - `"conversation"` → writes `selectedConversationId`
+ * - `"background"`   → writes `selectedBackgroundSessionId`
+ * - `"active"`       → writes `selectedActiveTerminal`
+ */
+export type AiSessionSelection =
+  | { kind: "conversation"; id: string }
+  | { kind: "background"; id: string }
+  | { kind: "active"; active: ActiveTerminal };
+
+/**
+ * Apply an `AiSessionSelection`, clearing the other two stores.
+ *
+ * The ordering is deliberate: clear the two other stores BEFORE setting
+ * the new one so a subscriber that reacts on the new value never observes
+ * more than one non-null selection simultaneously.
+ */
+export function selectAiSessionRow(selection: AiSessionSelection): void {
+  if (selection.kind === "conversation") {
+    selectedBackgroundSessionId.set(null);
+    selectedActiveTerminal.set(null);
+    selectedConversationId.set(selection.id);
+    return;
+  }
+  if (selection.kind === "background") {
+    selectedConversationId.set(null);
+    selectedActiveTerminal.set(null);
+    selectedBackgroundSessionId.set(selection.id);
+    return;
+  }
+  // kind === "active"
+  selectedConversationId.set(null);
+  selectedBackgroundSessionId.set(null);
+  selectedActiveTerminal.set(selection.active);
 }
