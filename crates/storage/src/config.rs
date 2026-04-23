@@ -30,6 +30,29 @@ fn default_ai_background_concurrency_cap() -> u32 {
     3
 }
 
+/// Canonical order of the Navigation sidebar items. Kept in lockstep with
+/// the `DEFAULT_ORDER` constant on the frontend (`src/lib/utils/applyLayout.ts`).
+/// When a new nav item ships, append its id here — existing user layouts
+/// pick it up via the `applyLayout` tail-merge so nothing is silently dropped.
+fn default_sidebar_nav_order() -> Vec<String> {
+    vec![
+        "graph",
+        "changes",
+        "branches",
+        "tags",
+        "stashes",
+        "worktrees",
+        "reflog",
+        "bisect",
+        "submodules",
+        "ai-config",
+        "ai-sessions",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect()
+}
+
 /// Persisted provider connection info for auto-reconnect on startup.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SavedProvider {
@@ -108,6 +131,16 @@ pub struct AppConfig {
     #[serde(default)]
     pub sidebar_collapsed: bool,
 
+    /// Persisted order of the Navigation sidebar items (by id). New ids
+    /// not present here are appended at the end by the frontend's
+    /// `applyLayout` helper.
+    #[serde(default = "default_sidebar_nav_order")]
+    pub sidebar_nav_order: Vec<String>,
+
+    /// Ids of Navigation sidebar items the user has chosen to hide.
+    #[serde(default)]
+    pub sidebar_nav_hidden: Vec<String>,
+
     /// Preferred AI provider kind (e.g. `"claude_code"`, `"codex"`, `"open_code"`).
     /// `None` means "use first detected".
     #[serde(default)]
@@ -179,6 +212,8 @@ impl Default for AppConfig {
             ui_scale: default_ui_scale(),
             graph_columns: Vec::new(),
             sidebar_collapsed: false,
+            sidebar_nav_order: default_sidebar_nav_order(),
+            sidebar_nav_hidden: Vec::new(),
             preferred_ai_provider: None,
             ai_worktree_root: None,
             ai_background_concurrency_cap: default_ai_background_concurrency_cap(),
@@ -523,6 +558,63 @@ mod tests {
         let config = AppConfig::load(&path).unwrap();
         assert!(!config.auto_update_reauth_notice_dismissed_macos);
         assert!(!config.auto_update_reauth_notice_dismissed_windows);
+    }
+
+    #[test]
+    fn test_sidebar_nav_layout_defaults_and_roundtrip() {
+        // Fresh defaults should match the canonical 11-item order and have
+        // no hidden items.
+        let cfg = AppConfig::default();
+        assert_eq!(
+            cfg.sidebar_nav_order,
+            vec![
+                "graph",
+                "changes",
+                "branches",
+                "tags",
+                "stashes",
+                "worktrees",
+                "reflog",
+                "bisect",
+                "submodules",
+                "ai-config",
+                "ai-sessions",
+            ]
+        );
+        assert!(cfg.sidebar_nav_hidden.is_empty());
+
+        // Mutate and roundtrip through save/load.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let cfg = AppConfig {
+            sidebar_nav_order: vec![
+                "changes".to_string(),
+                "graph".to_string(),
+                "branches".to_string(),
+            ],
+            sidebar_nav_hidden: vec!["bisect".to_string(), "reflog".to_string()],
+            ..AppConfig::default()
+        };
+        cfg.save(&path).unwrap();
+
+        let loaded = AppConfig::load(&path).unwrap();
+        assert_eq!(loaded.sidebar_nav_order, vec!["changes", "graph", "branches"]);
+        assert_eq!(loaded.sidebar_nav_hidden, vec!["bisect", "reflog"]);
+    }
+
+    #[test]
+    fn test_legacy_config_gets_sidebar_nav_defaults() {
+        // Config files written before this feature must still load, with
+        // the new fields falling back to the default order and empty hidden.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{"theme": "github-dark"}"#;
+        std::fs::write(&path, json).unwrap();
+
+        let cfg = AppConfig::load(&path).unwrap();
+        assert_eq!(cfg.sidebar_nav_order.len(), 11);
+        assert_eq!(cfg.sidebar_nav_order.first().unwrap(), "graph");
+        assert!(cfg.sidebar_nav_hidden.is_empty());
     }
 
     #[test]
