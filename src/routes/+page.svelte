@@ -74,6 +74,16 @@
   import { startConversationListeners, stopConversationListeners } from "$lib/stores/aiConversations";
   import { createBranchDialog, openCreateBranchDialog, closeCreateBranchDialog } from "$lib/stores/createBranchDialog";
   import CreateBranchDialog from "$lib/components/branches/CreateBranchDialog.svelte";
+  import {
+    prFileDiff,
+    loadingPrFileDiff,
+    prFileDiffError,
+    loadPrFileDiff,
+    closePrFileDiff,
+    mrPrDetail,
+    mrPrDiffFiles,
+    selectedPrFilePath,
+  } from "$lib/stores/mr-pr";
 
   let activeView = $state("graph");
   let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
@@ -581,6 +591,24 @@
     }
   }
 
+  // ── PR diff panel ──────────────────────────────────────────────────
+  /** Open the PR per-file diff panel for `path`. */
+  async function handlePrFileClick(path: string) {
+    const detail = get(mrPrDetail);
+    if (!detail) return;
+    await loadPrFileDiff(detail, path);
+  }
+
+  /** Cycle to the prev/next file in the PR file list (bracket shortcuts). */
+  function handlePrFileNav(delta: -1 | 1) {
+    const files = get(mrPrDiffFiles);
+    if (files.length === 0) return;
+    const cur = get(selectedPrFilePath);
+    const idx = cur ? files.findIndex((f) => f.path === cur) : -1;
+    const next = (idx + delta + files.length) % files.length;
+    void handlePrFileClick(files[next].path);
+  }
+
   // ── Reflog context menu ────────────────────────────────────────────
   let reflogCtxVisible = $state(false);
   let reflogCtxX = $state(0);
@@ -813,7 +841,32 @@
       {:else if activeView === "blame"}
         <BlameView onNavigateBack={(view) => tryChangeView(view)} />
       {:else if activeView === "merge-requests"}
-        <MrPrView />
+        <div class="branch-layout mr-pr-layout">
+          <div class="branch-main">
+            <MrPrView onFileClick={handlePrFileClick} />
+          </div>
+          {#if $prFileDiff || $loadingPrFileDiff || $prFileDiffError}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
+            <div class="diff-panel" style="height: {diffPanelHeight}px">
+              {#if $loadingPrFileDiff}
+                <div class="diff-panel-loading"><div class="spinner"></div></div>
+              {:else if $prFileDiffError}
+                <div class="diff-error" role="alert">{$prFileDiffError}</div>
+              {:else if $prFileDiff}
+                <DiffEditor
+                  oldContent={$prFileDiff.oldContent}
+                  newContent={$prFileDiff.newContent}
+                  filename={$prFileDiff.filename}
+                  editorTheme={$activeTheme?.editor}
+                  isDark={$activeTheme?.meta.mode !== 'light'}
+                  placeholder={$prFileDiff.binary ? m.diff_binary_file() : undefined}
+                  onClose={closePrFileDiff}
+                />
+              {/if}
+            </div>
+          {/if}
+        </div>
       {:else if activeView === "issues"}
         <IssueView />
       {:else if activeView === "releases"}
