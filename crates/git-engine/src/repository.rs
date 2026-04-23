@@ -247,6 +247,16 @@ impl Repository {
     pub fn path(&self) -> &Path {
         &self.path
     }
+
+    /// Whether this is a linked worktree (not the main worktree).
+    ///
+    /// Linked worktrees are created with `git worktree add` and share
+    /// the object database with the main repository. Their `.git`
+    /// location lives under `<main>/.git/worktrees/<name>/` rather
+    /// than at `<repo>/.git/`.
+    pub fn is_worktree(&self) -> bool {
+        self.repo.is_worktree()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -420,5 +430,43 @@ mod tests {
         let expected = std::fs::canonicalize(&path).unwrap();
         let actual = std::fs::canonicalize(repo.path()).unwrap();
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_is_worktree_main_repo_returns_false() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = create_repo_with_commit(&dir);
+
+        let repo = Repository::open(&path).unwrap();
+        assert!(!repo.is_worktree(), "main working tree should report false");
+    }
+
+    #[test]
+    fn test_is_worktree_linked_worktree_returns_true() {
+        let main_dir = tempfile::TempDir::new().unwrap();
+        let main_path = create_repo_with_commit(&main_dir);
+
+        // Create a linked worktree. `git2` requires a branch ref for
+        // the new worktree to check out; the test repo's default
+        // branch commit works as the base.
+        let main_repo = git2::Repository::open(&main_path).unwrap();
+        let wt_dir = tempfile::TempDir::new().unwrap();
+        let wt_path = wt_dir.path().join("wt");
+        // `add` picks a ref implicitly when `reference` is None only
+        // if libgit2 can derive one; for robustness we create a
+        // dedicated branch.
+        let head_commit = main_repo.head().unwrap().peel_to_commit().unwrap();
+        main_repo
+            .branch("wt-branch", &head_commit, false)
+            .unwrap();
+        let wt_ref = main_repo.find_reference("refs/heads/wt-branch").unwrap();
+        let mut opts = git2::WorktreeAddOptions::new();
+        opts.reference(Some(&wt_ref));
+        main_repo
+            .worktree("wt", &wt_path, Some(&opts))
+            .expect("create linked worktree");
+
+        let wt_repo = Repository::open(&wt_path).unwrap();
+        assert!(wt_repo.is_worktree(), "linked worktree should report true");
     }
 }

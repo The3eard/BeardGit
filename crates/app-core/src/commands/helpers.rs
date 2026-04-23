@@ -59,6 +59,12 @@ pub struct ProjectInfo {
     pub head_branch: Option<String>,
     /// Number of uncommitted changes.
     pub change_count: usize,
+    /// `true` when this tab points at a linked git worktree (i.e. was
+    /// created with `git worktree add`) rather than the main working
+    /// directory. Drives the worktree badge on the project tab so the
+    /// user can tell "the project" apart from "a side worktree of it"
+    /// when both are open.
+    pub is_worktree: bool,
 }
 
 /// A recently closed repo for the "+" dropdown.

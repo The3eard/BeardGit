@@ -30,6 +30,7 @@ const mockProject: ProjectInfo = {
   name: "BeardGit",
   head_branch: "main",
   change_count: 0,
+  is_worktree: false,
 };
 
 describe("onTerminalProcessChanged", () => {
