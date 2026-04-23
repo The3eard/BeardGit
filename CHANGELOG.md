@@ -2,6 +2,12 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [0.1.10-beta] — Repo settings in the sidebar
+
+### Repo settings — sidebar view replaces the modal
+
+`feat(repo-config): move repo settings to a provider-scoped sidebar view`. The per-repo "Repo settings" UI is no longer a modal dialog launched from a cog on the project tab. It's a first-class sidebar entry inside the GitHub / GitLab section, with a master/detail layout (section list on the left, option rows on the right), hash deep-links (`#repo-config/<section>`), per-section Save/Discard, and a navigation guard that catches every way of leaving a dirty section — sidebar click, section switch, project switch. Sections render instantly; each one loads its data in the background on first open via a shared loader with an in-flight dedupe + ~30 s TTL cache. The cog button and the right-click "Repo settings" context menu on the project tab are gone — the sidebar is the only entry point.
+
 ## [0.1.9] — Auto-update, viewport-windowed graph, lean statusbar, landing page, quick wins, reactivity foundation, AI sessions UX, forge data fixes, settings IA polish, log rename, E2E retirement, AI sessions transcript-first rewrite
 
 Two distinct waves of work since `v0.1.8-beta`. Wave one (2026-04-20) landed the in-app auto-updater, viewport-windowed commit walking, the lean statusbar + unified tasks drawer, a persistent graph layout cache, the GitHub Pages landing page, and the "Quick Wins" refactor bundle. Wave two (2026-04-21 / 2026-04-22) shipped seven sequential specs — each on its own feature branch with a dedicated design + plan doc — culminating in the AI sessions transcript-first rewrite.
