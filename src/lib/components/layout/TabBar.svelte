@@ -1,3 +1,22 @@
+<!--
+  TabBar — the top toolbar.
+
+  Renders the scrollable row of open tabs (project / terminal / composite),
+  the "+" add-project affordance, the AI dropdown, the terminal button, and
+  the fetch / pull / push cluster.
+
+  Interaction model (post 2026-04-23 rework):
+  • Terminal is a plain button. Single click routes through
+    `handleTerminalClick`, which either adds a new terminal segment to the
+    active project/composite tab or spawns a standalone terminal in `~`.
+  • AI is an always-dropdown gated on `$aiProviders.length > 0`. The menu
+    lists one row per installed provider (click → `openAiTerminalTab`) and,
+    below a divider, a "Launch session in background…" row
+    (click → `requestOpenCreateBackgroundRunDialog`). Escape and
+    outside-click close the menu; arrow keys move focus between items.
+  • fetch / pull / push only render when a project is active; each button
+    dispatches via `runMutation` so toasts + task drawer stay in sync.
+-->
 <script lang="ts">
   import ProjectTab from "./ProjectTab.svelte";
   import TerminalTab from "./TerminalTab.svelte";
@@ -9,7 +28,16 @@
     closeTab,
     toggleAddMenu,
   } from "$lib/stores/projects";
-  import { openTabs, activeTabIndex, openTerminalTab, openStandaloneTerminal, openAiTerminalTab, switchSegment, closeSegment, closeProjectSegment, getActiveTerminalSegment } from "$lib/stores/tabs";
+  import {
+    openTabs,
+    activeTabIndex,
+    openTerminalTab,
+    openStandaloneTerminal,
+    openAiTerminalTab,
+    switchSegment,
+    closeSegment,
+    closeProjectSegment,
+  } from "$lib/stores/tabs";
   import { repoInfo } from "$lib/stores/repo";
   import { aiProviders } from "$lib/stores/ai";
   import { requestOpenCreateBackgroundRunDialog } from "$lib/stores/aiBackground";
@@ -18,7 +46,7 @@
   import { runMutation } from "$lib/api/runMutation";
   import * as m from "$lib/paraglide/messages";
 
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import ProviderIcon from "../ai-sessions/ProviderIcon.svelte";
   import { providerName } from "$lib/data/ai-providers";
 
@@ -26,12 +54,8 @@
   let fetchInProgress = $state(false);
   let pullInProgress = $state(false);
   let pushInProgress = $state(false);
-  let terminalMenuOpen = $state(false);
-  let terminalMenuRef = $state<HTMLDivElement | null>(null);
-
-  function toggleTerminalMenu() {
-    terminalMenuOpen = !terminalMenuOpen;
-  }
+  let aiMenuOpen = $state(false);
+  let aiMenuRef = $state<HTMLDivElement | null>(null);
 
   async function getHomePath(): Promise<string> {
     try {
@@ -50,26 +74,75 @@
     return $activeProject?.path.split("/").pop() ?? "Terminal";
   }
 
-  async function handleTerminalHome() {
-    terminalMenuOpen = false;
-    const home = await getHomePath();
-    await openTerminalTab(home, m.tab_terminal());
+  function toggleAiMenu() {
+    aiMenuOpen = !aiMenuOpen;
   }
 
-  async function handleTerminalAi(kind: AiProviderKind) {
-    terminalMenuOpen = false;
-    await openAiTerminalTab(getActiveCwd(), `${providerName(kind)} · ${getActiveLabel()}`, kind);
+  function closeAiMenu() {
+    aiMenuOpen = false;
   }
 
-  function handleTerminalMenuClickOutside(e: MouseEvent) {
-    if (terminalMenuRef && !terminalMenuRef.contains(e.target as Node)) {
-      terminalMenuOpen = false;
+  async function handleAiCliClick(kind: AiProviderKind) {
+    closeAiMenu();
+    await openAiTerminalTab(
+      getActiveCwd(),
+      `${providerName(kind)} · ${getActiveLabel()}`,
+      kind,
+    );
+  }
+
+  function handleAiBackgroundClick() {
+    closeAiMenu();
+    requestOpenCreateBackgroundRunDialog();
+  }
+
+  function handleAiMenuClickOutside(e: MouseEvent) {
+    if (!aiMenuOpen) return;
+    if (aiMenuRef && !aiMenuRef.contains(e.target as Node)) {
+      aiMenuOpen = false;
     }
   }
 
+  /**
+   * Menu-level keydown:
+   * - Escape closes the menu and returns focus to the trigger button.
+   * - ArrowDown / ArrowUp move focus between menu items (the trigger
+   *   button is excluded from the focus cycle).
+   * - Enter activates the focused item via the browser's default button
+   *   behaviour — we don't intercept it here.
+   */
+  async function handleAiMenuKeydown(e: KeyboardEvent) {
+    if (!aiMenuOpen) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      aiMenuOpen = false;
+      await tick();
+      const trigger = aiMenuRef?.querySelector<HTMLButtonElement>(
+        '[data-testid="toolbar-ai-btn"]',
+      );
+      trigger?.focus();
+      return;
+    }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const items = Array.from(
+      aiMenuRef?.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"]',
+      ) ?? [],
+    );
+    if (items.length === 0) return;
+    const current = document.activeElement as HTMLElement | null;
+    const idx = current ? items.indexOf(current as HTMLButtonElement) : -1;
+    const delta = e.key === "ArrowDown" ? 1 : -1;
+    const next = (idx + delta + items.length) % items.length;
+    items[next]?.focus();
+  }
+
   onMount(() => {
-    document.addEventListener("mousedown", handleTerminalMenuClickOutside);
-    return () => document.removeEventListener("mousedown", handleTerminalMenuClickOutside);
+    document.addEventListener("mousedown", handleAiMenuClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleAiMenuClickOutside);
   });
 
   function handleWheel(e: WheelEvent) {
@@ -90,8 +163,7 @@
       return;
     }
 
-    // Standalone terminal tab or no tabs → open in ~ via dropdown only
-    // (this path is reached only from standalone terminal tabs with no project)
+    // Standalone terminal tab or no tabs → open in ~
     const home = await getHomePath();
     await openStandaloneTerminal(home, m.tab_terminal());
   }
@@ -205,58 +277,75 @@
   </div>
 
   <div class="add-button-wrapper">
-    <button class="add-btn" onclick={toggleAddMenu} title="Add project"><span class="nf">{"\uF067"}</span></button>
+    <button class="add-btn" onclick={toggleAddMenu} title="Add project"><span class="nf">{""}</span></button>
     <AddProjectMenu />
   </div>
 
   <div class="actions">
     {#if $aiProviders.length > 0}
-      <button
-        class="action-btn ai-bg-btn"
-        title={m.ai_background_tab_button_tooltip()}
-        aria-label={m.ai_background_tab_button_tooltip()}
-        onclick={() => requestOpenCreateBackgroundRunDialog()}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="ai-dropdown"
+        bind:this={aiMenuRef}
+        onkeydown={handleAiMenuKeydown}
       >
-        <span class="ai-bg-label">{m.ai_background_tab_button_label()}</span>
-      </button>
-    {/if}
-    <div class="terminal-split" bind:this={terminalMenuRef}>
-      <button
-        class="action-btn terminal-left"
-        title={m.tab_terminal_here()}
-        onclick={handleTerminalClick}
-      >
-        <span class="nf">{"\uF489"}</span>
-      </button>
-      <button
-        class="action-btn terminal-right"
-        title="Terminal options"
-        onclick={toggleTerminalMenu}
-      >
-        <span class="nf chevron">{"\uF078"}</span>
-      </button>
-      {#if terminalMenuOpen}
-        <div class="terminal-menu">
-          <button class="terminal-menu-item" onclick={handleTerminalHome}>
-            <span class="nf menu-icon">{"\uF489"}</span> {m.tab_terminal_home()}
-          </button>
-          {#if $aiProviders.length > 0}
-            <div class="terminal-menu-divider"></div>
-            {#each $aiProviders as provider}
-              <button class="terminal-menu-item" onclick={() => handleTerminalAi(provider.kind)}>
+        <button
+          class="action-btn ai-bg-btn"
+          data-testid="toolbar-ai-btn"
+          title={m.ai_background_tab_button_tooltip()}
+          aria-label={m.ai_background_tab_button_tooltip()}
+          aria-haspopup="menu"
+          aria-expanded={aiMenuOpen}
+          onclick={toggleAiMenu}
+        >
+          <span class="ai-bg-label">{m.ai_background_tab_button_label()}</span>
+          <span class="nf chevron" aria-hidden="true">{""}</span>
+        </button>
+        {#if aiMenuOpen}
+          <div
+            class="action-menu"
+            role="menu"
+            data-testid="toolbar-ai-menu"
+          >
+            {#each $aiProviders as provider (provider.kind)}
+              <button
+                class="action-menu-item"
+                role="menuitem"
+                data-testid={`toolbar-ai-item-${provider.kind}`}
+                onclick={() => handleAiCliClick(provider.kind)}
+              >
                 <ProviderIcon provider={provider.kind} size={16} />
-                <span class="provider-label">
+                <span class="menu-item-label">
                   {providerName(provider.kind)}
                   {#if provider.version}
-                    <span class="provider-version">{provider.version}</span>
+                    <span class="menu-item-meta">{provider.version}</span>
                   {/if}
                 </span>
               </button>
             {/each}
-          {/if}
-        </div>
-      {/if}
-    </div>
+            <div class="action-menu-divider" role="separator"></div>
+            <button
+              class="action-menu-item"
+              role="menuitem"
+              data-testid="toolbar-ai-item-background"
+              onclick={handleAiBackgroundClick}
+            >
+              <span class="nf menu-icon" aria-hidden="true">{""}</span>
+              <span class="menu-item-label">{m.ai_menu_launch_background()}</span>
+            </button>
+          </div>
+        {/if}
+      </div>
+    {/if}
+    <button
+      class="action-btn"
+      data-testid="toolbar-terminal-btn"
+      title={m.tab_terminal_here()}
+      aria-label={m.tab_terminal_here()}
+      onclick={handleTerminalClick}
+    >
+      <span class="nf">{""}</span>
+    </button>
     {#if $activeProject}
       <button
         class="action-btn"
@@ -264,7 +353,7 @@
         title={m.toolbar_fetch()}
         onclick={handleFetch}
       >
-        <span class="nf">{"\uF0ED"}</span> {m.toolbar_fetch()}
+        <span class="nf">{""}</span> {m.toolbar_fetch()}
       </button>
       <button
         class="action-btn"
@@ -272,7 +361,7 @@
         title={m.toolbar_pull()}
         onclick={handlePull}
       >
-        <span class="nf">{"\uF063"}</span> {m.toolbar_pull()}
+        <span class="nf">{""}</span> {m.toolbar_pull()}
       </button>
       <button
         class="action-btn"
@@ -280,7 +369,7 @@
         title={m.toolbar_push()}
         onclick={handlePush}
       >
-        <span class="nf">{"\uF062"}</span> {m.toolbar_push()}
+        <span class="nf">{""}</span> {m.toolbar_push()}
       </button>
     {/if}
   </div>
@@ -382,38 +471,26 @@
     letter-spacing: 0.5px;
   }
 
-  /* ── Terminal split button ── */
+  .chevron {
+    font-size: 9px;
+    margin-left: 2px;
+    color: var(--text-secondary);
+  }
 
-  .terminal-split {
+  /* ── AI dropdown ── */
+
+  .ai-dropdown {
     position: relative;
     display: flex;
     align-items: stretch;
   }
 
-  .terminal-left {
-    border-radius: 6px 0 0 6px;
-    border-right: none;
-    min-width: unset;
-    padding: 3px 8px;
-  }
-
-  .terminal-right {
-    border-radius: 0 6px 6px 0;
-    color: var(--text-secondary);
-    min-width: unset;
-    padding: 0 6px;
-  }
-
-  .chevron {
-    font-size: 9px;
-  }
-
-  .terminal-menu {
+  .action-menu {
     position: absolute;
     top: 100%;
     right: 0;
     z-index: 100;
-    min-width: 180px;
+    min-width: 200px;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -422,7 +499,7 @@
     margin-top: 2px;
   }
 
-  .terminal-menu-item {
+  .action-menu-item {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -437,29 +514,31 @@
     white-space: nowrap;
   }
 
-  .terminal-menu-item:hover {
+  .action-menu-item:hover,
+  .action-menu-item:focus-visible {
     background: rgba(255, 255, 255, 0.06);
+    outline: none;
   }
 
-  .terminal-menu-item .menu-icon {
+  .action-menu-item .menu-icon {
     width: 16px;
     text-align: center;
     color: var(--text-secondary);
   }
 
-  .terminal-menu-divider {
+  .action-menu-divider {
     height: 1px;
     background: var(--border);
     margin: 4px 0;
   }
 
-  .provider-label {
+  .menu-item-label {
     display: flex;
     align-items: baseline;
     gap: 6px;
   }
 
-  .provider-version {
+  .menu-item-meta {
     font-size: 10px;
     color: var(--text-secondary);
   }
