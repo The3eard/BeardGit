@@ -246,7 +246,7 @@
   }
 
   .file-item:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
   }
 
   .file-icon {
@@ -271,7 +271,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     color: var(--text-secondary);
     padding: 1px 5px;
     border-radius: 3px;
@@ -290,7 +290,7 @@
     padding: 6px 10px;
     margin-bottom: 4px;
     font-size: 12px;
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
     background: var(--overlay-accent-red);
     border-radius: 4px;
     word-break: break-word;
@@ -299,7 +299,7 @@
   .dialog-warning {
     padding: 8px 0;
     font-size: 12px;
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
     line-height: 1.4;
   }
 
