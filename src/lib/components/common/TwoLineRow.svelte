@@ -54,7 +54,7 @@
     min-width: 0;
     color: var(--text-primary);
   }
-  .two-line-row--selected { /* selection bg is painted by .list-row.selected in list.css */ }
+  /* .two-line-row--selected: selection bg is painted by .list-row.selected in list.css */
 
   .two-line-row__line1 {
     display: flex;
