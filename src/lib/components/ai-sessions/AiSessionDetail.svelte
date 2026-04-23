@@ -181,7 +181,9 @@
    * bg-kind ActiveTerminals are rendered via the richer bg-run branch
    * keyed on `selectedBackgroundSessionId`.
    */
-  let activeTerm = $derived.by<ActiveTerminal | null>(() => {
+  type TabOrSegmentTerminal = Extract<ActiveTerminal, { kind: "tab" | "segment" }>;
+
+  let activeTerm = $derived.by<TabOrSegmentTerminal | null>(() => {
     const sel = activeTermRaw;
     if (!sel) return null;
     if (sel.kind === "bg") return null;

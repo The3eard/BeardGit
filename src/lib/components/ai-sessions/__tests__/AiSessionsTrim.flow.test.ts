@@ -119,9 +119,8 @@ describe("AI Sessions flow — active tab → Focus", () => {
     await fireEvent.click(getByTestId("ai-session-detail-focus"));
 
     expect(focusTerminal).toHaveBeenCalledTimes(1);
-    const payload = focusTerminal.mock.calls[0]?.[0] as unknown as {
-      kind: string;
-    };
-    expect(payload.kind).toBe("tab");
+    const calls = focusTerminal.mock.calls as unknown as Array<[{ kind: string }]>;
+    const payload = calls[0]?.[0];
+    expect(payload?.kind).toBe("tab");
   });
 });

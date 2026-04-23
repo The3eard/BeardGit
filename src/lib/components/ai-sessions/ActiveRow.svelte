@@ -47,7 +47,7 @@
   });
 
   let date = $derived(
-    active.kind === "bg"
+    active.kind === "bg" && active.session.started_at != null
       ? formatRelativeTimeUnix(active.session.started_at)
       : null,
   );
