@@ -28,6 +28,16 @@ The Provider section (GitHub / GitLab) is no longer user-managed — it auto-hid
 
 - `refactor(toolbar): AI becomes a dropdown, terminal becomes a plain button`. The toolbar's terminal split-button is now a single button (its old dropdown only surfaced the project-root fallback that the button itself already does). The "AI" / "IA" button is now an always-dropdown listing every installed AI CLI provider plus a "Launch session in background…" entry, which is where the per-provider launchers used to live under the terminal chevron. Escape / outside-click close the menu; aria-haspopup / aria-expanded / role=menu land for screen-reader parity.
 
+## [0.1.11-beta] — Pipelines + Issues lists v2
+
+### Wider list pane, shared row primitive, richer meta
+
+`feat(lists): widen pipeline + issues pane to 420px and share TwoLineRow`. The Pipelines and Issues side panes now open at 420 px so seeded data stops ellipsing past the first glance. Rows in both lists render through a new shared `TwoLineRow` primitive (`src/lib/components/common/TwoLineRow.svelte`), so future layout tweaks land in one file instead of drifting between the two views. `PipelineList` migrated off its bespoke container onto the shared `List` component — header, search, empty state, load-more, and the polling bar are now the List's responsibility.
+
+Issues rows drop the 3-label cap (every label shows, wrapping onto line 2 naturally), surface the milestone as a chip, and render up to three assignees as an `AssigneeStack` with `+N` overflow. Pipeline rows gain the triggering actor (`triggering_actor.login` on GitHub, `user.username` on GitLab) and move the duration onto the meta line so the trailing-date slot only holds the relative timestamp.
+
+New i18n keys: `issues_milestone_icon_aria`, `issues_assignees_aria`, `pipeline_actor_aria` (en-US + es-ES).
+
 ## [0.1.10-beta] — Repo settings in the sidebar
 
 ### Repo settings — sidebar view replaces the modal
