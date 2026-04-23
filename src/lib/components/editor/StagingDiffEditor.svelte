@@ -470,21 +470,21 @@
 
   .stage-btn {
     background: var(--accent-green);
-    color: #fff;
+    color: var(--text-primary);
   }
 
   .stage-btn:hover:not(:disabled) { opacity: 0.85; }
 
   .unstage-btn {
     background: var(--accent-orange);
-    color: #fff;
+    color: var(--text-primary);
   }
 
   .unstage-btn:hover:not(:disabled) { opacity: 0.85; }
 
   .discard-btn {
     background: var(--accent-red);
-    color: #fff;
+    color: var(--text-primary);
   }
 
   .discard-btn:hover:not(:disabled) { opacity: 0.85; }
@@ -548,11 +548,11 @@
   }
 
   .line-added {
-    background: var(--diff-added-bg, rgba(63, 185, 80, 0.1));
+    background: var(--overlay-accent-green);
   }
 
   .line-removed {
-    background: var(--diff-removed-bg, rgba(248, 81, 73, 0.1));
+    background: var(--overlay-accent-red);
   }
 
   .line-context {
@@ -564,11 +564,11 @@
   }
 
   .line-selected.line-added {
-    background: rgba(63, 185, 80, 0.18);
+    background: color-mix(in srgb, var(--accent-green) 18%, transparent);
   }
 
   .line-selected.line-removed {
-    background: rgba(248, 81, 73, 0.18);
+    background: color-mix(in srgb, var(--accent-red) 18%, transparent);
   }
 
   .line-selected.line-context {
