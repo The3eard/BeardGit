@@ -17,8 +17,10 @@
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
-  import { cherryPick, checkoutBranch, createBranch, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns, createCommitPatches } from "../../api/tauri";
+  import { cherryPick, checkoutBranch, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns, createCommitPatches } from "../../api/tauri";
   import { runMutation } from "../../api/runMutation";
+  import { openCreateBranchDialog } from "../../stores/createBranchDialog";
+  import { buildCreateBranchSource } from "./GitGraph.helpers";
   import { save } from "@tauri-apps/plugin-dialog";
   import RebaseEditor from "../rebase/RebaseEditor.svelte";
   import { debounce } from "../../utils/debounce";
@@ -513,21 +515,8 @@
       { label: "", action: () => {}, separator: true },
       {
         label: m.graph_create_branch({ sha }),
-        action: async () => {
-          const name = prompt(m.graph_branch_name_prompt());
-          if (name) {
-            try {
-              await runMutation({
-                kind: "branch_create",
-                invoke: () => createBranch(name),
-                successToast: () => `Created branch ${name}`,
-                failureToastPrefix: "Branch create failed",
-              });
-              // Graph reload is driven by the project-mutated event.
-            } catch {
-              // runMutation already surfaced the toast.
-            }
-          }
+        action: () => {
+          openCreateBranchDialog(buildCreateBranchSource(node.oid));
         },
       },
       {
