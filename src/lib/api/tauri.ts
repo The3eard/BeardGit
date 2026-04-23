@@ -309,6 +309,16 @@ export async function removeRemote(name: string): Promise<void> {
   return invoke<void>("remove_remote", { name });
 }
 
+/**
+ * Ensures a commit SHA is present locally. Fetches from `remoteUrl`
+ * (or `origin` if null) when missing. Resolves when the commit is
+ * materialized; rejects with a human message if it still isn't present
+ * after the fetch.
+ */
+export async function ensureCommitLocal(sha: string, remoteUrl: string | null): Promise<void> {
+  return invoke<void>("ensure_commit_local", { sha, remoteUrl });
+}
+
 // ---------------------------------------------------------------------------
 // Provider auth
 // ---------------------------------------------------------------------------

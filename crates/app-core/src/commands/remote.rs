@@ -161,6 +161,60 @@ pub async fn remove_remote(
     .await
 }
 
+/// Ensures a commit SHA is present in the local object database.
+///
+/// Used by the PR diff view to materialize fork-head commits before the
+/// frontend calls `get_file_at_commit`. Behaviour:
+/// 1. `git cat-file -e <sha>` — if success, returns immediately.
+/// 2. Otherwise `git fetch <remote_url || "origin"> <sha>` via
+///    [`TaskManager`], streamed to the tasks drawer.
+/// 3. Re-checks presence; errors if still missing.
+///
+/// Returns `Ok(())` on presence (no task spawned) or after the fetch
+/// completes; returns `Err` with a human-readable message otherwise.
+#[tauri::command]
+#[instrument(skip(state, task_manager), name = "cmd::remote::ensure_commit_local")]
+pub async fn ensure_commit_local(
+    sha: String,
+    remote_url: Option<String>,
+    state: State<'_, AppState>,
+    task_manager: State<'_, Arc<TaskManager>>,
+) -> Result<(), String> {
+    let cwd = get_active_project_path(&state)?;
+    if commit_exists_locally(&cwd, &sha) {
+        return Ok(());
+    }
+
+    let remote = remote_url.unwrap_or_else(|| "origin".to_string());
+    let short = &sha[..sha.len().min(8)];
+    let label = format!("Fetch {short}");
+    let id = task_manager
+        .spawn_with_options(SpawnOptions {
+            label,
+            command: "git",
+            args: &["fetch", &remote, &sha],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::GitFetch,
+            stdin: None,
+        })
+        .await;
+
+    // Wait for the task to reach a terminal state before re-checking.
+    task_manager
+        .wait_for_terminal(id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !commit_exists_locally(&cwd, &sha) {
+        return Err(format!(
+            "commit {} not found after fetching from {remote}",
+            &sha[..sha.len().min(8)]
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use git_engine::Repository;
@@ -213,6 +267,27 @@ mod tests {
         let repo = Repository::open(&path).unwrap();
         let err = repo.remove_remote("nope").err();
         assert!(err.is_some());
+    }
+
+    #[test]
+    fn ensure_commit_local_early_returns_when_commit_exists() {
+        use crate::commands::helpers::commit_exists_locally;
+        use git_engine::test_support::create_repo_with_n_commits;
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let repo = git2::Repository::open(&path).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap().id().to_string();
+        drop(repo);
+        let present = commit_exists_locally(&path, &head);
+        assert!(present, "freshly committed SHA must be cat-file-e present");
+    }
+
+    #[test]
+    fn ensure_commit_local_reports_missing_for_random_sha() {
+        use crate::commands::helpers::commit_exists_locally;
+        use git_engine::test_support::create_repo_with_n_commits;
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let present = commit_exists_locally(&path, "deadbeefdeadbeefdeadbeefdeadbeef00000000");
+        assert!(!present);
     }
 
     #[test]
