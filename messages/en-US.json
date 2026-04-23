@@ -557,6 +557,7 @@
   "mrpr_title": "Merge Requests",
   "mrpr_title_github": "Pull Requests",
   "mrpr_loading": "Loading...",
+  "mrpr_diff_failed": "Couldn't load changed files: {error}",
   "mrpr_empty": "No merge requests found",
   "mrpr_empty_github": "No pull requests found",
   "mrpr_no_provider": "Connect a provider to view merge requests",
