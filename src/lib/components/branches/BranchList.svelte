@@ -1,11 +1,14 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { debounce } from "../../utils/debounce";
   import ContextMenu from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import List from "../common/List.svelte";
   import BranchTreeNode from "./BranchTreeNode.svelte";
+  import RenameBranchDialog from "./RenameBranchDialog.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import type { BranchTreeNode as TreeNode } from "./branch-tree";
+  import type { InitialSource } from "./suggest-local-name";
   import {
     branches,
     branchesLoading,
@@ -18,11 +21,17 @@
     doDeleteBranch,
     doMergeBranch,
   } from "../../stores/branches";
-  import { rebaseBranch } from "../../api/tauri";
+  import { remotes, refreshRemotes } from "../../stores/remotes";
+  import { openCreateBranchDialog } from "../../stores/createBranchDialog";
+  import { rebaseBranch, pushRemote } from "../../api/tauri";
   import { runMutation } from "../../api/runMutation";
   import * as m from "$lib/paraglide/messages";
   import type { BranchInfo } from "../../types";
 
+  /**
+   * Build a folder-tree from a flat branch list.
+   * Branches with "/" in their name are nested under folder nodes.
+   */
   function buildTree(branchList: BranchInfo[]): TreeNode[] {
     const root: TreeNode[] = [];
     const childMaps = new WeakMap<TreeNode[], Map<string, TreeNode>>();
@@ -103,16 +112,87 @@
   let menuX = $state(0);
   let menuY = $state(0);
   let contextBranch = $state("");
+  let contextOid = $state("");
   let contextIsRemote = $state(false);
   let confirmDelete = $state<string | null>(null);
   let confirmRebase = $state<string | null>(null);
+  let confirmForcePush = $state<{ remote: string; branch: string } | null>(null);
+
+  // Rename dialog state — mounted locally so it has access to branch context
+  let renameDialogOpen = $state(false);
+  let renameTarget = $state("");
+
+  function openRenameDialog(name: string) {
+    renameTarget = name;
+    renameDialogOpen = true;
+  }
+
+  /**
+   * Push `branch` to `remote`. When `force` is true the operation is
+   * guarded by `--force-with-lease` on the Rust side.
+   */
+  async function doPush(remote: string, branch: string, force: boolean) {
+    try {
+      await runMutation({
+        kind: force ? "push_force" : "push",
+        invoke: () => pushRemote(remote, branch, force),
+        successToast: () => `Pushed ${remote}/${branch}`,
+        failureToastPrefix: force ? "Force-push failed" : "Push failed",
+        trackAsTask: true,
+      });
+    } catch {
+      // runMutation already surfaced the toast.
+    }
+  }
+
+  /**
+   * Build the "Push" context-menu item.
+   * Single remote → fires directly. Multiple remotes → submenu.
+   */
+  function pushMenuItem(): MenuItem {
+    const rs = $remotes;
+    if (rs.length === 1) {
+      const r = rs[0].name;
+      return { label: `Push → ${r}`, action: () => doPush(r, contextBranch, false) };
+    }
+    return {
+      label: "Push",
+      children: rs.map((r) => ({
+        label: r.name,
+        action: () => doPush(r.name, contextBranch, false),
+      })),
+    };
+  }
+
+  /**
+   * Build the "Push (force-with-lease)" context-menu item.
+   * Always a submenu so force-push never happens on a single click.
+   */
+  function forcePushMenuItem(): MenuItem {
+    return {
+      label: "Push (force-with-lease)",
+      children: $remotes.map((r) => ({
+        label: r.name,
+        action: () => {
+          confirmForcePush = { remote: r.name, branch: contextBranch };
+        },
+      })),
+    };
+  }
 
   let menuItems: MenuItem[] = $derived.by(() => {
     const items: MenuItem[] = [];
     if (!contextIsRemote) {
       items.push({ label: "Checkout", action: () => doCheckout(contextBranch) });
     }
-    items.push({ label: "New branch from here [WIP]", action: () => {} });
+    items.push({
+      label: "New branch from here",
+      action: () =>
+        openCreateBranchDialog({ kind: "ref", name: contextBranch, oid: contextOid }),
+    });
+    if (!contextIsRemote) {
+      items.push({ label: "Rename", action: () => openRenameDialog(contextBranch) });
+    }
     items.push({ label: "Merge into current", action: () => doMergeBranch(contextBranch) });
     items.push({
       label: m.branch_rebase_onto(),
@@ -128,7 +208,11 @@
         },
       });
     }
-    items.push({ label: "Push [WIP]", action: () => {} });
+    if (!contextIsRemote && $remotes.length > 0) {
+      items.push({ separator: true });
+      items.push(pushMenuItem());
+      items.push(forcePushMenuItem());
+    }
     return items;
   });
 
@@ -136,6 +220,7 @@
     if (node.isFolder) return;
     e.preventDefault();
     contextBranch = node.fullPath;
+    contextOid = node.oid;
     contextIsRemote = node.isRemote;
     menuX = e.clientX;
     menuY = e.clientY;
@@ -147,6 +232,12 @@
     filterValue = "";
     refreshBranches();
   }
+
+  // Seed the remotes store on mount so the first right-click has data
+  // without waiting for a project-mutated event.
+  onMount(() => {
+    void refreshRemotes();
+  });
 
   // Required by List type signature but unused — trees are rendered via customContent.
   function getKey(_item: BranchInfo): string {
@@ -161,8 +252,22 @@
   title="BRANCHES"
   selectedKey={$selectedBranchName}
   {getKey}
-  onRefresh={handleRefresh}
 >
+  {#snippet headerActions()}
+    <button
+      class="header-btn nf"
+      title="New branch"
+      data-testid="branch-new-btn"
+      onclick={() => openCreateBranchDialog({ kind: "head" })}
+    >{''}</button>
+    <button
+      class="header-btn nf"
+      title="Refresh"
+      disabled={$branchesLoading}
+      onclick={handleRefresh}
+    >{$branchesLoading ? '' : ''}</button>
+  {/snippet}
+
   {#snippet afterHeader()}
     <div class="filter-row">
       <input
@@ -188,7 +293,7 @@
         if (e.key === "Enter" || e.key === " ") localCollapsed = !localCollapsed;
       }}
     >
-      <span class="section-chevron nf" class:collapsed={localCollapsed}>{"\uF054"}</span>
+      <span class="section-chevron nf" class:collapsed={localCollapsed}>{""}</span>
       <span class="section-label">LOCAL</span>
       <span class="section-count">{$localBranches.length}</span>
     </div>
@@ -224,7 +329,7 @@
         if (e.key === "Enter" || e.key === " ") remoteCollapsed = !remoteCollapsed;
       }}
     >
-      <span class="section-chevron nf" class:collapsed={remoteCollapsed}>{"\uF054"}</span>
+      <span class="section-chevron nf" class:collapsed={remoteCollapsed}>{""}</span>
       <span class="section-label">REMOTE</span>
       <span class="section-count">{$remoteBranches.length}</span>
     </div>
@@ -254,6 +359,12 @@
   y={menuY}
   visible={menuVisible}
   onClose={() => (menuVisible = false)}
+/>
+
+<RenameBranchDialog
+  open={renameDialogOpen}
+  currentName={renameTarget}
+  onClose={() => (renameDialogOpen = false)}
 />
 
 {#if confirmDelete !== null}
@@ -297,6 +408,22 @@
   />
 {/if}
 
+{#if confirmForcePush !== null}
+  <ConfirmDialog
+    title="Force-push with lease"
+    detail={`${confirmForcePush.remote}/${confirmForcePush.branch}`}
+    message={`Force-push ${confirmForcePush.branch} to ${confirmForcePush.remote} (with --force-with-lease)? This rewrites history on the remote.`}
+    confirmLabel="Force-push"
+    destructive={true}
+    onConfirm={async () => {
+      const { remote, branch } = confirmForcePush!;
+      confirmForcePush = null;
+      await doPush(remote, branch, true);
+    }}
+    onCancel={() => (confirmForcePush = null)}
+  />
+{/if}
+
 <style>
   .branch-list {
     display: flex;
@@ -304,6 +431,47 @@
     flex: 1;
     min-height: 0;
     min-width: 0;
+  }
+
+  .header-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 13px;
+    border-radius: 3px;
+  }
+
+  .header-btn:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .header-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .filter-row {
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .filter-input {
+    width: 100%;
+    padding: 4px 8px;
+    font-size: 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    box-sizing: border-box;
+  }
+
+  .filter-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
   }
 
   .section-header {
@@ -351,5 +519,30 @@
     background: rgba(255, 255, 255, 0.06);
     padding: 1px 6px;
     border-radius: 10px;
+  }
+
+  .list-loading {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-blue);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .list-empty {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
   }
 </style>
