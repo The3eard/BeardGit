@@ -440,8 +440,8 @@
 
   .error-text {
     font-size: 12px;
-    color: #f85149;
-    background: rgba(248, 81, 73, 0.08);
+    color: var(--accent-red);
+    background: var(--overlay-accent-red);
     padding: 6px 10px;
     border-radius: 6px;
     margin: 0;

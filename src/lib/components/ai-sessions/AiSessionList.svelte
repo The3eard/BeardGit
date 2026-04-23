@@ -243,7 +243,7 @@
   .section-count {
     font-size: 10px;
     background: var(--accent-blue);
-    color: #ffffff;
+    color: var(--text-primary);
     border-radius: 8px;
     padding: 0 6px;
     min-width: 18px;

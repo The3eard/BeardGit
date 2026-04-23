@@ -191,18 +191,18 @@
   }
 
   .toggle-btn.active {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
     color: var(--accent-blue);
     font-weight: 600;
   }
 
   .toggle-btn:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
   }
 
   .path-preview {
     padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
     border: 1px solid var(--border);
     border-radius: 4px;
     font-size: 11px;
@@ -214,11 +214,11 @@
 
   .error-box {
     padding: 8px 10px;
-    background: rgba(248, 81, 73, 0.12);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    background: var(--overlay-accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 6px;
     font-size: 12px;
-    color: #f85149;
+    color: var(--accent-red);
     margin-bottom: 12px;
     word-break: break-word;
   }
