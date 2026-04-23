@@ -6,7 +6,7 @@
   chevron; hovering the parent opens a flyout anchored to its right
   edge. Nested submenus are intentionally out of scope.
 -->
-<script lang="ts">
+<script lang="ts" module>
   /** Single menu item. Leaf when `action` is set, parent when `children` is set. */
   export interface MenuItem {
     label?: string;
@@ -16,7 +16,9 @@
     /** One-level submenu. Parent items with children do not fire `action`. */
     children?: MenuItem[];
   }
+</script>
 
+<script lang="ts">
   let {
     items,
     x,
@@ -83,7 +85,7 @@
               role="none"
             >{item.label}</span>
             {#if item.children && item.children.length > 0}
-              <span class="submenu-chevron nf">{''}</span>
+              <span class="submenu-chevron nf">{''}</span>
             {/if}
           </button>
           {#if item.children && openSubmenu === i}

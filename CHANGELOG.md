@@ -2,6 +2,12 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Branches UI feature-complete
+
+### Branches — new-branch entry points + rename + force-push + shortcut
+
+`feat(branches): unified create-branch dialog, rename, force-push, Cmd+Shift+B`. The Branches panel gains a visible "+" in its header that opens a new `CreateBranchDialog`, the single entry point used by every create-branch call site (header, context menu, graph, reflog, and the new global `⌘⇧B` / `Ctrl+Shift+B` shortcut). The dialog pre-fills the local name by stripping the matching remote prefix when branching from a remote ref, offers a "From" picker covering local and remote branches, and chains a `checkoutBranch` when "Check out new branch" is ticked (default on). Two previously WIP context-menu items are live: "New branch from here" opens the dialog with the clicked ref as the source; "Push" fires directly to the single configured remote or expands to a submenu when multiple remotes exist. Branch rename ships as a new dialog + `rename_branch` Tauri command; renaming the checked-out branch updates HEAD automatically and the panel's selection follows the new name. Force-push gets its own submenu that always requires a destructive confirm — even for single-remote repos — and passes `--force-with-lease` to `git push` along with `-u` so first-time pushes establish the upstream tracking ref. The `graph_branch_name_prompt` `window.prompt()` calls in the graph and reflog are retired.
+
 ## [unreleased] — AI sessions list trim
 
 ### AI sessions — one-line rows, detail-pane actions

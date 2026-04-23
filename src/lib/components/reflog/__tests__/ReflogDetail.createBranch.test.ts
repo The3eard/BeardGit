@@ -51,7 +51,15 @@ describe("ReflogDetail create-branch", () => {
     const promptSpy = vi.spyOn(window, "prompt").mockReturnValue(null);
     const { findByText } = render(ReflogDetail, {
       props: {
-        entry: { oid: "deadbeef", message: "test", ref: "HEAD", timestamp: 0 },
+        entry: {
+          oid: "deadbeef",
+          prev_oid: "00000000",
+          action: "checkout",
+          summary: "test",
+          author: "Test User",
+          email: "test@test.com",
+          timestamp: 0,
+        },
       },
     });
     const btn = await findByText(/Create branch/i);
