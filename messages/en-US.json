@@ -976,5 +976,12 @@
   "repo_config_authenticate_body": "Sign in to the forge CLI so BeardGit can read and write repository settings on your behalf.",
   "repo_config_go_to_integrations": "Go to Settings → Integrations",
   "repo_config_saved_toast": "Repository settings saved",
+  "sidebar_customize": "Customize sidebar",
+  "sidebar_done": "Done",
+  "sidebar_reset": "Reset",
+  "sidebar_min_visible": "At least one section must be visible.",
+  "sidebar_reorder_aria": "Reorder {label}",
+  "sidebar_hide_aria": "Hide {label}",
+  "sidebar_show_aria": "Show {label}",
   "theme_load_failed": "Could not load theme. Using built-in defaults."
 }
