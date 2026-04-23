@@ -143,7 +143,6 @@
     color: var(--accent-blue);
     line-height: 1;
     flex-shrink: 0;
-    cursor: help;
   }
 
   .tab-name {
