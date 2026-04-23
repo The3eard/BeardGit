@@ -3,7 +3,6 @@
   import * as m from "$lib/paraglide/messages";
   import TabTooltip from "./TabTooltip.svelte";
   import { getSnapshotForHover } from "$lib/stores/project-cache";
-  import { openRepoConfigDialog } from "$lib/stores/repoConfig";
 
   interface Props {
     project: ProjectInfo;
@@ -14,47 +13,6 @@
   }
 
   let { project, isActive, index, onSwitch, onClose }: Props = $props();
-
-  /**
-   * Open the per-repo "Repo settings" dialog for this tab's project.
-   * Only visible on the active tab — non-active tabs route the cog to
-   * the repo-tab context menu, keeping visual chrome tight.
-   *
-   * Stops propagation so clicking the cog never also fires the tab's
-   * primary onclick (which would re-activate an already-active tab).
-   */
-  function handleSettings(event: MouseEvent) {
-    event.stopPropagation();
-    openRepoConfigDialog();
-  }
-
-  /**
-   * Right-click on the tab opens a lightweight context menu hosting
-   * "Repo settings" — the keyboard/screen-reader-accessible secondary
-   * entry point to the same dialog. Rendered as a native `<menu>`
-   * popup positioned at the click coordinates.
-   */
-  let contextMenuVisible = $state(false);
-  let contextMenuX = $state(0);
-  let contextMenuY = $state(0);
-
-  function handleContextMenu(event: MouseEvent) {
-    event.preventDefault();
-    contextMenuX = event.clientX;
-    contextMenuY = event.clientY;
-    contextMenuVisible = true;
-  }
-
-  function closeContextMenu() {
-    contextMenuVisible = false;
-  }
-
-  function handleContextSettings() {
-    closeContextMenu();
-    // Switch to this tab first so the dialog loads the right repo.
-    if (!isActive) onSwitch(index);
-    openRepoConfigDialog();
-  }
 
   let statusColor = $derived(
     isActive
@@ -115,7 +73,6 @@
   class:active={isActive}
   onclick={handleClick}
   onauxclick={handleMiddleClick}
-  oncontextmenu={handleContextMenu}
   onkeydown={(e) => { if (e.key === "Enter") handleClick(); }}
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
@@ -135,17 +92,6 @@
   {#if project.change_count > 0}
     <span class="tab-badge">{project.change_count}</span>
   {/if}
-  {#if isActive}
-    <button
-      class="tab-settings"
-      onclick={handleSettings}
-      title="Repo settings"
-      aria-label="Repo settings"
-      data-testid="project-tab-settings"
-    >
-      {"\uF013"}
-    </button>
-  {/if}
   <button
     class="tab-close"
     onclick={handleClose}
@@ -157,33 +103,6 @@
     <TabTooltip snapshot={hoverSnapshot} x={tooltipX} y={tooltipY} />
   {/if}
 </div>
-
-{#if contextMenuVisible}
-  <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-  <div
-    class="context-menu-backdrop"
-    role="presentation"
-    onclick={closeContextMenu}
-    oncontextmenu={(e) => { e.preventDefault(); closeContextMenu(); }}
-  ></div>
-  <menu
-    class="context-menu"
-    style="left: {contextMenuX}px; top: {contextMenuY}px"
-    data-testid="project-tab-context-menu"
-  >
-    <li>
-      <button
-        type="button"
-        class="context-menu-item"
-        onclick={handleContextSettings}
-        data-testid="project-tab-context-settings"
-      >
-        <span class="nf">{"\uF013"}</span>
-        <span>Repo settings</span>
-      </button>
-    </li>
-  </menu>
-{/if}
 
 <style>
   .project-tab {
@@ -263,62 +182,5 @@
   .tab-close:hover {
     color: var(--text-primary);
     opacity: 1;
-  }
-
-  .tab-settings {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 11px;
-    font-family: var(--font-icons);
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-    flex-shrink: 0;
-    opacity: 0.6;
-  }
-
-  .tab-settings:hover {
-    color: var(--text-primary);
-    opacity: 1;
-  }
-
-  .context-menu-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 998;
-  }
-
-  .context-menu {
-    position: fixed;
-    z-index: 999;
-    margin: 0;
-    padding: 4px;
-    list-style: none;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    box-shadow: 0 6px 20px var(--overlay-shadow);
-    min-width: 180px;
-  }
-
-  .context-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 6px 10px;
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    font-family: inherit;
-    font-size: 12px;
-    cursor: pointer;
-    text-align: left;
-    border-radius: 4px;
-  }
-
-  .context-menu-item:hover {
-    background: var(--overlay-hover);
   }
 </style>

@@ -1,24 +1,17 @@
 /**
- * Repo-config dialog store — load / dirty-track / apply cycle for the
- * per-repo "Repo settings" dialog (Phase 6 of the repo-config-cli plan).
+ * Repo-config store — load / dirty-track / apply cycle for the per-repo
+ * "Repo settings" surface (Phase 6 of the repo-config-cli plan).
  *
  * The store carries two snapshots of the remote config:
  *
  *   - `before`  — the last-loaded-or-saved state. Readonly from the
- *                 dialog's point of view.
+ *                 settings page's point of view.
  *   - `current` — the edited copy the user is mutating. Writes go here
  *                 via `updateCurrent()`, never directly to `before`.
  *
  * `patch` is a derived snapshot diff (`before → current`) built with
  * {@link buildPatch}. The Save button is enabled iff the patch is
  * non-empty (see {@link isPatchEmpty}).
- *
- * Open/closed state for the dialog itself lives in
- * {@link repoConfigDialogOpen} so three independent surfaces can open
- * it (sidebar cog, repo-tab context menu, future programmatic openers)
- * without lifting state into each caller. This mirrors the
- * `tasksPopover.ts` pattern and keeps the data-bearing store importable
- * from non-UI contexts.
  */
 
 import { derived, get, writable } from "svelte/store";
@@ -65,28 +58,6 @@ export type ProjectRepoConfig = {
  * to heuristic" rather than "no provider".
  */
 export const repoConfig = writable<ProjectRepoConfig | null>(null);
-
-// ───────────────────────────────────────────────────────────────────────────
-// Dialog open/closed flag
-// ───────────────────────────────────────────────────────────────────────────
-
-/**
- * Whether the `RepoConfigDialog` is currently visible.
- *
- * Defaults to `false` on app start — the dialog is always opt-in via
- * the sidebar cog icon or the repo-tab context menu.
- */
-export const repoConfigDialogOpen = writable<boolean>(false);
-
-/** Explicitly open the dialog. */
-export function openRepoConfigDialog(): void {
-  repoConfigDialogOpen.set(true);
-}
-
-/** Explicitly close the dialog. */
-export function closeRepoConfigDialog(): void {
-  repoConfigDialogOpen.set(false);
-}
 
 // ───────────────────────────────────────────────────────────────────────────
 // Load / dirty-tracking state

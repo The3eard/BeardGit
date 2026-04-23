@@ -1,52 +1,31 @@
 /**
- * Unit tests for `ProjectTab.svelte` — focus on the new repo-config
- * entry points added in Phase 6.7:
- *   - Active tab shows a settings cog that opens the Repo-config
- *     dialog and stops click propagation.
- *   - Right-click opens a context menu with a "Repo settings" item.
+ * Unit tests for `ProjectTab.svelte` after the cog + right-click
+ * context menu were removed. Sidebar is now the sole entry point
+ * for Repo settings.
  */
-
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/svelte";
-import { get } from "svelte/store";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, fireEvent, cleanup } from "@testing-library/svelte";
 import ProjectTab from "../ProjectTab.svelte";
-import { repoConfigDialogOpen } from "$lib/stores/repoConfig";
 import type { ProjectInfo } from "$lib/types";
-
-const project = {
-  path: "/tmp/repo",
-  name: "repo",
-  change_count: 0,
-} as unknown as ProjectInfo;
-
-beforeEach(() => {
-  repoConfigDialogOpen.set(false);
-});
 
 afterEach(() => cleanup());
 
-describe("ProjectTab — repo config entry points", () => {
-  it("clicking the cog on the active tab opens the dialog", async () => {
-    const { getByTestId } = render(ProjectTab, {
-      props: {
-        project,
-        isActive: true,
-        index: 0,
-        onSwitch: () => {},
-        onClose: () => {},
-      },
-    });
-    const cog = getByTestId("project-tab-settings") as HTMLButtonElement;
-    await fireEvent.click(cog);
-    expect(get(repoConfigDialogOpen)).toBe(true);
-  });
+function makeProject(overrides: Partial<ProjectInfo> = {}): ProjectInfo {
+  return {
+    name: "demo",
+    path: "/tmp/demo",
+    change_count: 0,
+    ...overrides,
+  } as ProjectInfo;
+}
 
-  it("hides the cog on inactive tabs to keep the chrome tight", () => {
+describe("ProjectTab — no cog, no custom context menu", () => {
+  it("does not render the settings cog on the active tab", () => {
     const { queryByTestId } = render(ProjectTab, {
       props: {
-        project,
-        isActive: false,
-        index: 1,
+        project: makeProject(),
+        isActive: true,
+        index: 0,
         onSwitch: () => {},
         onClose: () => {},
       },
@@ -54,22 +33,56 @@ describe("ProjectTab — repo config entry points", () => {
     expect(queryByTestId("project-tab-settings")).toBeNull();
   });
 
-  it("right-clicking the tab reveals a 'Repo settings' context menu", async () => {
-    const { container, getByTestId } = render(ProjectTab, {
+  it("does not open a custom context menu on right-click", async () => {
+    const { container, queryByTestId } = render(ProjectTab, {
       props: {
-        project,
+        project: makeProject(),
         isActive: true,
         index: 0,
         onSwitch: () => {},
         onClose: () => {},
       },
     });
-    const tab = container.querySelector(".project-tab") as HTMLElement;
-    await fireEvent.contextMenu(tab);
-    const menu = getByTestId("project-tab-context-menu");
-    expect(menu).toBeTruthy();
-    const item = getByTestId("project-tab-context-settings");
-    await fireEvent.click(item);
-    expect(get(repoConfigDialogOpen)).toBe(true);
+    const root = container.firstElementChild as Element;
+    await fireEvent.contextMenu(root);
+    expect(queryByTestId("project-tab-context-menu")).toBeNull();
+    expect(queryByTestId("project-tab-context-settings")).toBeNull();
+  });
+
+  it("calls onSwitch when clicked on an inactive tab", async () => {
+    const onSwitch = vi.fn();
+    const { container } = render(ProjectTab, {
+      props: {
+        project: makeProject(),
+        isActive: false,
+        index: 3,
+        onSwitch,
+        onClose: () => {},
+      },
+    });
+    const root = container.firstElementChild as HTMLElement;
+    await fireEvent.click(root);
+    expect(onSwitch).toHaveBeenCalledWith(3);
+  });
+
+  it("calls onClose on middle-click", async () => {
+    const onClose = vi.fn();
+    const { container } = render(ProjectTab, {
+      props: {
+        project: makeProject(),
+        isActive: true,
+        index: 1,
+        onSwitch: () => {},
+        onClose,
+      },
+    });
+    const root = container.firstElementChild as HTMLElement;
+    // auxclick fires for middle-button in the real browser; dispatch a
+    // synthetic one with button=1 so the component's guard triggers.
+    await fireEvent(
+      root,
+      new MouseEvent("auxclick", { button: 1, bubbles: true }),
+    );
+    expect(onClose).toHaveBeenCalledWith(1);
   });
 });

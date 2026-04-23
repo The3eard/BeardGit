@@ -36,19 +36,30 @@
   // everyone else (GitLab, and future forges that inherit the term) says
   // "Merge requests". Keeping the id stable so activeView routing doesn't
   // care which terminology we render.
-  let providerItems = $derived<NavItem[]>([
-    { label: m.sidebar_pipelines(), icon: "\uF144", id: "pipelines" },
-    { label: m.sidebar_issues(), icon: "\uF188", id: "issues" },
-    {
-      label:
-        $activeProvider?.kind === "github"
-          ? m.sidebar_pull_requests()
-          : m.sidebar_merge_requests(),
-      icon: "\uF407",
-      id: "merge-requests",
-    },
-    { label: m.sidebar_releases(), icon: "\uF135", id: "releases" },
-  ]);
+  let providerItems = $derived.by<NavItem[]>(() => {
+    const base: NavItem[] = [
+      { label: m.sidebar_pipelines(), icon: "\uF144", id: "pipelines" },
+      { label: m.sidebar_issues(), icon: "\uF188", id: "issues" },
+      {
+        label:
+          $activeProvider?.kind === "github"
+            ? m.sidebar_pull_requests()
+            : m.sidebar_merge_requests(),
+        icon: "\uF407",
+        id: "merge-requests",
+      },
+      { label: m.sidebar_releases(), icon: "\uF135", id: "releases" },
+    ];
+    const kind = $activeProvider?.kind;
+    if (kind === "github" || kind === "gitlab") {
+      base.push({
+        label: m.sidebar_repo_config(),
+        icon: "\uF013",
+        id: "repo-config",
+      });
+    }
+    return base;
+  });
 
   function handleNav(id: string) {
     onNavigate?.(id);
