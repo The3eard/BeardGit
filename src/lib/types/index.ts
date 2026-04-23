@@ -285,6 +285,13 @@ export interface ProjectInfo {
   name: string;
   head_branch: string | null;
   change_count: number;
+  /**
+   * `true` when this tab points at a linked git worktree (created
+   * with `git worktree add`) rather than the main working directory.
+   * Surfaced in the UI so the user can tell a worktree apart from
+   * the main project when both are open.
+   */
+  is_worktree: boolean;
 }
 
 export interface RecentRepo {

@@ -56,6 +56,7 @@ const PROJECT: ProjectInfo = {
   name: "demo",
   head_branch: "main",
   change_count: 0,
+  is_worktree: false,
 };
 
 function resetStores() {

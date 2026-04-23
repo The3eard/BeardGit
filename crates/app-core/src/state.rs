@@ -69,6 +69,11 @@ pub struct ProjectSlot {
     pub head_branch: Option<String>,
     /// Number of uncommitted changes. Always populated (cheap to read).
     pub change_count: usize,
+    /// `true` when this slot points at a linked git worktree rather
+    /// than the main working directory. Computed once at open time —
+    /// the value never changes for the life of the slot since we don't
+    /// re-home tabs across worktrees.
+    pub is_worktree: bool,
 }
 
 /// Shared global state for the BeardGit Tauri application.

@@ -356,6 +356,7 @@
   "conflict_continue_disabled_tooltip": "Resuelve todos los conflictos antes de continuar",
   "conflict_resolved_all": "Todos los conflictos resueltos — listo para continuar",
   "worktrees_coming_soon": "Próximamente",
+  "project_tab_worktree_title": "Worktree vinculado",
   "worktree_list_empty": "Sin worktrees vinculados",
   "worktree_create": "Nuevo Worktree",
   "worktree_remove": "Eliminar",

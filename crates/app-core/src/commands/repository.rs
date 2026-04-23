@@ -60,6 +60,7 @@ pub async fn open_repo(
         .unwrap_or_else(|| path.clone());
     let head_branch = status.head_branch.clone();
     let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
+    let is_worktree = repo.is_worktree();
 
     let slot = ProjectSlot {
         path: path.clone(),
@@ -69,6 +70,7 @@ pub async fn open_repo(
         watcher: new_watcher,
         head_branch,
         change_count,
+        is_worktree,
     };
 
     // Insert or replace slot, then set as active

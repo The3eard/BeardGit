@@ -80,6 +80,7 @@ const githubRemote = {
   name: "r",
   head_branch: null,
   change_count: 0,
+  is_worktree: false,
   remotes: [{ name: "origin", url: "git@github.com:x/y.git" }],
 };
 
@@ -88,6 +89,7 @@ const gitlabRemote = {
   name: "r",
   head_branch: null,
   change_count: 0,
+  is_worktree: false,
   remotes: [{ name: "origin", url: "https://gitlab.com/x/y.git" }],
 };
 
@@ -96,6 +98,7 @@ const noRemote = {
   name: "r",
   head_branch: null,
   change_count: 0,
+  is_worktree: false,
   remotes: [],
 };
 

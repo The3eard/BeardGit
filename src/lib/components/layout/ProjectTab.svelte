@@ -123,6 +123,14 @@
   tabindex="0"
 >
   <span class="status-dot" style="background: {statusColor}"></span>
+  {#if project.is_worktree}
+    <span
+      class="worktree-icon nf"
+      title={m.project_tab_worktree_title()}
+      aria-label={m.project_tab_worktree_title()}
+      data-testid="project-tab-worktree-badge"
+    >{""}</span>
+  {/if}
   <span class="tab-name">{project.name}</span>
   {#if project.change_count > 0}
     <span class="tab-badge">{project.change_count}</span>
@@ -208,6 +216,15 @@
     height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
+  }
+
+  .worktree-icon {
+    font-family: var(--font-icons);
+    font-size: 10px;
+    color: var(--accent-blue);
+    line-height: 1;
+    flex-shrink: 0;
+    cursor: help;
   }
 
   .tab-name {

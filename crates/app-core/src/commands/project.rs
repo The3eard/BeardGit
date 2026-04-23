@@ -34,6 +34,7 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
             name: existing.name.clone(),
             head_branch: existing.head_branch.clone(),
             change_count: existing.change_count,
+            is_worktree: existing.is_worktree,
         });
     }
 
@@ -42,6 +43,7 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
     let temp_repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
     let status = temp_repo.status().map_err(|e| e.to_string())?;
     let change_count = temp_repo.file_statuses().map(|s| s.len()).unwrap_or(0);
+    let is_worktree = temp_repo.is_worktree();
 
     let name = std::path::Path::new(&path)
         .file_name()
@@ -56,6 +58,7 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
         watcher: None,
         head_branch: status.head_branch.clone(),
         change_count,
+        is_worktree,
     };
 
     projects.push(slot);
@@ -77,6 +80,7 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
         name,
         head_branch: status.head_branch,
         change_count,
+        is_worktree,
     })
 }
 
@@ -255,6 +259,7 @@ pub fn get_open_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>,
             name: slot.name.clone(),
             head_branch: slot.head_branch.clone(),
             change_count: slot.change_count,
+            is_worktree: slot.is_worktree,
         })
         .collect())
 }
@@ -284,18 +289,19 @@ pub fn restore_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, 
 
     // Parallel phase: open repos and gather metadata (I/O-heavy, benefits from parallelism).
     // Invalid paths (deleted/moved repos) are silently dropped via `filter_map`.
-    let results: Vec<(String, String, Option<String>, usize)> = paths
+    let results: Vec<(String, String, Option<String>, usize, bool)> = paths
         .par_iter()
         .filter_map(|path| {
             let repo_path = PathBuf::from(path);
             let temp_repo = git_engine::Repository::open(repo_path).ok()?;
             let status = temp_repo.status().ok()?;
             let change_count = temp_repo.file_statuses().map(|s| s.len()).unwrap_or(0);
+            let is_worktree = temp_repo.is_worktree();
             let name = std::path::Path::new(path)
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| path.clone());
-            Some((path.clone(), name, status.head_branch, change_count))
+            Some((path.clone(), name, status.head_branch, change_count, is_worktree))
         })
         .collect();
 
@@ -309,7 +315,7 @@ pub fn restore_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, 
         // Clear existing slots to prevent duplicates on repeated calls.
         projects.clear();
 
-        for (path, name, head_branch, change_count) in results {
+        for (path, name, head_branch, change_count, is_worktree) in results {
             let slot = ProjectSlot {
                 path: path.clone(),
                 name: name.clone(),
@@ -318,6 +324,7 @@ pub fn restore_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, 
                 watcher: None,
                 head_branch: head_branch.clone(),
                 change_count,
+                is_worktree,
             };
 
             projects.push(slot);
@@ -328,6 +335,7 @@ pub fn restore_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, 
                 name,
                 head_branch,
                 change_count,
+                is_worktree,
             });
         }
     }
