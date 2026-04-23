@@ -894,9 +894,24 @@ export async function addMrPrComment(number: number, body: string): Promise<void
   return invoke<void>("add_mr_pr_comment", { number, body });
 }
 
-/** Add an inline comment on a specific file and line. */
-export async function addMrPrInlineComment(number: number, path: string, line: number, body: string): Promise<void> {
-  return invoke<void>("add_mr_pr_inline_comment", { number, path, line, body });
+/**
+ * Add an inline comment on a specific file and line.
+ *
+ * `baseSha` / `headSha` are required by GitLab's discussion position
+ * payload; they're ignored by GitHub but the IPC surface keeps them
+ * unconditional so callers don't need to branch per-provider.
+ */
+export async function addMrPrInlineComment(
+  number: number,
+  path: string,
+  line: number,
+  body: string,
+  baseSha: string,
+  headSha: string,
+): Promise<void> {
+  return invoke<void>("add_mr_pr_inline_comment", {
+    number, path, line, body, baseSha, headSha,
+  });
 }
 
 // Phase 8.2 — MR/PR enhancements

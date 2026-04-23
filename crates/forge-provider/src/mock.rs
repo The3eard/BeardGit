@@ -80,6 +80,8 @@ impl ForgeProvider for MockProvider {
         _path: &str,
         _line: u64,
         _body: &str,
+        _base_sha: &str,
+        _head_sha: &str,
     ) -> Result<(), ForgeError> {
         Ok(())
     }

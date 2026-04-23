@@ -142,6 +142,8 @@ impl ForgeProvider for GitHubCli {
         path: &str,
         line: u64,
         body: &str,
+        _base_sha: &str,
+        _head_sha: &str,
     ) -> Result<(), ForgeError> {
         self.add_mr_pr_inline_comment_impl(number, path, line, body)
     }

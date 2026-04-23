@@ -136,8 +136,10 @@ impl ForgeProvider for GitLabCli {
         path: &str,
         line: u64,
         body: &str,
+        base_sha: &str,
+        head_sha: &str,
     ) -> Result<(), ForgeError> {
-        self.add_mr_pr_inline_comment_impl(number, path, line, body)
+        self.add_mr_pr_inline_comment_impl(number, path, line, body, base_sha, head_sha)
     }
 
     // ─── Labels ────────────────────────────────────────────────────────

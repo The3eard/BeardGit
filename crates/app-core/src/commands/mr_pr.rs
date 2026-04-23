@@ -190,6 +190,9 @@ pub async fn add_mr_pr_comment(
 }
 
 /// Add an inline comment on a specific file and line of a MR/PR diff.
+///
+/// `base_sha` / `head_sha` are required by GitLab's discussion position
+/// payload; GitHub ignores them but the IPC surface keeps them unconditional.
 #[tauri::command]
 #[instrument(skip(state, body), name = "cmd::mr_pr::inline_comment")]
 pub async fn add_mr_pr_inline_comment(
@@ -197,12 +200,14 @@ pub async fn add_mr_pr_inline_comment(
     path: String,
     line: u64,
     body: String,
+    base_sha: String,
+    head_sha: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
-            .add_mr_pr_inline_comment(number, &path, line, &body)
+            .add_mr_pr_inline_comment(number, &path, line, &body, &base_sha, &head_sha)
             .map_err(|e| e.to_string())
     })
     .await

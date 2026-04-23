@@ -83,12 +83,17 @@ pub trait ForgeProvider: Send + Sync {
     fn add_mr_pr_comment(&self, number: u64, body: &str) -> Result<(), ForgeError>;
 
     /// Post an inline review comment on a specific file + line of a MR/PR diff.
+    ///
+    /// `base_sha` / `head_sha` are required by GitLab's discussion position
+    /// payload; GitHub ignores them.
     fn add_mr_pr_inline_comment(
         &self,
         number: u64,
         path: &str,
         line: u64,
         body: &str,
+        base_sha: &str,
+        head_sha: &str,
     ) -> Result<(), ForgeError>;
 
     // ─── Sub-phase stubs (default = NotSupported) ───
