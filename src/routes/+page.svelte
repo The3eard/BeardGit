@@ -39,6 +39,7 @@
   import { initTerminalEvents } from "$lib/stores/terminal";
   import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment, openTabs, getActiveTerminalSegment, getCompositeTerminals } from "$lib/stores/tabs";
   import { getSidebarCollapsed, setSidebarCollapsed, resolveStartupTheme } from "$lib/api/tauri";
+  import { loadSidebarLayout } from "$lib/stores/sidebarLayout";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
   import AiConfigEditor from "$lib/components/ai-config/AiConfigEditor.svelte";
   import AiSessionsView from "$lib/components/ai-sessions/AiSessionsView.svelte";
@@ -174,6 +175,10 @@
     } catch {
       // Default to expanded
     }
+    // Hydrate the customised Navigation layout in parallel with the
+    // other settings so the first Sidebar render uses the persisted
+    // order + hidden set instead of flashing the default order first.
+    await loadSidebarLayout();
 
     // Reset view to graph on project tab switch for instant responsiveness
     onProjectSwitch(() => {
