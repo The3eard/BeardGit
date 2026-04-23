@@ -32,7 +32,7 @@
   import MrPrView from "$lib/components/mr-pr/MrPrView.svelte";
   import IssueView from "$lib/components/issues/IssueView.svelte";
   import ReleaseView from "$lib/components/releases/ReleaseView.svelte";
-  import { activeViewStore } from "$lib/stores/navigation";
+  import { activeViewStore, installProviderDisconnectReroute } from "$lib/stores/navigation";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
   import TerminalView from "$lib/components/terminal/TerminalView.svelte";
@@ -76,6 +76,7 @@
   let activeView = $state("graph");
   let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
   let teardownRepoConfigRoute: (() => void) | null = null;
+  let teardownProviderReroute: (() => void) | null = null;
   let showAiBackgroundDialog = $state(false);
 
   // Open the dialog whenever any entry point pings the shared signal store.
@@ -156,6 +157,7 @@
     }
     await listenThemeChanges();
 
+    teardownProviderReroute = installProviderDisconnectReroute();
     initProjects();
     initTerminalEvents();
     detectAiProviders();
@@ -457,6 +459,8 @@
     }
     teardownRepoConfigRoute?.();
     teardownRepoConfigRoute = null;
+    teardownProviderReroute?.();
+    teardownProviderReroute = null;
   });
 
   /**
