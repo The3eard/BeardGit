@@ -133,6 +133,13 @@ pub struct CiRun {
     pub source: Option<String>,
     /// Human-readable name: pipeline name (GitLab 16.3+) or workflow name (GitHub).
     pub name: Option<String>,
+    /// Username of the user / bot that triggered this run.
+    ///
+    /// GitHub: `triggering_actor.login` on the workflow run.
+    /// GitLab: `user.username` on the pipeline.
+    /// `None` when the upstream payload omits the actor (e.g. scheduled runs on
+    /// some self-hosted GitLab versions).
+    pub actor: Option<String>,
     /// ISO 8601 creation timestamp.
     pub created_at: Option<String>,
     /// ISO 8601 last-updated timestamp.
@@ -377,5 +384,25 @@ mod tests {
         let json = serde_json::to_string(&w).unwrap();
         assert!(json.contains("\"id\":\"12\""));
         assert!(json.contains("\"state\":\"active\""));
+    }
+
+    #[test]
+    fn ci_run_actor_defaults_to_none_and_serializes_snake_case() {
+        let r = CiRun {
+            id: 1,
+            display_id: 1,
+            status: CiStatus::Success,
+            ref_name: "main".into(),
+            sha: "deadbeef".into(),
+            source: None,
+            name: None,
+            actor: None,
+            created_at: None,
+            updated_at: None,
+            web_url: "https://example.test/runs/1".into(),
+        };
+        let json = serde_json::to_value(&r).unwrap();
+        assert!(json.get("actor").is_some(), "actor must be serialised even when None");
+        assert_eq!(json["actor"], serde_json::Value::Null);
     }
 }

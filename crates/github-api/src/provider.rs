@@ -306,6 +306,7 @@ fn workflow_run_to_ci_run(r: types::WorkflowRun) -> CiRun {
         sha: r.head_sha,
         source: Some(r.event),
         name: r.name,
+        actor: None,
         created_at: Some(r.created_at),
         updated_at: Some(r.updated_at),
         web_url: r.html_url,
