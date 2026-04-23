@@ -42,4 +42,13 @@ describe("MrPrDetail file rows", () => {
     const rows = getAllByRole("button").filter((b) => b.className.includes("file-row"));
     expect(rows.find((r) => r.textContent?.includes("b.ts"))!.className).toMatch(/selected/);
   });
+
+  it("renders a collapsible tree when PR has more than 20 files", () => {
+    mrPrDiffFiles.set(Array.from({ length: 25 }, (_, i) => ({
+      path: `src/dir/f${i}.ts`, old_path: null, status: "modified",
+      additions: 1, deletions: 0, patch: null,
+    })));
+    const { container } = render(MrPrDetail, { onFileClick: () => {} });
+    expect(container.querySelector("[data-pathtree-folder]")).toBeTruthy();
+  });
 });
