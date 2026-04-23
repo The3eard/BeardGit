@@ -6,6 +6,7 @@
   import { runMutation } from "../../api/runMutation";
   import { shortOid } from "../../utils/git";
   import { loadReflog } from "../../stores/reflog";
+  import { openCreateBranchDialog } from "../../stores/createBranchDialog";
 
   let {
     entry,
@@ -65,20 +66,8 @@
     }
   }
 
-  async function handleCreateBranch() {
-    const name = prompt(m.graph_branch_name_prompt());
-    if (!name) return;
-    try {
-      await runMutation({
-        kind: "branch_create",
-        invoke: () => api.createBranchAt(name, entry.oid),
-        successToast: () => `Created branch ${name}`,
-        failureToastPrefix: "Branch create failed",
-      });
-      await loadReflog();
-    } catch {
-      // runMutation already surfaced the toast.
-    }
+  function handleCreateBranch() {
+    openCreateBranchDialog({ kind: "commit", oid: entry.oid });
   }
 
   async function handleReset(mode: string) {
