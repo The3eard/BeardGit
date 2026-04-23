@@ -71,6 +71,8 @@
   import { initRepoConfigRouteSync } from "$lib/stores/repoConfigRoute";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
   import { startConversationListeners, stopConversationListeners } from "$lib/stores/aiConversations";
+  import { createBranchDialog, openCreateBranchDialog, closeCreateBranchDialog } from "$lib/stores/createBranchDialog";
+  import CreateBranchDialog from "$lib/components/branches/CreateBranchDialog.svelte";
 
   let activeView = $state("graph");
   let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
@@ -305,13 +307,20 @@
           try {
             await runMutation({
               kind: "push",
-              invoke: () => api.pushRemote("origin", branch),
+              invoke: () => api.pushRemote("origin", branch, false),
               successToast: () => `Pushed to origin/${branch}`,
               failureToastPrefix: "Push failed",
               trackAsTask: true,
             });
           } catch { /* runMutation surfaced the toast */ }
         },
+      },
+      {
+        id: "branch.newBranch",
+        keys: { mod: true, shift: true, key: "B" },
+        label: "New branch",
+        category: "Git",
+        action: () => openCreateBranchDialog({ kind: "head" }),
       },
       {
         id: "git.stageAll",
@@ -920,6 +929,12 @@
   {#if showAiBackgroundDialog}
     <CreateBackgroundRunDialog onClose={() => (showAiBackgroundDialog = false)} />
   {/if}
+
+  <CreateBranchDialog
+    open={$createBranchDialog.open}
+    initialSource={$createBranchDialog.source}
+    onClose={closeCreateBranchDialog}
+  />
 
   {#if reflogCtxVisible && reflogCtxEntry}
     <ContextMenu

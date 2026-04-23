@@ -284,8 +284,17 @@ export async function pullRemote(remote: string, branch: string): Promise<number
   return invoke<number>("pull_remote", { remote, branch });
 }
 
-export async function pushRemote(remote: string, branch: string): Promise<number> {
-  return invoke<number>("push_remote", { remote, branch });
+/**
+ * Push a branch to a remote. Pass `force=true` to send
+ * `--force-with-lease`. Always sets upstream on first push.
+ */
+export async function pushRemote(remote: string, branch: string, force: boolean): Promise<number> {
+  return invoke<number>("push_remote", { remote, branch, force });
+}
+
+/** Rename a local branch. Works for the currently checked-out branch too. */
+export async function renameBranch(oldName: string, newName: string): Promise<void> {
+  return invoke("rename_branch", { oldName, newName });
 }
 
 export async function getRemotes(): Promise<RemoteInfo[]> {
