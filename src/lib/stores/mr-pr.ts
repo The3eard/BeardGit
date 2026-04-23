@@ -5,32 +5,18 @@
  * for updates on open MR/PRs, and a derived store mapping branches
  * to open MR/PRs for graph badges.
  *
- * DIAGNOSIS 2026-04-21 — "PR #18 infinite loading spinner" bug
- * ------------------------------------------------------------
- * Symptom: opening PR #18 in the `beardgit_test` project leaves the
- * detail pane stuck on a loading spinner forever.
- *
- * Ruled out: the `loadMrPrDetail` function below (see ~line 97) does
- * call `mrPrDetailLoading.set(false)` inside a `finally` block, so
- * the classic "missing finally" state-leak bug is NOT the cause.
- *
- * Actual root cause: PR #18 has ~3.4k changed files. The backend
- * runs `gh api repos/{owner}/{repo}/pulls/18/files --paginate`,
- * which over a slow/congested network can take >60s and in practice
- * appears to hang indefinitely (the subprocess never returns).
- * Because neither the TS caller nor the Rust spawn has a timeout,
- * the awaited `apiDiff(number)` promise never settles — so the
- * `try`/`finally` never reaches `finally`, loading stays true, and
- * the spinner is forever.
- *
- * Fix path (upcoming phases):
- *  - TS side: wrap the detail+diff fetch in a 15 s `withTimeout`
- *    helper so the spinner always clears; on timeout, surface a
- *    toast and show the shared `ForgeDetailShell` error state with
- *    a retry button.
- *  - Rust side: add `wait_timeout(20s)` on the spawned `gh`/`glab`
- *    process and cap the diff payload so runaway outputs are
- *    truncated rather than streamed indefinitely.
+ * PR hang mitigation
+ * ------------------
+ * Three layers guard against a hung detail or diff fetch:
+ *   1. TS side — each fetch is raced against {@link DETAIL_TIMEOUT_MS}
+ *      (15 s) via `withTimeout` so neither load can strand the UI on
+ *      a spinner.
+ *   2. Rust side — `get_mr_pr_diff_impl` caps the `gh api …
+ *      /pulls/{n}/files --paginate` child at 20 s and the parsed
+ *      payload at 50 MB (see `crates/cli-provider/src/github/mr_pr.rs`).
+ *   3. Store-level decoupling — meta (summary/body/comments) and
+ *      diff (changed files) each have their own loading / error
+ *      state so a slow diff fetch can't gate the metadata render.
  */
 
 import { writable, derived, get } from "svelte/store";
@@ -99,7 +85,7 @@ export const mrPrDetail = writable<MrPrDetail | null>(null);
 /** Changed files for the selected MR/PR. */
 export const mrPrDiffFiles = writable<MrPrDiffFile[]>([]);
 
-/** Whether the detail is loading. */
+/** Whether the detail (summary + body + comments) is loading. */
 export const mrPrDetailLoading = writable(false);
 
 /**
@@ -109,6 +95,21 @@ export const mrPrDetailLoading = writable(false);
  * with a retry button so users aren't stuck staring at a blank pane.
  */
 export const mrPrDetailError = writable<string | null>(null);
+
+/**
+ * Whether the diff-files fetch is in flight for the selected MR/PR.
+ *
+ * Tracked independently from {@link mrPrDetailLoading} so the summary
+ * / body / comments can paint as soon as `get_mr_pr_detail` lands —
+ * without waiting on the often-slower `gh api …/pulls/{n}/files
+ * --paginate` call. The "changed files" section renders its own
+ * inline spinner / error banner driven by this store + {@link
+ * mrPrDiffError}.
+ */
+export const mrPrDiffLoading = writable(false);
+
+/** Last error raised while loading the selected MR/PR's diff files. */
+export const mrPrDiffError = writable<string | null>(null);
 
 /** Map of branch name -> MrPr for open MR/PRs (used by graph for badges). */
 export const mrPrByBranch = derived(mrPrList, ($list) => {
@@ -141,29 +142,35 @@ export async function refreshMrPrList() {
 /**
  * Load detail + diff for a specific MR/PR.
  *
- * The combined fetch is raced against a {@link DETAIL_TIMEOUT_MS}
- * timer via `withTimeout` so a hung IPC call (e.g. a huge paginated
- * diff) can't leave the detail pane stuck on a spinner. On any
- * failure — network, provider error, or timeout — the error is
- * surfaced both to the `mrPrDetailError` store (for the inline
- * banner) and to a user-facing toast, then the loading flag is
- * cleared in `finally`.
+ * Meta (`apiDetail`) and diff (`apiDiff`) are fetched concurrently
+ * but track their own loading + error state. This way a slow diff
+ * fetch (e.g. the 3.4k-file PR that inspired the timeout machinery)
+ * doesn't gate the summary / body / comments render — the user
+ * sees the PR metadata as soon as `gh pr view` lands, and the
+ * "changed files" section reports its own spinner / error inline.
+ *
+ * Both fetches are individually capped by {@link DETAIL_TIMEOUT_MS}
+ * via `withTimeout` so a hung IPC call can't strand the UI on a
+ * spinner.
  */
 export async function loadMrPrDetail(number: number): Promise<void> {
   selectedMrPrNumber.set(number);
+  const metaP = loadMrPrDetailMeta(number);
+  const diffP = loadMrPrDetailDiff(number);
+  // `allSettled` so one branch failing doesn't abort the other —
+  // each branch already reports its own toast / store error.
+  await Promise.allSettled([metaP, diffP]);
+}
+
+async function loadMrPrDetailMeta(number: number): Promise<void> {
   mrPrDetailLoading.set(true);
   mrPrDetailError.set(null);
   try {
-    const [detail, diff] = await withTimeout(
-      Promise.all([apiDetail(number), apiDiff(number)]),
-      DETAIL_TIMEOUT_MS,
-    );
+    const detail = await withTimeout(apiDetail(number), DETAIL_TIMEOUT_MS);
     mrPrDetail.set(detail);
-    mrPrDiffFiles.set(diff);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     mrPrDetail.set(null);
-    mrPrDiffFiles.set([]);
     mrPrDetailError.set(msg);
     addToast({
       message: m.mrpr_load_failed({ number: number.toString(), error: msg }),
@@ -171,6 +178,21 @@ export async function loadMrPrDetail(number: number): Promise<void> {
     });
   } finally {
     mrPrDetailLoading.set(false);
+  }
+}
+
+async function loadMrPrDetailDiff(number: number): Promise<void> {
+  mrPrDiffLoading.set(true);
+  mrPrDiffError.set(null);
+  try {
+    const diff = await withTimeout(apiDiff(number), DETAIL_TIMEOUT_MS);
+    mrPrDiffFiles.set(diff);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    mrPrDiffFiles.set([]);
+    mrPrDiffError.set(msg);
+  } finally {
+    mrPrDiffLoading.set(false);
   }
 }
 

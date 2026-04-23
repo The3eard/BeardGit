@@ -558,6 +558,7 @@
   "mrpr_title": "Merge Requests",
   "mrpr_title_github": "Pull Requests",
   "mrpr_loading": "Cargando...",
+  "mrpr_diff_failed": "No se pudieron cargar los archivos modificados: {error}",
   "mrpr_empty": "No se encontraron merge requests",
   "mrpr_empty_github": "No se encontraron pull requests",
   "mrpr_no_provider": "Conecta un proveedor para ver merge requests",

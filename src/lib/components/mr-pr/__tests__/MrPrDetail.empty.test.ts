@@ -39,6 +39,8 @@ const mocks = vi.hoisted(() => {
     mrPrDetailLoading: writable(false),
     mrPrDetailError: writable<string | null>(null),
     mrPrDiffFiles: writable<MrPrDiffFile[]>([]),
+    mrPrDiffLoading: writable(false),
+    mrPrDiffError: writable<string | null>(null),
     selectedMrPrNumber: writable<number | null>(null),
     repoLabels: writable<Label[]>([]),
     repoLabelsLoading: writable(false),
@@ -53,6 +55,8 @@ vi.mock("$lib/stores/mr-pr", () => ({
   mrPrDetailLoading: mocks.mrPrDetailLoading,
   mrPrDetailError: mocks.mrPrDetailError,
   mrPrDiffFiles: mocks.mrPrDiffFiles,
+  mrPrDiffLoading: mocks.mrPrDiffLoading,
+  mrPrDiffError: mocks.mrPrDiffError,
   selectedMrPrNumber: mocks.selectedMrPrNumber,
   repoLabels: mocks.repoLabels,
   repoLabelsLoading: mocks.repoLabelsLoading,
@@ -118,6 +122,8 @@ beforeEach(() => {
   mocks.mrPrDetailLoading.set(false);
   mocks.mrPrDetailError.set(null);
   mocks.mrPrDiffFiles.set([]);
+  mocks.mrPrDiffLoading.set(false);
+  mocks.mrPrDiffError.set(null);
   mocks.selectedMrPrNumber.set(1);
   mocks.repoLabels.set([]);
   mocks.repoLabelsLoading.set(false);

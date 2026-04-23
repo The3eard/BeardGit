@@ -43,6 +43,8 @@ import {
   mrPrDetailError,
   mrPrDetail,
   mrPrDiffFiles,
+  mrPrDiffLoading,
+  mrPrDiffError,
 } from "../mr-pr";
 
 describe("loadMrPrDetail", () => {
@@ -52,9 +54,11 @@ describe("loadMrPrDetail", () => {
     mrPrDiffFiles.set([]);
     mrPrDetailLoading.set(false);
     mrPrDetailError.set(null);
+    mrPrDiffLoading.set(false);
+    mrPrDiffError.set(null);
   });
 
-  it("sets mrPrDetailError when the fetch times out", async () => {
+  it("sets mrPrDetailError and mrPrDiffError when both fetches time out", async () => {
     vi.useFakeTimers();
     (api.getMrPrDetail as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
       new Promise(() => {}),
@@ -68,7 +72,65 @@ describe("loadMrPrDetail", () => {
     await load;
 
     expect(get(mrPrDetailLoading)).toBe(false);
+    expect(get(mrPrDiffLoading)).toBe(false);
     expect(get(mrPrDetailError)).toMatch(/timed out/i);
+    expect(get(mrPrDiffError)).toMatch(/timed out/i);
+
+    vi.useRealTimers();
+  });
+
+  it("renders meta as soon as it lands even if the diff fetch is still hanging", async () => {
+    vi.useFakeTimers();
+    const fastDetail = {
+      summary: {
+        number: 18,
+        title: "fast meta",
+        state: "open" as const,
+        author: "me",
+        source_branch: "feat/x",
+        target_branch: "main",
+        url: "https://example.com/pr/18",
+        draft: false,
+        labels: [],
+        reviewers: [],
+        created_at: "",
+        updated_at: "",
+        additions: 0,
+        deletions: 0,
+        changed_files: 5,
+      },
+      body: "",
+      comments: [],
+      review_status: "pending" as const,
+      mergeable: true,
+    };
+    (api.getMrPrDetail as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      fastDetail,
+    );
+    (api.getMrPrDiff as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      new Promise(() => {}),
+    );
+
+    const load = loadMrPrDetail(18);
+    // Let the meta promise resolve (microtask queue) without advancing the
+    // timeout timer — we want to assert the meta lands first.
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(get(mrPrDetail)).not.toBeNull();
+    expect(get(mrPrDetailLoading)).toBe(false);
+    expect(get(mrPrDiffLoading)).toBe(true);
+
+    // Now let the diff timeout fire so the store resolves cleanly.
+    await vi.advanceTimersByTimeAsync(15_000);
+    await load;
+
+    expect(get(mrPrDiffLoading)).toBe(false);
+    expect(get(mrPrDiffError)).toMatch(/timed out/i);
+    // Meta state untouched by the diff failure.
+    expect(get(mrPrDetail)).not.toBeNull();
+    expect(get(mrPrDetailError)).toBeNull();
 
     vi.useRealTimers();
   });

@@ -10,6 +10,8 @@
     mrPrDetailLoading,
     mrPrDetailError,
     mrPrDiffFiles,
+    mrPrDiffLoading,
+    mrPrDiffError,
     selectedMrPrNumber,
     loadMrPrDetail,
     mergeMrPr,
@@ -403,7 +405,13 @@
 
     <div class="section">
       <h4 class="section-title">{m.mrpr_changed_files({ count: $mrPrDiffFiles.length.toString() })}</h4>
-      {#if $mrPrDiffFiles.length === 0}
+      {#if $mrPrDiffLoading}
+        <p class="empty-section" data-testid="mrpr-diff-loading">{m.mrpr_loading()}</p>
+      {:else if $mrPrDiffError}
+        <p class="diff-error" role="alert" data-testid="mrpr-diff-error">
+          {m.mrpr_diff_failed({ error: $mrPrDiffError })}
+        </p>
+      {:else if $mrPrDiffFiles.length === 0}
         <p class="empty-section">{m.mrpr_empty_no_changes()}</p>
       {:else}
         <div class="file-list">
@@ -905,6 +913,15 @@
     color: var(--text-secondary);
     font-size: 12px;
     font-style: italic;
+  }
+
+  .diff-error {
+    margin: 0;
+    padding: 6px 10px;
+    background: var(--overlay-accent-red, rgba(248, 81, 73, 0.12));
+    color: var(--accent-red);
+    font-size: 12px;
+    border-radius: 4px;
   }
 
   .file-row {
