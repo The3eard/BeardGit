@@ -16,6 +16,10 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 `chore(test): install Playwright + visual baseline spec for top-level routes`. Added `tests/visual/routes.spec.ts` covering every top-level sidebar route in dark and light mode, so the upcoming component color sweep can diff against a known-good paint. The spec waits for `--overlay-accent-blue` to confirm `applyTheme` has run before snapping. Baseline screenshots will be captured on the first CI run where the full Tauri runtime is available (the Vite-only dev server lacks Tauri IPC, so `applyTheme` cannot fire locally).
 
+### Lint — color literals blocked
+
+`chore(lint): stylelint + custom eslint rule for color literals`. Stylelint's `color-no-hex` plus a small `eslint-plugin-beardgit/no-hex-in-svelte` rule now run in CI (`.github/workflows/ci.yml`). Hardcoded colors are rejected everywhere except the four documented sources of truth: `src/lib/stores/theme.ts`, `src/lib/utils/status.ts` (pre-theme fallback map), `src/lib/ui/brand-colors.ts`, and `src/app.css` (root token defaults). Escape hatch for rare one-offs: a `// beardgit:allow-hex: <reason>` comment (or `<!-- beardgit:allow-hex: ... -->` in Svelte template markup) on or immediately above the offending line.
+
 ## [Unreleased] — PR diff view
 
 ### PR / MR diff view
