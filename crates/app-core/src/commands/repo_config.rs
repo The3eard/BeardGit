@@ -428,8 +428,12 @@ struct GhRepoView {
     description: Option<String>,
     #[serde(rename = "homepageUrl")]
     homepage_url: Option<String>,
+    // `gh` returns `"repositoryTopics": null` for repos with no topics
+    // instead of omitting the field or emitting `[]`. `#[serde(default)]`
+    // only handles the *missing* case, so we accept `Option<Vec<…>>`
+    // here and collapse to `Vec::new()` below.
     #[serde(default, rename = "repositoryTopics")]
-    repository_topics: Vec<GhRepositoryTopic>,
+    repository_topics: Option<Vec<GhRepositoryTopic>>,
     visibility: String,
     #[serde(rename = "defaultBranchRef")]
     default_branch_ref: Option<GhDefaultBranchRef>,
@@ -485,7 +489,12 @@ pub fn load_remote_repo_config_github<R: CommandRunner + ?Sized>(
     Ok(RemoteRepoConfig {
         description: view.description.unwrap_or_default(),
         homepage,
-        topics: view.repository_topics.into_iter().map(|t| t.name).collect(),
+        topics: view
+            .repository_topics
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| t.name)
+            .collect(),
         visibility,
         default_branch: view.default_branch_ref.map(|r| r.name).unwrap_or_default(),
         issues_enabled: view.has_issues_enabled,
@@ -1906,6 +1915,47 @@ mod tests {
                 "200",
             ],
         ));
+    }
+
+    #[test]
+    fn load_github_handles_null_topics() {
+        // Regression: `gh repo view --json repositoryTopics` returns
+        // `"repositoryTopics": null` (not `[]`) for repos with no
+        // topics. Serde's `#[serde(default)]` only covers the MISSING
+        // case, so the field must deserialise into `Option<Vec<…>>`.
+        let runner = MockRunner::new();
+        runner.expect(
+            "gh",
+            &["repo", "view"],
+            Ok(CliOutput {
+                stdout: r#"{
+                    "description": "x",
+                    "homepageUrl": "",
+                    "repositoryTopics": null,
+                    "visibility": "PUBLIC",
+                    "defaultBranchRef": {"name": "main"},
+                    "hasIssuesEnabled": true,
+                    "hasWikiEnabled": true,
+                    "isArchived": false
+                }"#
+                .into(),
+                stderr: String::new(),
+                exit_code: 0,
+            }),
+        );
+        runner.expect(
+            "gh",
+            &["label", "list"],
+            Ok(CliOutput {
+                stdout: "[]".into(),
+                stderr: String::new(),
+                exit_code: 0,
+            }),
+        );
+        let cfg = load_remote_repo_config_github(&runner, Path::new(".")).unwrap();
+        assert!(cfg.topics.is_empty());
+        assert!(cfg.homepage.is_none());
+        assert_eq!(cfg.visibility, Visibility::Public);
     }
 
     #[test]
