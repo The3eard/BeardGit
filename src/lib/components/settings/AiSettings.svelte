@@ -402,7 +402,7 @@
   }
 
   .error-text {
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
     font-size: 12px;
   }
 

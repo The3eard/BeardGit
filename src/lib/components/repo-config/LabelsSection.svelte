@@ -301,7 +301,7 @@
     width: 14px;
     height: 14px;
     border-radius: 7px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(0, 0, 0, 0.2); /* beardgit:allow-hex: color-swatch border always needs dark outline regardless of theme */
   }
 
   .swatch.large {

@@ -443,7 +443,7 @@
   .filter-input {
     flex: 1;
     padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
@@ -459,7 +459,7 @@
   .config-error {
     padding: 6px 8px;
     font-size: 12px;
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
     background: var(--overlay-accent-red);
     border-radius: 4px;
     word-break: break-word;
@@ -475,7 +475,7 @@
 
   .add-input {
     padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
@@ -494,7 +494,7 @@
 
   .scope-select {
     padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
@@ -530,11 +530,11 @@
     display: flex;
     align-items: center;
     padding: 4px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid color-mix(in srgb, var(--text-primary) 3%, transparent);
   }
 
   .table-row:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
   }
 
   .col-key {
@@ -584,7 +584,7 @@
   }
 
   .value-btn:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .placeholder-btn {
@@ -621,14 +621,14 @@
 
   .unset-btn:hover {
     opacity: 1 !important;
-    color: var(--accent-red, #f85149);
+    color: var(--accent-red);
   }
 
   .edit-input,
   .edit-select {
     width: 100%;
     padding: 2px 4px;
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     border: 1px solid var(--accent-blue);
     border-radius: 3px;
     color: var(--text-primary);
@@ -640,7 +640,7 @@
   .scope-badge {
     font-size: 9px;
     font-weight: 600;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     color: var(--text-secondary);
     padding: 1px 5px;
     border-radius: 3px;
@@ -666,7 +666,7 @@
   }
 
   .system-toggle:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
   }
 
   .system-table {

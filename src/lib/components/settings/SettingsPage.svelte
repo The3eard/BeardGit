@@ -497,7 +497,7 @@
 
   @keyframes bg-setting-pulse {
     0% {
-      box-shadow: 0 0 0 0 var(--overlay-accent-blue, rgba(88, 166, 255, 0.45));
+      box-shadow: 0 0 0 0 var(--overlay-accent-blue);
     }
     100% {
       box-shadow: 0 0 0 16px transparent;
