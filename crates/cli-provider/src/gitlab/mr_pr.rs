@@ -197,22 +197,43 @@ impl GitLabCli {
         path: &str,
         line: u64,
         body: &str,
+        base_sha: &str,
+        head_sha: &str,
     ) -> Result<(), ForgeError> {
-        let json_body = serde_json::json!({
-            "body": body,
-            "position": {
-                "position_type": "text",
-                "new_path": path,
-                "new_line": line,
-            }
-        });
+        let json_body = build_gitlab_inline_comment_body(path, line, body, base_sha, head_sha);
         let api_path = format!("projects/:id/merge_requests/{number}/discussions");
         self.run_with_stdin(
             &["api", &api_path, "--method", "POST", "--input", "-"],
-            &json_body.to_string(),
+            &json_body,
         )?;
         Ok(())
     }
+}
+
+/// Build the JSON body for a GitLab inline-discussion POST.
+///
+/// GitLab's `position` object needs the full `diff_refs` trio:
+/// `base_sha`, `head_sha`, `start_sha`. For single-ref PRs `start_sha`
+/// equals `base_sha`.
+pub(super) fn build_gitlab_inline_comment_body(
+    path: &str,
+    line: u64,
+    body: &str,
+    base_sha: &str,
+    head_sha: &str,
+) -> String {
+    serde_json::json!({
+        "body": body,
+        "position": {
+            "position_type": "text",
+            "new_path": path,
+            "new_line": line,
+            "base_sha": base_sha,
+            "head_sha": head_sha,
+            "start_sha": base_sha,
+        }
+    })
+    .to_string()
 }
 
 // ─── argv builders ──────────────────────────────────────────────────────
@@ -382,5 +403,23 @@ mod tests {
 +added\n\
 -removed\n";
         assert_eq!(count_patch_changes(patch), (2, 3));
+    }
+
+    #[test]
+    fn gitlab_inline_comment_payload_includes_diff_refs() {
+        // The JSON body for a GitLab inline comment must include the full
+        // diff_refs trio in `position`, otherwise GitLab rejects with
+        // "position" is invalid.
+        let base = "bbbb1111";
+        let head = "aaaa2222";
+        let json = super::build_gitlab_inline_comment_body("src/foo.ts", 42, "nice", base, head);
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["body"], "nice");
+        assert_eq!(v["position"]["new_path"], "src/foo.ts");
+        assert_eq!(v["position"]["new_line"], 42);
+        assert_eq!(v["position"]["position_type"], "text");
+        assert_eq!(v["position"]["base_sha"], base);
+        assert_eq!(v["position"]["head_sha"], head);
+        assert_eq!(v["position"]["start_sha"], base); // same-ref PRs use base as start
     }
 }

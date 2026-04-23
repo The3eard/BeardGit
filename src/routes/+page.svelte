@@ -53,7 +53,7 @@
     selectedReflogEntry as selectedReflogEntryStore,
   } from "$lib/stores/reflog";
   import type { ReflogEntry } from "$lib/types";
-  import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
+  import { getFileAtCommitText as getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
   import { shortOid } from "$lib/utils/git";
   import * as api from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
@@ -74,6 +74,22 @@
   import { startConversationListeners, stopConversationListeners } from "$lib/stores/aiConversations";
   import { createBranchDialog, openCreateBranchDialog, closeCreateBranchDialog } from "$lib/stores/createBranchDialog";
   import CreateBranchDialog from "$lib/components/branches/CreateBranchDialog.svelte";
+  import {
+    prFileDiff,
+    loadingPrFileDiff,
+    prFileDiffError,
+    loadPrFileDiff,
+    closePrFileDiff,
+    mrPrDetail,
+    mrPrDiffFiles,
+    selectedPrFilePath,
+    postReviewComment,
+    resolveDiscussion,
+    unresolveDiscussion,
+    registerPrDiffShortcuts,
+    unregisterPrDiffShortcuts,
+  } from "$lib/stores/mr-pr";
+  import type { DiffCommentsLayerProps } from "$lib/components/editor/diff-comments-layer";
 
   let activeView = $state("graph");
   let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
@@ -581,6 +597,61 @@
     }
   }
 
+  // ── PR diff panel ──────────────────────────────────────────────────
+  /** Open the PR per-file diff panel for `path`. */
+  async function handlePrFileClick(path: string) {
+    const detail = get(mrPrDetail);
+    if (!detail) return;
+    await loadPrFileDiff(detail, path);
+  }
+
+  /** Cycle to the prev/next file in the PR file list (bracket shortcuts). */
+  function handlePrFileNav(delta: -1 | 1) {
+    const files = get(mrPrDiffFiles);
+    if (files.length === 0) return;
+    const cur = get(selectedPrFilePath);
+    const idx = cur ? files.findIndex((f) => f.path === cur) : -1;
+    const next = (idx + delta + files.length) % files.length;
+    void handlePrFileClick(files[next].path);
+  }
+
+  // Register bracket-key shortcuts while the merge-requests view is active.
+  $effect(() => {
+    if (activeView === "merge-requests") {
+      registerPrDiffShortcuts({
+        onPrev: () => handlePrFileNav(-1),
+        onNext: () => handlePrFileNav(1),
+      });
+      return () => unregisterPrDiffShortcuts();
+    }
+  });
+
+  /** Build the per-file comments layer from the current PR detail. */
+  function commentsLayerFor(path: string): DiffCommentsLayerProps | undefined {
+    const detail = get(mrPrDetail);
+    if (!detail) return undefined;
+    const comments = detail.comments.filter((c) => c.path === path);
+    return {
+      comments,
+      onPost: async (line, body) => {
+        await postReviewComment(detail.summary.number, path, line, body);
+      },
+      onReply: async (_threadId, body) => {
+        // GitHub: no dedicated reply endpoint via CLI — post a new
+        // inline comment on the same line; the thread groups on the
+        // GitHub side. GitLab: same endpoint + the discussion id
+        // is implicit because the note lands in the same discussion
+        // when position matches.
+        const line = comments[0]?.line ?? 1;
+        await postReviewComment(detail.summary.number, path, line, body);
+      },
+      onToggleResolve: async (discussionId, resolved) => {
+        if (resolved) await unresolveDiscussion(detail.summary.number, discussionId);
+        else await resolveDiscussion(detail.summary.number, discussionId);
+      },
+    };
+  }
+
   // ── Reflog context menu ────────────────────────────────────────────
   let reflogCtxVisible = $state(false);
   let reflogCtxX = $state(0);
@@ -813,7 +884,42 @@
       {:else if activeView === "blame"}
         <BlameView onNavigateBack={(view) => tryChangeView(view)} />
       {:else if activeView === "merge-requests"}
-        <MrPrView />
+        <div class="branch-layout mr-pr-layout">
+          <div class="branch-main">
+            <MrPrView onFileClick={handlePrFileClick} />
+          </div>
+          {#if $prFileDiff || $loadingPrFileDiff || $prFileDiffError}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
+            <div class="diff-panel" style="height: {diffPanelHeight}px">
+              {#if $loadingPrFileDiff}
+                <div class="diff-panel-loading"><div class="spinner"></div></div>
+              {:else if $prFileDiffError}
+                <div class="diff-error" role="alert">{$prFileDiffError}</div>
+              {:else if $prFileDiff}
+                <DiffEditor
+                  oldContent={$prFileDiff.oldContent}
+                  newContent={$prFileDiff.newContent}
+                  filename={$prFileDiff.filename}
+                  editorTheme={$activeTheme?.editor}
+                  isDark={$activeTheme?.meta.mode !== 'light'}
+                  placeholder={$prFileDiff.binary ? m.diff_binary_file() : undefined}
+                  commentsLayer={commentsLayerFor($prFileDiff.filename)}
+                >
+                  {#snippet toolbar()}
+                    {@const files = $mrPrDiffFiles}
+                    {@const idx = files.findIndex((f) => f.path === $prFileDiff?.filename)}
+                    <button class="nav-btn" aria-label="Previous file" onclick={() => handlePrFileNav(-1)}>&#x276E;</button>
+                    <button class="nav-btn" aria-label="Next file" onclick={() => handlePrFileNav(1)}>&#x276F;</button>
+                    <span class="diff-filename">{$prFileDiff?.filename ?? ""}</span>
+                    <span class="diff-position">{idx + 1} / {files.length}</span>
+                    <button class="diff-close" onclick={closePrFileDiff}>&#xF00D;</button>
+                  {/snippet}
+                </DiffEditor>
+              {/if}
+            </div>
+          {/if}
+        </div>
       {:else if activeView === "issues"}
         <IssueView />
       {:else if activeView === "releases"}
@@ -1159,5 +1265,20 @@
     gap: 8px;
   }
 
+  .nav-btn {
+    background: none; border: none; color: var(--text-secondary);
+    font-size: 12px;
+    padding: 2px 6px; cursor: pointer;
+  }
+  .nav-btn:hover { color: var(--text-primary); }
+  .diff-position {
+    color: var(--text-secondary); font-size: 11px; margin-left: auto;
+    padding-right: 8px;
+  }
+  .diff-error {
+    padding: 12px 16px;
+    color: var(--text-error, #f85149);
+    font-size: 13px;
+  }
 
 </style>

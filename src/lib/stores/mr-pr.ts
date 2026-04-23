@@ -43,6 +43,7 @@ import {
   unresolveDiscussion as apiUnresolveDiscussion,
   listLabels as apiListLabels,
   checkoutMrPrLocally as apiCheckoutLocally,
+  addMrPrInlineComment as apiAddInlineComment,
 } from "../api/tauri";
 import { runMutation } from "../api/runMutation";
 import { fetchIntoStore } from "../utils/store-helpers";
@@ -302,6 +303,31 @@ export async function addMrPrComment(number: number, body: string): Promise<void
   await loadMrPrDetail(number);
 }
 
+/**
+ * Post an inline review comment on a file + line, then refresh the
+ * detail so the new comment appears in both the bottom comments section
+ * and the inline gutter layer. `number` is taken from the caller's scope
+ * so the function stays usable from outside the store (e.g. the
+ * +page.svelte commentsLayerFor factory).
+ */
+export async function postReviewComment(
+  number: number,
+  path: string,
+  line: number,
+  body: string,
+): Promise<void> {
+  const detail = get(mrPrDetail);
+  if (!detail) throw new Error("no PR detail loaded");
+  const { base_sha, head_sha } = detail.summary;
+  await runMutation({
+    kind: "pr_comment_post",
+    invoke: () => apiAddInlineComment(number, path, line, body, base_sha, head_sha),
+    successToast: () => "Comment posted",
+    failureToastPrefix: "Post failed",
+  });
+  await loadMrPrDetail(number);
+}
+
 // ---------------------------------------------------------------------------
 // Phase 8.2 — Labels, reviewers, draft lifecycle, reopen, resolve, checkout
 // ---------------------------------------------------------------------------
@@ -432,4 +458,116 @@ export async function unresolveDiscussion(number: number, discussionId: string):
  */
 export async function checkoutMrPrLocally(number: number): Promise<TaskId> {
   return apiCheckoutLocally(number);
+}
+
+// ─── PR per-file diff panel ──────────────────────────────────────────────────
+
+import type { RawDiffContent } from "./graph";
+
+/**
+ * Currently-viewed PR per-file diff payload. Null when no file is selected.
+ * Shares the `RawDiffContent` shape with the graph/branch/reflog diff panels
+ * so `DiffEditor.svelte` can render it unchanged, plus an optional
+ * `binary: boolean` flag for the placeholder branch.
+ */
+export interface PrRawDiffContent extends RawDiffContent {
+  /** True when either side's blob was flagged binary. */
+  binary: boolean;
+}
+
+/** Diff content for the currently-selected PR file, or `null` if none. */
+export const prFileDiff = writable<PrRawDiffContent | null>(null);
+/** True while `loadPrFileDiff` is in flight. */
+export const loadingPrFileDiff = writable(false);
+/** Last error raised during `loadPrFileDiff`, or `null`. */
+export const prFileDiffError = writable<string | null>(null);
+
+/**
+ * Currently selected file path in the PR file list. Drives the
+ * `selected` row highlight + prev/next navigation cursor.
+ */
+export const selectedPrFilePath = writable<string | null>(null);
+
+/**
+ * Loads the diff for `path` in the PR summarised by `detail`. Ensures
+ * the head commit is local (fork PRs), then reads both base and head
+ * blobs in parallel. Swaps to a binary placeholder if either blob is
+ * flagged binary. Sets `prFileDiffError` on failure.
+ */
+export async function loadPrFileDiff(detail: MrPrDetail, path: string): Promise<void> {
+  const { base_sha, head_sha, head_repo_url } = detail.summary;
+  prFileDiff.set(null);
+  prFileDiffError.set(null);
+  loadingPrFileDiff.set(true);
+  selectedPrFilePath.set(path);
+  try {
+    const { ensureCommitLocal, getFileAtCommit } = await import("../api/tauri");
+    await ensureCommitLocal(head_sha, head_repo_url);
+    const [oldR, newR] = await Promise.all([
+      getFileAtCommit(base_sha, path).catch(() => ({ kind: "text" as const, data: "" })),
+      getFileAtCommit(head_sha, path).catch(() => ({ kind: "text" as const, data: "" })),
+    ]);
+    const binary = oldR.kind === "binary" || newR.kind === "binary";
+    prFileDiff.set({
+      oldContent: oldR.kind === "text" ? oldR.data : "",
+      newContent: newR.kind === "text" ? newR.data : "",
+      filename: path,
+      binary,
+    });
+  } catch (e) {
+    prFileDiffError.set(e instanceof Error ? e.message : String(e));
+  } finally {
+    loadingPrFileDiff.set(false);
+  }
+}
+
+/** Close the PR diff panel (back-to-list affordance). */
+export function closePrFileDiff(): void {
+  prFileDiff.set(null);
+  prFileDiffError.set(null);
+  selectedPrFilePath.set(null);
+}
+
+// ---------------------------------------------------------------------------
+// PR diff keyboard shortcuts
+// ---------------------------------------------------------------------------
+
+import { registerShortcuts, unregisterShortcuts } from "./shortcuts";
+
+/**
+ * Handlers supplied by `+page.svelte` so the store doesn't depend on
+ * route-local scope. `onPrev` / `onNext` cycle the PR file selection.
+ */
+export interface PrDiffShortcutHandlers {
+  onPrev: () => void;
+  onNext: () => void;
+}
+
+/**
+ * Register bracket-key file navigation bindings. `[` for prev, `]` for
+ * next. Registration is idempotent — duplicate calls replace the prior
+ * handlers.
+ */
+export function registerPrDiffShortcuts(h: PrDiffShortcutHandlers): void {
+  registerShortcuts([
+    {
+      id: "prDiff.prev",
+      keys: { key: "[" },
+      label: "Previous file in PR",
+      category: "PR",
+      action: h.onPrev,
+    },
+    {
+      id: "prDiff.next",
+      keys: { key: "]" },
+      label: "Next file in PR",
+      category: "PR",
+      action: h.onNext,
+    },
+  ]);
+}
+
+/** Remove the PR file-nav shortcuts from the global registry. */
+export function unregisterPrDiffShortcuts(): void {
+  unregisterShortcuts(["prDiff.prev", "prDiff.next"]);
 }

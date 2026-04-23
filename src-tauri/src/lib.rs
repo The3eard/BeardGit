@@ -174,6 +174,7 @@ pub fn run() {
             app_core::commands::push_remote,
             app_core::commands::rename_remote,
             app_core::commands::remove_remote,
+            app_core::commands::ensure_commit_local,
             app_core::commands::list_tags,
             app_core::commands::create_tag,
             app_core::commands::delete_tag,

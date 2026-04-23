@@ -309,6 +309,16 @@ export async function removeRemote(name: string): Promise<void> {
   return invoke<void>("remove_remote", { name });
 }
 
+/**
+ * Ensures a commit SHA is present locally. Fetches from `remoteUrl`
+ * (or `origin` if null) when missing. Resolves when the commit is
+ * materialized; rejects with a human message if it still isn't present
+ * after the fetch.
+ */
+export async function ensureCommitLocal(sha: string, remoteUrl: string | null): Promise<void> {
+  return invoke<void>("ensure_commit_local", { sha, remoteUrl });
+}
+
 // ---------------------------------------------------------------------------
 // Provider auth
 // ---------------------------------------------------------------------------
@@ -553,9 +563,25 @@ export async function setGraphColumns(columns: GraphColumnConfig[]): Promise<voi
 // Raw file content (for CodeMirror diff views)
 // ---------------------------------------------------------------------------
 
-/** Returns raw file content at a specific commit. */
-export async function getFileAtCommit(oid: string, path: string): Promise<string> {
-  return invoke<string>("get_file_at_commit", { oid, path });
+/** Tagged result from `get_file_at_commit`. */
+export type FileAtCommitResult =
+  | { kind: "text"; data: string }
+  | { kind: "binary" };
+
+/** Returns raw file content at a commit, or a `binary` marker for binary blobs. */
+export async function getFileAtCommit(oid: string, path: string): Promise<FileAtCommitResult> {
+  return invoke<FileAtCommitResult>("get_file_at_commit", { oid, path });
+}
+
+/**
+ * Back-compat helper — returns the text content or `""` for binary blobs.
+ * Existing consumers (graph, branches, reflog diff opens) rely on a
+ * bare string. Swap them to `getFileAtCommit` when binary handling is
+ * added there.
+ */
+export async function getFileAtCommitText(oid: string, path: string): Promise<string> {
+  const r = await getFileAtCommit(oid, path);
+  return r.kind === "text" ? r.data : "";
 }
 
 /** Returns raw file content from the working directory. */
@@ -868,9 +894,24 @@ export async function addMrPrComment(number: number, body: string): Promise<void
   return invoke<void>("add_mr_pr_comment", { number, body });
 }
 
-/** Add an inline comment on a specific file and line. */
-export async function addMrPrInlineComment(number: number, path: string, line: number, body: string): Promise<void> {
-  return invoke<void>("add_mr_pr_inline_comment", { number, path, line, body });
+/**
+ * Add an inline comment on a specific file and line.
+ *
+ * `baseSha` / `headSha` are required by GitLab's discussion position
+ * payload; they're ignored by GitHub but the IPC surface keeps them
+ * unconditional so callers don't need to branch per-provider.
+ */
+export async function addMrPrInlineComment(
+  number: number,
+  path: string,
+  line: number,
+  body: string,
+  baseSha: string,
+  headSha: string,
+): Promise<void> {
+  return invoke<void>("add_mr_pr_inline_comment", {
+    number, path, line, body, baseSha, headSha,
+  });
 }
 
 // Phase 8.2 — MR/PR enhancements

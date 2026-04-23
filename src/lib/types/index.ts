@@ -680,6 +680,12 @@ export interface MrPr {
   additions: number | null;
   deletions: number | null;
   changed_files: number | null;
+  /** Merge-base commit SHA of the PR (resolved against target_branch). */
+  base_sha: string;
+  /** Tip commit SHA of the PR's source branch. */
+  head_sha: string;
+  /** For fork PRs, the HTTP clone URL of the source repo. `null` for same-repo PRs. */
+  head_repo_url: string | null;
 }
 
 export interface MrPrDetail {

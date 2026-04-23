@@ -47,6 +47,13 @@ pub struct MrPrFieldMap {
     pub state_closed: &'static str,
     /// State value for merged.
     pub state_merged: &'static str,
+    /// Field name for head commit SHA.
+    pub head_sha: &'static str,
+    /// Field name for base commit SHA.
+    pub base_sha: &'static str,
+    /// Path (dotted) to the head-repo URL; `None` if the provider's list
+    /// JSON doesn't expose it (so parse falls back to `None`).
+    pub head_repo_url_path: Option<&'static [&'static str]>,
 }
 
 /// GitHub field mapping.
@@ -67,6 +74,9 @@ pub const GITHUB_FIELDS: MrPrFieldMap = MrPrFieldMap {
     state_open: "OPEN",
     state_closed: "CLOSED",
     state_merged: "MERGED",
+    head_sha: "headRefOid",
+    base_sha: "baseRefOid",
+    head_repo_url_path: Some(&["headRepositoryUrl"]),
 };
 
 /// GitLab field mapping.
@@ -87,6 +97,9 @@ pub const GITLAB_FIELDS: MrPrFieldMap = MrPrFieldMap {
     state_open: "opened",
     state_closed: "closed",
     state_merged: "merged",
+    head_sha: "head_sha",
+    base_sha: "base_sha",
+    head_repo_url_path: Some(&["source_project", "http_url_to_repo"]),
 };
 
 /// Parse a JSON value into an `MrPr` using the given field mapping.
@@ -119,7 +132,33 @@ pub fn parse_mr_pr(item: &Value, fields: &MrPrFieldMap) -> MrPr {
         additions: item["additions"].as_u64(),
         deletions: item["deletions"].as_u64(),
         changed_files: item["changedFiles"].as_u64(),
+        base_sha: sha_from(item, fields.base_sha),
+        head_sha: sha_from(item, fields.head_sha),
+        head_repo_url: head_repo_url_from(item, fields.head_repo_url_path),
     }
+}
+
+/// Extract a SHA string from either the top level or `diff_refs` sub-object.
+///
+/// GitHub exposes `headRefOid` / `baseRefOid` at the top level;
+/// GitLab wraps them in `diff_refs`. Try the nested form first so
+/// both shapes work without per-provider branching.
+fn sha_from(item: &Value, key: &str) -> String {
+    let nested = &item["diff_refs"][key];
+    if let Some(s) = nested.as_str() {
+        return s.to_string();
+    }
+    item[key].as_str().unwrap_or("").to_string()
+}
+
+/// Walk a dotted path to extract a non-empty string, or return `None`.
+fn head_repo_url_from(item: &Value, path: Option<&[&str]>) -> Option<String> {
+    let segs = path?;
+    let mut cur = item;
+    for seg in segs {
+        cur = &cur[*seg];
+    }
+    cur.as_str().filter(|s| !s.is_empty()).map(|s| s.to_string())
 }
 
 /// Parse a state string into `MrPrState` using the field map.
@@ -881,5 +920,54 @@ mod tests {
         assert_eq!(ms[0].id, 1);
         assert_eq!(ms[0].state, MilestoneState::Open);
         assert_eq!(ms[0].due_on.as_deref(), Some("2026-05-01"));
+    }
+
+    #[test]
+    fn parse_mr_pr_populates_head_base_sha_github() {
+        let item = serde_json::json!({
+            "number": 42,
+            "title": "x",
+            "state": "OPEN",
+            "author": { "login": "alice" },
+            "headRefName": "feat",
+            "baseRefName": "main",
+            "headRefOid": "aaaa1111",
+            "baseRefOid": "bbbb2222",
+            "headRepositoryUrl": "https://github.com/alice/fork",
+            "url": "u",
+            "isDraft": false,
+            "labels": [],
+            "reviewRequests": [],
+            "createdAt": "",
+            "updatedAt": "",
+        });
+        let mr = parse_mr_pr(&item, &GITHUB_FIELDS);
+        assert_eq!(mr.base_sha, "bbbb2222");
+        assert_eq!(mr.head_sha, "aaaa1111");
+        assert_eq!(mr.head_repo_url.as_deref(), Some("https://github.com/alice/fork"));
+    }
+
+    #[test]
+    fn parse_mr_pr_populates_head_base_sha_gitlab() {
+        let item = serde_json::json!({
+            "iid": 7,
+            "title": "x",
+            "state": "opened",
+            "author": { "username": "alice" },
+            "source_branch": "feat",
+            "target_branch": "main",
+            "diff_refs": { "base_sha": "bbbb2222", "head_sha": "aaaa1111", "start_sha": "bbbb2222" },
+            "source_project": { "http_url_to_repo": "https://gitlab.com/alice/fork.git" },
+            "web_url": "u",
+            "draft": false,
+            "labels": [],
+            "reviewers": [],
+            "created_at": "",
+            "updated_at": "",
+        });
+        let mr = parse_mr_pr(&item, &GITLAB_FIELDS);
+        assert_eq!(mr.base_sha, "bbbb2222");
+        assert_eq!(mr.head_sha, "aaaa1111");
+        assert_eq!(mr.head_repo_url.as_deref(), Some("https://gitlab.com/alice/fork.git"));
     }
 }

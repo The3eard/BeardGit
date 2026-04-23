@@ -20,4 +20,9 @@ pub enum GitError {
     /// An I/O error occurred (e.g. spawning the git CLI process).
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    /// The blob at the requested path is binary (contains a NUL byte in
+    /// the first 8 KB). Callers should render a placeholder instead of a
+    /// diff. Not a failure per se; a structured signal.
+    #[error("binary file")]
+    Binary,
 }

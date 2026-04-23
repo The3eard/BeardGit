@@ -557,6 +557,21 @@ pub(super) fn invalidate_forge_provider_cache(state: &State<'_, AppState>) {
 /// Shell-escape a value for use in a POSIX `sh -c` command line.
 ///
 /// Conservative: wraps in single quotes and escapes embedded single quotes.
+/// Returns `true` iff `git cat-file -e <sha>` succeeds in `cwd`.
+///
+/// This avoids a full `Repository::open` when the caller only needs a
+/// presence check (`ensure_commit_local` / PR-diff preflight).
+pub(crate) fn commit_exists_locally(cwd: &std::path::Path, sha: &str) -> bool {
+    std::process::Command::new("git")
+        .arg("cat-file")
+        .arg("-e")
+        .arg(sha)
+        .current_dir(cwd)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 /// On Windows, `cmd.exe` handles most of the values we pass (tag names,
 /// refs, remotes) verbatim — the escaping here is best-effort for POSIX
 /// and still produces a working command on Windows for typical inputs.

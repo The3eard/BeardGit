@@ -17,6 +17,7 @@ vi.mock("../../api/tauri", () => ({
   getUserIdentities: vi.fn(),
   getCommitRow: vi.fn(),
   getFileAtCommit: vi.fn(),
+  getFileAtCommitText: vi.fn(),
 }));
 
 import {

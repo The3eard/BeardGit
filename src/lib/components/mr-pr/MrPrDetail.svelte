@@ -32,6 +32,7 @@
     repoLabels,
     repoLabelsLoading,
     loadRepoLabels,
+    selectedPrFilePath,
   } from "../../stores/mr-pr";
   import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
   import { activeProvider } from "../../stores/provider";
@@ -45,7 +46,14 @@
   import PillRow from "./PillRow.svelte";
   import LabelPicker from "../common/LabelPicker.svelte";
   import ReviewerPicker from "./ReviewerPicker.svelte";
+  import PathTree from "../common/PathTree.svelte";
   import type { CheckoutResult } from "../../types";
+
+  interface Props {
+    /** Called when the user clicks a changed-file row. */
+    onFileClick?: (path: string) => void;
+  }
+  let { onFileClick }: Props = $props();
 
   let isGitHub = $derived($activeProvider?.kind === "github");
   let isGitLab = $derived($activeProvider?.kind === "gitlab");
@@ -414,28 +422,47 @@
       {:else if $mrPrDiffFiles.length === 0}
         <p class="empty-section">{m.mrpr_empty_no_changes()}</p>
       {:else}
-        <div class="file-list">
-          {#each $mrPrDiffFiles as file (file.path)}
-            <div class="file-row">
-              <span
-                class="file-status"
-                class:added={file.status === "added"}
-                class:deleted={file.status === "deleted"}
+        {#if $mrPrDiffFiles.length > 20}
+          <PathTree
+            items={$mrPrDiffFiles.map((f) => ({ path: f.path, meta: f }))}
+            autoFlattenThreshold={20}
+            selectedPath={$selectedPrFilePath}
+            onSelect={(p) => onFileClick?.(p)}
+            aggregateLabel={(descs) => {
+              const add = descs.reduce((a, d) => a + (d.meta?.additions ?? 0), 0);
+              const del = descs.reduce((a, d) => a + (d.meta?.deletions ?? 0), 0);
+              return `+${add} −${del} · ${descs.length}`;
+            }}
+          />
+        {:else}
+          <div class="file-list">
+            {#each $mrPrDiffFiles as file (file.path)}
+              <button
+                class="file-row"
+                class:selected={$selectedPrFilePath === file.path}
+                onclick={() => onFileClick?.(file.path)}
+                aria-label={file.path}
               >
-                {file.status === "added"
-                  ? "A"
-                  : file.status === "deleted"
-                    ? "D"
-                    : file.status === "renamed"
-                      ? "R"
-                      : "M"}
-              </span>
-              <span class="file-path">{file.path}</span>
-              <span class="file-adds">+{file.additions}</span>
-              <span class="file-dels">-{file.deletions}</span>
-            </div>
-          {/each}
-        </div>
+                <span
+                  class="file-status"
+                  class:added={file.status === "added"}
+                  class:deleted={file.status === "deleted"}
+                >
+                  {file.status === "added"
+                    ? "A"
+                    : file.status === "deleted"
+                      ? "D"
+                      : file.status === "renamed"
+                        ? "R"
+                        : "M"}
+                </span>
+                <span class="file-path">{file.path}</span>
+                <span class="file-adds">+{file.additions}</span>
+                <span class="file-dels">-{file.deletions}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
       {/if}
     </div>
 
@@ -925,11 +952,22 @@
   }
 
   .file-row {
+    width: 100%;
     display: flex;
-    gap: 6px;
-    padding: 3px 0;
-    align-items: center;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 10px;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-primary);
+    border-radius: 3px;
   }
+  .file-row:hover { background: rgba(255, 255, 255, 0.04); }
+  .file-row.selected { background: rgba(88, 166, 255, 0.10); }
 
   .file-status {
     width: 14px;

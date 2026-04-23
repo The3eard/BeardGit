@@ -80,6 +80,16 @@ pub struct MrPr {
     pub deletions: Option<u64>,
     /// Number of changed files (if available).
     pub changed_files: Option<u64>,
+    /// Merge-base commit SHA of the PR (resolved against the target branch).
+    #[serde(default)]
+    pub base_sha: String,
+    /// Tip commit SHA of the PR's source branch.
+    #[serde(default)]
+    pub head_sha: String,
+    /// For fork PRs, the HTTP clone URL of the source repo. `None` for
+    /// same-repo PRs — the existing `origin` remote is used.
+    #[serde(default)]
+    pub head_repo_url: Option<String>,
 }
 
 /// Review status of a MR/PR.

@@ -12,6 +12,7 @@
   import { createCodemirrorTheme } from './codemirror-theme';
   import { getLanguageExtensionName, loadLanguageExtension } from './language-support';
   import type { ThemeEditorData } from '$lib/types';
+  import { diffCommentsLayer, type DiffCommentsLayerProps } from './diff-comments-layer';
 
   interface Props {
     oldContent: string;
@@ -21,6 +22,11 @@
     isDark?: boolean;
     extensions?: Extension[];
     onClose?: () => void;
+    /** When set, render this text instead of the CodeMirror MergeView (e.g. "Binary file — no preview"). */
+    placeholder?: string;
+    toolbar?: import('svelte').Snippet;
+    /** When set, injects the diff-comments-layer into the right-side (new) editor. */
+    commentsLayer?: DiffCommentsLayerProps;
   }
 
   let {
@@ -31,6 +37,9 @@
     isDark = true,
     extensions = [],
     onClose,
+    placeholder,
+    toolbar,
+    commentsLayer,
   }: Props = $props();
 
   let containerEl: HTMLDivElement;
@@ -57,9 +66,12 @@
     if (langExt) sharedExtensions.push(langExt);
     sharedExtensions.push(...extensions);
 
+    const bExtensions: Extension[] = [...sharedExtensions];
+    if (commentsLayer) bExtensions.push(diffCommentsLayer(commentsLayer));
+
     mergeView = new MergeView({
       a: { doc: oldContent, extensions: sharedExtensions },
-      b: { doc: newContent, extensions: sharedExtensions },
+      b: { doc: newContent, extensions: bExtensions },
       parent: containerEl,
       collapseUnchanged: { margin: 3, minSize: 4 },
       gutter: true,
@@ -78,8 +90,10 @@
     const _file = filename;
     const _theme = editorTheme;
     const _dark = isDark;
+    const _placeholder = placeholder;
+    const _commentsLayer = commentsLayer;
 
-    if (!containerEl) return;
+    if (!containerEl || placeholder) return;
 
     initMergeView();
 
@@ -91,13 +105,19 @@
 </script>
 
 <div class="diff-editor-wrapper">
-  {#if onClose}
+  {#if toolbar}
+    <div class="diff-header">{@render toolbar()}</div>
+  {:else if onClose}
     <div class="diff-header">
       <span class="diff-filename">{filename}</span>
       <button class="diff-close" onclick={onClose}>{"\uF00D"}</button>
     </div>
   {/if}
-  <div class="diff-editor" bind:this={containerEl}></div>
+  {#if placeholder}
+    <div class="diff-placeholder">{placeholder}</div>
+  {:else}
+    <div class="diff-editor" bind:this={containerEl}></div>
+  {/if}
 </div>
 
 <style>
@@ -164,5 +184,16 @@
 
   .diff-editor :global(.cm-mergeView) {
     height: 100%;
+  }
+
+  .diff-placeholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding: 24px;
+    text-align: center;
   }
 </style>

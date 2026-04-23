@@ -986,5 +986,6 @@
   "sidebar_reorder_aria": "Reorder {label}",
   "sidebar_hide_aria": "Hide {label}",
   "sidebar_show_aria": "Show {label}",
-  "theme_load_failed": "Could not load theme. Using built-in defaults."
+  "theme_load_failed": "Could not load theme. Using built-in defaults.",
+  "diff_binary_file": "Binary file — no preview"
 }
