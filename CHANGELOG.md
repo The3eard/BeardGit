@@ -16,6 +16,20 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 `chore(test): install Playwright + visual baseline spec for top-level routes`. Added `tests/visual/routes.spec.ts` covering every top-level sidebar route in dark and light mode, so the upcoming component color sweep can diff against a known-good paint. The spec waits for `--overlay-accent-blue` to confirm `applyTheme` has run before snapping. Baseline screenshots will be captured on the first CI run where the full Tauri runtime is available (the Vite-only dev server lacks Tauri IPC, so `applyTheme` cannot fire locally).
 
+## [Unreleased] — PR diff view
+
+### PR / MR diff view
+
+`feat(mr-pr): per-file diff + inline review + prev/next nav`. Clicking any file in a PR or MR now opens a bottom resizable `DiffEditor` with the same CodeMirror merge view used by branches, stashes, tags, and the graph. Works for both GitHub and GitLab; fork PRs are supported via a new `ensure_commit_local` Tauri command that fetches the head commit on demand and streams progress to the tasks drawer. Inline review comments render as gutter bubbles with an on-click thread panel + composer, with GitLab `resolve`/`unresolve` toggles surfaced inline; posting a comment refreshes the PR detail so both the inline widget and the bottom comments section stay synced. Above 20 changed files the file list auto-switches to a collapsible path tree with per-folder aggregate add/del stats; under 20 it stays flat. `[` / `]` cycle through files with a visible "3 / 24" position indicator in the diff header. Binary files render a "Binary file — no preview" placeholder instead of the merge view.
+
+### Data model
+
+`feat(mr-pr): base_sha / head_sha / head_repo_url on MrPr`. Both the Rust and TS `MrPr` types gained these fields, populated from `gh pr view --json headRefOid,baseRefOid,headRepositoryUrl` and `glab mr view`'s `diff_refs` + `source_project.http_url_to_repo`. The new `ensureCommitLocal` IPC command uses them to fetch fork-PR heads before reading file content.
+
+### Fix
+
+`fix(mr-pr): include diff_refs in GitLab inline-comment position`. `add_mr_pr_inline_comment` on GitLab now sends the full `base_sha` / `head_sha` / `start_sha` trio in the `position` object, which the previous single-path implementation omitted — that shape is required for anything but trivial diffs.
+
 ## [Unreleased] — Branches UI feature-complete
 
 ### Branches — new-branch entry points + rename + force-push + shortcut
