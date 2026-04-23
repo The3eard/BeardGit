@@ -42,6 +42,7 @@ const mocks = vi.hoisted(() => {
     mrPrDiffLoading: writable(false),
     mrPrDiffError: writable<string | null>(null),
     selectedMrPrNumber: writable<number | null>(null),
+    selectedPrFilePath: writable<string | null>(null),
     repoLabels: writable<Label[]>([]),
     repoLabelsLoading: writable(false),
     activeProvider: writable<{ kind: "github" | "gitlab" } | null>({
@@ -58,6 +59,7 @@ vi.mock("$lib/stores/mr-pr", () => ({
   mrPrDiffLoading: mocks.mrPrDiffLoading,
   mrPrDiffError: mocks.mrPrDiffError,
   selectedMrPrNumber: mocks.selectedMrPrNumber,
+  selectedPrFilePath: mocks.selectedPrFilePath,
   repoLabels: mocks.repoLabels,
   repoLabelsLoading: mocks.repoLabelsLoading,
   loadMrPrDetail: vi.fn(),

@@ -12,6 +12,7 @@
   import { createCodemirrorTheme } from './codemirror-theme';
   import { getLanguageExtensionName, loadLanguageExtension } from './language-support';
   import type { ThemeEditorData } from '$lib/types';
+  import { diffCommentsLayer, type DiffCommentsLayerProps } from './diff-comments-layer';
 
   interface Props {
     oldContent: string;
@@ -24,6 +25,8 @@
     /** When set, render this text instead of the CodeMirror MergeView (e.g. "Binary file — no preview"). */
     placeholder?: string;
     toolbar?: import('svelte').Snippet;
+    /** When set, injects the diff-comments-layer into the right-side (new) editor. */
+    commentsLayer?: DiffCommentsLayerProps;
   }
 
   let {
@@ -36,6 +39,7 @@
     onClose,
     placeholder,
     toolbar,
+    commentsLayer,
   }: Props = $props();
 
   let containerEl: HTMLDivElement;
@@ -62,9 +66,12 @@
     if (langExt) sharedExtensions.push(langExt);
     sharedExtensions.push(...extensions);
 
+    const bExtensions: Extension[] = [...sharedExtensions];
+    if (commentsLayer) bExtensions.push(diffCommentsLayer(commentsLayer));
+
     mergeView = new MergeView({
       a: { doc: oldContent, extensions: sharedExtensions },
-      b: { doc: newContent, extensions: sharedExtensions },
+      b: { doc: newContent, extensions: bExtensions },
       parent: containerEl,
       collapseUnchanged: { margin: 3, minSize: 4 },
       gutter: true,
@@ -84,6 +91,7 @@
     const _theme = editorTheme;
     const _dark = isDark;
     const _placeholder = placeholder;
+    const _commentsLayer = commentsLayer;
 
     if (!containerEl || placeholder) return;
 

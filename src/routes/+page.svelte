@@ -83,7 +83,11 @@
     mrPrDetail,
     mrPrDiffFiles,
     selectedPrFilePath,
+    postReviewComment,
+    resolveDiscussion,
+    unresolveDiscussion,
   } from "$lib/stores/mr-pr";
+  import type { DiffCommentsLayerProps } from "$lib/components/editor/diff-comments-layer";
 
   let activeView = $state("graph");
   let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
@@ -609,6 +613,32 @@
     void handlePrFileClick(files[next].path);
   }
 
+  /** Build the per-file comments layer from the current PR detail. */
+  function commentsLayerFor(path: string): DiffCommentsLayerProps | undefined {
+    const detail = get(mrPrDetail);
+    if (!detail) return undefined;
+    const comments = detail.comments.filter((c) => c.path === path);
+    return {
+      comments,
+      onPost: async (line, body) => {
+        await postReviewComment(detail.summary.number, path, line, body);
+      },
+      onReply: async (_threadId, body) => {
+        // GitHub: no dedicated reply endpoint via CLI — post a new
+        // inline comment on the same line; the thread groups on the
+        // GitHub side. GitLab: same endpoint + the discussion id
+        // is implicit because the note lands in the same discussion
+        // when position matches.
+        const line = comments[0]?.line ?? 1;
+        await postReviewComment(detail.summary.number, path, line, body);
+      },
+      onToggleResolve: async (discussionId, resolved) => {
+        if (resolved) await unresolveDiscussion(detail.summary.number, discussionId);
+        else await resolveDiscussion(detail.summary.number, discussionId);
+      },
+    };
+  }
+
   // ── Reflog context menu ────────────────────────────────────────────
   let reflogCtxVisible = $state(false);
   let reflogCtxX = $state(0);
@@ -861,6 +891,7 @@
                   editorTheme={$activeTheme?.editor}
                   isDark={$activeTheme?.meta.mode !== 'light'}
                   placeholder={$prFileDiff.binary ? m.diff_binary_file() : undefined}
+                  commentsLayer={commentsLayerFor($prFileDiff.filename)}
                   onClose={closePrFileDiff}
                 />
               {/if}
