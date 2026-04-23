@@ -9,7 +9,7 @@
 import { writable, derived, get } from "svelte/store";
 import type { BranchInfo, CommitInfo, CommitFileChange } from "../types";
 import type { RawDiffContent } from "./graph";
-import { getCommitDetail, getCommitFiles, getFileAtCommit } from "../api/tauri";
+import { getCommitDetail, getCommitFiles, getFileAtCommitText as getFileAtCommit } from "../api/tauri";
 import {
   getBranches as apiBranches,
   getBranchCommits,

@@ -5,7 +5,7 @@
   import DiffEditor from "../editor/DiffEditor.svelte";
   import CommitDetail from "../detail/CommitDetail.svelte";
   import { formatRelativeTime, formatDate } from "../../utils/time";
-  import { getFileAtCommit, getCommitDetail, getCommitFiles } from "../../api/tauri";
+  import { getFileAtCommitText as getFileAtCommit, getCommitDetail, getCommitFiles } from "../../api/tauri";
   import { navigateToCommit } from "../../stores/graph";
   import type { RawDiffContent } from "../../stores/graph";
   import type { CommitInfo, CommitFileChange } from "../../types";

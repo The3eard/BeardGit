@@ -24,7 +24,12 @@ impl Repository {
         let tree = commit.tree()?;
         let entry = tree.get_path(std::path::Path::new(path))?;
         let blob = self.inner().find_blob(entry.id())?;
-        Ok(String::from_utf8_lossy(blob.content()).into_owned())
+        let content = blob.content();
+        let sniff_len = content.len().min(8192);
+        if content[..sniff_len].contains(&0u8) {
+            return Err(GitError::Binary);
+        }
+        Ok(String::from_utf8_lossy(content).into_owned())
     }
 
     /// Returns the raw content of a file from the working directory.
@@ -150,40 +155,27 @@ mod tests {
     }
 
     #[test]
-    fn test_get_file_at_commit_binary() {
+    fn get_file_at_commit_returns_binary_error_for_blobs_with_nul() {
         let tmp = tempfile::tempdir().unwrap();
-        let git_repo = git2::Repository::init(tmp.path()).unwrap();
-        let mut config = git_repo.config().unwrap();
-        config.set_str("user.name", "Test").unwrap();
-        config.set_str("user.email", "test@test.com").unwrap();
-
-        // Write bytes that are not valid UTF-8
-        let binary_data = vec![0u8, 1, 2, 255, 254, 0xfe, 0xff];
-        fs::write(tmp.path().join("bin.bin"), &binary_data).unwrap();
-
-        let mut index = git_repo.index().unwrap();
-        index.add_path(std::path::Path::new("bin.bin")).unwrap();
-        index.write().unwrap();
-
-        let tree_id = index.write_tree().unwrap();
-        {
+        let repo = init_repo_with_file(tmp.path());
+        // Overwrite with binary content (PNG header start, includes 0x00).
+        fs::write(tmp.path().join("bin.bin"), [0x89, b'P', b'N', b'G', 0x00, 0x01]).unwrap();
+        let head_sha = {
+            let git_repo = git2::Repository::open(tmp.path()).unwrap();
+            let mut index = git_repo.index().unwrap();
+            index.add_path(std::path::Path::new("bin.bin")).unwrap();
+            index.write().unwrap();
+            let tree_id = index.write_tree().unwrap();
             let tree = git_repo.find_tree(tree_id).unwrap();
             let sig = git_repo.signature().unwrap();
-            git_repo
-                .commit(Some("HEAD"), &sig, &sig, "binary", &tree, &[])
-                .unwrap();
-        }
+            let parent = git_repo.head().unwrap().peel_to_commit().unwrap();
+            let oid = git_repo.commit(Some("HEAD"), &sig, &sig, "add bin", &tree, &[&parent]).unwrap();
+            oid.to_string()
+        };
 
-        drop(config);
-        drop(git_repo);
-        let repo = Repository::open(tmp.path()).unwrap();
-
-        let head = repo.inner().head().unwrap().peel_to_commit().unwrap();
-        // Should succeed — lossy UTF-8 means invalid bytes are replaced with replacement char
-        let content = repo
-            .get_file_at_commit(&head.id().to_string(), "bin.bin")
-            .unwrap();
-        // The result is a String (lossy), may contain replacement chars but won't panic
-        assert!(!content.is_empty() || binary_data.iter().all(|&b| b == 0));
+        let err = repo
+            .get_file_at_commit(&head_sha, "bin.bin")
+            .expect_err("binary blob must error");
+        assert!(matches!(err, crate::error::GitError::Binary));
     }
 }

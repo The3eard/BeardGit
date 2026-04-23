@@ -8,7 +8,7 @@
 
 import { writable, get } from "svelte/store";
 import type { GraphViewport, CommitInfo, CommitFileChange } from "../types";
-import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow, getFileAtCommit, refreshGraphLayout as apiRefreshGraphLayout } from "../api/tauri";
+import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow, getFileAtCommitText as getFileAtCommit, refreshGraphLayout as apiRefreshGraphLayout } from "../api/tauri";
 
 /** Holds raw file content for the DiffEditor panel. */
 export interface RawDiffContent {

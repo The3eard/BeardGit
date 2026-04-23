@@ -553,9 +553,25 @@ export async function setGraphColumns(columns: GraphColumnConfig[]): Promise<voi
 // Raw file content (for CodeMirror diff views)
 // ---------------------------------------------------------------------------
 
-/** Returns raw file content at a specific commit. */
-export async function getFileAtCommit(oid: string, path: string): Promise<string> {
-  return invoke<string>("get_file_at_commit", { oid, path });
+/** Tagged result from `get_file_at_commit`. */
+export type FileAtCommitResult =
+  | { kind: "text"; data: string }
+  | { kind: "binary" };
+
+/** Returns raw file content at a commit, or a `binary` marker for binary blobs. */
+export async function getFileAtCommit(oid: string, path: string): Promise<FileAtCommitResult> {
+  return invoke<FileAtCommitResult>("get_file_at_commit", { oid, path });
+}
+
+/**
+ * Back-compat helper — returns the text content or `""` for binary blobs.
+ * Existing consumers (graph, branches, reflog diff opens) rely on a
+ * bare string. Swap them to `getFileAtCommit` when binary handling is
+ * added there.
+ */
+export async function getFileAtCommitText(oid: string, path: string): Promise<string> {
+  const r = await getFileAtCommit(oid, path);
+  return r.kind === "text" ? r.data : "";
 }
 
 /** Returns raw file content from the working directory. */

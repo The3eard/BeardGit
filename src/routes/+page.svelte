@@ -53,7 +53,7 @@
     selectedReflogEntry as selectedReflogEntryStore,
   } from "$lib/stores/reflog";
   import type { ReflogEntry } from "$lib/types";
-  import { getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
+  import { getFileAtCommitText as getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
   import { shortOid } from "$lib/utils/git";
   import * as api from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";

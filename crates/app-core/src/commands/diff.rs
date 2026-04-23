@@ -55,25 +55,64 @@ pub async fn get_commit_file_diff(
     .map_err(|e| e.to_string())?
 }
 
-/// Returns raw file content at a specific commit.
+/// Structured result for [`get_file_at_commit`].
+///
+/// Uses an internally-tagged enum so the IPC payload serialises as either
+/// `{ "kind": "text", "data": "..." }` or `{ "kind": "binary" }`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FileAtCommitResult {
+    /// Text content, UTF-8 lossy decoded.
+    Text {
+        /// The file contents.
+        data: String,
+    },
+    /// Blob contained a NUL byte in its first 8 KB.
+    Binary,
+}
+
+/// Returns raw file content at a commit, or the tagged sentinel
+/// `{"kind": "binary"}` if the blob is binary.
 ///
 /// # Parameters
 /// - `oid` – Full or abbreviated commit SHA.
 /// - `path` – Repo-relative file path.
 ///
 /// # Returns
-/// Raw UTF-8 file content (binary blobs are lossy-decoded), or an error string
-/// if the OID or path is invalid.
+/// `{ "kind": "text", "data": "..." }` on success, `{ "kind": "binary" }` for
+/// binary blobs, or an `Err` string for missing OID / path.
 #[tauri::command]
 pub fn get_file_at_commit(
     oid: String,
     path: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<FileAtCommitResult, String> {
     with_active_repo(&state, |repo| {
-        repo.get_file_at_commit(&oid, &path)
-            .map_err(|e| e.to_string())
+        match repo.get_file_at_commit(&oid, &path) {
+            Ok(content) => Ok(FileAtCommitResult::Text { data: content }),
+            Err(git_engine::GitError::Binary) => Ok(FileAtCommitResult::Binary),
+            Err(e) => Err(e.to_string()),
+        }
     })
+}
+
+#[cfg(test)]
+mod serde_shape {
+    use super::FileAtCommitResult;
+
+    #[test]
+    fn text_variant_serializes_with_data_field() {
+        let v = FileAtCommitResult::Text { data: "hi".into() };
+        let s = serde_json::to_string(&v).unwrap();
+        assert!(s.contains("\"data\":\"hi\""), "got: {s}");
+    }
+
+    #[test]
+    fn binary_variant_serializes_with_kind_only() {
+        let v = FileAtCommitResult::Binary;
+        let s = serde_json::to_string(&v).unwrap();
+        assert_eq!(s, r#"{"kind":"binary"}"#);
+    }
 }
 
 /// Returns raw file content from the working directory.
