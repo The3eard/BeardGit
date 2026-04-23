@@ -193,7 +193,7 @@
   }
 
   .toolbar-btn {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     border: 1px solid var(--border);
     color: var(--text-primary);
     padding: 4px 12px;
@@ -204,7 +204,7 @@
   }
 
   .toolbar-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
   .toolbar-btn:disabled {

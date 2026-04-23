@@ -88,7 +88,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */
     padding: 4px 0;
     margin-top: 2px;
   }
@@ -111,7 +111,7 @@
   }
 
   .menu-item:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .menu-icon {

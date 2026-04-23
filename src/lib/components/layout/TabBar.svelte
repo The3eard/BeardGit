@@ -413,7 +413,7 @@
     align-items: center;
     justify-content: center;
     height: 28px;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     color: var(--text-secondary);
     font-size: 11px;
@@ -426,7 +426,7 @@
   }
 
   .add-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     color: var(--text-primary);
   }
 
@@ -443,7 +443,7 @@
     align-items: center;
     justify-content: center;
     gap: 4px;
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     border: 1px solid var(--border);
     color: var(--text-primary);
     padding: 3px 10px;
@@ -455,7 +455,7 @@
   }
 
   .action-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
   .action-btn:disabled {
@@ -494,7 +494,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */
     padding: 4px 0;
     margin-top: 2px;
   }
@@ -516,7 +516,7 @@
 
   .action-menu-item:hover,
   .action-menu-item:focus-visible {
-    background: rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     outline: none;
   }
 

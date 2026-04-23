@@ -115,7 +115,7 @@
     max-width: 220px;
     cursor: pointer;
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     transition: background 0.15s;
     flex-shrink: 0;
     user-select: none;
@@ -123,11 +123,11 @@
   }
 
   .project-tab:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
   }
 
   .project-tab.active {
-    background: rgba(255, 255, 255, 0.12);
+    background: color-mix(in srgb, var(--text-primary) 12%, transparent);
   }
 
   .status-dot {
