@@ -36,6 +36,9 @@
     onDoubleClick?: (item: T) => void;
     /** Debounce delay for filter input (ms). Default 150. */
     filterDelay?: number;
+    /** True when a background refresh is in flight while rows are already shown.
+     *  Drives the 2 px polling bar between header/afterHeader and the items list. */
+    refreshing?: boolean;
     /** Row snippet — renders each item. Receives { item, selected }. Required unless customContent is provided. */
     row?: Snippet<[{ item: T; selected: boolean }]>;
     /** Header actions snippet — right side of header. */
@@ -64,6 +67,7 @@
     onContextMenu,
     onDoubleClick,
     filterDelay = 150,
+    refreshing = false,
     row,
     headerActions,
     emptyState,
@@ -158,12 +162,13 @@
     {@render afterHeader()}
   {/if}
 
-  <!-- Top loading bar on refresh when the list is already populated —
-       mirrors `PipelineList`'s pattern so every consumer of `List` gets
-       "click section → section appears instantly → bar animates while
-       fresh data loads" without having to open its own spinner. The
-       centred spinner below handles the empty-list case. -->
-  {#if loading && items.length > 0}
+  <!-- Top loading bar on refresh when the list is already populated. Two
+       signals fold in here:
+       - `refreshing` (explicit) — the preferred API for polling-driven lists
+         (`PipelineList`) that want the bar without forcing `loading=true`.
+       - `loading && items.length > 0` (legacy) — kept so existing consumers
+         (IssueList, MrPrList, BranchList, …) don't change behaviour. -->
+  {#if (refreshing || loading) && items.length > 0}
     <div class="list-loading-bar" data-testid="list-loading-bar">
       <div class="loading-bar-track"><div class="loading-bar-fill"></div></div>
     </div>

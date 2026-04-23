@@ -42,6 +42,19 @@ pub struct WorkflowRun {
     pub updated_at: String,
     /// ISO 8601 timestamp when the run actually started executing.
     pub run_started_at: Option<String>,
+    /// The GitHub user / bot that actually triggered this run.
+    /// Missing on older Actions API versions and on runs triggered outside a
+    /// user context (e.g. scheduled with no `github.actor`).
+    #[serde(default)]
+    pub triggering_actor: Option<TriggeringActor>,
+}
+
+/// Slim wrapper around the GitHub `triggering_actor` object — only `login`
+/// matters for surfacing who kicked a workflow run off.
+#[derive(Debug, Deserialize)]
+pub struct TriggeringActor {
+    /// GitHub login (username).
+    pub login: String,
 }
 
 /// Wrapper for the `GET /repos/{owner}/{repo}/actions/runs/{id}/jobs` response.

@@ -22,12 +22,24 @@ pub struct Pipeline {
     pub source: Option<String>,
     /// Optional human-readable pipeline name.
     pub name: Option<String>,
+    /// The GitLab user who triggered this pipeline. May be absent on scheduled
+    /// or system-triggered pipelines on some self-hosted versions.
+    #[serde(default)]
+    pub user: Option<PipelineUser>,
     /// ISO 8601 creation timestamp.
     pub created_at: Option<String>,
     /// ISO 8601 last-updated timestamp.
     pub updated_at: Option<String>,
     /// URL to the pipeline in the GitLab UI.
     pub web_url: String,
+}
+
+/// Slim wrapper around the GitLab pipeline `user` object — only `username`
+/// matters for actor surfacing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PipelineUser {
+    /// GitLab username (login).
+    pub username: String,
 }
 
 /// Detailed information about a single pipeline, including timing data.

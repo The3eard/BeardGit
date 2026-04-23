@@ -306,6 +306,7 @@ fn workflow_run_to_ci_run(r: types::WorkflowRun) -> CiRun {
         sha: r.head_sha,
         source: Some(r.event),
         name: r.name,
+        actor: r.triggering_actor.map(|a| a.login),
         created_at: Some(r.created_at),
         updated_at: Some(r.updated_at),
         web_url: r.html_url,
@@ -478,6 +479,7 @@ mod tests {
             created_at: "2026-01-01T00:00:00Z".to_string(),
             updated_at: "2026-01-01T00:05:00Z".to_string(),
             run_started_at: Some("2026-01-01T00:00:10Z".to_string()),
+            triggering_actor: None,
         };
         let ci_run = workflow_run_to_ci_run(run);
         assert_eq!(ci_run.id, 500);
@@ -547,5 +549,39 @@ mod tests {
         let pu = github_user_to_provider_user(user);
         assert_eq!(pu.username, "octocat");
         assert_eq!(pu.email, None);
+    }
+
+    #[test]
+    fn workflow_run_to_ci_run_copies_triggering_actor_login() {
+        let raw = r#"{
+            "id": 42,
+            "run_number": 7,
+            "name": "CI",
+            "status": "completed",
+            "conclusion": "success",
+            "head_branch": "main",
+            "head_sha": "abc123",
+            "event": "push",
+            "html_url": "https://github.com/o/r/actions/runs/42",
+            "created_at": "2026-04-23T10:00:00Z",
+            "updated_at": "2026-04-23T10:05:00Z",
+            "run_started_at": "2026-04-23T10:01:00Z",
+            "triggering_actor": { "login": "octocat" }
+        }"#;
+        let wr: crate::types::WorkflowRun = serde_json::from_str(raw).unwrap();
+        let run = super::workflow_run_to_ci_run(wr);
+        assert_eq!(run.actor.as_deref(), Some("octocat"));
+    }
+
+    #[test]
+    fn workflow_run_to_ci_run_actor_none_when_upstream_missing() {
+        let raw = r#"{
+            "id": 1, "run_number": 1, "status": "queued", "head_sha": "s",
+            "event": "push", "html_url": "u",
+            "created_at": "t", "updated_at": "t"
+        }"#;
+        let wr: crate::types::WorkflowRun = serde_json::from_str(raw).unwrap();
+        let run = super::workflow_run_to_ci_run(wr);
+        assert!(run.actor.is_none());
     }
 }
