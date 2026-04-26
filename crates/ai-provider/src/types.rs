@@ -52,6 +52,17 @@ pub struct AiSession {
     /// `u64` to keep `ai-provider` free of a `task-runner` dependency.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_id: Option<u64>,
+    /// User-typed prompt for background runs.
+    ///
+    /// Captures the free-text prompt the user submitted via the "New AI
+    /// worktree run" dialog so the AI Sessions detail pane can echo what
+    /// was asked alongside the captured transcript. Inlined skill/saved
+    /// prompt content is excluded — it can be hundreds of lines long
+    /// and would dominate the section meant to summarise the user's
+    /// command. `None` for sessions discovered on disk and for runs
+    /// launched before this field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
 }
 
 /// A conversation transcript on disk — the canonical source of truth for a

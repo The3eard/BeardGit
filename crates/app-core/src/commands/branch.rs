@@ -84,16 +84,20 @@ pub fn checkout_detached(
 ///
 /// # Parameters
 /// - `name` – Name of the branch to delete.
+/// - `force` – When `true`, deletes even if the branch has unmerged commits
+///   (`git branch -D`). When `false`, refuses unmerged branches
+///   (`git branch -d`), matching the CLI's safer default.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::branch::delete")]
 pub fn delete_branch(
     name: String,
+    force: bool,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
     with_mutation_guard(&state, &app, MutationKind::BranchDelete, || {
         with_active_repo(&state, |repo| {
-            repo.delete_branch(&name).map_err(|e| e.to_string())
+            repo.delete_branch(&name, force).map_err(|e| e.to_string())
         })
     })
 }
@@ -256,13 +260,14 @@ mod tests {
 
     #[test]
     fn delete_branch_removes_local_ref() {
-        // `delete_branch` in git-engine wraps `git2::Branch::delete`, which
-        // ignores the merged/unmerged distinction — behaviour-equivalent to
-        // `git branch -D` (force=true in the command plan).
+        // `delete_branch` runs `git branch -d` / `git branch -D` via the
+        // CLI. The fixture's branch isn't merged into HEAD's history, so
+        // the safe `-d` form refuses — exercise the force=true path,
+        // which mirrors what the UI flag now offers.
         let (_tmp, path) = create_repo_with_branches(&["to-delete"]);
         let repo = Repository::open(&path).unwrap();
 
-        repo.delete_branch("to-delete").unwrap();
+        repo.delete_branch("to-delete", true).unwrap();
 
         assert!(
             !repo

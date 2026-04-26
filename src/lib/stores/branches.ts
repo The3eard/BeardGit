@@ -99,10 +99,10 @@ export async function doCheckout(name: string) {
   // Branch list refresh is driven by the project-mutated event.
 }
 
-export async function doDeleteBranch(name: string) {
+export async function doDeleteBranch(name: string, force = false) {
   await runMutation({
     kind: "branch_delete",
-    invoke: () => apiDelete(name),
+    invoke: () => apiDelete(name, force),
     successToast: () => `Deleted branch ${name}`,
     failureToastPrefix: "Branch delete failed",
   });

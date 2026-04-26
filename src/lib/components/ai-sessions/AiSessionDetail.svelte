@@ -22,9 +22,10 @@
     aiBackgroundTranscripts,
     cancelAiBackgroundRun,
     discardAiBackgroundRunWorktree,
-    openTerminalForAiBackgroundSession,
     selectedBackgroundSession,
   } from "$lib/stores/aiBackground";
+  import { aiGetBackgroundReport } from "$lib/api/tauri";
+  import { renderMarkdown } from "$lib/utils/markdown";
   import {
     selectedConversation,
   } from "$lib/stores/aiConversations";
@@ -84,27 +85,6 @@
   );
 
   // ─── Handlers: bg-run branch ───
-
-  /** Focus the bg-run's live PTY. */
-  function handleFocusBg() {
-    if (!bgSession) return;
-    focusTerminal({ kind: "bg", session: bgSession });
-  }
-
-  async function handleOpenTerminal() {
-    if (!bgSession || !bgSession.worktree_path || isRunning) return;
-    const id = bgSession.id;
-    try {
-      await runMutation({
-        kind: "ai_open_terminal",
-        invoke: () => openTerminalForAiBackgroundSession(id),
-        successToast: () => m.ai_background_open_terminal_success(),
-        failureToastPrefix: m.ai_background_open_terminal_error(),
-      });
-    } catch {
-      // runMutation already surfaced a sticky failure toast.
-    }
-  }
 
   async function handleDiscard() {
     if (!bgSession || !isTerminal) return;
@@ -214,6 +194,91 @@
     focusTerminal(activeTerm);
   }
 
+  // ─── Prompt / transcript split ─────────────────────────────────────
+  // Vertical split inside the bg-run branch. Defaults to a 20/80 split
+  // (Prompt small, Report/Output dominant) since the prompt is usually
+  // a single line while the report or transcript carries the
+  // substance. The user drags the handle to resize, clamped so neither
+  // pane collapses to zero height (keeps the section headers + copy
+  // button reachable).
+  let promptPct = $state(20);
+
+  function startSplitResize(e: MouseEvent) {
+    e.preventDefault();
+    const target = (e.currentTarget as HTMLElement).parentElement;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const total = rect.height;
+    const minPct = 15;
+    const maxPct = 85;
+
+    function onMouseMove(ev: MouseEvent) {
+      const offset = ev.clientY - rect.top;
+      const next = (offset / total) * 100;
+      promptPct = Math.max(minPct, Math.min(maxPct, next));
+    }
+    function onMouseUp() {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    }
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
+
+  // ─── Report fetch ──────────────────────────────────────────────────
+  // Backend asks the AI to write a markdown report at
+  // `<repo>/.beardgit/ai-reports/<session_id>.md`. We fetch it when:
+  //   - selection changes to a different bg session
+  //   - the run reaches a terminal state (where the AI just had a
+  //     chance to finish writing)
+  //   - the user presses the inline Refresh button below
+  //
+  // Result is the raw markdown string, or null when the file isn't on
+  // disk yet (run still in flight, or AI didn't write one).
+  let report = $state<string | null>(null);
+  let reportLoading = $state(false);
+  /** Bottom pane content selector: rendered report (default) or raw transcript. */
+  let bottomView = $state<"report" | "transcript">("report");
+
+  async function loadReport(sessionId: string) {
+    reportLoading = true;
+    try {
+      const next = await aiGetBackgroundReport(sessionId);
+      // Last-wins: only keep the result if the selection didn't move.
+      if (bgSession?.id === sessionId) {
+        report = next;
+      }
+    } catch {
+      // The IPC layer surfaces a friendly toast for hard failures
+      // (`get_active_project_path` errors when no project active). For
+      // missing-file we already return None on the backend, so a thrown
+      // error here means *something else* went wrong — surface as a
+      // null report so the UI shows the empty state rather than crashes.
+      if (bgSession?.id === sessionId) report = null;
+    } finally {
+      if (bgSession?.id === sessionId) reportLoading = false;
+    }
+  }
+
+  // Refetch on bgSession.id change AND on terminal-state transition.
+  // Using `untrack` would be more surgical but the cost is one IPC call
+  // per status transition — negligible.
+  let lastFetchKey = $state("");
+  $effect(() => {
+    if (!bgSession) {
+      report = null;
+      lastFetchKey = "";
+      return;
+    }
+    const key = `${bgSession.id}:${bgSession.background_status?.state ?? ""}`;
+    if (key === lastFetchKey) return;
+    lastFetchKey = key;
+    void loadReport(bgSession.id);
+  });
+
+  function handleRefreshReport() {
+    if (bgSession) void loadReport(bgSession.id);
+  }
 </script>
 
 {#if conversation}
@@ -290,34 +355,9 @@
     {/if}
 
     <div class="actions">
-      <button
-        class="btn"
-        onclick={handleFocusBg}
-        data-testid="ai-session-detail-focus"
-      >
-        {m.ai_sessions_focus()}
-      </button>
       {#if isRunning}
         <button class="btn danger" onclick={handleCancel}>
           {m.ai_background_cancel_run()}
-        </button>
-        {#if bgSession.worktree_path}
-          <button
-            class="btn"
-            disabled
-            title={m.ai_background_tooltip_terminal_running()}
-            data-testid="ai-session-detail-open-terminal"
-          >
-            {m.ai_background_open_terminal()}
-          </button>
-        {/if}
-      {:else if bgSession.worktree_path}
-        <button
-          class="btn"
-          onclick={handleOpenTerminal}
-          data-testid="ai-session-detail-open-terminal"
-        >
-          {m.ai_background_open_terminal()}
         </button>
       {/if}
       <button
@@ -334,7 +374,101 @@
       {/if}
     </div>
 
-    <BackgroundRunTranscript lines={transcript} />
+    <!-- Prompt + transcript split.
+         Two stacked scroll regions instead of a single flex transcript:
+         the captured stream-json output is verbose enough to dwarf the
+         dialog's original prompt, so we pin the prompt above (≈50% of
+         the remaining height by default) and let the user resize via
+         the drag handle. -->
+    <div class="split" style="--prompt-pct: {promptPct}%">
+      <section class="split-pane prompt-pane" data-testid="ai-session-detail-prompt">
+        <header class="split-header">
+          <span class="split-title">{m.ai_background_section_prompt()}</span>
+        </header>
+        {#if bgSession.prompt && bgSession.prompt.trim().length > 0}
+          <pre class="prompt-text">{bgSession.prompt}</pre>
+        {:else}
+          <p class="prompt-empty">{m.ai_background_no_prompt_recorded()}</p>
+        {/if}
+      </section>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="split-handle"
+        onmousedown={startSplitResize}
+      ></div>
+      <section class="split-pane transcript-pane" data-testid="ai-session-detail-bottom">
+        <header class="split-header">
+          <span class="split-title">
+            {bottomView === "report"
+              ? m.ai_background_section_report()
+              : m.ai_background_section_output()}
+          </span>
+          <div class="split-actions">
+            {#if bottomView === "report"}
+              <button
+                class="split-link"
+                onclick={handleRefreshReport}
+                disabled={reportLoading}
+                title={m.ai_background_report_refresh_tooltip()}
+                data-testid="ai-session-detail-report-refresh"
+              >
+                {reportLoading
+                  ? m.ai_background_report_loading()
+                  : m.ai_background_report_refresh()}
+              </button>
+              <button
+                class="split-link"
+                onclick={() => (bottomView = "transcript")}
+                data-testid="ai-session-detail-show-transcript"
+              >
+                {m.ai_background_show_transcript({
+                  count: transcript.length,
+                })}
+              </button>
+            {:else}
+              <button
+                class="split-link"
+                onclick={() => (bottomView = "report")}
+                data-testid="ai-session-detail-show-report"
+              >
+                {m.ai_background_show_report()}
+              </button>
+            {/if}
+          </div>
+        </header>
+        {#if bottomView === "report"}
+          {#if report && report.trim().length > 0}
+            <article
+              class="report-body"
+              data-testid="ai-session-detail-report"
+            >
+              {@html renderMarkdown(report)}
+            </article>
+          {:else if reportLoading}
+            <div class="output-empty" data-testid="ai-session-detail-report-loading">
+              <p class="output-empty-title">{m.ai_background_report_loading_title()}</p>
+            </div>
+          {:else if isRunning}
+            <div class="output-empty" data-testid="ai-session-detail-report-pending">
+              <p class="output-empty-title">{m.ai_background_report_pending_title()}</p>
+              <p class="output-empty-hint">{m.ai_background_report_pending_hint()}</p>
+            </div>
+          {:else}
+            <div class="output-empty" data-testid="ai-session-detail-report-missing">
+              <p class="output-empty-title">{m.ai_background_report_missing_title()}</p>
+              <p class="output-empty-hint">{m.ai_background_report_missing_hint()}</p>
+            </div>
+          {/if}
+        {:else if transcript.length === 0}
+          <div class="output-empty" data-testid="ai-session-detail-output-empty">
+            <p class="output-empty-title">{m.ai_background_output_empty_title()}</p>
+            <p class="output-empty-hint">{m.ai_background_output_empty_hint()}</p>
+          </div>
+        {:else}
+          <BackgroundRunTranscript lines={transcript} />
+        {/if}
+      </section>
+    </div>
   </div>
 {:else if activeTerm}
   <!-- ─── Active tab/segment branch ─── -->
@@ -380,8 +514,16 @@
     flex-direction: column;
     gap: 10px;
     padding: 12px;
+    /* Parent (`.split-main` from SplitView) is a regular block, not a
+       flex container, so `flex: 1` alone does nothing. Force a full
+       height fill so the inner grid (`grid-template-rows: 50% 6px
+       1fr`) has a real height to compute percentages against —
+       otherwise the bottom pane collapses to 0px and the user sees
+       only the prompt with a blank void below. */
     flex: 1;
+    height: 100%;
     min-height: 0;
+    box-sizing: border-box;
   }
 
   .header {
@@ -527,5 +669,210 @@
     color: var(--text-secondary);
     text-align: center;
     font-size: 12px;
+  }
+
+  /* ─── Prompt + transcript split ─────────────────────────────────── */
+
+  .split {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    /* `--prompt-pct` set inline from the script's `promptPct` state.
+       The 6px row keeps the drag handle outside both pane percentages
+       so the math matches what the user feels when dragging. */
+    grid-template-rows: calc(var(--prompt-pct, 50%) - 3px) 6px 1fr;
+    border-top: 1px solid var(--border);
+  }
+
+  .split-pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .split-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 10px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 8px;
+  }
+
+  .split-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+  }
+
+  .split-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Inline link-style buttons for the bottom-pane header (Refresh +
+     swap between Report and Transcript). Quiet at rest so they don't
+     compete with the Prompt header above; light up on hover. */
+  .split-link {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .split-link:hover:not(:disabled) {
+    color: var(--accent-blue);
+  }
+
+  .split-link:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Rendered markdown body of the AI report. Matches the surrounding
+     dark theme — backgrounds and links pull from the same CSS tokens
+     used elsewhere so the report doesn't look like a foreign element
+     pasted into the panel. */
+  .report-body {
+    flex: 1;
+    overflow: auto;
+    padding: 12px 14px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .report-body :global(h1),
+  .report-body :global(h2),
+  .report-body :global(h3) {
+    margin: 14px 0 8px;
+    color: var(--text-primary);
+  }
+  .report-body :global(h1) { font-size: 15px; }
+  .report-body :global(h2) { font-size: 13px; }
+  .report-body :global(h3) { font-size: 12px; }
+  .report-body :global(p) { margin: 6px 0; }
+  .report-body :global(ul),
+  .report-body :global(ol) {
+    margin: 6px 0;
+    padding-left: 22px;
+  }
+  .report-body :global(li) { margin: 2px 0; }
+  .report-body :global(code) {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 1px 4px;
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+    border-radius: 3px;
+  }
+  .report-body :global(pre) {
+    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+    padding: 8px 10px;
+    border-radius: 4px;
+    overflow: auto;
+    font-size: 11px;
+  }
+  .report-body :global(pre code) {
+    background: transparent;
+    padding: 0;
+  }
+  .report-body :global(a) {
+    color: var(--accent-blue);
+    text-decoration: none;
+  }
+  .report-body :global(a:hover) {
+    text-decoration: underline;
+  }
+  .report-body :global(blockquote) {
+    margin: 6px 0;
+    padding-left: 10px;
+    border-left: 2px solid var(--border);
+    color: var(--text-secondary);
+  }
+
+  .output-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 16px;
+    background: var(--bg-primary);
+    text-align: center;
+  }
+
+  .output-empty-title {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .output-empty-hint {
+    margin: 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+    max-width: 360px;
+    line-height: 1.5;
+  }
+
+  .prompt-text {
+    margin: 0;
+    flex: 1;
+    overflow: auto;
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg-primary);
+  }
+
+  .prompt-empty {
+    margin: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+    background: var(--bg-primary);
+  }
+
+  /* Slim drag affordance between the two panes. The visible 6px row
+     ships an underline-style hover state — no centred grip dots since
+     the surrounding header bars already telegraph "two stacked
+     panels". */
+  .split-handle {
+    cursor: row-resize;
+    background: var(--border);
+    transition: background 0.15s;
+  }
+
+  .split-handle:hover {
+    background: var(--accent-blue);
+  }
+
+  .transcript-pane {
+    /* `BackgroundRunTranscript` already provides its own bordered box;
+       the pane just needs to give it a flex slot to fill. */
   }
 </style>

@@ -349,6 +349,7 @@ pub fn run() {
             app_core::commands::ai_cancel_background_run,
             app_core::commands::ai_list_background_runs,
             app_core::commands::ai_get_background_run,
+            app_core::commands::ai_get_background_report,
             app_core::commands::ai_discard_background_run_worktree,
             app_core::commands::ai_open_background_terminal,
             app_core::commands::ai_background_get_settings,

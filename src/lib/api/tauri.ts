@@ -138,8 +138,8 @@ export async function checkoutDetached(oid: string): Promise<void> {
   return invoke("checkout_detached", { oid });
 }
 
-export async function deleteBranch(name: string): Promise<void> {
-  return invoke("delete_branch", { name });
+export async function deleteBranch(name: string, force = false): Promise<void> {
+  return invoke("delete_branch", { name, force });
 }
 
 export async function checkoutBranch(name: string): Promise<void> {
@@ -1359,6 +1359,15 @@ export async function aiListBackgroundRuns(): Promise<AiSession[]> {
 /** Fetch a single background run by session id; `null` if not found. */
 export async function aiGetBackgroundRun(sessionId: string): Promise<AiSession | null> {
   return invoke<AiSession | null>("ai_get_background_run", { sessionId });
+}
+
+/**
+ * Read the markdown report the AI wrote at
+ * `<repo>/.beardgit/ai-reports/<sessionId>.md`. Returns `null` when the
+ * file doesn't exist (run still in flight, or AI didn't write one).
+ */
+export async function aiGetBackgroundReport(sessionId: string): Promise<string | null> {
+  return invoke<string | null>("ai_get_background_report", { sessionId });
 }
 
 /** Remove the worktree + branch created for a terminal-state background run. */

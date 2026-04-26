@@ -16,6 +16,7 @@
   } from "../../stores/branches";
 
   let confirmDelete = $state(false);
+  let forceDelete = $state(false);
 
   $effect(() => {
     $selectedBranchName;
@@ -93,7 +94,7 @@
           >
             Merge into current
           </button>
-          <button class="action-btn action-delete" onclick={() => (confirmDelete = true)}>
+          <button class="action-btn action-delete" onclick={() => { forceDelete = false; confirmDelete = true; }}>
             Delete
           </button>
         {/if}
@@ -110,11 +111,19 @@
       title="Delete Branch"
       detail={`${$selectedBranchInfo.name}\n${$selectedBranchInfo.oid.slice(0, 8)}`}
       message={`Are you sure you want to delete branch "${$selectedBranchInfo.name}"? This action cannot be undone.`}
-      confirmLabel="Delete"
+      confirmLabel={forceDelete ? "Force Delete" : "Delete"}
       destructive={true}
-      onConfirm={() => {
-        doDeleteBranch($selectedBranchInfo!.name);
+      checkboxLabel="Force delete (allow unmerged commits)"
+      bind:checkboxChecked={forceDelete}
+      onConfirm={async () => {
+        const target = $selectedBranchInfo!.name;
+        const force = forceDelete;
         confirmDelete = false;
+        try {
+          await doDeleteBranch(target, force);
+        } catch {
+          // `runMutation` already surfaced a sticky failure toast.
+        }
       }}
       onCancel={() => (confirmDelete = false)}
     />

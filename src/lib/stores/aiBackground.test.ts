@@ -16,6 +16,7 @@ import {
   aiBackgroundTranscripts,
   activeBackgroundRunCount,
   discardAiBackgroundRunWorktree,
+  recentBackgroundRuns,
   refreshAiBackgroundRuns,
   setAiBackgroundRuns,
   startAiBackgroundRun,
@@ -71,6 +72,33 @@ describe("aiBackground store", () => {
       sample("d", { state: "failed", message: "x" }),
     ]);
     expect(get(activeBackgroundRunCount)).toBe(2);
+  });
+
+  it("recentBackgroundRuns surfaces only terminal-state runs, newest first", () => {
+    // Terminal sessions need to be visible after they exit so the
+    // user can still read the captured transcript; running/queued
+    // ones belong to the Active section and must be excluded here.
+    const completed = {
+      ...sample("a", { state: "completed", exit_code: 0, token_usage: null }),
+      started_at: 100,
+    };
+    const failed = {
+      ...sample("b", { state: "failed", message: "boom" }),
+      started_at: 300,
+    };
+    const cancelled = {
+      ...sample("c", { state: "cancelled" }),
+      started_at: 200,
+    };
+    const running = sample("d", { state: "running" });
+    const queued = sample("e", { state: "queued" });
+
+    setAiBackgroundRuns([completed, failed, cancelled, running, queued]);
+
+    const ids = get(recentBackgroundRuns).map((s) => s.id);
+    expect(ids).toEqual(["b", "c", "a"]); // sorted desc by started_at
+    expect(ids).not.toContain("d");
+    expect(ids).not.toContain("e");
   });
 
   it("startAiBackgroundRun seeds a placeholder session from the response", async () => {

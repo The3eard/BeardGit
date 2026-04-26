@@ -60,29 +60,20 @@ afterEach(() => {
   resetStores();
 });
 
-describe("AiSessionDetail bg branch — Focus", () => {
-  it("renders a Focus button when a bg run is selected", async () => {
+describe("AiSessionDetail bg branch — actions", () => {
+  // The Focus + Open-terminal-here buttons were removed from the bg-run
+  // detail (they overlapped with the Switch-to-worktree-tab affordance
+  // and the active-pane Focus row in the list). We keep this suite to
+  // assert their absence so the regression is visible if they're ever
+  // re-added by accident.
+  it("does not render Focus or Open-terminal buttons in the bg-run pane", async () => {
     aiBackgroundRuns.set(new Map([[BG.id, BG]]));
     selectedBackgroundSessionId.set(BG.id);
 
-    const { getByTestId } = render(AiSessionDetail);
+    const { queryByTestId } = render(AiSessionDetail);
     await tick();
-    expect(getByTestId("ai-session-detail-focus")).toBeTruthy();
-  });
-
-  it("clicking Focus calls focusTerminal with the bg active payload", async () => {
-    aiBackgroundRuns.set(new Map([[BG.id, BG]]));
-    selectedBackgroundSessionId.set(BG.id);
-
-    const { getByTestId } = render(AiSessionDetail);
-    await tick();
-    await fireEvent.click(getByTestId("ai-session-detail-focus"));
-
-    expect(focusTerminal).toHaveBeenCalledTimes(1);
-    const call = focusTerminal.mock.calls[0] as unknown as [
-      { kind: "bg"; session: AiSession },
-    ];
-    expect(call?.[0]?.kind).toBe("bg");
-    expect(call?.[0]?.session.id).toBe(BG.id);
+    expect(queryByTestId("ai-session-detail-focus")).toBeNull();
+    expect(queryByTestId("ai-session-detail-open-terminal")).toBeNull();
+    expect(focusTerminal).not.toHaveBeenCalled();
   });
 });

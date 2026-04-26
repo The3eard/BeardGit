@@ -18,6 +18,7 @@
     selectAiSessionRow,
     selectedActiveTerminal,
   } from "$lib/stores/aiActiveTerminals";
+  import { selectedBackgroundSessionId } from "$lib/stores/aiBackground";
   import { providerName } from "$lib/data/ai-providers";
   import { formatRelativeTimeUnix } from "$lib/utils/time";
   import ProviderIcon from "./ProviderIcon.svelte";
@@ -53,12 +54,14 @@
   );
 
   let selected = $derived.by(() => {
-    const sel = $selectedActiveTerminal;
-    if (!sel) return false;
-    if (sel.kind !== active.kind) return false;
-    if (active.kind === "bg" && sel.kind === "bg") {
-      return sel.session.id === active.session.id;
+    // Bg rows are matched against the bg-session selection store because
+    // their click handler routes there (see `onSelect`); tab/segment rows
+    // stay on the active-terminal store.
+    if (active.kind === "bg") {
+      return $selectedBackgroundSessionId === active.session.id;
     }
+    const sel = $selectedActiveTerminal;
+    if (!sel || sel.kind !== active.kind) return false;
     if (active.kind === "tab" && sel.kind === "tab") {
       return sel.tabIndex === active.tabIndex;
     }
@@ -72,6 +75,14 @@
   });
 
   function onSelect() {
+    // Bg-kind rows route to the bg-run detail branch (status badge,
+    // transcript, focus/cancel/discard) — not the generic "active" branch.
+    // The detail pane drops bg selections from the active branch on
+    // purpose; without this split the row would render the empty state.
+    if (active.kind === "bg") {
+      selectAiSessionRow({ kind: "background", id: active.session.id });
+      return;
+    }
     selectAiSessionRow({ kind: "active", active });
   }
 </script>

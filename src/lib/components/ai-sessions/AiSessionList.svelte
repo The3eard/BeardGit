@@ -1,14 +1,20 @@
 <!--
-  AiSessionList — two-section sidebar for the AI Sessions view.
+  AiSessionList — three-section sidebar for the AI Sessions view.
 
   Section 1: "Active terminals" — every BeardGit-owned PTY currently
   running an AI provider (standalone tab, composite segment, background
   run). Rendered via `ActiveRow`.
 
-  Section 2: "Conversations" — every on-disk AI transcript scoped to the
+  Section 2: "Recent runs" — terminal-state background AI runs
+  (completed / failed / cancelled). Rendered via `RecentRunRow`. The
+  Active section drops bg rows the moment they exit, so without this
+  surface the captured stdout in `aiBackgroundTranscripts` becomes
+  unreachable from the UI.
+
+  Section 3: "Conversations" — every on-disk AI transcript scoped to the
   current project. Rendered via `ConversationRow`.
 
-  The two lists are structurally disjoint; a live bg-run may also have a
+  The lists are structurally disjoint; a live bg-run may also have a
   transcript but each row is a different affordance (Focus vs Resume) so
   we intentionally let them coexist.
 
@@ -28,6 +34,7 @@
   } from "$lib/stores/aiConversations";
   import { activeAiTerminals } from "$lib/stores/aiActiveTerminals";
   import {
+    recentBackgroundRuns,
     refreshAiBackgroundRuns,
     requestOpenCreateBackgroundRunDialog,
   } from "$lib/stores/aiBackground";
@@ -36,6 +43,7 @@
   import { IconButton } from "$lib/components/ui";
   import ActiveRow from "./ActiveRow.svelte";
   import ConversationRow from "./ConversationRow.svelte";
+  import RecentRunRow from "./RecentRunRow.svelte";
 
   /**
    * Refresh both lists. Called from the header button and by
@@ -98,6 +106,32 @@
           {#each $activeAiTerminals as active (active.kind === "bg" ? `bg:${active.session.id}` : active.kind === "tab" ? `tab:${active.tabIndex}` : `seg:${active.tabIndex}:${active.segmentIndex}`)}
             <li class="row-item">
               <ActiveRow {active} />
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+
+    <!-- ─── Recent runs (terminal-state bg sessions) ─── -->
+    <section
+      class="section"
+      data-testid="ai-session-list-section-recent"
+    >
+      <header class="section-header">
+        <span class="section-title">{m.ai_sessions_recent_title()}</span>
+        <span class="section-count" data-testid="ai-session-list-recent-count">
+          {$recentBackgroundRuns.length}
+        </span>
+      </header>
+      {#if $recentBackgroundRuns.length === 0}
+        <div class="section-empty" data-testid="ai-session-list-recent-empty">
+          {m.ai_sessions_empty_recent()}
+        </div>
+      {:else}
+        <ul class="row-list" role="list">
+          {#each $recentBackgroundRuns as session (session.id)}
+            <li class="row-item">
+              <RecentRunRow {session} />
             </li>
           {/each}
         </ul>

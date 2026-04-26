@@ -62,10 +62,20 @@
     confirmRemovePath = path;
   }
 
-  function confirmRemove() {
-    if (confirmRemovePath) {
-      deleteWorktree(confirmRemovePath, forceRemove);
-      confirmRemovePath = null;
+  async function confirmRemove() {
+    if (!confirmRemovePath) return;
+    const path = confirmRemovePath;
+    const force = forceRemove;
+    // Close the dialog before the IPC fires so the user sees feedback
+    // (success toast / sticky error toast emitted by `runMutation`)
+    // against the underlying list rather than on top of the dialog.
+    confirmRemovePath = null;
+    try {
+      await deleteWorktree(path, force);
+    } catch {
+      // `runMutation` already surfaced a sticky failure toast; we
+      // swallow here so the rejection doesn't bubble to the global
+      // unhandledrejection handler (and clutter the dev console).
     }
   }
 
@@ -254,6 +264,8 @@
     message={m.worktree_remove_confirm({ path: shortPath(confirmRemovePath) })}
     confirmLabel={forceRemove ? m.worktree_remove_force() : m.worktree_remove()}
     destructive={true}
+    checkboxLabel={m.worktree_remove_force_label()}
+    bind:checkboxChecked={forceRemove}
     onConfirm={confirmRemove}
     onCancel={() => (confirmRemovePath = null)}
   />

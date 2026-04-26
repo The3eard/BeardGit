@@ -15,9 +15,11 @@
   - **AI background** — entries with the `ai-background:<session_id>`
     id read from `aiBackgroundTranscripts`, which is the bridge the AI
     coordinator already maintains for the session viewer.
-  - **App update** — has no console stream; we show the localized
-    "No output" placeholder plus the metadata header (status +
-    progress live on the row itself in list mode).
+  - **App update** — has no console stream; we render only the
+    metadata header (status + progress live on the row itself in list
+    mode). Tasks without captured output deliberately render no
+    placeholder block — the empty zone read as broken state, so we
+    just let the meta header stand alone.
 
   Kept as a dedicated component so the popover shell stays thin and
   the detail view can grow independently (scrollback, copy button,
@@ -227,10 +229,6 @@
           class="detail__line detail__line--{line.stream}"
           data-stream={line.stream}>{line.text}</span
         >{"\n"}{/each}</pre>
-  {:else}
-    <div class="detail__output detail__output--empty" data-testid="task-detail-output">
-      <p class="detail__output-placeholder">{m.tasks_no_output()}</p>
-    </div>
   {/if}
 </section>
 
@@ -292,19 +290,6 @@
     color: var(--text-primary);
     white-space: pre;
     overflow-anchor: auto;
-  }
-
-  .detail__output--empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .detail__output-placeholder {
-    color: var(--text-secondary);
-    font-size: 11px;
-    margin: 0;
-    font-style: italic;
   }
 
   .detail__line {

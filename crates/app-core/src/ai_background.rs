@@ -43,6 +43,13 @@ use tracing::{info, warn};
 /// Default sub-path under the repo root used for AI-created worktrees.
 pub const DEFAULT_AI_WORKTREE_ROOT: &str = ".beardgit/ai-worktrees";
 
+/// Sub-path under the repo root where AI background runs are asked to
+/// drop a final markdown report. Lives alongside the worktree root so
+/// `.gitignore`'s `.beardgit/` rule covers it without extra config, and
+/// stays in the *parent* repo so the report survives a `Discard
+/// worktree` action.
+pub const DEFAULT_AI_REPORTS_ROOT: &str = ".beardgit/ai-reports";
+
 /// Arguments accepted by [`AiBackgroundCoordinator::start`].
 ///
 /// All fields use `snake_case` to match what the Tauri command layer passes
@@ -77,6 +84,16 @@ pub struct StartArgs {
     /// Maximum concurrent runs allowed at the time of this call. The
     /// coordinator clamps this to at least 1.
     pub concurrency_cap: u32,
+    /// Shared handle to the active project's [`watcher::RepoWatcher`] cached
+    /// [`Snapshot`].
+    ///
+    /// When provided, [`AiBackgroundCoordinator::start`] holds this lock
+    /// across the `git worktree add` call and overwrites the snapshot with
+    /// a fresh capture before releasing — so the next debounced batch in
+    /// the watcher thread diffs against the post-creation state and emits
+    /// nothing for our own change. `None` falls back to letting the
+    /// watcher emit naturally (used by tests that never start a watcher).
+    pub watcher_cached_snapshot: Option<Arc<Mutex<Snapshot>>>,
 }
 
 /// The output returned by a successful [`AiBackgroundCoordinator::start`]
@@ -154,6 +171,23 @@ struct CoordinatorInner {
     /// [`AiBackgroundCoordinator::on_task_finished`] so the diff can be
     /// emitted as a `MutationKind::Ai { source }` event.
     before_snapshots: std::collections::HashMap<String, Snapshot>,
+    /// Direct `TaskId → session_id` lookup populated by [`Self::dispatch`]
+    /// the instant `spawn_with_options` returns. The `on_task_output`
+    /// path consults this BEFORE walking `sessions` so output is routed
+    /// even when the reader task fires its first line before the
+    /// session's `task_id` field has been written by `update_session`.
+    /// Without this map, fast-emitting providers (Claude Code's
+    /// `--output-format stream-json` starts dumping hook events the
+    /// instant stdin closes) lost their entire transcript on the
+    /// initial line burst.
+    task_id_to_session: std::collections::HashMap<TaskId, String>,
+    /// Output lines that arrived at `on_task_output` *before* their
+    /// `task_id → session_id` mapping was registered. Drained as soon
+    /// as the dispatch completes its insert into `task_id_to_session`,
+    /// so the user sees the full transcript even when there's a
+    /// fraction-of-a-millisecond race between the spawn returning and
+    /// the reader task's first read.
+    pending_lines: std::collections::HashMap<TaskId, Vec<String>>,
 }
 
 /// Serialisable payload kept around while a run is queued.
@@ -195,6 +229,8 @@ impl AiBackgroundCoordinator {
                 concurrency_cap: 3,
                 pending: std::collections::HashMap::new(),
                 before_snapshots: std::collections::HashMap::new(),
+                task_id_to_session: std::collections::HashMap::new(),
+                pending_lines: std::collections::HashMap::new(),
             }),
             task_manager,
             event_sink,
@@ -240,8 +276,27 @@ impl AiBackgroundCoordinator {
         let slug = unique_slug(&slug, &worktree_root);
         let worktree_path = worktree_root.join(&slug);
 
+        // 1b. Mint the session id up-front so the report-writing
+        //     instruction in step 2 can interpolate it (the AI is asked
+        //     to write `<repo>/.beardgit/ai-reports/<session_id>.md`),
+        //     and ensure the parent directory exists so the AI's Write
+        //     tool doesn't fail on a missing dir.
+        let session_id = format!(
+            "aibg-{}-{}-{}",
+            provider_slug(args.provider),
+            now_millis().unwrap_or_default(),
+            self.next_session_counter.fetch_add(1, Ordering::SeqCst),
+        );
+        let report_path = report_path_for(&args.repo_root, &session_id);
+        if let Some(reports_dir) = report_path.parent() {
+            std::fs::create_dir_all(reports_dir).map_err(AiError::Io)?;
+        }
+
         // 2. Build the combined prompt text — saved prompt + free text, plus
-        //    a skill marker for providers that don't support --skill natively.
+        //    a skill marker for providers that don't support --skill natively,
+        //    plus a fixed suffix asking the AI to leave a markdown report at
+        //    `report_path` so the user has a readable summary even when the
+        //    raw stream-json is noisy or empty.
         let mut combined_prompt = String::new();
         if let Some(ref saved) = args.saved_prompt_path {
             match std::fs::read_to_string(saved) {
@@ -269,6 +324,7 @@ impl AiBackgroundCoordinator {
             combined_prompt.push_str(&format!("[use skill: {skill}]\n\n"));
         }
         combined_prompt.push_str(&args.prompt);
+        combined_prompt.push_str(&build_report_instruction(&report_path));
 
         // 3. Create the worktree. Parent directories must exist.
         if let Some(parent) = worktree_path.parent() {
@@ -281,16 +337,40 @@ impl AiBackgroundCoordinator {
             ))
         })?;
         let new_branch = format!("ai/{}/{}", provider_slug(args.provider), slug);
-        repo.create_worktree_at(
-            worktree_path
-                .to_str()
-                .ok_or_else(|| AiError::CommandBuild("worktree path is not valid UTF-8".into()))?,
-            &new_branch,
-            &args.base_branch,
-        )
-        .map_err(|e| AiError::CommandBuild(format!("failed to create worktree: {e}")))?;
+        let worktree_path_str = worktree_path
+            .to_str()
+            .ok_or_else(|| AiError::CommandBuild("worktree path is not valid UTF-8".into()))?;
+        // Hold the watcher's cached-snapshot lock across the
+        // `git worktree add` so the watcher thread cannot run a diff/emit
+        // cycle for the new branch ref + worktree count it would otherwise
+        // observe. After the worktree exists, overwrite the cached
+        // snapshot with a fresh capture so the next debounced batch sees
+        // an empty diff and the spurious `project-mutated` (which would
+        // trigger a heavy `refresh_graph_layout` rebuild on the frontend)
+        // is suppressed. `watcher_cached_snapshot = None` falls through
+        // to the unsynchronised path used by tests.
+        if let Some(ref cache_arc) = args.watcher_cached_snapshot {
+            let mut guard = cache_arc.lock().map_err(|e| {
+                AiError::CommandBuild(format!("watcher snapshot mutex poisoned: {e}"))
+            })?;
+            repo.create_worktree_at(worktree_path_str, &new_branch, &args.base_branch)
+                .map_err(|e| AiError::CommandBuild(format!("failed to create worktree: {e}")))?;
+            match Snapshot::capture(&args.repo_root) {
+                Ok(after) => *guard = after,
+                Err(err) => warn!(
+                    error = %err,
+                    "post-worktree-creation snapshot capture failed; \
+                     watcher may emit a redundant project-mutated event"
+                ),
+            }
+        } else {
+            repo.create_worktree_at(worktree_path_str, &new_branch, &args.base_branch)
+                .map_err(|e| AiError::CommandBuild(format!("failed to create worktree: {e}")))?;
+        }
 
-        // 4. Build the provider input and the AiSession record.
+        // 4. Build the provider input and the AiSession record. (The
+        //    session id was minted up-front in step 1b so the report
+        //    suffix could reference it.)
         let input = AiBackgroundRunInput {
             provider: args.provider,
             worktree_path: worktree_path.clone(),
@@ -301,14 +381,16 @@ impl AiBackgroundCoordinator {
             auto_accept_permissions: args.auto_accept_permissions,
         };
 
-        let session_id = format!(
-            "aibg-{}-{}-{}",
-            provider_slug(args.provider),
-            now_millis().unwrap_or_default(),
-            self.next_session_counter.fetch_add(1, Ordering::SeqCst),
-        );
-
         let started_at = now_millis();
+        // Echo the user-typed prompt back through the session record so
+        // the detail pane can show "what I asked" alongside the captured
+        // output. Empty prompts → `None` (skill-only / saved-prompt-only
+        // runs don't have a free-text command worth surfacing).
+        let display_prompt = if args.prompt.trim().is_empty() {
+            None
+        } else {
+            Some(args.prompt.clone())
+        };
         let mut session = AiSession {
             id: session_id.clone(),
             provider: args.provider,
@@ -319,6 +401,7 @@ impl AiBackgroundCoordinator {
             worktree_path: Some(worktree_path.clone()),
             background_status: Some(AiBackgroundRunStatus::Queued),
             task_id: None,
+            prompt: display_prompt,
         };
 
         // 5. Store it + decide whether to dispatch now or queue.
@@ -486,6 +569,17 @@ impl AiBackgroundCoordinator {
         // Drop the session from the registry entirely.
         {
             let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+            // Reverse-find the task_id pointing at this session so the
+            // routing map doesn't keep a dangling key after discard.
+            let stale_task_ids: Vec<TaskId> = guard
+                .task_id_to_session
+                .iter()
+                .filter_map(|(tid, sid)| (sid == session_id).then_some(*tid))
+                .collect();
+            for tid in stale_task_ids {
+                guard.task_id_to_session.remove(&tid);
+                guard.pending_lines.remove(&tid);
+            }
             guard.sessions.retain(|s| s.id != session_id);
             guard.pending.remove(session_id);
             guard.before_snapshots.remove(session_id);
@@ -560,6 +654,33 @@ impl AiBackgroundCoordinator {
                     .await
             })
         });
+
+        // Register the task_id → session_id mapping immediately, then
+        // drain any output that already arrived (the reader task spawned
+        // by `spawn_with_options` runs on a different tokio worker and
+        // can fire `on_task_output` before this point — see the
+        // CoordinatorInner doc on `pending_lines`). Without this, the
+        // first burst of stream-json events from a fast provider was
+        // silently dropped.
+        let drained: Vec<String> = {
+            let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+            guard
+                .task_id_to_session
+                .insert(task_id, session_id.to_string());
+            guard.pending_lines.remove(&task_id).unwrap_or_default()
+        };
+        for line in drained {
+            self.event_sink.on_output(session_id, &line);
+            if let Some(usage) = parse_claude_usage(&line) {
+                self.update_session(session_id, |s| {
+                    if let Some(AiBackgroundRunStatus::Completed { token_usage, .. }) =
+                        s.background_status.as_mut()
+                    {
+                        *token_usage = Some(usage);
+                    }
+                });
+            }
+        }
         Ok(task_id)
     }
 
@@ -571,16 +692,39 @@ impl AiBackgroundCoordinator {
     }
 
     /// Called by the Tauri-side sink for every output line produced by an
-    /// AI background task. Parses Claude Code's JSON stream for token usage
-    /// and forwards the raw line to the frontend.
+    /// AI background task. Parses Claude Code's JSON stream for token
+    /// usage and forwards the raw line to the frontend.
+    ///
+    /// Lookup order:
+    /// 1. `task_id_to_session` — direct map populated the moment
+    ///    `dispatch` returns. Hits in the steady state.
+    /// 2. `sessions` walk by `task_id` field — kept as a fallback in
+    ///    case the map miss is structural (e.g. a stale event after
+    ///    discard).
+    /// 3. Buffer the line on `pending_lines[task_id]` — handles the
+    ///    race where the reader task fires its first read before the
+    ///    dispatch could insert into the map. The buffer is drained at
+    ///    the tail of `dispatch` so no output is permanently lost.
     pub fn on_task_output(self: &Arc<Self>, task_id: TaskId, line: &str) {
         let session_id = {
-            let guard = self.inner.lock().expect("coordinator mutex poisoned");
-            guard
+            let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+            if let Some(sid) = guard.task_id_to_session.get(&task_id).cloned() {
+                Some(sid)
+            } else if let Some(sid) = guard
                 .sessions
                 .iter()
                 .find(|s| s.task_id == Some(task_id))
                 .map(|s| s.id.clone())
+            {
+                Some(sid)
+            } else {
+                guard
+                    .pending_lines
+                    .entry(task_id)
+                    .or_default()
+                    .push(line.to_string());
+                None
+            }
         };
         let Some(session_id) = session_id else {
             return;
@@ -797,6 +941,48 @@ pub fn unique_slug(base: &str, worktree_root: &Path) -> String {
         }
     }
     format!("{base}-{}", now_millis().unwrap_or_default())
+}
+
+/// Resolve the absolute path the AI background coordinator asks the
+/// model to write its post-run report to.
+///
+/// `<repo>/.beardgit/ai-reports/<session_id>.md`. Stays in the parent
+/// repo (not the worktree) so the file survives a `Discard worktree`
+/// action — that's the whole point of having a report separate from
+/// the worktree's transient state.
+pub fn report_path_for(repo_root: &Path, session_id: &str) -> PathBuf {
+    repo_root
+        .join(DEFAULT_AI_REPORTS_ROOT)
+        .join(format!("{session_id}.md"))
+}
+
+/// Build the trailing instruction the coordinator appends to every bg
+/// run prompt asking the model to drop a markdown report at
+/// `report_path` once it's done.
+///
+/// The wording is deliberately tool-agnostic — we don't reference
+/// Claude's `Write` tool by name so Codex / OpenCode honour the same
+/// instruction. We do mention the `--dangerously-skip-permissions`
+/// case because without it a permissions-bound provider can't actually
+/// write the file and the user will end up with an empty report.
+fn build_report_instruction(report_path: &Path) -> String {
+    format!(
+        "\n\n---\n\
+         When you finish this task, write a brief markdown report to:\n\
+         \n  {}\n\n\
+         The report should cover, in this order:\n\
+         - One-line summary of what was attempted.\n\
+         - Outcome — success / partial / failure.\n\
+         - Files changed (paths only; no need for diffs).\n\
+         - Any errors or blockers hit.\n\
+         - Suggested follow-up, if any.\n\
+         \n\
+         Write the report even if you couldn't complete the task. Keep \
+         it under 500 words. If you don't have permission to write \
+         files, skip the report — the BeardGit UI surfaces the absence \
+         as a hint to rerun with permissions enabled.\n",
+        report_path.display(),
+    )
 }
 
 fn provider_slug(kind: AiProviderKind) -> &'static str {
@@ -1060,6 +1246,7 @@ mod tests {
             worktree_root_override: None,
             auto_accept_permissions: false,
             concurrency_cap: 3,
+            watcher_cached_snapshot: None,
         };
         let out = coord.start(args, &provider).expect("start must succeed");
         assert!(out.worktree_path.exists(), "worktree should be on disk");
@@ -1130,6 +1317,7 @@ mod tests {
             worktree_root_override: None,
             auto_accept_permissions: false,
             concurrency_cap: 1, // tight cap forces queueing
+            watcher_cached_snapshot: None,
         };
 
         let first = coord.start(args_for("r1", "first"), slow).unwrap();
@@ -1186,6 +1374,7 @@ mod tests {
                     worktree_root_override: None,
                     auto_accept_permissions: false,
                     concurrency_cap: 1,
+                    watcher_cached_snapshot: None,
                 },
                 &provider,
             )
@@ -1204,6 +1393,7 @@ mod tests {
                     worktree_root_override: None,
                     auto_accept_permissions: false,
                     concurrency_cap: 1,
+                    watcher_cached_snapshot: None,
                 },
                 &provider,
             )
@@ -1350,6 +1540,7 @@ mod tests {
             worktree_root_override: None,
             auto_accept_permissions: false,
             concurrency_cap: 3,
+            watcher_cached_snapshot: None,
         };
         let out = coord.start(args, &provider).expect("start must succeed");
         wait_terminal(&coord, &out.session_id).await;
@@ -1408,6 +1599,7 @@ mod tests {
             worktree_root_override: None,
             auto_accept_permissions: false,
             concurrency_cap: 3,
+            watcher_cached_snapshot: None,
         };
         let out = coord.start(args, &provider).expect("start must succeed");
         wait_terminal(&coord, &out.session_id).await;
@@ -1419,5 +1611,282 @@ mod tests {
         );
 
         let _ = coord.discard_worktree(&out.session_id);
+    }
+
+    /// When the caller hands a watcher's cached-snapshot Arc to
+    /// `start()`, the coordinator must overwrite it with a fresh capture
+    /// covering the new ai/* ref + bumped worktree count. The watcher's
+    /// next debounced batch then diffs CURRENT vs that updated cache and
+    /// finds an empty diff, so no `project-mutated` is emitted for the
+    /// worktree creation we just performed.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn start_resyncs_provided_watcher_snapshot() {
+        use std::sync::Mutex as StdMutex;
+
+        let (tmp, base_branch) = init_test_repo();
+        let sink_bridge = Arc::new(CoordinatorTestSink {
+            coord: Mutex::new(None),
+        });
+        let task_manager = Arc::new(TaskManager::new(sink_bridge.clone()));
+        let recorder = Arc::new(RecordingSink::default());
+        let coord = Arc::new(AiBackgroundCoordinator::new(
+            Arc::clone(&task_manager),
+            recorder.clone(),
+        ));
+        sink_bridge.install(Arc::clone(&coord));
+
+        // Seed the shared cache the way `RepoWatcher::start` would: a
+        // capture of the repo right before the AI flow runs.
+        let pre_snapshot = Snapshot::capture(tmp.path()).expect("pre snapshot");
+        let cache = Arc::new(StdMutex::new(pre_snapshot.clone()));
+
+        let provider = StubProvider {
+            script: "true".into(),
+            binary: PathBuf::from("/usr/bin/false"),
+            uses_stdin: false,
+        };
+        let args = StartArgs {
+            repo_root: tmp.path().to_path_buf(),
+            provider: AiProviderKind::ClaudeCode,
+            base_branch,
+            prompt: "resync test".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            worktree_slug_override: Some("resync".into()),
+            worktree_root_override: None,
+            auto_accept_permissions: false,
+            concurrency_cap: 3,
+            watcher_cached_snapshot: Some(Arc::clone(&cache)),
+        };
+        let out = coord.start(args, &provider).expect("start must succeed");
+
+        // The cache the coordinator stored must now match the post-creation
+        // state — same refs (with the new ai/claude-code/resync entry), same
+        // worktree count (one more than before).
+        let cached_after = cache.lock().unwrap().clone();
+        assert_ne!(
+            cached_after, pre_snapshot,
+            "cache should have been overwritten with a fresh capture"
+        );
+        assert_eq!(
+            cached_after.worktree_count,
+            pre_snapshot.worktree_count + 1,
+            "post-start cache should reflect the new worktree"
+        );
+        assert!(
+            cached_after
+                .refs
+                .keys()
+                .any(|r| r == "refs/heads/ai/claude-code/resync"),
+            "post-start cache should include the new ai branch ref"
+        );
+
+        // Most important: a watcher-style debounce that fires *now* would
+        // diff CURRENT vs `cached_after`. We simulate that — if the diff
+        // is non-empty, the watcher would emit and trigger the spurious
+        // graph reload we're trying to avoid.
+        let current = Snapshot::capture(tmp.path()).expect("post-start capture");
+        let flags = cached_after.diff(&current);
+        assert!(
+            flags.is_empty(),
+            "watcher debounce after start() should diff to empty (got {flags:?})"
+        );
+
+        wait_terminal(&coord, &out.session_id).await;
+        let _ = coord.discard_worktree(&out.session_id);
+    }
+
+    /// Every bg run gets a fixed suffix asking the AI to write its
+    /// post-run report at `<repo>/.beardgit/ai-reports/<session>.md`.
+    /// That contract is what powers the Report pane in the UI, so guard
+    /// against accidental regressions: the prompt fed to the provider
+    /// must contain (a) the absolute report path, and (b) the
+    /// instructional sentence asking the AI to "write a brief markdown
+    /// report".
+    #[tokio::test(flavor = "multi_thread")]
+    async fn start_appends_report_instruction_to_prompt() {
+        use std::sync::Mutex as StdMutex;
+
+        let (tmp, base_branch) = init_test_repo();
+
+        // Capture the prompt the coordinator hands to `launch_background`
+        // so we can assert the suffix is present.
+        let captured: Arc<StdMutex<Option<String>>> = Arc::new(StdMutex::new(None));
+        struct CaptureProvider {
+            seen: Arc<StdMutex<Option<String>>>,
+        }
+        impl AiProvider for CaptureProvider {
+            fn provider_kind(&self) -> AiProviderKind {
+                AiProviderKind::ClaudeCode
+            }
+            fn binary_name(&self) -> &str {
+                "stub"
+            }
+            fn detect_binary(&self) -> Option<PathBuf> {
+                Some(PathBuf::from("/usr/bin/false"))
+            }
+            fn version(&self) -> Result<String, AiError> {
+                Ok("stub".into())
+            }
+            fn detect_in_repo(&self, _repo_path: &Path) -> bool {
+                true
+            }
+            fn build_execute_command(
+                &self,
+                _prompt: &str,
+                cwd: &Path,
+                _options: &ExecuteOptions,
+            ) -> Result<StdCommand, AiError> {
+                let mut cmd = StdCommand::new("true");
+                cmd.current_dir(cwd);
+                Ok(cmd)
+            }
+            fn build_interactive_cmd(&self, cwd: &Path) -> Result<StdCommand, AiError> {
+                let mut cmd = StdCommand::new("true");
+                cmd.current_dir(cwd);
+                Ok(cmd)
+            }
+            fn launch_background(
+                &self,
+                input: AiBackgroundRunInput,
+            ) -> Result<StdCommand, AiError> {
+                *self.seen.lock().unwrap() = Some(input.prompt.clone());
+                let mut cmd = StdCommand::new("true");
+                cmd.current_dir(&input.worktree_path);
+                Ok(cmd)
+            }
+            fn background_uses_stdin_prompt(&self) -> bool {
+                false
+            }
+            fn config_files(&self, _repo_path: &Path) -> Vec<ai_provider::AiConfigFile> {
+                vec![]
+            }
+            fn instruction_files(&self, _repo_path: &Path) -> Vec<PathBuf> {
+                vec![]
+            }
+        }
+
+        let sink_bridge = Arc::new(CoordinatorTestSink {
+            coord: Mutex::new(None),
+        });
+        let task_manager = Arc::new(TaskManager::new(sink_bridge.clone()));
+        let recorder = Arc::new(RecordingSink::default());
+        let coord = Arc::new(AiBackgroundCoordinator::new(
+            Arc::clone(&task_manager),
+            recorder.clone(),
+        ));
+        sink_bridge.install(Arc::clone(&coord));
+
+        let provider = CaptureProvider {
+            seen: Arc::clone(&captured),
+        };
+        let args = StartArgs {
+            repo_root: tmp.path().to_path_buf(),
+            provider: AiProviderKind::ClaudeCode,
+            base_branch,
+            prompt: "Refactor the logger".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            worktree_slug_override: Some("report-test".into()),
+            worktree_root_override: None,
+            auto_accept_permissions: false,
+            concurrency_cap: 3,
+            watcher_cached_snapshot: None,
+        };
+        let out = coord.start(args, &provider).expect("start must succeed");
+
+        let prompt = captured
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("launch_background should have been called");
+        assert!(
+            prompt.contains("Refactor the logger"),
+            "user prompt must still be present, got: {prompt}"
+        );
+        assert!(
+            prompt.contains("write a brief markdown report"),
+            "report instruction must be appended, got: {prompt}"
+        );
+        let expected_path = report_path_for(tmp.path(), &out.session_id);
+        assert!(
+            prompt.contains(expected_path.to_str().unwrap()),
+            "absolute report path must be in the prompt, got: {prompt}"
+        );
+
+        // Reports dir must exist on disk before the AI runs so its
+        // Write tool doesn't fail on a missing parent.
+        assert!(
+            expected_path.parent().unwrap().is_dir(),
+            "reports dir should be created up-front"
+        );
+
+        let _ = coord.discard_worktree(&out.session_id);
+    }
+
+    /// Output that arrives before `dispatch` registers the
+    /// `task_id → session_id` mapping must be buffered + drained, not
+    /// silently dropped. We exercise this directly by hitting
+    /// `on_task_output` with an unknown task_id (mimicking a reader
+    /// task that beat dispatch's insert), then completing the
+    /// registration via `dispatch`-equivalent state mutation, and
+    /// asserting the recorder saw the buffered line.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn early_task_output_is_buffered_and_drained() {
+        let (_tmp, _base_branch) = init_test_repo();
+        let sink_bridge = Arc::new(CoordinatorTestSink {
+            coord: Mutex::new(None),
+        });
+        let task_manager = Arc::new(TaskManager::new(sink_bridge.clone()));
+        let recorder = Arc::new(RecordingSink::default());
+        let coord = Arc::new(AiBackgroundCoordinator::new(
+            Arc::clone(&task_manager),
+            recorder.clone(),
+        ));
+        sink_bridge.install(Arc::clone(&coord));
+
+        let task_id: TaskId = 9999;
+        let session_id = "aibg-early-output-test";
+
+        // 1. Reader task fires before dispatch registered the mapping.
+        coord.on_task_output(task_id, "early-line-1");
+        coord.on_task_output(task_id, "early-line-2");
+
+        // No output should have reached the sink yet — the lines are
+        // buffered on `pending_lines`.
+        assert!(recorder.outputs.lock().unwrap().is_empty());
+
+        // 2. Simulate dispatch's registration + drain. We poke directly
+        //    at the inner state because we don't want to spin up a real
+        //    process here — the goal is to verify the routing logic.
+        {
+            let mut guard = coord.inner.lock().expect("coordinator mutex");
+            guard
+                .task_id_to_session
+                .insert(task_id, session_id.to_string());
+            let drained = guard
+                .pending_lines
+                .remove(&task_id)
+                .unwrap_or_default();
+            drop(guard);
+            for line in drained {
+                coord.event_sink.on_output(session_id, &line);
+            }
+        }
+
+        // 3. Lines that arrive after registration go through the fast
+        //    path — and the previously-buffered lines should already be
+        //    on the recorder.
+        coord.on_task_output(task_id, "later-line-3");
+
+        let outputs = recorder.outputs.lock().unwrap().clone();
+        let lines: Vec<&str> = outputs.iter().map(|(_, l)| l.as_str()).collect();
+        assert_eq!(
+            lines,
+            vec!["early-line-1", "early-line-2", "later-line-3"],
+            "buffered lines must be delivered in arrival order alongside live ones"
+        );
     }
 }

@@ -17,6 +17,7 @@ import { refreshStashes } from "./stashes";
 import { refreshWorktrees } from "./worktrees";
 import { refreshRepoConfig } from "./repoConfig";
 import { refreshRemotes } from "./remotes";
+import { refreshBranches } from "./branches";
 
 /** Shape emitted by `mutation_events::emit_mutation`. */
 export interface MutationFlags {
@@ -61,7 +62,13 @@ function accumulate(path: string, flags: MutationFlags): void {
  */
 export function dispatchRefresh(flags: MutationFlags): void {
   if (flags.refs_changed) {
+    // Branch list mirrors `refs/heads/**` and `refs/remotes/**`, so any
+    // ref movement (create/delete/rename, fetch/push) needs the
+    // sidebar list re-fetched alongside the graph layout. Without
+    // this, deleted branches linger as ghost rows until the user
+    // manually hits the section's refresh button.
     void refreshAndReloadGraph();
+    void refreshBranches();
   }
   if (flags.head_changed || flags.status_changed) {
     void refreshStatuses();

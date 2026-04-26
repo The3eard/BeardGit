@@ -116,18 +116,33 @@ describe("ActiveRow (trimmed)", () => {
     expect(get(selectedBackgroundSessionId)).toBeNull();
   });
 
-  it("bg row selection stores the same bg variant in selectedActiveTerminal", async () => {
+  it("bg row selection routes to selectedBackgroundSessionId, clearing the others", async () => {
+    // Bg rows render via the bg-run detail branch (status badge, transcript,
+    // focus/cancel/discard). The detail pane intentionally drops bg
+    // selections from the active branch, so the click must store the bg
+    // session id on `selectedBackgroundSessionId` — not on
+    // `selectedActiveTerminal` — for the detail to render at all.
+    selectedConversationId.set("some-conv");
+    selectedActiveTerminal.set({ kind: "tab", tabIndex: 0, info: TAB_INFO });
+
     const active: ActiveTerminal = { kind: "bg", session: BG_SESSION };
     const { container } = render(ActiveRow, { props: { active } });
     await tick();
     await fireEvent.click(
       container.querySelector('[data-testid="ai-active-row"]') as HTMLElement,
     );
-    const sel = get(selectedActiveTerminal);
-    expect(sel?.kind).toBe("bg");
-    if (sel?.kind === "bg") {
-      expect(sel.session.id).toBe(BG_SESSION.id);
-    }
+
+    expect(get(selectedBackgroundSessionId)).toBe(BG_SESSION.id);
+    expect(get(selectedActiveTerminal)).toBeNull();
+    expect(get(selectedConversationId)).toBeNull();
+  });
+
+  it("bg row marks selected when selectedBackgroundSessionId matches", async () => {
+    const active: ActiveTerminal = { kind: "bg", session: BG_SESSION };
+    selectedBackgroundSessionId.set(BG_SESSION.id);
+    const { container } = render(ActiveRow, { props: { active } });
+    await tick();
+    expect(container.querySelector(".session-row.selected")).toBeTruthy();
   });
 
   it("selected class reflects store state for tab kind", async () => {

@@ -206,7 +206,7 @@ describe("branch operations workflow", () => {
     await doDeleteBranch("feature/auth");
 
     const call = invokeMock.mock.calls.find((c) => c[0] === "delete_branch");
-    expect(call?.[1]).toEqual({ name: "feature/auth" });
+    expect(call?.[1]).toEqual({ name: "feature/auth", force: false });
     expect(get(selectedBranchName)).toBeNull();
   });
 

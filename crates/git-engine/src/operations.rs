@@ -53,12 +53,30 @@ impl Repository {
     }
 
     /// Delete a local branch by name.
-    #[instrument(skip(self), fields(branch = %name))]
-    pub fn delete_branch(&self, name: &str) -> Result<(), GitError> {
-        let repo = self.inner();
-        let mut branch = repo.find_branch(name, git2::BranchType::Local)?;
-        branch.delete()?;
-        Ok(())
+    ///
+    /// `force = false` runs `git branch -d <name>` and refuses to delete a
+    /// branch that has unmerged commits — the safer default that matches
+    /// the CLI. `force = true` runs `git branch -D <name>`, which deletes
+    /// regardless of merge status.
+    ///
+    /// Both forms still refuse to delete a branch that is currently checked
+    /// out (HEAD or in a linked worktree); to remove those, drop the
+    /// worktree first via [`Self::remove_worktree`] (or the AI background
+    /// "Discard worktree" affordance, which removes the worktree + branch
+    /// together).
+    ///
+    /// Routes through the system `git` CLI rather than libgit2 so the
+    /// merge-protection check actually fires — libgit2's `branch.delete()`
+    /// is unconditional, which silently force-deletes unmerged work.
+    #[instrument(skip(self), fields(branch = %name, force))]
+    pub fn delete_branch(&self, name: &str, force: bool) -> Result<(), GitError> {
+        let flag = if force { "-D" } else { "-d" };
+        let result = self.git_cmd(&["branch", flag, name])?;
+        if result.success {
+            Ok(())
+        } else {
+            Err(GitError::CliError(result.stderr))
+        }
     }
 
     /// Switch HEAD to an existing branch.
@@ -144,9 +162,43 @@ mod tests {
         let branches = repo.branches().unwrap();
         assert!(branches.iter().any(|b| b.name == "feature/test"));
 
-        repo.delete_branch("feature/test").unwrap();
+        repo.delete_branch("feature/test", false).unwrap();
         let branches = repo.branches().unwrap();
         assert!(!branches.iter().any(|b| b.name == "feature/test"));
+    }
+
+    #[test]
+    fn test_delete_branch_unmerged_requires_force() {
+        // `git branch -d` should refuse a branch with commits that aren't
+        // reachable from HEAD; `-D` should still succeed. Mirrors the
+        // CLI's safer default and the new force toggle in the UI.
+        let (_dir, repo) = create_test_repo();
+        repo.create_branch("feature/diverge").unwrap();
+        repo.checkout_branch("feature/diverge").unwrap();
+
+        // Drop a commit on the branch that HEAD's main line won't see.
+        let path = repo.path();
+        std::fs::write(path.join("diverge.txt"), "x").unwrap();
+        repo.stage_files(&["diverge.txt".to_string()]).unwrap();
+        repo.create_commit("on diverge").unwrap();
+
+        // Move HEAD off the branch so we're allowed to delete it.
+        repo.checkout_branch("main")
+            .or_else(|_| repo.checkout_branch("master"))
+            .expect("test repo must have a default branch");
+
+        // Non-force should refuse — branch has an unmerged commit.
+        let err = repo.delete_branch("feature/diverge", false).err();
+        assert!(
+            err.is_some(),
+            "non-force delete must refuse an unmerged branch"
+        );
+
+        // Force escalates and succeeds.
+        repo.delete_branch("feature/diverge", true)
+            .expect("force delete must succeed for unmerged branches");
+        let branches = repo.branches().unwrap();
+        assert!(!branches.iter().any(|b| b.name == "feature/diverge"));
     }
 
     #[test]

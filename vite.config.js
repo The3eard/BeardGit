@@ -37,7 +37,16 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      ignored: ["**/src-tauri/**"],
+      // Ignore Tauri's Rust source tree and BeardGit's own runtime
+      // workspace under `.beardgit/`. The latter is critical: AI
+      // background runs check out the current branch into
+      // `.beardgit/ai-worktrees/<slug>/`, which on this repo means a
+      // duplicate of the entire frontend (tsconfig.json, src/app.html,
+      // docs/index.html, …). Without this guard Vite treats those copies
+      // as new project files, fires HMR `page reload` events, and the
+      // running dev UI blanks for several seconds. Production builds
+      // aren't affected — only the dev server.
+      ignored: ["**/src-tauri/**", "**/.beardgit/**"],
     },
   },
 }));

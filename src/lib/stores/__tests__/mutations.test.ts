@@ -9,18 +9,19 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Use `vi.hoisted` so these stubs are available inside the hoisted
 // `vi.mock` factories without tripping TDZ.
-const { listenMock, refreshAndReloadGraph, refreshStatuses } = vi.hoisted(
-  () => ({
+const { listenMock, refreshAndReloadGraph, refreshStatuses, refreshBranches } =
+  vi.hoisted(() => ({
     listenMock: vi.fn(),
     refreshAndReloadGraph: vi.fn(),
     refreshStatuses: vi.fn(),
-  }),
-);
+    refreshBranches: vi.fn(),
+  }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: listenMock,
 }));
 vi.mock("../graph", () => ({ refreshAndReloadGraph }));
 vi.mock("../changes", () => ({ refreshStatuses }));
+vi.mock("../branches", () => ({ refreshBranches }));
 
 // Activate project is the tab-switch gate. `vi.hoisted` dodges the
 // `vi.mock` hoisting TDZ.
@@ -56,6 +57,7 @@ beforeEach(() => {
   listenMock.mockReset();
   refreshAndReloadGraph.mockReset();
   refreshStatuses.mockReset();
+  refreshBranches.mockReset();
   activeProject.set({ path: "/repo" });
   globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => {
     cb(0);
@@ -94,6 +96,10 @@ describe("startMutationListener", () => {
 
     expect(refreshAndReloadGraph).toHaveBeenCalledTimes(1);
     expect(refreshStatuses).toHaveBeenCalledTimes(1);
+    // Branch list mirrors `refs/**`, so refs_changed must trigger a
+    // branch-list refresh too — without this, deleted branches stay in
+    // the sidebar until the user refreshes manually.
+    expect(refreshBranches).toHaveBeenCalledTimes(1);
   });
 
   it("buffers events for inactive projects", async () => {
