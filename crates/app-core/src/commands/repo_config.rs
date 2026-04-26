@@ -193,6 +193,49 @@ pub fn detect_forge_from_url_with_base(
     })
 }
 
+/// Detect the forge kind plus the canonical hostname of a repository's
+/// `origin` remote.
+///
+/// Returns `Some((kind, host))` for known forges where we can extract a
+/// host from the URL, e.g. `("gitlab.com", GitLab)`,
+/// `("gitlab.group.team.blue", GitLab)` (when matched against a connected
+/// provider's base URL), or `("github.com", GitHub)`. Returns `None` when
+/// the forge can't be identified.
+///
+/// The host is what callers pass to `gh auth status -h <host>` /
+/// `glab auth status -h <host>` so multi-instance configs aren't poisoned
+/// by an unrelated host's auth failure.
+pub fn detect_forge_with_host(repo: &Repository) -> Option<(ForgeKind, String)> {
+    let url = extract_origin_url(repo)?;
+    let kind = detect_forge_from_url(&url)?;
+    let host = extract_remote_host(&url)?;
+    Some((kind, host))
+}
+
+/// Pull the hostname out of a git remote URL.
+///
+/// Supports both SSH (`git@host:path.git`) and HTTPS
+/// (`https://host/path[.git]`) forms. Returns `None` for shapes we don't
+/// recognise (local paths, custom schemes).
+pub fn extract_remote_host(url: &str) -> Option<String> {
+    if let Some(after_at) = url.strip_prefix("git@")
+        && let Some((host, _)) = after_at.split_once(':')
+        && !host.is_empty()
+    {
+        return Some(host.to_string());
+    }
+    if url.starts_with("http") {
+        let without_scheme = url
+            .strip_prefix("https://")
+            .or_else(|| url.strip_prefix("http://"))?;
+        let host = without_scheme.split('/').next()?;
+        if !host.is_empty() {
+            return Some(host.to_string());
+        }
+    }
+    None
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Patch + diff
 // ───────────────────────────────────────────────────────────────────────────
@@ -716,7 +759,13 @@ struct GlabRepoView {
     /// sidebar instead.
     #[serde(default)]
     homepage: Option<String>,
-    #[serde(default, alias = "tag_list")]
+    /// Canonical field on modern GitLab. The deprecated `tag_list`
+    /// alias used to be accepted via `#[serde(alias = "tag_list")]`,
+    /// but modern GitLab emits *both* fields in the same payload and
+    /// serde rejects an aliased duplicate as `duplicate field "topics"`.
+    /// Topic editing has been on `topics` since GitLab 14.0 — relying
+    /// on the canonical name is safe.
+    #[serde(default)]
     topics: Vec<String>,
     #[serde(default)]
     visibility: String,
@@ -1588,9 +1637,17 @@ fn extract_account_from_status(output: &str) -> Option<String> {
 /// injected [`CommandRunner`]. Any [`CliError::NotFound`] on the first
 /// call collapses to `NotInstalled`; everything else is a successful
 /// probe that may or may not be authenticated.
+///
+/// When `host` is `Some`, the auth check is scoped to that host via
+/// `--hostname <host>`. This is critical for multi-instance configs:
+/// `gh`/`glab auth status` without a host filter exits non-zero if *any*
+/// configured instance is broken, even when the host the repo actually
+/// uses is fully authenticated. Scoping ensures we only flag auth-required
+/// when the host this repo points at is actually broken.
 pub fn probe_forge_cli_status_with<R: CommandRunner + ?Sized>(
     runner: &R,
     forge: Option<ForgeKind>,
+    host: Option<&str>,
     repo_path: &Path,
 ) -> ForgeCliStatus {
     let Some(forge) = forge else {
@@ -1607,7 +1664,11 @@ pub fn probe_forge_cli_status_with<R: CommandRunner + ?Sized>(
         Err(_) => {}
     }
 
-    match runner.run(bin, &["auth", "status"], repo_path) {
+    let auth_args: Vec<&str> = match host {
+        Some(h) => vec!["auth", "status", "--hostname", h],
+        None => vec!["auth", "status"],
+    };
+    match runner.run(bin, &auth_args, repo_path) {
         Ok(out) => {
             let combined = format!("{}\n{}", out.stdout, out.stderr);
             ForgeCliStatus::Installed {
@@ -1647,9 +1708,13 @@ pub async fn probe_forge_cli_status(
     let path = std::path::PathBuf::from(&repo_path);
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&path).map_err(|e| e.to_string())?;
-        let forge = detect_forge(&repo);
+        let detected = detect_forge_with_host(&repo);
+        let (forge, host) = match &detected {
+            Some((k, h)) => (Some(*k), Some(h.as_str())),
+            None => (None, None),
+        };
         let runner = SystemRunner::new();
-        Ok(probe_forge_cli_status_with(&runner, forge, &path))
+        Ok(probe_forge_cli_status_with(&runner, forge, host, &path))
     })
     .await
     .map_err(|e| e.to_string())?
@@ -2270,6 +2335,47 @@ mod tests {
         );
         let err = load_remote_repo_config_gitlab(&runner, Path::new(".")).unwrap_err();
         assert!(matches!(err, RepoConfigError::NotAuthenticated(_)));
+    }
+
+    #[test]
+    fn load_gitlab_accepts_payload_with_both_topics_and_tag_list() {
+        // Modern GitLab emits BOTH `topics` (canonical) and `tag_list`
+        // (deprecated alias) in the same payload. A previous
+        // `#[serde(alias = "tag_list")]` on the Rust struct surfaced as
+        // "duplicate field `topics`" because serde maps the alias to
+        // the same struct field. We rely on `topics` only.
+        let runner = MockRunner::new();
+        runner.expect(
+            "glab",
+            &["repo", "view"],
+            Ok(CliOutput {
+                stdout: r#"{
+                    "description": "dual-field repo",
+                    "web_url": "https://gitlab.com/g/p",
+                    "topics": ["rust", "cli"],
+                    "tag_list": ["rust", "cli"],
+                    "visibility": "public",
+                    "default_branch": "main",
+                    "issues_access_level": "enabled",
+                    "wiki_access_level": "enabled",
+                    "archived": false
+                }"#
+                .into(),
+                stderr: String::new(),
+                exit_code: 0,
+            }),
+        );
+        runner.expect(
+            "glab",
+            &["label", "list"],
+            Ok(CliOutput {
+                stdout: "[]".into(),
+                stderr: String::new(),
+                exit_code: 0,
+            }),
+        );
+        let cfg = load_remote_repo_config_gitlab(&runner, Path::new(".")).unwrap();
+        assert_eq!(cfg.topics, vec!["rust".to_string(), "cli".to_string()]);
     }
 
     #[test]
@@ -3174,7 +3280,7 @@ mod tests {
     #[test]
     fn probe_returns_unsupported_forge_when_forge_is_none() {
         let runner = MockRunner::new();
-        let status = probe_forge_cli_status_with(&runner, None, Path::new("."));
+        let status = probe_forge_cli_status_with(&runner, None, None, Path::new("."));
         assert_eq!(status, ForgeCliStatus::UnsupportedForge);
         // Should not even try to run the CLI in this case.
         assert!(runner.calls().is_empty());
@@ -3184,7 +3290,8 @@ mod tests {
     fn probe_returns_not_installed_when_binary_missing() {
         let runner = MockRunner::new();
         runner.expect("gh", &["--version"], Err(CliError::NotFound("gh".into())));
-        let status = probe_forge_cli_status_with(&runner, Some(ForgeKind::GitHub), Path::new("."));
+        let status =
+            probe_forge_cli_status_with(&runner, Some(ForgeKind::GitHub), None, Path::new("."));
         assert_eq!(status, ForgeCliStatus::NotInstalled);
     }
 
@@ -3209,7 +3316,8 @@ mod tests {
                 exit_code: 0,
             }),
         );
-        let status = probe_forge_cli_status_with(&runner, Some(ForgeKind::GitHub), Path::new("."));
+        let status =
+            probe_forge_cli_status_with(&runner, Some(ForgeKind::GitHub), None, Path::new("."));
         match status {
             ForgeCliStatus::Installed {
                 authenticated,
@@ -3243,7 +3351,8 @@ mod tests {
                 stderr: "You are not logged in.".into(),
             }),
         );
-        let status = probe_forge_cli_status_with(&runner, Some(ForgeKind::GitHub), Path::new("."));
+        let status =
+            probe_forge_cli_status_with(&runner, Some(ForgeKind::GitHub), None, Path::new("."));
         match status {
             ForgeCliStatus::Installed { authenticated, .. } => {
                 assert!(!authenticated);
@@ -3273,7 +3382,8 @@ mod tests {
                 exit_code: 0,
             }),
         );
-        let status = probe_forge_cli_status_with(&runner, Some(ForgeKind::GitLab), Path::new("."));
+        let status =
+            probe_forge_cli_status_with(&runner, Some(ForgeKind::GitLab), None, Path::new("."));
         match status {
             ForgeCliStatus::Installed {
                 authenticated,
@@ -3286,6 +3396,124 @@ mod tests {
         }
         let calls = runner.calls();
         assert!(calls.iter().all(|c| c.cmd == "glab"));
+    }
+
+    #[test]
+    fn probe_passes_hostname_flag_when_host_is_known() {
+        // Given a known repo host, the auth probe must scope to that host
+        // so multi-instance configs (e.g. gitlab.com + self-hosted) don't
+        // poison each other.
+        let runner = MockRunner::new();
+        runner.expect(
+            "glab",
+            &["--version"],
+            Ok(CliOutput {
+                stdout: "glab 1.92.1".into(),
+                stderr: String::new(),
+                exit_code: 0,
+            }),
+        );
+        runner.expect(
+            "glab",
+            &["auth", "status", "--hostname", "gitlab.com"],
+            Ok(CliOutput {
+                stdout: "Logged in as devuser at gitlab.com".into(),
+                stderr: String::new(),
+                exit_code: 0,
+            }),
+        );
+        let status = probe_forge_cli_status_with(
+            &runner,
+            Some(ForgeKind::GitLab),
+            Some("gitlab.com"),
+            Path::new("."),
+        );
+        assert!(matches!(
+            status,
+            ForgeCliStatus::Installed {
+                authenticated: true,
+                ..
+            }
+        ));
+        let calls = runner.calls();
+        let auth_call = calls
+            .iter()
+            .find(|c| c.cmd == "glab" && c.args.first().map(|s| s.as_str()) == Some("auth"))
+            .expect("auth status call recorded");
+        assert_eq!(
+            auth_call.args,
+            vec!["auth", "status", "--hostname", "gitlab.com"],
+        );
+    }
+
+    #[test]
+    fn probe_succeeds_for_authenticated_host_even_when_other_host_fails() {
+        // Reproduces the multi-instance bug: bare `glab auth status` exits
+        // non-zero if any configured host is unreachable. Scoped to a
+        // single host, the probe must still succeed for the host we care
+        // about.
+        let runner = MockRunner::new();
+        runner.expect(
+            "glab",
+            &["--version"],
+            Ok(CliOutput {
+                stdout: "glab 1.92.1".into(),
+                stderr: String::new(),
+                exit_code: 0,
+            }),
+        );
+        // Bare `auth status` (no hostname) returns the multi-host failure.
+        runner.expect(
+            "glab",
+            &["auth", "status"],
+            Err(CliError::NonZeroExit {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: "could not authenticate to one or more of the configured GitLab instances"
+                    .into(),
+            }),
+        );
+        // Scoped to gitlab.com it's fine.
+        runner.expect(
+            "glab",
+            &["auth", "status", "--hostname", "gitlab.com"],
+            Ok(CliOutput {
+                stdout: "Logged in as devuser at gitlab.com".into(),
+                stderr: String::new(),
+                exit_code: 0,
+            }),
+        );
+        let status = probe_forge_cli_status_with(
+            &runner,
+            Some(ForgeKind::GitLab),
+            Some("gitlab.com"),
+            Path::new("."),
+        );
+        assert!(matches!(
+            status,
+            ForgeCliStatus::Installed {
+                authenticated: true,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn extract_remote_host_handles_ssh_and_https() {
+        assert_eq!(
+            extract_remote_host("git@gitlab.com:group/project.git").as_deref(),
+            Some("gitlab.com"),
+        );
+        assert_eq!(
+            extract_remote_host("https://gitlab.group.team.blue/team/app.git").as_deref(),
+            Some("gitlab.group.team.blue"),
+        );
+        assert_eq!(
+            extract_remote_host("git@github.enterprise.example:org/repo").as_deref(),
+            Some("github.enterprise.example"),
+        );
+        assert_eq!(extract_remote_host("/local/path/repo").as_deref(), None);
+        assert_eq!(extract_remote_host("git@:no-host").as_deref(), None);
     }
 
     // ──────────────────────────────────────────────────────────────

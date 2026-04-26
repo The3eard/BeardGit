@@ -136,7 +136,11 @@
       setLoadedConfig(repoPath, config);
     } catch (e) {
       const msg = String(e);
-      if (/authentica|unauthoriz|unauthorised|auth/i.test(msg)) {
+      // Match the structured `RepoConfigError::NotAuthenticated` Display
+      // prefix produced by the Rust side. A bare /auth/i substring match
+      // fires on unrelated error text (e.g. "author"), which historically
+      // surfaced the auth-required empty state for non-auth failures.
+      if (/^(?:Error: )?CLI not authenticated[:,]/.test(msg)) {
         authRequired = true;
       }
       setLoadError(msg);

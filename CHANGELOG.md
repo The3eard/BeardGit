@@ -2,6 +2,16 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Repo settings multi-instance fixes
+
+### Fixed — auth probe scoped to the repo's host
+
+`fix(repo-config): scope gh/glab auth status to the repo's host`. Opening repo settings on a `gitlab.com` (or `github.com`) repo no longer reports "authentication required" just because an *unrelated* configured host (e.g. a self-hosted GitLab on a corporate VPN that happens to be unreachable) is failing. The CLI probe now passes `--hostname <host>`, where `<host>` is extracted from the repo's `origin` remote, so multi-instance `glab` / `gh` configs no longer poison each other. The frontend auth-required classifier was also tightened to match the structured `RepoConfigError::NotAuthenticated` Display prefix instead of any `auth` substring, so unrelated load failures no longer trigger the auth empty state.
+
+### Fixed — `glab repo view` payload with both `topics` and `tag_list`
+
+`fix(repo-config): drop tag_list serde alias on GlabRepoView.topics`. Modern GitLab emits both the canonical `topics` array and the deprecated `tag_list` array in the same `repo view -F json` payload. The previous `#[serde(alias = "tag_list")]` mapped both to the same struct field and serde rejected them as `duplicate field "topics"`, surfacing in the UI as "Failed to load — JSON parse error: duplicate field `topics`". The alias is removed; we read `topics` only.
+
 ## [Unreleased] — Theme color audit groundwork
 
 ### Theme — six new `--overlay-accent-*` tokens
