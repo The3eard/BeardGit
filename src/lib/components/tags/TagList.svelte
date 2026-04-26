@@ -154,7 +154,7 @@
   {#snippet footer()}
     {#if $hasMoreTags && !filterValue}
       <Button variant="neutral" size="sm" onclick={handleLoadMore} disabled={loadingMore} loading={loadingMore}>
-        {m.tags_load_more({ count: String($tags.length) })}
+        {#if !loadingMore}{m.tags_load_more({ count: String($tags.length) })}{/if}
       </Button>
     {/if}
 
