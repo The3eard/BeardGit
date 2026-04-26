@@ -22,7 +22,6 @@
     aiBackgroundTranscripts,
     cancelAiBackgroundRun,
     discardAiBackgroundRunWorktree,
-    openTerminalForAiBackgroundSession,
     selectedBackgroundSession,
   } from "$lib/stores/aiBackground";
   import { aiGetBackgroundReport } from "$lib/api/tauri";
@@ -86,27 +85,6 @@
   );
 
   // ─── Handlers: bg-run branch ───
-
-  /** Focus the bg-run's live PTY. */
-  function handleFocusBg() {
-    if (!bgSession) return;
-    focusTerminal({ kind: "bg", session: bgSession });
-  }
-
-  async function handleOpenTerminal() {
-    if (!bgSession || !bgSession.worktree_path || isRunning) return;
-    const id = bgSession.id;
-    try {
-      await runMutation({
-        kind: "ai_open_terminal",
-        invoke: () => openTerminalForAiBackgroundSession(id),
-        successToast: () => m.ai_background_open_terminal_success(),
-        failureToastPrefix: m.ai_background_open_terminal_error(),
-      });
-    } catch {
-      // runMutation already surfaced a sticky failure toast.
-    }
-  }
 
   async function handleDiscard() {
     if (!bgSession || !isTerminal) return;
@@ -217,11 +195,13 @@
   }
 
   // ─── Prompt / transcript split ─────────────────────────────────────
-  // Vertical split inside the bg-run branch. Defaults to 50/50; the
-  // user drags the handle to resize, clamped so neither pane collapses
-  // to zero height (keeps the section headers and copy button
-  // reachable).
-  let promptPct = $state(50);
+  // Vertical split inside the bg-run branch. Defaults to a 20/80 split
+  // (Prompt small, Report/Output dominant) since the prompt is usually
+  // a single line while the report or transcript carries the
+  // substance. The user drags the handle to resize, clamped so neither
+  // pane collapses to zero height (keeps the section headers + copy
+  // button reachable).
+  let promptPct = $state(20);
 
   function startSplitResize(e: MouseEvent) {
     e.preventDefault();
@@ -375,34 +355,9 @@
     {/if}
 
     <div class="actions">
-      <button
-        class="btn"
-        onclick={handleFocusBg}
-        data-testid="ai-session-detail-focus"
-      >
-        {m.ai_sessions_focus()}
-      </button>
       {#if isRunning}
         <button class="btn danger" onclick={handleCancel}>
           {m.ai_background_cancel_run()}
-        </button>
-        {#if bgSession.worktree_path}
-          <button
-            class="btn"
-            disabled
-            title={m.ai_background_tooltip_terminal_running()}
-            data-testid="ai-session-detail-open-terminal"
-          >
-            {m.ai_background_open_terminal()}
-          </button>
-        {/if}
-      {:else if bgSession.worktree_path}
-        <button
-          class="btn"
-          onclick={handleOpenTerminal}
-          data-testid="ai-session-detail-open-terminal"
-        >
-          {m.ai_background_open_terminal()}
         </button>
       {/if}
       <button
