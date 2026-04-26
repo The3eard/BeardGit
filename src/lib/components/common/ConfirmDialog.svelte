@@ -72,7 +72,7 @@
   <div class="dialog-actions">
     <Button variant="neutral" testid="dialog-cancel-btn" onclick={onCancel}>{cancelLabel}</Button>
     <Button
-      variant="primary"
+      variant={destructive ? "danger" : "primary"}
       testid="dialog-confirm-btn"
       onclick={onConfirm}
     >
@@ -82,7 +82,7 @@
 </div>
 
 <style>
-  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions, .btn, .btn-cancel, .btn-confirm */
+  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions */
 
   .dialog {
     min-width: 320px;
