@@ -259,7 +259,7 @@
       title="New branch"
       data-testid="branch-new-btn"
       onclick={() => openCreateBranchDialog({ kind: "head" })}
-    >{''}</button>
+    >{''}</button>
     <button
       class="header-btn nf"
       title="Refresh"
