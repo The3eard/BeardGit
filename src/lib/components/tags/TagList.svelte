@@ -18,7 +18,7 @@
   import TagCreateDialog from "./TagCreateDialog.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import List from "../common/List.svelte";
-  import { IconButton } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
   import { formatRelativeTime } from "../../utils/time";
   import { debounce } from "../../utils/debounce";
   import type { TagInfo } from "../../types";
@@ -83,9 +83,9 @@
   onSelect={handleSelect}
 >
   {#snippet headerActions()}
-    <button class="btn-create" onclick={() => (showCreateDialog = true)}>
+    <Button variant="primary" size="sm" onclick={() => (showCreateDialog = true)}>
       {m.tags_create_button()}
-    </button>
+    </Button>
     <IconButton
       icon={"\uF021"}
       description={m.tooltip_refresh()}
@@ -134,14 +134,16 @@
         </div>
         <div class="tag-bottom-hover">
           <div class="tag-actions">
-            <button
-              class="action-btn action-btn-push"
+            <Button
+              variant="primary"
+              size="sm"
               onclick={(e: MouseEvent) => { e.stopPropagation(); doPushTag(item.name, "origin"); }}
-            >{m.tags_action_push()}</button>
-            <button
-              class="action-btn action-btn-danger"
+            >{m.tags_action_push()}</Button>
+            <Button
+              variant="danger"
+              size="sm"
               onclick={(e: MouseEvent) => { e.stopPropagation(); confirmDelete = item.name; }}
-            >{m.tags_action_delete()}</button>
+            >{m.tags_action_delete()}</Button>
           </div>
           <span class="tag-oid">{item.commit_oid.slice(0, 8)}</span>
         </div>
@@ -151,13 +153,9 @@
 
   {#snippet footer()}
     {#if $hasMoreTags && !filterValue}
-      <button class="load-more-btn" onclick={handleLoadMore} disabled={loadingMore}>
-        {#if loadingMore}
-          <div class="spinner"></div>
-        {:else}
-          {m.tags_load_more({ count: String($tags.length) })}
-        {/if}
-      </button>
+      <Button variant="neutral" size="sm" onclick={handleLoadMore} disabled={loadingMore} loading={loadingMore}>
+        {m.tags_load_more({ count: String($tags.length) })}
+      </Button>
     {/if}
 
     <button class="push-all-btn" onclick={() => doPushTag(null, "origin")}>
@@ -187,22 +185,6 @@
 {/if}
 
 <style>
-  .btn-create {
-    padding: 3px 10px;
-    background: var(--overlay-accent-blue);
-    border: 1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent);
-    border-radius: 4px;
-    color: var(--accent-blue);
-    font-size: 11px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .btn-create:hover {
-    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
-  }
-
   .tag-content {
     display: flex;
     flex-direction: column;
@@ -264,33 +246,6 @@
     align-items: center;
   }
 
-  .action-btn {
-    padding: 2px 8px;
-    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    border-radius: 4px;
-    font-size: 10px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .action-btn:hover {
-    background: color-mix(in srgb, var(--text-primary) 15%, transparent);
-  }
-
-  .action-btn-push:hover {
-    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
-    border-color: var(--accent-green);
-    color: var(--accent-green);
-  }
-
-  .action-btn-danger:hover {
-    background: color-mix(in srgb, var(--accent-red) 20%, transparent);
-    border-color: var(--accent-red);
-    color: var(--accent-red);
-  }
-
   .push-all-btn {
     display: flex;
     align-items: center;
@@ -329,27 +284,4 @@
     flex-shrink: 0;
   }
 
-  .load-more-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    padding: 12px;
-    background: none;
-    border: none;
-    border-top: 1px solid var(--border);
-    color: var(--accent-blue);
-    font-size: 12px;
-    cursor: pointer;
-  }
-
-  .load-more-btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-blue) 5%, transparent);
-  }
-
-  .load-more-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
 </style>

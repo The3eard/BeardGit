@@ -1,5 +1,6 @@
 <script lang="ts">
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import { Button } from "$lib/components/ui";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
   import {
@@ -82,21 +83,23 @@
     {#if !$selectedBranchInfo.is_remote}
       <div class="detail-actions">
         {#if !$selectedBranchInfo.is_head}
-          <button
-            class="action-btn action-checkout"
+          <Button
+            variant="primary"
+            size="sm"
             onclick={() => doCheckout($selectedBranchInfo!.name)}
           >
             Checkout
-          </button>
-          <button
-            class="action-btn action-merge"
+          </Button>
+          <Button
+            variant="success"
+            size="sm"
             onclick={() => doMergeBranch($selectedBranchInfo!.name)}
           >
             Merge into current
-          </button>
-          <button class="action-btn action-delete" onclick={() => { forceDelete = false; confirmDelete = true; }}>
+          </Button>
+          <Button variant="danger" size="sm" onclick={() => { forceDelete = false; confirmDelete = true; }}>
             Delete
-          </button>
+          </Button>
         {/if}
       </div>
     {/if}
@@ -298,32 +301,4 @@
     flex-shrink: 0;
   }
 
-  .action-btn {
-    padding: 4px 12px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    color: var(--text-primary);
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-  }
-
-  .action-checkout:hover {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
-  }
-
-  .action-merge:hover {
-    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
-    border-color: var(--accent-green);
-    color: var(--accent-green);
-  }
-
-  .action-delete:hover {
-    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
-    border-color: var(--accent-red);
-    color: var(--accent-red);
-  }
 </style>

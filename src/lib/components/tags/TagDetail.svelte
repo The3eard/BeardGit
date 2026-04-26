@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import { Button } from "$lib/components/ui";
   import FileChangeList from "../common/FileChangeList.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import DiffEditor from "../editor/DiffEditor.svelte";
@@ -211,12 +212,12 @@
 
     <!-- Actions footer -->
     <div class="detail-actions">
-      <button class="action-btn action-push" onclick={() => doPushTag($selectedTagInfo!.name, "origin")}>
+      <Button variant="primary" size="sm" onclick={() => doPushTag($selectedTagInfo!.name, "origin")}>
         {m.tags_action_push()}
-      </button>
-      <button class="action-btn action-delete" onclick={() => (confirmDelete = true)}>
+      </Button>
+      <Button variant="danger" size="sm" onclick={() => (confirmDelete = true)}>
         {m.tags_action_delete()}
-      </button>
+      </Button>
     </div>
   {:else if !$selectedTagName}
     <div class="detail-empty">
@@ -473,26 +474,4 @@
     flex-shrink: 0;
   }
 
-  .action-btn {
-    padding: 4px 12px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    color: var(--text-primary);
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-  }
-
-  .action-push:hover {
-    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
-    border-color: var(--accent-green);
-    color: var(--accent-green);
-  }
-
-  .action-delete:hover {
-    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
-    border-color: var(--accent-red);
-    color: var(--accent-red);
-  }
 </style>

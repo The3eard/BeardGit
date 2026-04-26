@@ -19,6 +19,7 @@
   import type { EnrichedWorktree } from "$lib/types";
   import type { AiProviderKind } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
+  import { IconButton } from "$lib/components/ui";
 
   interface Props {
     onNavigateToGraph?: (oid: string) => void;
@@ -170,21 +171,17 @@
   onContextMenu={handleContextMenu}
 >
   {#snippet headerActions()}
-    <button
-      class="action-btn nf"
+    <IconButton
+      icon={"\uF067"}
+      description={m.worktree_create()}
       onclick={() => (showCreateDialog = true)}
-      title={m.worktree_create()}
-    >
-      {"\uF067"}
-    </button>
-    <button
-      class="action-btn nf"
+    />
+    <IconButton
+      icon={"\uF021"}
+      description={m.tooltip_refresh()}
+      loading={$worktreeLoading}
       onclick={() => refreshWorktrees()}
-      disabled={$worktreeLoading}
-      title="Refresh"
-    >
-      {$worktreeLoading ? "\uF110" : "\uF021"}
-    </button>
+    />
   {/snippet}
 
   {#snippet row({ item })}
@@ -280,28 +277,6 @@
 />
 
 <style>
-  .action-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 14px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: var(--font-icons);
-    display: flex;
-    align-items: center;
-  }
-
-  .action-btn:hover {
-    color: var(--text-primary);
-  }
-
-  .action-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
   .worktree-row {
     display: flex;
     align-items: center;

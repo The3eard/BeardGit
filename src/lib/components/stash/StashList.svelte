@@ -3,6 +3,7 @@
   import { stashes, selectedStashIndex, doStashPush, doStashApply, doStashPop, doStashDrop, selectStash } from "../../stores/stashes";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import List from "../common/List.svelte";
+  import { Button, IconButton } from "$lib/components/ui";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
 
@@ -64,13 +65,13 @@
           bind:value={stashMessage}
           onkeydown={handleStashKeydown}
         />
-        <button class="btn btn-small btn-confirm" onclick={handleStashPush}>&#x2713;</button>
-        <button class="btn btn-small btn-cancel" onclick={handleCancelStash}>&#x2715;</button>
+        <IconButton tone="default" icon={""} description={m.stash_button()} onclick={handleStashPush} />
+        <IconButton tone="default" icon={""} description={m.confirm_cancel()} onclick={handleCancelStash} />
       </div>
     {:else}
-      <button class="btn btn-stash" onclick={() => (showStashInput = true)}>
+      <Button variant="neutral" size="sm" onclick={() => (showStashInput = true)}>
         {m.stash_button()}
-      </button>
+      </Button>
     {/if}
   {/snippet}
 
@@ -87,21 +88,24 @@
         </div>
         <div class="stash-bottom-hover">
           <div class="stash-actions">
-            <button
-              class="action-btn action-btn-apply"
-              title={m.stash_apply()}
+            <Button
+              variant="success"
+              size="sm"
+              description={m.stash_apply()}
               onclick={(e: MouseEvent) => { e.stopPropagation(); doStashApply(item.index); }}
-            >{m.stash_apply()}</button>
-            <button
-              class="action-btn action-btn-pop"
-              title={m.stash_pop()}
+            >{m.stash_apply()}</Button>
+            <Button
+              variant="success"
+              size="sm"
+              description={m.stash_pop()}
               onclick={(e: MouseEvent) => { e.stopPropagation(); doStashPop(item.index); }}
-            >{m.stash_pop()}</button>
-            <button
-              class="action-btn action-btn-danger"
-              title={m.stash_drop()}
+            >{m.stash_pop()}</Button>
+            <Button
+              variant="danger"
+              size="sm"
+              description={m.stash_drop()}
               onclick={(e: MouseEvent) => { e.stopPropagation(); confirmDrop = item.index; }}
-            >{m.stash_drop()}</button>
+            >{m.stash_drop()}</Button>
           </div>
           <span class="stash-oid">{shortOid(item.oid)}</span>
         </div>
@@ -154,35 +158,6 @@
 
   .stash-input:focus {
     border-color: var(--accent-blue);
-  }
-
-  .btn-small {
-    padding: 4px 8px;
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-
-  .btn-small:hover {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-  }
-
-  .btn-stash {
-    padding: 6px 12px;
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .btn-stash:hover {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
   .stash-top {
@@ -250,36 +225,4 @@
     align-items: center;
   }
 
-  .action-btn {
-    padding: 2px 8px;
-    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    border-radius: 4px;
-    font-size: 10px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .action-btn:hover {
-    background: color-mix(in srgb, var(--text-primary) 15%, transparent);
-  }
-
-  .action-btn-apply:hover {
-    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
-    border-color: var(--accent-green);
-    color: var(--accent-green);
-  }
-
-  .action-btn-pop:hover {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
-  }
-
-  .action-btn-danger:hover {
-    background: color-mix(in srgb, var(--accent-red) 20%, transparent);
-    border-color: var(--accent-red);
-    color: var(--accent-red);
-  }
 </style>

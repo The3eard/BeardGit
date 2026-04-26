@@ -18,6 +18,7 @@
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import List from "../common/List.svelte";
   import * as m from "$lib/paraglide/messages";
+  import { Button } from "$lib/components/ui";
   import type { SubmoduleInfo } from "../../types";
   import { shortOid } from "../../utils/git";
 
@@ -239,18 +240,19 @@
 >
   {#snippet headerActions()}
     {#if $submodules.length > 0}
-      <button class="action-btn" onclick={handleUpdateAll}>
+      <Button variant="neutral" size="sm" onclick={handleUpdateAll}>
         {m.submodule_update_all()}
-      </button>
+      </Button>
     {/if}
-    <button
-      class="action-btn action-btn-primary"
+    <Button
+      variant="primary"
+      size="sm"
       onclick={() => {
         showAddForm = !showAddForm;
       }}
     >
       {m.submodule_add()}
-    </button>
+    </Button>
   {/snippet}
 
   {#snippet afterHeader()}
@@ -272,14 +274,15 @@
           <div class="add-error">{addError}</div>
         {/if}
         <div class="add-actions">
-          <button
-            class="action-btn action-btn-primary"
+          <Button
+            variant="primary"
+            size="sm"
             onclick={handleAdd}
             disabled={adding || !addUrl.trim() || !addPath.trim()}
           >
             {adding ? "Adding..." : m.submodule_add()}
-          </button>
-          <button class="action-btn" onclick={cancelAdd}>Cancel</button>
+          </Button>
+          <Button variant="neutral" size="sm" onclick={cancelAdd}>Cancel</Button>
         </div>
       </div>
     {/if}
@@ -323,29 +326,6 @@
 {/if}
 
 <style>
-  .action-btn {
-    padding: 4px 10px;
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-size: 11px;
-    cursor: pointer;
-  }
-
-  .action-btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
-  }
-
-  .action-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-
-  .action-btn-primary {
-    color: var(--accent-blue);
-  }
-
   .add-form {
     display: flex;
     flex-direction: column;
