@@ -379,15 +379,26 @@
           <p class="prompt-empty">{m.ai_background_no_prompt_recorded()}</p>
         {/if}
       </section>
-      <!-- svelte-ignore a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="split-handle"
-        role="separator"
-        aria-orientation="horizontal"
         onmousedown={startSplitResize}
       ></div>
-      <section class="split-pane transcript-pane">
-        <BackgroundRunTranscript lines={transcript} />
+      <section class="split-pane transcript-pane" data-testid="ai-session-detail-output">
+        <header class="split-header">
+          <span class="split-title">{m.ai_background_section_output()}</span>
+          <span class="split-meta">
+            {m.ai_background_section_output_lines({ count: transcript.length })}
+          </span>
+        </header>
+        {#if transcript.length === 0}
+          <div class="output-empty" data-testid="ai-session-detail-output-empty">
+            <p class="output-empty-title">{m.ai_background_output_empty_title()}</p>
+            <p class="output-empty-hint">{m.ai_background_output_empty_hint()}</p>
+          </div>
+        {:else}
+          <BackgroundRunTranscript lines={transcript} />
+        {/if}
       </section>
     </div>
   </div>
@@ -607,10 +618,12 @@
   .split-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     padding: 4px 10px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    gap: 8px;
   }
 
   .split-title {
@@ -619,6 +632,41 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
+  }
+
+  .split-meta {
+    font-size: 10px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .output-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 16px;
+    background: var(--bg-primary);
+    text-align: center;
+  }
+
+  .output-empty-title {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .output-empty-hint {
+    margin: 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+    max-width: 360px;
+    line-height: 1.5;
   }
 
   .prompt-text {
