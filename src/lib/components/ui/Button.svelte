@@ -25,6 +25,10 @@
      *
      * - `primary`: loud, accent-blue fill. Use for the single most
      *   important action in a row (Connect, Save, Submit).
+     * - `success`: loud, accent-green fill. Use for git-state-changing
+     *   affirmatives (Merge, Apply stash, Approve PR, Resolve conflict).
+     *   Mirrors the tonal-at-rest, solid-on-hover shape of `primary` and
+     *   `danger` so the three accent colours read as one family.
      * - `secondary`: tonal baseline fill, borderless, softer than
      *   `subtle`. The default. Use when you want "this is a button" but
      *   the row already has another button carrying the action weight.
@@ -38,7 +42,7 @@
      * - `danger`: loud, accent-red fill. Use for destructive actions
      *   (Disconnect, Delete).
      */
-    variant?: "primary" | "secondary" | "subtle" | "ghost" | "danger";
+    variant?: "primary" | "success" | "secondary" | "subtle" | "ghost" | "danger";
     /** Vertical rhythm/padding scale. Default `'md'`. */
     size?: "sm" | "md" | "lg";
     /** When true, swap the icon for a spinner and suppress clicks. */
@@ -174,6 +178,17 @@
   .bg-btn--primary:hover:not(:disabled) {
     background: var(--accent-blue);
     border-color: var(--accent-blue);
+    color: var(--text-primary);
+  }
+
+  .bg-btn--success {
+    background: color-mix(in srgb, var(--accent-green) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-green) 60%, transparent);
+    color: var(--accent-green);
+  }
+  .bg-btn--success:hover:not(:disabled) {
+    background: var(--accent-green);
+    border-color: var(--accent-green);
     color: var(--text-primary);
   }
 

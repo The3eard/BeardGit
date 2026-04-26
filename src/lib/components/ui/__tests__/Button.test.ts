@@ -32,6 +32,7 @@ describe("Button", () => {
   it("applies the correct class for each variant", () => {
     for (const variant of [
       "primary",
+      "success",
       "secondary",
       "subtle",
       "ghost",
@@ -42,6 +43,15 @@ describe("Button", () => {
       expect(btn.classList.contains(`bg-btn--${variant}`)).toBe(true);
       unmount();
     }
+  });
+
+  it("renders success variant with green-tonal rest state", () => {
+    const { container } = render(Button, {
+      props: { variant: "success", children: () => "Merge" },
+    });
+    const btn = container.querySelector("button")!;
+    expect(btn.classList.contains("bg-btn--success")).toBe(true);
+    expect(btn.getAttribute("data-variant")).toBe("success");
   });
 
   it("renders the subtle variant with the expected class + data attribute", () => {
