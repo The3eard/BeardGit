@@ -42,7 +42,7 @@
      * - `danger`: loud, accent-red fill. Use for destructive actions
      *   (Disconnect, Delete).
      */
-    variant?: "primary" | "success" | "secondary" | "subtle" | "ghost" | "danger";
+    variant?: "primary" | "success" | "secondary" | "subtle" | "ghost" | "danger" | "neutral";
     /** Vertical rhythm/padding scale. Default `'md'`. */
     size?: "sm" | "md" | "lg";
     /** When true, swap the icon for a spinner and suppress clicks. */
@@ -190,6 +190,20 @@
     background: var(--accent-green);
     border-color: var(--accent-green);
     color: var(--text-primary);
+  }
+
+  /* `neutral` is the canonical non-accent button. Functionally
+     equivalent to `secondary` today; the legacy `secondary` /
+     `subtle` / `ghost` variants will be removed in a follow-up
+     cleanup once every consumer has migrated to the new variant
+     set (`primary` / `success` / `danger` / `neutral`). */
+  .bg-btn--neutral {
+    background: var(--bg-secondary);
+    border-color: transparent;
+    color: var(--text-primary);
+  }
+  .bg-btn--neutral:hover:not(:disabled) {
+    background: var(--overlay-hover);
   }
 
   .bg-btn--secondary {

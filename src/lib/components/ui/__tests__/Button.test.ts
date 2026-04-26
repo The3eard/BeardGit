@@ -33,6 +33,7 @@ describe("Button", () => {
     for (const variant of [
       "primary",
       "success",
+      "neutral",
       "secondary",
       "subtle",
       "ghost",
@@ -43,6 +44,15 @@ describe("Button", () => {
       expect(btn.classList.contains(`bg-btn--${variant}`)).toBe(true);
       unmount();
     }
+  });
+
+  it("renders neutral variant with secondary-style background", () => {
+    const { container } = render(Button, {
+      props: { variant: "neutral", children: () => "Cancel" },
+    });
+    const btn = container.querySelector("button")!;
+    expect(btn.classList.contains("bg-btn--neutral")).toBe(true);
+    expect(btn.getAttribute("data-variant")).toBe("neutral");
   });
 
   it("renders success variant with green-tonal rest state", () => {
