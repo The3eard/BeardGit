@@ -1027,7 +1027,7 @@
           commit={$branchSelectedCommit}
           files={$branchSelectedFiles}
           showNavigateToGraph={true}
-          onNavigateToGraph={(oid) => navigateToCommit(oid)}
+          onNavigateToGraph={(oid) => { navigateToCommit(oid); handleNavigate("graph"); }}
           onClose={() => closeBranchCommitDetail()}
           onFileClick={handleBranchFileClick}
           onNavigate={handleNavigate}
