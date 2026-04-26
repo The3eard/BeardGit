@@ -149,7 +149,7 @@
                 <IconButton icon={"\uF00D"} description={m.tooltip_remove()} onclick={() => removePair(i)} />
               </div>
             {/each}
-            <Button variant="neutral" size="sm" icon="" onclick={addPair}>
+            <Button variant="neutral" size="sm" icon={""} onclick={addPair}>
               {m.pipeline_trigger_add_variable()}
             </Button>
           </fieldset>
