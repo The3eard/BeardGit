@@ -559,8 +559,16 @@
     flex-direction: column;
     gap: 10px;
     padding: 12px;
+    /* Parent (`.split-main` from SplitView) is a regular block, not a
+       flex container, so `flex: 1` alone does nothing. Force a full
+       height fill so the inner grid (`grid-template-rows: 50% 6px
+       1fr`) has a real height to compute percentages against —
+       otherwise the bottom pane collapses to 0px and the user sees
+       only the prompt with a blank void below. */
     flex: 1;
+    height: 100%;
     min-height: 0;
+    box-sizing: border-box;
   }
 
   .header {
