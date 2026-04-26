@@ -120,7 +120,7 @@
 </div>
 
 <style>
-  /* dialog.css provides: .dialog-title, .btn, .btn-cancel, .btn-primary */
+  /* dialog.css provides: .dialog-title */
   /* This dialog uses .dialog-backdrop + .dialog-card (flex-centered), not the standard .backdrop + .dialog */
 
   .dialog-backdrop {

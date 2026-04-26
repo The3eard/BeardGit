@@ -134,8 +134,7 @@
 {/if}
 
 <style>
-  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions,
-     .btn, .btn-cancel, .btn-primary */
+  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions */
 
   .reauth-dialog {
     min-width: 420px;

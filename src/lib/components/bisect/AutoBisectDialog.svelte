@@ -59,7 +59,7 @@
 </div>
 
 <style>
-  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions, .btn, .btn-cancel, .btn-primary (global via app.css) */
+  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions */
 
   .dialog {
     min-width: 380px;

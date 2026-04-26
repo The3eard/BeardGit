@@ -118,7 +118,7 @@
 </div>
 
 <style>
-  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions, .btn, .btn-cancel, .btn-confirm */
+  /* dialog.css provides: .backdrop, .dialog, .dialog-title, .dialog-actions */
 
   .dialog {
     min-width: 360px;
