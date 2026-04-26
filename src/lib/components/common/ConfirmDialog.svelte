@@ -9,6 +9,18 @@
     confirmLabel = m.confirm_confirm(),
     cancelLabel = m.confirm_cancel(),
     destructive = false,
+    /**
+     * Optional inline checkbox rendered between the message and the
+     * action row. When set, the dialog binds the checked state to
+     * `checkboxChecked` (writable from the caller via `bind:`). Used
+     * by destructive flows that need an upfront escalation toggle —
+     * e.g. "Force remove (discard uncommitted changes)" on a
+     * worktree.
+     *
+     * Leave undefined to keep the dialog's classic two-button shape.
+     */
+    checkboxLabel,
+    checkboxChecked = $bindable(false),
     onConfirm,
     onCancel,
   }: {
@@ -18,6 +30,8 @@
     confirmLabel?: string;
     cancelLabel?: string;
     destructive?: boolean;
+    checkboxLabel?: string;
+    checkboxChecked?: boolean;
     onConfirm: () => void;
     onCancel: () => void;
   } = $props();
@@ -44,6 +58,16 @@
     <p class="dialog-detail">{detail}</p>
   {/if}
   <p class="dialog-message">{message}</p>
+  {#if checkboxLabel}
+    <label class="dialog-checkbox">
+      <input
+        type="checkbox"
+        bind:checked={checkboxChecked}
+        data-testid="dialog-checkbox"
+      />
+      <span>{checkboxLabel}</span>
+    </label>
+  {/if}
   <div class="dialog-actions">
     <button class="btn btn-cancel" data-testid="dialog-cancel-btn" onclick={onCancel}>{cancelLabel}</button>
     <button
@@ -92,5 +116,21 @@
   .btn-confirm.destructive {
     background: var(--accent-red);
     border-color: var(--accent-red);
+  }
+
+  .dialog-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -8px 0 16px;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .dialog-checkbox input {
+    margin: 0;
+    cursor: pointer;
   }
 </style>

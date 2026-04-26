@@ -58,6 +58,32 @@ export const activeBackgroundRunCount = derived(
 );
 
 /**
+ * Derived: bg sessions whose status is terminal (`completed`, `failed`,
+ * or `cancelled`), sorted by `started_at` descending.
+ *
+ * The "Active terminals" section drops these the moment the run exits,
+ * so without a separate surface the captured stdout (in
+ * `aiBackgroundTranscripts`) becomes invisible to the user — they
+ * launched a run and have no way to read its result. The AI Sessions
+ * view renders this list as a third "Recent runs" section.
+ *
+ * The coordinator retains terminal sessions in its registry for the
+ * process lifetime (until `discard_worktree` clears them), so this
+ * naturally accumulates across the session and is empty on fresh
+ * launches when no run has finished yet.
+ */
+export const recentBackgroundRuns = derived(aiBackgroundRuns, ($runs) =>
+  Array.from($runs.values())
+    .filter((s) => {
+      const state = s.background_status?.state;
+      return (
+        state === "completed" || state === "failed" || state === "cancelled"
+      );
+    })
+    .sort((a, b) => (b.started_at ?? 0) - (a.started_at ?? 0)),
+);
+
+/**
  * Derived: currently selected session resolved against the **background run
  * map only**. Returns `null` for provider-reported conversations (on-disk
  * transcripts without a live coordinator) even when they're selected in

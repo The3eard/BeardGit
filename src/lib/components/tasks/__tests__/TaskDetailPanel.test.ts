@@ -109,14 +109,19 @@ describe("TaskDetailPanel — git ops", () => {
     expect(mocks.selectTaskMock).toHaveBeenCalledWith(99);
   });
 
-  it("renders the no-output placeholder when nothing is available", async () => {
+  it("renders no output block when nothing is available — meta header stands alone", async () => {
+    // Empty buffer used to render a placeholder zone with an italic
+    // "No output" line. That read as a broken state on
+    // failure/cancellation rows, so we now omit the block entirely
+    // and let the meta header speak for itself.
     const entry = makeEntry({ id: "7", kind: "git_pull" });
-    const { getByTestId } = render(TaskDetailPanel, { props: { entry } });
+    const { queryByTestId, getByTestId } = render(TaskDetailPanel, {
+      props: { entry },
+    });
     await tick();
-    const output = getByTestId("task-detail-output");
-    expect(output.textContent?.trim()).toBeTruthy();
-    // Placeholder shows the localized "No output" string.
-    expect(output.classList.contains("detail__output--empty")).toBe(true);
+    expect(queryByTestId("task-detail-output")).toBeNull();
+    // Meta still renders — the panel hasn't gone blank.
+    expect(getByTestId("task-detail-kind")).toBeTruthy();
   });
 
   it("exposes the task kind + status + started labels", () => {
@@ -220,17 +225,18 @@ describe("TaskDetailPanel — AI background", () => {
 });
 
 describe("TaskDetailPanel — app update", () => {
-  it("renders the no-output placeholder without crashing", async () => {
+  it("renders meta only without an output block (app_update has no stream)", async () => {
     const entry = makeEntry({
       id: "auto-update",
       kind: "app_update",
       title: "BeardGit 0.2.0",
     });
-    const { getByTestId } = render(TaskDetailPanel, { props: { entry } });
+    const { queryByTestId, getByTestId } = render(TaskDetailPanel, {
+      props: { entry },
+    });
     await tick();
-    expect(getByTestId("task-detail-output").classList).toContain(
-      "detail__output--empty",
-    );
+    expect(queryByTestId("task-detail-output")).toBeNull();
+    expect(getByTestId("task-detail-kind").textContent).toMatch(/update/i);
     // No back-fill for app_update.
     expect(mocks.selectTaskMock).not.toHaveBeenCalled();
   });
