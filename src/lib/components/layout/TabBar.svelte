@@ -140,9 +140,25 @@
   }
 
   onMount(() => {
-    document.addEventListener("mousedown", handleAiMenuClickOutside);
+    /* Capture phase, NOT bubble. Several embedded surfaces (xterm.js
+       terminals, the CodeMirror editor) call `stopPropagation()` on
+       mousedown for their own gesture handling, so a bubble-phase
+       document listener never fires when the user clicks them — the
+       AI dropdown then stays open even though the click was clearly
+       outside it. Capture phase fires before any descendant handler
+       can stop the event, which is what "click outside to close"
+       semantically wants. */
+    document.addEventListener(
+      "mousedown",
+      handleAiMenuClickOutside,
+      { capture: true },
+    );
     return () =>
-      document.removeEventListener("mousedown", handleAiMenuClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleAiMenuClickOutside,
+        { capture: true },
+      );
   });
 
   function handleWheel(e: WheelEvent) {

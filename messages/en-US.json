@@ -898,7 +898,7 @@
   "ai_background_token_usage": "Tokens: {input} in / {output} out",
   "ai_background_token_cost": "Estimated cost: ${cost}",
   "ai_background_new_run_button": "New AI worktree run",
-  "ai_background_tab_button_tooltip": "Start AI background session on a worktree (Cmd+Shift+A)",
+  "ai_background_tab_button_tooltip": "Open an AI session — interactive terminal or background worktree run (Cmd+Shift+A)",
   "ai_background_tab_button_label": "AI",
   "ai_menu_launch_background": "Launch session in background…",
   "ai_background_toast_started": "AI run '{slug}' started",
@@ -992,5 +992,6 @@
   "tooltip_close_log": "Close log",
   "tooltip_remove": "Remove",
   "tooltip_new_branch": "New branch",
-  "tooltip_refresh": "Refresh"
+  "tooltip_refresh": "Refresh",
+  "update_server_unreachable": "Couldn't reach the update server. Check your connection or try again later."
 }

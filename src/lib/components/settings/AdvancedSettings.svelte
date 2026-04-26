@@ -85,7 +85,27 @@
 
   const status = $derived($autoUpdateState.status);
   const availableVersion = $derived($autoUpdateState.availableVersion ?? "");
-  const errorMessage = $derived($autoUpdateState.error ?? "");
+  const rawErrorMessage = $derived($autoUpdateState.error ?? "");
+
+  /* The Tauri updater plugin surfaces low-level failures verbatim
+     (e.g. "could not fetch json" when the latest.json endpoint 404s,
+     "the network has temporary issue" for offline). Those strings
+     leak implementation detail into a setting most users will never
+     debug, so map the recognisable "endpoint unreachable" shapes to
+     a localized hint and keep the raw text only for unexpected ones. */
+  const errorMessage = $derived.by(() => {
+    const raw = rawErrorMessage.toLowerCase();
+    if (
+      raw.includes("could not fetch json") ||
+      raw.includes("network") ||
+      raw.includes("404") ||
+      raw.includes("unexpected token") ||
+      raw === ""
+    ) {
+      return m.update_server_unreachable();
+    }
+    return rawErrorMessage;
+  });
 
   onMount(async () => {
     try {

@@ -497,8 +497,12 @@
   }
 
   .btn.primary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-blue) 85%, transparent);
-    color: var(--text-primary);
+    /* Subtle dim on hover, matching the shared `Button` primary
+       variant. The previous rule mixed the accent with `transparent`,
+       which made the resting state feel "highlighted" and the hover
+       state read as "deselected" — the inverse of what hover should
+       communicate. */
+    opacity: 0.9;
   }
 
   .btn.danger {
