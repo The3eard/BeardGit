@@ -164,6 +164,23 @@ struct CoordinatorInner {
     /// [`AiBackgroundCoordinator::on_task_finished`] so the diff can be
     /// emitted as a `MutationKind::Ai { source }` event.
     before_snapshots: std::collections::HashMap<String, Snapshot>,
+    /// Direct `TaskId → session_id` lookup populated by [`Self::dispatch`]
+    /// the instant `spawn_with_options` returns. The `on_task_output`
+    /// path consults this BEFORE walking `sessions` so output is routed
+    /// even when the reader task fires its first line before the
+    /// session's `task_id` field has been written by `update_session`.
+    /// Without this map, fast-emitting providers (Claude Code's
+    /// `--output-format stream-json` starts dumping hook events the
+    /// instant stdin closes) lost their entire transcript on the
+    /// initial line burst.
+    task_id_to_session: std::collections::HashMap<TaskId, String>,
+    /// Output lines that arrived at `on_task_output` *before* their
+    /// `task_id → session_id` mapping was registered. Drained as soon
+    /// as the dispatch completes its insert into `task_id_to_session`,
+    /// so the user sees the full transcript even when there's a
+    /// fraction-of-a-millisecond race between the spawn returning and
+    /// the reader task's first read.
+    pending_lines: std::collections::HashMap<TaskId, Vec<String>>,
 }
 
 /// Serialisable payload kept around while a run is queued.
@@ -205,6 +222,8 @@ impl AiBackgroundCoordinator {
                 concurrency_cap: 3,
                 pending: std::collections::HashMap::new(),
                 before_snapshots: std::collections::HashMap::new(),
+                task_id_to_session: std::collections::HashMap::new(),
+                pending_lines: std::collections::HashMap::new(),
             }),
             task_manager,
             event_sink,
@@ -528,6 +547,17 @@ impl AiBackgroundCoordinator {
         // Drop the session from the registry entirely.
         {
             let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+            // Reverse-find the task_id pointing at this session so the
+            // routing map doesn't keep a dangling key after discard.
+            let stale_task_ids: Vec<TaskId> = guard
+                .task_id_to_session
+                .iter()
+                .filter_map(|(tid, sid)| (sid == session_id).then_some(*tid))
+                .collect();
+            for tid in stale_task_ids {
+                guard.task_id_to_session.remove(&tid);
+                guard.pending_lines.remove(&tid);
+            }
             guard.sessions.retain(|s| s.id != session_id);
             guard.pending.remove(session_id);
             guard.before_snapshots.remove(session_id);
@@ -602,6 +632,33 @@ impl AiBackgroundCoordinator {
                     .await
             })
         });
+
+        // Register the task_id → session_id mapping immediately, then
+        // drain any output that already arrived (the reader task spawned
+        // by `spawn_with_options` runs on a different tokio worker and
+        // can fire `on_task_output` before this point — see the
+        // CoordinatorInner doc on `pending_lines`). Without this, the
+        // first burst of stream-json events from a fast provider was
+        // silently dropped.
+        let drained: Vec<String> = {
+            let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+            guard
+                .task_id_to_session
+                .insert(task_id, session_id.to_string());
+            guard.pending_lines.remove(&task_id).unwrap_or_default()
+        };
+        for line in drained {
+            self.event_sink.on_output(session_id, &line);
+            if let Some(usage) = parse_claude_usage(&line) {
+                self.update_session(session_id, |s| {
+                    if let Some(AiBackgroundRunStatus::Completed { token_usage, .. }) =
+                        s.background_status.as_mut()
+                    {
+                        *token_usage = Some(usage);
+                    }
+                });
+            }
+        }
         Ok(task_id)
     }
 
@@ -613,16 +670,39 @@ impl AiBackgroundCoordinator {
     }
 
     /// Called by the Tauri-side sink for every output line produced by an
-    /// AI background task. Parses Claude Code's JSON stream for token usage
-    /// and forwards the raw line to the frontend.
+    /// AI background task. Parses Claude Code's JSON stream for token
+    /// usage and forwards the raw line to the frontend.
+    ///
+    /// Lookup order:
+    /// 1. `task_id_to_session` — direct map populated the moment
+    ///    `dispatch` returns. Hits in the steady state.
+    /// 2. `sessions` walk by `task_id` field — kept as a fallback in
+    ///    case the map miss is structural (e.g. a stale event after
+    ///    discard).
+    /// 3. Buffer the line on `pending_lines[task_id]` — handles the
+    ///    race where the reader task fires its first read before the
+    ///    dispatch could insert into the map. The buffer is drained at
+    ///    the tail of `dispatch` so no output is permanently lost.
     pub fn on_task_output(self: &Arc<Self>, task_id: TaskId, line: &str) {
         let session_id = {
-            let guard = self.inner.lock().expect("coordinator mutex poisoned");
-            guard
+            let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+            if let Some(sid) = guard.task_id_to_session.get(&task_id).cloned() {
+                Some(sid)
+            } else if let Some(sid) = guard
                 .sessions
                 .iter()
                 .find(|s| s.task_id == Some(task_id))
                 .map(|s| s.id.clone())
+            {
+                Some(sid)
+            } else {
+                guard
+                    .pending_lines
+                    .entry(task_id)
+                    .or_default()
+                    .push(line.to_string());
+                None
+            }
         };
         let Some(session_id) = session_id else {
             return;
@@ -1551,5 +1631,69 @@ mod tests {
 
         wait_terminal(&coord, &out.session_id).await;
         let _ = coord.discard_worktree(&out.session_id);
+    }
+
+    /// Output that arrives before `dispatch` registers the
+    /// `task_id → session_id` mapping must be buffered + drained, not
+    /// silently dropped. We exercise this directly by hitting
+    /// `on_task_output` with an unknown task_id (mimicking a reader
+    /// task that beat dispatch's insert), then completing the
+    /// registration via `dispatch`-equivalent state mutation, and
+    /// asserting the recorder saw the buffered line.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn early_task_output_is_buffered_and_drained() {
+        let (_tmp, _base_branch) = init_test_repo();
+        let sink_bridge = Arc::new(CoordinatorTestSink {
+            coord: Mutex::new(None),
+        });
+        let task_manager = Arc::new(TaskManager::new(sink_bridge.clone()));
+        let recorder = Arc::new(RecordingSink::default());
+        let coord = Arc::new(AiBackgroundCoordinator::new(
+            Arc::clone(&task_manager),
+            recorder.clone(),
+        ));
+        sink_bridge.install(Arc::clone(&coord));
+
+        let task_id: TaskId = 9999;
+        let session_id = "aibg-early-output-test";
+
+        // 1. Reader task fires before dispatch registered the mapping.
+        coord.on_task_output(task_id, "early-line-1");
+        coord.on_task_output(task_id, "early-line-2");
+
+        // No output should have reached the sink yet — the lines are
+        // buffered on `pending_lines`.
+        assert!(recorder.outputs.lock().unwrap().is_empty());
+
+        // 2. Simulate dispatch's registration + drain. We poke directly
+        //    at the inner state because we don't want to spin up a real
+        //    process here — the goal is to verify the routing logic.
+        {
+            let mut guard = coord.inner.lock().expect("coordinator mutex");
+            guard
+                .task_id_to_session
+                .insert(task_id, session_id.to_string());
+            let drained = guard
+                .pending_lines
+                .remove(&task_id)
+                .unwrap_or_default();
+            drop(guard);
+            for line in drained {
+                coord.event_sink.on_output(session_id, &line);
+            }
+        }
+
+        // 3. Lines that arrive after registration go through the fast
+        //    path — and the previously-buffered lines should already be
+        //    on the recorder.
+        coord.on_task_output(task_id, "later-line-3");
+
+        let outputs = recorder.outputs.lock().unwrap().clone();
+        let lines: Vec<&str> = outputs.iter().map(|(_, l)| l.as_str()).collect();
+        assert_eq!(
+            lines,
+            vec!["early-line-1", "early-line-2", "later-line-3"],
+            "buffered lines must be delivered in arrival order alongside live ones"
+        );
     }
 }
