@@ -2,6 +2,28 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Post-IconButton polish
+
+### Fixed — `gh pr view` regression on `headRepositoryUrl`
+
+`fix(mr-pr): use headRepository.url instead of headRepositoryUrl`. The recent PR diff view shipped with `headRepositoryUrl` in the `gh pr view --json …` field list, which `gh` does not expose — only `headRepository` (an object) is valid, and the URL lives on its `.url` sub-field. The Rust side now requests `headRepository` and walks the nested `url` via the existing path-walker, so opening any GitHub PR detail no longer fails with `CLI error: Unknown JSON field: "headRepositoryUrl"`. GitLab's `head_repo_url_path` was already correct (`["source_project", "http_url_to_repo"]`).
+
+### Fixed — AI toolbar dropdown click-outside swallowed by xterm/CodeMirror
+
+`fix(layout): close AI dropdown via capture-phase mousedown`. The dropdown's "click anywhere outside to close" handler ran in the bubble phase on `document`, so embedded surfaces that call `stopPropagation()` on mousedown (xterm.js terminal, CodeMirror editor) prevented it from ever firing. Switched to `{ capture: true }` so the handler always sees the click first.
+
+### Fixed — AI dropdown tooltip described only one of its two actions
+
+`fix(layout): clarify AI dropdown tooltip`. The trigger button labelled itself "Start AI background session on a worktree", which is only one of the two things in the menu — interactive provider terminals are the other. Updated the localized tooltip in en-US and es-ES to mention both.
+
+### Fixed — "Resume in new terminal" button hover read as deselection
+
+`fix(ai-sessions): primary-button hover dims slightly instead of going transparent`. The local `.btn.primary:hover` rule mixed the accent with `transparent`, which made the resting state look "highlighted" and hover look "deselected" — the inverse of what hover should communicate. Switched to `opacity: 0.9`, matching the shared `Button` primary variant.
+
+### Fixed — "Check for updates" surfaced raw `could not fetch json`
+
+`fix(settings): friendly error when update endpoint is unreachable`. The Tauri updater plugin returns implementation-detail strings (`"could not fetch json"`, `"the network has temporary issue"`, etc.) verbatim. The Settings → Advanced → Check for updates row now maps recognisable "endpoint unreachable" shapes to a localized hint (`update_server_unreachable`) and only shows the raw text for unexpected failures. Note: the underlying 404 (`releases/latest/download/latest.json` is missing until the first signed release is cut) is a separate CI/release-pipeline concern, not addressed here.
+
 ## [Unreleased] — Icon-only buttons + brand logos
 
 ### Added — `IconButton` component + `Button.description` prop

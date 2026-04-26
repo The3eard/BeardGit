@@ -898,7 +898,7 @@
   "ai_background_token_usage": "Tokens: {input} entrada / {output} salida",
   "ai_background_token_cost": "Coste estimado: ${cost}",
   "ai_background_new_run_button": "Nueva ejecución IA en worktree",
-  "ai_background_tab_button_tooltip": "Iniciar sesión IA en segundo plano en un worktree (Cmd+Shift+A)",
+  "ai_background_tab_button_tooltip": "Abrir una sesión IA — terminal interactivo o ejecución en segundo plano sobre un worktree (Cmd+Shift+A)",
   "ai_background_tab_button_label": "IA",
   "ai_menu_launch_background": "Lanzar sesión en segundo plano…",
   "ai_background_toast_started": "Ejecución IA '{slug}' iniciada",
@@ -991,5 +991,9 @@
   "tooltip_close_log": "Cerrar registro",
   "tooltip_remove": "Eliminar",
   "tooltip_new_branch": "Nueva rama",
-  "tooltip_refresh": "Actualizar"
+  "tooltip_refresh": "Actualizar",
+  "update_server_unreachable": "No se pudo contactar con el servidor de actualizaciones. Comprueba tu conexión o inténtalo más tarde.",
+  "update_last_checked": "Última comprobación {when}",
+  "update_check_endpoint": "Endpoint: {url}",
+  "update_error_detail": "Detalle: {message}"
 }

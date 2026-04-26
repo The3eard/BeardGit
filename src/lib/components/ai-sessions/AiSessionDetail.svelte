@@ -490,14 +490,26 @@
     cursor: not-allowed;
   }
 
+  /* Tonal at rest, solid on hover. The button is the primary action in
+     the panel but it sits next to a "Cancel" / "Discard" pair, so a
+     full-saturation accent-blue rest state read as "already
+     highlighted" — and the cascading `.btn:hover` rule turned the text
+     accent-blue, hiding it against the accent-blue fill. Using a
+     translucent tint at rest keeps it clearly the primary CTA without
+     screaming, and the hover ramps up to the full accent so the
+     interactive feedback is unmistakable. */
   .btn.primary {
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
-    color: var(--text-primary);
+    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-blue) 60%, transparent);
+    color: var(--accent-blue);
   }
 
   .btn.primary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-blue) 85%, transparent);
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    /* Re-state text-primary explicitly so the cascading `.btn:hover`
+       (which would set color to accent-blue, matching the new fill
+       and hiding the label) cannot win on the `color` property. */
     color: var(--text-primary);
   }
 

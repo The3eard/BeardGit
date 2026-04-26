@@ -30,7 +30,7 @@ impl GitHubCli {
         let raw: serde_json::Value = self.run_json(&[
             "pr", "view", &num_str,
             "--json",
-            "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,body,mergeable,reviewDecision,additions,deletions,changedFiles,comments,headRefOid,baseRefOid,headRepositoryUrl",
+            "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,body,mergeable,reviewDecision,additions,deletions,changedFiles,comments,headRefOid,baseRefOid,headRepository",
         ])?;
 
         let summary = parse_mr_pr(&raw, &GITHUB_FIELDS);
@@ -265,7 +265,7 @@ pub(crate) fn build_gh_mr_pr_list_args(filter: &MrPrFilter, limit: u32) -> Vec<S
         "pr".into(),
         "list".into(),
         "--json".into(),
-        "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,additions,deletions,changedFiles,headRefOid,baseRefOid,headRepositoryUrl".into(),
+        "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,additions,deletions,changedFiles,headRefOid,baseRefOid,headRepository".into(),
         "--limit".into(),
         limit.to_string(),
     ];
@@ -403,7 +403,7 @@ mod tests {
         // the list so we don't regress on head/baseRefOid, which the PR diff
         // view needs to drive ensure_commit_local + getFileAtCommit.
         let expected_fields = [
-            "headRefOid", "baseRefOid", "headRepositoryUrl",
+            "headRefOid", "baseRefOid", "headRepository",
         ];
         let src = include_str!("mr_pr.rs");
         for f in expected_fields {

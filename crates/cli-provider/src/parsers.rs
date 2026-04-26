@@ -76,7 +76,7 @@ pub const GITHUB_FIELDS: MrPrFieldMap = MrPrFieldMap {
     state_merged: "MERGED",
     head_sha: "headRefOid",
     base_sha: "baseRefOid",
-    head_repo_url_path: Some(&["headRepositoryUrl"]),
+    head_repo_url_path: Some(&["headRepository", "url"]),
 };
 
 /// GitLab field mapping.
@@ -933,7 +933,7 @@ mod tests {
             "baseRefName": "main",
             "headRefOid": "aaaa1111",
             "baseRefOid": "bbbb2222",
-            "headRepositoryUrl": "https://github.com/alice/fork",
+            "headRepository": { "url": "https://github.com/alice/fork" },
             "url": "u",
             "isDraft": false,
             "labels": [],

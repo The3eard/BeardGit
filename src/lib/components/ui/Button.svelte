@@ -156,14 +156,25 @@
     font-size: 13px;
   }
 
-  /* Variants */
+  /* Variants
+     -----------------------------------------------------------------
+     `primary` and `danger` share a tonal-at-rest, solid-on-hover
+     pattern: a translucent tint of the accent at rest so the button
+     reads as the meaningful CTA without looking pre-selected, then
+     ramping up to the full accent on hover so the interactive
+     feedback is unmistakable. Earlier rules used a solid fill at
+     rest with `opacity: 0.9` on hover, which made every primary or
+     destructive button look "highlighted" before the user even
+     touched it. */
   .bg-btn--primary {
+    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-blue) 60%, transparent);
+    color: var(--accent-blue);
+  }
+  .bg-btn--primary:hover:not(:disabled) {
     background: var(--accent-blue);
     border-color: var(--accent-blue);
     color: var(--text-primary);
-  }
-  .bg-btn--primary:hover:not(:disabled) {
-    opacity: 0.9;
   }
 
   .bg-btn--secondary {
@@ -185,6 +196,10 @@
     border-color: var(--accent-blue);
   }
 
+  /* `ghost`: transparent at every state. Hover only brightens the
+     text — no rectangular background fill, matching the
+     `IconButton` rule for the same visual reason (the user finds
+     the rectangle reads as "selected" instead of "hover"). */
   .bg-btn--ghost {
     background: transparent;
     border-color: transparent;
@@ -192,16 +207,17 @@
   }
   .bg-btn--ghost:hover:not(:disabled) {
     color: var(--text-primary);
-    background: var(--overlay-hover);
   }
 
   .bg-btn--danger {
+    background: color-mix(in srgb, var(--accent-red) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-red) 60%, transparent);
+    color: var(--accent-red);
+  }
+  .bg-btn--danger:hover:not(:disabled) {
     background: var(--accent-red);
     border-color: var(--accent-red);
     color: var(--text-primary);
-  }
-  .bg-btn--danger:hover:not(:disabled) {
-    opacity: 0.9;
   }
 
   .bg-btn__icon {
