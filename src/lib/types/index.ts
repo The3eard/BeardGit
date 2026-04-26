@@ -925,6 +925,15 @@ export interface AiSession {
   background_status?: AiBackgroundRunStatus | null;
   /** `TaskId` of the spawned provider process (background runs only). */
   task_id?: number | null;
+  /**
+   * User-typed prompt text for background runs.
+   *
+   * Mirrors `ai_provider::AiSession::prompt`. Populated from the dialog's
+   * free-text field; `null` for sessions discovered on disk and for
+   * skill-only / saved-prompt-only runs (no free-text command worth
+   * surfacing).
+   */
+  prompt?: string | null;
 }
 
 /**

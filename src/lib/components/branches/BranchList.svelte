@@ -116,6 +116,7 @@
   let contextOid = $state("");
   let contextIsRemote = $state(false);
   let confirmDelete = $state<string | null>(null);
+  let forceDelete = $state(false);
   let confirmRebase = $state<string | null>(null);
   let confirmForcePush = $state<{ remote: string; branch: string } | null>(null);
 
@@ -205,6 +206,7 @@
       items.push({
         label: "Delete",
         action: () => {
+          forceDelete = false;
           confirmDelete = contextBranch;
         },
       });
@@ -373,11 +375,21 @@
     title="Delete Branch"
     detail={confirmDelete}
     message={`Are you sure you want to delete branch "${confirmDelete}"? This action cannot be undone.`}
-    confirmLabel="Delete"
+    confirmLabel={forceDelete ? "Force Delete" : "Delete"}
     destructive={true}
-    onConfirm={() => {
-      doDeleteBranch(confirmDelete!);
+    checkboxLabel="Force delete (allow unmerged commits)"
+    bind:checkboxChecked={forceDelete}
+    onConfirm={async () => {
+      const target = confirmDelete!;
+      const force = forceDelete;
+      // Close the dialog before the IPC fires so success/failure
+      // toasts sit against the underlying list rather than on top.
       confirmDelete = null;
+      try {
+        await doDeleteBranch(target, force);
+      } catch {
+        // `runMutation` already surfaced a sticky failure toast.
+      }
     }}
     onCancel={() => (confirmDelete = null)}
   />

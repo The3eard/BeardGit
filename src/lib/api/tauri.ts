@@ -138,8 +138,8 @@ export async function checkoutDetached(oid: string): Promise<void> {
   return invoke("checkout_detached", { oid });
 }
 
-export async function deleteBranch(name: string): Promise<void> {
-  return invoke("delete_branch", { name });
+export async function deleteBranch(name: string, force = false): Promise<void> {
+  return invoke("delete_branch", { name, force });
 }
 
 export async function checkoutBranch(name: string): Promise<void> {

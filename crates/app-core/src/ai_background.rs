@@ -341,6 +341,15 @@ impl AiBackgroundCoordinator {
         );
 
         let started_at = now_millis();
+        // Echo the user-typed prompt back through the session record so
+        // the detail pane can show "what I asked" alongside the captured
+        // output. Empty prompts → `None` (skill-only / saved-prompt-only
+        // runs don't have a free-text command worth surfacing).
+        let display_prompt = if args.prompt.trim().is_empty() {
+            None
+        } else {
+            Some(args.prompt.clone())
+        };
         let mut session = AiSession {
             id: session_id.clone(),
             provider: args.provider,
@@ -351,6 +360,7 @@ impl AiBackgroundCoordinator {
             worktree_path: Some(worktree_path.clone()),
             background_status: Some(AiBackgroundRunStatus::Queued),
             task_id: None,
+            prompt: display_prompt,
         };
 
         // 5. Store it + decide whether to dispatch now or queue.

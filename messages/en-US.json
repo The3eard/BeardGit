@@ -898,6 +898,8 @@
   "ai_background_cancel_run": "Cancel run",
   "ai_background_transcript_empty": "No output yet.",
   "ai_background_transcript_copy": "Copy transcript",
+  "ai_background_section_prompt": "Prompt",
+  "ai_background_no_prompt_recorded": "(no prompt recorded)",
   "ai_background_token_usage": "Tokens: {input} in / {output} out",
   "ai_background_token_cost": "Estimated cost: ${cost}",
   "ai_background_new_run_button": "New AI worktree run",

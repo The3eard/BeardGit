@@ -214,6 +214,34 @@
     focusTerminal(activeTerm);
   }
 
+  // ─── Prompt / transcript split ─────────────────────────────────────
+  // Vertical split inside the bg-run branch. Defaults to 50/50; the
+  // user drags the handle to resize, clamped so neither pane collapses
+  // to zero height (keeps the section headers and copy button
+  // reachable).
+  let promptPct = $state(50);
+
+  function startSplitResize(e: MouseEvent) {
+    e.preventDefault();
+    const target = (e.currentTarget as HTMLElement).parentElement;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const total = rect.height;
+    const minPct = 15;
+    const maxPct = 85;
+
+    function onMouseMove(ev: MouseEvent) {
+      const offset = ev.clientY - rect.top;
+      const next = (offset / total) * 100;
+      promptPct = Math.max(minPct, Math.min(maxPct, next));
+    }
+    function onMouseUp() {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    }
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
 </script>
 
 {#if conversation}
@@ -334,7 +362,34 @@
       {/if}
     </div>
 
-    <BackgroundRunTranscript lines={transcript} />
+    <!-- Prompt + transcript split.
+         Two stacked scroll regions instead of a single flex transcript:
+         the captured stream-json output is verbose enough to dwarf the
+         dialog's original prompt, so we pin the prompt above (≈50% of
+         the remaining height by default) and let the user resize via
+         the drag handle. -->
+    <div class="split" style="--prompt-pct: {promptPct}%">
+      <section class="split-pane prompt-pane" data-testid="ai-session-detail-prompt">
+        <header class="split-header">
+          <span class="split-title">{m.ai_background_section_prompt()}</span>
+        </header>
+        {#if bgSession.prompt && bgSession.prompt.trim().length > 0}
+          <pre class="prompt-text">{bgSession.prompt}</pre>
+        {:else}
+          <p class="prompt-empty">{m.ai_background_no_prompt_recorded()}</p>
+        {/if}
+      </section>
+      <!-- svelte-ignore a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
+      <div
+        class="split-handle"
+        role="separator"
+        aria-orientation="horizontal"
+        onmousedown={startSplitResize}
+      ></div>
+      <section class="split-pane transcript-pane">
+        <BackgroundRunTranscript lines={transcript} />
+      </section>
+    </div>
   </div>
 {:else if activeTerm}
   <!-- ─── Active tab/segment branch ─── -->
@@ -527,5 +582,88 @@
     color: var(--text-secondary);
     text-align: center;
     font-size: 12px;
+  }
+
+  /* ─── Prompt + transcript split ─────────────────────────────────── */
+
+  .split {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    /* `--prompt-pct` set inline from the script's `promptPct` state.
+       The 6px row keeps the drag handle outside both pane percentages
+       so the math matches what the user feels when dragging. */
+    grid-template-rows: calc(var(--prompt-pct, 50%) - 3px) 6px 1fr;
+    border-top: 1px solid var(--border);
+  }
+
+  .split-pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .split-header {
+    display: flex;
+    align-items: center;
+    padding: 4px 10px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .split-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+  }
+
+  .prompt-text {
+    margin: 0;
+    flex: 1;
+    overflow: auto;
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg-primary);
+  }
+
+  .prompt-empty {
+    margin: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+    background: var(--bg-primary);
+  }
+
+  /* Slim drag affordance between the two panes. The visible 6px row
+     ships an underline-style hover state — no centred grip dots since
+     the surrounding header bars already telegraph "two stacked
+     panels". */
+  .split-handle {
+    cursor: row-resize;
+    background: var(--border);
+    transition: background 0.15s;
+  }
+
+  .split-handle:hover {
+    background: var(--accent-blue);
+  }
+
+  .transcript-pane {
+    /* `BackgroundRunTranscript` already provides its own bordered box;
+       the pane just needs to give it a flex slot to fill. */
   }
 </style>
