@@ -73,6 +73,17 @@
   } from "$lib/api/tauri";
   import { addToast } from "$lib/stores/toast";
   import { Card, SettingSection, FormRow, Button } from "$lib/components/ui";
+  import { formatRelativeTimeMs } from "$lib/utils/time";
+
+  /* Hardcoded copy of the updater endpoint configured in
+     `src-tauri/tauri.conf.json` → `plugins.updater.endpoints[0]`. The
+     plugin doesn't expose this at runtime, but surfacing it in the
+     diagnostics line lets developers immediately see *which* URL the
+     check tried to fetch — invaluable when debugging "is the system
+     working" against a release pipeline that hasn't published
+     `latest.json` yet. Update both places together. */
+  const UPDATE_ENDPOINT_URL =
+    "https://github.com/The3eard/BeardGit/releases/latest/download/latest.json";
 
   const appVersion: string =
     (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "0.0.0";
@@ -86,6 +97,7 @@
   const status = $derived($autoUpdateState.status);
   const availableVersion = $derived($autoUpdateState.availableVersion ?? "");
   const rawErrorMessage = $derived($autoUpdateState.error ?? "");
+  const lastCheckedAt = $derived($autoUpdateState.lastCheckedAt);
 
   /* The Tauri updater plugin surfaces low-level failures verbatim
      (e.g. "could not fetch json" when the latest.json endpoint 404s,
@@ -237,6 +249,26 @@
           {m.update_check_button()}
         </Button>
       </FormRow>
+
+      {#if lastCheckedAt || status === "error"}
+        <div class="update-diagnostics" data-testid="update-diagnostics">
+          {#if lastCheckedAt}
+            <div class="diag-line">
+              {m.update_last_checked({
+                when: formatRelativeTimeMs(lastCheckedAt),
+              })}
+            </div>
+          {/if}
+          {#if status === "error" && rawErrorMessage}
+            <div class="diag-line diag-error" data-testid="update-error-detail">
+              {m.update_error_detail({ message: rawErrorMessage })}
+            </div>
+          {/if}
+          <div class="diag-line diag-endpoint">
+            {m.update_check_endpoint({ url: UPDATE_ENDPOINT_URL })}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <div data-setting-anchor="update-auto">
@@ -313,5 +345,30 @@
     width: 16px;
     height: 16px;
     cursor: pointer;
+  }
+
+  .update-diagnostics {
+    margin-top: 4px;
+    padding-left: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .diag-line {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .diag-line.diag-error {
+    font-family: var(--font-mono);
+    color: var(--accent-red);
+    word-break: break-word;
+  }
+
+  .diag-line.diag-endpoint {
+    font-family: var(--font-mono);
+    word-break: break-all;
   }
 </style>

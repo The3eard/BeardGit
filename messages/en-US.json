@@ -993,5 +993,8 @@
   "tooltip_remove": "Remove",
   "tooltip_new_branch": "New branch",
   "tooltip_refresh": "Refresh",
-  "update_server_unreachable": "Couldn't reach the update server. Check your connection or try again later."
+  "update_server_unreachable": "Couldn't reach the update server. Check your connection or try again later.",
+  "update_last_checked": "Last checked {when}",
+  "update_check_endpoint": "Endpoint: {url}",
+  "update_error_detail": "Detail: {message}"
 }

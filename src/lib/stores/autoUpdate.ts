@@ -62,6 +62,14 @@ export interface UpdateState {
   downloadedBytes?: number;
   /** Total bytes expected in the download, when known. */
   totalBytes?: number;
+  /**
+   * Wall-clock timestamp (ms since epoch) of the most recent terminal
+   * `checkForUpdates` resolution — i.e. when we last got either
+   * `up_to_date`, `available`, or `error`. Useful as a "last
+   * heartbeat" indicator in the UI so users (especially developers)
+   * can confirm the check actually ran and isn't silently stuck.
+   */
+  lastCheckedAt?: number;
 }
 
 /** Platform identifier returned by `@tauri-apps/plugin-os`. */
@@ -113,8 +121,9 @@ export async function checkForUpdates(): Promise<UpdateStatus> {
   try {
     const { check } = await import("@tauri-apps/plugin-updater");
     const update = await check();
+    const lastCheckedAt = Date.now();
     if (!update) {
-      autoUpdateState.set({ status: "up_to_date" });
+      autoUpdateState.set({ status: "up_to_date", lastCheckedAt });
       return "up_to_date";
     }
     currentUpdate = update;
@@ -122,11 +131,16 @@ export async function checkForUpdates(): Promise<UpdateStatus> {
       status: "available",
       availableVersion: update.version,
       releaseNotes: update.body,
+      lastCheckedAt,
     });
     return "available";
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    autoUpdateState.set({ status: "error", error: message });
+    autoUpdateState.set({
+      status: "error",
+      error: message,
+      lastCheckedAt: Date.now(),
+    });
     return "error";
   }
 }
