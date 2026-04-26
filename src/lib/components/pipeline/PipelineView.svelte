@@ -10,6 +10,8 @@
   import PipelineList from "./PipelineList.svelte";
   import PipelineDetail from "./PipelineDetail.svelte";
   import JobLog from "./JobLog.svelte";
+  import { IconButton } from "$lib/components/ui";
+  import * as m from "$lib/paraglide/messages";
   import { loadCiRuns } from "../../stores/provider";
 
   let showJobLog = $state(false);
@@ -64,7 +66,7 @@
         <div class="vertical-resize-handle" onmousedown={startVerticalResize}></div>
         <div class="pipelines-log">
           <div class="log-header">
-            <button class="btn-icon" onclick={closeJobLog} title="Close log">{"\uF00D"}</button>
+            <IconButton icon={"\uF00D"} description={m.tooltip_close_log()} onclick={closeJobLog} />
           </div>
           <div class="log-content">
             <JobLog />
@@ -120,13 +122,6 @@
     flex-shrink: 0;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
-  }
-
-  /* Log header close button — compact padding */
-  .btn-icon {
-    padding: 2px 4px;
-    display: flex;
-    align-items: center;
   }
 
   .log-content {

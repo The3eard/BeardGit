@@ -53,6 +53,13 @@
     onclick?: (event: MouseEvent) => void;
     /** Optional `aria-label` for icon-only buttons (a11y). */
     ariaLabel?: string;
+    /**
+     * Optional hover description. When set, surfaces as the native
+     * browser `title` tooltip. Also used as the fallback `aria-label`
+     * when `ariaLabel` is not provided, so a button stays accessible
+     * for screen readers without callers having to repeat themselves.
+     */
+    description?: string;
     /** Optional `data-testid` forwarded to the underlying `<button>`. */
     testid?: string;
     /** Slot for label text/children. */
@@ -68,6 +75,7 @@
     type = "button",
     onclick,
     ariaLabel,
+    description,
     testid,
     children,
   }: Props = $props();
@@ -88,7 +96,8 @@
   class:bg-btn--loading={loading}
   disabled={disabled || loading}
   aria-busy={loading ? "true" : undefined}
-  aria-label={ariaLabel}
+  aria-label={ariaLabel ?? description}
+  title={description}
   data-variant={variant}
   data-size={size}
   data-testid={testid}

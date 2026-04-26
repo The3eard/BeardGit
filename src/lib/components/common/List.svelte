@@ -8,6 +8,8 @@
 <script lang="ts" generics="T">
   import type { Snippet } from "svelte";
   import { debounce } from "../../utils/debounce";
+  import { IconButton } from "$lib/components/ui";
+  import * as m from "$lib/paraglide/messages";
 
   interface Props {
     /** Items to display. */
@@ -147,14 +149,12 @@
         {@render headerActions()}
       </div>
     {:else if onRefresh}
-      <button
-        class="refresh-btn nf"
+      <IconButton
+        icon={"\uF021"}
+        description={m.tooltip_refresh()}
+        loading={loading}
         onclick={onRefresh}
-        disabled={loading}
-        title="Refresh"
-      >
-        {loading ? "\uF110" : "\uF021"}
-      </button>
+      />
     {/if}
   </div>
 
@@ -234,7 +234,7 @@
 <style>
   /* list.css provides: .list-header, .list-title, .header-actions,
      .list-items, .list-loading, .list-empty, .list-row, .list-row.selected,
-     .filter-row, .filter-input, .refresh-btn, .spinner (global via app.css) */
+     .filter-row, .filter-input, .spinner (global via app.css) */
 
   .list-panel {
     display: flex;

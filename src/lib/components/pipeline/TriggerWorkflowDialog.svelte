@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { listCiWorkflows, triggerWorkflow, activeProvider } from "../../stores/provider";
   import { repoInfo } from "../../stores/repo";
+  import { IconButton } from "$lib/components/ui";
   import type { Workflow } from "../../types";
   import * as m from "$lib/paraglide/messages";
 
@@ -99,7 +100,7 @@
     >
       <div class="dialog-header">
         <h2 id="trigger-wf-title">{m.pipeline_trigger_dialog_title()}</h2>
-        <button class="btn-icon" onclick={onClose} aria-label="Close">{"\uF00D"}</button>
+        <IconButton icon={"\uF00D"} description={m.tooltip_close()} onclick={onClose} />
       </div>
 
       <div class="dialog-body">
@@ -144,11 +145,7 @@
                   bind:value={pair.value}
                   placeholder={m.pipeline_variable_value_placeholder()}
                 />
-                <button
-                  class="btn-icon"
-                  onclick={() => removePair(i)}
-                  aria-label="Remove"
-                >{"\uF00D"}</button>
+                <IconButton icon={"\uF00D"} description={m.tooltip_remove()} onclick={() => removePair(i)} />
               </div>
             {/each}
             <button class="pair-add" onclick={addPair}>

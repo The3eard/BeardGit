@@ -6,6 +6,8 @@
   import List from "../common/List.svelte";
   import BranchTreeNode from "./BranchTreeNode.svelte";
   import RenameBranchDialog from "./RenameBranchDialog.svelte";
+  import { IconButton } from "$lib/components/ui";
+  import * as m from "$lib/paraglide/messages";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import type { BranchTreeNode as TreeNode } from "./branch-tree";
   import type { InitialSource } from "./suggest-local-name";
@@ -25,7 +27,6 @@
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
   import { rebaseBranch, pushRemote } from "../../api/tauri";
   import { runMutation } from "../../api/runMutation";
-  import * as m from "$lib/paraglide/messages";
   import type { BranchInfo } from "../../types";
 
   /**
@@ -254,18 +255,18 @@
   {getKey}
 >
   {#snippet headerActions()}
-    <button
-      class="header-btn nf"
-      title="New branch"
-      data-testid="branch-new-btn"
+    <IconButton
+      icon={"\uF067"}
+      description={m.tooltip_new_branch()}
+      testid="branch-new-btn"
       onclick={() => openCreateBranchDialog({ kind: "head" })}
-    >{''}</button>
-    <button
-      class="header-btn nf"
-      title="Refresh"
-      disabled={$branchesLoading}
+    />
+    <IconButton
+      icon={"\uF021"}
+      description={m.tooltip_refresh()}
+      loading={$branchesLoading}
       onclick={handleRefresh}
-    >{$branchesLoading ? '' : ''}</button>
+    />
   {/snippet}
 
   {#snippet afterHeader()}
@@ -431,26 +432,6 @@
     flex: 1;
     min-height: 0;
     min-width: 0;
-  }
-
-  .header-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 2px 4px;
-    font-size: 13px;
-    border-radius: 3px;
-  }
-
-  .header-btn:hover:not(:disabled) {
-    color: var(--text-primary);
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-  }
-
-  .header-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
   }
 
   .filter-row {

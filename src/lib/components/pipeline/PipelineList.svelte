@@ -13,6 +13,7 @@
   import SearchBar from "../common/SearchBar.svelte";
   import List from "../common/List.svelte";
   import TwoLineRow from "../common/TwoLineRow.svelte";
+  import { IconButton } from "$lib/components/ui";
   import type { SearchTag } from "../../search/types";
   import { ciFilters } from "../../search/ci-provider";
   import * as m from "$lib/paraglide/messages";
@@ -212,9 +213,12 @@
       onclick={() => (triggerDialogOpen = true)}
       disabled={!$hasActiveProvider}
     >{m.pipeline_action_trigger()}</button>
-    <button class="refresh-btn nf" onclick={refresh} disabled={loading} title="Refresh">
-      {loading ? "" : ""}
-    </button>
+    <IconButton
+      icon={"\uF021"}
+      description={m.tooltip_refresh()}
+      loading={loading}
+      onclick={refresh}
+    />
   {/snippet}
 
   {#snippet afterHeader()}

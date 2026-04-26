@@ -33,6 +33,7 @@
   } from "$lib/stores/aiBackground";
   import { repoInfo } from "$lib/stores/repo";
   import * as m from "$lib/paraglide/messages";
+  import { IconButton } from "$lib/components/ui";
   import ActiveRow from "./ActiveRow.svelte";
   import ConversationRow from "./ConversationRow.svelte";
 
@@ -66,15 +67,13 @@
       >
         + {m.ai_background_new_run_button()}
       </button>
-      <button
-        class="refresh-btn nf"
+      <IconButton
+        icon={"\uF021"}
+        description={m.tooltip_refresh()}
+        loading={$conversationsLoading}
         onclick={handleRefresh}
-        disabled={$conversationsLoading}
-        title="Refresh"
-        data-testid="ai-session-list-refresh"
-      >
-        {$conversationsLoading ? "" : ""}
-      </button>
+        testid="ai-session-list-refresh"
+      />
     </div>
   </div>
 
@@ -184,26 +183,6 @@
 
   .new-run-btn:hover {
     background: color-mix(in srgb, var(--accent-blue) 14%, transparent);
-  }
-
-  .refresh-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-family: var(--font-icons);
-    font-size: 12px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .refresh-btn:hover:not(:disabled) {
-    color: var(--text-primary);
-  }
-
-  .refresh-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .sections {

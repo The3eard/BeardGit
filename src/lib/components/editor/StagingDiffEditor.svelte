@@ -9,6 +9,7 @@
   import { stageHunks, unstageHunks, discardHunks } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
   import ConfirmDialog from "$lib/components/common/ConfirmDialog.svelte";
+  import { IconButton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -220,7 +221,7 @@
   <div class="header">
     <div class="header-left">
       {#if onClose}
-        <button class="btn-icon" onclick={onClose} title="Close">\uDB80\uDD99</button>
+        <IconButton icon={"\uF00D"} description={m.tooltip_close()} onclick={onClose} />
       {/if}
       <span class="filename" title={filename}>{filename}</span>
       <span class="stats">
@@ -378,13 +379,6 @@
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
-  }
-
-  /* StagingDiffEditor header is compact — tighter padding than .btn-icon default */
-  .btn-icon {
-    padding: 2px 4px;
-    display: flex;
-    align-items: center;
   }
 
   .filename {
