@@ -20,7 +20,7 @@ pub use ai_sessions::AiSessionWatcher;
 use mutation_events::{MutationKind, Snapshot, emit_mutation};
 use notify_debouncer_mini::new_debouncer;
 use std::path::PathBuf;
-use std::sync::{Mutex, mpsc};
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 use tauri::AppHandle;
 
@@ -60,8 +60,15 @@ fn is_relevant_event(event: &notify_debouncer_mini::DebouncedEvent) -> bool {
 /// resulting [`mutation_events::MutationFlags`] is non-empty, we emit a
 /// `project-mutated` event with [`MutationKind::External`] and cache the
 /// new snapshot. Drop the `RepoWatcher` to stop watching.
+///
+/// The cached snapshot is reachable via [`RepoWatcher::cached_snapshot`].
+/// Callers that perform a known internal mutation (e.g. the AI background
+/// coordinator creating a worktree) can hold the lock across the mutation
+/// and overwrite the snapshot before releasing, so the next debounce sees
+/// an empty diff and stays quiet.
 pub struct RepoWatcher {
     _debouncer: notify_debouncer_mini::Debouncer<notify::RecommendedWatcher>,
+    cached: Arc<Mutex<Snapshot>>,
 }
 
 impl RepoWatcher {
@@ -78,7 +85,10 @@ impl RepoWatcher {
     /// Returns an error if the underlying OS watcher cannot be initialised
     /// or if `repo_path` cannot be watched.
     pub fn start(app: AppHandle, repo_path: PathBuf) -> Result<Self, notify::Error> {
-        let cached = Mutex::new(Snapshot::capture(&repo_path).ok().unwrap_or_default());
+        let cached = Arc::new(Mutex::new(
+            Snapshot::capture(&repo_path).ok().unwrap_or_default(),
+        ));
+        let cached_for_thread = Arc::clone(&cached);
         let cb_path = repo_path.clone();
         let (tx, rx) = mpsc::channel();
 
@@ -93,17 +103,22 @@ impl RepoWatcher {
                 if !events.iter().any(is_relevant_event) {
                     continue;
                 }
+                // Acquire the cache lock first so a concurrent caller that
+                // is mid-internal-mutation (holding the same lock and about
+                // to overwrite the cache) wins the race — we read the
+                // post-mutation snapshot they store, diff against current,
+                // and emit nothing.
+                let mut guard = match cached_for_thread.lock() {
+                    Ok(g) => g,
+                    Err(err) => {
+                        tracing::warn!(?err, "watcher cache mutex poisoned");
+                        continue;
+                    }
+                };
                 let after = match Snapshot::capture(&cb_path) {
                     Ok(s) => s,
                     Err(err) => {
                         tracing::warn!(?err, "watcher snapshot capture failed");
-                        continue;
-                    }
-                };
-                let mut guard = match cached.lock() {
-                    Ok(g) => g,
-                    Err(err) => {
-                        tracing::warn!(?err, "watcher cache mutex poisoned");
                         continue;
                     }
                 };
@@ -120,7 +135,30 @@ impl RepoWatcher {
 
         Ok(Self {
             _debouncer: debouncer,
+            cached,
         })
+    }
+
+    /// Handle to the cached snapshot used by the debounce thread for
+    /// diffing.
+    ///
+    /// Callers that own a mutation the watcher would otherwise observe
+    /// (e.g. creating a worktree the user explicitly requested via the AI
+    /// background flow) should:
+    ///
+    /// 1. Lock this mutex *before* performing the mutation.
+    /// 2. Run the mutation.
+    /// 3. Overwrite the locked snapshot with a fresh
+    ///    [`Snapshot::capture`].
+    /// 4. Drop the guard.
+    ///
+    /// The next debounced batch will diff against the stored
+    /// post-mutation snapshot, see no relevant flags, and skip the emit —
+    /// suppressing exactly the spurious refresh the mutation would have
+    /// triggered while leaving any *concurrent* external mutation
+    /// detectable on the following batch.
+    pub fn cached_snapshot(&self) -> Arc<Mutex<Snapshot>> {
+        Arc::clone(&self.cached)
     }
 }
 

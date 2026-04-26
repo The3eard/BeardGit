@@ -77,6 +77,16 @@ pub struct StartArgs {
     /// Maximum concurrent runs allowed at the time of this call. The
     /// coordinator clamps this to at least 1.
     pub concurrency_cap: u32,
+    /// Shared handle to the active project's [`watcher::RepoWatcher`] cached
+    /// [`Snapshot`].
+    ///
+    /// When provided, [`AiBackgroundCoordinator::start`] holds this lock
+    /// across the `git worktree add` call and overwrites the snapshot with
+    /// a fresh capture before releasing — so the next debounced batch in
+    /// the watcher thread diffs against the post-creation state and emits
+    /// nothing for our own change. `None` falls back to letting the
+    /// watcher emit naturally (used by tests that never start a watcher).
+    pub watcher_cached_snapshot: Option<Arc<Mutex<Snapshot>>>,
 }
 
 /// The output returned by a successful [`AiBackgroundCoordinator::start`]
@@ -281,14 +291,36 @@ impl AiBackgroundCoordinator {
             ))
         })?;
         let new_branch = format!("ai/{}/{}", provider_slug(args.provider), slug);
-        repo.create_worktree_at(
-            worktree_path
-                .to_str()
-                .ok_or_else(|| AiError::CommandBuild("worktree path is not valid UTF-8".into()))?,
-            &new_branch,
-            &args.base_branch,
-        )
-        .map_err(|e| AiError::CommandBuild(format!("failed to create worktree: {e}")))?;
+        let worktree_path_str = worktree_path
+            .to_str()
+            .ok_or_else(|| AiError::CommandBuild("worktree path is not valid UTF-8".into()))?;
+        // Hold the watcher's cached-snapshot lock across the
+        // `git worktree add` so the watcher thread cannot run a diff/emit
+        // cycle for the new branch ref + worktree count it would otherwise
+        // observe. After the worktree exists, overwrite the cached
+        // snapshot with a fresh capture so the next debounced batch sees
+        // an empty diff and the spurious `project-mutated` (which would
+        // trigger a heavy `refresh_graph_layout` rebuild on the frontend)
+        // is suppressed. `watcher_cached_snapshot = None` falls through
+        // to the unsynchronised path used by tests.
+        if let Some(ref cache_arc) = args.watcher_cached_snapshot {
+            let mut guard = cache_arc.lock().map_err(|e| {
+                AiError::CommandBuild(format!("watcher snapshot mutex poisoned: {e}"))
+            })?;
+            repo.create_worktree_at(worktree_path_str, &new_branch, &args.base_branch)
+                .map_err(|e| AiError::CommandBuild(format!("failed to create worktree: {e}")))?;
+            match Snapshot::capture(&args.repo_root) {
+                Ok(after) => *guard = after,
+                Err(err) => warn!(
+                    error = %err,
+                    "post-worktree-creation snapshot capture failed; \
+                     watcher may emit a redundant project-mutated event"
+                ),
+            }
+        } else {
+            repo.create_worktree_at(worktree_path_str, &new_branch, &args.base_branch)
+                .map_err(|e| AiError::CommandBuild(format!("failed to create worktree: {e}")))?;
+        }
 
         // 4. Build the provider input and the AiSession record.
         let input = AiBackgroundRunInput {
@@ -1060,6 +1092,7 @@ mod tests {
             worktree_root_override: None,
             auto_accept_permissions: false,
             concurrency_cap: 3,
+            watcher_cached_snapshot: None,
         };
         let out = coord.start(args, &provider).expect("start must succeed");
         assert!(out.worktree_path.exists(), "worktree should be on disk");
@@ -1130,6 +1163,7 @@ mod tests {
             worktree_root_override: None,
             auto_accept_permissions: false,
             concurrency_cap: 1, // tight cap forces queueing
+            watcher_cached_snapshot: None,
         };
 
         let first = coord.start(args_for("r1", "first"), slow).unwrap();
@@ -1186,6 +1220,7 @@ mod tests {
                     worktree_root_override: None,
                     auto_accept_permissions: false,
                     concurrency_cap: 1,
+                    watcher_cached_snapshot: None,
                 },
                 &provider,
             )
@@ -1204,6 +1239,7 @@ mod tests {
                     worktree_root_override: None,
                     auto_accept_permissions: false,
                     concurrency_cap: 1,
+                    watcher_cached_snapshot: None,
                 },
                 &provider,
             )
@@ -1350,6 +1386,7 @@ mod tests {
             worktree_root_override: None,
             auto_accept_permissions: false,
             concurrency_cap: 3,
+            watcher_cached_snapshot: None,
         };
         let out = coord.start(args, &provider).expect("start must succeed");
         wait_terminal(&coord, &out.session_id).await;
@@ -1408,6 +1445,7 @@ mod tests {
             worktree_root_override: None,
             auto_accept_permissions: false,
             concurrency_cap: 3,
+            watcher_cached_snapshot: None,
         };
         let out = coord.start(args, &provider).expect("start must succeed");
         wait_terminal(&coord, &out.session_id).await;
@@ -1418,6 +1456,90 @@ mod tests {
             "expected no mutation events for a no-op AI run, got {mutations:?}"
         );
 
+        let _ = coord.discard_worktree(&out.session_id);
+    }
+
+    /// When the caller hands a watcher's cached-snapshot Arc to
+    /// `start()`, the coordinator must overwrite it with a fresh capture
+    /// covering the new ai/* ref + bumped worktree count. The watcher's
+    /// next debounced batch then diffs CURRENT vs that updated cache and
+    /// finds an empty diff, so no `project-mutated` is emitted for the
+    /// worktree creation we just performed.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn start_resyncs_provided_watcher_snapshot() {
+        use std::sync::Mutex as StdMutex;
+
+        let (tmp, base_branch) = init_test_repo();
+        let sink_bridge = Arc::new(CoordinatorTestSink {
+            coord: Mutex::new(None),
+        });
+        let task_manager = Arc::new(TaskManager::new(sink_bridge.clone()));
+        let recorder = Arc::new(RecordingSink::default());
+        let coord = Arc::new(AiBackgroundCoordinator::new(
+            Arc::clone(&task_manager),
+            recorder.clone(),
+        ));
+        sink_bridge.install(Arc::clone(&coord));
+
+        // Seed the shared cache the way `RepoWatcher::start` would: a
+        // capture of the repo right before the AI flow runs.
+        let pre_snapshot = Snapshot::capture(tmp.path()).expect("pre snapshot");
+        let cache = Arc::new(StdMutex::new(pre_snapshot.clone()));
+
+        let provider = StubProvider {
+            script: "true".into(),
+            binary: PathBuf::from("/usr/bin/false"),
+            uses_stdin: false,
+        };
+        let args = StartArgs {
+            repo_root: tmp.path().to_path_buf(),
+            provider: AiProviderKind::ClaudeCode,
+            base_branch,
+            prompt: "resync test".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            worktree_slug_override: Some("resync".into()),
+            worktree_root_override: None,
+            auto_accept_permissions: false,
+            concurrency_cap: 3,
+            watcher_cached_snapshot: Some(Arc::clone(&cache)),
+        };
+        let out = coord.start(args, &provider).expect("start must succeed");
+
+        // The cache the coordinator stored must now match the post-creation
+        // state — same refs (with the new ai/claude-code/resync entry), same
+        // worktree count (one more than before).
+        let cached_after = cache.lock().unwrap().clone();
+        assert_ne!(
+            cached_after, pre_snapshot,
+            "cache should have been overwritten with a fresh capture"
+        );
+        assert_eq!(
+            cached_after.worktree_count,
+            pre_snapshot.worktree_count + 1,
+            "post-start cache should reflect the new worktree"
+        );
+        assert!(
+            cached_after
+                .refs
+                .keys()
+                .any(|r| r == "refs/heads/ai/claude-code/resync"),
+            "post-start cache should include the new ai branch ref"
+        );
+
+        // Most important: a watcher-style debounce that fires *now* would
+        // diff CURRENT vs `cached_after`. We simulate that — if the diff
+        // is non-empty, the watcher would emit and trigger the spurious
+        // graph reload we're trying to avoid.
+        let current = Snapshot::capture(tmp.path()).expect("post-start capture");
+        let flags = cached_after.diff(&current);
+        assert!(
+            flags.is_empty(),
+            "watcher debounce after start() should diff to empty (got {flags:?})"
+        );
+
+        wait_terminal(&coord, &out.session_id).await;
         let _ = coord.discard_worktree(&out.session_id);
     }
 }

@@ -107,6 +107,20 @@ pub async fn ai_start_background_run(
         )
     };
 
+    // Hand the active project's RepoWatcher cached-snapshot Arc to the
+    // coordinator so the `git worktree add` it performs can be made
+    // invisible to the watcher's debouncer (avoids a spurious
+    // `project-mutated` event that would trigger a full `refresh_graph_layout`
+    // on the frontend). `None` if no project / no watcher running yet — the
+    // coordinator falls through to the unsynchronised path.
+    let watcher_cached_snapshot = {
+        let projects = state.projects.lock().map_err(|e| e.to_string())?;
+        let active = state.active_index.lock().map_err(|e| e.to_string())?;
+        active
+            .and_then(|idx| projects.get(idx))
+            .and_then(|slot| slot.watcher.as_ref().map(|w| w.cached_snapshot()))
+    };
+
     let args = StartArgs {
         repo_root,
         provider: kind,
@@ -119,6 +133,7 @@ pub async fn ai_start_background_run(
         worktree_root_override,
         auto_accept_permissions: auto_accept,
         concurrency_cap,
+        watcher_cached_snapshot,
     };
 
     let coord = coordinator(&state)?;

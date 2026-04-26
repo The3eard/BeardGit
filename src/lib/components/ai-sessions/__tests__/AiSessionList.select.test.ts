@@ -114,10 +114,14 @@ describe("AiSessionList selection — mutual exclusion", () => {
     expect(get(selectedBackgroundSessionId)).toBeNull();
   });
 
-  it("bg active-row stores the bg variant in selectedActiveTerminal", async () => {
+  it("bg active-row routes selection to selectedBackgroundSessionId", async () => {
+    // The detail pane renders bg sessions via the bg-run branch (status
+    // badge, transcript, focus/cancel/discard) and intentionally drops
+    // bg-kind values from the active branch — so a bg row click must
+    // populate `selectedBackgroundSessionId`, not `selectedActiveTerminal`.
     aiBackgroundRuns.set(new Map([[BG_RUN.id, BG_RUN]]));
     selectedConversationId.set("keep-nothing");
-    selectedBackgroundSessionId.set("also-nothing");
+    selectedActiveTerminal.set({ kind: "tab", tabIndex: 0, info: TAB.terminal });
 
     const { container } = render(AiSessionList);
     await tick();
@@ -128,12 +132,8 @@ describe("AiSessionList selection — mutual exclusion", () => {
     expect(row).toBeTruthy();
     await fireEvent.click(row);
 
-    const sel = get(selectedActiveTerminal);
-    expect(sel?.kind).toBe("bg");
-    if (sel?.kind === "bg") {
-      expect(sel.session.id).toBe(BG_RUN.id);
-    }
+    expect(get(selectedBackgroundSessionId)).toBe(BG_RUN.id);
+    expect(get(selectedActiveTerminal)).toBeNull();
     expect(get(selectedConversationId)).toBeNull();
-    expect(get(selectedBackgroundSessionId)).toBeNull();
   });
 });
