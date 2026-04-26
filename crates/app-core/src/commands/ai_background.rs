@@ -180,6 +180,27 @@ pub async fn ai_get_background_run(
     Ok(coord.get(&session_id))
 }
 
+/// Read the markdown report the coordinator asked the AI to drop at
+/// `<repo>/.beardgit/ai-reports/<session_id>.md`, or `None` when the
+/// file doesn't exist (the AI didn't write it, or the run is still in
+/// flight). The frontend renders the markdown body in the bg-run
+/// detail pane and falls back to a "no report written" empty state.
+#[tauri::command]
+pub async fn ai_get_background_report(
+    session_id: String,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let repo_root = get_active_project_path(&state)?;
+    let path = crate::ai_background::report_path_for(&repo_root, &session_id);
+    tokio::task::spawn_blocking(move || match std::fs::read_to_string(&path) {
+        Ok(contents) => Ok(Some(contents)),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(format!("failed to read report {}: {err}", path.display())),
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Remove the worktree for a terminal-state run and scrub the session
 /// record.
 #[tauri::command]

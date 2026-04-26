@@ -1361,6 +1361,15 @@ export async function aiGetBackgroundRun(sessionId: string): Promise<AiSession |
   return invoke<AiSession | null>("ai_get_background_run", { sessionId });
 }
 
+/**
+ * Read the markdown report the AI wrote at
+ * `<repo>/.beardgit/ai-reports/<sessionId>.md`. Returns `null` when the
+ * file doesn't exist (run still in flight, or AI didn't write one).
+ */
+export async function aiGetBackgroundReport(sessionId: string): Promise<string | null> {
+  return invoke<string | null>("ai_get_background_report", { sessionId });
+}
+
 /** Remove the worktree + branch created for a terminal-state background run. */
 export async function aiDiscardBackgroundRunWorktree(sessionId: string): Promise<void> {
   return invoke<void>("ai_discard_background_run_worktree", { sessionId });

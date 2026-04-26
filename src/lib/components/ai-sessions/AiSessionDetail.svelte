@@ -25,6 +25,8 @@
     openTerminalForAiBackgroundSession,
     selectedBackgroundSession,
   } from "$lib/stores/aiBackground";
+  import { aiGetBackgroundReport } from "$lib/api/tauri";
+  import { renderMarkdown } from "$lib/utils/markdown";
   import {
     selectedConversation,
   } from "$lib/stores/aiConversations";
@@ -242,6 +244,61 @@
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
   }
+
+  // ─── Report fetch ──────────────────────────────────────────────────
+  // Backend asks the AI to write a markdown report at
+  // `<repo>/.beardgit/ai-reports/<session_id>.md`. We fetch it when:
+  //   - selection changes to a different bg session
+  //   - the run reaches a terminal state (where the AI just had a
+  //     chance to finish writing)
+  //   - the user presses the inline Refresh button below
+  //
+  // Result is the raw markdown string, or null when the file isn't on
+  // disk yet (run still in flight, or AI didn't write one).
+  let report = $state<string | null>(null);
+  let reportLoading = $state(false);
+  /** Bottom pane content selector: rendered report (default) or raw transcript. */
+  let bottomView = $state<"report" | "transcript">("report");
+
+  async function loadReport(sessionId: string) {
+    reportLoading = true;
+    try {
+      const next = await aiGetBackgroundReport(sessionId);
+      // Last-wins: only keep the result if the selection didn't move.
+      if (bgSession?.id === sessionId) {
+        report = next;
+      }
+    } catch {
+      // The IPC layer surfaces a friendly toast for hard failures
+      // (`get_active_project_path` errors when no project active). For
+      // missing-file we already return None on the backend, so a thrown
+      // error here means *something else* went wrong — surface as a
+      // null report so the UI shows the empty state rather than crashes.
+      if (bgSession?.id === sessionId) report = null;
+    } finally {
+      if (bgSession?.id === sessionId) reportLoading = false;
+    }
+  }
+
+  // Refetch on bgSession.id change AND on terminal-state transition.
+  // Using `untrack` would be more surgical but the cost is one IPC call
+  // per status transition — negligible.
+  let lastFetchKey = $state("");
+  $effect(() => {
+    if (!bgSession) {
+      report = null;
+      lastFetchKey = "";
+      return;
+    }
+    const key = `${bgSession.id}:${bgSession.background_status?.state ?? ""}`;
+    if (key === lastFetchKey) return;
+    lastFetchKey = key;
+    void loadReport(bgSession.id);
+  });
+
+  function handleRefreshReport() {
+    if (bgSession) void loadReport(bgSession.id);
+  }
 </script>
 
 {#if conversation}
@@ -384,14 +441,70 @@
         class="split-handle"
         onmousedown={startSplitResize}
       ></div>
-      <section class="split-pane transcript-pane" data-testid="ai-session-detail-output">
+      <section class="split-pane transcript-pane" data-testid="ai-session-detail-bottom">
         <header class="split-header">
-          <span class="split-title">{m.ai_background_section_output()}</span>
-          <span class="split-meta">
-            {m.ai_background_section_output_lines({ count: transcript.length })}
+          <span class="split-title">
+            {bottomView === "report"
+              ? m.ai_background_section_report()
+              : m.ai_background_section_output()}
           </span>
+          <div class="split-actions">
+            {#if bottomView === "report"}
+              <button
+                class="split-link"
+                onclick={handleRefreshReport}
+                disabled={reportLoading}
+                title={m.ai_background_report_refresh_tooltip()}
+                data-testid="ai-session-detail-report-refresh"
+              >
+                {reportLoading
+                  ? m.ai_background_report_loading()
+                  : m.ai_background_report_refresh()}
+              </button>
+              <button
+                class="split-link"
+                onclick={() => (bottomView = "transcript")}
+                data-testid="ai-session-detail-show-transcript"
+              >
+                {m.ai_background_show_transcript({
+                  count: transcript.length,
+                })}
+              </button>
+            {:else}
+              <button
+                class="split-link"
+                onclick={() => (bottomView = "report")}
+                data-testid="ai-session-detail-show-report"
+              >
+                {m.ai_background_show_report()}
+              </button>
+            {/if}
+          </div>
         </header>
-        {#if transcript.length === 0}
+        {#if bottomView === "report"}
+          {#if report && report.trim().length > 0}
+            <article
+              class="report-body"
+              data-testid="ai-session-detail-report"
+            >
+              {@html renderMarkdown(report)}
+            </article>
+          {:else if reportLoading}
+            <div class="output-empty" data-testid="ai-session-detail-report-loading">
+              <p class="output-empty-title">{m.ai_background_report_loading_title()}</p>
+            </div>
+          {:else if isRunning}
+            <div class="output-empty" data-testid="ai-session-detail-report-pending">
+              <p class="output-empty-title">{m.ai_background_report_pending_title()}</p>
+              <p class="output-empty-hint">{m.ai_background_report_pending_hint()}</p>
+            </div>
+          {:else}
+            <div class="output-empty" data-testid="ai-session-detail-report-missing">
+              <p class="output-empty-title">{m.ai_background_report_missing_title()}</p>
+              <p class="output-empty-hint">{m.ai_background_report_missing_hint()}</p>
+            </div>
+          {/if}
+        {:else if transcript.length === 0}
           <div class="output-empty" data-testid="ai-session-detail-output-empty">
             <p class="output-empty-title">{m.ai_background_output_empty_title()}</p>
             <p class="output-empty-hint">{m.ai_background_output_empty_hint()}</p>
@@ -634,11 +747,96 @@
     color: var(--text-secondary);
   }
 
-  .split-meta {
-    font-size: 10px;
+  .split-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Inline link-style buttons for the bottom-pane header (Refresh +
+     swap between Report and Transcript). Quiet at rest so they don't
+     compete with the Prompt header above; light up on hover. */
+  .split-link {
+    background: transparent;
+    border: none;
     color: var(--text-secondary);
-    opacity: 0.7;
-    font-variant-numeric: tabular-nums;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .split-link:hover:not(:disabled) {
+    color: var(--accent-blue);
+  }
+
+  .split-link:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Rendered markdown body of the AI report. Matches the surrounding
+     dark theme — backgrounds and links pull from the same CSS tokens
+     used elsewhere so the report doesn't look like a foreign element
+     pasted into the panel. */
+  .report-body {
+    flex: 1;
+    overflow: auto;
+    padding: 12px 14px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .report-body :global(h1),
+  .report-body :global(h2),
+  .report-body :global(h3) {
+    margin: 14px 0 8px;
+    color: var(--text-primary);
+  }
+  .report-body :global(h1) { font-size: 15px; }
+  .report-body :global(h2) { font-size: 13px; }
+  .report-body :global(h3) { font-size: 12px; }
+  .report-body :global(p) { margin: 6px 0; }
+  .report-body :global(ul),
+  .report-body :global(ol) {
+    margin: 6px 0;
+    padding-left: 22px;
+  }
+  .report-body :global(li) { margin: 2px 0; }
+  .report-body :global(code) {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 1px 4px;
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+    border-radius: 3px;
+  }
+  .report-body :global(pre) {
+    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+    padding: 8px 10px;
+    border-radius: 4px;
+    overflow: auto;
+    font-size: 11px;
+  }
+  .report-body :global(pre code) {
+    background: transparent;
+    padding: 0;
+  }
+  .report-body :global(a) {
+    color: var(--accent-blue);
+    text-decoration: none;
+  }
+  .report-body :global(a:hover) {
+    text-decoration: underline;
+  }
+  .report-body :global(blockquote) {
+    margin: 6px 0;
+    padding-left: 10px;
+    border-left: 2px solid var(--border);
+    color: var(--text-secondary);
   }
 
   .output-empty {

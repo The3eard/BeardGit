@@ -43,6 +43,13 @@ use tracing::{info, warn};
 /// Default sub-path under the repo root used for AI-created worktrees.
 pub const DEFAULT_AI_WORKTREE_ROOT: &str = ".beardgit/ai-worktrees";
 
+/// Sub-path under the repo root where AI background runs are asked to
+/// drop a final markdown report. Lives alongside the worktree root so
+/// `.gitignore`'s `.beardgit/` rule covers it without extra config, and
+/// stays in the *parent* repo so the report survives a `Discard
+/// worktree` action.
+pub const DEFAULT_AI_REPORTS_ROOT: &str = ".beardgit/ai-reports";
+
 /// Arguments accepted by [`AiBackgroundCoordinator::start`].
 ///
 /// All fields use `snake_case` to match what the Tauri command layer passes
@@ -269,8 +276,27 @@ impl AiBackgroundCoordinator {
         let slug = unique_slug(&slug, &worktree_root);
         let worktree_path = worktree_root.join(&slug);
 
+        // 1b. Mint the session id up-front so the report-writing
+        //     instruction in step 2 can interpolate it (the AI is asked
+        //     to write `<repo>/.beardgit/ai-reports/<session_id>.md`),
+        //     and ensure the parent directory exists so the AI's Write
+        //     tool doesn't fail on a missing dir.
+        let session_id = format!(
+            "aibg-{}-{}-{}",
+            provider_slug(args.provider),
+            now_millis().unwrap_or_default(),
+            self.next_session_counter.fetch_add(1, Ordering::SeqCst),
+        );
+        let report_path = report_path_for(&args.repo_root, &session_id);
+        if let Some(reports_dir) = report_path.parent() {
+            std::fs::create_dir_all(reports_dir).map_err(AiError::Io)?;
+        }
+
         // 2. Build the combined prompt text — saved prompt + free text, plus
-        //    a skill marker for providers that don't support --skill natively.
+        //    a skill marker for providers that don't support --skill natively,
+        //    plus a fixed suffix asking the AI to leave a markdown report at
+        //    `report_path` so the user has a readable summary even when the
+        //    raw stream-json is noisy or empty.
         let mut combined_prompt = String::new();
         if let Some(ref saved) = args.saved_prompt_path {
             match std::fs::read_to_string(saved) {
@@ -298,6 +324,7 @@ impl AiBackgroundCoordinator {
             combined_prompt.push_str(&format!("[use skill: {skill}]\n\n"));
         }
         combined_prompt.push_str(&args.prompt);
+        combined_prompt.push_str(&build_report_instruction(&report_path));
 
         // 3. Create the worktree. Parent directories must exist.
         if let Some(parent) = worktree_path.parent() {
@@ -341,7 +368,9 @@ impl AiBackgroundCoordinator {
                 .map_err(|e| AiError::CommandBuild(format!("failed to create worktree: {e}")))?;
         }
 
-        // 4. Build the provider input and the AiSession record.
+        // 4. Build the provider input and the AiSession record. (The
+        //    session id was minted up-front in step 1b so the report
+        //    suffix could reference it.)
         let input = AiBackgroundRunInput {
             provider: args.provider,
             worktree_path: worktree_path.clone(),
@@ -351,13 +380,6 @@ impl AiBackgroundCoordinator {
             resume_session_id: args.resume_session_id,
             auto_accept_permissions: args.auto_accept_permissions,
         };
-
-        let session_id = format!(
-            "aibg-{}-{}-{}",
-            provider_slug(args.provider),
-            now_millis().unwrap_or_default(),
-            self.next_session_counter.fetch_add(1, Ordering::SeqCst),
-        );
 
         let started_at = now_millis();
         // Echo the user-typed prompt back through the session record so
@@ -919,6 +941,48 @@ pub fn unique_slug(base: &str, worktree_root: &Path) -> String {
         }
     }
     format!("{base}-{}", now_millis().unwrap_or_default())
+}
+
+/// Resolve the absolute path the AI background coordinator asks the
+/// model to write its post-run report to.
+///
+/// `<repo>/.beardgit/ai-reports/<session_id>.md`. Stays in the parent
+/// repo (not the worktree) so the file survives a `Discard worktree`
+/// action — that's the whole point of having a report separate from
+/// the worktree's transient state.
+pub fn report_path_for(repo_root: &Path, session_id: &str) -> PathBuf {
+    repo_root
+        .join(DEFAULT_AI_REPORTS_ROOT)
+        .join(format!("{session_id}.md"))
+}
+
+/// Build the trailing instruction the coordinator appends to every bg
+/// run prompt asking the model to drop a markdown report at
+/// `report_path` once it's done.
+///
+/// The wording is deliberately tool-agnostic — we don't reference
+/// Claude's `Write` tool by name so Codex / OpenCode honour the same
+/// instruction. We do mention the `--dangerously-skip-permissions`
+/// case because without it a permissions-bound provider can't actually
+/// write the file and the user will end up with an empty report.
+fn build_report_instruction(report_path: &Path) -> String {
+    format!(
+        "\n\n---\n\
+         When you finish this task, write a brief markdown report to:\n\
+         \n  {}\n\n\
+         The report should cover, in this order:\n\
+         - One-line summary of what was attempted.\n\
+         - Outcome — success / partial / failure.\n\
+         - Files changed (paths only; no need for diffs).\n\
+         - Any errors or blockers hit.\n\
+         - Suggested follow-up, if any.\n\
+         \n\
+         Write the report even if you couldn't complete the task. Keep \
+         it under 500 words. If you don't have permission to write \
+         files, skip the report — the BeardGit UI surfaces the absence \
+         as a hint to rerun with permissions enabled.\n",
+        report_path.display(),
+    )
 }
 
 fn provider_slug(kind: AiProviderKind) -> &'static str {
@@ -1630,6 +1694,135 @@ mod tests {
         );
 
         wait_terminal(&coord, &out.session_id).await;
+        let _ = coord.discard_worktree(&out.session_id);
+    }
+
+    /// Every bg run gets a fixed suffix asking the AI to write its
+    /// post-run report at `<repo>/.beardgit/ai-reports/<session>.md`.
+    /// That contract is what powers the Report pane in the UI, so guard
+    /// against accidental regressions: the prompt fed to the provider
+    /// must contain (a) the absolute report path, and (b) the
+    /// instructional sentence asking the AI to "write a brief markdown
+    /// report".
+    #[tokio::test(flavor = "multi_thread")]
+    async fn start_appends_report_instruction_to_prompt() {
+        use std::sync::Mutex as StdMutex;
+
+        let (tmp, base_branch) = init_test_repo();
+
+        // Capture the prompt the coordinator hands to `launch_background`
+        // so we can assert the suffix is present.
+        let captured: Arc<StdMutex<Option<String>>> = Arc::new(StdMutex::new(None));
+        struct CaptureProvider {
+            seen: Arc<StdMutex<Option<String>>>,
+        }
+        impl AiProvider for CaptureProvider {
+            fn provider_kind(&self) -> AiProviderKind {
+                AiProviderKind::ClaudeCode
+            }
+            fn binary_name(&self) -> &str {
+                "stub"
+            }
+            fn detect_binary(&self) -> Option<PathBuf> {
+                Some(PathBuf::from("/usr/bin/false"))
+            }
+            fn version(&self) -> Result<String, AiError> {
+                Ok("stub".into())
+            }
+            fn detect_in_repo(&self, _repo_path: &Path) -> bool {
+                true
+            }
+            fn build_execute_command(
+                &self,
+                _prompt: &str,
+                cwd: &Path,
+                _options: &ExecuteOptions,
+            ) -> Result<StdCommand, AiError> {
+                let mut cmd = StdCommand::new("true");
+                cmd.current_dir(cwd);
+                Ok(cmd)
+            }
+            fn build_interactive_cmd(&self, cwd: &Path) -> Result<StdCommand, AiError> {
+                let mut cmd = StdCommand::new("true");
+                cmd.current_dir(cwd);
+                Ok(cmd)
+            }
+            fn launch_background(
+                &self,
+                input: AiBackgroundRunInput,
+            ) -> Result<StdCommand, AiError> {
+                *self.seen.lock().unwrap() = Some(input.prompt.clone());
+                let mut cmd = StdCommand::new("true");
+                cmd.current_dir(&input.worktree_path);
+                Ok(cmd)
+            }
+            fn background_uses_stdin_prompt(&self) -> bool {
+                false
+            }
+            fn config_files(&self, _repo_path: &Path) -> Vec<ai_provider::AiConfigFile> {
+                vec![]
+            }
+            fn instruction_files(&self, _repo_path: &Path) -> Vec<PathBuf> {
+                vec![]
+            }
+        }
+
+        let sink_bridge = Arc::new(CoordinatorTestSink {
+            coord: Mutex::new(None),
+        });
+        let task_manager = Arc::new(TaskManager::new(sink_bridge.clone()));
+        let recorder = Arc::new(RecordingSink::default());
+        let coord = Arc::new(AiBackgroundCoordinator::new(
+            Arc::clone(&task_manager),
+            recorder.clone(),
+        ));
+        sink_bridge.install(Arc::clone(&coord));
+
+        let provider = CaptureProvider {
+            seen: Arc::clone(&captured),
+        };
+        let args = StartArgs {
+            repo_root: tmp.path().to_path_buf(),
+            provider: AiProviderKind::ClaudeCode,
+            base_branch,
+            prompt: "Refactor the logger".into(),
+            skill: None,
+            saved_prompt_path: None,
+            resume_session_id: None,
+            worktree_slug_override: Some("report-test".into()),
+            worktree_root_override: None,
+            auto_accept_permissions: false,
+            concurrency_cap: 3,
+            watcher_cached_snapshot: None,
+        };
+        let out = coord.start(args, &provider).expect("start must succeed");
+
+        let prompt = captured
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("launch_background should have been called");
+        assert!(
+            prompt.contains("Refactor the logger"),
+            "user prompt must still be present, got: {prompt}"
+        );
+        assert!(
+            prompt.contains("write a brief markdown report"),
+            "report instruction must be appended, got: {prompt}"
+        );
+        let expected_path = report_path_for(tmp.path(), &out.session_id);
+        assert!(
+            prompt.contains(expected_path.to_str().unwrap()),
+            "absolute report path must be in the prompt, got: {prompt}"
+        );
+
+        // Reports dir must exist on disk before the AI runs so its
+        // Write tool doesn't fail on a missing parent.
+        assert!(
+            expected_path.parent().unwrap().is_dir(),
+            "reports dir should be created up-front"
+        );
+
         let _ = coord.discard_worktree(&out.session_id);
     }
 
