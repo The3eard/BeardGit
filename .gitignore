@@ -55,6 +55,9 @@ src-tauri/icons/ios/
 # Git worktrees
 .worktrees/
 
+# BeardGit-managed AI background-run worktrees, scratch state, per-app caches
+.beardgit/
+
 # Environment
 .env
 .env.local

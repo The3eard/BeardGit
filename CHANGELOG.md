@@ -2,6 +2,20 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Sidebar edit-menu fixes
+
+### Fixed — drag-reorder of Navigation items did nothing
+
+`fix(sidebar): enable HTML5 drag-drop by disabling Tauri native intercept`. Tauri 2 windows ship with `dragDropEnabled: true` by default — that intercepts pointer drag events at the window level for the native file-drop API and silently swallows the HTML5 `dragstart` / `dragover` / `drop` events the sidebar uses to reorder Navigation items. Set `dragDropEnabled: false` on the main window so the customize-layout drag-handle actually works. The keyboard fallback (focus the handle, ArrowUp / ArrowDown) was always functional but invisible to most users; both now work.
+
+### Added — "Show more…" expander when items are hidden
+
+`feat(sidebar): inline reveal for hidden navigation items`. The customize-layout panel lets the user hide Navigation items, but in normal mode there was no escape hatch — once hidden, an item could only be re-enabled by entering edit mode. A new `Show more…` row now appears below the visible list whenever any item is hidden, with a count badge of how many. Clicking it expands the hidden items inline (dimmed but clickable, so they're still navigable); clicking again collapses them. Local-only UI state — re-collapses on next mount.
+
+### Fixed — customize-sidebar pencil button rendered a hover rectangle
+
+`fix(sidebar): edit-toggle uses IconButton`. The "customize navigation" pencil in the sidebar's Navigation header had its own `.edit-toggle` style that drew a faint rectangular fill on hover, breaking the app-wide rule established in the IconButton refactor (icon-only buttons brighten the glyph, never draw a background). Migrated to the shared `IconButton` and dropped the dead CSS. Tooltip is the new `tooltip_customize_sidebar` paraglide key (en + es).
+
 ## [Unreleased] — Post-IconButton polish
 
 ### Fixed — `gh pr view` regression on `headRepositoryUrl`

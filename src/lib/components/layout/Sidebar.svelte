@@ -9,6 +9,7 @@
     type SidebarNavItem,
   } from "../../utils/applyLayout";
   import { addToast } from "../../stores/toast";
+  import { IconButton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
 
   let {
@@ -42,12 +43,21 @@
   let editMode = $state(false);
   let dragIndex = $state<number | null>(null);
   let dragOverIndex = $state<number | null>(null);
+  /** Reveal hidden items inline below the visible list (normal-mode only). */
+  let showHidden = $state(false);
   let sidebarEl: HTMLElement | undefined = $state();
 
   /** Normal-mode list: respects order + hidden. */
   let visibleNavItems = $derived(
     applyLayout(navItems, $sidebarLayout.order, $sidebarLayout.hidden),
   );
+
+  /** Hidden items in saved order (normal-mode "Show more…" expansion). */
+  let hiddenNavItems = $derived.by(() => {
+    const all = applyLayout(navItems, $sidebarLayout.order, []);
+    const hiddenSet = new Set($sidebarLayout.hidden);
+    return all.filter((i) => hiddenSet.has(i.id));
+  });
 
   /** Edit-mode list: full set in saved order, hidden items included
    *  (rendered with `.nav-item--hidden` styling). */
@@ -242,14 +252,13 @@
             >{m.sidebar_done()}</button>
           </span>
         {:else}
-          <button
-            type="button"
-            class="edit-toggle"
-            data-testid="sidebar-edit-toggle"
-            title={m.sidebar_customize()}
-            aria-label={m.sidebar_customize()}
+          <IconButton
+            icon={"\uF040"}
+            description={m.tooltip_customize_sidebar()}
+            size="sm"
+            testid="sidebar-edit-toggle"
             onclick={() => (editMode = true)}
-          >{""}</button>
+          />
         {/if}
       </div>
     {/if}
@@ -317,6 +326,35 @@
           {/if}
         </button>
       {/each}
+
+      {#if !collapsed && hiddenNavItems.length > 0}
+        <button
+          type="button"
+          class="nav-item show-more"
+          data-testid="sidebar-show-hidden"
+          onclick={() => (showHidden = !showHidden)}
+        >
+          <span class="nav-icon">{showHidden ? "" : ""}</span>
+          <span class="nav-label">
+            {showHidden ? m.sidebar_hide_hidden() : m.sidebar_show_hidden()}
+          </span>
+          <span class="nav-badge nav-badge--muted">{hiddenNavItems.length}</span>
+        </button>
+
+        {#if showHidden}
+          {#each hiddenNavItems as item (item.id)}
+            <button
+              class="nav-item nav-item--hidden-row"
+              class:active={activeView === item.id}
+              onclick={() => handleNav(item.id)}
+              data-testid="nav-{item.id}"
+            >
+              <span class="nav-icon">{item.icon}</span>
+              <span class="nav-label">{item.label}</span>
+            </button>
+          {/each}
+        {/if}
+      {/if}
     {/if}
   </nav>
 
@@ -421,22 +459,6 @@
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-  }
-
-  .edit-toggle {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-family: var(--font-icons);
-    font-size: 12px;
-    cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 3px;
-  }
-
-  .edit-toggle:hover {
-    color: var(--text-primary);
-    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   }
 
   .edit-actions {
@@ -601,6 +623,32 @@
 
   .nav-item--hidden .nav-label {
     text-decoration: line-through;
+  }
+
+  /* "Show more…" expander row in normal mode */
+  .nav-item.show-more {
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .nav-item.show-more .nav-icon {
+    font-size: 11px;
+  }
+
+  /* Hidden items revealed inline below the visible list — dimmer than a
+     normal nav row so they read as "you've chosen not to show these by
+     default", but still clickable + active-state aware. */
+  .nav-item--hidden-row {
+    opacity: 0.55;
+  }
+
+  .nav-item--hidden-row:hover {
+    opacity: 1;
+  }
+
+  .nav-badge--muted {
+    background: color-mix(in srgb, var(--text-secondary) 30%, transparent);
+    color: var(--text-secondary);
   }
 
   .sr-only {

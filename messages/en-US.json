@@ -996,5 +996,8 @@
   "update_server_unreachable": "Couldn't reach the update server. Check your connection or try again later.",
   "update_last_checked": "Last checked {when}",
   "update_check_endpoint": "Endpoint: {url}",
-  "update_error_detail": "Detail: {message}"
+  "update_error_detail": "Detail: {message}",
+  "sidebar_show_hidden": "Show more…",
+  "sidebar_hide_hidden": "Hide hidden",
+  "tooltip_customize_sidebar": "Customize navigation"
 }
