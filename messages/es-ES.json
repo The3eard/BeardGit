@@ -995,5 +995,8 @@
   "update_server_unreachable": "No se pudo contactar con el servidor de actualizaciones. Comprueba tu conexión o inténtalo más tarde.",
   "update_last_checked": "Última comprobación {when}",
   "update_check_endpoint": "Endpoint: {url}",
-  "update_error_detail": "Detalle: {message}"
+  "update_error_detail": "Detalle: {message}",
+  "sidebar_show_hidden": "Mostrar más…",
+  "sidebar_hide_hidden": "Ocultar elementos",
+  "tooltip_customize_sidebar": "Personalizar navegación"
 }
