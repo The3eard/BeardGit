@@ -16,13 +16,28 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 `fix(layout): clarify AI dropdown tooltip`. The trigger button labelled itself "Start AI background session on a worktree", which is only one of the two things in the menu — interactive provider terminals are the other. Updated the localized tooltip in en-US and es-ES to mention both.
 
-### Fixed — "Resume in new terminal" button hover read as deselection
+### Fixed — `+` glyph and "↗ Graph" nav in the Branches view
 
-`fix(ai-sessions): primary-button hover dims slightly instead of going transparent`. The local `.btn.primary:hover` rule mixed the accent with `transparent`, which made the resting state look "highlighted" and hover look "deselected" — the inverse of what hover should communicate. Switched to `opacity: 0.9`, matching the shared `Button` primary variant.
+`fix(branches): use canonical + glyph + wire show-in-graph nav`. The Branches header's "new branch" button rendered Nerd Font `U+E632` (a non-`+` glyph); replaced with `U+F067` (`nf-fa-plus`) to match every other "+" button in the app. Separately, clicking the `↗ Graph` button on a commit selected from the Branches view did nothing visible — `navigateToCommit` repositioned the graph viewport but the active view stayed on Branches. The handler now also calls `handleNavigate("graph")`, mirroring the working callsites on the graph and reflog views.
 
-### Fixed — "Check for updates" surfaced raw `could not fetch json`
+### Fixed — primary / danger / ghost button system: tonal-rest, solid-hover
 
-`fix(settings): friendly error when update endpoint is unreachable`. The Tauri updater plugin returns implementation-detail strings (`"could not fetch json"`, `"the network has temporary issue"`, etc.) verbatim. The Settings → Advanced → Check for updates row now maps recognisable "endpoint unreachable" shapes to a localized hint (`update_server_unreachable`) and only shows the raw text for unexpected failures. Note: the underlying 404 (`releases/latest/download/latest.json` is missing until the first signed release is cut) is a separate CI/release-pipeline concern, not addressed here.
+`fix(ui): tonal-rest, solid-hover for shared Button variants`. The shared `Button.svelte` `primary` and `danger` variants used a fully-saturated accent at rest with `opacity: 0.9` on hover, which read as "highlighted at rest" and "dimmed on hover" — the inverse of the desired feedback. Worse, the local `.btn.primary` in `AiSessionDetail.svelte` was being silently overridden on hover by a cascading `.btn:hover` rule that turned the label `var(--accent-blue)` (matching the fill, hiding the text). All three variants now follow a consistent rule:
+
+- **`primary`**: translucent accent-blue tint at rest (`color-mix(accent-blue 18%, transparent)`) with accent-blue text → solid `var(--accent-blue)` with `text-primary` on hover.
+- **`danger`**: same pattern in red. Solid red at rest read as alarming for buttons (Disconnect, Clear cache, Delete asset) that don't fire instantly.
+- **`ghost`**: dropped the `background: var(--overlay-hover)` rectangle on hover; only the text colour brightens, matching the `IconButton` rule.
+
+The `AiSessionDetail` Resume / Focus buttons get the same pattern via local CSS overrides.
+
+### Fixed — "Check for updates" raw error + missing diagnostics
+
+`fix(settings): friendly error + diagnostics for update check`. Two changes that landed together:
+
+- The Tauri updater plugin returns implementation-detail strings (`"could not fetch json"`, `"the network has temporary issue"`, etc.) verbatim. The Settings → Advanced → Check for updates row now maps recognisable "endpoint unreachable" shapes to a localized hint (`update_server_unreachable`) and only shows the raw text for unexpected failures.
+- A new diagnostics block under the row exposes `Last checked: <relative time>`, `Endpoint: <url>` (the `latest.json` URL the plugin tries), and on error a monospace `Detail: <raw>` line. `UpdateState.lastCheckedAt` is set in the store on every terminal resolution. Useful for distinguishing "endpoint 404'd" from "DNS hiccup" without leaving the app.
+
+Note: the underlying 404 (`releases/latest/download/latest.json` is missing because every release is currently flagged `prerelease=true` and GitHub's `/releases/latest/` redirect skips prereleases) is a release-pipeline concern, not addressed here.
 
 ## [Unreleased] — Icon-only buttons + brand logos
 
