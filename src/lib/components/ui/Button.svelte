@@ -162,14 +162,14 @@
 
   /* Variants
      -----------------------------------------------------------------
-     `primary` and `danger` share a tonal-at-rest, solid-on-hover
-     pattern: a translucent tint of the accent at rest so the button
-     reads as the meaningful CTA without looking pre-selected, then
-     ramping up to the full accent on hover so the interactive
-     feedback is unmistakable. Earlier rules used a solid fill at
-     rest with `opacity: 0.9` on hover, which made every primary or
-     destructive button look "highlighted" before the user even
-     touched it. */
+     `primary`, `success`, and `danger` share a tonal-at-rest,
+     solid-on-hover pattern: a translucent tint of the accent at
+     rest so the button reads as the meaningful CTA without looking
+     pre-selected, then ramping up to the full accent on hover so
+     the interactive feedback is unmistakable. Earlier rules used
+     a solid fill at rest with `opacity: 0.9` on hover, which made
+     every primary or destructive button look "highlighted" before
+     the user even touched it. */
   .bg-btn--primary {
     background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
     border-color: color-mix(in srgb, var(--accent-blue) 60%, transparent);
