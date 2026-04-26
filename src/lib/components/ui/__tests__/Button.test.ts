@@ -111,4 +111,22 @@ describe("Button", () => {
     expect(iconEl).toBeTruthy();
     expect(iconEl!.textContent).toBe("\uF021");
   });
+
+  it("description sets title and falls back to aria-label", () => {
+    const { container } = render(Button, {
+      props: { description: "Save changes" },
+    });
+    const btn = container.querySelector("button")!;
+    expect(btn.getAttribute("title")).toBe("Save changes");
+    expect(btn.getAttribute("aria-label")).toBe("Save changes");
+  });
+
+  it("explicit ariaLabel wins over description for aria-label", () => {
+    const { container } = render(Button, {
+      props: { description: "Save changes", ariaLabel: "Save" },
+    });
+    const btn = container.querySelector("button")!;
+    expect(btn.getAttribute("aria-label")).toBe("Save");
+    expect(btn.getAttribute("title")).toBe("Save changes");
+  });
 });

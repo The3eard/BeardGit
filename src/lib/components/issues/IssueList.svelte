@@ -16,6 +16,7 @@
   import CreateIssueDialog from "./CreateIssueDialog.svelte";
   import SearchBar from "../common/SearchBar.svelte";
   import List from "../common/List.svelte";
+  import { IconButton } from "$lib/components/ui";
   import TwoLineRow from "../common/TwoLineRow.svelte";
   import AssigneeStack from "../common/AssigneeStack.svelte";
   import type { SearchTag } from "../../search/types";
@@ -108,9 +109,12 @@
     <button class="action-btn-create" onclick={() => { showCreateDialog = true; }}>
       {m.issues_create()}
     </button>
-    <button class="refresh-btn nf" onclick={fetchList} disabled={loading} title="Refresh">
-      {loading ? "\uF110" : "\uF021"}
-    </button>
+    <IconButton
+      icon={"\uF021"}
+      description={m.tooltip_refresh()}
+      loading={loading}
+      onclick={fetchList}
+    />
   {/snippet}
 
   {#snippet afterHeader()}

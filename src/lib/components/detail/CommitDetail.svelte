@@ -5,6 +5,7 @@
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import Xrefs from "../common/Xrefs.svelte";
+  import { IconButton } from "$lib/components/ui";
   import { hashString as _hashString } from "$lib/utils/ref-colors";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
   import { formatDateTime } from "../../utils/time";
@@ -110,9 +111,7 @@
         </button>
       {/if}
       {#if onClose}
-        <button class="btn-icon" onclick={() => onClose!()}>
-          {"\uF00D"}
-        </button>
+        <IconButton icon={"\uF00D"} description={m.tooltip_close()} onclick={() => onClose!()} />
       {/if}
     </div>
   </div>
@@ -221,13 +220,6 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
-  }
-
-  /* CommitDetail header is compact — tighter padding than .btn-icon default */
-  .btn-icon {
-    padding: 2px 4px;
-    display: flex;
-    align-items: center;
   }
 
   .header-btn {

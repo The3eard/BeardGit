@@ -18,6 +18,7 @@
   import TagCreateDialog from "./TagCreateDialog.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import List from "../common/List.svelte";
+  import { IconButton } from "$lib/components/ui";
   import { formatRelativeTime } from "../../utils/time";
   import { debounce } from "../../utils/debounce";
   import type { TagInfo } from "../../types";
@@ -85,14 +86,12 @@
     <button class="btn-create" onclick={() => (showCreateDialog = true)}>
       {m.tags_create_button()}
     </button>
-    <button
-      class="refresh-btn nf"
+    <IconButton
+      icon={"\uF021"}
+      description={m.tooltip_refresh()}
+      loading={$tagsLoading}
       onclick={handleRefresh}
-      disabled={$tagsLoading}
-      title="Refresh"
-    >
-      {$tagsLoading ? "\uF110" : "\uF021"}
-    </button>
+    />
   {/snippet}
 
   {#snippet afterHeader()}

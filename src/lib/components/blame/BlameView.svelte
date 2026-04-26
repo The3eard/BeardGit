@@ -22,6 +22,7 @@
     loadFileHistory,
   } from '$lib/stores/blame';
   import { activeTheme } from '$lib/stores/theme';
+  import { IconButton } from '$lib/components/ui';
   import { shortOid } from '$lib/utils/git';
   import * as m from '$lib/paraglide/messages';
 
@@ -106,9 +107,7 @@
           {m.file_history_title()}
         </button>
       </div>
-      <button class="btn-icon" onclick={handleClose} title="Close">
-        {'\uF00D'}
-      </button>
+      <IconButton icon={"\uF00D"} description={m.tooltip_close()} onclick={handleClose} />
     </div>
   </div>
 
@@ -244,13 +243,6 @@
 
   .tab-btn:not(.active):hover {
     background: var(--bg-primary);
-  }
-
-  /* BlameView header is compact — tighter padding than .btn-icon default */
-  .btn-icon {
-    padding: 2px 4px;
-    display: flex;
-    align-items: center;
   }
 
   .blame-content {

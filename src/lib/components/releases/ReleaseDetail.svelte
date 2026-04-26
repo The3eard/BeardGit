@@ -19,6 +19,7 @@
     completeUpload,
   } from "../../stores/releases";
   import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
+  import { IconButton } from "$lib/components/ui";
   import { activeProvider } from "../../stores/provider";
   import { renderMarkdown } from "../../utils/markdown";
   import { formatRelativeTime } from "../../utils/time";
@@ -240,14 +241,7 @@
                 <td>{formatSize(asset.size)}</td>
                 <td>{asset.download_count}</td>
                 <td>
-                  <button
-                    class="btn-icon"
-                    onclick={() => handleDeleteAsset(asset.id, asset.name)}
-                    title={m.release_delete_asset()}
-                    aria-label={m.release_delete_asset()}
-                  >
-                    <span class="nf">{"\uF00D"}</span>
-                  </button>
+                  <IconButton icon={"\uF00D"} description={m.release_delete_asset()} tone="danger" onclick={() => handleDeleteAsset(asset.id, asset.name)} />
                 </td>
               </tr>
             {/each}
@@ -440,16 +434,6 @@
   }
   .assets-table a:hover {
     text-decoration: underline;
-  }
-  .btn-icon {
-    color: var(--accent-red);
-  }
-  .btn-icon:hover:not(:disabled) {
-    color: var(--accent-red);
-    background: var(--overlay-accent-red);
-  }
-  .btn-icon .nf {
-    font-family: var(--font-icons);
   }
   .actions {
     display: flex;

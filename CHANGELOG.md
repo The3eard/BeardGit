@@ -2,6 +2,27 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Icon-only buttons + brand logos
+
+### Added — `IconButton` component + `Button.description` prop
+
+`feat(ui): IconButton with native title tooltip; Button gains description`. New `src/lib/components/ui/IconButton.svelte` is the canonical primitive for buttons that show only a Nerd Font glyph (close ✕, refresh, new branch, etc.). It always renders a transparent background — only the glyph color brightens on hover, never a rectangular fill. `description` is required and drives both the native browser `title` (hover tooltip) and the `aria-label`, so an icon-only button is never silent to screen readers. New en-US/es-ES tooltip keys (`tooltip_close`, `tooltip_close_log`, `tooltip_remove`, `tooltip_new_branch`, `tooltip_refresh`) cover the migrated call sites.
+
+`Button.svelte` gains a matching `description?: string` prop with the same semantics (sets `title`, falls back to `aria-label` when `ariaLabel` isn't provided).
+
+### Changed — every icon-only button migrated, dead per-component CSS dropped
+
+`refactor(ui): migrate 18 icon-only buttons to IconButton`. The grab-bag of `.btn-icon` (dialog.css), `.icon-btn` (list.css), `.refresh-btn` (list.css) and per-component `.header-btn` rules — each with its own slightly-different "fill on hover" — are gone. Migrated callsites: `BlameView`, `CommitDetail`, `ShortcutOverlay`, `BranchList` (new branch + refresh), `BisectWorkflow`, `PipelineView` (close log), `PipelineList`, `IssueList`, `MrPrList`, `TagList`, `AiSessionList`, `TriggerWorkflowDialog` (close + remove pair), `ReleaseDetail` (delete asset), `StagingDiffEditor` (close), and the shared `List.svelte` refresh button. Visible difference: hovering an icon-only button now brightens the glyph instead of drawing a rectangle around it.
+
+### Changed — official brand logos for Codex / OpenCode
+
+`feat(ai-sessions): theme-aware brand logos for codex + open_code`. The placeholder `codex.svg` (an outdated OpenAI mark with a hardcoded green fill) and `opencode.svg` (two arrow brackets) are replaced with the official assets:
+
+- **Codex** — OpenAI monoblossom mark, shipped in black + white variants. `ProviderIcon` picks the right one off `$activeTheme.meta.mode` so the logo stays legible on both dark and light themes.
+- **OpenCode** — official two-tone wordmark, shipped in light + dark variants and switched the same way.
+
+`<img>` cannot resolve `currentColor` from the parent document, so a single asset per brand would either flatten the two-tone OpenCode mark or paint OpenAI's monoblossom in only one mode — hence the two-asset approach.
+
 ## [Unreleased] — Repo settings multi-instance fixes
 
 ### Fixed — auth probe scoped to the repo's host

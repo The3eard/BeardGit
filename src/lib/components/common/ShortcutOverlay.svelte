@@ -1,6 +1,7 @@
 <script lang="ts">
   import { shortcuts, showCheatSheet, toggleCheatSheet, formatShortcut } from "../../stores/shortcuts";
   import type { Shortcut } from "../../stores/shortcuts";
+  import { IconButton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
 
   let overlayEl: HTMLDivElement | undefined = $state();
@@ -44,9 +45,7 @@
     <div class="shortcut-overlay" bind:this={overlayEl}>
       <div class="overlay-header">
         <h2>{m.shortcuts_title()}</h2>
-        <button class="btn-icon" onclick={toggleCheatSheet}>
-          <span class="nf">{"\uF00D"}</span>
-        </button>
+        <IconButton icon={"\uF00D"} description={m.tooltip_close()} size="lg" onclick={toggleCheatSheet} />
       </div>
       <div class="overlay-grid">
         {#each [...grouped.entries()] as [category, items]}
@@ -101,14 +100,6 @@
     font-weight: 600;
     color: var(--text-primary);
     margin: 0;
-  }
-
-  /* ShortcutOverlay × is bigger and wraps its glyph in a <span class="nf">, not on the button itself */
-  .btn-icon {
-    font-family: inherit;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
   }
 
   .overlay-grid {

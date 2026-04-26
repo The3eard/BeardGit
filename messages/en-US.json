@@ -472,7 +472,7 @@
   "config_column_local": "Local",
   "config_column_global": "Global",
   "config_column_system": "System",
-  "config_no_value": "\u2014",
+  "config_no_value": "—",
   "config_add_entry": "Add Entry",
   "config_add_key_placeholder": "section.key",
   "config_add_value_placeholder": "value",
@@ -578,7 +578,7 @@
   "mrpr_status_approved": "Approved",
   "mrpr_status_changes_requested": "Changes Requested",
   "mrpr_status_pending": "Review Pending",
-  "mrpr_branch_arrow": "{source} \u2192 {target}",
+  "mrpr_branch_arrow": "{source} → {target}",
   "mrpr_open_browser": "Open in Browser",
   "mrpr_create": "New MR",
   "mrpr_create_github": "New PR",
@@ -987,5 +987,10 @@
   "sidebar_hide_aria": "Hide {label}",
   "sidebar_show_aria": "Show {label}",
   "theme_load_failed": "Could not load theme. Using built-in defaults.",
-  "diff_binary_file": "Binary file — no preview"
+  "diff_binary_file": "Binary file — no preview",
+  "tooltip_close": "Close",
+  "tooltip_close_log": "Close log",
+  "tooltip_remove": "Remove",
+  "tooltip_new_branch": "New branch",
+  "tooltip_refresh": "Refresh"
 }

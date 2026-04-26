@@ -1,15 +1,34 @@
 /**
  * Unit tests for ProviderIcon.svelte.
  *
- * Asserts each supported provider resolves to its brand asset, that the
+ * Asserts each supported provider resolves to its brand asset (with the
+ * correct theme-aware variant for OpenAI/Codex and OpenCode), that the
  * rendered element is a square at the requested size, and that an unknown
  * provider falls back to the generic glyph.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/svelte";
 import ProviderIcon from "../ProviderIcon.svelte";
+import { activeTheme } from "$lib/stores/theme";
+import type { ThemeData } from "$lib/types";
 
-afterEach(() => cleanup());
+function fakeTheme(mode: "dark" | "light"): ThemeData {
+  /* Only `meta.mode` is read by ProviderIcon; the rest is structural
+     filler so the type-check passes. */
+  return {
+    meta: { id: `t-${mode}`, name: mode, mode, complementary: null },
+    colors: {} as ThemeData["colors"],
+    derived: {} as ThemeData["derived"],
+    graph: {} as ThemeData["graph"],
+    editor: null,
+  };
+}
+
+beforeEach(() => activeTheme.set(fakeTheme("dark")));
+afterEach(() => {
+  cleanup();
+  activeTheme.set(null);
+});
 
 describe("ProviderIcon", () => {
   it("renders the Claude Code asset for claude_code", () => {
@@ -22,21 +41,43 @@ describe("ProviderIcon", () => {
     expect(img?.getAttribute("height")).toBe("20");
   });
 
-  it("renders the Codex asset for codex", () => {
+  it("renders the OpenAI white monoblossom for codex on a dark theme", () => {
+    activeTheme.set(fakeTheme("dark"));
     const { container } = render(ProviderIcon, {
       props: { provider: "codex" },
     });
     expect(container.querySelector("img")?.getAttribute("src")).toMatch(
-      /codex\.svg$/,
+      /openai-white\.svg$/,
     );
   });
 
-  it("renders the OpenCode asset for open_code", () => {
+  it("renders the OpenAI black monoblossom for codex on a light theme", () => {
+    activeTheme.set(fakeTheme("light"));
+    const { container } = render(ProviderIcon, {
+      props: { provider: "codex" },
+    });
+    expect(container.querySelector("img")?.getAttribute("src")).toMatch(
+      /openai-black\.svg$/,
+    );
+  });
+
+  it("renders the OpenCode dark variant for open_code on a dark theme", () => {
+    activeTheme.set(fakeTheme("dark"));
     const { container } = render(ProviderIcon, {
       props: { provider: "open_code" },
     });
     expect(container.querySelector("img")?.getAttribute("src")).toMatch(
-      /opencode\.svg$/,
+      /opencode-dark\.svg$/,
+    );
+  });
+
+  it("renders the OpenCode light variant for open_code on a light theme", () => {
+    activeTheme.set(fakeTheme("light"));
+    const { container } = render(ProviderIcon, {
+      props: { provider: "open_code" },
+    });
+    expect(container.querySelector("img")?.getAttribute("src")).toMatch(
+      /opencode-light\.svg$/,
     );
   });
 

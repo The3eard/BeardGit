@@ -14,6 +14,7 @@
     clearBisectState,
   } from "../../stores/bisect";
   import { addToast } from "../../stores/toast";
+  import { IconButton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
   import AutoBisectDialog from "./AutoBisectDialog.svelte";
 
@@ -98,9 +99,7 @@
   <div class="list-header">
     <h2 class="view-title">{m.sidebar_bisect()}</h2>
     {#if $bisectState.active}
-      <button class="icon-btn" title={m.bisect_reset()} data-testid="bisect-reset-btn" onclick={handleReset}>
-        {"\uF00D"}
-      </button>
+      <IconButton icon={"\uF00D"} description={m.bisect_reset()} testid="bisect-reset-btn" onclick={handleReset} />
     {/if}
   </div>
 
@@ -228,7 +227,7 @@
 {/if}
 
 <style>
-  /* list.css provides: .list-header, .icon-btn (global via app.css) */
+  /* list.css provides: .list-header (global via app.css) */
 
   .bisect-view {
     display: flex;
