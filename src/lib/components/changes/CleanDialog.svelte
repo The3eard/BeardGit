@@ -9,6 +9,7 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { cleanDryRun, cleanPaths } from "$lib/api/tauri";
+  import Button from "$lib/components/ui/Button.svelte";
   import { runMutation } from "$lib/api/runMutation";
   import type { CleanItem } from "$lib/types";
 
@@ -168,14 +169,14 @@
   <div class="dialog-warning">{m.clean_dialog_warning()}</div>
 
   <div class="dialog-actions">
-    <button class="btn btn-cancel" onclick={onClose}>{m.confirm_cancel()}</button>
-    <button
-      class="btn btn-destructive"
+    <Button variant="neutral" onclick={onClose}>{m.confirm_cancel()}</Button>
+    <Button
+      variant="danger"
       disabled={selected.size === 0}
       onclick={handleDelete}
     >
       {m.clean_dialog_delete_selected({ count: String(selected.size) })}
-    </button>
+    </Button>
   </div>
 </div>
 

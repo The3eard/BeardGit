@@ -8,6 +8,7 @@
 <script lang="ts">
   import type { Label } from "../../types";
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     /** All repository labels to show. */
@@ -94,8 +95,8 @@
     {/if}
   </div>
   <div class="picker-actions">
-    <button type="button" class="btn-secondary" onclick={onCancel}>{m.issues_cancel()}</button>
-    <button type="button" class="btn-primary" onclick={apply}>{m.issues_label_picker_apply()}</button>
+    <Button variant="neutral" onclick={onCancel}>{m.issues_cancel()}</Button>
+    <Button variant="primary" onclick={apply}>{m.issues_label_picker_apply()}</Button>
   </div>
 </div>
 
@@ -184,23 +185,5 @@
     gap: 8px;
     padding: 12px;
     border-top: 1px solid var(--border);
-  }
-  .btn-primary {
-    padding: 5px 12px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .btn-secondary {
-    padding: 5px 12px;
-    background: none;
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
   }
 </style>

@@ -9,6 +9,7 @@
 <script lang="ts">
   import { get } from "svelte/store";
   import { createBranch, createBranchAt, checkoutBranch } from "../../api/tauri";
+  import Button from "$lib/components/ui/Button.svelte";
   import { runMutation } from "../../api/runMutation";
   import { remoteNames } from "../../stores/remotes";
   import { branches, localBranches, remoteBranches } from "../../stores/branches";
@@ -186,16 +187,15 @@
     </label>
 
     <div class="dialog-actions">
-      <button class="btn btn-cancel" type="button" onclick={onClose}>Cancel</button>
-      <button
-        class="btn btn-confirm"
-        data-testid="create-branch-submit"
-        type="button"
+      <Button variant="neutral" onclick={onClose}>Cancel</Button>
+      <Button
+        variant="primary"
+        testid="create-branch-submit"
         disabled={submitting || name.trim().length === 0}
         onclick={handleCreate}
       >
         Create
-      </button>
+      </Button>
     </div>
   </div>
 {/if}
@@ -342,29 +342,5 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-  }
-
-  .btn {
-    padding: 6px 16px;
-    font-size: 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    border: 1px solid var(--border);
-  }
-
-  .btn-cancel {
-    background: none;
-    color: var(--text-secondary);
-  }
-
-  .btn-confirm {
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border-color: var(--accent-blue);
-  }
-
-  .btn-confirm:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 </style>

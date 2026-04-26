@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     /** Usernames currently assigned. */
@@ -53,8 +54,8 @@
   />
   <p class="picker-hint">{m.issues_assignee_picker_hint()}</p>
   <div class="dialog-actions">
-    <button type="button" class="btn btn-cancel" onclick={onCancel}>{m.issues_cancel()}</button>
-    <button type="button" class="btn btn-primary" onclick={apply}>{m.issues_label_picker_apply()}</button>
+    <Button variant="neutral" onclick={onCancel}>{m.issues_cancel()}</Button>
+    <Button variant="primary" onclick={apply}>{m.issues_label_picker_apply()}</Button>
   </div>
 </div>
 

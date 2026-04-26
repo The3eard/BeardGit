@@ -9,6 +9,7 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { getDebugInfo, openLogDirectory } from "$lib/api/tauri";
+  import Button from "$lib/components/ui/Button.svelte";
   import type { DebugInfo } from "$lib/types";
 
   interface Props {
@@ -91,17 +92,15 @@
   {/if}
 
   <div class="dialog-actions">
-    <button class="btn btn-cancel" onclick={handleOpenLog}>
-      <span class="nf">{"\uF0219"}</span>
+    <Button variant="neutral" icon={"\uF0219"} onclick={handleOpenLog}>
       {m.error_dialog_open_log()}
-    </button>
-    <button class="btn btn-cancel" onclick={copyError}>
-      <span class="nf">{"\uF0C5"}</span>
+    </Button>
+    <Button variant="neutral" icon={"\uF0C5"} onclick={copyError}>
       {copied ? m.error_dialog_copied() : m.error_dialog_copy()}
-    </button>
-    <button class="btn btn-primary" data-testid="dialog-dismiss-btn" onclick={onClose}>
+    </Button>
+    <Button variant="primary" testid="dialog-dismiss-btn" onclick={onClose}>
       {m.error_dialog_close()}
-    </button>
+    </Button>
   </div>
 </div>
 
@@ -182,8 +181,4 @@
     word-break: break-all;
   }
 
-  .nf {
-    font-family: var(--font-icons);
-    font-size: 13px;
-  }
 </style>

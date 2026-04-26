@@ -22,6 +22,7 @@
 -->
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     /**
@@ -114,22 +115,20 @@
     </label>
 
     <div class="dialog-actions">
-      <button
-        type="button"
-        class="btn btn-cancel"
-        data-testid="reauth-cancel"
+      <Button
+        variant="neutral"
+        testid="reauth-cancel"
         onclick={handleCancel}
       >
         {m.update_reauth_cancel()}
-      </button>
-      <button
-        type="button"
-        class="btn btn-primary"
-        data-testid="reauth-confirm"
+      </Button>
+      <Button
+        variant="primary"
+        testid="reauth-confirm"
         onclick={handleConfirm}
       >
         {m.update_reauth_confirm()}
-      </button>
+      </Button>
     </div>
   </div>
 {/if}

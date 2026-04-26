@@ -3,6 +3,7 @@
   import { listCiWorkflows, triggerWorkflow, activeProvider } from "../../stores/provider";
   import { repoInfo } from "../../stores/repo";
   import { IconButton } from "$lib/components/ui";
+  import Button from "$lib/components/ui/Button.svelte";
   import type { Workflow } from "../../types";
   import * as m from "$lib/paraglide/messages";
 
@@ -148,9 +149,9 @@
                 <IconButton icon={"\uF00D"} description={m.tooltip_remove()} onclick={() => removePair(i)} />
               </div>
             {/each}
-            <button class="pair-add" onclick={addPair}>
+            <Button variant="neutral" size="sm" icon="" onclick={addPair}>
               {m.pipeline_trigger_add_variable()}
-            </button>
+            </Button>
           </fieldset>
         {/if}
 
@@ -160,17 +161,17 @@
       </div>
 
       <div class="dialog-footer">
-        <button class="btn btn-secondary" onclick={onClose} disabled={submitting}>
+        <Button variant="neutral" onclick={onClose} disabled={submitting}>
           {m.pipeline_trigger_cancel()}
-        </button>
-        <button
-          class="btn btn-primary"
+        </Button>
+        <Button
+          variant="primary"
           onclick={submit}
           disabled={submitting || loading || workflows.length === 0 || !gitRef.trim()}
         >
           {#if submitting}<div class="spinner spinner--sm"></div>{/if}
           {m.pipeline_trigger_submit()}
-        </button>
+        </Button>
       </div>
     </div>
   </div>
@@ -203,10 +204,6 @@
   }
   legend { font-size: 11px; color: var(--text-secondary); padding: 0 4px; }
   .pair-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; }
-  .pair-add {
-    background: none; border: 1px dashed var(--border); color: var(--accent-blue);
-    border-radius: 4px; padding: 6px; font-size: 11px; cursor: pointer;
-  }
   .dialog-footer {
     padding: 12px 16px; border-top: 1px solid var(--border);
     display: flex; justify-content: flex-end; gap: 8px;

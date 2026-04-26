@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
+  import Button from "$lib/components/ui/Button.svelte";
   import {
     createIssue,
     labelsCache,
@@ -124,15 +125,14 @@
   {#if errorMsg}<p class="error-msg">{errorMsg}</p>{/if}
 
   <div class="dialog-actions">
-    <button type="button" class="btn btn-cancel" onclick={onClose}>{m.issues_cancel()}</button>
-    <button
-      type="button"
-      class="btn btn-primary"
+    <Button variant="neutral" onclick={onClose}>{m.issues_cancel()}</Button>
+    <Button
+      variant="primary"
       disabled={submitting || !titleInput.trim()}
       onclick={handleSubmit}
     >
       {submitting ? m.issues_loading() : m.issues_create_button()}
-    </button>
+    </Button>
   </div>
 </div>
 

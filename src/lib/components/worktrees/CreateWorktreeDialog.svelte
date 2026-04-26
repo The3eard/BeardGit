@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { addWorktree } from "../../stores/worktrees";
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     onClose: () => void;
@@ -103,16 +104,16 @@
   {/if}
 
   <div class="dialog-actions">
-    <button class="btn btn-cancel" onclick={onClose} disabled={submitting}>
+    <Button variant="neutral" onclick={onClose} disabled={submitting}>
       {m.confirm_cancel()}
-    </button>
-    <button
-      class="btn btn-confirm"
+    </Button>
+    <Button
+      variant="primary"
       onclick={handleCreate}
       disabled={submitting || !branch.trim() || !effectivePath.trim()}
     >
       {submitting ? "..." : m.worktree_create_button()}
-    </button>
+    </Button>
   </div>
 </div>
 

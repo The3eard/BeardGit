@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
+  import Button from "$lib/components/ui/Button.svelte";
   import { activeProvider } from "../../stores/provider";
   import {
     doCreateRelease,
@@ -204,17 +205,16 @@
   {#if errorMsg}<p class="error-msg">{errorMsg}</p>{/if}
 
   <div class="dialog-actions">
-    <button class="btn btn-cancel" type="button" onclick={onClose}>
+    <Button variant="neutral" onclick={onClose}>
       {m.release_cancel()}
-    </button>
-    <button
-      class="btn btn-confirm"
-      type="button"
+    </Button>
+    <Button
+      variant="primary"
       disabled={submitting}
       onclick={submit}
     >
       {submitting ? "…" : m.release_create_button()}
-    </button>
+    </Button>
   </div>
 </div>
 

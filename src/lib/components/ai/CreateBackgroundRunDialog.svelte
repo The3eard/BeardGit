@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
   import { aiProviders, defaultAiProvider } from "$lib/stores/ai";
   import { branches } from "$lib/stores/repo";
   import { configFiles, loadConfigFiles } from "$lib/stores/aiConfig";
@@ -270,16 +271,16 @@
 
   <div class="dialog-actions">
     <span class="hint">{m.ai_background_hint_cmd_enter()}</span>
-    <button class="btn btn-cancel" onclick={onClose} disabled={submitting}>
+    <Button variant="neutral" onclick={onClose} disabled={submitting}>
       {m.ai_background_cancel()}
-    </button>
-    <button
-      class="btn btn-confirm"
+    </Button>
+    <Button
+      variant="primary"
       onclick={handleSubmit}
       disabled={submitting || !!validationError}
     >
       {submitting ? "..." : m.ai_background_submit()}
-    </button>
+    </Button>
   </div>
 </div>
 

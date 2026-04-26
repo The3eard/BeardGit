@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { doCreateTag } from "../../stores/tags";
+  import Button from "$lib/components/ui/Button.svelte";
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -106,14 +107,14 @@
     </div>
 
     <div class="dialog-footer">
-      <button class="btn btn-cancel" onclick={onClose}>{m.tags_create_cancel()}</button>
-      <button class="btn btn-primary" onclick={handleCreate} disabled={creating}>
+      <Button variant="neutral" onclick={onClose}>{m.tags_create_cancel()}</Button>
+      <Button variant="primary" onclick={handleCreate} disabled={creating}>
         {#if creating}
           <div class="spinner spinner--small"></div>
         {:else}
           {m.tags_create_confirm()}
         {/if}
-      </button>
+      </Button>
     </div>
   </div>
 </div>

@@ -39,60 +39,6 @@
   gap: 8px;
 }
 
-/* Base button */
-.btn {
-  padding: 6px 16px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  transition: background 0.15s, opacity 0.15s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Cancel / secondary button */
-.btn-cancel {
-  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-  color: var(--text-primary);
-}
-
-.btn-cancel:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-}
-
-/* Primary / confirm button */
-.btn-primary,
-.btn-confirm,
-.btn-create {
-  background: var(--accent-blue);
-  color: var(--text-primary);
-  border-color: var(--accent-blue);
-}
-
-.btn-primary:hover:not(:disabled),
-.btn-confirm:hover:not(:disabled),
-.btn-create:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-/* Destructive action button */
-.btn-destructive {
-  background: var(--accent-red, #f85149);
-  color: var(--text-primary);
-  border-color: var(--accent-red, #f85149);
-}
-
-.btn-destructive:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
 /* Icon-only buttons (close ×, collapse/expand chevrons, inline icon
    actions) used to live as `.btn-icon` here. They are now provided by
    `src/lib/components/ui/IconButton.svelte` — transparent always, with

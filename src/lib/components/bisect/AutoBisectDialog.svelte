@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     onRun: (testCommand: string) => void;
@@ -44,16 +45,16 @@
   </div>
 
   <div class="dialog-actions">
-    <button class="btn btn-cancel" onclick={onCancel}>
+    <Button variant="neutral" onclick={onCancel}>
       {m.confirm_cancel()}
-    </button>
-    <button
-      class="btn btn-primary"
+    </Button>
+    <Button
+      variant="primary"
       onclick={handleSubmit}
       disabled={!testCommand.trim()}
     >
       {m.bisect_run()}
-    </button>
+    </Button>
   </div>
 </div>
 

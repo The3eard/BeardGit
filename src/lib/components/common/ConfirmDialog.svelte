@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   let {
     title,
@@ -69,15 +70,14 @@
     </label>
   {/if}
   <div class="dialog-actions">
-    <button class="btn btn-cancel" data-testid="dialog-cancel-btn" onclick={onCancel}>{cancelLabel}</button>
-    <button
-      class="btn btn-confirm"
-      class:destructive
-      data-testid="dialog-confirm-btn"
+    <Button variant="neutral" testid="dialog-cancel-btn" onclick={onCancel}>{cancelLabel}</Button>
+    <Button
+      variant="primary"
+      testid="dialog-confirm-btn"
       onclick={onConfirm}
     >
       {confirmLabel}
-    </button>
+    </Button>
   </div>
 </div>
 
@@ -111,11 +111,6 @@
     font-size: 13px;
     color: var(--text-secondary);
     line-height: 1.4;
-  }
-
-  .btn-confirm.destructive {
-    background: var(--accent-red);
-    border-color: var(--accent-red);
   }
 
   .dialog-checkbox {

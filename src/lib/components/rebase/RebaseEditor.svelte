@@ -11,6 +11,7 @@
   import type { RebaseCommit, RebaseAction } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import { shortOid } from "../../utils/git";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     /** The base commit OID (exclusive — commits after this up to HEAD). */
@@ -216,11 +217,11 @@
     </div>
 
     <div class="rebase-footer">
-      <button class="btn btn-cancel" onclick={onCancel} disabled={submitting}>
+      <Button variant="neutral" onclick={onCancel} disabled={submitting}>
         {m.rebase_cancel()}
-      </button>
-      <button
-        class="btn btn-start"
+      </Button>
+      <Button
+        variant="primary"
         onclick={handleStart}
         disabled={submitting || entries.length === 0}
       >
@@ -229,7 +230,7 @@
         {:else}
           {m.rebase_start()}
         {/if}
-      </button>
+      </Button>
     </div>
   </div>
 </div>
@@ -433,17 +434,4 @@
     border-top: 1px solid var(--border);
   }
 
-  .btn-start {
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border-color: var(--accent-blue);
-    min-width: 110px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .btn-start:hover:not(:disabled) {
-    opacity: 0.9;
-  }
 </style>

@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
+  import Button from "$lib/components/ui/Button.svelte";
   import { activeProvider } from "../../stores/provider";
   import { createMrPr } from "../../stores/mr-pr";
   import { getBranches } from "../../api/tauri";
@@ -131,14 +132,14 @@
   {/if}
 
   <div class="dialog-actions">
-    <button class="btn btn-cancel" onclick={onClose}>{m.mrpr_cancel()}</button>
-    <button
-      class="btn btn-confirm"
+    <Button variant="neutral" onclick={onClose}>{m.mrpr_cancel()}</Button>
+    <Button
+      variant="primary"
       disabled={submitting || !sourceBranch || !targetBranch || !titleInput.trim()}
       onclick={handleSubmit}
     >
       {submitting ? m.mrpr_loading() : m.mrpr_create_button()}
-    </button>
+    </Button>
   </div>
 </div>
 

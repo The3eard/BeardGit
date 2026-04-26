@@ -26,6 +26,7 @@
 -->
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     loading: boolean;
@@ -65,11 +66,10 @@
     <p class="error-title">{m.forge_detail_error_title()}</p>
     <p class="error-reason">{trim(error)}</p>
     {#if onRetry}
-      <button
-        class="btn-retry"
-        data-testid="forge-detail-retry"
-        onclick={onRetry}>{m.forge_detail_retry()}</button
-      >
+      <Button
+        variant="neutral"
+        testid="forge-detail-retry"
+        onclick={onRetry}>{m.forge_detail_retry()}</Button>
     {/if}
   </div>
 {:else if isEmpty}
@@ -110,19 +110,6 @@
     margin: 0;
     color: var(--text-secondary);
     font-size: 12px;
-  }
-  .btn-retry {
-    margin-top: 4px;
-    padding: 5px 14px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .btn-retry:hover {
-    opacity: 0.9;
   }
   .spinner {
     width: 18px;

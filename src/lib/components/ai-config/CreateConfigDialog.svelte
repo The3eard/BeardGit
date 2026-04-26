@@ -8,6 +8,7 @@
 <script lang="ts">
   import { createConfigFile } from "../../stores/aiConfig";
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     defaultScope: string;
@@ -116,14 +117,14 @@
 
   <!-- Actions -->
   <div class="dialog-actions">
-    <button class="btn btn-cancel" onclick={onClose}>{m.ai_config_cancel()}</button>
-    <button
-      class="btn btn-create"
+    <Button variant="neutral" onclick={onClose}>{m.ai_config_cancel()}</Button>
+    <Button
+      variant="primary"
       disabled={!name.trim() || creating}
       onclick={handleCreate}
     >
       {creating ? "..." : m.ai_config_create_btn()}
-    </button>
+    </Button>
   </div>
 </div>
 

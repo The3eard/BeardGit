@@ -8,6 +8,7 @@
 -->
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     /** Reviewers currently assigned (used to dedupe submitted names). */
@@ -57,17 +58,14 @@
   />
   <p class="picker-hint">{m.mrpr_reviewer_picker_hint()}</p>
   <div class="dialog-actions">
-    <button type="button" class="btn btn-cancel" onclick={onCancel}
-      >{m.mrpr_cancel()}</button
-    >
-    <button
-      type="button"
-      class="btn btn-primary"
+    <Button variant="neutral" onclick={onCancel}>{m.mrpr_cancel()}</Button>
+    <Button
+      variant="primary"
       onclick={apply}
       disabled={!input.trim()}
     >
       {m.mrpr_reviewer_picker_apply()}
-    </button>
+    </Button>
   </div>
 </div>
 

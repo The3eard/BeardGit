@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PatchPreview } from "../../types";
   import * as m from "$lib/paraglide/messages";
+  import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
     preview: PatchPreview;
@@ -42,17 +43,17 @@
 
   <div class="dialog-actions">
     {#if preview.applies_cleanly}
-      <button class="action-btn primary" onclick={() => onApply(false)}>
+      <Button variant="primary" size="sm" onclick={() => onApply(false)}>
         {m.patch_apply_button()}
-      </button>
+      </Button>
     {:else}
-      <button class="action-btn primary" onclick={() => onApply(true)}>
+      <Button variant="primary" size="sm" onclick={() => onApply(true)}>
         {m.patch_apply_3way()}
-      </button>
+      </Button>
     {/if}
-    <button class="action-btn secondary" onclick={onClose}>
+    <Button variant="neutral" size="sm" onclick={onClose}>
       {m.patch_cancel()}
-    </button>
+    </Button>
   </div>
 </div>
 
@@ -142,23 +143,4 @@
     color: var(--accent-red);
   }
 
-  .action-btn {
-    padding: 6px 14px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    background: none;
-    color: var(--text-primary);
-  }
-
-  .action-btn.primary {
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border-color: var(--accent-blue);
-  }
-
-  .action-btn.secondary:hover {
-    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
-  }
 </style>
