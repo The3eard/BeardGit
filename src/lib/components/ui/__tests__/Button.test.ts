@@ -46,7 +46,7 @@ describe("Button", () => {
     }
   });
 
-  it("renders neutral variant with secondary-style background", () => {
+  it("renders neutral variant class and data-variant attribute", () => {
     const { container } = render(Button, {
       props: { variant: "neutral", children: () => "Cancel" },
     });

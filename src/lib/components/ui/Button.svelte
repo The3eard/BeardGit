@@ -29,6 +29,11 @@
      *   affirmatives (Merge, Apply stash, Approve PR, Resolve conflict).
      *   Mirrors the tonal-at-rest, solid-on-hover shape of `primary` and
      *   `danger` so the three accent colours read as one family.
+     * - `neutral`: the canonical non-accent button — tonal-baseline
+     *   fill, transparent border. Use for Cancel, Dismiss, Refresh,
+     *   Edit, Manage, Retry, Load more, and any other non-accent
+     *   text action. Will replace the legacy `secondary` / `subtle` /
+     *   `ghost` variants once every consumer has migrated.
      * - `secondary`: tonal baseline fill, borderless, softer than
      *   `subtle`. The default. Use when you want "this is a button" but
      *   the row already has another button carrying the action weight.
