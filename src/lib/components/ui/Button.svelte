@@ -38,7 +38,7 @@
      */
     variant?: "primary" | "success" | "danger" | "neutral";
     /** Vertical rhythm/padding scale. Default `'md'`. */
-    size?: "sm" | "md" | "lg";
+    size?: "xs" | "sm" | "md" | "lg";
     /** When true, swap the icon for a spinner and suppress clicks. */
     loading?: boolean;
     /** When true, renders disabled and suppresses clicks. */
@@ -159,6 +159,11 @@
   }
 
   /* Sizes */
+  .bg-btn--xs {
+    padding: 1px 6px;
+    font-size: 10px;
+    gap: 4px;
+  }
   .bg-btn--sm {
     padding: 3px 10px;
     font-size: 11px;

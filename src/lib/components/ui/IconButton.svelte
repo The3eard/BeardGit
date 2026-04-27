@@ -42,7 +42,7 @@
      */
     description: string;
     /** Vertical rhythm. `md` matches `Button`'s md (~24px tall). */
-    size?: "sm" | "md" | "lg";
+    size?: "xs" | "sm" | "md" | "lg";
     /** Colour register. `danger` highlights destructive actions on hover. */
     tone?: "default" | "danger";
     /** When true, swap the glyph for a spinner and suppress clicks. */
@@ -133,6 +133,10 @@
   }
 
   /* Sizes — purely about padding + glyph size. */
+  .ic-btn--xs {
+    padding: 1px 3px;
+    font-size: 10px;
+  }
   .ic-btn--sm {
     padding: 2px 4px;
     font-size: 12px;

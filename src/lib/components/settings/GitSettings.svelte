@@ -307,20 +307,21 @@
                   {:else if lv !== null}
                     <Button
                       variant="neutral"
-                      size="sm"
+                      size="xs"
                       description={m.config_click_to_edit()}
                       onclick={() => startEdit(key, "local", lv)}
                     >{lv}</Button>
                     <IconButton
                       icon={"\uF00D"}
                       tone="danger"
+                      size="xs"
                       description={m.config_remove_entry_title()}
                       onclick={() => (unsetTarget = { key, scope: "local" })}
                     />
                   {:else}
                     <Button
                       variant="neutral"
-                      size="sm"
+                      size="xs"
                       icon={"\uF067"}
                       description={m.config_click_to_set()}
                       onclick={() => startAdd(key, "local")}
@@ -358,20 +359,21 @@
                   {:else if gv !== null}
                     <Button
                       variant="neutral"
-                      size="sm"
+                      size="xs"
                       description={m.config_click_to_edit()}
                       onclick={() => startEdit(key, "global", gv)}
                     >{gv}</Button>
                     <IconButton
                       icon={"\uF00D"}
                       tone="danger"
+                      size="xs"
                       description={m.config_remove_entry_title()}
                       onclick={() => (unsetTarget = { key, scope: "global" })}
                     />
                   {:else}
                     <Button
                       variant="neutral"
-                      size="sm"
+                      size="xs"
                       icon={"\uF067"}
                       description={m.config_click_to_set()}
                       onclick={() => startAdd(key, "global")}

@@ -152,15 +152,17 @@
   {/snippet}
 
   {#snippet footer()}
-    {#if $hasMoreTags && !filterValue}
-      <Button variant="neutral" size="sm" onclick={handleLoadMore} disabled={loadingMore} loading={loadingMore}>
-        {#if !loadingMore}{m.tags_load_more({ count: String($tags.length) })}{/if}
-      </Button>
-    {/if}
+    <div class="tags-footer">
+      {#if $hasMoreTags && !filterValue}
+        <Button variant="neutral" size="sm" onclick={handleLoadMore} disabled={loadingMore} loading={loadingMore}>
+          {#if !loadingMore}{m.tags_load_more({ count: String($tags.length) })}{/if}
+        </Button>
+      {/if}
 
-    <Button variant="primary" size="sm" onclick={() => doPushTag(null, "origin")}>
-      {m.tags_push_all_button()}
-    </Button>
+      <Button variant="primary" size="sm" onclick={() => doPushTag(null, "origin")}>
+        {m.tags_push_all_button()}
+      </Button>
+    </div>
   {/snippet}
 </List>
 
@@ -264,4 +266,11 @@
     flex-shrink: 0;
   }
 
+  .tags-footer {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid var(--border);
+  }
 </style>
