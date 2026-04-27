@@ -175,7 +175,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_labels()}</h4>
-        <IconButton tone="default" icon={"✎"} description={m.issues_edit()} onclick={openLabelPicker} />
+        <IconButton tone="default" icon={""} description={m.issues_edit()} onclick={openLabelPicker} />
       </div>
       <div class="label-list">
         {#each detail.summary.labels as label}
@@ -194,7 +194,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_assignees()}</h4>
-        <IconButton tone="default" icon={"✎"} description={m.issues_edit()} onclick={() => showAssigneePicker = true} />
+        <IconButton tone="default" icon={""} description={m.issues_edit()} onclick={() => showAssigneePicker = true} />
       </div>
       <div class="assignee-list">
         {#each detail.summary.assignees as a}
@@ -209,7 +209,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_milestone()}</h4>
-        <IconButton tone="default" icon={"✎"} description={m.issues_edit()} onclick={() => showMilestonePicker = true} />
+        <IconButton tone="default" icon={""} description={m.issues_edit()} onclick={() => showMilestonePicker = true} />
       </div>
       <div class="milestone-display">
         {detail.summary.milestone?.title ?? m.issues_no_milestone()}

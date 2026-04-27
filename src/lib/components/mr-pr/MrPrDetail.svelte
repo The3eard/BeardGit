@@ -356,7 +356,9 @@
         <button class="checkout-btn" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
           {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
         </button>
-        <Button variant="neutral" size="sm" onclick={() => { showCloseConfirm = true; }}>{m.mrpr_close()}</Button>
+        <div class="push-right">
+          <Button variant="neutral" size="sm" onclick={() => { showCloseConfirm = true; }}>{m.mrpr_close()}</Button>
+        </div>
       </div>
     {:else if detail.summary.state === "closed"}
       <div class="detail-actions">
@@ -703,6 +705,10 @@
     margin-bottom: 12px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border);
+  }
+
+  .detail-actions .push-right {
+    margin-left: auto;
   }
 
   .merge-group {
