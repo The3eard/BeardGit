@@ -448,8 +448,7 @@ mod tests {
             );
 
             assert!(result.is_ok(), "expected Ok, got {result:?}");
-            let recorded =
-                std::fs::read_to_string(&stdin_capture).expect("read stdin capture");
+            let recorded = std::fs::read_to_string(&stdin_capture).expect("read stdin capture");
             assert_eq!(recorded.trim(), "ghp_testtoken");
         }
 
