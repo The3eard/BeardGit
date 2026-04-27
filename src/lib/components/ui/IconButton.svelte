@@ -120,6 +120,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     transition: color 0.12s ease, opacity 0.12s ease;
   }
 
