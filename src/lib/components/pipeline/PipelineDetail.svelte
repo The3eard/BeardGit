@@ -3,6 +3,7 @@
   import type { CiJob } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import { ciStatusColor } from "../../utils/status";
+  import { Button } from "$lib/components/ui";
 
   let { onSelectJob }: { onSelectJob?: (jobId: number) => void } = $props();
 
@@ -167,12 +168,13 @@
                   {/if}
                 </button>
                 {#if job.status === "failed" || job.status === "timed_out"}
-                  <button
-                    class="job-retry-btn"
+                  <Button
+                    variant="neutral"
+                    size="sm"
                     onclick={(e) => { e.stopPropagation(); doRetryJob(job.id); }}
                     disabled={busy}
-                    title={m.pipeline_action_retry_job()}
-                  >{m.pipeline_action_retry_job()}</button>
+                    description={m.pipeline_action_retry_job()}
+                  >{m.pipeline_action_retry_job()}</Button>
                 {/if}
               </div>
             {/each}
@@ -367,10 +369,4 @@
   .job-row-wrapper { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); }
   .job-row-wrapper:last-child { border-bottom: none; }
   .job-row-wrapper .job-row { border-bottom: none; flex: 1; }
-  .job-retry-btn {
-    background: none; border: 1px solid var(--border); color: var(--text-secondary);
-    padding: 2px 6px; font-size: 10px; border-radius: 3px; cursor: pointer; margin-right: 8px;
-  }
-  .job-retry-btn:hover:not(:disabled) { border-color: var(--accent-orange); color: var(--accent-orange); }
-  .job-retry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

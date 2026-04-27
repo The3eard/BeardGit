@@ -13,7 +13,7 @@
   import SearchBar from "../common/SearchBar.svelte";
   import List from "../common/List.svelte";
   import TwoLineRow from "../common/TwoLineRow.svelte";
-  import { IconButton } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
   import type { SearchTag } from "../../search/types";
   import { ciFilters } from "../../search/ci-provider";
   import * as m from "$lib/paraglide/messages";
@@ -208,11 +208,12 @@
   onContextMenu={onRowContextMenu}
 >
   {#snippet headerActions()}
-    <button
-      class="header-btn"
+    <Button
+      variant="primary"
+      size="sm"
       onclick={() => (triggerDialogOpen = true)}
       disabled={!$hasActiveProvider}
-    >{m.pipeline_action_trigger()}</button>
+    >{m.pipeline_action_trigger()}</Button>
     <IconButton
       icon={"\uF021"}
       description={m.tooltip_refresh()}
@@ -291,14 +292,9 @@
 
   {#snippet footer()}
     {#if $hasMoreCiRuns}
-      <button class="load-more-btn" onclick={handleLoadMore} disabled={loadingMore}>
-        {#if loadingMore}
-          <div class="spinner"></div>
-          {m.pipeline_loading()}
-        {:else}
-          {m.pipeline_load_more({ count: String($ciRuns.length) })}
-        {/if}
-      </button>
+      <Button variant="neutral" size="sm" onclick={handleLoadMore} disabled={loadingMore} loading={loadingMore}>
+        {#if !loadingMore}{m.pipeline_load_more({ count: String($ciRuns.length) })}{/if}
+      </Button>
     {/if}
   {/snippet}
 </List>
@@ -368,19 +364,6 @@
   .source-badge--schedule { background: var(--overlay-accent-orange); color: var(--accent-orange); }
   .source-badge--gray { background: var(--overlay-accent-muted); color: var(--text-secondary); }
   .source-badge--manual { background: var(--overlay-accent-purple); color: var(--accent-purple); }
-
-  .load-more-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%; padding: 12px; background: none; border: none;
-    border-top: 1px solid var(--border); color: var(--accent-blue);
-    font-size: 12px; cursor: pointer;
-  }
-  .load-more-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-blue) 5%, transparent); }
-  .load-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .header-btn { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; }
-  .header-btn:hover:not(:disabled) { border-color: var(--accent-blue); color: var(--accent-blue); }
-  .header-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .ctx-overlay { position: fixed; inset: 0; z-index: 900; }
   .ctx-menu { position: fixed; z-index: 901; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 4px 0; min-width: 180px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */ }

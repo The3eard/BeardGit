@@ -8,6 +8,7 @@
   import { WebglAddon } from "@xterm/addon-webgl";
   import JobSteps from "./JobSteps.svelte";
   import * as m from "$lib/paraglide/messages";
+  import { IconButton } from "$lib/components/ui";
 
   let terminalContainer: HTMLDivElement | undefined = $state();
   let pooledInstance: PooledInstance | null = $state(null);
@@ -104,12 +105,8 @@
 <div class="job-log">
   {#if overlayState === null}
     <div class="log-toolbar">
-      <button class="log-nav-btn" onclick={scrollToTop} title={m.joblog_top_title()}>
-        <span class="nf">{"\uF062"}</span> {m.joblog_top()}
-      </button>
-      <button class="log-nav-btn" onclick={scrollToBottom} title={m.joblog_bottom_title()}>
-        <span class="nf">{"\uF063"}</span> {m.joblog_bottom()}
-      </button>
+      <IconButton tone="default" icon={"\uF062"} description={m.joblog_top_title()} onclick={scrollToTop} />
+      <IconButton tone="default" icon={"\uF063"} description={m.joblog_bottom_title()} onclick={scrollToBottom} />
     </div>
   {/if}
 
@@ -159,22 +156,6 @@
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
     flex-shrink: 0;
-  }
-
-  .log-nav-btn {
-    background: var(--overlay-hover);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-
-  .log-nav-btn:hover {
-    background: var(--overlay-active);
-    color: var(--text-primary);
   }
 
   .log-body {
