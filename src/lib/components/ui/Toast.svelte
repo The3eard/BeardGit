@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { removeToast, type Toast } from "../../stores/toast";
   import IconButton from "./IconButton.svelte";
+  import Button from "./Button.svelte";
 
   let { toast }: { toast: Toast } = $props();
   let visible = $state(false);
@@ -48,15 +49,16 @@
   <div class="toast__actions">
     {#if toast.actions}
       {#each toast.actions as action}
-        <button
-          class="toast__btn"
-          data-testid={action.label === "See details"
+        <Button
+          variant="primary"
+          size="sm"
+          testid={action.label === "See details"
             ? "toast-action-see-details"
             : "toast-action"}
           onclick={action.onclick}
         >
           {action.label}
-        </button>
+        </Button>
       {/each}
     {/if}
     {#if toast.dismissible}
@@ -126,16 +128,5 @@
     gap: 6px;
     flex-shrink: 0;
   }
-  .toast__btn {
-    padding: 3px 10px;
-    border-radius: 4px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: none;
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .toast__btn:hover { opacity: 0.85; }
 
 </style>
