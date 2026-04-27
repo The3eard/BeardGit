@@ -890,6 +890,18 @@ html.js-reveal .reveal.in { opacity: 1; transform: none; }
     gap: 24px;
   }
 
+  /* Screenshot strip (fig. 02–04) stacks too — at portrait widths the
+     three-up grid squeezes each shot below the legibility threshold. */
+  .screenshot-strip {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+  /* The .small slot's 4/3 aspect ratio is fine portrait-side, but the
+     min-height clamp was tuned for the desktop column width — drop it so
+     the slot height tracks the new wider single-column layout instead of
+     forcing a tiny letterbox. */
+  .screenshot-slot.small { min-height: 0; }
+
   /* Re-assert the first-party defaults the desktop rules override. */
   .hero-graph { aspect-ratio: 16 / 10; }
   .manifesto { grid-template-columns: 1fr; }
