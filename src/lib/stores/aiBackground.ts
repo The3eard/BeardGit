@@ -168,6 +168,7 @@ export async function startAiBackgroundRun(
     worktree_path: res.worktree_path,
     background_status: res.status,
     task_id: res.task_id,
+    prompt: request.prompt,
   };
   upsertAiBackgroundRun(placeholder);
   return res;

@@ -85,6 +85,19 @@
       status?.state === "cancelled",
   );
 
+  /**
+   * Background-run display name. Pulled from the last segment of the
+   * worktree path (e.g. `…/ai-worktrees/Ai-run-testing` → `Ai-run-testing`)
+   * so the detail header reads as the run a human launched, not the
+   * generic provider product name. Falls back to the provider name for
+   * sessions discovered on disk that lack a worktree (external runs).
+   */
+  let bgRunName = $derived.by(() => {
+    const path = bgSession?.worktree_path ?? bgSession?.cwd ?? "";
+    const last = path.split(/[\\/]/).filter(Boolean).pop();
+    return last && last.length > 0 ? last : providerName(bgSession?.provider ?? "claude_code");
+  });
+
   // ─── Handlers: bg-run branch ───
 
   async function handleDiscard() {
@@ -333,7 +346,7 @@
     <header class="header">
       <div class="title-row">
         <ProviderIcon provider={bgSession.provider} size={20} />
-        <span class="provider">{providerName(bgSession.provider)}</span>
+        <span class="run-name" data-testid="ai-session-detail-run-name">{bgRunName}</span>
         <BackgroundRunStatusBadge status={bgSession.background_status!} />
         {#if !bgSession.worktree_path}
           <span class="external-badge" data-testid="external-badge">
@@ -342,6 +355,7 @@
         {/if}
       </div>
       <div class="wt-row">
+        <span class="provider-tag">{providerName(bgSession.provider)}</span>
         <code class="wt-path" data-testid="ai-session-detail-wt-path">
           {bgSession.worktree_path ?? bgSession.cwd}
         </code>
@@ -546,6 +560,22 @@
     text-transform: capitalize;
   }
 
+  .run-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-all;
+  }
+
+  .provider-tag {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary);
+    margin-right: 8px;
+  }
+
   .title-line {
     font-size: 13px;
     font-weight: 500;
@@ -567,6 +597,10 @@
   }
 
   .wt-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0;
     font-size: 11px;
     color: var(--text-secondary);
   }
