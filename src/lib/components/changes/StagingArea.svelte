@@ -15,6 +15,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { save } from "@tauri-apps/plugin-dialog";
   import type { TaskInfo } from "$lib/types";
+  import { Button, IconButton } from "$lib/components/ui";
 
   let {
     onFileClick,
@@ -203,33 +204,27 @@
       </label>
       <div class="toolbar-actions">
         {#if $hasAiProvider}
-          <button
-            class="toolbar-icon-btn ai-commit"
-            title={m.ai_commit_message()}
-            onclick={handleAiCommitMessage}
+          <IconButton
+            tone="default"
+            icon={"\uF0EB"}
+            description={m.ai_commit_message()}
+            loading={aiCommitLoading}
             disabled={aiCommitLoading}
-          >
-            {#if aiCommitLoading}
-              <span class="ai-spinner"></span>
-            {:else}
-              <span class="nf">{"\uF0EB"}</span>
-            {/if}
-          </button>
-          <button
-            class="toolbar-icon-btn ai-review"
-            title={m.ai_code_review()}
+            onclick={handleAiCommitMessage}
+          />
+          <IconButton
+            tone="default"
+            icon={"\uF002"}
+            description={m.ai_code_review()}
             onclick={handleCodeReview}
-          >
-            <span class="nf">{"\uF002"}</span>
-          </button>
+          />
         {/if}
-        <button
-          class="toolbar-icon-btn overflow-btn"
-          title={m.changes_overflow_more()}
+        <IconButton
+          tone="default"
+          icon={"\uF141"}
+          description={m.changes_overflow_more()}
           onclick={() => { showOverflowMenu = !showOverflowMenu; }}
-        >
-          <span class="nf">{"\uF141"}</span>
-        </button>
+        />
 
         {#if showOverflowMenu}
           <div class="overflow-menu">
@@ -263,18 +258,18 @@
     ></textarea>
 
     <!-- Single commit button -->
-    <button
-      class="commit-btn"
+    <Button
+      variant="primary"
       disabled={!message.trim() || (!isAmend && staged.length === 0)}
       onclick={handleCommit}
-      data-testid="commit-btn"
+      testid="commit-btn"
     >
       {isAmend
         ? m.staging_amend_button()
         : staged.length === 1
           ? m.staging_commit_button_one({ count: String(staged.length) })
           : m.staging_commit_button({ count: String(staged.length) })}
-    </button>
+    </Button>
 
     {#if showPatchDialog}
       <div class="patch-source-dialog">
@@ -373,57 +368,6 @@
     position: relative;
   }
 
-  .toolbar-icon-btn {
-    width: 26px;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 5px;
-    border: 1px solid color-mix(in srgb, var(--text-primary) 6%, transparent);
-    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-  }
-
-  .toolbar-icon-btn .nf {
-    font-size: 13px;
-  }
-
-  .toolbar-icon-btn:hover {
-    background: var(--overlay-hover);
-    border-color: color-mix(in srgb, var(--text-primary) 10%, transparent);
-    color: var(--text-primary);
-  }
-
-  .toolbar-icon-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .toolbar-icon-btn.ai-commit {
-    color: var(--accent-purple);
-    background: var(--overlay-accent-purple);
-    border-color: color-mix(in srgb, var(--accent-purple) 12%, transparent);
-  }
-
-  .toolbar-icon-btn.ai-commit:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-purple) 18%, transparent);
-    border-color: color-mix(in srgb, var(--accent-purple) 25%, transparent);
-  }
-
-  .toolbar-icon-btn.ai-review {
-    color: var(--accent-blue);
-    background: var(--overlay-accent-blue);
-    border-color: color-mix(in srgb, var(--accent-blue) 12%, transparent);
-  }
-
-  .toolbar-icon-btn.ai-review:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
-    border-color: color-mix(in srgb, var(--accent-blue) 25%, transparent);
-  }
-
   /* ── Overflow menu ───────────────────────────────────── */
 
   .overflow-menu {
@@ -469,42 +413,6 @@
     height: 1px;
     background: var(--border);
     margin: 4px 8px;
-  }
-
-  .commit-btn {
-    padding: 6px 16px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: opacity 0.15s ease;
-    align-self: flex-start;
-  }
-
-  .commit-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-
-  .commit-btn:hover:not(:disabled) {
-    opacity: 0.85;
-  }
-
-  .ai-spinner {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border: 1.5px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
-    border-top-color: var(--accent-purple);
-    border-radius: 50%;
-    animation: ai-spin 0.6s linear infinite;
-  }
-
-  @keyframes ai-spin {
-    to { transform: rotate(360deg); }
   }
 
   /* ── Patch (used in dialog) ─────────────────────────────── */

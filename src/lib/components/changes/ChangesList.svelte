@@ -8,6 +8,7 @@
   import { cleanPaths } from "$lib/api/tauri";
   import { addGitignorePattern } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
+  import { Button } from "$lib/components/ui";
 
   let {
     files,
@@ -242,24 +243,24 @@
     </div>
     {#if isStaged && onUnstage}
       {#if selectedCount > 0}
-        <button class="action-btn" data-testid="unstage-selected-btn" onclick={unstageSelected}>
+        <Button variant="neutral" size="sm" testid="unstage-selected-btn" onclick={unstageSelected}>
           {m.changes_unstage_selected({ count: String(selectedCount) })}
-        </button>
+        </Button>
       {:else}
-        <button class="action-btn" data-testid="unstage-all-btn" onclick={() => onUnstage(files.map(f => f.path))}>
+        <Button variant="neutral" size="sm" testid="unstage-all-btn" onclick={() => onUnstage(files.map(f => f.path))}>
           {m.changes_unstage_all()}
-        </button>
+        </Button>
       {/if}
     {/if}
     {#if !isStaged && onStage}
       {#if selectedCount > 0}
-        <button class="action-btn" data-testid="stage-selected-btn" onclick={stageSelected}>
+        <Button variant="primary" size="sm" testid="stage-selected-btn" onclick={stageSelected}>
           {m.changes_stage_selected({ count: String(selectedCount) })}
-        </button>
+        </Button>
       {:else}
-        <button class="action-btn" data-testid="stage-all-btn" onclick={() => onStage(files.map(f => f.path))}>
+        <Button variant="primary" size="sm" testid="stage-all-btn" onclick={() => onStage(files.map(f => f.path))}>
           {m.changes_stage_all()}
-        </button>
+        </Button>
       {/if}
     {/if}
   </div>
@@ -358,22 +359,6 @@
     font-variant-numeric: tabular-nums;
     min-width: 18px;
     text-align: center;
-  }
-
-  .action-btn {
-    font-size: 10px;
-    color: var(--accent-blue);
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 3px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-    transition: background 0.15s ease;
-  }
-
-  .action-btn:hover {
-    background: var(--overlay-accent-blue);
   }
 
   .file-list {

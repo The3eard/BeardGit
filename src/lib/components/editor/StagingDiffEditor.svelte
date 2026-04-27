@@ -9,7 +9,7 @@
   import { stageHunks, unstageHunks, discardHunks } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
   import ConfirmDialog from "$lib/components/common/ConfirmDialog.svelte";
-  import { IconButton } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -239,40 +239,44 @@
           {m.staging_lines_selected({ count: String(selectedLineCount) })}
         </span>
       {/if}
-      <button class="header-btn" onclick={selectAll} title={m.staging_select_all()}>
+      <Button variant="neutral" size="sm" onclick={selectAll} description={m.staging_select_all()}>
         {m.staging_select_all()}
-      </button>
-      <button
-        class="header-btn"
+      </Button>
+      <Button
+        variant="neutral"
+        size="sm"
         onclick={deselectAll}
         disabled={selectedLineCount === 0}
-        title={m.staging_deselect_all()}
+        description={m.staging_deselect_all()}
       >
         {m.staging_deselect_all()}
-      </button>
+      </Button>
       {#if !isStaged}
-        <button
-          class="action-btn stage-btn"
+        <Button
+          variant="primary"
+          size="sm"
           onclick={handleStage}
           disabled={selectedLineCount === 0 || actionInProgress}
         >
           {m.staging_stage_selected()}
-        </button>
-        <button
-          class="action-btn discard-btn"
+        </Button>
+        <Button
+          variant="danger"
+          size="sm"
           onclick={handleDiscard}
           disabled={selectedLineCount === 0 || actionInProgress}
         >
           {m.staging_discard_selected()}
-        </button>
+        </Button>
       {:else}
-        <button
-          class="action-btn unstage-btn"
+        <Button
+          variant="neutral"
+          size="sm"
           onclick={handleUnstage}
           disabled={selectedLineCount === 0 || actionInProgress}
         >
           {m.staging_unstage_selected()}
-        </button>
+        </Button>
       {/if}
     </div>
   </div>
@@ -419,69 +423,6 @@
     border-radius: 4px;
     white-space: nowrap;
   }
-
-  .header-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-
-  .header-btn:hover:not(:disabled) {
-    background: var(--overlay-hover);
-    color: var(--text-primary);
-  }
-
-  .header-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-
-  .action-btn {
-    border: none;
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    white-space: nowrap;
-    transition: opacity 0.15s ease, transform 0.1s ease;
-  }
-
-  .action-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-
-  .action-btn:active:not(:disabled) {
-    transform: scale(0.97);
-  }
-
-  .stage-btn {
-    background: var(--accent-green);
-    color: var(--text-primary);
-  }
-
-  .stage-btn:hover:not(:disabled) { opacity: 0.85; }
-
-  .unstage-btn {
-    background: var(--accent-orange);
-    color: var(--text-primary);
-  }
-
-  .unstage-btn:hover:not(:disabled) { opacity: 0.85; }
-
-  .discard-btn {
-    background: var(--accent-red);
-    color: var(--text-primary);
-  }
-
-  .discard-btn:hover:not(:disabled) { opacity: 0.85; }
 
   /* ── Hunk list ──────────────────────────────────────────── */
 

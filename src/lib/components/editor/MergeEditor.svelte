@@ -33,6 +33,7 @@
   import * as m from '$lib/paraglide/messages';
   import { renderConnectors, getLineRect, type ConnectorPair } from './merge-connectors';
   import ConfirmDialog from '../common/ConfirmDialog.svelte';
+  import { Button, IconButton } from '$lib/components/ui';
 
   // ---------------------------------------------------------------------------
   // Conflict placeholder
@@ -815,44 +816,42 @@
   <div class="merge-toolbar">
     <span class="merge-filename">{filename}</span>
     <div class="merge-actions">
-      <button
-        class="merge-btn nav"
+      <IconButton
+        tone="default"
+        icon={"\uF062"}
+        description={m.merge_prev_conflict()}
         onclick={handlePrevConflict}
-        title={m.merge_prev_conflict()}
-      >
-        <span class="nf">{"\uF062"}</span>
-      </button>
-      <button
-        class="merge-btn nav"
+      />
+      <IconButton
+        tone="default"
+        icon={"\uF063"}
+        description={m.merge_next_conflict()}
         onclick={handleNextConflict}
-        title={m.merge_next_conflict()}
-      >
-        <span class="nf">{"\uF063"}</span>
-      </button>
-      <button class="merge-btn nav" onclick={handleUndo} title={m.merge_undo()}>
-        <span class="nf">{"\uF2EA"}</span>
-      </button>
-      <button
-        class="merge-btn nav"
-        class:active={showLineNumbers}
+      />
+      <IconButton
+        tone="default"
+        icon={"\uF2EA"}
+        description={m.merge_undo()}
+        onclick={handleUndo}
+      />
+      <IconButton
+        tone="default"
+        icon={"\uF292"}
+        description="Toggle line numbers"
         onclick={toggleLineNumbers}
-        title="Toggle line numbers"
-      >
-        <span class="nf">{"\uF292"}</span>
-      </button>
+      />
       <span class="conflict-counter">
         {m.merge_conflicts_counter({ resolved: String(resolvedCount), total: String(totalConflicts) })}
       </span>
-      <button
-        class="merge-btn resolve"
-        class:enabled={allResolved || totalConflicts === 0}
+      <Button
+        variant="success"
+        disabled={!allResolved && totalConflicts > 0}
         onclick={handleResolveClick}
-        disabled={totalConflicts > 0 && !allResolved}
       >
         {m.merge_mark_resolved()}
-      </button>
+      </Button>
       {#if onCancel}
-        <button class="merge-btn cancel" onclick={onCancel}>{m.merge_cancel()}</button>
+        <Button variant="danger" onclick={onCancel}>{m.merge_cancel()}</Button>
       {/if}
     </div>
   </div>
@@ -922,74 +921,6 @@
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
-  }
-
-  .merge-btn {
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 4px;
-    white-space: nowrap;
-  }
-
-  .merge-btn:hover {
-    background: var(--selection);
-  }
-
-  .merge-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .merge-btn.nav {
-    font-size: 11px;
-    padding: 3px 6px;
-  }
-
-  .merge-btn.nav .nf {
-    font-family: var(--font-icons);
-  }
-
-  .merge-btn.nav.active {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
-  }
-
-  .merge-btn.resolve {
-    background: color-mix(in srgb, var(--text-secondary) 20%, transparent);
-    color: var(--text-secondary);
-    border-color: var(--border);
-    font-weight: 600;
-  }
-
-  .merge-btn.resolve:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .merge-btn.resolve.enabled {
-    background: var(--accent-green);
-    color: var(--bg-primary);
-    border-color: var(--accent-green);
-    cursor: pointer;
-  }
-
-  .merge-btn.resolve.enabled:hover {
-    opacity: 0.9;
-  }
-
-  .merge-btn.cancel {
-    color: var(--accent-red);
-    border-color: color-mix(in srgb, var(--accent-red) 30%, transparent);
-    background: var(--overlay-accent-red);
-  }
-
-  .merge-btn.cancel:hover {
-    background: color-mix(in srgb, var(--accent-red) 20%, transparent);
   }
 
   .conflict-counter {

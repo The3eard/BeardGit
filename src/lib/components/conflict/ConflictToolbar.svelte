@@ -18,6 +18,7 @@
   import MergeEditor from "../editor/MergeEditor.svelte";
   import { activeTheme } from "../../stores/theme";
   import * as m from "$lib/paraglide/messages";
+  import { Button } from "$lib/components/ui";
 
   /** The file path currently open in the merge editor. */
   let mergeFile = $state<string | null>(null);
@@ -126,17 +127,17 @@
       </button>
     </div>
     <div class="conflict-right">
-      <button class="btn btn-abort" onclick={abortOperation}>
+      <Button variant="danger" onclick={abortOperation}>
         {getAbortLabel($conflictStatus.state)}
-      </button>
-      <button
-        class="btn btn-continue"
+      </Button>
+      <Button
+        variant="primary"
         disabled={!$conflictStatus.can_continue}
-        title={$conflictStatus.can_continue ? "" : m.conflict_continue_disabled_tooltip()}
+        description={$conflictStatus.can_continue ? "" : m.conflict_continue_disabled_tooltip()}
         onclick={continueOperation}
       >
         {getContinueLabel($conflictStatus.state)}
-      </button>
+      </Button>
     </div>
   </div>
   {#if showFileList && $conflictStatus.conflicted_files.length > 0}
@@ -234,41 +235,6 @@
   .conflict-right {
     display: flex;
     gap: 8px;
-  }
-
-  .btn {
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    transition: background 0.15s;
-  }
-
-  .btn-abort {
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    color: var(--text-primary);
-  }
-
-  .btn-abort:hover {
-    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
-    border-color: var(--accent-red);
-    color: var(--accent-red);
-  }
-
-  .btn-continue {
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border-color: var(--accent-blue);
-  }
-
-  .btn-continue:hover {
-    opacity: 0.9;
-  }
-
-  .btn-continue:disabled {
-    opacity: 0.4;
-    cursor: default;
   }
 
   .conflict-file-list {
