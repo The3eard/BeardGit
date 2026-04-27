@@ -216,7 +216,10 @@ section + section { border-top: 1px solid var(--rule); }
 .nav-inner {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1.5rem;
-  padding: 0.9rem 0;
+  /* padding-block (not the shorthand) so we don't clobber the
+     horizontal padding inherited from .wrap; otherwise the brand and
+     theme toggle sit flush against the viewport edges on wide screens. */
+  padding-block: 0.9rem;
 }
 .brand { display: flex; align-items: center; gap: 0.6rem; }
 /* Light plate only where it's needed (dark bg). Light themes show the logo raw. */
