@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>BeardGit — a Git client for the patient</title>
+  <meta name="description" content="BeardGit is a native desktop Git client built with Rust and Svelte. Visual graph, built-in CI, multi-repo tabs. Craft over ceremony." />
+  <meta name="color-scheme" content="light dark" />
+  <meta property="og:title" content="BeardGit — a Git client for the patient" />
+  <meta property="og:description" content="Native desktop Git client. Rust + Svelte. No Electron. Craft over ceremony." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" type="image/png" href="assets/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,30..100;1,9..144,300..700,30..100&family=Fira+Code:wght@300..700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+
+  <!-- ============ NAV ============ -->
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a href="#top" class="brand" style="border:none">
+        <img src="assets/logo.svg" alt="" class="brand-mark" />
+        <span class="brand-name">BeardGit</span>
+      </a>
+      <div class="nav-links">
+        <a href="#manifesto">Manifesto</a>
+        <a href="#features">Features</a>
+        <a href="#showcase">Showcase</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle color theme" title="Cycle theme: auto / light / dark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" id="themeIcon">
+          <!-- icon swapped by JS -->
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+        <span id="themeLabel">Auto</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="top">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div class="hero-main">
+          <div class="hero-meta reveal">
+            <span class="badge"><span class="badge-dot"></span>Active development</span>
+            <span class="badge mono">macOS (Apple Silicon) · Linux x64 · Windows x64</span>
+          </div>
+
+          <h1 class="hero-title reveal">
+            <span class="lead">Your whole repo,</span>
+            <span class="lead">in <span class="italic accent">one</span> window.<span class="caret"></span></span>
+          </h1>
+
+          <p class="hero-sub reveal mono">
+            Graph, branches, staging, <strong style="color:var(--fg)">PRs &amp; MRs</strong>, issues,
+            <strong style="color:var(--fg)">CI/CD pipelines</strong>, releases, terminals, and
+            <strong style="color:var(--fg)">AI agents</strong> — in a single native app. Stop jumping
+            between GitHub, GitLab, the terminal, and three other clients just to ship a commit.
+          </p>
+
+          <div class="cta-row reveal">
+            <a href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" class="btn btn-primary" data-dl="auto">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v13M5 12l7 7 7-7M4 21h16"/></svg>
+              <span data-dl-label>Download BeardGit</span>
+            </a>
+            <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener" class="btn btn-ghost">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
+              Read the source
+            </a>
+          </div>
+
+          <div class="hero-stats reveal">
+            <div>
+              <div class="stat-num">100K<span class="italic">+</span></div>
+              <div class="stat-lbl">Commits rendered</div>
+            </div>
+            <div>
+              <div class="stat-num">0<span class="italic">×</span></div>
+              <div class="stat-lbl">Electron runtimes</div>
+            </div>
+            <div>
+              <div class="stat-num">3<span class="italic"> AI</span></div>
+              <div class="stat-lbl">Providers built-in</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Animated commit graph -->
+        <div class="hero-graph reveal" aria-hidden="true">
+          <svg viewBox="0 0 440 480" preserveAspectRatio="xMidYMid meet">
+            <!-- column guides -->
+            <g opacity="0.35">
+              <line x1="60"  y1="30" x2="60"  y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
+              <line x1="120" y1="30" x2="120" y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
+              <line x1="180" y1="30" x2="180" y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
+            </g>
+
+            <!-- edges (drawn first, behind nodes) -->
+            <path class="edge main"   d="M60 60 L60 430"/>
+            <path class="edge beard"  d="M60 110 C 60 135, 120 135, 120 160 L 120 260 C 120 285, 60 285, 60 310"/>
+            <path class="edge blue"   d="M60 170 C 60 195, 180 195, 180 220 L 180 360 C 180 385, 60 385, 60 410"/>
+            <path class="edge green"  d="M120 220 C 120 240, 60 240, 60 260"/>
+            <path class="edge accent" d="M60 260 L 60 310"/>
+
+            <!-- nodes -->
+            <circle class="node"        cx="60"  cy="60"  r="6"/>
+            <circle class="node beard"  cx="60"  cy="110" r="6"/>
+            <circle class="node blue"   cx="60"  cy="170" r="6"/>
+            <circle class="node beard"  cx="120" cy="160" r="6"/>
+            <circle class="node green"  cx="120" cy="220" r="6"/>
+            <circle class="node"        cx="60"  cy="260" r="6"/>
+            <circle class="node active" cx="60"  cy="310" r="7"/>
+            <circle class="node blue"   cx="180" cy="220" r="6"/>
+            <circle class="node blue"   cx="180" cy="360" r="6"/>
+            <circle class="node"        cx="60"  cy="410" r="6"/>
+
+            <!-- labels -->
+            <text class="graph-label" x="205" y="64">main</text>
+            <text class="graph-hash"  x="205" y="78">a1f3e22  initial commit</text>
+
+            <text class="graph-label" x="205" y="114">chore: add tauri shell</text>
+            <text class="graph-hash"  x="205" y="128">7ce09a1  · adolfo</text>
+
+            <text class="graph-label" x="205" y="174">feat: commit graph engine</text>
+            <text class="graph-hash"  x="205" y="188">3b22f0e  · adolfo</text>
+
+            <text class="graph-label" x="205" y="224">feat: multi-repo tabs</text>
+            <text class="graph-hash"  x="205" y="238">91d2a7c  · adolfo</text>
+
+            <text class="graph-label" x="205" y="264">fix: watcher deadlock</text>
+            <text class="graph-hash"  x="205" y="278">e04b88a  · adolfo</text>
+
+            <text class="graph-label" x="205" y="314" fill="var(--accent)">HEAD  site/landing-page</text>
+            <text class="graph-hash"  x="205" y="328">f2a9d10  · you are here</text>
+
+            <text class="graph-label" x="205" y="364">feat(ai): commit drafter</text>
+            <text class="graph-hash"  x="205" y="378">2c78901  · adolfo</text>
+
+            <text class="graph-label" x="205" y="414">release: tagged</text>
+            <text class="graph-hash"  x="205" y="428">83f5280  · latest</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MANIFESTO ============ -->
+  <section id="manifesto">
+    <div class="wrap">
+      <div class="manifesto">
+        <div>
+          <div class="manifesto-label">
+            <div class="eyebrow">§ 01 — Manifesto</div>
+          </div>
+        </div>
+        <div class="manifesto-body reveal">
+          You ship code from <strong>one keyboard</strong>, not seventeen tabs. BeardGit is built on a simple
+          premise: <span class="italic">everything you touch to release a change should live in one app.</span>
+          Your commit graph. Your branches. Your staging. Your pull requests and merge requests on
+          <strong>GitHub and GitLab</strong>. Your CI pipelines and deploy jobs. Your issues, labels, and releases.
+          Your terminals. Your AI agents. Close the browser tabs. Close the other clients.
+          BeardGit is the <strong>one window</strong> you keep open.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Everything you do, in <span class="italic">one place</span>.</h2>
+        <div class="section-head-meta">§ 02 — Capabilities</div>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature wide reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="5" cy="6" r="2.25"/>
+              <circle cx="5" cy="18" r="2.25"/>
+              <circle cx="19" cy="12" r="2.25"/>
+              <path d="M5 8.25v7.5"/>
+              <path d="M7 6h6a4 4 0 0 1 4 4v0"/>
+              <path d="M7 18h6a4 4 0 0 0 4-4v0"/>
+            </svg>
+          </div>
+          <div class="feature-num">01 / 06</div>
+          <h3 class="feature-title">A <span class="italic">canvas graph</span> that scales.</h3>
+          <p class="feature-body">100K+ commits render smoothly via a viewport-sliced renderer. Branch lanes, merge curves, sync-state lines, and author highlighting — all on HTML canvas, not DOM.</p>
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 8l9-4 9 4-9 4-9-4z"/>
+              <path d="M3 12l9 4 9-4"/>
+              <path d="M3 16l9 4 9-4"/>
+            </svg>
+          </div>
+          <div class="feature-num">02 / 06</div>
+          <h3 class="feature-title">Multi-repo <span class="italic">tabs</span>.</h3>
+          <p class="feature-body">Every repository is a tab. Heavy state — repo, layout, file watcher — loads only for the active tab; background tabs keep just their metadata.</p>
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="6" cy="6" r="2.25"/>
+              <circle cx="6" cy="18" r="2.25"/>
+              <circle cx="18" cy="18" r="2.25"/>
+              <path d="M6 8.25v7.5"/>
+              <path d="M14 6h2a2 2 0 0 1 2 2v8"/>
+              <path d="M11 3l3 3-3 3"/>
+            </svg>
+          </div>
+          <div class="feature-num">03 / 06</div>
+          <h3 class="feature-title">Forge-native for <span class="italic">GitHub + GitLab</span>.</h3>
+          <p class="feature-body">Create, edit, merge, approve, and comment on PRs/MRs. Manage issues, labels, milestones, assignees. Trigger and retry pipelines. Publish releases — without leaving the app. <code class="mono">gh</code> and <code class="mono">glab</code> ship bundled.</p>
+        </div>
+
+        <div class="feature tall reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/>
+              <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/>
+              <path d="M5 15l.75 1.75L7.5 17.5l-1.75.75L5 20l-.75-1.75L2.5 17.5l1.75-.75L5 15z"/>
+            </svg>
+          </div>
+          <div class="feature-num">04 / 06</div>
+          <h3 class="feature-title">Your own AI CLI, in a <span class="italic">worktree</span>.</h3>
+          <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh git worktree — no terminal, no key juggling. You keep the CLI you already configured; the app just spawns it, queues runs, and pipes the transcript back in-app. More providers will follow.</p>
+<pre><span class="cm"># Cmd+Shift+A — pick prompt + provider + worktree root</span>
+<span class="kw">AiBackgroundCoordinator</span>::queue(run) <span class="cm">// FIFO</span>
+  .launch(<span class="str">"claude-code"</span>, <span class="str">"--print --stream-json"</span>)
+  .in_worktree(<span class="str">".beardgit/ai-worktrees/&lt;id&gt;"</span>)
+  .cap(<span class="num">3</span>) <span class="cm">// concurrent runs</span></pre>
+        </div>
+
+        <div class="feature wide reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"/>
+              <path d="M8.5 11l2 2 4-4.5"/>
+              <path d="M16.5 16.5L21 21"/>
+            </svg>
+          </div>
+          <div class="feature-num">05 / 06</div>
+          <h3 class="feature-title">Visual <span class="italic">bisect</span>.</h3>
+          <p class="feature-body">Pick the good commit, pick the bad commit, step through with buttons. Visual runner pairs with the bundled CLIs and the AI worktree flow — no terminal juggling.</p>
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"/>
+              <path d="M7 9l3 3-3 3"/>
+              <path d="M13 15h4"/>
+            </svg>
+          </div>
+          <div class="feature-num">06 / 06</div>
+          <h3 class="feature-title">Bundled <span class="italic">CLIs</span>.</h3>
+          <p class="feature-body"><code class="mono">gh</code> and <code class="mono">glab</code> ship inside every installer. No PATH setup. Run them in a PTY terminal inside the app, or let BeardGit call them for you.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SHOWCASE ============ -->
+  <section id="showcase" class="showcase">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>The whole repo, one <span class="italic">window</span>.</h2>
+        <div class="section-head-meta">§ 03 — Interface</div>
+      </div>
+
+      <!--
+        ┌──────────────────────────────────────────────────────────────┐
+        │  SCREENSHOT PLACEHOLDER · main window                        │
+        │  Drop a real PNG at: docs/assets/screenshots/main-dark.png   │
+        │                      docs/assets/screenshots/main-light.png  │
+        │  Recommended size:   ~2880×1800 (retina) · max ~500KB        │
+        │  The <picture> below auto-swaps by theme via prefers-color-  │
+        │  scheme + data-theme fallback; the CSS mock stays as visible │
+        │  fallback until real files exist.                            │
+        └──────────────────────────────────────────────────────────────┘
+      -->
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="main-window">
+          <img class="shot-img"
+               data-src-light="assets/screenshots/main-light.png"
+               data-src-dark="assets/screenshots/main-dark.png"
+               src="assets/screenshots/main-dark.png"
+               alt="BeardGit main window" />
+          <div class="placeholder-tag">
+            <span class="placeholder-tag-id">IMG · 01 — main window</span>
+            <span class="placeholder-tag-path">assets/screenshots/main-{light|dark}.png</span>
+            <span class="placeholder-tag-hint">Hero screenshot: full app window with graph + diff + sidebar</span>
+          </div>
+        </div>
+        <figcaption class="shot-caption mono">fig. 01 — main window</figcaption>
+      </figure>
+
+      <div class="screenshot-strip">
+        <figure class="shot-figure reveal">
+          <div class="screenshot-slot small" data-slot="graph">
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/graph-light.png"
+                 data-src-dark="assets/screenshots/graph-dark.png"
+                 src="assets/screenshots/graph-dark.png"
+                 alt="Commit graph" />
+            <div class="placeholder-tag">
+              <span class="placeholder-tag-id">IMG · 02</span>
+              <span class="placeholder-tag-path">assets/screenshots/graph-{light|dark}.png</span>
+              <span class="placeholder-tag-hint">Canvas commit graph close-up</span>
+            </div>
+          </div>
+          <figcaption class="shot-caption mono">fig. 02 — commit graph</figcaption>
+        </figure>
+        <figure class="shot-figure reveal">
+          <div class="screenshot-slot small" data-slot="ai">
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/ai-light.png"
+                 data-src-dark="assets/screenshots/ai-dark.png"
+                 src="assets/screenshots/ai-dark.png"
+                 alt="AI background run" />
+            <div class="placeholder-tag">
+              <span class="placeholder-tag-id">IMG · 03</span>
+              <span class="placeholder-tag-path">assets/screenshots/ai-{light|dark}.png</span>
+              <span class="placeholder-tag-hint">AI background run dialog or transcript</span>
+            </div>
+          </div>
+          <figcaption class="shot-caption mono">fig. 03 — AI background run</figcaption>
+        </figure>
+        <figure class="shot-figure reveal">
+          <div class="screenshot-slot small" data-slot="forge">
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/forge-light.png"
+                 data-src-dark="assets/screenshots/forge-dark.png"
+                 src="assets/screenshots/forge-dark.png"
+                 alt="PR / pipeline view" />
+            <div class="placeholder-tag">
+              <span class="placeholder-tag-id">IMG · 04</span>
+              <span class="placeholder-tag-path">assets/screenshots/forge-{light|dark}.png</span>
+              <span class="placeholder-tag-hint">PR detail or CI pipeline view</span>
+            </div>
+          </div>
+          <figcaption class="shot-caption mono">fig. 04 — PR / pipeline</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INSTALL ============ -->
+  <section id="install">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Download, <span class="italic">approve</span>, launch.</h2>
+        <div class="section-head-meta">§ 04 — Getting started</div>
+      </div>
+
+      <p class="install-lede mono reveal">
+        Builds are currently <strong>unsigned</strong>, so your OS will block the first launch. Grab the installer for your platform, <strong>approve the app manually once</strong>, and it runs like any other native app. The per-platform workarounds below are temporary and will go away as soon as code-signing is in place. <span class="mono">gh</span> and <span class="mono">glab</span> ship bundled — no PATH setup.
+      </p>
+
+      <div class="install-grid">
+        <div class="install-card reveal">
+          <div class="install-os">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.7 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 2 2.6 3.4 2.6 1.4-.1 1.9-.9 3.5-.9 1.7 0 2.1.9 3.5.9 1.5 0 2.4-1.2 3.2-2.4.9-1.4 1.3-2.7 1.4-2.8-.1 0-2.7-1-2.7-4.1zM16.1 4.8c.7-.9 1.2-2.1 1.1-3.3-1 0-2.3.7-3 1.5-.7.8-1.3 2-1.1 3.2 1.2.1 2.3-.6 3-1.4z"/></svg>
+            <div class="install-os-name">macOS</div>
+          </div>
+          <div class="install-arch">Apple Silicon · <code>.dmg</code></div>
+          <a class="install-link" href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" data-dl="macos">
+            <span data-dl-label>Download for macOS</span> ↗
+          </a>
+          <div class="install-cmd">
+            <div class="install-cmd-scroll">
+              <span data-cmd="xattr -dr com.apple.quarantine /Applications/BeardGit.app">xattr -dr com.apple.quarantine /Applications/BeardGit.app</span>
+            </div>
+            <button class="install-copy" type="button" aria-label="Copy command">Copy</button>
+          </div>
+          <div class="install-meta">Drag to <span class="mono">/Applications</span>, then run the command above once to clear Gatekeeper's quarantine flag. Temporary — goes away with code-signing.</div>
+        </div>
+
+        <div class="install-card reveal">
+          <div class="install-os">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2c-1.8 0-3 1.3-3 3 0 1.6 1 2.6 1 4 0 1-1 1.5-2 2-2.5 1.3-3.5 4-3 7 .5 2 1.5 3 3 4 1 .5 1 1.5 0 2-.5 .3-.5 1 .5 1h7c1 0 1-.7.5-1-1-.5-1-1.5 0-2 1.5-1 2.5-2 3-4 .5-3-.5-5.7-3-7-1-.5-2-1-2-2 0-1.4 1-2.4 1-4 0-1.7-1.2-3-3-3z"/></svg>
+            <div class="install-os-name">Linux</div>
+          </div>
+          <div class="install-arch">x64 · <code>.AppImage</code></div>
+          <a class="install-link" href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" data-dl="linux">
+            <span data-dl-label>Download for Linux</span> ↗
+          </a>
+          <div class="install-cmd">
+            <div class="install-cmd-scroll">
+              <span data-cmd="chmod +x BeardGit-*.AppImage && ./BeardGit-*.AppImage">chmod +x BeardGit-*.AppImage &amp;&amp; ./BeardGit-*.AppImage</span>
+            </div>
+            <button class="install-copy" type="button" aria-label="Copy command">Copy</button>
+          </div>
+          <div class="install-meta">Mark executable and run directly. Requires <span class="mono">libwebkit2gtk-4.1</span>. <span class="mono">.deb</span> / <span class="mono">.rpm</span> bundles aren't shipped right now — build from source if you need them.</div>
+        </div>
+
+        <div class="install-card reveal">
+          <div class="install-os">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5l8-1.1V12H3V5.5zM12 4.3l9-1.3V12h-9V4.3zM3 12.5h8V20L3 18.9v-6.4zM12 12.5h9V21l-9-1.3v-7.2z"/></svg>
+            <div class="install-os-name">Windows</div>
+          </div>
+          <div class="install-arch">x64 · <code>.exe</code></div>
+          <a class="install-link" href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" data-dl="windows">
+            <span data-dl-label>Download for Windows</span> ↗
+          </a>
+          <div class="install-cmd step">
+            <div class="install-cmd-scroll">
+              <span data-cmd="SmartScreen → More info → Run anyway">SmartScreen → More info → Run anyway</span>
+            </div>
+            <button class="install-copy" type="button" aria-label="Copy step">Copy</button>
+          </div>
+          <div class="install-meta">Requires WebView2 Runtime (installed on Windows 11 by default). The <span class="mono">.msi</span> bundle will return once the app is code-signed.</div>
+        </div>
+      </div>
+
+      <div class="callout reveal">
+        <div>
+          <div class="eyebrow" style="margin-bottom:0.8rem">§ 04.1 — From source</div>
+          <h2>Rather <span class="italic">build it</span> yourself?</h2>
+          <p class="callout-body">Rust + Node + Tauri 2. Full setup and platform prerequisites live in the <a href="https://github.com/The3eard/BeardGit#development" target="_blank" rel="noopener">README</a>. Licensed <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
+        </div>
+        <div>
+          <a href="https://github.com/The3eard/BeardGit" class="btn btn-ghost" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
+            Clone the repo
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="brand" style="margin-bottom:1rem">
+            <img src="assets/logo.svg" alt="" class="brand-mark" />
+            <span class="brand-name">BeardGit</span>
+          </div>
+          <p class="footer-tagline mono">
+            A native desktop Git client. One window for graph, PRs, MRs, CI, issues, releases, terminals, and AI agents.
+          </p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#showcase">Showcase</a></li>
+            <li><a href="#install">Install</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/releases" target="_blank" rel="noopener">Releases</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Source</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Issues</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">License</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CLA.md" target="_blank" rel="noopener">CLA</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Adolfo Fuentes</span>
+        <span class="mono">Graph · PRs · MRs · CI · issues · releases · AI · terminals — one app.</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">×</button>
+    <img class="lightbox-img" id="lightboxImg" alt="" />
+    <div class="lightbox-caption mono" id="lightboxCaption"></div>
+  </div>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

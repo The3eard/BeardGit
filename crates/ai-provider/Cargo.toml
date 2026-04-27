@@ -1,0 +1,19 @@
+[package]
+name = "ai-provider"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+# When enabled, expose `ai_provider::mock::MockAiProvider` so downstream
+# crates can use it in their own `[dev-dependencies]` without a cyclic
+# `#[cfg(test)]` gate.
+mock = []
+
+[dev-dependencies]
+serde_json = { workspace = true }

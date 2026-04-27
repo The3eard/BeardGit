@@ -1,0 +1,259 @@
+<!--
+  CreateIssueDialog — modal for creating a new issue. Title + description
+  are required; labels, assignees, and milestone are optional.
+-->
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { Button, IconButton } from "$lib/components/ui";
+  import {
+    createIssue,
+    labelsCache,
+    labelsCacheLoading,
+    refreshLabelsCache,
+  } from "../../stores/issues";
+  import * as m from "$lib/paraglide/messages";
+  import LabelPicker from "../common/LabelPicker.svelte";
+  import AssigneePicker from "./AssigneePicker.svelte";
+  import MilestonePicker from "./MilestonePicker.svelte";
+
+  let { onClose }: { onClose: () => void } = $props();
+
+  let titleInput = $state("");
+  let bodyInput = $state("");
+  let labels = $state<string[]>([]);
+  let assignees = $state<string[]>([]);
+  let milestoneId = $state<number | null>(null);
+  let submitting = $state(false);
+  let errorMsg = $state("");
+
+  let showLabelPicker = $state(false);
+  let showAssigneePicker = $state(false);
+  let showMilestonePicker = $state(false);
+
+  onMount(() => {
+    if ($labelsCache.length === 0) void refreshLabelsCache();
+  });
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") onClose();
+  }
+
+  function applyLabels(added: string[], removed: string[]) {
+    const set = new Set(labels);
+    for (const a of added) set.add(a);
+    for (const r of removed) set.delete(r);
+    labels = [...set];
+    showLabelPicker = false;
+  }
+
+  function applyAssignees(added: string[], removed: string[]) {
+    const set = new Set(assignees);
+    for (const a of added) set.add(a);
+    for (const r of removed) set.delete(r);
+    assignees = [...set];
+    showAssigneePicker = false;
+  }
+
+  function applyMilestone(id: number | null) {
+    milestoneId = id;
+    showMilestonePicker = false;
+  }
+
+  async function handleSubmit() {
+    if (!titleInput.trim()) return;
+    submitting = true;
+    errorMsg = "";
+    try {
+      await createIssue(titleInput.trim(), bodyInput, labels, assignees, milestoneId);
+      onClose();
+    } catch (e) {
+      errorMsg = m.issues_create_failed({ error: String(e) });
+    } finally {
+      submitting = false;
+    }
+  }
+</script>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<button class="backdrop" type="button" onclick={onClose} aria-label={m.issues_cancel()}></button>
+<div class="dialog" role="dialog" aria-modal="true" aria-label={m.issues_create_title()}>
+  <h3 class="dialog-title">{m.issues_create_title()}</h3>
+
+  <div class="form-field">
+    <label for="issue-title">{m.issues_title_label()}</label>
+    <!-- svelte-ignore a11y_autofocus -->
+    <input id="issue-title" type="text" bind:value={titleInput} autofocus />
+  </div>
+
+  <div class="form-field">
+    <label for="issue-body">{m.issues_description_label()}</label>
+    <textarea id="issue-body" rows="5" bind:value={bodyInput}></textarea>
+  </div>
+
+  <div class="form-field">
+    <label for="issue-labels-row">{m.issues_labels_label()}</label>
+    <div class="chip-row" id="issue-labels-row">
+      {#each labels as label}
+        <span class="chip">{label}
+          <IconButton tone="danger" size="sm" icon={""} description="Remove label" onclick={() => labels = labels.filter(l => l !== label)} />
+        </span>
+      {/each}
+      <Button variant="neutral" size="sm" icon={""} onclick={() => showLabelPicker = true}>{m.issues_add_label()}</Button>
+    </div>
+  </div>
+
+  <div class="form-field">
+    <label for="issue-assignees-row">{m.issues_assignees_label()}</label>
+    <div class="chip-row" id="issue-assignees-row">
+      {#each assignees as a}
+        <span class="chip">{a}
+          <IconButton tone="danger" size="sm" icon={""} description="Remove assignee" onclick={() => assignees = assignees.filter(x => x !== a)} />
+        </span>
+      {/each}
+      <Button variant="neutral" size="sm" icon={""} onclick={() => showAssigneePicker = true}>{m.issues_add_assignee()}</Button>
+    </div>
+  </div>
+
+  <div class="form-field">
+    <!-- svelte-ignore a11y_label_has_associated_control -->
+    <label>{m.issues_milestone_label()}</label>
+    <Button variant="neutral" size="sm" onclick={() => showMilestonePicker = true}>
+      {milestoneId === null ? m.issues_no_milestone() : `#${milestoneId}`}
+    </Button>
+  </div>
+
+  {#if errorMsg}<p class="error-msg">{errorMsg}</p>{/if}
+
+  <div class="dialog-actions">
+    <Button variant="neutral" onclick={onClose}>{m.issues_cancel()}</Button>
+    <Button
+      variant="primary"
+      disabled={submitting || !titleInput.trim()}
+      onclick={handleSubmit}
+    >
+      {submitting ? m.issues_loading() : m.issues_create_button()}
+    </Button>
+  </div>
+</div>
+
+{#if showLabelPicker}
+  <LabelPicker
+    labels={$labelsCache}
+    loading={$labelsCacheLoading}
+    current={labels}
+    onApply={applyLabels}
+    onCancel={() => showLabelPicker = false}
+  />
+{/if}
+
+{#if showAssigneePicker}
+  <AssigneePicker
+    current={assignees}
+    onApply={applyAssignees}
+    onCancel={() => showAssigneePicker = false}
+  />
+{/if}
+
+{#if showMilestonePicker}
+  <MilestonePicker
+    current={milestoneId}
+    onConfirm={applyMilestone}
+    onCancel={() => showMilestonePicker = false}
+  />
+{/if}
+
+<style>
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: modal backdrop neutral */
+    z-index: 99;
+    border: none;
+    cursor: pointer;
+  }
+  .dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    min-width: 440px;
+    max-width: 520px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: drop shadow neutral */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dialog-title {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .form-field > label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .form-field input[type="text"],
+  .form-field textarea {
+    padding: 6px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+  .form-field textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .chip {
+    padding: 2px 6px 2px 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
+    color: var(--accent-blue);
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .error-msg {
+    margin: 0;
+    padding: 6px 10px;
+    background: var(--overlay-accent-red);
+    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
+    border-radius: 4px;
+    color: var(--accent-red);
+    font-size: 12px;
+  }
+  .dialog-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+</style>

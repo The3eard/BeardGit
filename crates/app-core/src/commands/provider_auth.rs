@@ -1,0 +1,370 @@
+//! Provider authentication and CI run commands.
+
+use tauri::State;
+use tracing::instrument;
+
+use super::helpers::*;
+use crate::state::AppState;
+
+/// Connect to a git hosting provider using a Personal Access Token (PAT).
+///
+/// Validates the token, stores it in the encrypted credential store,
+/// builds a [`ProviderConnection`][crate::state::ProviderConnection] with
+/// the authenticated user's profile, and appends it to the providers vec
+/// (or replaces an existing entry with the same `instance_url`).
+///
+/// After connecting, re-runs active provider detection against the current
+/// repo's remote URL and persists all providers to `settings.json`.
+///
+/// As a fire-and-forget side effect, the same PAT is piped into the
+/// matching CLI (`gh` / `glab`) on a background task so the CLI half of
+/// the integration authenticates under the same identity in one action.
+/// Failures of the CLI pipe are logged only — the API half is already
+/// persisted and the command never blocks or errors on the subprocess.
+///
+/// # Parameters
+/// - `kind`         – Provider type (`"gitlab"` or `"github"`).
+/// - `instance_url` – Base URL (e.g. `"https://gitlab.com"` or `"https://api.github.com"`).
+/// - `token`        – Personal Access Token.
+///
+/// # Returns
+/// The authenticated user profile as a [`provider::ProviderUser`].
+#[tauri::command]
+#[instrument(skip(state, token), name = "cmd::provider::connect")]
+pub async fn connect_provider(
+    kind: provider::ProviderKind,
+    instance_url: String,
+    token: String,
+    state: State<'_, AppState>,
+) -> Result<provider::ProviderUser, String> {
+    // 1. Validate token
+    let user = match kind {
+        provider::ProviderKind::GitLab => auth::validate_gitlab_pat(&instance_url, &token).await,
+        provider::ProviderKind::GitHub => auth::validate_github_pat(&instance_url, &token).await,
+    }
+    .map_err(|e| e.to_string())?;
+
+    // 2. Store credential
+    let credential = auth::Credential {
+        token: token.clone(),
+        provider: kind,
+    };
+    state
+        .credential_store
+        .store_credential(&instance_url, &credential)
+        .map_err(|e| e.to_string())?;
+
+    if let Ok(mut cache) = state.cli_binary_cache.lock() {
+        cache.remove(&kind);
+    }
+
+    // 3. Build ProviderConnection (metadata only, no CiProvider)
+    let conn = crate::state::ProviderConnection {
+        kind,
+        instance_url: instance_url.clone(),
+        user: user.clone(),
+        project_ref: None,
+        project_name: None,
+    };
+
+    // 4. Insert or replace in providers vec
+    {
+        let mut providers = state.providers.lock().unwrap();
+        if let Some(pos) = providers
+            .iter()
+            .position(|p| p.instance_url == instance_url)
+        {
+            providers[pos] = conn;
+        } else {
+            providers.push(conn);
+        }
+    }
+
+    // 5. Save to config and detect active provider
+    save_providers_to_config(&state);
+    detect_active_provider(&state).await;
+
+    // Fire-and-forget: pipe the same PAT into the matching CLI so `gh`/`glab`
+    // are logged in under the app's identity. Failures are silent — the CLI
+    // row's existing status poll will reflect the outcome on its own, and the
+    // API half is already persisted. Never block the user on this.
+    if let Ok(binary) = resolve_cli_binary(&state, kind) {
+        let instance = instance_url.clone();
+        let token_bg = token.clone();
+        tokio::spawn(async move {
+            let outcome = tokio::task::spawn_blocking(move || {
+                cli_provider::auth::pipe_token_to_cli(&binary, kind, &instance, &token_bg)
+            })
+            .await;
+            match outcome {
+                Ok(Ok(())) => tracing::info!(
+                    target: "cmd::provider::connect",
+                    "CLI auto-login succeeded"
+                ),
+                Ok(Err(e)) => tracing::warn!(
+                    target: "cmd::provider::connect",
+                    error = %e,
+                    "CLI auto-login failed (non-fatal)"
+                ),
+                Err(join_err) => tracing::warn!(
+                    target: "cmd::provider::connect",
+                    error = %join_err,
+                    "CLI auto-login task panicked (non-fatal)"
+                ),
+            }
+        });
+    }
+
+    Ok(user)
+}
+
+/// Disconnect a specific provider identified by its instance URL.
+///
+/// Removes the provider from the in-memory vec, deletes the credential
+/// from the encrypted store, saves the updated config, and re-runs
+/// active provider detection.
+///
+/// As a fire-and-forget side effect, the matching CLI (`gh` / `glab`) is
+/// logged out on a background task so the CLI half of the integration
+/// mirrors the app's state. Failures (including the CLI already being
+/// logged out) are logged only and never affect the command result.
+///
+/// # Parameters
+/// - `instance_url` – Base URL of the provider to disconnect.
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::provider::disconnect")]
+pub async fn disconnect_provider(
+    instance_url: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    // Capture kind before retain() drops the entry, so we can run the CLI
+    // logout as a background task after unwinding the in-memory state.
+    let kind_for_cli: Option<provider::ProviderKind> = {
+        let providers = state.providers.lock().unwrap();
+        providers
+            .iter()
+            .find(|p| p.instance_url == instance_url)
+            .map(|p| p.kind)
+    };
+
+    // Remove from providers vec
+    {
+        let mut providers = state.providers.lock().unwrap();
+        providers.retain(|p| p.instance_url != instance_url);
+    }
+
+    // Delete credential
+    let _ = state.credential_store.delete_credential(&instance_url);
+
+    // Save config and re-detect
+    save_providers_to_config(&state);
+    detect_active_provider(&state).await;
+
+    // Fire-and-forget: log the matching CLI out so `gh`/`glab` state mirrors
+    // the app. `clear_cli_auth` is idempotent (a "not logged in" stderr maps
+    // to Ok), and any real failure is logged rather than surfaced — the
+    // command has already torn down the in-memory + keyring state.
+    if let Some(kind) = kind_for_cli
+        && let Ok(binary) = resolve_cli_binary(&state, kind)
+    {
+        let instance = instance_url.clone();
+        tokio::spawn(async move {
+            let outcome = tokio::task::spawn_blocking(move || {
+                cli_provider::auth::clear_cli_auth(&binary, kind, &instance)
+            })
+            .await;
+            match outcome {
+                Ok(Ok(())) => tracing::info!(
+                    target: "cmd::provider::disconnect",
+                    "CLI auto-logout succeeded"
+                ),
+                Ok(Err(e)) => tracing::warn!(
+                    target: "cmd::provider::disconnect",
+                    error = %e,
+                    "CLI auto-logout failed (non-fatal)"
+                ),
+                Err(join_err) => tracing::warn!(
+                    target: "cmd::provider::disconnect",
+                    error = %join_err,
+                    "CLI auto-logout task panicked (non-fatal)"
+                ),
+            }
+        });
+    }
+
+    Ok(())
+}
+
+/// Attempt to restore all previously saved provider sessions on app startup.
+///
+/// Reads the `providers` list from `settings.json`, retrieves each token from
+/// the credential store, validates it against the provider API, and builds
+/// a [`ProviderConnection`][crate::state::ProviderConnection] for each
+/// successful validation.
+///
+/// After reconnecting, runs active provider detection against the current
+/// repo's remote URL.
+///
+/// # Returns
+/// A list of successfully reconnected user profiles.
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::provider::auto_connect")]
+pub async fn try_auto_connect(
+    state: State<'_, AppState>,
+) -> Result<Vec<provider::ProviderUser>, String> {
+    // Read saved providers from config
+    let saved_providers = {
+        let config = state.config.lock().unwrap();
+        config.providers.clone()
+    };
+
+    let mut connected_users = Vec::new();
+    let mut connections = Vec::new();
+
+    for saved in &saved_providers {
+        let kind = match provider::ProviderKind::from_config_str(&saved.kind) {
+            Some(k) => k,
+            None => continue,
+        };
+
+        // Get token from credential store
+        let credential = match state.credential_store.get_credential(&saved.instance_url) {
+            Ok(Some(c)) => c,
+            _ => continue,
+        };
+
+        // Validate token
+        let user = match kind {
+            provider::ProviderKind::GitLab => {
+                auth::validate_gitlab_pat(&saved.instance_url, &credential.token).await
+            }
+            provider::ProviderKind::GitHub => {
+                auth::validate_github_pat(&saved.instance_url, &credential.token).await
+            }
+        };
+
+        let user = match user {
+            Ok(u) => u,
+            Err(_) => continue,
+        };
+
+        connections.push(crate::state::ProviderConnection {
+            kind,
+            instance_url: saved.instance_url.clone(),
+            user: user.clone(),
+            project_ref: None,
+            project_name: None,
+        });
+        connected_users.push(user);
+    }
+
+    // Store all successful connections
+    *state.providers.lock().unwrap() = connections;
+
+    // Detect active provider from repo remote
+    detect_active_provider(&state).await;
+
+    Ok(connected_users)
+}
+
+/// Return the current multi-provider connection status.
+///
+/// Builds a [`provider::ProviderStatusResponse`] containing all authenticated
+/// providers and which one (if any) is active for the currently open repository.
+/// Used by the frontend to render the provider list and active badge.
+#[tauri::command]
+pub fn get_provider_status(state: State<'_, AppState>) -> provider::ProviderStatusResponse {
+    let providers = state.providers.lock().unwrap();
+    let active_index = *state.active_provider_index.lock().unwrap();
+
+    let connected: Vec<provider::ConnectedProvider> = providers
+        .iter()
+        .map(|p| provider::ConnectedProvider {
+            kind: p.kind.as_str().to_string(),
+            instance_url: p.instance_url.clone(),
+            user: p.user.clone(),
+            project_name: p.project_name.clone(),
+        })
+        .collect();
+
+    provider::ProviderStatusResponse {
+        providers: connected,
+        active_index,
+    }
+}
+
+/// Re-detect the active provider from the currently open repository's remote URL.
+///
+/// Iterates all connected providers, matches the remote URL against each,
+/// and sets the active provider index on the first match. Clears project info
+/// on all non-matching providers.
+///
+/// Call this after opening a new repo when providers are already connected,
+/// so the CI panel automatically scopes to the correct project.
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::provider::detect_project")]
+pub async fn detect_project(state: State<'_, AppState>) -> Result<(), String> {
+    detect_active_provider(&state).await;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    //! The `connect_provider` / `disconnect_provider` / `try_auto_connect`
+    //! flows touch the network, the OS keyring, and Tauri state — not
+    //! unit-testable here. The background CLI pipe that
+    //! `connect_provider` / `disconnect_provider` spawn on success is
+    //! likewise out of reach from this module: it requires a live tokio
+    //! runtime plus a real `gh`/`glab` subprocess (or a mock rig). The
+    //! helpers it invokes (`cli_provider::auth::pipe_token_to_cli` and
+    //! `clear_cli_auth`) are covered directly in `crates/cli-provider`.
+    //!
+    //! What we can test here:
+    //!
+    //!   * `provider::ProviderKind::from_config_str` — the round-trip
+    //!     used by `try_auto_connect` to parse saved config values.
+    //!   * The `auth::Credential` struct's serde round-trip (the command
+    //!     stores/retrieves these verbatim through `credential_store`).
+
+    use auth::Credential;
+    use provider::ProviderKind;
+
+    #[test]
+    fn provider_kind_from_config_str_maps_known_strings() {
+        assert_eq!(
+            ProviderKind::from_config_str("gitlab"),
+            Some(ProviderKind::GitLab)
+        );
+        assert_eq!(
+            ProviderKind::from_config_str("github"),
+            Some(ProviderKind::GitHub)
+        );
+    }
+
+    #[test]
+    fn provider_kind_from_config_str_unknown_returns_none() {
+        assert_eq!(ProviderKind::from_config_str("bitbucket"), None);
+        assert_eq!(ProviderKind::from_config_str(""), None);
+        // Case-sensitive: "GitHub" should not match.
+        assert_eq!(ProviderKind::from_config_str("GitHub"), None);
+    }
+
+    #[test]
+    fn provider_kind_as_str_is_inverse_of_from_config_str() {
+        for k in [ProviderKind::GitHub, ProviderKind::GitLab] {
+            assert_eq!(ProviderKind::from_config_str(k.as_str()), Some(k));
+        }
+    }
+
+    #[test]
+    fn credential_serde_roundtrip_preserves_fields() {
+        let original = Credential {
+            token: "ghp_xyz".to_string(),
+            provider: ProviderKind::GitHub,
+        };
+        let json = serde_json::to_string(&original).expect("serialize");
+        let back: Credential = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.token, original.token);
+        assert_eq!(back.provider, original.provider);
+    }
+}

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="BeardGit">
+  <defs>
+    <linearGradient id="frame" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2C2830"/>
+      <stop offset="1" stop-color="#171419"/>
+    </linearGradient>
+    <linearGradient id="beard" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7A3E18"/>
+      <stop offset="1" stop-color="#4B1D0D"/>
+    </linearGradient>
+    <linearGradient id="beardDark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#562210"/>
+      <stop offset="1" stop-color="#2E1008"/>
+    </linearGradient>
+    <linearGradient id="git" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F58A35"/>
+      <stop offset="1" stop-color="#FF6A16"/>
+    </linearGradient>
+  </defs>
+  <path d="M304 360 C300 385 296 428 299 480 C301 515 295 554 287 592 C278 634 280 677 293 712 C313 689 328 665 338 637 C336 679 345 724 375 766 C411 814 457 850 512 873 C567 850 613 814 649 766 C679 724 688 679 686 637 C696 665 711 689 731 712 C744 677 746 634 737 592 C729 554 723 515 725 480 C728 428 724 385 720 360 C693 403 660 436 620 460 C591 477 555 489 512 495 C469 489 433 477 404 460 C364 436 331 403 304 360 Z" fill="url(#beard)"/>
+  <path d="M350 410 C379 394 424 386 512 386 C600 386 645 394 674 410 C659 437 640 456 615 470 C590 483 563 488 533 486 C525 485 518 479 512 471 C506 479 499 485 491 486 C461 488 434 483 409 470 C384 456 365 437 350 410 Z" fill="#F2EAD3"/>
+  <g fill="url(#beardDark)">
+    <path d="M344 458 C322 497 314 543 321 610 C332 584 350 561 374 538 C361 509 350 482 344 458 Z"/>
+    <path d="M680 458 C702 497 710 543 703 610 C692 584 674 561 650 538 C663 509 674 482 680 458 Z"/>
+    <path d="M422 484 C392 547 395 645 456 734 C440 668 440 580 464 511 Z"/>
+    <path d="M602 484 C632 547 629 645 568 734 C584 668 584 580 560 511 Z"/>
+  </g>
+  <g transform="translate(512 586)">
+    <rect x="-112" y="-112" width="224" height="224" rx="24" transform="rotate(45)" fill="url(#git)"/>
+    <g fill="#231F27">
+      <circle cx="-8" cy="-46" r="20"/>
+      <circle cx="-8" cy="60" r="20"/>
+      <circle cx="76" cy="-4" r="20"/>
+    </g>
+    <g fill="none" stroke="#231F27" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-8 -46 V60"/>
+      <path d="M-8 -46 L76 -4"/>
+    </g>
+  </g>
+  <path d="M438 758 C457 797 481 830 512 854 C543 830 567 797 586 758 C565 772 540 782 512 788 C484 782 459 772 438 758 Z" fill="#4A1A0B"/>
+  <g>
+    <path d="M258 309 C258 281 278 262 309 262 H420 C456 262 479 282 486 315 C491 337 489 360 478 378 C464 401 436 414 394 414 H356 C289 414 258 381 258 324 Z" fill="url(#frame)"/>
+    <path d="M766 309 C766 281 746 262 715 262 H604 C568 262 545 282 538 315 C533 337 535 360 546 378 C560 401 588 414 630 414 H668 C735 414 766 381 766 324 Z" fill="url(#frame)"/>
+    <path d="M470 290 C478 282 491 278 512 278 C533 278 546 282 554 290 L554 314 C554 320 550 324 544 324 C534 324 524 324 512 323 C500 324 490 324 480 324 C474 324 470 320 470 314 Z" fill="url(#frame)"/>
+    <g fill="#A9ADB3" opacity="0.10">
+      <path d="M350 322 L410 284 H446 L384 396 Z"/>
+      <path d="M578 322 L638 284 H674 L612 396 Z"/>
+    </g>
+    <g fill="#F3F3F3" opacity="0.95">
+      <circle cx="285" cy="308" r="4.5"/>
+      <circle cx="739" cy="308" r="4.5"/>
+    </g>
+  </g>
+</svg>

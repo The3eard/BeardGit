@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release:
+    name: Release ${{ matrix.label }}
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: '--target aarch64-apple-darwin'
+            label: macOS-arm64
+            rust-targets: aarch64-apple-darwin
+            target-triple: aarch64-apple-darwin
+          - platform: ubuntu-22.04
+            args: ''
+            label: Linux-x64
+            rust-targets: ''
+            target-triple: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            args: ''
+            label: Windows-x64
+            rust-targets: ''
+            target-triple: x86_64-pc-windows-msvc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Sync version from git tag
+        shell: bash
+        run: |
+          # Extract version from tag (strip leading 'v')
+          RAW_VERSION="${GITHUB_REF_NAME#v}"
+
+          # Windows MSI requires numeric-only pre-release identifiers.
+          # Strip non-numeric suffixes like "-beta", "-alpha", "-rc" for
+          # the Tauri/Cargo version while keeping the full tag for the
+          # GitHub release name.
+          VERSION=$(echo "$RAW_VERSION" | sed 's/-[^0-9].*//')
+          echo "Tag version: $RAW_VERSION → Build version: $VERSION"
+
+          # Update src-tauri/tauri.conf.json and package.json using node (cross-platform)
+          node -e "
+            const fs = require('fs');
+            const v = '$VERSION';
+            for (const f of ['src-tauri/tauri.conf.json', 'package.json']) {
+              const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+              j.version = v;
+              fs.writeFileSync(f, JSON.stringify(j, null, 2) + '\n');
+            }
+          "
+
+          # Update Cargo.toml workspace version
+          sed -i.bak 's/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml && rm -f Cargo.toml.bak
+
+          echo "Versions updated:"
+          grep '"version"' src-tauri/tauri.conf.json package.json
+          grep '^version' Cargo.toml
+
+      - name: Download CLI binaries
+        run: node scripts/download-cli-binaries.js --target ${{ matrix.target-triple }}
+
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # macOS code signing — uncomment when secrets are configured:
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'BeardGit ${{ github.ref_name }}'
+          releaseBody: 'See CHANGELOG.md for details.'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+  publish:
+    name: Publish release (undraft)
+    needs: release
+    runs-on: ubuntu-latest
+    # Undraft the GitHub release so `latest.json` is reachable via the
+    # `/releases/latest/download/latest.json` URL that the Tauri updater
+    # plugin polls. The matrix job creates a draft release; this step
+    # flips it to published once all platform bundles have been uploaded.
+    steps:
+      - name: Undraft release so updater can consume latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false --repo "${{ github.repository }}"

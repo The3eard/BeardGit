@@ -1,0 +1,69 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.svelte-kit/
+coverage/
+
+# Tauri
+src-tauri/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AI assistant artifacts — kept local, not shared in the repo
+.claude/
+CLAUDE.md
+**/CLAUDE.md
+GEMINI.md
+**/GEMINI.md
+AGENTS.md
+**/AGENTS.md
+.cursorrules
+.cursor/
+.windsurfrules
+.continuerules
+.aider*
+.github/copilot-instructions.md
+.superpowers/
+
+# Local-only documentation (specs, plans, scratch)
+# docs/ is published as the project website; only exclude assistant artifacts inside it
+docs/superpowers/
+docs/.superpowers/
+
+# Editor config
+.zed/
+
+# Mobile icons (desktop app only)
+src-tauri/icons/android/
+src-tauri/icons/ios/
+
+# Git worktrees
+.worktrees/
+
+# BeardGit-managed AI background-run worktrees, scratch state, per-app caches
+.beardgit/
+
+# Environment
+.env
+.env.local
+
+# Paraglide generated output
+src/lib/paraglide/
+
+# Bundled CLI binaries (downloaded by scripts/download-cli-binaries.js)
+src-tauri/binaries/

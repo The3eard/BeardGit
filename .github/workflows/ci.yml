@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main, beta, 'feature/**']
+  pull_request:
+    branches: [main, beta]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  frontend-checks:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Paraglide messages
+        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+
+      - name: Svelte check
+        run: npm run check
+
+  lint:
+    name: Lint (stylelint + eslint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Paraglide messages
+        # Paraglide output is gitignored; lint imports from $lib/paraglide so
+        # it must exist before eslint/svelte-eslint-parser can parse .svelte files.
+        run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+
+      - name: Stylelint (color-no-hex)
+        run: npm run lint:style
+
+      - name: ESLint (no-hex-in-svelte)
+        run: npm run lint:js
+
+  rust-checks:
+    name: Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install npm dependencies
+        # Needed because the Tauri build script (invoked by cargo clippy /
+        # cargo test on the beardgit crate) compiles the frontend and resolves
+        # externalBin paths. Without node_modules the build fails before
+        # reaching clippy. Matches the setup in build.yml / release.yml.
+        run: npm ci
+
+      - name: Download CLI binaries
+        # Phase 7.2 — the Tauri build script validates `externalBin` sidecar
+        # paths declared in tauri.conf.json. If the binaries aren't on disk,
+        # the build fails with "resource path doesn't exist" before clippy
+        # / tests can run. Download the Linux x64 binaries for CI's ubuntu
+        # runner; production builds download per-matrix in build.yml.
+        run: node scripts/download-cli-binaries.js --target x86_64-unknown-linux-gnu
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Trait-crate purity guard
+        # Phase 9.3 — the `provider` and `forge-provider` crates define the
+        # public trait contract for CI/forge backends. They must stay free of
+        # runtime dependencies (no `reqwest`, `tokio` runtime hooks, `tauri`,
+        # `hyper`). Fail the build if any of those imports leak in.
+        run: |
+          set -euo pipefail
+          if grep -rnE '^[[:space:]]*(use|extern crate)[[:space:]]+(reqwest|tokio|tauri|hyper)\b' \
+                crates/provider/src crates/forge-provider/src crates/ai-provider/src; then
+            echo "::error::Forbidden runtime dependency imported in a trait crate." >&2
+            exit 1
+          fi
+          echo "OK: trait crates are runtime-dep free."
+
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Run tests
+        run: cargo test --workspace

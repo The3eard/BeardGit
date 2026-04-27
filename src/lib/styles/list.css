@@ -1,0 +1,97 @@
+/* Shared list panel styles — used by TagList, BranchList, PipelineList */
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.list-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.list-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.list-items {
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ─── Title ─── */
+
+.list-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+/* ─── Header actions container ─── */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ─── Filter bar ─── */
+
+.filter-row {
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.filter-input {
+  width: 100%;
+  padding: 5px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.filter-input:focus {
+  border-color: var(--accent-blue);
+}
+
+/* ─── Row base ─── */
+
+.list-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.list-row:hover {
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+}
+
+.list-row.selected {
+  background: color-mix(in srgb, var(--accent-blue) 8%, transparent);
+}

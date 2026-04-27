@@ -1,0 +1,18 @@
+[package]
+name = "gitlab-api"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+provider = { path = "../provider" }
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+urlencoding = "2"
+
+[dev-dependencies]
+mockito = "1"
+tokio = { workspace = true }

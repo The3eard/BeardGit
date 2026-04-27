@@ -1,0 +1,46 @@
+[package]
+name = "app-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+git-engine = { path = "../git-engine" }
+graph-builder = { path = "../graph-builder" }
+storage = { path = "../storage" }
+auth = { path = "../auth" }
+provider = { path = "../provider" }
+gitlab-api = { path = "../gitlab-api" }
+github-api = { path = "../github-api" }
+task-runner = { path = "../task-runner" }
+cli-provider = { path = "../cli-provider" }
+forge-provider = { path = "../forge-provider" }
+ai-provider = { path = "../ai-provider" }
+claude-code = { path = "../claude-code" }
+codex = { path = "../codex" }
+opencode = { path = "../opencode" }
+which = "7"
+async-trait = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { version = "2", features = [] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+dirs = "6"
+open = "5"
+rayon = "1"
+watcher = { path = "../watcher" }
+terminal = { path = "../terminal" }
+mutation-events = { path = "../mutation-events" }
+base64 = "0.22"
+ignore = "0.4"
+git2 = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+git-engine = { path = "../git-engine", features = ["test-support"] }
+ai-provider = { path = "../ai-provider", features = ["mock"] }
+forge-provider = { path = "../forge-provider", features = ["mock"] }

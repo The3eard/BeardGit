@@ -1,0 +1,22 @@
+{
+  "tagName": "v0.1.8",
+  "name": "BeardGit v0.1.8",
+  "isDraft": false,
+  "isPrerelease": false,
+  "publishedAt": "2026-04-16T10:00:00Z",
+  "createdAt": "2026-04-16T09:30:00Z",
+  "author": {"login": "adolfo"},
+  "url": "https://github.com/owner/repo/releases/tag/v0.1.8",
+  "body": null,
+  "assets": [
+    {
+      "id": 1234,
+      "name": "beardgit-mac-arm64.dmg",
+      "label": "",
+      "size": 12345678,
+      "downloadCount": 10,
+      "contentType": "application/octet-stream",
+      "url": "https://github.com/owner/repo/releases/download/v0.1.8/beardgit-mac-arm64.dmg"
+    }
+  ]
+}

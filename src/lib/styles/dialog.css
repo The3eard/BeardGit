@@ -1,0 +1,46 @@
+/* Shared dialog styles — used by ConfirmDialog, CleanDialog, CreateMrPrDialog,
+   CreateWorktreeDialog, CreateConfigDialog, PatchPreviewDialog, TagCreateDialog.
+   Icon-only buttons (close ×, etc.) live in `src/lib/components/ui/IconButton.svelte`. */
+
+/* Full-screen backdrop overlay */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
+  z-index: 999;
+}
+
+/* Centered dialog card */
+.dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  z-index: 1000;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: drop shadow neutral */
+}
+
+/* Dialog title */
+.dialog-title {
+  margin: 0 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Action button row — right-aligned */
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Icon-only buttons (close ×, collapse/expand chevrons, inline icon
+   actions) used to live as `.btn-icon` here. They are now provided by
+   `src/lib/components/ui/IconButton.svelte` — transparent always, with
+   only the glyph colour changing on hover. Migrate any remaining call
+   sites to `<IconButton ... />` rather than re-introducing this rule. */
