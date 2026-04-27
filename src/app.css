@@ -141,23 +141,3 @@ input, textarea, pre, code {
   to { transform: rotate(360deg); }
 }
 
-/* Base action button — consistent size across views */
-.btn-action {
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 11px;
-  cursor: pointer;
-  background: var(--overlay-hover);
-  color: var(--text-primary);
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.btn-action:hover {
-  background: var(--overlay-active);
-}
-
-.btn-action:disabled {
-  opacity: 0.4;
-  cursor: default;
-}

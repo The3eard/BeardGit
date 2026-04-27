@@ -167,7 +167,7 @@
     <div class="task-row__actions">
       {#each entry.actions as action (action.id)}
         <Button
-          variant={action.variant ?? "secondary"}
+          variant={action.variant ?? "neutral"}
           size="sm"
           testid={`task-row-action-${action.id}`}
           onclick={() => onAction(action.id)}

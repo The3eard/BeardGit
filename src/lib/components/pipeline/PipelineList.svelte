@@ -332,7 +332,7 @@
 {#if error}<div class="list-error" role="alert">{error}</div>{/if}
 
 <style>
-  /* Scaffolding styles (.pipeline-list, .list-header, .list-loading-bar, .empty-state, .load-more-btn)
+  /* Scaffolding styles (.pipeline-list, .list-header, .list-loading-bar, .empty-state)
      now live in List.svelte / app.css. Keep only what's specific to the pipeline row. */
 
   .list-error { padding: 8px 12px; font-size: 12px; color: var(--accent-red); background: var(--overlay-accent-red); margin: 8px; border-radius: 4px; word-break: break-word; }

@@ -170,7 +170,7 @@
               <span class="label-desc">{label.description ?? ""}</span>
               <div class="label-actions">
                 <Button
-                  variant="ghost"
+                  variant="neutral"
                   size="sm"
                   icon={"\uF044"}
                   onclick={() => openEdit(label)}
@@ -178,7 +178,7 @@
                   Edit
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="neutral"
                   size="sm"
                   icon={"\uF2ED"}
                   onclick={() => requestDelete(label.name)}

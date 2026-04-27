@@ -225,7 +225,7 @@ function actionsFor(kind: TaskKind, status: TaskStatus): TaskAction[] {
   const dismiss: TaskAction = {
     id: "dismiss",
     label: m.tasks_action_dismiss(),
-    variant: "secondary",
+    variant: "neutral",
   };
   const openOutput: TaskAction = {
     id: "open_output",

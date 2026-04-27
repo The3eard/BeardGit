@@ -212,7 +212,7 @@
               >
               <Button
                 size="sm"
-                variant="ghost"
+                variant="neutral"
                 icon={""}
                 testid="copy-template-insecure"
                 onclick={() => copyTemplate(insecureTemplate, "insecure")}
@@ -234,7 +234,7 @@
               >
               <Button
                 size="sm"
-                variant="ghost"
+                variant="neutral"
                 icon={""}
                 testid="copy-template-secure"
                 onclick={() => copyTemplate(secureTemplate, "secure")}

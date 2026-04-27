@@ -235,12 +235,12 @@
             {m.update_install()}
           </Button>
         {:else if status === "error"}
-          <Button variant="ghost" size="sm" onclick={handleDismissError}>
+          <Button variant="neutral" size="sm" onclick={handleDismissError}>
             {m.toast_dismiss()}
           </Button>
         {/if}
         <Button
-          variant="secondary"
+          variant="neutral"
           size="sm"
           loading={checking}
           disabled={status === "downloading"}
@@ -301,7 +301,7 @@
         helperText={m.settings_advanced_log_directory_hint()}
       >
         <Button
-          variant="secondary"
+          variant="neutral"
           size="sm"
           loading={openingLogs}
           onclick={handleOpenLogs}

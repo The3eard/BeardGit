@@ -56,7 +56,7 @@ describe("TaskEntryRow", () => {
       errorMessage: "remote rejected",
       actions: [
         { id: "retry", label: "Retry", variant: "primary" },
-        { id: "dismiss", label: "Dismiss", variant: "secondary" },
+        { id: "dismiss", label: "Dismiss", variant: "neutral" },
       ],
     });
 
@@ -79,7 +79,7 @@ describe("TaskEntryRow", () => {
     const entry = makeEntry({
       status: "success",
       finishedAt: Date.now(),
-      actions: [{ id: "dismiss", label: "Dismiss", variant: "secondary" }],
+      actions: [{ id: "dismiss", label: "Dismiss", variant: "neutral" }],
     });
 
     const { getAllByTestId } = render(TaskEntryRow, {

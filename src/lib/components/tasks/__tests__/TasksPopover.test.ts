@@ -107,7 +107,7 @@ describe("TasksPopover — list mode", () => {
       title: "Pushed",
       startedAt: Date.now() - 1000,
       finishedAt: Date.now() - 500,
-      actions: [{ id: "dismiss", label: "Dismiss", variant: "secondary" }],
+      actions: [{ id: "dismiss", label: "Dismiss", variant: "neutral" }],
     });
     mocks.tasksStore.set([done, running]);
     mocks.recentlyFinishedTasks.set([done]);
@@ -152,7 +152,7 @@ describe("TasksPopover — list mode", () => {
       id: "b",
       status: "success",
       finishedAt: Date.now(),
-      actions: [{ id: "dismiss", label: "Dismiss", variant: "secondary" }],
+      actions: [{ id: "dismiss", label: "Dismiss", variant: "neutral" }],
     });
     mocks.tasksStore.set([done]);
     mocks.recentlyFinishedTasks.set([done]);

@@ -21,33 +21,22 @@
 <script lang="ts">
   interface Props {
     /**
-     * Visual variant — picks colour/border tokens. Default `'secondary'`.
+     * Visual variant — picks colour/border tokens. Default `'neutral'`.
      *
-     * - `primary`: loud, accent-blue fill. Use for the single most
-     *   important action in a row (Connect, Save, Submit).
-     * - `success`: loud, accent-green fill. Use for git-state-changing
-     *   affirmatives (Merge, Apply stash, Approve PR, Resolve conflict).
-     *   Mirrors the tonal-at-rest, solid-on-hover shape of `primary` and
-     *   `danger` so the three accent colours read as one family.
-     * - `neutral`: the canonical non-accent button — tonal-baseline
-     *   fill, transparent border. Use for Cancel, Dismiss, Refresh,
-     *   Edit, Manage, Retry, Load more, and any other non-accent
-     *   text action. Will replace the legacy `secondary` / `subtle` /
-     *   `ghost` variants once every consumer has migrated.
-     * - `secondary`: tonal baseline fill, borderless, softer than
-     *   `subtle`. The default. Use when you want "this is a button" but
-     *   the row already has another button carrying the action weight.
-     * - `subtle`: tonal fill with a visible border — reads as
-     *   actionable but not primary. Use for Manage / Edit / secondary
-     *   toggles where `ghost` would read as disabled and `secondary`
-     *   is too flat.
-     * - `ghost`: transparent baseline, inherits the row colour. Use
-     *   for inline icon buttons (close, dismiss, row-chevron) where a
-     *   fill would feel heavy.
-     * - `danger`: loud, accent-red fill. Use for destructive actions
-     *   (Disconnect, Delete).
+     * - `primary`: loud, accent-blue fill. Tonal-at-rest, solid-on-hover.
+     *   Use for the main affirmative action (Save, Confirm, Create, Open,
+     *   Submit, Connect, Checkout, Continue, Publish, Reopen).
+     * - `success`: loud, accent-green fill. Tonal-at-rest, solid-on-hover.
+     *   Use for git-state-changing affirmatives (Merge, Apply stash,
+     *   Pop stash, Approve PR, Resolve conflict).
+     * - `danger`: loud, accent-red fill. Tonal-at-rest, solid-on-hover.
+     *   Use for destructive actions (Discard changes, Delete, Remove,
+     *   Force-delete, Reset, Abort merge).
+     * - `neutral`: canonical non-accent button. Tonal baseline fill,
+     *   transparent border. Use for everything else (Cancel, Close,
+     *   Refresh, Edit, Manage, Retry, Load more, Dismiss, Show in graph).
      */
-    variant?: "primary" | "success" | "secondary" | "subtle" | "ghost" | "danger" | "neutral";
+    variant?: "primary" | "success" | "danger" | "neutral";
     /** Vertical rhythm/padding scale. Default `'md'`. */
     size?: "sm" | "md" | "lg";
     /** When true, swap the icon for a spinner and suppress clicks. */
@@ -76,7 +65,7 @@
   }
 
   let {
-    variant = "secondary",
+    variant = "neutral",
     size = "md",
     loading = false,
     disabled = false,
@@ -197,11 +186,9 @@
     color: var(--text-primary);
   }
 
-  /* `neutral` is the canonical non-accent button. Functionally
-     equivalent to `secondary` today; the legacy `secondary` /
-     `subtle` / `ghost` variants will be removed in a follow-up
-     cleanup once every consumer has migrated to the new variant
-     set (`primary` / `success` / `danger` / `neutral`). */
+  /* `neutral` is the canonical non-accent button. Tonal baseline fill,
+     transparent border. Use for Cancel, Close, Refresh, Edit, Manage,
+     Retry, Load more, Dismiss, and any other non-accent text action. */
   .bg-btn--neutral {
     background: var(--bg-secondary);
     border-color: transparent;
@@ -209,38 +196,6 @@
   }
   .bg-btn--neutral:hover:not(:disabled) {
     background: var(--overlay-hover);
-  }
-
-  .bg-btn--secondary {
-    background: var(--bg-secondary);
-    border-color: transparent;
-    color: var(--text-primary);
-  }
-  .bg-btn--secondary:hover:not(:disabled) {
-    background: var(--overlay-hover);
-  }
-
-  .bg-btn--subtle {
-    background: var(--bg-secondary);
-    border-color: var(--border);
-    color: var(--text-primary);
-  }
-  .bg-btn--subtle:hover:not(:disabled) {
-    background: var(--overlay-hover);
-    border-color: var(--accent-blue);
-  }
-
-  /* `ghost`: transparent at every state. Hover only brightens the
-     text — no rectangular background fill, matching the
-     `IconButton` rule for the same visual reason (the user finds
-     the rectangle reads as "selected" instead of "hover"). */
-  .bg-btn--ghost {
-    background: transparent;
-    border-color: transparent;
-    color: var(--text-secondary);
-  }
-  .bg-btn--ghost:hover:not(:disabled) {
-    color: var(--text-primary);
   }
 
   .bg-btn--danger {

@@ -86,7 +86,7 @@
         : "Archiving marks the repository read-only. You can unarchive later."}
     >
       <Button
-        variant={current.archived ? "secondary" : "danger"}
+        variant={current.archived ? "neutral" : "danger"}
         onclick={requestArchiveToggle}
       >
         {current.archived ? "Unarchive" : "Archive"}

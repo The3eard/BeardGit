@@ -208,7 +208,7 @@
     {#if detailEntry}
       <header class="popover-header" data-testid="tasks-popover-detail-header">
         <Button
-          variant="ghost"
+          variant="neutral"
           size="sm"
           icon={"\uF060"}
           ariaLabel={m.tasks_collapse_tooltip()}
@@ -219,7 +219,7 @@
           >{detailEntry.title}</span
         >
         <Button
-          variant="ghost"
+          variant="neutral"
           size="sm"
           icon={"\uF00D"}
           ariaLabel={m.tasks_close()}
@@ -240,7 +240,7 @@
         </div>
         <div class="header-actions">
           <Button
-            variant="secondary"
+            variant="neutral"
             size="sm"
             testid="tasks-popover-clear"
             disabled={finished.length === 0}
@@ -249,7 +249,7 @@
             {m.tasks_clear_finished()}
           </Button>
           <Button
-            variant="ghost"
+            variant="neutral"
             size="sm"
             icon={"\uF00D"}
             ariaLabel={m.tasks_close()}

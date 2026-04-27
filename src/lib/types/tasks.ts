@@ -72,7 +72,7 @@ export interface TaskAction {
   /** Localized label. */
   label: string;
   /** Optional styling hint for the button. */
-  variant?: "primary" | "danger" | "secondary";
+  variant?: "primary" | "danger" | "neutral";
 }
 
 /**

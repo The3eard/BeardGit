@@ -19,26 +19,18 @@ import Button from "../Button.svelte";
 afterEach(() => cleanup());
 
 describe("Button", () => {
-  it("renders with default variant (secondary) and size (md) classes", () => {
+  it("renders with default variant (neutral) and size (md) classes", () => {
     const { container } = render(Button, { props: {} });
     const btn = container.querySelector("button")!;
     expect(btn).toBeTruthy();
-    expect(btn.classList.contains("bg-btn--secondary")).toBe(true);
+    expect(btn.classList.contains("bg-btn--neutral")).toBe(true);
     expect(btn.classList.contains("bg-btn--md")).toBe(true);
-    expect(btn.getAttribute("data-variant")).toBe("secondary");
+    expect(btn.getAttribute("data-variant")).toBe("neutral");
     expect(btn.getAttribute("data-size")).toBe("md");
   });
 
   it("applies the correct class for each variant", () => {
-    for (const variant of [
-      "primary",
-      "success",
-      "neutral",
-      "secondary",
-      "subtle",
-      "ghost",
-      "danger",
-    ] as const) {
+    for (const variant of ["primary", "success", "danger", "neutral"] as const) {
       const { container, unmount } = render(Button, { props: { variant } });
       const btn = container.querySelector("button")!;
       expect(btn.classList.contains(`bg-btn--${variant}`)).toBe(true);
@@ -62,24 +54,6 @@ describe("Button", () => {
     const btn = container.querySelector("button")!;
     expect(btn.classList.contains("bg-btn--success")).toBe(true);
     expect(btn.getAttribute("data-variant")).toBe("success");
-  });
-
-  it("renders the subtle variant with the expected class + data attribute", () => {
-    const { container } = render(Button, { props: { variant: "subtle" } });
-    const btn = container.querySelector("button")!;
-    expect(btn.classList.contains("bg-btn--subtle")).toBe(true);
-    expect(btn.getAttribute("data-variant")).toBe("subtle");
-  });
-
-  it("suppresses onclick on the subtle variant when disabled", async () => {
-    const onclick = vi.fn();
-    const { container } = render(Button, {
-      props: { variant: "subtle", disabled: true, onclick },
-    });
-    const btn = container.querySelector("button")!;
-    expect(btn.disabled).toBe(true);
-    await fireEvent.click(btn);
-    expect(onclick).not.toHaveBeenCalled();
   });
 
   it("applies the correct class for each size", () => {

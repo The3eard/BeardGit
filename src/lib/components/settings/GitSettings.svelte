@@ -209,7 +209,7 @@
           bind:value={filterText}
         />
         <Button
-          variant="secondary"
+          variant="neutral"
           size="sm"
           onclick={() => (showAddRow = !showAddRow)}
         >

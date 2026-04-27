@@ -237,7 +237,7 @@
     {#if isProviderKind(kind)}
       {#if providerConnected}
         <Button
-          variant="subtle"
+          variant="neutral"
           size="sm"
           onclick={() => (formOpen = !formOpen)}
         >
@@ -256,12 +256,12 @@
       <!-- Nothing to do when the tool isn't installed, but keep a
            visual slot (disabled button) so every row has exactly one
            action button for layout + test consistency. -->
-      <Button variant="subtle" size="sm" disabled>
+      <Button variant="neutral" size="sm" disabled>
         {m.settings_integrations_row_connect()}
       </Button>
     {:else if cliAuthenticated}
       <Button
-        variant="subtle"
+        variant="neutral"
         size="sm"
         disabled={cliLaunching}
         onclick={handleCliLogout}
