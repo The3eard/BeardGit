@@ -312,7 +312,7 @@
                       onclick={() => startEdit(key, "local", lv)}
                     >{lv}</Button>
                     <IconButton
-                      icon={"✕"}
+                      icon={"\uF00D"}
                       tone="danger"
                       description={m.config_remove_entry_title()}
                       onclick={() => (unsetTarget = { key, scope: "local" })}
@@ -321,7 +321,7 @@
                     <Button
                       variant="neutral"
                       size="sm"
-                      icon={"+"}
+                      icon={"\uF067"}
                       description={m.config_click_to_set()}
                       onclick={() => startAdd(key, "local")}
                     >{m.config_empty_value()}</Button>
@@ -363,7 +363,7 @@
                       onclick={() => startEdit(key, "global", gv)}
                     >{gv}</Button>
                     <IconButton
-                      icon={"✕"}
+                      icon={"\uF00D"}
                       tone="danger"
                       description={m.config_remove_entry_title()}
                       onclick={() => (unsetTarget = { key, scope: "global" })}
@@ -372,7 +372,7 @@
                     <Button
                       variant="neutral"
                       size="sm"
-                      icon={"+"}
+                      icon={"\uF067"}
                       description={m.config_click_to_set()}
                       onclick={() => startAdd(key, "global")}
                     ></Button>
