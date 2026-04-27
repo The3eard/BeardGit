@@ -14,7 +14,7 @@
     clearBisectState,
   } from "../../stores/bisect";
   import { addToast } from "../../stores/toast";
-  import { IconButton } from "$lib/components/ui";
+  import { IconButton, Button } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
   import AutoBisectDialog from "./AutoBisectDialog.svelte";
 
@@ -134,9 +134,9 @@
               data-testid="bisect-good-input"
             />
           </div>
-          <button class="btn btn-primary start-btn" data-testid="bisect-start-btn" onclick={handleStart}>
+          <Button variant="primary" testid="bisect-start-btn" onclick={handleStart}>
             {m.bisect_start()}
-          </button>
+          </Button>
         </div>
       </div>
     {:else}
@@ -148,32 +148,32 @@
         </div>
 
         <div class="action-buttons">
-          <button
-            class="btn btn-good"
-            data-testid="bisect-good-btn"
+          <Button
+            variant="success"
+            testid="bisect-good-btn"
+            icon={"\uF00C"}
             onclick={handleGood}
             disabled={$bisectLoading}
           >
-            <span class="label-icon">{"\uF00C"}</span>
             {m.bisect_good()}
-          </button>
-          <button
-            class="btn btn-bad"
-            data-testid="bisect-bad-btn"
+          </Button>
+          <Button
+            variant="danger"
+            testid="bisect-bad-btn"
+            icon={"\uF00D"}
             onclick={handleBad}
             disabled={$bisectLoading}
           >
-            <span class="label-icon">{"\uF00D"}</span>
             {m.bisect_bad()}
-          </button>
-          <button
-            class="btn btn-skip"
+          </Button>
+          <Button
+            variant="neutral"
+            icon={"\uF04E"}
             onclick={handleSkip}
             disabled={$bisectLoading}
           >
-            <span class="label-icon">{"\uF04E"}</span>
             {m.bisect_skip()}
-          </button>
+          </Button>
         </div>
 
         <div class="marks-summary">
@@ -186,14 +186,14 @@
         </div>
 
         <div class="auto-section">
-          <button
-            class="btn btn-auto"
+          <Button
+            variant="neutral"
+            icon={"\uF04B"}
             onclick={() => showAutoDialog = true}
             disabled={$bisectLoading}
           >
-            <span class="label-icon">{"\uF04B"}</span>
             {m.bisect_auto()}
-          </button>
+          </Button>
           {#if $bisectLoading}
             <span class="loading-indicator">
               <span class="spinner"></span>
@@ -317,11 +317,6 @@
     border-color: var(--accent-blue);
   }
 
-  .start-btn {
-    align-self: center;
-    margin-top: 4px;
-  }
-
   /* ── Active state ── */
 
   .active-panel {
@@ -360,41 +355,6 @@
     gap: 8px;
   }
 
-  .btn-good {
-    background: color-mix(in srgb, var(--accent-green) 12%, transparent);
-    color: var(--accent-green);
-    border: 1px solid color-mix(in srgb, var(--accent-green) 30%, transparent);
-  }
-
-  .btn-good:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-green) 20%, transparent);
-  }
-
-  .btn-bad {
-    background: color-mix(in srgb, var(--accent-red) 12%, transparent);
-    color: var(--accent-red);
-    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
-  }
-
-  .btn-bad:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-red) 20%, transparent);
-  }
-
-  .btn-skip {
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
-  }
-
-  .btn-skip:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-  }
-
-  .label-icon {
-    font-family: var(--font-icons);
-    font-size: 12px;
-  }
-
   .marks-summary {
     display: flex;
     gap: 8px;
@@ -421,16 +381,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-  }
-
-  .btn-auto {
-    background: color-mix(in srgb, var(--accent-purple) 12%, transparent);
-    color: var(--accent-purple);
-    border: 1px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
-  }
-
-  .btn-auto:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-purple) 20%, transparent);
   }
 
   .loading-indicator {

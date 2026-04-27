@@ -42,6 +42,7 @@
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
   import BackgroundRunTranscript from "../ai/BackgroundRunTranscript.svelte";
   import ProviderIcon from "./ProviderIcon.svelte";
+  import { Button } from "$lib/components/ui";
   import {
     selectedActiveTerminal,
     type ActiveTerminal,
@@ -314,16 +315,16 @@
     </dl>
 
     <div class="actions">
-      <button
-        class="btn primary"
+      <Button
+        variant="primary"
         onclick={handleResumeConversation}
-        title={m.ai_sessions_resume_warning({
+        description={m.ai_sessions_resume_warning({
           provider: providerName(conversation.provider),
         })}
-        data-testid="ai-session-detail-resume"
+        testid="ai-session-detail-resume"
       >
         {m.ai_sessions_resume_in_new_terminal()}
-      </button>
+      </Button>
     </div>
   </div>
 {:else if bgSession}
@@ -356,21 +357,21 @@
 
     <div class="actions">
       {#if isRunning}
-        <button class="btn danger" onclick={handleCancel}>
+        <Button variant="neutral" onclick={handleCancel}>
           {m.ai_background_cancel_run()}
-        </button>
+        </Button>
       {/if}
-      <button
-        class="btn"
+      <Button
+        variant="primary"
         onclick={handleSwitchToWorktree}
         disabled={!bgSession.worktree_path}
       >
         {m.ai_background_switch_to_worktree()}
-      </button>
+      </Button>
       {#if isTerminal}
-        <button class="btn danger" onclick={handleDiscard}>
+        <Button variant="danger" onclick={handleDiscard}>
           {m.ai_background_discard_worktree()}
-        </button>
+        </Button>
       {/if}
     </div>
 
@@ -493,13 +494,13 @@
     </header>
 
     <div class="actions">
-      <button
-        class="btn primary"
+      <Button
+        variant="neutral"
         onclick={handleFocusActive}
-        data-testid="ai-session-detail-focus"
+        testid="ai-session-detail-focus"
       >
         {m.ai_sessions_focus()}
-      </button>
+      </Button>
     </div>
   </div>
 {:else}
@@ -610,58 +611,6 @@
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
-  }
-
-  .btn {
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    border-radius: 4px;
-    padding: 4px 10px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-
-  .btn:hover:not(:disabled) {
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
-  }
-
-  .btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* Tonal at rest, solid on hover. The button is the primary action in
-     the panel but it sits next to a "Cancel" / "Discard" pair, so a
-     full-saturation accent-blue rest state read as "already
-     highlighted" — and the cascading `.btn:hover` rule turned the text
-     accent-blue, hiding it against the accent-blue fill. Using a
-     translucent tint at rest keeps it clearly the primary CTA without
-     screaming, and the hover ramps up to the full accent so the
-     interactive feedback is unmistakable. */
-  .btn.primary {
-    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
-    border-color: color-mix(in srgb, var(--accent-blue) 60%, transparent);
-    color: var(--accent-blue);
-  }
-
-  .btn.primary:hover:not(:disabled) {
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
-    /* Re-state text-primary explicitly so the cascading `.btn:hover`
-       (which would set color to accent-blue, matching the new fill
-       and hiding the label) cannot win on the `color` property. */
-    color: var(--text-primary);
-  }
-
-  .btn.danger {
-    color: var(--accent-red);
-    border-color: color-mix(in srgb, var(--accent-red) 40%, transparent);
-  }
-
-  .btn.danger:hover {
-    background: color-mix(in srgb, var(--accent-red) 10%, transparent);
   }
 
   .empty {

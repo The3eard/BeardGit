@@ -31,6 +31,7 @@
   import { activeTheme } from "../../stores/theme";
   import * as m from "$lib/paraglide/messages";
   import type { AiConfigFile } from "../../types";
+  import { Button } from "$lib/components/ui";
 
   // ─── Local state ───
 
@@ -172,23 +173,22 @@
           <span class="badge badge-lang">{languageBadge}</span>
         {/if}
         <div class="toolbar-spacer"></div>
-        <button
-          class="save-btn"
-          class:highlight={$activeFileDirty}
+        <Button
+          variant="primary"
           disabled={!$activeFileDirty}
           onclick={() => saveFile(editorContent)}
         >
           {m.ai_config_save()} <kbd class="save-kbd">{navigator.platform.includes("Mac") ? "\u2318S" : "Ctrl+S"}</kbd>
-        </button>
+        </Button>
         {#if $configFileChangedOnDisk}
           <div class="disk-change-notice">
             <span>{m.ai_config_changed_on_disk()}</span>
-            <button class="notice-btn" onclick={() => reloadActiveFile()}>
+            <Button variant="neutral" size="sm" onclick={() => reloadActiveFile()}>
               {m.ai_config_reload()}
-            </button>
-            <button class="notice-btn dismiss" onclick={() => dismissDiskChange()}>
+            </Button>
+            <Button variant="neutral" size="sm" onclick={() => dismissDiskChange()}>
               {m.ai_config_dismiss()}
-            </button>
+            </Button>
           </div>
         {/if}
       </div>
@@ -320,37 +320,6 @@
     flex: 1;
   }
 
-  .save-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    font-size: 12px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-    flex-shrink: 0;
-  }
-
-  .save-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
-  .save-btn.highlight {
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
-    color: var(--text-primary);
-    opacity: 1;
-  }
-
-  .save-btn.highlight:hover {
-    opacity: 0.9;
-  }
-
   .save-kbd {
     font-family: var(--font-mono);
     font-size: 10px;
@@ -371,29 +340,6 @@
     border-radius: 4px;
     font-size: 11px;
     color: var(--accent-orange);
-  }
-
-  .notice-btn {
-    background: none;
-    border: 1px solid var(--accent-orange);
-    color: var(--accent-orange);
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 3px;
-    cursor: pointer;
-  }
-
-  .notice-btn:hover {
-    background: color-mix(in srgb, var(--accent-orange) 10%, transparent);
-  }
-
-  .notice-btn.dismiss {
-    border-color: var(--border);
-    color: var(--text-secondary);
-  }
-
-  .notice-btn.dismiss:hover {
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   /* ─── Editor area ─── */
