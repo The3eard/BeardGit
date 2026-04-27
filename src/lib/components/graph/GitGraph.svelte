@@ -34,6 +34,7 @@
   import { shortOid } from "../../utils/git";
   import { bisectState, markGood, markBad, skipCommit } from "../../stores/bisect";
   import * as m from "$lib/paraglide/messages";
+  import { Button } from "$lib/components/ui";
 
   // Column visibility state
   let columns = $state<GraphColumn[]>(DEFAULT_COLUMNS.map(c => ({ ...c })));
@@ -849,9 +850,7 @@
       testId="graph-search"
     />
     <div class="column-toggle" bind:this={columnToggleEl}>
-      <button class="columns-btn" onclick={() => showColumnMenu = !showColumnMenu}>
-        {m.graph_columns()}
-      </button>
+      <Button variant="neutral" size="sm" active={showColumnMenu} onclick={() => showColumnMenu = !showColumnMenu}>{m.graph_columns()}</Button>
       {#if showColumnMenu}
         <div class="column-dropdown">
           {#each columns as col}
@@ -973,22 +972,6 @@
 
   .column-toggle {
     position: relative;
-  }
-
-  .columns-btn {
-    padding: 4px 8px;
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-secondary);
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .columns-btn:hover {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-    color: var(--text-primary);
   }
 
   .column-dropdown {

@@ -58,6 +58,18 @@
      * for screen readers without callers having to repeat themselves.
      */
     description?: string;
+    /**
+     * Toggle / "selected" state. When true on `variant="neutral"`, the
+     * button takes on `primary`'s tonal-at-rest styling (blue tint
+     * background, blue text, blue-tinted border) so segmented controls,
+     * dropdown triggers, and toggle buttons can read as "this is
+     * pressed/expanded/selected" without changing variant.
+     */
+    active?: boolean;
+    /** `aria-haspopup` attribute for dropdown triggers. */
+    ariaHaspopup?: "menu" | "true" | "false";
+    /** `aria-expanded` attribute for dropdown triggers. */
+    ariaExpanded?: boolean;
     /** Optional `data-testid` forwarded to the underlying `<button>`. */
     testid?: string;
     /** Slot for label text/children. */
@@ -74,6 +86,9 @@
     onclick,
     ariaLabel,
     description,
+    active = false,
+    ariaHaspopup,
+    ariaExpanded,
     testid,
     children,
   }: Props = $props();
@@ -92,9 +107,12 @@
   {type}
   class="bg-btn bg-btn--{variant} bg-btn--{size}"
   class:bg-btn--loading={loading}
+  class:bg-btn--active={active}
   disabled={disabled || loading}
   aria-busy={loading ? "true" : undefined}
   aria-label={ariaLabel ?? description}
+  aria-haspopup={ariaHaspopup}
+  aria-expanded={ariaExpanded}
   title={description}
   data-variant={variant}
   data-size={size}
@@ -218,6 +236,21 @@
   .bg-btn__label {
     display: inline-flex;
     align-items: center;
+  }
+
+  /* Active / pressed / selected state for the neutral variant.
+     Mirrors `primary`'s tonal-at-rest values so a toggle pill, a
+     dropdown trigger, or a segmented-control selection reads as
+     "this is the chosen one" while staying part of the neutral
+     family at rest. Hover stays at neutral hover so the user gets
+     clear feedback that re-clicking does something. */
+  .bg-btn--neutral.bg-btn--active {
+    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-blue) 60%, transparent);
+    color: var(--accent-blue);
+  }
+  .bg-btn--neutral.bg-btn--active:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent-blue) 28%, transparent);
   }
 
   .bg-btn__spinner {

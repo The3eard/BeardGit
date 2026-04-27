@@ -123,4 +123,22 @@ describe("Button", () => {
     expect(btn.getAttribute("aria-label")).toBe("Save");
     expect(btn.getAttribute("title")).toBe("Save changes");
   });
+
+  it("renders neutral active variant with bg-btn--active class", () => {
+    const { container } = render(Button, {
+      props: { variant: "neutral", active: true },
+    });
+    const btn = container.querySelector("button")!;
+    expect(btn.classList.contains("bg-btn--neutral")).toBe(true);
+    expect(btn.classList.contains("bg-btn--active")).toBe(true);
+  });
+
+  it("forwards ariaHaspopup and ariaExpanded to the button", () => {
+    const { container } = render(Button, {
+      props: { ariaHaspopup: "menu", ariaExpanded: true },
+    });
+    const btn = container.querySelector("button")!;
+    expect(btn.getAttribute("aria-haspopup")).toBe("menu");
+    expect(btn.getAttribute("aria-expanded")).toBe("true");
+  });
 });

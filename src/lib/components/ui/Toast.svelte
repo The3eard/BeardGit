@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { removeToast, type Toast } from "../../stores/toast";
+  import IconButton from "./IconButton.svelte";
 
   let { toast }: { toast: Toast } = $props();
   let visible = $state(false);
@@ -59,7 +60,7 @@
       {/each}
     {/if}
     {#if toast.dismissible}
-      <button class="toast__close" onclick={dismiss} aria-label="Dismiss">&times;</button>
+      <IconButton tone="default" size="sm" icon={""} description="Dismiss" onclick={dismiss} />
     {/if}
   </div>
 </div>
@@ -136,14 +137,5 @@
     white-space: nowrap;
   }
   .toast__btn:hover { opacity: 0.85; }
-  .toast__close {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 0 2px;
-    line-height: 1;
-  }
-  .toast__close:hover { color: var(--text-primary); }
+
 </style>

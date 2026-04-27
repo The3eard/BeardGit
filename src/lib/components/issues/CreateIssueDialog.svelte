@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Button } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
   import {
     createIssue,
     labelsCache,
@@ -96,7 +96,7 @@
     <div class="chip-row" id="issue-labels-row">
       {#each labels as label}
         <span class="chip">{label}
-          <button type="button" class="chip-x" onclick={() => labels = labels.filter(l => l !== label)}>×</button>
+          <IconButton tone="danger" size="sm" icon={""} description="Remove label" onclick={() => labels = labels.filter(l => l !== label)} />
         </span>
       {/each}
       <button type="button" class="chip-add" onclick={() => showLabelPicker = true}>+ {m.issues_add_label()}</button>
@@ -108,7 +108,7 @@
     <div class="chip-row" id="issue-assignees-row">
       {#each assignees as a}
         <span class="chip">{a}
-          <button type="button" class="chip-x" onclick={() => assignees = assignees.filter(x => x !== a)}>×</button>
+          <IconButton tone="danger" size="sm" icon={""} description="Remove assignee" onclick={() => assignees = assignees.filter(x => x !== a)} />
         </span>
       {/each}
       <button type="button" class="chip-add" onclick={() => showAssigneePicker = true}>+ {m.issues_add_assignee()}</button>
@@ -239,14 +239,7 @@
     align-items: center;
     gap: 4px;
   }
-  .chip-x {
-    border: none;
-    background: none;
-    color: var(--accent-blue);
-    cursor: pointer;
-    font-size: 12px;
-    padding: 0;
-  }
+
   .chip-add {
     padding: 2px 8px;
     background: none;

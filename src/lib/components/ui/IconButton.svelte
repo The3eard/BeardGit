@@ -55,6 +55,12 @@
     testid?: string;
     /** Override `aria-label`. Defaults to `description` when omitted. */
     ariaLabel?: string;
+    /** Toggle / "selected" state — paints the glyph in accent-blue. */
+    active?: boolean;
+    /** `aria-haspopup` attribute for dropdown triggers. */
+    ariaHaspopup?: "menu" | "true" | "false";
+    /** `aria-expanded` attribute for dropdown triggers. */
+    ariaExpanded?: boolean;
   }
 
   let {
@@ -67,6 +73,9 @@
     onclick,
     testid,
     ariaLabel,
+    active = false,
+    ariaHaspopup,
+    ariaExpanded,
   }: Props = $props();
 
   function handleClick(event: MouseEvent) {
@@ -83,9 +92,12 @@
   type="button"
   class="ic-btn ic-btn--{size} ic-btn--{tone}"
   class:ic-btn--loading={loading}
+  class:ic-btn--active={active}
   disabled={disabled || loading}
   aria-busy={loading ? "true" : undefined}
   aria-label={ariaLabel ?? description}
+  aria-haspopup={ariaHaspopup}
+  aria-expanded={ariaExpanded}
   title={description}
   data-testid={testid}
   onclick={handleClick}
@@ -143,6 +155,17 @@
 
   .ic-btn--danger:hover:not(:disabled) {
     color: var(--accent-red);
+  }
+
+  /* Active / "this toggle is on" state — glyph paints in accent-blue
+     regardless of hover. Used by the line-numbers toggle in
+     MergeEditor, the columns toggle in GitGraph, the draft toggle
+     in MrPrDetail, etc. */
+  .ic-btn--active {
+    color: var(--accent-blue);
+  }
+  .ic-btn--active:hover:not(:disabled) {
+    color: var(--accent-blue);
   }
 
   .ic-btn__glyph {

@@ -3,6 +3,7 @@
   import * as m from "$lib/paraglide/messages";
   import TabTooltip from "./TabTooltip.svelte";
   import { getSnapshotForHover } from "$lib/stores/project-cache";
+  import IconButton from "$lib/components/ui/IconButton.svelte";
 
   interface Props {
     project: ProjectInfo;
@@ -92,13 +93,7 @@
   {#if project.change_count > 0}
     <span class="tab-badge">{project.change_count}</span>
   {/if}
-  <button
-    class="tab-close"
-    onclick={handleClose}
-    title={m.tab_close()}
-  >
-    {"\uF00D"}
-  </button>
+  <IconButton tone="default" size="sm" icon={""} description={m.tab_close()} onclick={handleClose} />
   {#if hoverSnapshot}
     <TabTooltip snapshot={hoverSnapshot} x={tooltipX} y={tooltipY} />
   {/if}
@@ -165,21 +160,5 @@
     flex-shrink: 0;
   }
 
-  .tab-close {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 8px;
-    font-family: var(--font-icons);
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-    flex-shrink: 0;
-    opacity: 0.5;
-  }
 
-  .tab-close:hover {
-    color: var(--text-primary);
-    opacity: 1;
-  }
 </style>

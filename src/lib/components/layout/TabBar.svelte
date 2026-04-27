@@ -306,18 +306,19 @@
         bind:this={aiMenuRef}
         onkeydown={handleAiMenuKeydown}
       >
-        <button
-          class="ai-trigger-btn"
-          data-testid="toolbar-ai-btn"
-          title={m.ai_background_tab_button_tooltip()}
-          aria-label={m.ai_background_tab_button_tooltip()}
-          aria-haspopup="menu"
-          aria-expanded={aiMenuOpen}
+        <Button
+          variant="neutral"
+          size="sm"
+          testid="toolbar-ai-btn"
+          description={m.ai_background_tab_button_tooltip()}
+          ariaHaspopup="menu"
+          ariaExpanded={aiMenuOpen}
+          active={aiMenuOpen}
           onclick={toggleAiMenu}
         >
           <span class="ai-bg-label">{m.ai_background_tab_button_label()}</span>
-          <span class="nf chevron" aria-hidden="true">{""}</span>
-        </button>
+          <span class="chevron nf" class:open={aiMenuOpen} aria-hidden="true">{""}</span>
+        </Button>
         {#if aiMenuOpen}
           <div
             class="action-menu"
@@ -430,29 +431,6 @@
     gap: 4px;
     flex-shrink: 0;
     margin-left: auto;
-  }
-
-  /* AI dropdown trigger — kept as a raw <button> so that
-     aria-haspopup="menu" and aria-expanded can be set directly.
-     Button.svelte does not forward these ARIA attributes. Visual
-     style mirrors the old .action-btn baseline. */
-  .ai-trigger-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    padding: 3px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .ai-trigger-btn:hover {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
   /* AI-background button carries a bold "AI"/"IA" label rather than a

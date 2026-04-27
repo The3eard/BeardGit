@@ -108,4 +108,12 @@ describe("IconButton", () => {
       container.querySelector("button")?.classList.contains("ic-btn--danger"),
     ).toBe(true);
   });
+
+  it("renders the active state with ic-btn--active class", () => {
+    const { container } = render(IconButton, {
+      props: { icon: "", description: "Refresh", active: true },
+    });
+    const btn = container.querySelector("button")!;
+    expect(btn.classList.contains("ic-btn--active")).toBe(true);
+  });
 });

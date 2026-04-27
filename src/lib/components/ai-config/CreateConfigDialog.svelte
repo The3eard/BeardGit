@@ -71,15 +71,9 @@
   <!-- Type selector -->
   <div class="field">
     <div class="toggle-group">
-      <button class="toggle-btn" class:active={kind === "agent"} onclick={() => (kind = "agent")}>
-        {m.ai_config_type_agent()}
-      </button>
-      <button class="toggle-btn" class:active={kind === "skill"} onclick={() => (kind = "skill")}>
-        {m.ai_config_type_skill()}
-      </button>
-      <button class="toggle-btn" class:active={kind === "prompt"} onclick={() => (kind = "prompt")}>
-        {m.ai_config_type_prompt()}
-      </button>
+      <Button variant="neutral" size="sm" active={kind === "agent"} onclick={() => (kind = "agent")}>{m.ai_config_type_agent()}</Button>
+      <Button variant="neutral" size="sm" active={kind === "skill"} onclick={() => (kind = "skill")}>{m.ai_config_type_skill()}</Button>
+      <Button variant="neutral" size="sm" active={kind === "prompt"} onclick={() => (kind = "prompt")}>{m.ai_config_type_prompt()}</Button>
     </div>
   </div>
 
@@ -101,12 +95,8 @@
   <!-- Scope selector -->
   <div class="field">
     <div class="toggle-group">
-      <button class="toggle-btn" class:active={scope === "project"} onclick={() => (scope = "project")}>
-        {m.ai_config_scope_project()}
-      </button>
-      <button class="toggle-btn" class:active={scope === "user"} onclick={() => (scope = "user")}>
-        {m.ai_config_scope_user()}
-      </button>
+      <Button variant="neutral" size="sm" active={scope === "project"} onclick={() => (scope = "project")}>{m.ai_config_scope_project()}</Button>
+      <Button variant="neutral" size="sm" active={scope === "user"} onclick={() => (scope = "user")}>{m.ai_config_scope_user()}</Button>
     </div>
   </div>
 
@@ -173,32 +163,6 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     overflow: hidden;
-  }
-
-  .toggle-btn {
-    flex: 1;
-    padding: 6px 12px;
-    background: var(--bg-primary);
-    border: none;
-    border-right: 1px solid var(--border);
-    color: var(--text-secondary);
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-
-  .toggle-btn:last-child {
-    border-right: none;
-  }
-
-  .toggle-btn.active {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    color: var(--accent-blue);
-    font-weight: 600;
-  }
-
-  .toggle-btn:hover:not(.active) {
-    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
   }
 
   .path-preview {

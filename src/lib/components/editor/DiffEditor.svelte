@@ -13,6 +13,7 @@
   import { getLanguageExtensionName, loadLanguageExtension } from './language-support';
   import type { ThemeEditorData } from '$lib/types';
   import { diffCommentsLayer, type DiffCommentsLayerProps } from './diff-comments-layer';
+  import IconButton from '$lib/components/ui/IconButton.svelte';
 
   interface Props {
     oldContent: string;
@@ -110,7 +111,7 @@
   {:else if onClose}
     <div class="diff-header">
       <span class="diff-filename">{filename}</span>
-      <button class="diff-close" onclick={onClose}>{"\uF00D"}</button>
+      <IconButton tone="default" icon={""} description="Close" onclick={onClose} />
     </div>
   {/if}
   {#if placeholder}
@@ -146,24 +147,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .diff-close {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-family: var(--font-icons);
-    font-size: 14px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-  }
-
-  .diff-close:hover {
-    color: var(--text-primary);
   }
 
   .diff-editor {

@@ -344,7 +344,15 @@
           <Button variant="success" onclick={() => { showMergeConfirm = true; }}>
             {mergeStrategy === "squash" ? m.mrpr_merge_squash() : mergeStrategy === "rebase" ? m.mrpr_merge_rebase() : m.mrpr_merge()}
           </Button>
-          <button class="merge-dropdown-trigger" onclick={() => showMergeDropdown = !showMergeDropdown}>{"\uF078"}</button>
+          <IconButton
+            tone="default"
+            icon={"\uF078"}
+            description="Merge strategy"
+            active={showMergeDropdown}
+            ariaHaspopup="menu"
+            ariaExpanded={showMergeDropdown}
+            onclick={() => { showMergeDropdown = !showMergeDropdown; }}
+          />
           {#if showMergeDropdown}
             <div class="merge-dropdown-menu">
               <button class:active={mergeStrategy === "merge"} onclick={() => { mergeStrategy = "merge"; showMergeDropdown = false; }}>{m.mrpr_merge()}</button>
@@ -353,9 +361,9 @@
             </div>
           {/if}
         </div>
-        <button class="draft-toggle-btn" onclick={handleDraftToggle}>
+        <Button variant="neutral" size="sm" active={detail.summary.draft} onclick={handleDraftToggle}>
           {detail.summary.draft ? m.mrpr_mark_ready() : m.mrpr_convert_to_draft()}
-        </button>
+        </Button>
         <Button variant="primary" size="sm" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
           {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
         </Button>
@@ -710,22 +718,6 @@
     position: relative;
   }
 
-
-  .merge-dropdown-trigger {
-    padding: 5px 8px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: 1px solid var(--accent-blue);
-    border-left: 1px solid color-mix(in srgb, var(--text-primary) 20%, transparent);
-    border-radius: 0 4px 4px 0;
-    font-family: var(--font-icons);
-    font-size: 9px;
-    cursor: pointer;
-  }
-
-  .merge-dropdown-trigger:hover {
-    opacity: 0.9;
-  }
 
   .merge-dropdown-menu {
     position: absolute;
@@ -1088,16 +1080,6 @@
   .btn-request-changes:hover { background: color-mix(in srgb, var(--accent-red) 20%, transparent); }
   .btn-request-changes:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .draft-toggle-btn {
-    padding: 5px 12px;
-    background: none;
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-  .draft-toggle-btn:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
 
 
   .comment.resolved { opacity: 0.6; }

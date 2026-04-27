@@ -2,6 +2,7 @@
   import type { TerminalTabInfo } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import { BRAND_COLORS } from "$lib/ui/brand-colors";
+  import IconButton from "$lib/components/ui/IconButton.svelte";
 
   interface Props {
     terminal: TerminalTabInfo;
@@ -61,13 +62,7 @@
     <span class="terminal-icon">{"\uF489"}</span>
   {/if}
   <span class="tab-name">{terminal.title}</span>
-  <button
-    class="tab-close"
-    onclick={handleClose}
-    title={m.tab_close()}
-  >
-    {"\uF00D"}
-  </button>
+  <IconButton tone="default" size="sm" icon={""} description={m.tab_close()} onclick={handleClose} />
 </div>
 
 <style>
@@ -137,21 +132,5 @@
     white-space: nowrap;
   }
 
-  .tab-close {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 8px;
-    font-family: var(--font-icons);
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-    flex-shrink: 0;
-    opacity: 0.5;
-  }
 
-  .tab-close:hover {
-    color: var(--text-primary);
-    opacity: 1;
-  }
 </style>

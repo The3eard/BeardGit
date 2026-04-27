@@ -2,6 +2,7 @@
   import type { SearchTag, FilterDef } from "../../search/types";
   import { parseInput } from "../../search/parser";
   import * as m from "$lib/paraglide/messages";
+  import IconButton from "$lib/components/ui/IconButton.svelte";
 
   let {
     filters,
@@ -71,7 +72,7 @@
           <span class="tag-type">{tag.type}</span>
         {/if}
         <span class="tag-value">{tag.value}</span>
-        <button class="tag-remove" onclick={() => removeTag(tag.id)}>x</button>
+        <IconButton tone="default" size="sm" icon={""} description="Remove filter" onclick={() => removeTag(tag.id)} />
       </span>
     {/each}
     <input
@@ -154,25 +155,6 @@
   .tag-value {
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .tag-remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    color: inherit;
-    cursor: pointer;
-    font-size: 10px;
-    padding: 0 2px;
-    opacity: 0.6;
-    line-height: 1;
-    margin-left: 2px;
-  }
-
-  .tag-remove:hover {
-    opacity: 1;
   }
 
   .search-input {

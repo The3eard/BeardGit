@@ -838,6 +838,7 @@
         tone="default"
         icon={"\uF292"}
         description="Toggle line numbers"
+        active={showLineNumbers}
         onclick={toggleLineNumbers}
       />
       <span class="conflict-counter">
