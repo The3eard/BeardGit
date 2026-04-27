@@ -17,6 +17,7 @@
   import { formatRelativeTime } from "../../utils/time";
   import * as m from "$lib/paraglide/messages";
   import CreateReleaseDialog from "./CreateReleaseDialog.svelte";
+  import { Button } from "$lib/components/ui";
   import type { Release } from "../../types";
 
   let showCreate = $state(false);
@@ -73,13 +74,14 @@
   onRefresh={refreshReleases}
 >
   {#snippet headerActions()}
-    <button
-      class="action-btn-create"
+    <Button
+      variant="primary"
+      size="sm"
       onclick={() => (showCreate = true)}
-      title={m.release_new_button()}
+      description={m.release_new_button()}
     >
       {m.release_new_button()}
-    </button>
+    </Button>
   {/snippet}
 
   {#snippet emptyState()}
@@ -128,20 +130,6 @@
 {/if}
 
 <style>
-  .action-btn-create {
-    padding: 4px 10px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .action-btn-create:hover {
-    opacity: 0.9;
-  }
-
   .release-row {
     display: flex;
     align-items: center;

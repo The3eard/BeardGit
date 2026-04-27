@@ -26,6 +26,7 @@
   import MilestonePicker from "./MilestonePicker.svelte";
   import Xrefs from "../common/Xrefs.svelte";
   import { renderMarkdown } from "../../utils/markdown";
+  import { Button, IconButton } from "$lib/components/ui";
 
   let showCloseConfirm = $state(false);
   let actionError = $state("");
@@ -154,7 +155,7 @@
 
     <div class="detail-actions">
       {#if detail.summary.state === "open"}
-        <button class="close-btn" onclick={() => { showCloseConfirm = true; }}>{m.issues_close()}</button>
+        <Button variant="neutral" size="sm" onclick={() => { showCloseConfirm = true; }}>{m.issues_close()}</Button>
       {:else}
         <button class="reopen-btn" onclick={handleReopen}>{m.issues_reopen()}</button>
       {/if}
@@ -174,7 +175,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_labels()}</h4>
-        <button class="edit-btn" onclick={openLabelPicker}>{m.issues_edit()}</button>
+        <IconButton tone="default" icon={"✎"} description={m.issues_edit()} onclick={openLabelPicker} />
       </div>
       <div class="label-list">
         {#each detail.summary.labels as label}
@@ -193,7 +194,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_assignees()}</h4>
-        <button class="edit-btn" onclick={() => showAssigneePicker = true}>{m.issues_edit()}</button>
+        <IconButton tone="default" icon={"✎"} description={m.issues_edit()} onclick={() => showAssigneePicker = true} />
       </div>
       <div class="assignee-list">
         {#each detail.summary.assignees as a}
@@ -208,7 +209,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_milestone()}</h4>
-        <button class="edit-btn" onclick={() => showMilestonePicker = true}>{m.issues_edit()}</button>
+        <IconButton tone="default" icon={"✎"} description={m.issues_edit()} onclick={() => showMilestonePicker = true} />
       </div>
       <div class="milestone-display">
         {detail.summary.milestone?.title ?? m.issues_no_milestone()}
@@ -365,16 +366,6 @@
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border);
   }
-  .close-btn {
-    padding: 5px 12px;
-    background: var(--overlay-accent-red);
-    color: var(--accent-red);
-    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-  .close-btn:hover { background: color-mix(in srgb, var(--accent-red) 20%, transparent); }
   .reopen-btn {
     padding: 5px 12px;
     background: var(--overlay-accent-green);
@@ -407,15 +398,6 @@
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-  }
-  .edit-btn {
-    padding: 2px 8px;
-    font-size: 11px;
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-secondary);
-    cursor: pointer;
   }
   .description-body {
     font-size: 13px;

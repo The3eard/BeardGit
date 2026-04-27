@@ -35,6 +35,7 @@
     selectedPrFilePath,
   } from "../../stores/mr-pr";
   import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
+  import { Button } from "$lib/components/ui";
   import { activeProvider } from "../../stores/provider";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { listen } from "@tauri-apps/api/event";
@@ -335,7 +336,7 @@
     <!-- Action buttons for open, closed, merged MR/PRs -->
     {#if detail.summary.state === "open"}
       <div class="detail-actions">
-        <button class="action-btn-approve" onclick={handleApprove}>{m.mrpr_approve()}</button>
+        <Button variant="success" size="sm" onclick={handleApprove}>{m.mrpr_approve()}</Button>
         <div class="merge-group">
           <button class="merge-btn-main" onclick={() => { showMergeConfirm = true; }}>
             {mergeStrategy === "squash" ? m.mrpr_merge_squash() : mergeStrategy === "rebase" ? m.mrpr_merge_rebase() : m.mrpr_merge()}
@@ -355,14 +356,14 @@
         <button class="checkout-btn" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
           {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
         </button>
-        <button class="close-btn" onclick={() => { showCloseConfirm = true; }}>{m.mrpr_close()}</button>
+        <Button variant="neutral" size="sm" onclick={() => { showCloseConfirm = true; }}>{m.mrpr_close()}</Button>
       </div>
     {:else if detail.summary.state === "closed"}
       <div class="detail-actions">
         <button class="checkout-btn" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
           {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
         </button>
-        <button class="action-btn-reopen" onclick={() => { showReopenConfirm = true; }}>{m.mrpr_reopen()}</button>
+        <Button variant="primary" size="sm" onclick={() => { showReopenConfirm = true; }}>{m.mrpr_reopen()}</Button>
       </div>
     {:else if detail.summary.state === "merged"}
       <div class="detail-actions">
@@ -704,21 +705,6 @@
     border-bottom: 1px solid var(--border);
   }
 
-  .action-btn-approve {
-    padding: 5px 14px;
-    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
-    color: var(--accent-green);
-    border: 1px solid color-mix(in srgb, var(--accent-green) 30%, transparent);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    font-weight: 500;
-  }
-
-  .action-btn-approve:hover {
-    background: color-mix(in srgb, var(--accent-green) 25%, transparent);
-  }
-
   .merge-group {
     display: flex;
     gap: 0;
@@ -792,19 +778,6 @@
     color: var(--accent-blue);
     font-weight: 600;
   }
-
-  .close-btn {
-    padding: 5px 12px;
-    background: var(--overlay-accent-red);
-    color: var(--accent-red);
-    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    margin-left: auto;
-  }
-
-  .close-btn:hover { background: color-mix(in srgb, var(--accent-red) 20%, transparent); }
 
   .error-msg {
     margin: 0 0 12px;
@@ -1153,18 +1126,6 @@
   }
   .checkout-btn:hover { background: color-mix(in srgb, var(--accent-blue) 20%, transparent); }
   .checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .action-btn-reopen {
-    padding: 5px 12px;
-    background: color-mix(in srgb, var(--accent-green) 15%, transparent);
-    color: var(--accent-green);
-    border: 1px solid color-mix(in srgb, var(--accent-green) 30%, transparent);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    margin-left: auto;
-  }
-  .action-btn-reopen:hover { background: color-mix(in srgb, var(--accent-green) 25%, transparent); }
 
   .comment.resolved { opacity: 0.6; }
 

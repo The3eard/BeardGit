@@ -16,7 +16,7 @@
   import CreateIssueDialog from "./CreateIssueDialog.svelte";
   import SearchBar from "../common/SearchBar.svelte";
   import List from "../common/List.svelte";
-  import { IconButton } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
   import TwoLineRow from "../common/TwoLineRow.svelte";
   import AssigneeStack from "../common/AssigneeStack.svelte";
   import type { SearchTag } from "../../search/types";
@@ -106,9 +106,9 @@
   onRefresh={fetchList}
 >
   {#snippet headerActions()}
-    <button class="action-btn-create" onclick={() => { showCreateDialog = true; }}>
+    <Button variant="primary" size="sm" onclick={() => { showCreateDialog = true; }}>
       {m.issues_create()}
-    </button>
+    </Button>
     <IconButton
       icon={"\uF021"}
       description={m.tooltip_refresh()}
@@ -189,18 +189,6 @@
 {/if}
 
 <style>
-  .action-btn-create {
-    padding: 4px 10px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .action-btn-create:hover { opacity: 0.9; }
-
   .milestone-chip {
     font-size: 10px;
     color: var(--text-secondary);

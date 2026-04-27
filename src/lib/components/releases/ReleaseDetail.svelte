@@ -19,7 +19,7 @@
     completeUpload,
   } from "../../stores/releases";
   import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
-  import { IconButton } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
   import { activeProvider } from "../../stores/provider";
   import { renderMarkdown } from "../../utils/markdown";
   import { formatRelativeTime } from "../../utils/time";
@@ -200,9 +200,9 @@
     <section class="assets">
       <div class="assets-header">
         <h3>{m.release_assets_heading()}</h3>
-        <button class="btn-small" onclick={pickAndUpload}>
+        <Button variant="neutral" size="sm" onclick={pickAndUpload}>
           {m.release_upload_button()}
-        </button>
+        </Button>
       </div>
 
       {#if uploadRows.length > 0}
@@ -252,13 +252,13 @@
 
     <footer class="actions">
       {#if canPublish}
-        <button class="btn btn-confirm" onclick={handlePublish}>
+        <Button variant="primary" onclick={handlePublish}>
           {m.release_publish_button()}
-        </button>
+        </Button>
       {/if}
-      <button class="btn btn-danger" onclick={handleDelete}>
+      <Button variant="danger" onclick={handleDelete}>
         {m.release_delete_button()}
-      </button>
+      </Button>
     </footer>
 
     {#if dragOver}
@@ -397,15 +397,6 @@
     letter-spacing: 0.5px;
     color: var(--text-secondary);
   }
-  .btn-small {
-    padding: 4px 10px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-  }
   .empty-assets {
     color: var(--text-secondary);
     font-size: 12px;
@@ -441,25 +432,6 @@
     padding-top: 12px;
     border-top: 1px solid var(--border);
     margin-top: 12px;
-  }
-  .btn {
-    padding: 6px 14px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    font-size: 12px;
-    cursor: pointer;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-  }
-  .btn-confirm {
-    background: var(--accent-green);
-    color: var(--text-primary);
-    border-color: transparent;
-  }
-  .btn-danger {
-    background: transparent;
-    color: var(--accent-red);
-    border-color: var(--accent-red);
   }
   /*
    * Legacy `.loading`, `.empty`, `.spinner` + `@keyframes spin`

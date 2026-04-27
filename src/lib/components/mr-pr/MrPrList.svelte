@@ -18,7 +18,7 @@
   import CreateMrPrDialog from "./CreateMrPrDialog.svelte";
   import SearchBar from "../common/SearchBar.svelte";
   import List from "../common/List.svelte";
-  import { IconButton } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
   import type { SearchTag } from "../../search/types";
   import { mrFilters, filterMrPrLocal } from "../../search/mr-provider";
 
@@ -112,9 +112,9 @@
   onRefresh={fetchList}
 >
   {#snippet headerActions()}
-    <button class="action-btn-create" onclick={() => { showCreateDialog = true; }}>
+    <Button variant="primary" size="sm" onclick={() => { showCreateDialog = true; }}>
       {isGitHub ? m.mrpr_create_github() : m.mrpr_create()}
-    </button>
+    </Button>
     <IconButton
       icon={"\uF021"}
       description={m.tooltip_refresh()}
@@ -182,21 +182,6 @@
 {/if}
 
 <style>
-  .action-btn-create {
-    padding: 4px 10px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .action-btn-create:hover {
-    opacity: 0.9;
-  }
-
   .empty-state {
     padding: 32px 16px;
     text-align: center;

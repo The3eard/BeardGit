@@ -7,6 +7,7 @@
   import { shortOid } from "../../utils/git";
   import { loadReflog } from "../../stores/reflog";
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
+  import { Button } from "$lib/components/ui";
 
   let {
     entry,
@@ -100,23 +101,19 @@
     </div>
   {:else if commit}
     <div class="detail-actions">
-      <button class="action-btn" onclick={handleShowInGraph}>
-        <span class="nf">{"\uE728"}</span>
+      <Button variant="neutral" size="sm" icon={"\uE728"} onclick={handleShowInGraph}>
         {m.reflog_show_in_graph()}
-      </button>
-      <button class="action-btn" onclick={handleCheckout}>
-        <span class="nf">{"\uE725"}</span>
+      </Button>
+      <Button variant="primary" size="sm" icon={"\uE725"} onclick={handleCheckout}>
         {m.reflog_checkout()}
-      </button>
-      <button class="action-btn" onclick={handleCreateBranch}>
-        <span class="nf">{"\uE727"}</span>
+      </Button>
+      <Button variant="primary" size="sm" icon={"\uE727"} onclick={handleCreateBranch}>
         {m.reflog_create_branch()}
-      </button>
+      </Button>
       <div class="reset-wrapper">
-        <button class="action-btn action-btn-danger" onclick={() => { showResetMenu = !showResetMenu; }}>
-          <span class="nf">{"\uF0E2"}</span>
+        <Button variant="danger" size="sm" icon={"\uF0E2"} onclick={() => { showResetMenu = !showResetMenu; }}>
           {m.reflog_reset()}
-        </button>
+        </Button>
         {#if showResetMenu}
           <div class="reset-menu">
             <button class="reset-option" onclick={() => handleReset("soft")}>{m.graph_reset_soft()}</button>
@@ -125,10 +122,9 @@
           </div>
         {/if}
       </div>
-      <button class="action-btn action-btn-subtle" onclick={handleCopySha} title={entry.oid}>
-        <span class="nf">{"\uF0C5"}</span>
+      <Button variant="neutral" size="sm" icon={"\uF0C5"} description={entry.oid} onclick={handleCopySha}>
         {m.reflog_copy_sha()}
-      </button>
+      </Button>
     </div>
     <CommitDetail
       {commit}
@@ -160,46 +156,6 @@
     gap: 6px;
     flex-shrink: 0;
     flex-wrap: wrap;
-  }
-
-  .action-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    font-size: 11px;
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--accent-blue);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.1s;
-  }
-
-  .action-btn:hover {
-    background: var(--overlay-accent-blue);
-  }
-
-  .action-btn .nf {
-    font-family: var(--font-icons);
-    font-size: 12px;
-  }
-
-  .action-btn-danger {
-    color: var(--accent-orange);
-  }
-
-  .action-btn-danger:hover {
-    background: color-mix(in srgb, var(--accent-orange) 10%, transparent);
-  }
-
-  .action-btn-subtle {
-    color: var(--text-secondary);
-  }
-
-  .action-btn-subtle:hover {
-    color: var(--text-primary);
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .reset-wrapper {
