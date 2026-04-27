@@ -35,7 +35,7 @@
     selectedPrFilePath,
   } from "../../stores/mr-pr";
   import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
-  import { Button } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
   import { activeProvider } from "../../stores/provider";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { listen } from "@tauri-apps/api/event";
@@ -302,9 +302,12 @@
         <span class="detail-number">#{detail.summary.number}</span>
         {detail.summary.title}
       </h3>
-      <button class="open-browser-btn" onclick={() => openUrl(detail.summary.url)}>
-        {m.mrpr_open_browser()}
-      </button>
+      <IconButton
+        tone="default"
+        icon={""}
+        description={m.mrpr_open_browser()}
+        onclick={() => openUrl(detail.summary.url)}
+      />
     </div>
 
     <div class="detail-meta">
@@ -338,9 +341,9 @@
       <div class="detail-actions">
         <Button variant="success" size="sm" onclick={handleApprove}>{m.mrpr_approve()}</Button>
         <div class="merge-group">
-          <button class="merge-btn-main" onclick={() => { showMergeConfirm = true; }}>
+          <Button variant="success" onclick={() => { showMergeConfirm = true; }}>
             {mergeStrategy === "squash" ? m.mrpr_merge_squash() : mergeStrategy === "rebase" ? m.mrpr_merge_rebase() : m.mrpr_merge()}
-          </button>
+          </Button>
           <button class="merge-dropdown-trigger" onclick={() => showMergeDropdown = !showMergeDropdown}>{"\uF078"}</button>
           {#if showMergeDropdown}
             <div class="merge-dropdown-menu">
@@ -353,25 +356,25 @@
         <button class="draft-toggle-btn" onclick={handleDraftToggle}>
           {detail.summary.draft ? m.mrpr_mark_ready() : m.mrpr_convert_to_draft()}
         </button>
-        <button class="checkout-btn" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
+        <Button variant="primary" size="sm" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
           {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
-        </button>
+        </Button>
         <div class="push-right">
           <Button variant="neutral" size="sm" onclick={() => { showCloseConfirm = true; }}>{m.mrpr_close()}</Button>
         </div>
       </div>
     {:else if detail.summary.state === "closed"}
       <div class="detail-actions">
-        <button class="checkout-btn" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
+        <Button variant="primary" size="sm" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
           {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
-        </button>
+        </Button>
         <Button variant="primary" size="sm" onclick={() => { showReopenConfirm = true; }}>{m.mrpr_reopen()}</Button>
       </div>
     {:else if detail.summary.state === "merged"}
       <div class="detail-actions">
-        <button class="checkout-btn" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
+        <Button variant="primary" size="sm" onclick={() => { showCheckoutConfirm = true; }} disabled={checkoutTaskId !== null}>
           {checkoutTaskId !== null ? m.mrpr_checkout_running() : m.mrpr_checkout_locally()}
-        </button>
+        </Button>
       </div>
     {/if}
 
@@ -635,16 +638,6 @@
     font-family: var(--font-mono);
   }
 
-  .open-browser-btn {
-    padding: 4px 10px;
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--accent-blue);
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
 
   .detail-meta {
     display: flex;
@@ -717,21 +710,6 @@
     position: relative;
   }
 
-  .merge-btn-main {
-    padding: 5px 14px;
-    background: var(--accent-blue);
-    color: var(--text-primary);
-    border: 1px solid var(--accent-blue);
-    border-radius: 4px 0 0 4px;
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
-    font-weight: 500;
-  }
-
-  .merge-btn-main:hover {
-    opacity: 0.9;
-  }
 
   .merge-dropdown-trigger {
     padding: 5px 8px;
@@ -1121,17 +1099,6 @@
   }
   .draft-toggle-btn:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
 
-  .checkout-btn {
-    padding: 5px 12px;
-    background: var(--overlay-accent-blue);
-    color: var(--accent-blue);
-    border: 1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-  .checkout-btn:hover { background: color-mix(in srgb, var(--accent-blue) 20%, transparent); }
-  .checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .comment.resolved { opacity: 0.6; }
 

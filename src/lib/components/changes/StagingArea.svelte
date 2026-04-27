@@ -282,12 +282,12 @@
           {m.patch_all_changes()}
         </label>
         <div class="patch-dialog-actions">
-          <button class="patch-btn" onclick={handleCreatePatch}>
+          <Button variant="neutral" size="sm" onclick={handleCreatePatch}>
             {m.patch_create_changes()}
-          </button>
-          <button class="patch-btn secondary" onclick={() => { showPatchDialog = false; }}>
+          </Button>
+          <Button variant="neutral" size="sm" onclick={() => { showPatchDialog = false; }}>
             {m.patch_cancel()}
-          </button>
+          </Button>
         </div>
       </div>
     {/if}
@@ -415,28 +415,6 @@
     margin: 4px 8px;
   }
 
-  /* ── Patch (used in dialog) ─────────────────────────────── */
-
-  .patch-btn {
-    padding: 5px 12px;
-    border-radius: 6px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    font-size: 11px;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  }
-
-  .patch-btn:hover {
-    background: var(--overlay-hover);
-    color: var(--text-primary);
-    border-color: color-mix(in srgb, var(--text-primary) 15%, transparent);
-  }
-
-  .patch-btn.secondary {
-    opacity: 0.7;
-  }
 
   .amend-toggle {
     display: flex;

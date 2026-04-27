@@ -139,7 +139,7 @@
       <div class="empty-state empty-state--error">
         <div class="error-title">{m.mrpr_error_title()}</div>
         <pre class="error-message">{$mrPrListError}</pre>
-        <button class="retry-btn" onclick={fetchList}>{m.mrpr_error_retry()}</button>
+        <Button variant="neutral" size="sm" onclick={fetchList}>{m.mrpr_error_retry()}</Button>
       </div>
     {:else if $mrPrList.length > 0 && filteredList.length === 0}
       <div class="empty-state">{m.mrpr_no_filter_results()}</div>
@@ -218,22 +218,7 @@
     overflow: auto;
   }
 
-  .retry-btn {
-    align-self: flex-start;
-    padding: 5px 12px;
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-
-  .retry-btn:hover {
-    background: var(--bg-hover);
-  }
-
-  .row-status {
+.row-status {
     display: flex;
     align-items: flex-start;
     min-width: 28px;

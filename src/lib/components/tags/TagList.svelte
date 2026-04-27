@@ -158,9 +158,9 @@
       </Button>
     {/if}
 
-    <button class="push-all-btn" onclick={() => doPushTag(null, "origin")}>
+    <Button variant="primary" size="sm" onclick={() => doPushTag(null, "origin")}>
       {m.tags_push_all_button()}
-    </button>
+    </Button>
   {/snippet}
 </List>
 
@@ -246,27 +246,7 @@
     align-items: center;
   }
 
-  .push-all-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 10px;
-    background: none;
-    border: none;
-    border-top: 1px solid var(--border);
-    color: var(--accent-blue);
-    font-size: 11px;
-    cursor: pointer;
-    opacity: 0.7;
-  }
-
-  .push-all-btn:hover {
-    background: color-mix(in srgb, var(--accent-blue) 5%, transparent);
-    opacity: 1;
-  }
-
-  .tag-badge-annotated {
+.tag-badge-annotated {
     font-size: 9px;
     font-weight: 600;
     padding: 1px 5px;

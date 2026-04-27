@@ -16,6 +16,7 @@
   import { onMount } from "svelte";
   import { stripAnsi } from "$lib/utils/strip-ansi";
   import * as m from "$lib/paraglide/messages";
+  import { IconButton } from "$lib/components/ui";
 
   interface Props {
     lines: string[];
@@ -87,9 +88,13 @@
 
 <div class="wrap">
   <div class="actions">
-    <button class="btn-copy" onclick={handleCopy} disabled={lines.length === 0}>
-      {justCopied ? "✓" : m.ai_background_transcript_copy()}
-    </button>
+    <IconButton
+      tone="default"
+      icon={justCopied ? "" : ""}
+      description={m.ai_background_transcript_copy()}
+      disabled={lines.length === 0}
+      onclick={handleCopy}
+    />
   </div>
   <div
     class="transcript"
@@ -128,25 +133,6 @@
     background: var(--bg-secondary);
   }
 
-  .btn-copy {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-
-  .btn-copy:hover:not(:disabled) {
-    color: var(--text-primary);
-    border-color: var(--accent-blue);
-  }
-
-  .btn-copy:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
 
   .transcript {
     flex: 1;

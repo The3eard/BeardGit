@@ -294,7 +294,7 @@
   </div>
 
   <div class="add-button-wrapper">
-    <button class="add-btn" onclick={toggleAddMenu} title="Add project"><span class="nf">{""}</span></button>
+    <IconButton icon={""} description="Add project" onclick={toggleAddMenu} />
     <AddProjectMenu />
   </div>
 
@@ -423,27 +423,6 @@
     align-items: center;
   }
 
-  .add-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 28px;
-    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    font-size: 11px;
-    font-family: var(--font-icons);
-    line-height: 1;
-    cursor: pointer;
-    border-radius: 14px;
-    transition: background 0.15s;
-    padding: 0 10px;
-  }
-
-  .add-btn:hover {
-    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
-    color: var(--text-primary);
-  }
 
   .actions {
     display: flex;

@@ -140,9 +140,12 @@
         <span class="detail-number">#{detail.summary.number}</span>
         {detail.summary.title}
       </h3>
-      <button class="open-browser-btn" onclick={() => openUrl(detail.summary.url)}>
-        {m.issues_open_browser()}
-      </button>
+      <IconButton
+        tone="default"
+        icon={""}
+        description={m.issues_open_browser()}
+        onclick={() => openUrl(detail.summary.url)}
+      />
     </div>
 
     <div class="detail-meta">
@@ -157,7 +160,7 @@
       {#if detail.summary.state === "open"}
         <Button variant="neutral" size="sm" onclick={() => { showCloseConfirm = true; }}>{m.issues_close()}</Button>
       {:else}
-        <button class="reopen-btn" onclick={handleReopen}>{m.issues_reopen()}</button>
+        <Button variant="primary" size="sm" onclick={handleReopen}>{m.issues_reopen()}</Button>
       {/if}
     </div>
 
@@ -327,16 +330,6 @@
     color: var(--text-secondary);
     font-family: var(--font-mono);
   }
-  .open-browser-btn {
-    padding: 4px 10px;
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--accent-blue);
-    font-size: 11px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
   .detail-meta {
     display: flex;
     gap: 8px;
@@ -366,16 +359,6 @@
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border);
   }
-  .reopen-btn {
-    padding: 5px 12px;
-    background: var(--overlay-accent-green);
-    color: var(--accent-green);
-    border: 1px solid color-mix(in srgb, var(--accent-green) 30%, transparent);
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-  .reopen-btn:hover { background: color-mix(in srgb, var(--accent-green) 20%, transparent); }
   .error-msg {
     margin: 0 0 12px;
     padding: 6px 10px;

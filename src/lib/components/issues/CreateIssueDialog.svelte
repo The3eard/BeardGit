@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import Button from "$lib/components/ui/Button.svelte";
+  import { Button } from "$lib/components/ui";
   import {
     createIssue,
     labelsCache,
@@ -116,10 +116,11 @@
   </div>
 
   <div class="form-field">
-    <label for="issue-milestone-btn">{m.issues_milestone_label()}</label>
-    <button id="issue-milestone-btn" type="button" class="milestone-btn" onclick={() => showMilestonePicker = true}>
+    <!-- svelte-ignore a11y_label_has_associated_control -->
+    <label>{m.issues_milestone_label()}</label>
+    <Button variant="neutral" size="sm" onclick={() => showMilestonePicker = true}>
       {milestoneId === null ? m.issues_no_milestone() : `#${milestoneId}`}
-    </button>
+    </Button>
   </div>
 
   {#if errorMsg}<p class="error-msg">{errorMsg}</p>{/if}
@@ -254,16 +255,6 @@
     color: var(--text-secondary);
     font-size: 11px;
     cursor: pointer;
-  }
-  .milestone-btn {
-    padding: 4px 10px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-size: 12px;
-    cursor: pointer;
-    align-self: flex-start;
   }
   .error-msg {
     margin: 0;
