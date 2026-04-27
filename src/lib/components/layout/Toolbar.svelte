@@ -7,6 +7,7 @@
   import PatchPreviewDialog from "../patch/PatchPreviewDialog.svelte";
   import type { PatchPreview } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
+  import { Button } from "$lib/components/ui";
 
   let fetchInProgress = $state(false);
   let pullInProgress = $state(false);
@@ -121,38 +122,34 @@
 
   <div class="toolbar-right">
     {#if $activeProject}
-      <button
-        class="toolbar-btn action-btn"
+      <Button
+        variant="neutral"
+        size="sm"
         disabled={fetchInProgress}
-        title={m.toolbar_fetch()}
+        description={m.toolbar_fetch()}
         onclick={handleFetch}
-      >
-        {m.toolbar_fetch()}
-      </button>
-      <button
-        class="toolbar-btn action-btn"
+      >{m.toolbar_fetch()}</Button>
+      <Button
+        variant="neutral"
+        size="sm"
         disabled={pullInProgress || !$repoInfo?.head_branch}
-        title={m.toolbar_pull()}
+        description={m.toolbar_pull()}
         onclick={handlePull}
-      >
-        {m.toolbar_pull()}
-      </button>
-      <button
-        class="toolbar-btn action-btn"
-        data-testid="push-button"
+      >{m.toolbar_pull()}</Button>
+      <Button
+        variant="neutral"
+        size="sm"
+        testid="push-button"
         disabled={pushInProgress || !$repoInfo?.head_branch}
-        title={m.toolbar_push()}
+        description={m.toolbar_push()}
         onclick={handlePush}
-      >
-        {m.toolbar_push()}
-      </button>
-      <button
-        class="toolbar-btn action-btn"
-        title={m.patch_apply()}
+      >{m.toolbar_push()}</Button>
+      <Button
+        variant="neutral"
+        size="sm"
+        description={m.patch_apply()}
         onclick={handleApplyPatch}
-      >
-        {m.patch_apply()}
-      </button>
+      >{m.patch_apply()}</Button>
     {/if}
   </div>
 </header>
@@ -192,28 +189,4 @@
     gap: 4px;
   }
 
-  .toolbar-btn {
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .toolbar-btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-  }
-
-  .toolbar-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
-  .action-btn {
-    min-width: 50px;
-    text-align: center;
-  }
 </style>

@@ -45,6 +45,7 @@
   import { fetchRemote, pullRemote, pushRemote } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
   import * as m from "$lib/paraglide/messages";
+  import { Button, IconButton } from "$lib/components/ui";
 
   import { onMount, tick } from "svelte";
   import ProviderIcon from "../ai-sessions/ProviderIcon.svelte";
@@ -306,7 +307,7 @@
         onkeydown={handleAiMenuKeydown}
       >
         <button
-          class="action-btn ai-bg-btn"
+          class="ai-trigger-btn"
           data-testid="toolbar-ai-btn"
           title={m.ai_background_tab_button_tooltip()}
           aria-label={m.ai_background_tab_button_tooltip()}
@@ -353,40 +354,38 @@
         {/if}
       </div>
     {/if}
-    <button
-      class="action-btn"
-      data-testid="toolbar-terminal-btn"
-      title={m.tab_terminal_here()}
-      aria-label={m.tab_terminal_here()}
+    <IconButton
+      icon={""}
+      description={m.tab_terminal_here()}
+      testid="toolbar-terminal-btn"
+      tone="default"
       onclick={handleTerminalClick}
-    >
-      <span class="nf">{""}</span>
-    </button>
+    />
     {#if $activeProject}
-      <button
-        class="action-btn"
+      <Button
+        variant="neutral"
+        size="sm"
+        icon={""}
         disabled={fetchInProgress}
-        title={m.toolbar_fetch()}
+        description={m.toolbar_fetch()}
         onclick={handleFetch}
-      >
-        <span class="nf">{""}</span> {m.toolbar_fetch()}
-      </button>
-      <button
-        class="action-btn"
+      >{m.toolbar_fetch()}</Button>
+      <Button
+        variant="neutral"
+        size="sm"
+        icon={""}
         disabled={pullInProgress || !$repoInfo?.head_branch}
-        title={m.toolbar_pull()}
+        description={m.toolbar_pull()}
         onclick={handlePull}
-      >
-        <span class="nf">{""}</span> {m.toolbar_pull()}
-      </button>
-      <button
-        class="action-btn"
+      >{m.toolbar_pull()}</Button>
+      <Button
+        variant="neutral"
+        size="sm"
+        icon={""}
         disabled={pushInProgress || !$repoInfo?.head_branch}
-        title={m.toolbar_push()}
+        description={m.toolbar_push()}
         onclick={handlePush}
-      >
-        <span class="nf">{""}</span> {m.toolbar_push()}
-      </button>
+      >{m.toolbar_push()}</Button>
     {/if}
   </div>
 </div>
@@ -454,7 +453,11 @@
     margin-left: auto;
   }
 
-  .action-btn {
+  /* AI dropdown trigger — kept as a raw <button> so that
+     aria-haspopup="menu" and aria-expanded can be set directly.
+     Button.svelte does not forward these ARIA attributes. Visual
+     style mirrors the old .action-btn baseline. */
+  .ai-trigger-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -467,16 +470,10 @@
     font-size: 11px;
     cursor: pointer;
     transition: background 0.15s;
-    min-width: 44px;
   }
 
-  .action-btn:hover:not(:disabled) {
+  .ai-trigger-btn:hover {
     background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-  }
-
-  .action-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
   }
 
   /* AI-background button carries a bold "AI"/"IA" label rather than a
