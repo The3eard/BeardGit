@@ -164,6 +164,7 @@ pub fn run() {
             app_core::commands::open_project,
             app_core::commands::count_folder_contents,
             app_core::commands::init_repo,
+            app_core::commands::clone_repo,
             app_core::commands::close_project,
             app_core::commands::switch_project,
             app_core::commands::get_open_projects,

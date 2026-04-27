@@ -3,6 +3,7 @@
   import type { RecentRepo } from "$lib/types";
   import { getRecentRepos } from "$lib/api/tauri";
   import { openProjectTab, openFolderAsProject, addMenuOpen } from "$lib/stores/projects";
+  import { openCloneDialog } from "$lib/stores/cloneDialog";
   import { get } from "svelte/store";
   import * as m from "$lib/paraglide/messages";
 
@@ -22,6 +23,11 @@
   function handleOpenFolder() {
     addMenuOpen.set(false);
     openFolderAsProject();
+  }
+
+  function handleCloneProject() {
+    addMenuOpen.set(false);
+    openCloneDialog();
   }
 
   async function handleRecentClick(path: string) {
@@ -58,6 +64,11 @@
     <button class="menu-item" onclick={handleOpenFolder}>
       <span class="menu-icon">{"\uF07C"}</span>
       <span>{m.tab_add_open_folder()}</span>
+    </button>
+
+    <button class="menu-item" onclick={handleCloneProject}>
+      <span class="menu-icon">{"\uF019"}</span>
+      <span>{m.tab_add_clone_project()}</span>
     </button>
 
     <div class="menu-divider"></div>

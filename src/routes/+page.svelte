@@ -75,6 +75,7 @@
   import { createBranchDialog, openCreateBranchDialog, closeCreateBranchDialog } from "$lib/stores/createBranchDialog";
   import CreateBranchDialog from "$lib/components/branches/CreateBranchDialog.svelte";
   import InitRepoDialog from "$lib/components/init-repo/InitRepoDialog.svelte";
+  import CloneRepoDialog from "$lib/components/clone/CloneRepoDialog.svelte";
   import {
     prFileDiff,
     loadingPrFileDiff,
@@ -1053,6 +1054,8 @@
   />
 
   <InitRepoDialog />
+
+  <CloneRepoDialog />
 
   {#if reflogCtxVisible && reflogCtxEntry}
     <ContextMenu
