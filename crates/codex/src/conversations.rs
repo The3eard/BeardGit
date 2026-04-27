@@ -53,7 +53,7 @@ pub(crate) fn list_conversations_in(
 
     // Most-recent activity first — matches the UX expectation of the
     // sessions sidebar and mirrors the Claude Code implementation.
-    out.sort_by(|a, b| b.last_activity_at.cmp(&a.last_activity_at));
+    out.sort_by_key(|b| std::cmp::Reverse(b.last_activity_at));
     Ok(out)
 }
 
