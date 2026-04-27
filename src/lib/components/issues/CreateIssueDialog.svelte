@@ -99,7 +99,7 @@
           <IconButton tone="danger" size="sm" icon={""} description="Remove label" onclick={() => labels = labels.filter(l => l !== label)} />
         </span>
       {/each}
-      <button type="button" class="chip-add" onclick={() => showLabelPicker = true}>+ {m.issues_add_label()}</button>
+      <Button variant="neutral" size="sm" icon={""} onclick={() => showLabelPicker = true}>{m.issues_add_label()}</Button>
     </div>
   </div>
 
@@ -111,7 +111,7 @@
           <IconButton tone="danger" size="sm" icon={""} description="Remove assignee" onclick={() => assignees = assignees.filter(x => x !== a)} />
         </span>
       {/each}
-      <button type="button" class="chip-add" onclick={() => showAssigneePicker = true}>+ {m.issues_add_assignee()}</button>
+      <Button variant="neutral" size="sm" icon={""} onclick={() => showAssigneePicker = true}>{m.issues_add_assignee()}</Button>
     </div>
   </div>
 
@@ -240,15 +240,6 @@
     gap: 4px;
   }
 
-  .chip-add {
-    padding: 2px 8px;
-    background: none;
-    border: 1px dashed var(--border);
-    border-radius: 10px;
-    color: var(--text-secondary);
-    font-size: 11px;
-    cursor: pointer;
-  }
   .error-msg {
     margin: 0;
     padding: 6px 10px;
