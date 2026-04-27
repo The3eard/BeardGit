@@ -388,14 +388,25 @@ mod tests {
         //! via manual testing; a parallel `.cmd` rig is out of scope for
         //! this slice (see the plan's "Deferred / follow-up" section).
         use super::*;
-        use std::fs;
-        use std::os::unix::fs::PermissionsExt;
+        use std::fs::OpenOptions;
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
         use std::path::PathBuf;
         use tempfile::TempDir;
 
         /// Build a POSIX shell script that records its stdin to
         /// `<dir>/stdin.txt`, writes `stderr_msg` to stderr, and exits
         /// with `exit_code`. Returns `(script_path, stdin_capture_path)`.
+        ///
+        /// Implementation note: we open the file with the executable bit
+        /// set at creation (`OpenOptions::mode(0o755)`), `sync_all` it,
+        /// then drop the handle before returning. The previous
+        /// `fs::write` + `set_permissions` shape was vulnerable to the
+        /// `ETXTBSY` ("Text file busy") race on Linux CI: the kernel can
+        /// still see an outstanding write reference at exec time when
+        /// permissions are flipped after the close, which made tests like
+        /// `clear_cli_auth_other_non_zero_is_error` flake intermittently
+        /// on the GitHub Actions ubuntu runners.
         fn mock_cli(dir: &TempDir, exit_code: i32, stderr_msg: &str) -> (PathBuf, PathBuf) {
             let script_path = dir.path().join("mock-cli");
             let stdin_capture = dir.path().join("stdin.txt");
@@ -408,10 +419,19 @@ mod tests {
                 escaped_stderr,
                 exit_code,
             );
-            fs::write(&script_path, script).expect("write mock script");
-            let mut perms = fs::metadata(&script_path).unwrap().permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(&script_path, perms).expect("chmod mock script");
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o755)
+                .open(&script_path)
+                .expect("open mock script");
+            file.write_all(script.as_bytes())
+                .expect("write mock script");
+            file.sync_all().expect("sync mock script");
+            // Explicit drop so the close happens before we return — the
+            // exec in the caller must see a fully-written, non-busy file.
+            drop(file);
             (script_path, stdin_capture)
         }
 
@@ -428,7 +448,8 @@ mod tests {
             );
 
             assert!(result.is_ok(), "expected Ok, got {result:?}");
-            let recorded = fs::read_to_string(&stdin_capture).expect("read stdin capture");
+            let recorded =
+                std::fs::read_to_string(&stdin_capture).expect("read stdin capture");
             assert_eq!(recorded.trim(), "ghp_testtoken");
         }
 
