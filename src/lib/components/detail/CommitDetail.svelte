@@ -5,7 +5,7 @@
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import Xrefs from "../common/Xrefs.svelte";
-  import { IconButton } from "$lib/components/ui";
+  import { IconButton, Button } from "$lib/components/ui";
   import { hashString as _hashString } from "$lib/utils/ref-colors";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
   import { formatDateTime } from "../../utils/time";
@@ -106,9 +106,7 @@
     <h3 class="detail-title">{m.commit_detail_title()}</h3>
     <div class="detail-header-actions">
       {#if showNavigateToGraph && onNavigateToGraph}
-        <button class="header-btn navigate-btn" onclick={() => onNavigateToGraph!(commit.oid)} title="Show in Graph">
-          ↗ Graph
-        </button>
+        <Button variant="neutral" size="sm" description="Show in Graph" onclick={() => onNavigateToGraph!(commit.oid)}>↗ Graph</Button>
       {/if}
       {#if onClose}
         <IconButton icon={"\uF00D"} description={m.tooltip_close()} onclick={() => onClose!()} />
@@ -220,28 +218,6 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
-  }
-
-  .header-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 14px;
-    font-family: var(--font-icons);
-    padding: 2px 4px;
-    border-radius: 3px;
-  }
-
-  .header-btn:hover {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-    color: var(--text-primary);
-  }
-
-  .navigate-btn {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 11px;
-    letter-spacing: 0.3px;
   }
 
   .detail-body {

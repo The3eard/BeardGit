@@ -54,7 +54,7 @@
   import { isEnumKey, getEnumValues } from "$lib/utils/git-config-keys";
   import type { ConfigEntry, ConfigScope } from "$lib/types";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
-  import { Card, SettingSection, Button } from "$lib/components/ui";
+  import { Card, SettingSection, Button, IconButton } from "$lib/components/ui";
 
   // Re-export so the linter doesn't flag the import as unused — it's
   // used transitively via getEnumValues but keeping both parallel
@@ -305,29 +305,26 @@
                       />
                     {/if}
                   {:else if lv !== null}
-                    <button
-                      class="value-btn"
+                    <Button
+                      variant="neutral"
+                      size="sm"
+                      description={m.config_click_to_edit()}
                       onclick={() => startEdit(key, "local", lv)}
-                      title={m.config_click_to_edit()}
-                    >
-                      {lv}
-                    </button>
-                    <button
-                      class="unset-btn"
-                      onclick={() =>
-                        (unsetTarget = { key, scope: "local" })}
-                      title={m.config_remove_entry_title()}
-                    >
-                      &#10005;
-                    </button>
+                    >{lv}</Button>
+                    <IconButton
+                      icon={"✕"}
+                      tone="danger"
+                      description={m.config_remove_entry_title()}
+                      onclick={() => (unsetTarget = { key, scope: "local" })}
+                    />
                   {:else}
-                    <button
-                      class="placeholder-btn"
+                    <Button
+                      variant="neutral"
+                      size="sm"
+                      icon={"+"}
+                      description={m.config_click_to_set()}
                       onclick={() => startAdd(key, "local")}
-                      title={m.config_click_to_set()}
-                    >
-                      {m.config_empty_value()}
-                    </button>
+                    >{m.config_empty_value()}</Button>
                   {/if}
                 </span>
 
@@ -359,27 +356,26 @@
                       />
                     {/if}
                   {:else if gv !== null}
-                    <button
-                      class="value-btn"
+                    <Button
+                      variant="neutral"
+                      size="sm"
+                      description={m.config_click_to_edit()}
                       onclick={() => startEdit(key, "global", gv)}
-                      title={m.config_click_to_edit()}
-                    >
-                      {gv}
-                    </button>
-                    <button
-                      class="unset-btn"
-                      onclick={() =>
-                        (unsetTarget = { key, scope: "global" })}
-                      title={m.config_remove_entry_title()}
-                    >
-                      &#10005;
-                    </button>
+                    >{gv}</Button>
+                    <IconButton
+                      icon={"✕"}
+                      tone="danger"
+                      description={m.config_remove_entry_title()}
+                      onclick={() => (unsetTarget = { key, scope: "global" })}
+                    />
                   {:else}
-                    <button
-                      class="placeholder-btn"
+                    <Button
+                      variant="neutral"
+                      size="sm"
+                      icon={"+"}
+                      description={m.config_click_to_set()}
                       onclick={() => startAdd(key, "global")}
-                      title={m.config_click_to_set()}
-                    ></button>
+                    ></Button>
                   {/if}
                 </span>
               </div>
@@ -565,63 +561,6 @@
     align-items: center;
     gap: 4px;
     font-size: 12px;
-  }
-
-  .value-btn {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    font-size: 12px;
-    font-family: var(--font-mono);
-    cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 3px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: calc(100% - 24px);
-    text-align: left;
-  }
-
-  .value-btn:hover {
-    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-  }
-
-  .placeholder-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 11px;
-    font-style: italic;
-    cursor: pointer;
-    padding: 2px 4px;
-    opacity: 0.4;
-    border-radius: 3px;
-  }
-
-  .placeholder-btn:hover {
-    opacity: 0.8;
-    color: var(--accent-blue);
-  }
-
-  .unset-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 10px;
-    cursor: pointer;
-    padding: 2px 4px;
-    opacity: 0;
-    transition: opacity 0.15s;
-  }
-
-  .table-row:hover .unset-btn {
-    opacity: 0.6;
-  }
-
-  .unset-btn:hover {
-    opacity: 1 !important;
-    color: var(--accent-red);
   }
 
   .edit-input,

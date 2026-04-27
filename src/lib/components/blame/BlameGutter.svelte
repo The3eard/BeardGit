@@ -9,6 +9,7 @@
   import type { BlameLine } from '$lib/types';
   import { formatRelativeTimeUnix } from '$lib/utils/time';
   import { shortOid } from '$lib/utils/git';
+  import { Button } from '$lib/components/ui';
 
   interface Props {
     lines: BlameLine[];
@@ -58,13 +59,12 @@
       class:odd={groups[i] % 2 !== 0}
     >
       {#if ann.isFirst}
-        <button
-          class="oid-btn"
-          title={ann.summary}
+        <Button
+          variant="neutral"
+          size="sm"
+          description={ann.summary}
           onclick={() => handleOidClick(ann.oid)}
-        >
-          {shortOid(ann.oid)}
-        </button>
+        >{shortOid(ann.oid)}</Button>
         <span class="author" title={ann.author}>
           {truncateAuthor(ann.author)}
         </span>
@@ -107,21 +107,6 @@
 
   .gutter-line.odd {
     background: var(--bg-primary);
-  }
-
-  .oid-btn {
-    background: none;
-    border: none;
-    color: var(--accent-blue);
-    font-family: inherit;
-    font-size: inherit;
-    cursor: pointer;
-    padding: 0;
-    flex-shrink: 0;
-  }
-
-  .oid-btn:hover {
-    text-decoration: underline;
   }
 
   .author {
