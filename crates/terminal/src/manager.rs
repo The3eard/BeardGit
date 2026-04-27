@@ -27,7 +27,11 @@ struct Session {
     /// Master PTY file descriptor (Unix only, for `tcgetpgrp`).
     #[cfg(unix)]
     master_fd: Option<i32>,
-    /// Last known foreground process name — used to detect changes.
+    /// Last known foreground process name — used to detect changes. Unix
+    /// only; Windows has no equivalent of `tcgetpgrp` so the polling
+    /// branch that reads this field is `#[cfg(unix)]`-gated. Without the
+    /// matching gate here Windows builds emit a `dead_code` warning.
+    #[cfg(unix)]
     last_fg_process: Option<String>,
 }
 
@@ -146,6 +150,7 @@ impl TerminalManager {
             _child: child,
             #[cfg(unix)]
             master_fd,
+            #[cfg(unix)]
             last_fg_process: None,
         };
 
