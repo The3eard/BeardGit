@@ -103,7 +103,7 @@ fn parse_conversations(stdout: &str, repo_path: &Path) -> Vec<AiConversation> {
 
     // Newest activity first — matches the Claude Code / Codex listers
     // and the sidebar's UX expectation.
-    out.sort_by(|a, b| b.last_activity_at.cmp(&a.last_activity_at));
+    out.sort_by_key(|b| std::cmp::Reverse(b.last_activity_at));
     out
 }
 
