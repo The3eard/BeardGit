@@ -1662,3 +1662,56 @@ export async function initRepo(
   };
   return invoke<InitRepoSuccess>("init_repo", { options: payload });
 }
+
+/**
+ * Options accepted by the `clone_repo` command.
+ *
+ * Field names use camelCase on the TS side; they are re-mapped to the
+ * snake_case shape the Rust struct expects inside {@link cloneRepo}.
+ */
+export interface CloneRepoOptions {
+  /** Clone URL — HTTPS, SSH, or `git@` shorthand. */
+  url: string;
+  /**
+   * Absolute path to the *parent* folder where the repo should land. The
+   * backend derives the final folder name from `url` and creates it as a
+   * subdirectory of `parentDir`.
+   */
+  parentDir: string;
+}
+
+/**
+ * Successful return shape of `clone_repo`. `path` is the absolute path
+ * of the freshly cloned working tree (same shape the snake-case wire
+ * payload uses — see `CloneRepoSuccess` in the Rust side).
+ */
+export interface CloneRepoSuccess {
+  path: string;
+  name: string;
+}
+
+/**
+ * Tagged error returned by `clone_repo`. The `step` field lets the
+ * dialog banner branch on the failure mode without parsing free text;
+ * the same convention as `InitRepoError`.
+ */
+export type CloneRepoError =
+  | { step: "invalid_url"; message: string }
+  | { step: "invalid_destination"; message: string }
+  | { step: "destination_exists"; path: string }
+  | { step: "clone"; message: string };
+
+/**
+ * Clone a remote repository into `parentDir`. The backend shells out to
+ * `git clone`, so credential helpers and SSH agents Just Work. Returns
+ * the absolute path of the cloned working tree on success.
+ */
+export async function cloneRepo(
+  options: CloneRepoOptions,
+): Promise<CloneRepoSuccess> {
+  const payload = {
+    url: options.url,
+    parent_dir: options.parentDir,
+  };
+  return invoke<CloneRepoSuccess>("clone_repo", { options: payload });
+}

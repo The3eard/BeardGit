@@ -14,6 +14,7 @@ mod branch;
 mod ci;
 mod clean;
 mod cli_auth;
+mod clone;
 mod command_runner;
 mod commit;
 mod config;
@@ -51,6 +52,7 @@ pub use branch::*;
 pub use ci::*;
 pub use clean::*;
 pub use cli_auth::*;
+pub use clone::*;
 pub use command_runner::{
     CliError as RunnerCliError, CliOutput, CommandRunner, MockRunner, RecordedCall, SystemRunner,
 };
