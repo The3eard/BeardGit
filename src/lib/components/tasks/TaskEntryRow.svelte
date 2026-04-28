@@ -51,8 +51,11 @@
         return "\uF019"; // fa-download
       case "ai_background":
       case "ai_interactive":
+      case "ai_headless":
       default:
-        return "\uF5DC"; // nf-oct-light_bulb / "thinking" fallback
+        // fa-lightbulb-o — same glyph the Changes toolbar uses for
+        // the AI commit-message button so the drawer rows feel of-a-piece.
+        return "\uF0EB";
     }
   });
 
@@ -72,7 +75,11 @@
   });
 
   function isAiKind(kind: TaskKind): boolean {
-    return kind === "ai_background" || kind === "ai_interactive";
+    return (
+      kind === "ai_background" ||
+      kind === "ai_interactive" ||
+      kind === "ai_headless"
+    );
   }
 
   /** Short one-line subtitle, always suffixed with the relative time. */
@@ -89,6 +96,8 @@
         return m.tasks_kind_ai_background();
       case "ai_interactive":
         return m.tasks_kind_ai_interactive();
+      case "ai_headless":
+        return m.tasks_kind_ai_headless();
       case "git_fetch":
         return m.tasks_kind_git_fetch();
       case "git_pull":
@@ -164,7 +173,20 @@
   {/if}
 
   {#if entry.actions.length > 0}
-    <div class="task-row__actions">
+    <!--
+      Stop the click from bubbling up to the parent `<li>` in
+      TasksPopover, which has an `onclick={openDetail}` handler. Without
+      this, clicking Dismiss / Cancel / Retry on a row simultaneously
+      fires the action AND opens the detail view, which is jarring (the
+      user has to back out twice). Action buttons are self-contained and
+      don't want the row's row-level interaction.
+    -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="task-row__actions"
+      onclick={(e) => e.stopPropagation()}
+    >
       {#each entry.actions as action (action.id)}
         <Button
           variant={action.variant ?? "neutral"}
@@ -292,5 +314,16 @@
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
+  }
+
+  /* Bump the hover delta on row action buttons (Dismiss, Cancel, Retry,
+     …). The shared `.bg-btn--neutral:hover` overlay is rgba(255,255,255,
+     0.06) which is barely visible against the row's `--bg-primary`
+     backdrop — easy to miss on a light theme and easy to interpret as
+     "this button isn't interactive". This rule lifts the hover to a
+     ~12% mix of the foreground color so the affordance reads cleanly
+     in both themes without touching the global Button styles. */
+  :global(.task-row__actions .bg-btn--neutral:hover:not(:disabled)) {
+    background: color-mix(in srgb, var(--text-primary) 12%, var(--bg-secondary));
   }
 </style>

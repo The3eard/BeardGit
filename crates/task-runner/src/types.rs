@@ -49,6 +49,12 @@ pub enum TaskKind {
     /// Surfaced in the unified tasks drawer so users can see and cancel
     /// running interactive sessions alongside background runs.
     AiInteractive,
+    /// Headless one-shot AI command — commit-message generation, staged
+    /// code review, PR review, ad-hoc analyze. The output streams via
+    /// `taskOutput` and the row appears in the unified drawer with the
+    /// other AI tasks so the user can find it after the toast vanishes.
+    /// Distinct from `AiBackground` (which carries a worktree session).
+    AiHeadless,
     /// `git fetch <remote>` spawned via `TaskManager`.
     GitFetch,
     /// `git pull <remote> <branch>` spawned via `TaskManager`.

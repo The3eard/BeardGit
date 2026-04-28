@@ -7,13 +7,14 @@
 -->
 <script lang="ts">
   import { MergeView } from '@codemirror/merge';
-  import { EditorView, lineNumbers } from '@codemirror/view';
+  import { EditorView, highlightWhitespace, lineNumbers } from '@codemirror/view';
   import { EditorState, type Extension } from '@codemirror/state';
   import { createCodemirrorTheme } from './codemirror-theme';
   import { getLanguageExtensionName, loadLanguageExtension } from './language-support';
   import type { ThemeEditorData } from '$lib/types';
   import { diffCommentsLayer, type DiffCommentsLayerProps } from './diff-comments-layer';
   import IconButton from '$lib/components/ui/IconButton.svelte';
+  import { diffShowWhitespace } from '$lib/stores/diffSettings';
 
   interface Props {
     oldContent: string;
@@ -64,6 +65,13 @@
       EditorView.editable.of(false),
       EditorView.lineWrapping,
     ];
+    // Whitespace glyphs (· / →) — toggled by Settings → General →
+    // "Show whitespace in diffs". The view is rebuilt whenever the
+    // store flips (see the $effect below) so the change is visible
+    // without re-opening the diff.
+    if ($diffShowWhitespace) {
+      sharedExtensions.push(highlightWhitespace());
+    }
     if (langExt) sharedExtensions.push(langExt);
     sharedExtensions.push(...extensions);
 
@@ -93,6 +101,9 @@
     const _dark = isDark;
     const _placeholder = placeholder;
     const _commentsLayer = commentsLayer;
+    // Whitespace toggle — re-init the MergeView when it flips so the
+    // highlightWhitespace extension is added or removed in place.
+    const _whitespace = $diffShowWhitespace;
 
     if (!containerEl || placeholder) return;
 

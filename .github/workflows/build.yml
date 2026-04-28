@@ -1,9 +1,12 @@
 name: Build
 
+# Manual-only. The Release workflow already builds + ships bundles on
+# every `v*` tag, so we don't run on push at all — invoking this
+# workflow on push to beta or on a tag would just duplicate that work.
+# Keep it around as an on-demand "build the current branch and grab
+# the artefacts" button for testing across macOS / Linux / Windows
+# from any branch the user picks in the Actions UI.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 env:
