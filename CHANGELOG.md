@@ -2,9 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [Unreleased]
-
-In-progress work staged on `beta`.
+## [0.1.10] — AI tasks in the drawer + persisted reviews, landing & community polish — 2026-04-28
 
 ### AI code review surfaces in the tasks drawer + persists to disk
 
@@ -39,6 +37,16 @@ In-progress work staged on `beta`.
 ### README — AI and Observability sections rewritten
 
 `docs: clearer AI background session description + local-only Observability`. The AI providers Highlights paragraph drops the irrelevant "show their version" claim and expands the background-session section with bullets that actually explain the user-facing surface — worktree under `.beardgit/ai-worktrees/<slug>`, dedicated `ai/<provider>/<slug>` branch, real-time streaming output that survives tab switches, FIFO + concurrency cap, final markdown report alongside the worktree, Resume / Focus actions. Observability is renamed *Observability — local-only* and gains an explicit "nothing leaves your machine" paragraph (no telemetry / analytics / phone-home; the only outbound traffic the app initiates is the Tauri auto-updater poll) plus a per-platform log-path table. The Why bullet on credential storage is renamed *Secure and private by default* and reinforces the no-telemetry posture at scan-level.
+
+### Landing page — SEO/social meta, AVIF screenshots, Keyboard + FAQ sections
+
+`feat(docs/landing): SEO/social meta, AVIF/WebP shots, keyboard + FAQ sections`. The marketing landing under `docs/` gains a real `<head>` — light/dark `theme-color`, canonical URL, full Open Graph + Twitter card with a 1200×630 `og:image`, a proper `svg` + 32px favicon + 180px apple-touch-icon set, and a JSON-LD `SoftwareApplication` block. Fraunces is pinned to `opsz=144,wght=500` and Fira Code to `wght@400;500` to cut first-paint cost. Every showcase `<img>` becomes a `<picture>` with AVIF → WebP → PNG fallback (hero keeps `fetchpriority=high`; the strip below it is `loading=lazy`). Total screenshot footprint drops from **8.6 MB PNG to ~497 KB AVIF**; the cold hero shot is now 86 KB instead of 1.3 MB. The placeholder-tag markup and CSS are removed now that real screenshots exist.
+
+Two new sections: **04 Keyboard** lists 14 real shortcuts (Git / Graph / Tabs + UI) sourced from `src/lib/stores/shortcuts.ts` so the page can't drift from the app, and **06 FAQ** ships 7 collapsible items (unsigned builds, AI key storage, no-Electron, offline, other forges, license, bug reporting). The license FAQ wording makes explicit that BeardGit is free to use anywhere — the NC clause only blocks reselling BeardGit itself. Eyebrows renumber (Install 04→05, FAQ 06); both new sections are added to the top nav and the footer Product list. `app.js` now updates `<source srcset>` before `<img src>` on theme swap so the browser re-evaluates the `<picture>`, and `wireDownloads` fills a hidden hero badge with the version and relative release date when GitHub responds. Adds `docs/robots.txt` and `docs/sitemap.xml`.
+
+### Community health — Code of Conduct, security policy, issue/PR templates
+
+`chore(community): add CoC, security policy, issue/PR templates`. Sets up the GitHub community-health files. `CODE_OF_CONDUCT.md` and `SECURITY.md` (latest stable release supported, `beta` best-effort, vulnerabilities reported via GitHub Private Vulnerability Reporting). `.github/ISSUE_TEMPLATE/` ships structured forms for bug reports and feature requests plus a `config.yml` that disables blank issues and points support questions at Discussions. `.github/PULL_REQUEST_TEMPLATE.md` nudges contributors to target `beta` (not `main`) and prompts for type-of-change checkboxes that match the conventional-commit prefixes the repo already uses.
 
 ### Internal
 
