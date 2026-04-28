@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/The3eard/BeardGit/security/advisories/new
+    about: Please report security vulnerabilities privately using GitHub Private Vulnerability Reporting.
+  - name: General question or triage
+    url: https://github.com/The3eard/BeardGit/issues
+    about: If you are not sure whether something is a bug or feature request, open an issue and the maintainer will triage it.
