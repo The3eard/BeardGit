@@ -388,6 +388,7 @@ mod tests {
         //! via manual testing; a parallel `.cmd` rig is out of scope for
         //! this slice (see the plan's "Deferred / follow-up" section).
         use super::*;
+        use serial_test::serial;
         use std::fs::OpenOptions;
         use std::io::Write;
         use std::os::unix::fs::OpenOptionsExt;
@@ -398,15 +399,29 @@ mod tests {
         /// `<dir>/stdin.txt`, writes `stderr_msg` to stderr, and exits
         /// with `exit_code`. Returns `(script_path, stdin_capture_path)`.
         ///
-        /// Implementation note: we open the file with the executable bit
-        /// set at creation (`OpenOptions::mode(0o755)`), `sync_all` it,
-        /// then drop the handle before returning. The previous
-        /// `fs::write` + `set_permissions` shape was vulnerable to the
-        /// `ETXTBSY` ("Text file busy") race on Linux CI: the kernel can
-        /// still see an outstanding write reference at exec time when
-        /// permissions are flipped after the close, which made tests like
-        /// `clear_cli_auth_other_non_zero_is_error` flake intermittently
-        /// on the GitHub Actions ubuntu runners.
+        /// Implementation note — `ETXTBSY` workaround:
+        ///
+        /// On the GitHub Actions ubuntu runners, even after we open with
+        /// `mode(0o755)`, `sync_all`, and explicitly drop the file, the
+        /// caller's `exec` of the script intermittently returns
+        /// `ETXTBSY` ("Text file busy"). `cargo test`'s default parallel
+        /// scheduling means several `mock_cli` callers may be writing
+        /// scripts in nearby tmpdirs at the same time, and the kernel's
+        /// writeback bookkeeping occasionally still sees the just-closed
+        /// inode as "open for write" at exec time. Three SUT tests
+        /// (`clear_cli_auth_success`,
+        /// `clear_cli_auth_is_idempotent_when_not_logged_in`, and
+        /// `clear_cli_auth_other_non_zero_is_error`) flaked together
+        /// under that race.
+        ///
+        /// Mitigation: probe the script in this helper itself before
+        /// returning. If exec fails with `ETXTBSY` we sleep briefly and
+        /// retry, capping at ~1.5 s. By the time we return, the caller's
+        /// exec is guaranteed to find a settled, executable file. The
+        /// probe is run with stdio redirected to `/dev/null` so its side
+        /// effects (the script's `cat` reads empty stdin and writes an
+        /// empty `stdin_capture`) don't interfere with the test's own
+        /// invocation, which always overwrites `stdin_capture`.
         fn mock_cli(dir: &TempDir, exit_code: i32, stderr_msg: &str) -> (PathBuf, PathBuf) {
             let script_path = dir.path().join("mock-cli");
             let stdin_capture = dir.path().join("stdin.txt");
@@ -429,13 +444,49 @@ mod tests {
             file.write_all(script.as_bytes())
                 .expect("write mock script");
             file.sync_all().expect("sync mock script");
-            // Explicit drop so the close happens before we return — the
-            // exec in the caller must see a fully-written, non-busy file.
+            // Explicit drop so the close happens before we probe — the
+            // exec must see a fully-written, non-busy file.
             drop(file);
+            wait_for_exec_ready(&script_path);
             (script_path, stdin_capture)
         }
 
+        /// Spin up to ~1.5 s probing the freshly-written script with
+        /// stdio redirected to `/dev/null` until exec stops returning
+        /// `ETXTBSY`. See the long comment on `mock_cli` for why this is
+        /// needed on the Linux CI runners. `panic`s if the kernel never
+        /// catches up — that would point at a deeper kernel/filesystem
+        /// problem rather than something this helper can paper over.
+        fn wait_for_exec_ready(path: &std::path::Path) {
+            use std::io::ErrorKind;
+            use std::process::{Command, Stdio};
+            use std::time::{Duration, Instant};
+
+            let started = Instant::now();
+            loop {
+                match Command::new(path)
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status()
+                {
+                    Ok(_) => return,
+                    Err(e) if e.kind() == ErrorKind::ExecutableFileBusy => {
+                        if started.elapsed() > Duration::from_millis(1500) {
+                            panic!(
+                                "mock_cli: ETXTBSY persisted >1.5s waiting for exec on {}",
+                                path.display(),
+                            );
+                        }
+                        std::thread::sleep(Duration::from_millis(20));
+                    }
+                    Err(e) => panic!("mock_cli probe failed on {}: {e}", path.display()),
+                }
+            }
+        }
+
         #[test]
+        #[serial]
         fn pipe_token_to_cli_sends_token_on_stdin() {
             let dir = tempfile::tempdir().unwrap();
             let (script, stdin_capture) = mock_cli(&dir, 0, "");
@@ -453,6 +504,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn pipe_token_to_cli_maps_non_zero_exit_to_command_failed() {
             let dir = tempfile::tempdir().unwrap();
             let (script, _) = mock_cli(&dir, 1, "bad token");
@@ -477,6 +529,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn pipe_token_to_cli_missing_binary_returns_error() {
             let result = pipe_token_to_cli(
                 Path::new("/definitely/not/a/real/binary/path/gh"),
@@ -488,6 +541,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn clear_cli_auth_success() {
             let dir = tempfile::tempdir().unwrap();
             let (script, _) = mock_cli(&dir, 0, "");
@@ -497,6 +551,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn clear_cli_auth_is_idempotent_when_not_logged_in() {
             let dir = tempfile::tempdir().unwrap();
             // Realistic `gh`/`glab` stderr when no creds exist for the host.
@@ -510,6 +565,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn clear_cli_auth_is_idempotent_on_no_credentials_stderr() {
             let dir = tempfile::tempdir().unwrap();
             let (script, _) = mock_cli(&dir, 1, "No credentials stored for gitlab.com");
@@ -522,6 +578,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn clear_cli_auth_other_non_zero_is_error() {
             let dir = tempfile::tempdir().unwrap();
             let (script, _) = mock_cli(&dir, 2, "unexpected failure talking to keychain");

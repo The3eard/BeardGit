@@ -171,6 +171,14 @@ pub struct AppConfig {
     #[serde(default = "default_auto_check_updates")]
     pub auto_check_updates: bool,
 
+    /// When true, the CodeMirror diff viewer renders spaces and tabs as
+    /// visible glyphs (`·` / `→`). Useful for spotting whitespace-only
+    /// changes — a removed tab or trailing-space tweak otherwise looks
+    /// identical to the original line. Default `false` to avoid noise on
+    /// the common case of content edits.
+    #[serde(default)]
+    pub diff_show_whitespace: bool,
+
     /// Whether the user has dismissed the macOS Gatekeeper re-authorization
     /// notice. When `true`, the install flow skips the apology dialog on
     /// macOS. Independent from the Windows flag below — users might
@@ -219,6 +227,7 @@ impl Default for AppConfig {
             ai_background_concurrency_cap: default_ai_background_concurrency_cap(),
             ai_prompt_auto_accept: false,
             auto_check_updates: default_auto_check_updates(),
+            diff_show_whitespace: false,
             auto_update_reauth_notice_dismissed_macos: false,
             auto_update_reauth_notice_dismissed_windows: false,
             provider_kind: None,

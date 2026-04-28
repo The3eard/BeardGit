@@ -145,6 +145,8 @@
         return m.tasks_kind_ai_background();
       case "ai_interactive":
         return m.tasks_kind_ai_interactive();
+      case "ai_headless":
+        return m.tasks_kind_ai_headless();
       case "git_fetch":
         return m.tasks_kind_git_fetch();
       case "git_pull":
@@ -225,7 +227,7 @@
       class="detail__output"
       data-testid="task-detail-output"
       bind:this={outputEl}
-      onscroll={handleScroll}>{#each outputLines as line (`${line.stream}:${line.text}`)}<span
+      onscroll={handleScroll}>{#each outputLines as line, idx (`${idx}:${line.stream}`)}<span
           class="detail__line detail__line--{line.stream}"
           data-stream={line.stream}>{line.text}</span
         >{"\n"}{/each}</pre>

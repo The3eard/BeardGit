@@ -26,6 +26,13 @@
 
   function syncScreenshotVariants() {
     const theme = effectiveTheme();
+    // Update <source srcset> first so the picture re-evaluation sees the new
+    // candidates when we then update the <img src> below.
+    document.querySelectorAll(".shot-src").forEach((src) => {
+      const target = theme === "light" ? src.dataset.srcsetLight : src.dataset.srcsetDark;
+      if (!target) return;
+      if (src.getAttribute("srcset") !== target) src.setAttribute("srcset", target);
+    });
     document.querySelectorAll(".shot-img").forEach((img) => {
       const target = theme === "light" ? img.dataset.srcLight : img.dataset.srcDark;
       if (!target) return;
@@ -222,10 +229,34 @@
     return Array.isArray(releases) ? releases.find((r) => !r.draft) : null;
   }
 
+  function relativeTime(iso) {
+    const then = new Date(iso).getTime();
+    if (!Number.isFinite(then)) return "";
+    const diff = Date.now() - then;
+    const day = 86400000;
+    if (diff < day) return "today";
+    if (diff < day * 2) return "yesterday";
+    if (diff < day * 30) return `${Math.round(diff / day)} days ago`;
+    if (diff < day * 365) return `${Math.round(diff / (day * 30))} months ago`;
+    return `${Math.round(diff / (day * 365))} years ago`;
+  }
+
+  function fillReleaseBadge(data) {
+    const badge = document.querySelector("[data-release-badge]");
+    if (!badge) return;
+    const tag = data.tag_name || data.name;
+    if (!tag) return;
+    const when = data.published_at || data.created_at;
+    const rel = when ? ` · released ${relativeTime(when)}` : "";
+    badge.textContent = `${tag}${rel}`;
+    badge.hidden = false;
+  }
+
   async function wireDownloads() {
     try {
       const data = await fetchLatestRelease();
       if (!data) return;
+      fillReleaseBadge(data);
       const assets = Array.isArray(data.assets) ? data.assets : [];
       const urls = {
         macos:   pickAsset(assets, OS_PATTERNS.macos)   || pickAsset(assets, /\.dmg$/i),

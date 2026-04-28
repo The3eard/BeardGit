@@ -585,19 +585,6 @@ section + section { border-top: 1px solid var(--rule); }
 .screenshot-slot picture,
 .screenshot-slot img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .screenshot-slot.missing img { display: none; }
-
-/* Tag sits on top by default; JS hides it once a real image loads */
-.placeholder-tag {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.55rem;
-  padding: 2rem;
-  text-align: center;
-  color: var(--fg-muted);
-  background: linear-gradient(180deg, rgba(0,0,0,0.02), color-mix(in oklab, var(--bg-elev) 70%, transparent));
-  pointer-events: none;
-  transition: opacity .25s;
-  opacity: 1;
-}
 .screenshot-slot.loaded {
   border: none;
   background: transparent;
@@ -605,26 +592,6 @@ section + section { border-top: 1px solid var(--rule); }
 }
 .screenshot-slot.loaded picture,
 .screenshot-slot.loaded img { object-fit: contain; height: auto; }
-.screenshot-slot.loaded .placeholder-tag { opacity: 0; }
-.screenshot-slot .placeholder-tag-id {
-  font-family: "Fira Code", monospace;
-  font-size: 0.7rem;
-  letter-spacing: 0.2em;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  padding: 0.3rem 0.8rem;
-}
-.screenshot-slot .placeholder-tag-path {
-  font-family: "Fira Code", monospace;
-  font-size: 0.82rem;
-  color: var(--fg-dim);
-}
-.screenshot-slot .placeholder-tag-hint {
-  font-family: "Fraunces", serif;
-  font-style: italic;
-  font-size: 0.95rem;
-  color: var(--fg-muted);
-}
 
 .screenshot-strip {
   display: grid;
@@ -869,6 +836,117 @@ footer { border-top: 1px solid var(--rule); padding: 3rem 0 4rem; }
   max-width: 32ch;
 }
 
+/* ---------- Keyboard cheat sheet ---------- */
+.shortcuts-lede {
+  color: var(--fg-dim);
+  max-width: 72ch;
+  margin: 0 0 2rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.shortcuts-lede strong { color: var(--fg); font-weight: 500; }
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.shortcut-group {
+  background: var(--bg);
+  padding: clamp(1.4rem, 2.4vw, 2rem);
+}
+.shortcut-group-title {
+  font-family: "Fira Code", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  font-weight: 400;
+  margin: 0 0 1rem;
+}
+.shortcut-list { list-style: none; margin: 0; padding: 0; }
+.shortcut-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px dashed var(--rule);
+  color: var(--fg-dim);
+  font-size: 0.88rem;
+}
+.shortcut-list li:last-child { border-bottom: none; padding-bottom: 0; }
+.kbd-row { display: inline-flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
+.kbd-sep { color: var(--fg-muted); font-size: 0.72rem; }
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  padding: 0.18rem 0.45rem;
+  font-family: "Fira Code", monospace;
+  font-size: 0.78rem;
+  line-height: 1;
+  color: var(--fg);
+  background: var(--bg-elev);
+  border: 1px solid var(--rule-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- FAQ ---------- */
+.faq-list {
+  border-top: 1px solid var(--rule);
+}
+.faq-item {
+  border-bottom: 1px solid var(--rule);
+  padding: 0;
+}
+.faq-item > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.4rem 0;
+  font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
+  font-weight: 500;
+  font-variation-settings: "opsz" 144, "SOFT" 30;
+  font-size: clamp(1.15rem, 1.6vw, 1.4rem);
+  color: var(--fg);
+  transition: color .2s;
+}
+.faq-item > summary::-webkit-details-marker { display: none; }
+.faq-item > summary::after {
+  content: "+";
+  font-family: "Fira Code", monospace;
+  font-size: 1.3rem;
+  color: var(--accent);
+  flex-shrink: 0;
+  transition: transform .25s;
+  width: 1.4rem;
+  text-align: center;
+}
+.faq-item[open] > summary::after { content: "\2212"; transform: rotate(180deg); }
+.faq-item > summary:hover { color: var(--accent); }
+.faq-body {
+  padding: 0 0 1.6rem;
+  color: var(--fg-dim);
+  font-size: 0.95rem;
+  line-height: 1.65;
+  max-width: 72ch;
+}
+.faq-body code { color: var(--accent); font-family: "Fira Code", monospace; font-size: 0.88em; }
+.faq-body em {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  color: var(--fg);
+}
+
 /* ---------- Reveal on scroll ----------
    Elements are visible by default; JS adds .js-reveal to opt in to the hidden
    starting state, so the page still works if scripts fail. */
@@ -884,10 +962,11 @@ html.js-reveal .reveal.in { opacity: 1; transform: none; }
                install commands allowed to scroll horizontally, lightbox
                suppressed in favour of native anchor behaviour. */
 @media (max-width: 900px) {
-  /* All four grid sections collapse to a single column. */
+  /* All grid sections collapse to a single column. */
   .hero-grid,
   .features-grid,
   .install-grid,
+  .shortcuts-grid,
   .footer-grid {
     grid-template-columns: 1fr;
     gap: 24px;

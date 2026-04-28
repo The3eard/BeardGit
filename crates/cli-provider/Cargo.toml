@@ -16,3 +16,13 @@ forge-provider = { path = "../forge-provider" }
 
 [dev-dependencies]
 tempfile = "3"
+# `serial_test` serializes the unix_subprocess tests so they don't hit
+# the ETXTBSY ("Text file busy") race that intermittently fails the
+# `mock_cli`-based tests on the GitHub Actions ubuntu runners under
+# `cargo test`'s default parallel scheduler. The mock script is written
+# fresh per test in its own tempdir, but parallel execution on Linux
+# occasionally exposes a transient kernel state where the just-closed
+# file is still considered "busy" at exec time. Running these tests on
+# a single thread eliminates the class of races without touching the
+# production code path.
+serial_test = "3"

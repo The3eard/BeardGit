@@ -546,6 +546,21 @@ export async function setAutoCheckUpdates(enabled: boolean): Promise<void> {
 }
 
 /**
+ * Return whether the diff viewer should render whitespace as glyphs
+ * (spaces → `·`, tabs → `→`). Default `false`. Persisted in
+ * `AppConfig::diff_show_whitespace`. Backed by the
+ * `highlightWhitespace` CodeMirror extension on the FE.
+ */
+export async function getDiffShowWhitespace(): Promise<boolean> {
+  return invoke<boolean>("get_diff_show_whitespace");
+}
+
+/** Persist the `diff_show_whitespace` preference. */
+export async function setDiffShowWhitespace(enabled: boolean): Promise<void> {
+  return invoke<void>("set_diff_show_whitespace", { enabled });
+}
+
+/**
  * Return whether the per-OS re-authorization notice has been dismissed.
  * `os` must be `"macos"` or `"windows"` — Linux never shows the dialog.
  */
@@ -766,6 +781,7 @@ export async function createCommitPatches(oids: string[], outputDir: string): Pr
 export async function createWorkingTreePatch(stagedOnly: boolean): Promise<string> {
   return invoke<string>("create_working_tree_patch", { stagedOnly });
 }
+
 
 /** Preview a patch file: stats + clean-apply check. */
 export async function previewPatch(path: string): Promise<PatchPreview> {
@@ -1285,6 +1301,29 @@ export async function aiReviewCode(provider: string, diff: string): Promise<Task
 
 export async function aiReviewPr(provider: string, diff: string): Promise<TaskId> {
   return invoke<TaskId>("ai_review_pr", { provider, diff });
+}
+
+/**
+ * Result returned by `save_ai_review`. `path` is the absolute filesystem
+ * path of the saved markdown file (suitable for `openUrl(file://...)`);
+ * `relative_path` is the path under the active project root and is what
+ * the toast message shows.
+ */
+export interface SaveAiReviewResult {
+  path: string;
+  relative_path: string;
+}
+
+/**
+ * Persist an AI-generated code review under
+ * `<active project>/.beardgit/reviews/`. The backend computes the
+ * filename from a UTC timestamp + short HEAD oid and writes a markdown
+ * file with a small header followed by the review text. Returns both
+ * the absolute and project-relative paths so the FE can show the toast
+ * and wire an "Open" action without re-deriving the path.
+ */
+export async function saveAiReview(content: string): Promise<SaveAiReviewResult> {
+  return invoke<SaveAiReviewResult>("save_ai_review", { content });
 }
 
 export async function aiLaunchInteractive(provider: string): Promise<number> {

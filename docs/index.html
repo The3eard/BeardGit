@@ -6,14 +6,60 @@
   <title>BeardGit — a Git client for the patient</title>
   <meta name="description" content="BeardGit is a native desktop Git client built with Rust and Svelte. Visual graph, built-in CI, multi-repo tabs. Craft over ceremony." />
   <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://the3eard.github.io/BeardGit/" />
+
   <meta property="og:title" content="BeardGit — a Git client for the patient" />
   <meta property="og:description" content="Native desktop Git client. Rust + Svelte. No Electron. Craft over ceremony." />
   <meta property="og:type" content="website" />
-  <link rel="icon" type="image/png" href="assets/logo.svg" />
+  <meta property="og:url" content="https://the3eard.github.io/BeardGit/" />
+  <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="BeardGit main window — commit graph and diff side by side" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="BeardGit — a Git client for the patient" />
+  <meta name="twitter:description" content="Native desktop Git client. Rust + Svelte. No Electron. Craft over ceremony." />
+  <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png" />
+  <meta name="twitter:image:alt" content="BeardGit main window — commit graph and diff side by side" />
+
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,30..100;1,9..144,300..700,30..100&family=Fira+Code:wght@300..700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,144,500,30..100;1,144,500,30..100&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/styles.css" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "BeardGit",
+    "description": "Native desktop Git client with built-in graph, PRs/MRs, CI/CD pipelines, issues, releases, terminals, and AI agents — for GitHub and GitLab.",
+    "url": "https://the3eard.github.io/BeardGit/",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS, Linux, Windows",
+    "downloadUrl": "https://github.com/The3eard/BeardGit/releases/latest",
+    "softwareRequirements": "macOS (Apple Silicon), Linux x64 (libwebkit2gtk-4.1), Windows x64 (WebView2)",
+    "license": "https://github.com/The3eard/BeardGit/blob/main/LICENSE.md",
+    "image": "https://the3eard.github.io/BeardGit/assets/og-image.png",
+    "author": {
+      "@type": "Person",
+      "name": "Adolfo Fuentes",
+      "url": "https://github.com/The3eard"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
 </head>
 <body>
 
@@ -28,7 +74,9 @@
         <a href="#manifesto">Manifesto</a>
         <a href="#features">Features</a>
         <a href="#showcase">Showcase</a>
+        <a href="#shortcuts">Keys</a>
         <a href="#install">Install</a>
+        <a href="#faq">FAQ</a>
         <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle color theme" title="Cycle theme: auto / light / dark">
@@ -49,6 +97,7 @@
         <div class="hero-main">
           <div class="hero-meta reveal">
             <span class="badge"><span class="badge-dot"></span>Active development</span>
+            <span class="badge mono" data-release-badge hidden></span>
             <span class="badge mono">macOS (Apple Silicon) · Linux x64 · Windows x64</span>
           </div>
 
@@ -280,29 +329,25 @@
         <div class="section-head-meta">§ 03 — Interface</div>
       </div>
 
-      <!--
-        ┌──────────────────────────────────────────────────────────────┐
-        │  SCREENSHOT PLACEHOLDER · main window                        │
-        │  Drop a real PNG at: docs/assets/screenshots/main-dark.png   │
-        │                      docs/assets/screenshots/main-light.png  │
-        │  Recommended size:   ~2880×1800 (retina) · max ~500KB        │
-        │  The <picture> below auto-swaps by theme via prefers-color-  │
-        │  scheme + data-theme fallback; the CSS mock stays as visible │
-        │  fallback until real files exist.                            │
-        └──────────────────────────────────────────────────────────────┘
-      -->
       <figure class="shot-figure reveal">
         <div class="screenshot-slot" data-slot="main-window">
-          <img class="shot-img"
-               data-src-light="assets/screenshots/main-light.png"
-               data-src-dark="assets/screenshots/main-dark.png"
-               src="assets/screenshots/main-dark.png"
-               alt="BeardGit main window" />
-          <div class="placeholder-tag">
-            <span class="placeholder-tag-id">IMG · 01 — main window</span>
-            <span class="placeholder-tag-path">assets/screenshots/main-{light|dark}.png</span>
-            <span class="placeholder-tag-hint">Hero screenshot: full app window with graph + diff + sidebar</span>
-          </div>
+          <picture>
+            <source class="shot-src" type="image/avif"
+                    data-srcset-light="assets/screenshots/main-light.avif"
+                    data-srcset-dark="assets/screenshots/main-dark.avif"
+                    srcset="assets/screenshots/main-dark.avif" />
+            <source class="shot-src" type="image/webp"
+                    data-srcset-light="assets/screenshots/main-light.webp"
+                    data-srcset-dark="assets/screenshots/main-dark.webp"
+                    srcset="assets/screenshots/main-dark.webp" />
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/main-light.png"
+                 data-src-dark="assets/screenshots/main-dark.png"
+                 src="assets/screenshots/main-dark.png"
+                 width="2784" height="1824"
+                 fetchpriority="high" decoding="async"
+                 alt="BeardGit main window — commit graph, branches, and diff in a single tab" />
+          </picture>
         </div>
         <figcaption class="shot-caption mono">fig. 01 — main window</figcaption>
       </figure>
@@ -310,49 +355,116 @@
       <div class="screenshot-strip">
         <figure class="shot-figure reveal">
           <div class="screenshot-slot small" data-slot="graph">
-            <img class="shot-img"
-                 data-src-light="assets/screenshots/graph-light.png"
-                 data-src-dark="assets/screenshots/graph-dark.png"
-                 src="assets/screenshots/graph-dark.png"
-                 alt="Commit graph" />
-            <div class="placeholder-tag">
-              <span class="placeholder-tag-id">IMG · 02</span>
-              <span class="placeholder-tag-path">assets/screenshots/graph-{light|dark}.png</span>
-              <span class="placeholder-tag-hint">Canvas commit graph close-up</span>
-            </div>
+            <picture>
+              <source class="shot-src" type="image/avif"
+                      data-srcset-light="assets/screenshots/graph-light.avif"
+                      data-srcset-dark="assets/screenshots/graph-dark.avif"
+                      srcset="assets/screenshots/graph-dark.avif" />
+              <source class="shot-src" type="image/webp"
+                      data-srcset-light="assets/screenshots/graph-light.webp"
+                      data-srcset-dark="assets/screenshots/graph-dark.webp"
+                      srcset="assets/screenshots/graph-dark.webp" />
+              <img class="shot-img"
+                   data-src-light="assets/screenshots/graph-light.png"
+                   data-src-dark="assets/screenshots/graph-dark.png"
+                   src="assets/screenshots/graph-dark.png"
+                   width="2784" height="1824"
+                   loading="lazy" decoding="async"
+                   alt="Canvas commit graph showing branch lanes, merge curves, and author highlighting" />
+            </picture>
           </div>
           <figcaption class="shot-caption mono">fig. 02 — commit graph</figcaption>
         </figure>
         <figure class="shot-figure reveal">
           <div class="screenshot-slot small" data-slot="ai">
-            <img class="shot-img"
-                 data-src-light="assets/screenshots/ai-light.png"
-                 data-src-dark="assets/screenshots/ai-dark.png"
-                 src="assets/screenshots/ai-dark.png"
-                 alt="AI background run" />
-            <div class="placeholder-tag">
-              <span class="placeholder-tag-id">IMG · 03</span>
-              <span class="placeholder-tag-path">assets/screenshots/ai-{light|dark}.png</span>
-              <span class="placeholder-tag-hint">AI background run dialog or transcript</span>
-            </div>
+            <picture>
+              <source class="shot-src" type="image/avif"
+                      data-srcset-light="assets/screenshots/ai-light.avif"
+                      data-srcset-dark="assets/screenshots/ai-dark.avif"
+                      srcset="assets/screenshots/ai-dark.avif" />
+              <source class="shot-src" type="image/webp"
+                      data-srcset-light="assets/screenshots/ai-light.webp"
+                      data-srcset-dark="assets/screenshots/ai-dark.webp"
+                      srcset="assets/screenshots/ai-dark.webp" />
+              <img class="shot-img"
+                   data-src-light="assets/screenshots/ai-light.png"
+                   data-src-dark="assets/screenshots/ai-dark.png"
+                   src="assets/screenshots/ai-dark.png"
+                   width="2784" height="1824"
+                   loading="lazy" decoding="async"
+                   alt="AI background run transcript inside a worktree, with provider and prompt selection" />
+            </picture>
           </div>
           <figcaption class="shot-caption mono">fig. 03 — AI background run</figcaption>
         </figure>
         <figure class="shot-figure reveal">
           <div class="screenshot-slot small" data-slot="forge">
-            <img class="shot-img"
-                 data-src-light="assets/screenshots/forge-light.png"
-                 data-src-dark="assets/screenshots/forge-dark.png"
-                 src="assets/screenshots/forge-dark.png"
-                 alt="PR / pipeline view" />
-            <div class="placeholder-tag">
-              <span class="placeholder-tag-id">IMG · 04</span>
-              <span class="placeholder-tag-path">assets/screenshots/forge-{light|dark}.png</span>
-              <span class="placeholder-tag-hint">PR detail or CI pipeline view</span>
-            </div>
+            <picture>
+              <source class="shot-src" type="image/avif"
+                      data-srcset-light="assets/screenshots/forge-light.avif"
+                      data-srcset-dark="assets/screenshots/forge-dark.avif"
+                      srcset="assets/screenshots/forge-dark.avif" />
+              <source class="shot-src" type="image/webp"
+                      data-srcset-light="assets/screenshots/forge-light.webp"
+                      data-srcset-dark="assets/screenshots/forge-dark.webp"
+                      srcset="assets/screenshots/forge-dark.webp" />
+              <img class="shot-img"
+                   data-src-light="assets/screenshots/forge-light.png"
+                   data-src-dark="assets/screenshots/forge-dark.png"
+                   src="assets/screenshots/forge-dark.png"
+                   width="2784" height="1824"
+                   loading="lazy" decoding="async"
+                   alt="Pull request detail with CI pipeline status and inline review comments" />
+            </picture>
           </div>
           <figcaption class="shot-caption mono">fig. 04 — PR / pipeline</figcaption>
         </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ KEYBOARD ============ -->
+  <section id="shortcuts">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Twelve keys, <span class="italic">no menus</span>.</h2>
+        <div class="section-head-meta">§ 04 — Keyboard</div>
+      </div>
+
+      <p class="shortcuts-lede mono reveal">
+        A taste of what ships built-in. The full cheat sheet is one keystroke away — press <kbd class="kbd">?</kbd> inside the app. Modifiers shown for macOS; on Linux/Windows <kbd class="kbd">⌘</kbd> reads as <kbd class="kbd">Ctrl</kbd>.
+      </p>
+
+      <div class="shortcuts-grid">
+        <div class="shortcut-group reveal">
+          <h3 class="shortcut-group-title">Git</h3>
+          <ul class="shortcut-list">
+            <li><span>Stage all changes</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">S</kbd></span></li>
+            <li><span>Push</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">P</kbd></span></li>
+            <li><span>Pull</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">L</kbd></span></li>
+            <li><span>Fetch</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">F</kbd></span></li>
+            <li><span>New branch</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">B</kbd></span></li>
+          </ul>
+        </div>
+        <div class="shortcut-group reveal">
+          <h3 class="shortcut-group-title">Graph</h3>
+          <ul class="shortcut-list">
+            <li><span>Next / previous commit</span><span class="kbd-row"><kbd class="kbd">J</kbd><span class="kbd-sep">/</span><kbd class="kbd">K</kbd></span></li>
+            <li><span>First / last commit</span><span class="kbd-row"><kbd class="kbd">Home</kbd><span class="kbd-sep">/</span><kbd class="kbd">End</kbd></span></li>
+            <li><span>Search commits</span><span class="kbd-row"><kbd class="kbd">/</kbd></span></li>
+            <li><span>New AI background run</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">A</kbd></span></li>
+          </ul>
+        </div>
+        <div class="shortcut-group reveal">
+          <h3 class="shortcut-group-title">Tabs &amp; UI</h3>
+          <ul class="shortcut-list">
+            <li><span>Next tab</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">Tab</kbd></span></li>
+            <li><span>Close tab</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">W</kbd></span></li>
+            <li><span>New terminal tab</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">T</kbd></span></li>
+            <li><span>Toggle sidebar</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">B</kbd></span></li>
+            <li><span>Show all shortcuts</span><span class="kbd-row"><kbd class="kbd">?</kbd></span></li>
+          </ul>
+        </div>
       </div>
     </div>
   </section>
@@ -362,7 +474,7 @@
     <div class="wrap">
       <div class="section-head reveal">
         <h2>Download, <span class="italic">approve</span>, launch.</h2>
-        <div class="section-head-meta">§ 04 — Getting started</div>
+        <div class="section-head-meta">§ 05 — Getting started</div>
       </div>
 
       <p class="install-lede mono reveal">
@@ -427,7 +539,7 @@
 
       <div class="callout reveal">
         <div>
-          <div class="eyebrow" style="margin-bottom:0.8rem">§ 04.1 — From source</div>
+          <div class="eyebrow" style="margin-bottom:0.8rem">§ 05.1 — From source</div>
           <h2>Rather <span class="italic">build it</span> yourself?</h2>
           <p class="callout-body">Rust + Node + Tauri 2. Full setup and platform prerequisites live in the <a href="https://github.com/The3eard/BeardGit#development" target="_blank" rel="noopener">README</a>. Licensed <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
         </div>
@@ -437,6 +549,67 @@
             Clone the repo
           </a>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section id="faq">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Frequently <span class="italic">asked</span>.</h2>
+        <div class="section-head-meta">§ 06 — FAQ</div>
+      </div>
+
+      <div class="faq-list">
+        <details class="faq-item reveal">
+          <summary>Why is the app unsigned?</summary>
+          <div class="faq-body">
+            Code-signing certificates for macOS and Windows cost real money per year, and BeardGit is a one-person project shipping a beta. Until that changes, every build is unsigned and your OS will block first launch. The per-platform workaround in <a href="#install">§&nbsp;05</a> takes a single command. Signing is on the roadmap.
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Where do my AI keys live?</summary>
+          <div class="faq-body">
+            BeardGit doesn't manage keys. It drives <em>your local install</em> of <code class="mono">claude-code</code>, <code class="mono">codex</code>, or <code class="mono">opencode</code>, which already have their own auth in your home directory. The app spawns the CLI in a fresh worktree and pipes the transcript back — your tokens never touch BeardGit's storage.
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Why no Electron?</summary>
+          <div class="faq-body">
+            Electron ships a Chromium runtime per app — ~150 MB of memory before you do anything. BeardGit is built on Tauri 2, which uses the OS's native webview (WebKit on macOS, WebView2 on Windows, WebKitGTK on Linux). The installer is small and the cold start is fast.
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Does it work offline?</summary>
+          <div class="faq-body">
+            Yes — Git is local-first. Graph rendering, branches, staging, commits, terminals, and AI runs against a local CLI all work without a network. PR/MR/CI and remote pipeline triggers obviously need connectivity, and degrade cleanly when you go offline.
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>What about Bitbucket, Gitea, Codeberg, …?</summary>
+          <div class="faq-body">
+            Today only GitHub and GitLab are first-class. Bitbucket and Gitea are on the wish-list once the GH/GL surface stabilises — the forge layer is abstracted, but each backend still needs a real driver and tests. PRs welcome.
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Is BeardGit really free?</summary>
+          <div class="faq-body">
+            Yes — free to download, free to use, no account, no telemetry, no paywall. Use it on your own machine, at work, on as many repos as you like. The licence is <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>: the only thing it forbids is repackaging or reselling BeardGit itself as a commercial product, so the author keeps the right to do that down the line. Using it to earn money <em>with your code</em> is fine — that's the whole point.
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>How do I report a bug or request a feature?</summary>
+          <div class="faq-body">
+            Open an issue on <a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">GitHub</a>. Include your OS, the BeardGit version (Help → About), and a short repro. Patches via PR are very welcome — see <a href="https://github.com/The3eard/BeardGit/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a>.
+          </div>
+        </details>
       </div>
     </div>
   </section>
@@ -459,7 +632,9 @@
           <ul>
             <li><a href="#features">Features</a></li>
             <li><a href="#showcase">Showcase</a></li>
+            <li><a href="#shortcuts">Keyboard</a></li>
             <li><a href="#install">Install</a></li>
+            <li><a href="#faq">FAQ</a></li>
             <li><a href="https://github.com/The3eard/BeardGit/releases" target="_blank" rel="noopener">Releases</a></li>
           </ul>
         </div>

@@ -15,7 +15,7 @@ use ai_provider::{
     AiConfigFile, AiConversation, AiProvider, AiProviderKind, AiWorktree, AvailableAiProvider,
     ConfigKind, ConfigScope, RepoAiStatus,
 };
-use task_runner::{TaskId, TaskManager};
+use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use terminal::{SessionId, TerminalConfig, TerminalManager};
 
 use crate::commands::get_active_project_path;
@@ -224,13 +224,15 @@ pub async fn ai_generate_commit_message(
     let (program, args) = command_to_parts(&cmd);
     let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
     let task_id = task_manager
-        .spawn(
-            "AI: generate commit message".into(),
-            &program,
-            &args_refs,
-            &cwd,
-            false,
-        )
+        .spawn_with_options(SpawnOptions {
+            label: "AI: generate commit message".into(),
+            command: &program,
+            args: &args_refs,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::AiHeadless,
+            stdin: None,
+        })
         .await;
     Ok(task_id)
 }
@@ -256,7 +258,15 @@ pub async fn ai_analyze_code(
     let (program, args) = command_to_parts(&cmd);
     let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
     let task_id = task_manager
-        .spawn("AI: analyze code".into(), &program, &args_refs, &cwd, false)
+        .spawn_with_options(SpawnOptions {
+            label: "AI: analyze code".into(),
+            command: &program,
+            args: &args_refs,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::AiHeadless,
+            stdin: None,
+        })
         .await;
     Ok(task_id)
 }
@@ -280,13 +290,15 @@ pub async fn ai_generate_pr_description(
     let (program, args) = command_to_parts(&cmd);
     let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
     let task_id = task_manager
-        .spawn(
-            "AI: generate PR description".into(),
-            &program,
-            &args_refs,
-            &cwd,
-            false,
-        )
+        .spawn_with_options(SpawnOptions {
+            label: "AI: generate PR description".into(),
+            command: &program,
+            args: &args_refs,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::AiHeadless,
+            stdin: None,
+        })
         .await;
     Ok(task_id)
 }
@@ -308,8 +320,21 @@ pub async fn ai_review_code(
     let cmd = p.build_review_cmd(&diff, &cwd).map_err(|e| e.to_string())?;
     let (program, args) = command_to_parts(&cmd);
     let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    // Spawn with `TaskKind::AiHeadless` (rather than the default Generic)
+    // so the task surfaces in the unified drawer. Generic tasks are
+    // intentionally suppressed by `kind_from_runtime` and would never
+    // emit `task://update`, leaving the drawer's list empty even while
+    // output streamed to `taskOutput`. See `task_events::kind_from_runtime`.
     let task_id = task_manager
-        .spawn("AI: review code".into(), &program, &args_refs, &cwd, false)
+        .spawn_with_options(SpawnOptions {
+            label: "AI: review code".into(),
+            command: &program,
+            args: &args_refs,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::AiHeadless,
+            stdin: None,
+        })
         .await;
     Ok(task_id)
 }
@@ -334,9 +359,86 @@ pub async fn ai_review_pr(
     let (program, args) = command_to_parts(&cmd);
     let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
     let task_id = task_manager
-        .spawn("AI: review PR".into(), &program, &args_refs, &cwd, false)
+        .spawn_with_options(SpawnOptions {
+            label: "AI: review PR".into(),
+            command: &program,
+            args: &args_refs,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::AiHeadless,
+            stdin: None,
+        })
         .await;
     Ok(task_id)
+}
+
+// ─── Persisted reviews ────────────────────────────────────────────────────────
+
+/// Result of [`save_ai_review`]. The frontend uses `relative_path` for the
+/// toast message and `path` for the "Open" action.
+#[derive(Debug, serde::Serialize)]
+pub struct SaveAiReviewResult {
+    /// Absolute path of the saved review file. Suitable for `openUrl`.
+    pub path: String,
+    /// Path relative to the active project root (always under
+    /// `.beardgit/reviews/`). Convenient for the toast copy so the user
+    /// can grep their working tree without seeing the full home prefix.
+    pub relative_path: String,
+}
+
+/// Persist an AI-generated code review to
+/// `<active project>/.beardgit/reviews/review-<utc-stamp>-<short-head>.md`.
+///
+/// `.beardgit/` is gitignored by convention (and recommended in BeardGit's
+/// own `.gitignore` template), so reviews stay local to the developer's
+/// machine — same posture as the AI background-session worktrees that live
+/// next door at `.beardgit/ai-worktrees/`.
+///
+/// The header (date, repository path, short HEAD) is composed here so the
+/// frontend hands us only the AI's raw output. Best-effort: when HEAD
+/// cannot be resolved (unborn branch, non-git folder) the filename falls
+/// back to `no-head` rather than failing.
+#[tauri::command]
+pub fn save_ai_review(
+    content: String,
+    state: State<'_, AppState>,
+) -> Result<SaveAiReviewResult, String> {
+    let cwd = get_active_project_path(&state)?;
+    let dir = cwd.join(".beardgit").join("reviews");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("create reviews dir: {e}"))?;
+
+    let head_short = git2::Repository::open(&cwd)
+        .ok()
+        .and_then(|r| r.head().ok().and_then(|h| h.target()))
+        .map(|oid| {
+            let s = oid.to_string();
+            s.chars().take(7).collect::<String>()
+        })
+        .unwrap_or_else(|| "no-head".to_string());
+
+    let now = chrono::Utc::now();
+    let filename = format!("review-{}-{}.md", now.format("%Y-%m-%d-%H%M%S"), head_short);
+    let abs_path = dir.join(&filename);
+
+    let body = format!(
+        "# Code review — {timestamp}\n\n\
+         - **Repository:** `{cwd}`\n\
+         - **HEAD:** `{head}`\n\n\
+         ---\n\n\
+         {content}\n",
+        timestamp = now.format("%Y-%m-%d %H:%M:%S UTC"),
+        cwd = cwd.display(),
+        head = head_short,
+        content = content.trim_end(),
+    );
+
+    std::fs::write(&abs_path, body).map_err(|e| format!("write review: {e}"))?;
+
+    let relative_path = format!(".beardgit/reviews/{filename}");
+    Ok(SaveAiReviewResult {
+        path: abs_path.to_string_lossy().into_owned(),
+        relative_path,
+    })
 }
 
 // ─── Interactive ──────────────────────────────────────────────────────────────
