@@ -388,6 +388,7 @@ mod tests {
         //! via manual testing; a parallel `.cmd` rig is out of scope for
         //! this slice (see the plan's "Deferred / follow-up" section).
         use super::*;
+        use serial_test::serial;
         use std::fs::OpenOptions;
         use std::io::Write;
         use std::os::unix::fs::OpenOptionsExt;
@@ -485,6 +486,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn pipe_token_to_cli_sends_token_on_stdin() {
             let dir = tempfile::tempdir().unwrap();
             let (script, stdin_capture) = mock_cli(&dir, 0, "");
@@ -502,6 +504,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn pipe_token_to_cli_maps_non_zero_exit_to_command_failed() {
             let dir = tempfile::tempdir().unwrap();
             let (script, _) = mock_cli(&dir, 1, "bad token");
@@ -526,6 +529,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn pipe_token_to_cli_missing_binary_returns_error() {
             let result = pipe_token_to_cli(
                 Path::new("/definitely/not/a/real/binary/path/gh"),
@@ -537,6 +541,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn clear_cli_auth_success() {
             let dir = tempfile::tempdir().unwrap();
             let (script, _) = mock_cli(&dir, 0, "");
@@ -546,6 +551,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn clear_cli_auth_is_idempotent_when_not_logged_in() {
             let dir = tempfile::tempdir().unwrap();
             // Realistic `gh`/`glab` stderr when no creds exist for the host.
@@ -559,6 +565,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn clear_cli_auth_is_idempotent_on_no_credentials_stderr() {
             let dir = tempfile::tempdir().unwrap();
             let (script, _) = mock_cli(&dir, 1, "No credentials stored for gitlab.com");
@@ -571,6 +578,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn clear_cli_auth_other_non_zero_is_error() {
             let dir = tempfile::tempdir().unwrap();
             let (script, _) = mock_cli(&dir, 2, "unexpected failure talking to keychain");
