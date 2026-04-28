@@ -313,6 +313,8 @@ pub fn run() {
             // Auto-update preference
             app_core::commands::get_auto_check_updates,
             app_core::commands::set_auto_check_updates,
+            app_core::commands::get_diff_show_whitespace,
+            app_core::commands::set_diff_show_whitespace,
             app_core::commands::get_reauth_dismissed,
             app_core::commands::set_reauth_dismissed,
             // Terminal
@@ -334,6 +336,7 @@ pub fn run() {
             app_core::ai_commands::ai_generate_pr_description,
             app_core::ai_commands::ai_review_code,
             app_core::ai_commands::ai_review_pr,
+            app_core::ai_commands::save_ai_review,
             app_core::ai_commands::ai_launch_interactive,
             app_core::ai_commands::ai_launch_worktree,
             app_core::ai_commands::ai_resume_conversation,

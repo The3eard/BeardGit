@@ -29,6 +29,7 @@
     recentlyFinishedTasks,
     clearFinished,
     cancelTaskById,
+    removeTask,
     markSeen,
   } from "$lib/stores/tasks";
   import {
@@ -170,7 +171,12 @@
     if (id === "cancel") {
       await cancelTaskById(entry.id);
     } else if (id === "dismiss") {
-      clearFinished();
+      // Per-row Dismiss removes only this entry. The header's "Clear"
+      // button is the bulk wipe (calls `clearFinished`). Conflating the
+      // two used to nuke every finished task in the drawer when the
+      // user thought they were dismissing one — bad UX and it also
+      // clobbered the AI review row before the user could open it.
+      removeTask(entry.id);
     }
     // retry / open_output are wired up by kind-specific consumers.
   }

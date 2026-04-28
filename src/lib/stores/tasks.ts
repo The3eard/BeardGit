@@ -186,15 +186,68 @@ function scheduleFlush(): void {
  * actions based on kind + status and we trust them.
  */
 function upsert(entry: TaskEntry): void {
-  entryMap.set(entry.id, entry);
-  if (entry.status === "error") {
+  // Re-apply any pending subtitle override so the AI review's saved
+  // filename (and any future override-style metadata) survives a late
+  // `task://update` upsert that wouldn't otherwise know about it.
+  const override = subtitleOverrides.get(entry.id);
+  const final = override !== undefined ? { ...entry, subtitle: override } : entry;
+  entryMap.set(entry.id, final);
+  if (final.status === "error") {
     unseenErrorIds.update((s) => {
-      if (s.has(entry.id)) return s;
+      if (s.has(final.id)) return s;
       const next = new Set(s);
-      next.add(entry.id);
+      next.add(final.id);
       return next;
     });
   }
+  scheduleFlush();
+}
+
+/**
+ * Per-id subtitle override. The Rust task producer doesn't know about
+ * downstream artefacts (e.g. the saved `.beardgit/reviews/...md` path
+ * for an AI review), so the FE assigns those out-of-band via
+ * [`setTaskSubtitle`]. Storing the override here — separate from the
+ * entry record — means any subsequent `upsert` (e.g. from a late
+ * `task://update` event that races behind `task-completed`) won't
+ * silently clobber it; `upsert` re-applies the override on every
+ * write.
+ */
+const subtitleOverrides = new Map<string, string>();
+
+/**
+ * Patch the `subtitle` of an already-tracked entry. Survives any
+ * later `upsert` for the same id because `upsert` consults
+ * [`subtitleOverrides`] before writing.
+ *
+ * Safe to call before the entry has been ingested — the override
+ * waits for the matching upsert, which then applies it. No-ops when
+ * the override happens to land alongside an in-flight entry.
+ */
+export function setTaskSubtitle(id: string, subtitle: string): void {
+  subtitleOverrides.set(id, subtitle);
+  const existing = entryMap.get(id);
+  if (existing) {
+    entryMap.set(id, { ...existing, subtitle });
+    scheduleFlush();
+  }
+}
+
+/**
+ * Remove a single entry from the drawer (and its subtitle override).
+ * Called when the user clicks per-row "Dismiss" — distinct from the
+ * header's "Clear" button, which is the bulk wipe.
+ */
+export function removeTask(id: string): void {
+  entryMap.delete(id);
+  subtitleOverrides.delete(id);
+  aiBridgeIds.delete(id);
+  unseenErrorIds.update((s) => {
+    if (!s.has(id)) return s;
+    const next = new Set(s);
+    next.delete(id);
+    return next;
+  });
   scheduleFlush();
 }
 
@@ -422,6 +475,7 @@ export function clearFinished(): void {
     if (entry.status !== "running") {
       entryMap.delete(id);
       aiBridgeIds.delete(id);
+      subtitleOverrides.delete(id);
     }
   }
   unseenErrorIds.set(new Set());
@@ -461,7 +515,8 @@ export async function cancelTaskById(id: string): Promise<void> {
     case "git_fetch":
     case "git_pull":
     case "git_push":
-    case "git_clone": {
+    case "git_clone":
+    case "ai_headless": {
       await api.taskCancel(id);
       return;
     }

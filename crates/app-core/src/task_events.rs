@@ -38,6 +38,9 @@ pub enum TaskKind {
     AiBackground,
     /// Interactive AI PTY session (Claude Code, Codex, OpenCode).
     AiInteractive,
+    /// One-shot AI command (commit message, code review, PR review,
+    /// analyze). Surfaced in the drawer alongside the other AI kinds.
+    AiHeadless,
     /// `git fetch <remote>`.
     GitFetch,
     /// `git pull <remote> <branch>`.
@@ -157,6 +160,7 @@ pub fn kind_from_runtime(kind: &RuntimeTaskKind) -> Option<TaskKind> {
         RuntimeTaskKind::Generic => None,
         RuntimeTaskKind::AiBackground { .. } => Some(TaskKind::AiBackground),
         RuntimeTaskKind::AiInteractive => Some(TaskKind::AiInteractive),
+        RuntimeTaskKind::AiHeadless => Some(TaskKind::AiHeadless),
         RuntimeTaskKind::GitFetch => Some(TaskKind::GitFetch),
         RuntimeTaskKind::GitPull => Some(TaskKind::GitPull),
         RuntimeTaskKind::GitPush => Some(TaskKind::GitPush),

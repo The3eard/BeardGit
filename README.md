@@ -44,7 +44,7 @@ BeardGit is the client I wanted and could never find: **fast like a CLI, rich li
 - **A sidebar that's yours.** Reorder navigation items, hide what you don't use, reset to the default. Layout persists app-wide.
 - **Auto-update.** Stable channel auto-updates via the Tauri updater. Diagnostics surface the endpoint and last-check timestamp so you can tell at a glance whether the system is wired up.
 - **Honest performance.** Virtual scroll, lazy CodeMirror grammars, xterm instance pool, rayon for graph construction, debounced fs events. No Electron overhead.
-- **Secure by default.** PATs stored with AES-256-GCM under a machine-derived key. CLI OAuth supported via `gh` / `glab`.
+- **Secure and private by default.** PATs stored with AES-256-GCM under a machine-derived key, CLI OAuth supported via `gh` / `glab`, and no telemetry — logs are local-only and the app never phones home.
 
 ---
 
@@ -68,7 +68,17 @@ A dedicated **Repo settings** sidebar entry edits the forge-side configuration o
 
 ### AI providers, first class
 
-A provider-neutral AI layer with Claude Code, Codex, and OpenCode built in. Detect installed providers, show their version, let the user pick a default. Generate commit messages, review staged changes, review a PR — all gated on "there's actually something to talk about" so you don't get empty replies. Launch the interactive CLI in a PTY terminal, or fire a **worktree-isolated background session** that streams its output into a dedicated panel; conversations and active terminals share one selection state, with detail-pane Resume / Focus actions instead of hover-only buttons. Brand assets ship in light + dark variants and follow the active theme.
+A provider-neutral AI layer with Claude Code, Codex, and OpenCode built in. BeardGit auto-detects the providers you already have installed and lets you pick a default; from any tab the active provider can draft a commit message, review your staged changes, or review a PR — all gated on "there's actually something to talk about" so you never get empty replies.
+
+You can launch the interactive CLI in a PTY terminal exactly as you would in your shell, or — and this is the part that pays off most often — fire a **worktree-isolated background session**:
+
+- The active provider runs in its own checkout under `.beardgit/ai-worktrees/<slug>`, never touching your main working tree.
+- Each run lands on a dedicated `ai/<provider>/<slug>` branch you can review, merge, refactor, or discard.
+- Output streams into a dedicated panel in real time; the run survives tab switches, so you can keep coding in the main view while a long refactor, a test-suite repair, or an investigative dive runs unattended.
+- A FIFO queue with a configurable concurrency cap means you can fire several at once without blowing up your machine.
+- When the session finishes you get a final markdown report alongside the worktree, plus Resume / Focus actions on the detail pane to bring the conversation forward when you're ready to review.
+
+Brand assets ship in light + dark variants and follow the active theme.
 
 ### Terminals and multi-project tabs
 
@@ -84,9 +94,19 @@ The interface is fully translatable via [Paraglide](https://inlang.com/m/gerre34
 
 The Tauri updater plugin auto-checks the stable channel on a configurable cadence and surfaces a single in-app dialog when a new version is available. The Settings → Advanced panel exposes a manual "Check for updates" button alongside diagnostic lines for last-check timestamp, configured endpoint URL, and the verbatim error from the underlying plugin when something fails — so you can tell a 404 apart from a DNS hiccup without leaving the app.
 
-### Observability
+### Observability — local-only
 
-Structured file logging via `tracing` with daily rotation and 7-day auto-purge. Tracing spans across every git write and every Tauri command, with sensitive payloads redacted. Trait-crate purity enforced at CI (no runtime deps allowed in contract crates).
+BeardGit logs are entirely local. **Nothing leaves your machine**: no telemetry, no error-reporting service, no usage analytics, no phone-home of any kind. The only outbound traffic the app makes on its own is the Tauri auto-updater poll for new releases; everything else (forge API calls via `gh` / `glab`, `git push` / `fetch` / `pull`, AI CLI invocations) is initiated by you and goes to the host you already use.
+
+Structured logs are written via `tracing` with daily rotation and a 7-day auto-purge to:
+
+| Platform | Path |
+|----------|------|
+| macOS    | `~/Library/Logs/BeardGit/beardgit.{date}.log` |
+| Linux    | `~/.local/share/beardgit/logs/beardgit.{date}.log` |
+| Windows  | `%APPDATA%\BeardGit\logs\beardgit.{date}.log` |
+
+Tracing spans cover every git write and every Tauri command, with sensitive payloads redacted. The path is included in the diagnostic block on the in-app error dialog so you can grab it when filing a bug — sharing a log file is your call, never the app's.
 
 ---
 

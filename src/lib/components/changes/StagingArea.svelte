@@ -4,12 +4,14 @@
   import CleanDialog from "./CleanDialog.svelte";
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
-  import { getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote } from "$lib/api/tauri";
+  import { getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote, saveAiReview } from "$lib/api/tauri";
+  import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
   import { runMutation } from "$lib/api/runMutation";
   import { hasAiProvider, aiGenerateCommitMessage, aiReviewCode } from "$lib/stores/ai";
   import { addToast } from "$lib/stores/toast";
   import { repoInfo } from "$lib/stores/repo";
   import { taskOutput, selectTask } from "$lib/stores/taskPanel";
+  import { setTaskSubtitle } from "$lib/stores/tasks";
   import { openTasksPopover } from "$lib/stores/tasksPopover";
   import { stripAnsi } from "$lib/utils/strip-ansi";
   import { listen } from "@tauri-apps/api/event";
@@ -89,8 +91,12 @@
     aiCommitLoading = true;
     try {
       const taskId = await aiGenerateCommitMessage();
+      // Don't auto-open the tasks popover — the user clicked Generate
+      // commit message to fill the message box, not to babysit a task.
+      // The row still appears in the drawer for after-the-fact viewing
+      // (TaskKind::AiHeadless flows through the unified bridge). Same
+      // behaviour the Code Review button now has.
       selectTask(taskId);
-      openTasksPopover();
 
       const unlistenCompleted = await listen<TaskInfo>("task-completed", (event) => {
         if (event.payload.id === taskId) {
@@ -129,16 +135,134 @@
   }
 
   async function handleCodeReview() {
-    if ($fileStatuses.length === 0) {
+    // The button itself is disabled when staged.length === 0 (see the
+    // template), so this is a defensive guard — keeps the function
+    // honest when called programmatically.
+    if (staged.length === 0) {
       addToast({ message: m.ai_no_changes_to_review(), type: "warning" });
       return;
     }
+    let diff: string;
     try {
-      const diff = await createWorkingTreePatch(false);
-      const taskId = await aiReviewCode(diff);
-      selectTask(taskId);
-      openTasksPopover();
-    } catch { /* ignore — task output streams to panel */ }
+      // Staged-only patch: the review reasons about exactly the diff
+      // the user is about to commit, not whatever else is in the
+      // working tree. Pairs with the disabled-when-no-staged button.
+      diff = await createWorkingTreePatch(true);
+    } catch (err) {
+      const msg = String(err);
+      if (msg.includes("No changes to create patch from")) {
+        addToast({ message: m.ai_no_changes_to_review(), type: "warning" });
+      } else {
+        addToast({ type: "error", message: m.ai_review_save_failed({ message: msg }) });
+      }
+      return;
+    }
+    if (!diff.trim()) {
+      addToast({ message: m.ai_no_changes_to_review(), type: "warning" });
+      return;
+    }
+
+    let taskId: number;
+    try {
+      taskId = await aiReviewCode(diff);
+    } catch (err) {
+      addToast({ type: "error", message: m.ai_review_save_failed({ message: String(err) }) });
+      return;
+    }
+
+    // Don't auto-open the popover — the user clicked Code Review, not
+    // "show me my tasks". The new "AI: review code" row is in the
+    // unified drawer (TaskKind::AiHeadless flows through the task event
+    // bridge now) so the user can pop the drawer open from the
+    // statusbar if they want to follow the stream; otherwise they wait
+    // for the success toast.
+
+    const unlistenCompleted = await listen<TaskInfo>("task-completed", async (event) => {
+      if (event.payload.id !== taskId) return;
+      unlistenCompleted();
+      unlistenFailed();
+      await persistReviewOutput(taskId);
+    });
+    const unlistenFailed = await listen<TaskInfo>("task-failed", (event) => {
+      if (event.payload.id !== taskId) return;
+      unlistenCompleted();
+      unlistenFailed();
+    });
+  }
+
+  /**
+   * Pull the cleaned review text out of the task-output store and ask the
+   * backend to drop it under `.beardgit/reviews/`. Surfaces a success
+   * toast with an "Open" action that launches the saved file in the
+   * user's default markdown viewer; falls back to an error toast if the
+   * write fails or the task produced no output.
+   */
+  async function persistReviewOutput(taskId: number) {
+    let lines: import("$lib/types").TaskOutputLine[] | undefined;
+    const unsubscribe = taskOutput.subscribe((map) => {
+      lines = map.get(taskId);
+    });
+    unsubscribe();
+
+    if (!lines || lines.length === 0) return;
+    const cleaned = stripAnsi(lines.map((l) => l.text).join("\n")).trim();
+    if (!cleaned) return;
+
+    try {
+      const saved = await saveAiReview(cleaned);
+      // Mirror the saved file's relative path onto the task entry so
+      // the drawer's detail panel shows it under "Context" once the
+      // task has finished and the user opens it from history. Without
+      // this the drawer just shows the AI's raw output with no link
+      // back to the on-disk artefact.
+      setTaskSubtitle(String(taskId), saved.relative_path);
+      // Belt-and-braces: rewrite `taskOutput` with the cleaned text we
+      // just persisted. If any `task-output` events were missed during
+      // the run (rAF coalescing, AI providers that batch output until
+      // exit, Tauri reload, …) the drawer's detail panel would show an
+      // empty pane when the user later clicks the row. The saved file
+      // is the source of truth, so we use it to refill the legacy
+      // taskOutput map keyed by this task's id. Split on \n so the
+      // detail panel renders one <span> per line, matching the live
+      // streaming layout.
+      taskOutput.update((map) => {
+        const reviewLines = cleaned.split(/\r?\n/).map((text) => ({
+          stream: "stdout" as const,
+          text,
+        }));
+        map.set(taskId, reviewLines);
+        return new Map(map);
+      });
+      addToast({
+        type: "success",
+        message: m.ai_review_saved_toast({ path: saved.relative_path }),
+        // 10 s is enough to register the path + click Open. We don't
+        // make this sticky any more because the row is in the drawer's
+        // history, so a missed toast is recoverable.
+        duration: 10_000,
+        actions: [
+          {
+            label: m.ai_review_open_action(),
+            onclick: () => {
+              // Try to open the .md in the user's default markdown
+              // viewer first; if `openPath` fails (typically because
+              // the OS has no default app registered for `.md`), fall
+              // back to revealing the file in Finder/Explorer so the
+              // user can still get to it.
+              void openPath(saved.path).catch((err) => {
+                console.warn("openPath failed, falling back to reveal:", err);
+                void revealItemInDir(saved.path);
+              });
+            },
+          },
+        ],
+      });
+    } catch (err) {
+      addToast({
+        type: "error",
+        message: m.ai_review_save_failed({ message: String(err) }),
+      });
+    }
   }
 
   let pushInProgress = $state(false);
@@ -207,15 +331,18 @@
           <IconButton
             tone="default"
             icon={"\uF0EB"}
-            description={m.ai_commit_message()}
+            description={staged.length === 0
+              ? m.ai_commit_message_disabled_tooltip()
+              : m.ai_commit_message()}
             loading={aiCommitLoading}
-            disabled={aiCommitLoading}
+            disabled={aiCommitLoading || staged.length === 0}
             onclick={handleAiCommitMessage}
           />
           <IconButton
             tone="default"
             icon={"\uF002"}
-            description={m.ai_code_review()}
+            description={staged.length === 0 ? m.ai_review_disabled_tooltip() : m.ai_code_review()}
+            disabled={staged.length === 0}
             onclick={handleCodeReview}
           />
         {/if}

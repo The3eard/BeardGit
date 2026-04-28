@@ -95,6 +95,28 @@ pub fn set_auto_check_updates(enabled: bool, state: State<'_, AppState>) -> Resu
     config.save(&state.config_path).map_err(|e| e.to_string())
 }
 
+/// Return whether the diff viewer should render whitespace glyphs.
+///
+/// Default `false`. When enabled, the CodeMirror MergeView in
+/// `DiffEditor` adds the `highlightWhitespace` extension so tabs render
+/// as `→` and spaces as `·` — useful for spotting whitespace-only
+/// changes.
+#[tauri::command]
+pub fn get_diff_show_whitespace(state: State<'_, AppState>) -> Result<bool, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(config.diff_show_whitespace)
+}
+
+/// Persist the `diff_show_whitespace` preference. The change takes
+/// effect on the next diff render — the FE store fires a refresh of
+/// open `DiffEditor` instances.
+#[tauri::command]
+pub fn set_diff_show_whitespace(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.diff_show_whitespace = enabled;
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
 /// Return whether the per-OS re-authorization notice has been dismissed.
 ///
 /// `os` must be `"macos"` or `"windows"`; other values return `false`

@@ -50,13 +50,36 @@
       category: "general",
       anchor: "ui-scale",
     },
+    {
+      id: "general.diff-show-whitespace",
+      label: "Show whitespace in diffs",
+      description:
+        "Render spaces and tabs as glyphs (· / →) so whitespace-only changes are visible in the side-by-side diff viewer.",
+      category: "general",
+      anchor: "diff-show-whitespace",
+    },
   ];
 </script>
 
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import { Card } from "$lib/components/ui";
+  import { Card, SettingSection, FormRow } from "$lib/components/ui";
   import LookAndFeelSection from "./LookAndFeelSection.svelte";
+  import {
+    diffShowWhitespace,
+    updateDiffShowWhitespace,
+  } from "$lib/stores/diffSettings";
+
+  async function handleToggleDiffWhitespace(event: Event) {
+    const input = event.target as HTMLInputElement;
+    try {
+      await updateDiffShowWhitespace(input.checked);
+    } catch {
+      // Persistence failed — re-sync the checkbox to the (reverted)
+      // store state. The store reverts inside `updateDiffShowWhitespace`.
+      input.checked = !input.checked;
+    }
+  }
 </script>
 
 <Card
@@ -65,3 +88,36 @@
 >
   <LookAndFeelSection />
 </Card>
+
+<Card
+  title={m.settings_general_diff_section_title()}
+  description={m.settings_general_diff_section_description()}
+>
+  <SettingSection title={m.settings_general_diff_section_title()}>
+    <div data-setting-anchor="diff-show-whitespace">
+      <FormRow
+        label={m.settings_general_diff_show_whitespace_label()}
+        for="diff-show-whitespace-toggle"
+        helperText={m.settings_general_diff_show_whitespace_hint()}
+      >
+        <input
+          id="diff-show-whitespace-toggle"
+          type="checkbox"
+          class="bg-checkbox"
+          data-testid="diff-show-whitespace-toggle"
+          checked={$diffShowWhitespace}
+          onchange={handleToggleDiffWhitespace}
+        />
+      </FormRow>
+    </div>
+  </SettingSection>
+</Card>
+
+<style>
+  .bg-checkbox {
+    accent-color: var(--accent-blue);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+</style>

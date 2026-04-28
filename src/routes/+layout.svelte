@@ -12,6 +12,7 @@
     startMutationListener,
     stopMutationListener,
   } from "$lib/stores/mutations";
+  import { loadDiffShowWhitespace } from "$lib/stores/diffSettings";
   import ToastContainer from "$lib/components/ui/ToastContainer.svelte";
   let { children } = $props();
 
@@ -45,6 +46,11 @@
       stopMutations = stopMutationListener;
     });
     runStartupCheck();
+    // Hydrate the diff-display preference from the persisted config so
+    // open DiffEditor instances pick up the user's saved choice on cold
+    // start. Async + non-fatal — the default (off) holds until it
+    // resolves.
+    void loadDiffShowWhitespace();
     const cleanupShortcuts = initShortcutListener();
     return () => {
       stopMutations?.();

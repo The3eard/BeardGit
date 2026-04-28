@@ -2,6 +2,50 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased]
+
+In-progress work staged on `beta`.
+
+### AI code review surfaces in the tasks drawer + persists to disk
+
+`feat(ai): TaskKind::AiHeadless + save_ai_review`. Every headless AI command — Code Review, Generate commit message, Analyze, PR description, PR review — is now spawned with a new `TaskKind::AiHeadless` runtime variant and surfaced in the unified tasks drawer (statusbar Tasks slot + popover) alongside git ops and AI background runs. The tasks were previously spawned as `TaskKind::Generic`, which `TaskManager::should_emit` filters out, so they ran invisibly with output reachable only via the legacy detail panel. Adding `AiHeadless` to both `kind_from_runtime` and the `should_emit` allowlist makes the rows appear with the lightbulb glyph and a Cancel action while running.
+
+`feat(ai): persist code review to <project>/.beardgit/reviews/`. When a Code Review task completes, the cleaned ANSI-stripped output is written to a new `<project>/.beardgit/reviews/review-YYYY-MM-DD-HHMMSS-<short-head>.md` file (a fresh `save_ai_review` Tauri command in `app-core::ai_commands`, backed by `git2::Repository::head` for the short oid). A 10-second success toast surfaces the relative path with an **Open** action that calls `openPath` (now allowed via `opener:allow-open-path` in capabilities) and falls back to `revealItemInDir` if the OS has no default markdown handler. The saved-file path is mirrored onto the task entry's subtitle via a new `setTaskSubtitle` helper backed by a `subtitleOverrides` map in `tasks.ts`, so the drawer's detail panel surfaces it under "Context" even after a late `task://update` upsert would otherwise have clobbered the field.
+
+### Code review + Commit-message buttons gated on staged changes
+
+`feat(staging): disable Code Review when nothing is staged`. The Code Review icon button in the Changes toolbar is disabled when `staged.length === 0` and its tooltip swaps to *"You need to stage changes to get a review"*. Same gate applies to the AI commit-message button. Both backends already analysed only the staged diff (`git diff --cached`), so the disabled state matches what the AI would actually see. Drops the dead `create_review_patch` Tauri command + `git_engine::create_review_patch` helper that briefly tried a HEAD-vs-worktree shape — staged-only is the right semantic.
+
+### Tasks drawer polish
+
+`fix(tasks): per-row Dismiss removes only that entry`. The Dismiss action on a single task row used to call `clearFinished()`, which wipes every finished task in the drawer — including ones the user wanted to keep. A new `removeTask(id)` helper trims a single entry, and the popover's `handleAction` routes per-row Dismiss through it. The header's "Clear" button still does the bulk wipe.
+
+`fix(tasks): action-button clicks no longer also open the detail view`. Clicking Cancel / Dismiss / Retry on a row used to fire the action AND open the detail panel because the click bubbled up to the row's `onclick={openDetail}`. A `<div class="task-row__actions" onclick={(e) => e.stopPropagation()}>` wrapper stops the bubble at the actions container; the action's own onclick still fires.
+
+`fix(tasks): each_key_duplicate when output has blank lines`. The `{#each outputLines}` block in `TaskDetailPanel` keyed entries by `${stream}:${text}`, which collides on blank lines (`stdout:` × N) and made Svelte refuse to render the entire `<pre>` — empty detail panels for any AI review whose Markdown body had paragraph breaks. Switched the key to `${idx}:${stream}`.
+
+`fix(tasks): Dismiss / Cancel buttons now have visible hover state`. Scoped CSS in `TaskEntryRow` lifts the neutral-button hover to `color-mix(--text-primary 12%, --bg-secondary)` inside `.task-row__actions` so the affordance reads cleanly in both themes.
+
+`feat(tasks): bulb glyph for AI rows`. AI task rows in the drawer now use `` (fa-lightbulb-o), matching the AI commit-message button in the Changes toolbar.
+
+### Diff: show whitespace toggle
+
+`feat(settings): "Show whitespace in diffs" toggle`. New entry under **Settings → General → Diff display** that renders spaces as `·` and tabs as `→` in the side-by-side diff viewer (CodeMirror `highlightWhitespace` extension). Default off so unchanged diffs stay clean. Persists to `AppConfig::diff_show_whitespace` and re-renders any open `DiffEditor` instance immediately on toggle.
+
+### Tauri Build workflow → manual-only
+
+`ci(build): drop tag trigger, keep workflow_dispatch`. The Build workflow used to fire on every `v*` tag push, which duplicated the cross-platform Tauri build that the Release workflow already runs. `release.yml` covers the tag case fully (creates the draft release, uploads bundles, publishes); leaving `build.yml` triggered by tags burned six extra runners per release with no downstream consumer. The trigger is now `workflow_dispatch:` only — useful for "manually build the current branch and download the artifacts" without cutting a tag.
+
+### README — AI and Observability sections rewritten
+
+`docs: clearer AI background session description + local-only Observability`. The AI providers Highlights paragraph drops the irrelevant "show their version" claim and expands the background-session section with bullets that actually explain the user-facing surface — worktree under `.beardgit/ai-worktrees/<slug>`, dedicated `ai/<provider>/<slug>` branch, real-time streaming output that survives tab switches, FIFO + concurrency cap, final markdown report alongside the worktree, Resume / Focus actions. Observability is renamed *Observability — local-only* and gains an explicit "nothing leaves your machine" paragraph (no telemetry / analytics / phone-home; the only outbound traffic the app initiates is the Tauri auto-updater poll) plus a per-platform log-path table. The Why bullet on credential storage is renamed *Secure and private by default* and reinforces the no-telemetry posture at scan-level.
+
+### Internal
+
+- `crates/cli-provider/src/auth.rs`: `mock_cli` switched from `fs::write` + `set_permissions` to `OpenOptions::new().mode(0o755)` + `sync_all` + `drop`, plus a `wait_for_exec_ready` probe loop that retries the script's exec on `ETXTBSY` for up to ~1.5 s before returning. Targets the intermittent *"Text file busy"* failure on the GitHub Actions ubuntu runners. (Still flaky on `main` — tracked separately.)
+- `crates/terminal/src/manager.rs`: `Session::last_fg_process` and its constructor assignment are gated behind `#[cfg(unix)]` to match the `master_fd` field, silencing the dead-code warning Windows builds were emitting.
+- `crates/git-engine/src/patch.rs`: removed an unused `create_review_patch` helper that briefly backed a HEAD-vs-worktree review patch (replaced by direct `createWorkingTreePatch(true)` from the FE; staged-only is the correct semantic for review).
+
 ## [0.1.9] — Init repo on folder open + consolidated post-0.1.8 work — 2026-04-27
 
 Bundles every change since `v0.1.8-beta` into a single cut. Drafts that were briefly headered as `0.1.10-beta` and `0.1.11-beta` while staged on `beta` are folded back in here — they never tagged or shipped under those numbers, so the version state package.json/tauri.conf bumps cleanly to `0.1.9`.

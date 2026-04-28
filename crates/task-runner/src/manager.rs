@@ -84,15 +84,22 @@ impl TaskManager {
     /// Returns `true` when tasks of this kind should stream snapshots to the
     /// unified tasks drawer.
     ///
-    /// Gating policy (Phase 1): only git ops are surfaced. Other kinds —
-    /// AI background/interactive, auto-update — flow through their own
-    /// bridges in the frontend aggregator store, so emitting here would
-    /// duplicate entries. Additional kinds can be opted in by extending
-    /// this helper once their UX matures.
+    /// Gating policy: surface git ops and one-shot headless AI tasks
+    /// (commit-message, code-review, …) directly through this emitter.
+    /// `AiBackground` / `AiInteractive` and `AppUpdate` flow through
+    /// their own frontend bridges (`aiBackgroundRuns`, `autoUpdateTask`),
+    /// so emitting them here would duplicate rows in the drawer; they
+    /// stay off the allowlist on purpose. `Generic` is excluded so
+    /// shell tasks the drawer doesn't care about (e.g. ad-hoc internal
+    /// commands) don't leak in.
     pub(crate) fn should_emit(kind: &TaskKind) -> bool {
         matches!(
             kind,
-            TaskKind::GitFetch | TaskKind::GitPull | TaskKind::GitPush | TaskKind::GitClone
+            TaskKind::GitFetch
+                | TaskKind::GitPull
+                | TaskKind::GitPush
+                | TaskKind::GitClone
+                | TaskKind::AiHeadless
         )
     }
 
