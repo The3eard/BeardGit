@@ -1,0 +1,75 @@
+name: Feature request
+description: Suggest an improvement or new capability for BeardGit.
+title: "feat: "
+labels:
+  - type::feature
+  - status::needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an improvement to BeardGit. Please focus on the user problem and workflow first; implementation ideas are welcome but optional.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I have searched existing issues and did not find a duplicate.
+          required: true
+        - label: This is a product or developer-experience request, not a security vulnerability.
+          required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Area
+      description: Pick the closest area. Maintainers may adjust this during triage.
+      options:
+        - Git graph and history
+        - Staging, diffs, commits, branches, tags, stash, or worktrees
+        - Pull requests / merge requests
+        - Issues, labels, milestones, or assignees
+        - Pipelines / CI
+        - Releases
+        - Repo settings
+        - AI providers
+        - Terminals
+        - Themes
+        - Internationalization
+        - Authentication / credentials
+        - Installer / updater
+        - Performance
+        - Documentation
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or workflow
+      description: What are you trying to do, and what makes it hard today?
+      placeholder: "As a user, I want to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior you would like BeardGit to support.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds, existing tools, or different designs have you considered?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add screenshots, examples, mockups, links, or implementation notes if useful.

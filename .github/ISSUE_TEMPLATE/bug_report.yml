@@ -1,0 +1,147 @@
+name: Bug report
+description: Report a reproducible problem in BeardGit.
+title: "fix: "
+labels:
+  - type::bug
+  - status::needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve BeardGit.
+
+        Do not use this form for security vulnerabilities. Use GitHub Private Vulnerability Reporting from the repository Security tab instead.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I have searched existing issues and did not find a duplicate.
+          required: true
+        - label: I am not reporting a security vulnerability publicly.
+          required: true
+        - label: I have removed or redacted tokens, private repository data, and other secrets from logs/screenshots.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: BeardGit version
+      description: Find it in Settings → Advanced → Current version, or provide the commit SHA if running from source.
+      placeholder: "e.g. v0.1.0, beta, or commit SHA"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: "e.g. macOS 15.2, Windows 11 24H2, Ubuntu 24.04"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-source
+    attributes:
+      label: Installation source
+      options:
+        - Release installer
+        - Built from source
+        - Other / unknown
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      description: Pick the closest component. Maintainers may adjust this during triage.
+      options:
+        - component::frontend
+        - component::app-core
+        - component::git-engine
+        - component::graph-builder
+        - component::forge-provider
+        - component::cli-provider
+        - component::provider
+        - component::gitlab-api
+        - component::github-api
+        - component::ai-provider
+        - component::claude-code
+        - component::codex
+        - component::opencode
+        - component::auth
+        - component::storage
+        - component::task-runner
+        - component::terminal
+        - component::watcher
+        - component::mutation-events
+        - component::i18n
+        - component::theme
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+      placeholder: "Describe the bug clearly and concisely."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable reproduction you can.
+      placeholder: |
+        1. Open...
+        2. Click...
+        3. Run...
+        4. See...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "What should have happened?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: "What happened instead?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, screenshots, or additional context
+      description: Logs are available from Settings → Advanced → Open log directory. Redact secrets before attaching anything.
+      render: text
+
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression information
+      description: Did this work in a previous version?
+      placeholder: "e.g. worked in v0.1.0, broken on beta since commit ..."
