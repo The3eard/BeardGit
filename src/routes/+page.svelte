@@ -997,7 +997,7 @@
         {/if}
       {:else}
         <div class="welcome-screen">
-          <div class="welcome-icon">{"\uE702"}</div>
+          <img class="welcome-logo" src="/logo.svg" alt="BeardGit" />
           <h2 class="welcome-title">{m.app_title()}</h2>
           <p class="welcome-subtitle">{m.app_welcome_subtitle()}</p>
           <button class="open-btn" onclick={openFolderAsProject}>{m.app_open_repo()}</button>
@@ -1123,11 +1123,13 @@
     gap: 12px;
   }
 
-  .welcome-icon {
-    font-size: 48px;
-    font-family: var(--font-icons);
-    color: var(--accent-blue);
-    opacity: 0.5;
+  .welcome-logo {
+    width: 112px;
+    height: 112px;
+    margin-bottom: 4px;
+    opacity: 0.92;
+    user-select: none;
+    -webkit-user-drag: none;
   }
 
   .welcome-title {

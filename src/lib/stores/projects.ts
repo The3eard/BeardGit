@@ -353,6 +353,20 @@ export async function closeTab(tabIndex: number) {
 
   if (get(openTabs).length === 0) {
     activeTabIndex.set(-1);
+    stopAllPolling();
+    clearGraphState();
+    clearBranchState();
+    clearTagState();
+    clearStashState();
+    clearBlameState();
+    clearWorktreeState();
+    clearMrPrState();
+    clearIssueState();
+    clearReleaseState();
+    clearReflogState();
+    clearChangesState();
+    repoInfo.set(null);
+    branches.set([]);
     getCurrentWindow().setTitle("BeardGit");
     return;
   }
