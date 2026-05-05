@@ -76,11 +76,17 @@ impl Repository {
     /// When `staged_only` is `true`, generates a diff of staged changes only
     /// (`git diff --cached`). When `false`, generates a diff of all changes
     /// (`git diff`). Returns the raw patch text.
+    ///
+    /// Always invokes `git diff` with `--no-ext-diff` so the output is the
+    /// canonical unified diff regardless of the user's global
+    /// `diff.external` config (e.g. `difftastic`). Without this flag, users
+    /// who installed an external diff tool would silently produce
+    /// non-applicable patch text that `git apply --check` rejects.
     pub fn create_working_tree_patch(&self, staged_only: bool) -> Result<String, GitError> {
         let args = if staged_only {
-            vec!["diff", "--cached"]
+            vec!["diff", "--no-ext-diff", "--cached"]
         } else {
-            vec!["diff"]
+            vec!["diff", "--no-ext-diff"]
         };
         let result = self.git_cmd(&args)?;
         if result.stdout.trim().is_empty() {
