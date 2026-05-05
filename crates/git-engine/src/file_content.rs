@@ -4,9 +4,67 @@
 //! - a specific commit (by OID)
 //! - the working directory
 //! - the index (staged version)
+//!
+//! Also hosts the shared [`validate_repo_relative_path`] helper used by
+//! every workdir-mutating method (writes / creates / renames / deletes)
+//! to refuse absolute paths, parent-traversal, and any path that would
+//! resolve outside the repository's working tree.
+
+use std::io::Write;
+use std::path::{Component, Path, PathBuf};
 
 use crate::error::GitError;
 use crate::repository::Repository;
+
+/// Validate a repo-relative path and return the absolute joined form.
+///
+/// Rejects:
+/// - absolute paths (e.g. `/etc/passwd`, `C:\Windows`),
+/// - any path containing a `..` component,
+/// - empty paths or paths whose normalized form falls outside `repo_root`.
+///
+/// The check is purely lexical so it works for paths that don't yet exist
+/// (e.g. when creating a new file). Symlinks within the working tree are
+/// not resolved here.
+pub fn validate_repo_relative_path(repo_root: &Path, rel_path: &str) -> Result<PathBuf, GitError> {
+    if rel_path.is_empty() {
+        return Err(GitError::InvalidPath("path is empty".into()));
+    }
+
+    let candidate = Path::new(rel_path);
+    if candidate.is_absolute() {
+        return Err(GitError::InvalidPath(format!(
+            "absolute paths are not allowed: {rel_path}"
+        )));
+    }
+
+    // Refuse `..` and any windows-prefix / root-dir component.
+    let mut normalized = PathBuf::new();
+    for component in candidate.components() {
+        match component {
+            Component::Normal(segment) => normalized.push(segment),
+            Component::CurDir => continue,
+            Component::ParentDir => {
+                return Err(GitError::InvalidPath(format!(
+                    "path contains '..': {rel_path}"
+                )));
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(GitError::InvalidPath(format!(
+                    "absolute paths are not allowed: {rel_path}"
+                )));
+            }
+        }
+    }
+
+    if normalized.as_os_str().is_empty() {
+        return Err(GitError::InvalidPath(format!(
+            "path resolves to repo root: {rel_path}"
+        )));
+    }
+
+    Ok(repo_root.join(normalized))
+}
 
 impl Repository {
     /// Returns the raw content of a file at a specific commit.
@@ -60,6 +118,44 @@ impl Repository {
             .ok_or_else(|| GitError::RepoNotFound(format!("File not in index: {path}")))?;
         let blob = self.inner().find_blob(entry.id)?;
         Ok(String::from_utf8_lossy(blob.content()).into_owned())
+    }
+
+    /// Atomically write `content` to a file in the working directory.
+    ///
+    /// The write goes through a sibling tempfile + `std::fs::rename` so a
+    /// crash mid-write never leaves a half-written file at the target
+    /// path. Parent directories are created on demand. The path is
+    /// validated up-front via [`validate_repo_relative_path`] — absolute
+    /// paths and `..` segments are rejected with [`GitError::InvalidPath`].
+    ///
+    /// # Parameters
+    /// - `rel_path` – Repo-relative, forward-slashed file path.
+    /// - `content` – New file content as a UTF-8 string.
+    ///
+    /// # Errors
+    /// - [`GitError::InvalidPath`] when `rel_path` fails validation.
+    /// - [`GitError::Io`] for any underlying I/O failure (parent creation,
+    ///   tempfile creation, rename, etc.).
+    pub fn write_file_workdir(&self, rel_path: &str, content: &str) -> Result<(), GitError> {
+        let full_path = validate_repo_relative_path(self.path(), rel_path)?;
+
+        if let Some(parent) = full_path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Stage the write into a sibling tempfile. Using the parent dir
+        // (rather than the system temp dir) keeps the rename atomic on
+        // every supported FS — `rename` across mounts is not.
+        let parent = full_path
+            .parent()
+            .ok_or_else(|| GitError::InvalidPath(format!("path has no parent: {rel_path}")))?;
+        let mut tmp = tempfile::NamedTempFile::new_in(parent)?;
+        tmp.write_all(content.as_bytes())?;
+        tmp.flush()?;
+        tmp.persist(&full_path).map_err(|e| GitError::Io(e.error))?;
+        Ok(())
     }
 }
 
@@ -152,6 +248,88 @@ mod tests {
         // Asking for a file never staged should return an error.
         let result = repo.get_file_index("unstaged.txt");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_repo_relative_path_rejects_absolute() {
+        let tmp = tempfile::tempdir().unwrap();
+        let err = super::validate_repo_relative_path(tmp.path(), "/etc/passwd").unwrap_err();
+        assert!(matches!(err, crate::error::GitError::InvalidPath(_)));
+    }
+
+    #[test]
+    fn validate_repo_relative_path_rejects_parent_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let err = super::validate_repo_relative_path(tmp.path(), "../escape.txt").unwrap_err();
+        assert!(matches!(err, crate::error::GitError::InvalidPath(_)));
+    }
+
+    #[test]
+    fn validate_repo_relative_path_rejects_embedded_parent_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let err = super::validate_repo_relative_path(tmp.path(), "sub/../../escape").unwrap_err();
+        assert!(matches!(err, crate::error::GitError::InvalidPath(_)));
+    }
+
+    #[test]
+    fn validate_repo_relative_path_rejects_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let err = super::validate_repo_relative_path(tmp.path(), "").unwrap_err();
+        assert!(matches!(err, crate::error::GitError::InvalidPath(_)));
+    }
+
+    #[test]
+    fn validate_repo_relative_path_accepts_normal_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = super::validate_repo_relative_path(tmp.path(), "src/main.rs").unwrap();
+        assert!(p.starts_with(tmp.path()));
+        assert!(p.ends_with("main.rs"));
+    }
+
+    #[test]
+    fn write_file_workdir_round_trips_content() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = init_repo_with_file(tmp.path());
+        repo.write_file_workdir("notes/todo.md", "first\nsecond\n")
+            .unwrap();
+        let on_disk = std::fs::read_to_string(tmp.path().join("notes/todo.md")).unwrap();
+        assert_eq!(on_disk, "first\nsecond\n");
+    }
+
+    #[test]
+    fn write_file_workdir_creates_parent_directories() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = init_repo_with_file(tmp.path());
+        repo.write_file_workdir("a/b/c/deep.txt", "hello").unwrap();
+        assert!(tmp.path().join("a/b/c/deep.txt").exists());
+    }
+
+    #[test]
+    fn write_file_workdir_rejects_traversal() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = init_repo_with_file(tmp.path());
+        let err = repo
+            .write_file_workdir("../escape.txt", "nope")
+            .unwrap_err();
+        assert!(matches!(err, crate::error::GitError::InvalidPath(_)));
+    }
+
+    #[test]
+    fn write_file_workdir_overwrites_existing_atomically() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = init_repo_with_file(tmp.path());
+        // Pre-existing file must end up replaced by the new content; the
+        // temp sibling used for the atomic rename should not linger.
+        std::fs::write(tmp.path().join("hello.txt"), "before").unwrap();
+        repo.write_file_workdir("hello.txt", "after").unwrap();
+        let on_disk = std::fs::read_to_string(tmp.path().join("hello.txt")).unwrap();
+        assert_eq!(on_disk, "after");
+        let leftover_tmp = std::fs::read_dir(tmp.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().starts_with(".tmp"))
+            .count();
+        assert_eq!(leftover_tmp, 0, "no stray tempfile should remain");
     }
 
     #[test]

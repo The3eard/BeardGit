@@ -25,4 +25,10 @@ pub enum GitError {
     /// diff. Not a failure per se; a structured signal.
     #[error("binary file")]
     Binary,
+    /// A repo-relative path supplied by a caller failed validation. Raised
+    /// by helpers that refuse absolute paths, paths containing `..`
+    /// segments, or paths that would resolve outside the repository's
+    /// working tree.
+    #[error("invalid path: {0}")]
+    InvalidPath(String),
 }
