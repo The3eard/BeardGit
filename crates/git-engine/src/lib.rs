@@ -12,6 +12,7 @@
 //! - [`diff`] — diff working directory, index, and individual commits
 //! - [`conflict`] — conflict detection, status, and abort/continue operations
 //! - [`file_content`] — raw file content retrieval for CodeMirror diff views
+//! - [`workdir_tree`] — list working-directory entries and perform light file CRUD
 //! - [`gitignore`] — read, write, and append patterns to `.gitignore`
 //! - [`blame`] — per-line blame and file history with rename tracking
 //! - [`cli`] — shell-out wrapper for git CLI operations
@@ -42,6 +43,7 @@ pub mod repository;
 pub mod reset;
 pub mod staging;
 pub mod submodule;
+pub mod workdir_tree;
 pub mod worktree;
 
 #[cfg(any(test, feature = "test-support"))]
@@ -63,4 +65,5 @@ pub use reflog::ReflogEntry;
 pub use repository::{BranchInfo, RepoStatus, Repository, StatusSummary};
 pub use staging::FileStatus;
 pub use submodule::{SubmoduleInfo, SubmoduleStatus};
+pub use workdir_tree::WorkdirTreeEntry;
 pub use worktree::WorktreeInfo;
