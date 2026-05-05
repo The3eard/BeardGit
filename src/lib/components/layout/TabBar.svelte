@@ -306,7 +306,7 @@
       tone="default"
       onclick={handleTerminalClick}
     />
-    {#if $aiProviders.length > 0}
+    {#if ($aiProviders?.length ?? 0) > 0}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="ai-dropdown"
