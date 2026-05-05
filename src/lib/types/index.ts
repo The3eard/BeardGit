@@ -1111,6 +1111,17 @@ export interface EditorPreferences {
   line_wrapping: boolean;
   rectangular_selection: boolean;
   crosshair_cursor: boolean;
+  /** Vertical indentation guides. Default `false` (opinionated). */
+  indent_guides: boolean;
+  // Smart editing (per-language helpers, no LSP)
+  /** Tab-completable code snippets for the active language. */
+  snippets: boolean;
+  /** Suggest the language's reserved words alongside buffer matches. */
+  keyword_completion: boolean;
+  /** Lint `.json` buffers (native parser + a few schema rules). */
+  json_lint: boolean;
+  /** Inline color picker for `#hex` / `rgb(…)` / `hsl(…)` literals. */
+  color_picker: boolean;
   // Behavior
   /** Visual width of an indent. Backend clamps to 1..=8. */
   tab_size: number;

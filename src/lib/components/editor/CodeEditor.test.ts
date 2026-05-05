@@ -31,8 +31,24 @@ describe('getLanguageExtensionName', () => {
 
   it('returns null for unknown extensions', () => {
     expect(getLanguageExtensionName('file.xyz')).toBeNull();
-    expect(getLanguageExtensionName('Makefile')).toBeNull();
+    expect(getLanguageExtensionName('NoMatchFile')).toBeNull();
     expect(getLanguageExtensionName('')).toBeNull();
+  });
+
+  it('matches special-case basenames before extension lookup', () => {
+    expect(getLanguageExtensionName('Makefile')).toBe('makefile');
+    expect(getLanguageExtensionName('Dockerfile')).toBe('dockerfile');
+    expect(getLanguageExtensionName('GNUmakefile')).toBe('makefile');
+    // Path-prefixed variants — basename detection still matches.
+    expect(getLanguageExtensionName('subdir/Dockerfile')).toBe('dockerfile');
+  });
+
+  it('resolves the new legacy-mode extensions', () => {
+    expect(getLanguageExtensionName('Cargo.toml')).toBe('toml');
+    expect(getLanguageExtensionName('script.lua')).toBe('lua');
+    expect(getLanguageExtensionName('build.mk')).toBe('makefile');
+    expect(getLanguageExtensionName('app.ini')).toBe('properties');
+    expect(getLanguageExtensionName('messages.properties')).toBe('properties');
   });
 
   it('is case-insensitive for file extensions', () => {

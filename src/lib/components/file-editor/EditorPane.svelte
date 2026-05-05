@@ -19,16 +19,24 @@
   } from "@codemirror/autocomplete";
   import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
   import { bracketMatching, foldGutter, indentOnInput } from "@codemirror/language";
+  import { lintGutter } from "@codemirror/lint";
   import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
   import { EditorState, type Extension } from "@codemirror/state";
   import {
     crosshairCursor,
     drawSelection,
     highlightActiveLine,
+    highlightActiveLineGutter,
     keymap,
     rectangularSelection,
   } from "@codemirror/view";
+  import { colorPicker } from "@replit/codemirror-css-color-picker";
+  import { indentationMarkers } from "@replit/codemirror-indentation-markers";
   import CodeEditor from "$lib/components/editor/CodeEditor.svelte";
+  import { getLanguageExtensionName } from "$lib/components/editor/language-support";
+  import { jsonLinter } from "$lib/components/file-editor/json-lint";
+  import { keywordCompletion, keywordsForLanguage } from "$lib/components/file-editor/keywords";
+  import { snippetsForLanguage } from "$lib/components/file-editor/snippets";
   import { editorPrefs } from "$lib/stores/editorPrefs";
   import {
     activeTabPath,
@@ -52,6 +60,8 @@
    */
   let extensions = $derived.by<Extension[]>(() => {
     const prefs = $editorPrefs;
+    const filename = active?.path ?? "";
+    const langName = getLanguageExtensionName(filename);
     const exts: Extension[] = [
       history(),
       drawSelection(),
@@ -98,15 +108,63 @@
       // don't override it.
       exts.push(autocompletion());
       exts.push(EditorState.languageData.of(() => [{ autocomplete: completeAnyWord }]));
+
+      // Per-language snippet pack — empty for unmapped languages.
+      if (prefs.snippets && langName) {
+        const snippets = snippetsForLanguage(langName);
+        if (snippets.length > 0) {
+          exts.push(EditorState.languageData.of(() => [{ autocomplete: snippets }]));
+        }
+      }
+
+      // Per-language keyword completion — feeds the language's reserved
+      // words into the popup, tagged so the icon renders correctly.
+      if (prefs.keyword_completion && langName) {
+        const words = keywordsForLanguage(langName);
+        if (words.length > 0) {
+          const source = keywordCompletion(words);
+          exts.push(EditorState.languageData.of(() => [{ autocomplete: source }]));
+        }
+      }
     }
     if (prefs.close_brackets) exts.push(closeBrackets());
     if (prefs.bracket_matching) exts.push(bracketMatching());
-    if (prefs.highlight_active_line) exts.push(highlightActiveLine());
+    if (prefs.highlight_active_line) {
+      // Companion to highlightActiveLine — also highlights the gutter
+      // line number, which the user explicitly wanted bundled with the
+      // existing pref rather than introducing a separate toggle.
+      exts.push(highlightActiveLine());
+      exts.push(highlightActiveLineGutter());
+    }
     if (prefs.highlight_selection_matches) exts.push(highlightSelectionMatches());
     if (prefs.fold_gutter) exts.push(foldGutter());
     if (prefs.indent_on_input) exts.push(indentOnInput());
     if (prefs.rectangular_selection) exts.push(rectangularSelection());
     if (prefs.crosshair_cursor) exts.push(crosshairCursor());
+    if (prefs.color_picker) exts.push(colorPicker);
+    if (prefs.indent_guides) {
+      // Replit's indentation markers extension reads its colours from a
+      // CSS variable lookup at construction time — it doesn't accept
+      // `var(--token)` strings, so we pass neutral grays that read well
+      // in both light and dark themes. The escape comment below is for
+      // ESLint's `no-hex-in-svelte` rule.
+      exts.push(
+        indentationMarkers({
+          thickness: 1,
+          // beardgit:allow-hex: indent-marker tokens — package config doesn't accept CSS vars
+          colors: {
+            light: "#e5e7eb",
+            dark: "#3a3f46",
+            activeLight: "#9ca3af",
+            activeDark: "#6b7280",
+          },
+        }),
+      );
+    }
+    if (prefs.json_lint && filename.toLowerCase().endsWith(".json")) {
+      exts.push(lintGutter());
+      exts.push(jsonLinter(filename));
+    }
     return exts;
   });
 
