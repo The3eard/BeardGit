@@ -37,6 +37,41 @@ pub fn default_editor_preferences() -> EditorPreferences {
     EditorPreferences::default()
 }
 
+/// Default for [`EditorPreferences::snippets`]. ON — tab-completable
+/// templates are an opt-out feature; users typing `fn<Tab>` expect the
+/// snippet to fire.
+fn default_snippets() -> bool {
+    true
+}
+
+/// Default for [`EditorPreferences::keyword_completion`]. ON — keyword
+/// suggestions complement `completeAnyWord` and add the language's
+/// reserved words to the popup with the right icon.
+fn default_keyword_completion() -> bool {
+    true
+}
+
+/// Default for [`EditorPreferences::json_lint`]. ON — `.json` files are
+/// a common editing target; surfacing a parse error before save is a
+/// pure win and the linter has zero cost on non-`.json` buffers.
+fn default_json_lint() -> bool {
+    true
+}
+
+/// Default for [`EditorPreferences::color_picker`]. ON — only renders
+/// inline pickers when the cursor is on a CSS color literal so it's
+/// invisible elsewhere.
+fn default_color_picker() -> bool {
+    true
+}
+
+/// Default for [`EditorPreferences::indent_guides`]. OFF — opinionated
+/// default, the user can opt in. Some users find the vertical lines
+/// noisy.
+fn default_indent_guides() -> bool {
+    false
+}
+
 /// User-tunable preferences for the in-app mini editor.
 ///
 /// All extension toggles default to the values most users expect from a
@@ -67,6 +102,27 @@ pub struct EditorPreferences {
     pub rectangular_selection: bool,
     /// Render a crosshair cursor while Alt is held (pairs with rectangular selection).
     pub crosshair_cursor: bool,
+    /// Render vertical indentation guides marking each indent depth.
+    /// Default `false` — opinionated (some users find them noisy).
+    #[serde(default = "default_indent_guides")]
+    pub indent_guides: bool,
+    // --- Smart editing (per-language helpers, no LSP) ---
+    /// Tab-completable code snippets for the active language
+    /// (`fn` → function skeleton, `match` → match arm scaffold, …).
+    #[serde(default = "default_snippets")]
+    pub snippets: bool,
+    /// Suggest the active language's reserved words alongside the buffer
+    /// matches contributed by `completeAnyWord`.
+    #[serde(default = "default_keyword_completion")]
+    pub keyword_completion: bool,
+    /// Lint `.json` buffers with native `JSON.parse` plus a few schema
+    /// rules for `package.json` / `tsconfig.json` / Requests env files.
+    #[serde(default = "default_json_lint")]
+    pub json_lint: bool,
+    /// Inline color picker for `#hex` / `rgb(…)` / `hsl(…)` literals
+    /// (mostly useful in CSS / SCSS).
+    #[serde(default = "default_color_picker")]
+    pub color_picker: bool,
     // --- Behavior ---
     /// Number of spaces (or visual width of a tab) per indentation level. Clamped 1..=8.
     pub tab_size: u8,
@@ -91,6 +147,11 @@ impl Default for EditorPreferences {
             line_wrapping: true,
             rectangular_selection: false,
             crosshair_cursor: false,
+            indent_guides: default_indent_guides(),
+            snippets: default_snippets(),
+            keyword_completion: default_keyword_completion(),
+            json_lint: default_json_lint(),
+            color_picker: default_color_picker(),
             tab_size: 2,
             indent_with_tabs: false,
             respect_gitignore_in_tree: false,
@@ -718,6 +779,83 @@ mod tests {
     }
 
     #[test]
+    fn editor_preferences_smart_editing_defaults() {
+        // The smart-editing pack ships ON by default for snippets / keyword
+        // completion / JSON lint / color picker; indent guides are OFF by
+        // default (opinionated). Each helper exists so legacy `settings.json`
+        // files migrate cleanly via `serde(default = …)`.
+        let prefs = EditorPreferences::default();
+        assert!(prefs.snippets);
+        assert!(prefs.keyword_completion);
+        assert!(prefs.json_lint);
+        assert!(prefs.color_picker);
+        assert!(!prefs.indent_guides);
+        assert_eq!(default_snippets(), prefs.snippets);
+        assert_eq!(default_keyword_completion(), prefs.keyword_completion);
+        assert_eq!(default_json_lint(), prefs.json_lint);
+        assert_eq!(default_color_picker(), prefs.color_picker);
+        assert_eq!(default_indent_guides(), prefs.indent_guides);
+    }
+
+    #[test]
+    fn editor_preferences_smart_editing_round_trips() {
+        // Flip every smart-editing field away from its default and verify
+        // it persists.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let prefs = EditorPreferences {
+            snippets: false,
+            keyword_completion: false,
+            json_lint: false,
+            color_picker: false,
+            indent_guides: true,
+            ..EditorPreferences::default()
+        };
+        let cfg = AppConfig {
+            editor_preferences: prefs.clone(),
+            ..AppConfig::default()
+        };
+        cfg.save(&path).unwrap();
+        let loaded = AppConfig::load(&path).unwrap();
+        assert_eq!(loaded.editor_preferences, prefs);
+    }
+
+    #[test]
+    fn legacy_editor_preferences_without_smart_editing_fields_fall_back_to_defaults() {
+        // Configs written before the smart-editing pack lacked these fields.
+        // They must still load and pick up the canonical defaults.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{
+            "theme": "github-dark",
+            "editor_preferences": {
+                "autocomplete": true,
+                "close_brackets": true,
+                "bracket_matching": true,
+                "highlight_active_line": true,
+                "highlight_selection_matches": true,
+                "fold_gutter": true,
+                "indent_on_input": true,
+                "line_wrapping": true,
+                "rectangular_selection": false,
+                "crosshair_cursor": false,
+                "tab_size": 2,
+                "indent_with_tabs": false,
+                "respect_gitignore_in_tree": false,
+                "large_file_warning_kb": 256
+            }
+        }"#;
+        std::fs::write(&path, json).unwrap();
+
+        let cfg = AppConfig::load(&path).unwrap();
+        assert!(cfg.editor_preferences.snippets);
+        assert!(cfg.editor_preferences.keyword_completion);
+        assert!(cfg.editor_preferences.json_lint);
+        assert!(cfg.editor_preferences.color_picker);
+        assert!(!cfg.editor_preferences.indent_guides);
+    }
+
+    #[test]
     fn editor_preferences_round_trip_through_appconfig_load() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
@@ -733,6 +871,11 @@ mod tests {
             line_wrapping: false,
             rectangular_selection: true,
             crosshair_cursor: true,
+            indent_guides: true,
+            snippets: false,
+            keyword_completion: false,
+            json_lint: false,
+            color_picker: false,
             tab_size: 4,
             indent_with_tabs: true,
             respect_gitignore_in_tree: true,

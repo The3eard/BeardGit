@@ -75,6 +75,21 @@
       category: "editor",
       anchor: "behavior",
     },
+    {
+      id: "editor.smart",
+      label: "Smart editing",
+      description:
+        "Per-language helpers — code snippets, keyword completion, JSON lint, inline color picker.",
+      category: "editor",
+      anchor: "smart",
+    },
+    {
+      id: "editor.indent-guides",
+      label: "Indent guides",
+      description: "Vertical lines marking indentation depth.",
+      category: "editor",
+      anchor: "extensions",
+    },
   ];
 </script>
 
@@ -291,6 +306,93 @@
           checked={$editorPrefs?.crosshair_cursor ?? false}
           disabled={loading}
           onchange={(e) => handleToggle("crosshair_cursor", e)}
+        />
+      </FormRow>
+
+      <FormRow
+        label={m.settings_editor_indent_guides()}
+        for="editor-indent-guides-toggle"
+        helperText={m.settings_editor_indent_guides_description()}
+      >
+        <input
+          id="editor-indent-guides-toggle"
+          type="checkbox"
+          class="bg-checkbox"
+          data-testid="editor-indent-guides-toggle"
+          checked={$editorPrefs?.indent_guides ?? false}
+          disabled={loading}
+          onchange={(e) => handleToggle("indent_guides", e)}
+        />
+      </FormRow>
+    </SettingSection>
+  </div>
+
+  <div data-setting-anchor="smart" id="smart">
+    <SettingSection
+      title={m.settings_editor_smart()}
+      description={m.settings_editor_smart_description()}
+    >
+      <FormRow
+        label={m.settings_editor_snippets()}
+        for="editor-snippets-toggle"
+        helperText={m.settings_editor_snippets_description()}
+      >
+        <input
+          id="editor-snippets-toggle"
+          type="checkbox"
+          class="bg-checkbox"
+          data-testid="editor-snippets-toggle"
+          checked={$editorPrefs?.snippets ?? true}
+          disabled={loading}
+          onchange={(e) => handleToggle("snippets", e)}
+        />
+      </FormRow>
+
+      <FormRow
+        label={m.settings_editor_keyword_completion()}
+        for="editor-keyword-completion-toggle"
+        helperText={m.settings_editor_keyword_completion_description()}
+      >
+        <input
+          id="editor-keyword-completion-toggle"
+          type="checkbox"
+          class="bg-checkbox"
+          data-testid="editor-keyword-completion-toggle"
+          checked={$editorPrefs?.keyword_completion ?? true}
+          disabled={loading}
+          onchange={(e) => handleToggle("keyword_completion", e)}
+        />
+      </FormRow>
+
+      <FormRow
+        label={m.settings_editor_json_lint()}
+        for="editor-json-lint-toggle"
+        helperText={m.settings_editor_json_lint_description()}
+      >
+        <input
+          id="editor-json-lint-toggle"
+          type="checkbox"
+          class="bg-checkbox"
+          data-testid="editor-json-lint-toggle"
+          checked={$editorPrefs?.json_lint ?? true}
+          disabled={loading}
+          onchange={(e) => handleToggle("json_lint", e)}
+        />
+      </FormRow>
+
+      <FormRow
+        label={m.settings_editor_color_picker()}
+        for="editor-color-picker-toggle"
+        helperText={m.settings_editor_color_picker_description()}
+      >
+        <input
+          id="editor-color-picker-toggle"
+          type="checkbox"
+          class="bg-checkbox"
+          data-testid="editor-color-picker-toggle"
+          checked={$editorPrefs?.color_picker ?? true}
+          disabled={loading}
+          onchange={(e) => handleToggle("color_picker", e)}
         />
       </FormRow>
     </SettingSection>
