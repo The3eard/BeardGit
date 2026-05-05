@@ -93,17 +93,18 @@ pub struct TreeNode {
 #[tauri::command]
 pub fn requests_list_project(project_path: String) -> Result<Vec<TreeNode>, String> {
     let root = Path::new(&project_path).join(".beardgit").join("requests");
-    // Guarantee `_env/default.json` exists on every panel access — even
-    // for a fresh project where `.beardgit/requests/` doesn't exist yet.
-    // Creating the structure here means the env switcher always lands
-    // on a valid `default` env, and the user can never end up in the
-    // "I deleted everything, restarted, and the env file isn't there"
-    // state. Walk after, so the freshly-created (empty) folder still
-    // surfaces SeedPrompt downstream.
-    ensure_default_env(&root);
+    // If the project hasn't opted into requests yet (`.beardgit/requests/`
+    // missing), this is a no-op — never silently materialise the directory
+    // chain on a project that doesn't want it. The frontend renders the
+    // SeedPrompt empty state from the `vec![]` return; the explicit
+    // creation path is the seeding command, not the listing command.
     if !root.exists() {
         return Ok(vec![]);
     }
+    // Once the requests folder exists we keep `_env/default.json`
+    // self-healing so a user-deleted env file silently reappears on the
+    // next panel access, instead of leaving the env switcher empty.
+    ensure_default_env(&root);
     Ok(walk(&root, &root))
 }
 

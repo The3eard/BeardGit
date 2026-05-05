@@ -172,10 +172,19 @@ impl Repository {
 
     /// Return the full diff (with hunks/lines) for a single file in a commit.
     ///
-    /// Uses `git diff <oid>^..<oid> -- <path>` via CLI, then parses with
-    /// `parse_unified_diff`. For root commits (no parent), uses `git diff-tree -p`.
+    /// Uses `git diff --no-ext-diff <oid>^..<oid> -- <path>` via CLI, then
+    /// parses with `parse_unified_diff`. The `--no-ext-diff` flag bypasses any
+    /// global `diff.external` config (e.g. `difftastic`) so the output is
+    /// always parseable unified diff. For root commits (no parent), uses
+    /// `git diff-tree -p`.
     pub fn commit_file_diff(&self, oid: &str, path: &str) -> Result<Vec<FileDiff>, GitError> {
-        let result = self.git_cmd(&["diff", &format!("{oid}^..{oid}"), "--", path]);
+        let result = self.git_cmd(&[
+            "diff",
+            "--no-ext-diff",
+            &format!("{oid}^..{oid}"),
+            "--",
+            path,
+        ]);
 
         let output = match result {
             Ok(r) if r.success => r.stdout,

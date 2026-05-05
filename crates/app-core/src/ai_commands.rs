@@ -46,14 +46,16 @@ fn parse_kind(provider: &str) -> Result<AiProviderKind, String> {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/// Run `git diff --cached` and return the output as a string.
+/// Run `git diff --no-ext-diff --cached` and return the output as a string.
 ///
 /// Used to build prompts for commit message and PR description generation
-/// without needing to call into `git-engine`.
+/// without needing to call into `git-engine`. The `--no-ext-diff` flag
+/// bypasses any user-configured `diff.external` (e.g. `difftastic`) so the
+/// AI provider always receives canonical unified-diff text.
 fn get_staged_diff_text(cwd: &Path) -> Result<String, String> {
     let output = std::process::Command::new("git")
         .current_dir(cwd)
-        .args(["diff", "--cached"])
+        .args(["diff", "--no-ext-diff", "--cached"])
         .output()
         .map_err(|e| format!("failed to run git diff: {e}"))?;
     Ok(String::from_utf8_lossy(&output.stdout).to_string())

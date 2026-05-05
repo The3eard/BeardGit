@@ -63,7 +63,12 @@ describe("BackgroundRunTranscript — JSON pretty-print", () => {
       props: { lines: [json] },
     });
     await tick();
-    const btn = container.querySelector(".btn-copy") as HTMLButtonElement;
+    // The transcript renders a single IconButton (the copy button); its
+    // underlying DOM is a `<button class="ic-btn …">`, so we grab the
+    // first (and only) button rather than relying on a class name that
+    // doesn't actually exist in the rendered output.
+    const btn = container.querySelector("button");
+    if (!btn) throw new Error("expected the copy button to be rendered");
     await fireEvent.click(btn);
     await tick();
 

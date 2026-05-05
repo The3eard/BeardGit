@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, SidebarNavLayout } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
@@ -627,6 +627,71 @@ export async function getFileWorkdir(path: string): Promise<string> {
 /** Returns raw file content from the index (staged version). */
 export async function getFileIndex(path: string): Promise<string> {
   return invoke<string>("get_file_index", { path });
+}
+
+// ---------------------------------------------------------------------------
+// File editor (workdir CRUD)
+// ---------------------------------------------------------------------------
+
+/**
+ * Read a workdir file, capped at 2 MB and binary-aware.
+ *
+ * Returns a discriminated union: `{ kind: "text", data, size }` for plain
+ * UTF-8(ish) content, `{ kind: "binary", size }` when a NUL byte appears
+ * in the first 8 KB, or `{ kind: "too_large", size }` when the file
+ * exceeds the 2 MB cap (in which case content is *not* loaded).
+ */
+export async function readWorkdirFile(path: string): Promise<ReadWorkdirFileResult> {
+  return invoke<ReadWorkdirFileResult>("read_workdir_file", { path });
+}
+
+/**
+ * Write `content` to a workdir file using an atomic sibling-tempfile +
+ * rename. Creates parent directories on demand. Repo-relative,
+ * forward-slashed paths only — `..` segments and absolute paths are
+ * rejected by the backend.
+ */
+export async function writeWorkdirFile(path: string, content: string): Promise<void> {
+  return invoke<void>("write_workdir_file", { path, content });
+}
+
+/**
+ * List entries from the working directory.
+ *
+ * Pass `prefix` to list only the immediate children of a sub-directory
+ * (one level), or `null` for a full recursive walk. Results are
+ * truncated at `maxEntries` without erroring; compare `result.length`
+ * against the cap to detect truncation. `respectGitignore` filters
+ * entries through the repo's gitignore patterns.
+ *
+ * Always skipped: `.git/`, `node_modules/`, `target/`,
+ * `.beardgit/ai-worktrees/`, and symlinks.
+ */
+export async function listWorkdirTree(
+  prefix: string | null,
+  maxEntries: number,
+  respectGitignore: boolean,
+): Promise<WorkdirTreeEntry[]> {
+  return invoke<WorkdirTreeEntry[]>("list_workdir_tree", {
+    prefix,
+    maxEntries,
+    respectGitignore,
+  });
+}
+
+/** Create a new file (empty) or directory at `path`. Errors if the path exists. */
+export async function createWorkdirPath(path: string, isDirectory: boolean): Promise<void> {
+  return invoke<void>("create_workdir_path", { path, isDirectory });
+}
+
+/** Rename a file or directory. Errors if the destination already exists. */
+export async function renameWorkdirPath(fromPath: string, toPath: string): Promise<void> {
+  return invoke<void>("rename_workdir_path", { fromPath, toPath });
+}
+
+/** Delete a file (single) or directory (recursive). Errors if the path doesn't exist. */
+export async function deleteWorkdirPath(path: string): Promise<void> {
+  return invoke<void>("delete_workdir_path", { path });
 }
 
 // ---------------------------------------------------------------------------

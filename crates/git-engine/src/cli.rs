@@ -522,11 +522,19 @@ impl Repository {
 
     /// Return diff statistics (files changed, insertions, deletions) for a commit.
     ///
-    /// Uses `git diff --stat=999 <oid>^..<oid>` and parses the summary line.
-    /// For root commits (no parent), uses `git diff-tree --stat=999 --root <oid>`.
+    /// Uses `git diff --no-ext-diff --stat=999 <oid>^..<oid>` and parses the
+    /// summary line. `--no-ext-diff` bypasses any global `diff.external` config
+    /// (e.g. `difftastic`) so the parser always sees the canonical numstat
+    /// summary. For root commits (no parent), uses
+    /// `git diff-tree --stat=999 --root <oid>`.
     pub fn commit_stats(&self, oid: &str) -> Result<CommitStats, GitError> {
         // Try normal diff first (commit with parent)
-        let result = self.git_cmd(&["diff", "--stat=999", &format!("{oid}^..{oid}")])?;
+        let result = self.git_cmd(&[
+            "diff",
+            "--no-ext-diff",
+            "--stat=999",
+            &format!("{oid}^..{oid}"),
+        ])?;
 
         let output = if result.success {
             result.stdout
