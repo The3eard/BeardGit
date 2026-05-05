@@ -69,6 +69,8 @@
    */
   let mountedFilename: string | undefined;
   let mountedRevisionId: number | undefined;
+  let mountedTheme: ThemeEditorData | null | undefined;
+  let mountedIsDark: boolean | undefined;
 
   /** Assemble all extensions for the editor state. */
   function buildExtensions(langExt: Extension | null): Extension[] {
@@ -123,6 +125,8 @@
     view = new EditorView({ state, parent: target });
     mountedFilename = fname;
     mountedRevisionId = untrack(() => revisionId);
+    mountedTheme = untrack(() => editorTheme);
+    mountedIsDark = untrack(() => isDark);
   }
 
   // Initial mount + tear-down. Strict lifecycle, no reactivity tracking
@@ -137,19 +141,32 @@
   });
 
   /**
-   * Re-init the view ONLY when the user-controlled keys actually change.
-   * The reactive reads of `filename` and `revisionId` are the entire
-   * dep set; everything else (theme, extensions, content, etc.) is read
-   * via `untrack` inside `initEditor`. The diff-against-snapshot guard
-   * is what actually skips the no-op runs — Svelte's `$effect` will fire
-   * any time the parent re-renders us with the same props, so we have
-   * to compare values ourselves before we destroy the live view.
+   * Re-init the view when the user-controlled keys actually change.
+   * Tracked deps: `filename`, `revisionId`, `editorTheme`, `isDark`.
+   * Everything else (extensions, content, callbacks) is read via
+   * `untrack` inside `initEditor`. The diff-against-snapshot guard
+   * skips the no-op runs — Svelte's `$effect` will fire any time the
+   * parent re-renders us with the same props, so we compare values
+   * ourselves before destroying the live view. Theme + dark-mode are
+   * in the dep set so that an OS-driven auto theme flip (or a manual
+   * theme change) actually reskins the editor; the surrounding panel
+   * passes `\$activeTheme?.editor` and `\$activeTheme?.meta.mode !==
+   * "light"`, both stable references across keystrokes.
    */
   $effect(() => {
     const f = filename;
     const r = revisionId;
+    const t = editorTheme;
+    const d = isDark;
     if (!view) return; // first mount handled by onMount
-    if (f === mountedFilename && r === mountedRevisionId) return;
+    if (
+      f === mountedFilename &&
+      r === mountedRevisionId &&
+      t === mountedTheme &&
+      d === mountedIsDark
+    ) {
+      return;
+    }
     void untrack(() => initEditor());
   });
 </script>
