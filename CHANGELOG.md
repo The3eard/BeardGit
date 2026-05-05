@@ -2,6 +2,36 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased]
+
+### Requests panel — `.http` API testing inside the repo
+
+A new sidebar entry hosts a native HTTP request workspace that follows the same shareable-by-git philosophy as the rest of BeardGit. Project requests live under `<project>/.beardgit/requests/` as plain `.http` files (REST Client / IntelliJ HTTP Client format), so a `git pull` is enough for the whole team to share them; folders nest arbitrarily and the tree renders recursively. Environments live as sidecar JSON files under `_env/<name>.json` for non-sensitive variables, with secrets kept out of the repo and stored encrypted in BeardGit's local credential store via a new `requests-env://<env>/<name>` namespace on top of the existing `auth::CredentialStore`. The `default` env is always present — both `requests_list_project` and `requests_get_envs` lazily recreate `_env/default.json` when missing, and the env switcher dropdown has no "no env" option, so you can never end up working without one.
+
+The editor pane uses CodeMirror 6 with the canonical `createCodemirrorTheme` so the body editor matches the rest of the app's code panes, JSON syntax highlighting, and `{{var}}` autocomplete that fires on the trailing `{{` and pulls suggestions from the active env's vars + secret names. The URL bar is a single-line CodeMirror micro-editor (`MiniCodeInput`) that gets the same autocomplete treatment, and autocomplete tooltips render with `position: fixed` against `document.body` so the popover never gets clipped behind the response tabs. The response viewer's Pretty mode is a read-only CodeMirror surface so you actually see syntax-highlighted JSON responses, not just a `<pre>` clone of Raw mode.
+
+Send / Cancel is a real toggle backed by a `tokio_util::sync::CancellationToken` registered in `AppState.requests_cancellations` and addressed from a frontend-generated `crypto.randomUUID()` ticket id, so clicking Cancel actually aborts the in-flight `reqwest` future — not just the UI label. Run results persist into a new `requests-store` crate (its own SQLite file, `requests.db`, separate from the main app DB) with a 50-row history cap per request and a 5 MB body cap (truncated with a banner pointing at "Save raw to file…"). The response viewer's History tab reuses the existing CodeMirror merge view to diff any two responses by checkbox-selecting them. Includes Copy-as-cURL / fetch / HTTPie / wget code generators (rendered as a canonical dropdown menu matching `AddProjectMenu`'s look-and-feel), a Paste-from-cURL importer, right-click context menu on tree leaves (Copy as cURL, Duplicate, Rename inline, Open in editor via a backend `requests_open_in_editor` command that bypasses the `tauri-plugin-opener` allowlist, Delete with `ConfirmDialog`), and a "+ New request" affordance per section that surfaces in two places: the in-tree button and a primary-CTA in the empty-state seed prompt, both wired to a shared `newRequestOpen` writable so they open the exact same dialog.
+
+A "Load test set" secondary action seeds nine `.http` examples against the public **JSONPlaceholder** (REST CRUD) and **httpbin.org** (request inspection, status codes, slow responses for testing Cancel) APIs, plus a default env wiring `base_url` / `httpbin_base_url` / `post_id`. Picking it lands you on `quickstart/jsonplaceholder/list-posts.http` ready to hit Send. The first save bumps `treeReloadSignal`, the watcher polls `.beardgit/requests/` for external mutations, and the env switcher refreshes off the same signal so seeded envs appear in the dropdown without a panel remount.
+
+Visually the panel uses the shared design-system primitives end to end (`Button`, `IconButton`, `Field`, `Card`, `Dialog`, `List`, `TwoLineRow`, `ContextMenu`, `ConfirmDialog`); zero hardcoded colors, every accent goes through `var(--accent-*)` and `color-mix(...)` so the panel theme-tracks light/dark and any custom theme like the rest of the app. Method dropdown + URL field are normalised to the same height and the same `var(--font-mono)` so the row aligns cleanly. Verb badges (GET / POST / PUT / PATCH / DELETE) appear next to each leaf in the collections tree using the canonical tonal-on-accent recipe (`color-mix(--accent-blue 18%, transparent)` etc.).
+
+EnvManager (opened via the **Manage** button next to the env switcher) lets you create / edit / delete envs, set encrypted secret values via a `SecretPrompt` modal, and shows a `(N vars, M secrets)` summary per env in the dropdown so you see at a glance whether an env has content. Save closes the dialog after a successful write, and Delete prompts a `ConfirmDialog` *before* removing the file (was: deleted-then-asked).
+
+### Brand mark refresh
+
+`chore(icons): refine logo design` + `fix(welcome): sync welcome-screen logo with redesigned brand mark`. The app icon got a refresh and the welcome screen's hero glyph was re-pointed at the redesigned source asset so it stops drifting from the title-bar / tray icon set.
+
+`fix(welcome): show BeardGit logo instead of generic icon glyph`. The welcome screen used to fall back to a generic icon when no project was open; now it surfaces the actual BeardGit brand mark, matching the rest of the empty-state messaging.
+
+### Tab + welcome polish
+
+`fix(tabs): clear repo state when closing the last tab`. Closing the only open project tab used to leave stale repo state in memory — the next "Open folder" could pick up the previous repo's HEAD or change-count for a brief flash. The tab close handler now wipes the active-project state when `projects.length` hits zero, so the welcome screen takes over cleanly.
+
+### Landing site
+
+`chore(docs/landing): add Metricool tracker`. The marketing/landing site under `docs/` now ships the standard Metricool analytics snippet, the same one the rest of metricool.com uses, so we can tell whether the landing actually drives sign-ups. No telemetry was added to the desktop app — `beardgit` itself remains telemetry-free.
+
 ## [0.1.10] — AI tasks in the drawer + persisted reviews, landing & community polish — 2026-04-28
 
 ### AI code review surfaces in the tasks drawer + persists to disk

@@ -14,10 +14,11 @@ const ITEMS: SidebarNavItem[] = [
   { id: "submodules", label: "Submodules", icon: "" },
   { id: "ai-config", label: "AI Config", icon: "" },
   { id: "ai-sessions", label: "AI Sessions", icon: "" },
+  { id: "requests", label: "Requests", icon: "" },
 ];
 
 describe("applyLayout", () => {
-  it("DEFAULT_ORDER contains the 11 canonical ids in the documented order", () => {
+  it("DEFAULT_ORDER contains the canonical ids in the documented order", () => {
     expect(DEFAULT_ORDER).toEqual([
       "graph",
       "changes",
@@ -30,6 +31,7 @@ describe("applyLayout", () => {
       "submodules",
       "ai-config",
       "ai-sessions",
+      "requests",
     ]);
   });
 
@@ -67,11 +69,11 @@ describe("applyLayout", () => {
   });
 
   it("appends new ids not present in the saved order at the end", () => {
-    // Simulate an old saved order from a release before "ai-sessions" existed.
-    const savedLegacy = DEFAULT_ORDER.filter((id) => id !== "ai-sessions");
+    // Simulate an old saved order from a release before "requests" existed.
+    const savedLegacy = DEFAULT_ORDER.filter((id) => id !== "requests");
     const out = applyLayout(ITEMS, savedLegacy, []);
     expect(out.map((i) => i.id)).toEqual(DEFAULT_ORDER);
-    expect(out[out.length - 1]?.id).toBe("ai-sessions");
+    expect(out[out.length - 1]?.id).toBe("requests");
   });
 
   it("combines order + hidden correctly", () => {

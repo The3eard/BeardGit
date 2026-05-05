@@ -90,6 +90,10 @@ Every accent in the UI flows from a small set of CSS theme tokens, so light, dar
 
 The interface is fully translatable via [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs); English and Spanish ship out of the box. The Navigation section of the sidebar is user-customizable: drag to reorder, click the eye to hide an item, click `Reset` to restore the default — your layout is persisted app-wide.
 
+### Requests panel — API testing, in your repo
+
+A `.http`-based request workspace lives in a new sidebar entry. Collections are committed to the repo under `.beardgit/requests/` so the team shares them by `git pull`; environments and secrets are split — `_env/<name>.json` files carry non-sensitive variables, while secrets stay encrypted in BeardGit's local credential store. The killer feature: when a forge provider is active, seven `forge_*` auto-variables (`forge_token`, `forge_host`, `forge_api_base`, `forge_owner`, `forge_repo`, `forge_branch`, `forge_commit_sha`) are available without any setup, so hitting the API of the repo you're staring at is one click. Send / cancel runs ride the existing task-runner tickets, so they survive tab switches; the response viewer reuses BeardGit's CodeMirror merge view to diff any two responses from history. Includes Copy-as-cURL/fetch/HTTPie/wget and Paste-from-cURL import.
+
 ### Auto-update
 
 The Tauri updater plugin auto-checks the stable channel on a configurable cadence and surfaces a single in-app dialog when a new version is available. The Settings → Advanced panel exposes a manual "Check for updates" button alongside diagnostic lines for last-check timestamp, configured endpoint URL, and the verbatim error from the underlying plugin when something fails — so you can tell a 404 apart from a DNS hiccup without leaving the app.

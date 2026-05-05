@@ -47,6 +47,7 @@ fn default_sidebar_nav_order() -> Vec<String> {
         "submodules",
         "ai-config",
         "ai-sessions",
+        "requests",
     ]
     .into_iter()
     .map(String::from)
@@ -571,7 +572,7 @@ mod tests {
 
     #[test]
     fn test_sidebar_nav_layout_defaults_and_roundtrip() {
-        // Fresh defaults should match the canonical 11-item order and have
+        // Fresh defaults should match the canonical 12-item order and have
         // no hidden items.
         let cfg = AppConfig::default();
         assert_eq!(
@@ -588,6 +589,7 @@ mod tests {
                 "submodules",
                 "ai-config",
                 "ai-sessions",
+                "requests",
             ]
         );
         assert!(cfg.sidebar_nav_hidden.is_empty());
@@ -624,7 +626,7 @@ mod tests {
         std::fs::write(&path, json).unwrap();
 
         let cfg = AppConfig::load(&path).unwrap();
-        assert_eq!(cfg.sidebar_nav_order.len(), 11);
+        assert_eq!(cfg.sidebar_nav_order.len(), 12);
         assert_eq!(cfg.sidebar_nav_order.first().unwrap(), "graph");
         assert!(cfg.sidebar_nav_hidden.is_empty());
     }

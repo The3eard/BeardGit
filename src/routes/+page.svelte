@@ -69,6 +69,7 @@
   import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
   import RepoConfigPage from "$lib/components/repo-config/RepoConfigPage.svelte";
+  import RequestsPanel from "$lib/components/requests/RequestsPanel.svelte";
   import { initRepoConfigRouteSync } from "$lib/stores/repoConfigRoute";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
   import { startConversationListeners, stopConversationListeners } from "$lib/stores/aiConversations";
@@ -928,6 +929,8 @@
         <ReleaseView />
       {:else if activeView === "repo-config"}
         <RepoConfigPage bind:this={repoConfigPageRef} />
+      {:else if activeView === "requests"}
+        <RequestsPanel />
       {:else if $isLoading}
         <div class="welcome-screen">
           <div class="spinner spinner--large"></div>

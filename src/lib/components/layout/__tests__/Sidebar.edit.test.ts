@@ -80,6 +80,7 @@ describe("Sidebar — edit mode", () => {
         "submodules",
         "ai-config",
         "ai-sessions",
+        "requests",
       ],
     });
     const { getByTestId } = render(Sidebar, { props: { activeView: "graph" } });
@@ -110,7 +111,7 @@ describe("Sidebar — edit mode", () => {
     await clickPencil(getByTestId);
     await fireEvent.click(getByTestId("sidebar-edit-reset"));
     expect(get(sidebarLayout).hidden).toEqual([]);
-    expect(get(sidebarLayout).order.length).toBe(11);
+    expect(get(sidebarLayout).order.length).toBe(12);
     expect(get(sidebarLayout).order[0]).toBe("graph");
   });
 

@@ -18,6 +18,8 @@ ai-provider = { path = "../ai-provider" }
 claude-code = { path = "../claude-code" }
 codex = { path = "../codex" }
 opencode = { path = "../opencode" }
+requests-runner = { path = "../requests-runner" }
+requests-store = { path = "../requests-store" }
 which = "7"
 async-trait = { workspace = true }
 chrono = { workspace = true }
@@ -38,6 +40,7 @@ mutation-events = { path = "../mutation-events" }
 base64 = "0.22"
 ignore = "0.4"
 git2 = { workspace = true }
+tokio-util = { version = "0.7", features = ["rt"] }
 
 [dev-dependencies]
 tempfile = "3"
