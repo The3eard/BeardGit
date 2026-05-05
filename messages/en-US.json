@@ -765,6 +765,7 @@
   "ai_config_select_file": "Select a file to edit",
   "sidebar_ai_config": "AI Config",
   "sidebar_ai_sessions": "AI Sessions",
+  "sidebar_requests": "Requests",
   "ai_sessions_active_title": "Active terminals",
   "ai_sessions_recent_title": "Recent runs",
   "ai_sessions_empty_recent": "No completed runs yet",

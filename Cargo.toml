@@ -3,6 +3,8 @@ members = [
     "crates/git-engine",
     "crates/graph-builder",
     "crates/storage",
+    "crates/requests-store",
+    "crates/requests-runner",
     "crates/app-core",
     "crates/watcher",
     "crates/auth",

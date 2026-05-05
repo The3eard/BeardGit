@@ -37,6 +37,7 @@
     { label: m.sidebar_submodules(), icon: "", id: "submodules" },
     { label: m.sidebar_ai_config(), icon: "", id: "ai-config" },
     { label: m.sidebar_ai_sessions(), icon: "", id: "ai-sessions" },
+    { label: m.sidebar_requests(), icon: "", id: "requests" },
   ];
 
   // Edit-mode state.

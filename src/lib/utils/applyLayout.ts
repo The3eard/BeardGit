@@ -38,6 +38,7 @@ export const DEFAULT_ORDER: readonly string[] = [
   "submodules",
   "ai-config",
   "ai-sessions",
+  "requests",
 ];
 
 /**

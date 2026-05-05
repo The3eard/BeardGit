@@ -1,0 +1,24 @@
+[package]
+name = "requests-runner"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+requests-store = { path = "../requests-store" }
+auth = { path = "../auth" }
+forge-provider = { path = "../forge-provider" }
+task-runner = { path = "../task-runner" }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { version = "0.7", features = ["rt"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+urlencoding = { workspace = true }
+
+[dev-dependencies]
+mockito = "1"
+tokio = { workspace = true }
+tempfile = "3"

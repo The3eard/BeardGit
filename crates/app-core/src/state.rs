@@ -12,6 +12,7 @@ use auth::CredentialStore;
 use git_engine::Repository;
 use graph_builder::GraphLayout;
 use provider::{ProviderKind, ProviderUser};
+use requests_store::RequestsDatabase;
 use std::sync::Arc;
 use storage::config::AppConfig;
 use storage::database::Database;
@@ -89,6 +90,8 @@ pub struct AppState {
     pub active_index: Mutex<Option<usize>>,
     /// SQLite database for persistent application data.
     pub db: Mutex<Database>,
+    /// SQLite database for the Requests panel (global collections / items / env / history).
+    pub requests_db: Mutex<RequestsDatabase>,
     /// User-facing application configuration (loaded from `settings.json`).
     pub config: Mutex<AppConfig>,
     /// Filesystem path to `settings.json`, used when saving config changes.
@@ -128,6 +131,14 @@ pub struct AppState {
     /// `src-tauri/src/lib.rs` during `.setup()` because it needs an
     /// `Arc<TaskManager>` and an `AppHandle` for the event sink.
     pub ai_background_coordinator: Mutex<Option<Arc<AiBackgroundCoordinator>>>,
+    /// Active in-flight Requests-panel runs, keyed by frontend-generated
+    /// ticket id. Each entry's [`tokio_util::sync::CancellationToken`] is
+    /// fired by `requests_cancel` to abort the matching `requests_run`
+    /// before its `reqwest` future resolves. Entries are inserted by
+    /// `requests_run` *before* the first await and removed via a Drop
+    /// guard on every exit path (success, error, cancel, panic).
+    pub requests_cancellations:
+        Mutex<std::collections::HashMap<String, tokio_util::sync::CancellationToken>>,
 }
 
 impl Default for AppState {
@@ -147,6 +158,9 @@ impl AppState {
         let config_path = config_dir.join("settings.json");
 
         let db = Database::open(&db_path).expect("Failed to open database");
+        let requests_db_path = config_dir.join("requests.db");
+        let requests_db =
+            RequestsDatabase::open(&requests_db_path).expect("Failed to open requests database");
         let config = AppConfig::load(&config_path).unwrap_or_default();
         let credential_store =
             CredentialStore::new(&config_dir).expect("Failed to initialize credential store");
@@ -155,6 +169,7 @@ impl AppState {
             projects: Mutex::new(Vec::new()),
             active_index: Mutex::new(None),
             db: Mutex::new(db),
+            requests_db: Mutex::new(requests_db),
             config: Mutex::new(config),
             config_path,
             config_dir,
@@ -167,6 +182,7 @@ impl AppState {
             ai_session_watcher: Mutex::new(None),
             ai_config_watcher: Mutex::new(None),
             ai_background_coordinator: Mutex::new(None),
+            requests_cancellations: Mutex::new(std::collections::HashMap::new()),
         }
     }
 }
