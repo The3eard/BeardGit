@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>BeardGit — a Git client for the patient</title>
-  <meta name="description" content="BeardGit is a native desktop Git client built with Rust and Svelte. Visual graph, built-in CI, multi-repo tabs, in-repo HTTP request testing, AI agents in worktrees. Craft over ceremony." />
+  <meta name="description" content="BeardGit is a native desktop Git client built with Rust and Svelte. Visual graph, built-in CI, multi-repo tabs, in-repo HTTP request testing, an in-app code editor, AI agents in worktrees. Craft over ceremony." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)" />
@@ -40,7 +40,7 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "BeardGit",
-    "description": "Native desktop Git client with built-in graph, PRs/MRs, CI/CD pipelines, issues, releases, terminals, AI agents, and an in-repo .http API testing workspace — for GitHub and GitLab.",
+    "description": "Native desktop Git client with built-in graph, PRs/MRs, CI/CD pipelines, issues, releases, terminals, AI agents, an in-repo .http API testing workspace, and an in-app code editor — for GitHub and GitLab.",
     "url": "https://the3eard.github.io/BeardGit/",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "macOS, Linux, Windows",
@@ -111,9 +111,10 @@
           <p class="hero-sub reveal mono">
             Graph, branches, staging, <strong style="color:var(--fg)">PRs &amp; MRs</strong>, issues,
             <strong style="color:var(--fg)">CI/CD pipelines</strong>, releases, terminals,
-            <strong style="color:var(--fg)">AI agents</strong>, and an in-repo
-            <strong style="color:var(--fg)">.http request workspace</strong> — in a single native app. Stop jumping
-            between GitHub, GitLab, the terminal, Postman, and three other clients just to ship a commit.
+            <strong style="color:var(--fg)">AI agents</strong>, an in-repo
+            <strong style="color:var(--fg)">.http request workspace</strong>, and an
+            <strong style="color:var(--fg)">in-app code editor</strong> — in a single native app. Stop jumping
+            between GitHub, GitLab, the terminal, Postman, VS Code, and three other clients just to ship a commit.
           </p>
 
           <div class="cta-row reveal">
@@ -217,7 +218,8 @@
           Your commit graph. Your branches. Your staging. Your pull requests and merge requests on
           <strong>GitHub and GitLab</strong>. Your CI pipelines and deploy jobs. Your issues, labels, and releases.
           Your terminals. Your AI agents. Your <strong>API requests</strong>, committed alongside the code that
-          calls them. Close the browser tabs. Close the other clients. BeardGit is the
+          calls them. <strong>Your repo files</strong>, edited in place — open any file row, type, save, stage in
+          one keystroke. Close the browser tabs. Close the other clients. BeardGit is the
           <strong>one window</strong> you keep open.
         </div>
       </div>
@@ -244,7 +246,7 @@
               <path d="M7 18h6a4 4 0 0 0 4-4v0"/>
             </svg>
           </div>
-          <div class="feature-num">01 / 07</div>
+          <div class="feature-num">01 / 08</div>
           <h3 class="feature-title">A <span class="italic">canvas graph</span> that scales.</h3>
           <p class="feature-body">100K+ commits render smoothly via a viewport-sliced renderer. Branch lanes, merge curves, sync-state lines, and author highlighting — all on HTML canvas, not DOM. Tip: <code class="mono">⌘F</code> filters by author, message, or ref; the graph re-lays out lanes only for the matches.</p>
         </div>
@@ -257,7 +259,7 @@
               <path d="M3 16l9 4 9-4"/>
             </svg>
           </div>
-          <div class="feature-num">02 / 07</div>
+          <div class="feature-num">02 / 08</div>
           <h3 class="feature-title">Multi-repo <span class="italic">tabs</span>.</h3>
           <p class="feature-body">Every repository is a tab. Heavy state — repo, layout, file watcher — loads only for the active tab; background tabs keep just their metadata, so a dozen open repos cost the same as one. <code class="mono">⌘1…⌘9</code> jumps between them.</p>
         </div>
@@ -273,7 +275,7 @@
               <path d="M11 3l3 3-3 3"/>
             </svg>
           </div>
-          <div class="feature-num">03 / 07</div>
+          <div class="feature-num">03 / 08</div>
           <h3 class="feature-title">Forge-native for <span class="italic">GitHub + GitLab</span>.</h3>
           <p class="feature-body">Create, edit, merge, approve, and comment on PRs/MRs with inline review threads. Manage issues, labels, milestones, assignees. Trigger / retry / cancel pipelines. Publish releases. Edit repo settings (description, visibility, branch protection, labels) — without leaving the app. Self-hosted GitHub Enterprise and on-prem GitLab work too. <code class="mono">gh</code> and <code class="mono">glab</code> ship bundled.</p>
         </div>
@@ -286,7 +288,7 @@
               <path d="M5 15l.75 1.75L7.5 17.5l-1.75.75L5 20l-.75-1.75L2.5 17.5l1.75-.75L5 15z"/>
             </svg>
           </div>
-          <div class="feature-num">04 / 07</div>
+          <div class="feature-num">04 / 08</div>
           <h3 class="feature-title">Your own AI CLI, in a <span class="italic">worktree</span>.</h3>
           <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh git worktree — no terminal, no key juggling. You keep the CLI you already configured; the app just spawns it, queues runs at a configurable concurrency cap, and pipes the transcript back in-app. Tip: every run lands on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch you can review, merge, or discard. More providers will follow.</p>
 <pre><span class="cm"># Cmd+Shift+A — pick prompt + provider + worktree root</span>
@@ -304,7 +306,7 @@
               <path d="M16.5 16.5L21 21"/>
             </svg>
           </div>
-          <div class="feature-num">05 / 07</div>
+          <div class="feature-num">05 / 08</div>
           <h3 class="feature-title">Visual <span class="italic">bisect</span>.</h3>
           <p class="feature-body">Pick the good commit, pick the bad commit, step through with buttons. The auto-bisect mode runs your test command at every step and resolves "good" or "bad" without you watching. Pairs with the bundled CLIs and the AI worktree flow — no terminal juggling.</p>
         </div>
@@ -317,9 +319,22 @@
               <path d="M13 15h4"/>
             </svg>
           </div>
-          <div class="feature-num">06 / 07</div>
+          <div class="feature-num">06 / 08</div>
           <h3 class="feature-title">Bundled <span class="italic">CLIs</span>.</h3>
           <p class="feature-body"><code class="mono">gh</code> and <code class="mono">glab</code> ship inside every installer. No PATH setup. Run them in a real PTY terminal inside the app (xterm.js + WebGL), or let BeardGit call them for you on every PR / pipeline / release action.</p>
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+              <path d="M14 4l-4 16"/>
+            </svg>
+          </div>
+          <div class="feature-num">07 / 08</div>
+          <h3 class="feature-title">An in-app <span class="italic">code editor</span>.</h3>
+          <p class="feature-body">Edit repo files without leaving BeardGit. CodeMirror 6 with per-language snippets (Rust, TS / JS, Python, Go), keyword completion, JSON lint with rules for <code class="mono">package.json</code> and <code class="mono">tsconfig.json</code>, inline color pickers in CSS, indent guides, and a gitignore-aware file tree. Save writes to disk; <code class="mono">⇧ Save</code> also stages it for the next commit. Tip: right-click any file row in Changes, Branches, or Reflog and pick <strong>Open in editor</strong> to jump straight to it.</p>
         </div>
 
         <div class="feature wide reveal">
@@ -332,7 +347,7 @@
               <path d="M21 14h-5v5"/>
             </svg>
           </div>
-          <div class="feature-num">07 / 07</div>
+          <div class="feature-num">08 / 08</div>
           <h3 class="feature-title">An <span class="italic">.http</span> workspace, in your repo.</h3>
           <p class="feature-body">Your API requests live next to the code that calls them. Plain <code class="mono">.http</code> files under <code class="mono">.beardgit/requests/</code>, committed with the rest of the project, so a <code class="mono">git pull</code> shares them with the team. Environments split into commit-safe <code class="mono">_env/&lt;name&gt;.json</code> files; secrets stay encrypted in the local credential store, never in git. JSON syntax highlighting, <code class="mono">{{var}}</code> autocomplete, response history with diff between any two runs, and Copy-as cURL / fetch / HTTPie / wget. Cancel actually cancels the in-flight request — the runtime tickets the run through the same task system as fetch / pull / push. Tip: pick "Load test set" on first open to seed nine working examples against JSONPlaceholder + httpbin.</p>
 <pre><span class="cm"># .beardgit/requests/users/get.http</span>
