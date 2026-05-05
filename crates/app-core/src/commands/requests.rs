@@ -93,26 +93,35 @@ pub struct TreeNode {
 #[tauri::command]
 pub fn requests_list_project(project_path: String) -> Result<Vec<TreeNode>, String> {
     let root = Path::new(&project_path).join(".beardgit").join("requests");
+    // Guarantee `_env/default.json` exists on every panel access — even
+    // for a fresh project where `.beardgit/requests/` doesn't exist yet.
+    // Creating the structure here means the env switcher always lands
+    // on a valid `default` env, and the user can never end up in the
+    // "I deleted everything, restarted, and the env file isn't there"
+    // state. Walk after, so the freshly-created (empty) folder still
+    // surfaces SeedPrompt downstream.
+    ensure_default_env(&root);
     if !root.exists() {
         return Ok(vec![]);
     }
-    ensure_default_env(&root);
     Ok(walk(&root, &root))
 }
 
 /// Make sure `<requests_root>/_env/default.json` exists with empty content
-/// when missing, so any caller that subsequently reads the env list never
-/// finds a project in the impossible "requests/ exists but no envs" state.
+/// when missing — and, if `requests_root` itself is missing, create the
+/// whole `<project>/.beardgit/requests/_env/` chain on the way through.
 ///
 /// Called from every command that reads env state (the tree listing, the
 /// env summary listing, and so on). Idempotent: a present `default.json`
-/// is left untouched, including any user edits to it. The user can still
-/// rename or replace the default env later — they just can't end up
-/// without one whenever a `requests/` folder is checked in.
+/// is left untouched, including any user edits to it. Calling this on a
+/// project with no requests folder yet is the canonical "open the panel
+/// → see the default env appear automatically" entry point.
 fn ensure_default_env(requests_root: &Path) {
     let env_dir = requests_root.join("_env");
     let default_env = env_dir.join("default.json");
     if !default_env.exists() {
+        // create_dir_all walks the parents — `requests_root` is created
+        // here too when this is the first ever access for the project.
         let _ = std::fs::create_dir_all(&env_dir);
         let _ = std::fs::write(
             &default_env,
@@ -390,7 +399,14 @@ pub fn requests_delete(
                 .join("requests")
                 .join(&source_path);
             if path.exists() {
-                std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+                // Folder rows from the tree resolve to a directory on
+                // disk; recursively remove the subtree. Single-file
+                // rows still hit `remove_file`.
+                if path.is_dir() {
+                    std::fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
+                } else {
+                    std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+                }
             }
             Ok(())
         }
@@ -579,14 +595,12 @@ pub struct EnvSummary {
 #[tauri::command]
 pub fn requests_get_envs(project_path: String) -> Result<Vec<EnvSummary>, String> {
     let root = Path::new(&project_path);
-    // If the requests folder is already on disk, defensively recreate the
-    // `default.json` env file when it's missing — the user may have deleted
-    // it between sessions, and we never want the env switcher to land in a
-    // blank state on an otherwise-set-up project.
+    // Always ensure the default env exists, even on a fresh project
+    // where `.beardgit/requests/` hasn't been created yet. Mirrors the
+    // unconditional path in `requests_list_project` so whichever IPC
+    // wins the mount race materialises the same env file.
     let requests_root = root.join(".beardgit").join("requests");
-    if requests_root.exists() {
-        ensure_default_env(&requests_root);
-    }
+    ensure_default_env(&requests_root);
     let names = list_envs(root).map_err(|e| e.to_string())?;
     let mut out = vec![];
     for n in names {

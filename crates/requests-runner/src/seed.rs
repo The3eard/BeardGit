@@ -9,15 +9,33 @@
 
 use std::path::Path;
 
-use crate::error::RequestsError;
+use crate::{env::EnvFile, error::RequestsError};
 
-/// JSON body of an empty `_env/default.json` — the same stub the
-/// "Start empty" SeedPrompt path writes inline. Used to detect whether
-/// the existing default env on disk is still the untouched stub (and
-/// can be safely overwritten with a richer default) or has user edits
-/// (and must be preserved verbatim).
+/// JSON body of an empty `_env/default.json` — the canonical untouched
+/// stub written by `app-core::ensure_default_env` on first access to a
+/// project's requests folder. Kept around for the unit tests that seed
+/// a fresh tempdir; the seed function itself uses [`is_empty_stub`]
+/// (semantic check) so any equivalent shape — different whitespace,
+/// missing trailing newline, etc. — also counts as "safe to upgrade".
+#[cfg(test)]
 const EMPTY_DEFAULT_ENV: &str =
     "{\n  \"$schema\": \"beardgit-env/v1\",\n  \"vars\": {},\n  \"secrets\": []\n}\n";
+
+/// Treat any env file with no vars and no secrets as the "empty stub"
+/// regardless of formatting (whitespace, trailing newline, key order).
+/// A byte-equal compare against a constant breaks for files re-saved
+/// through `serde_json::to_string_pretty` (no trailing newline) or
+/// written by older versions of the seed prompt with different
+/// indentation, so we parse semantically instead and a missing
+/// schema field is treated as "still a stub" too.
+fn is_empty_stub(content: &str) -> bool {
+    match serde_json::from_str::<EnvFile>(content) {
+        Ok(env) => env.vars.is_empty() && env.secrets.is_empty(),
+        // Unparseable file → assume the user hand-edited it into a
+        // broken state we shouldn't blow away. Keep their bytes.
+        Err(_) => false,
+    }
+}
 
 /// `_env/default.json` contents seeded alongside the Quickstart pack.
 /// Wires up the `base_url`, `httpbin_base_url`, and `post_id` vars
@@ -68,13 +86,15 @@ pub fn seed_quickstart_pack(project_root: &Path) -> Result<Vec<String>, Requests
     std::fs::create_dir_all(&jsonph_dir)?;
     std::fs::create_dir_all(&httpbin_dir)?;
 
-    // _env/default.json: only write it when missing or still the
-    // untouched empty stub. This protects user-edited envs.
+    // _env/default.json: only write it when missing or still an
+    // empty stub (no vars, no secrets) regardless of how it's
+    // formatted on disk. This protects user-edited envs while still
+    // upgrading any "blank" file the user expects the seed to populate.
     let env_dir = req_root.join("_env");
     std::fs::create_dir_all(&env_dir)?;
     let env_path = env_dir.join("default.json");
     let should_write_env = match std::fs::read_to_string(&env_path) {
-        Ok(existing) => existing == EMPTY_DEFAULT_ENV,
+        Ok(existing) => is_empty_stub(&existing),
         Err(_) => true, // missing or unreadable → safe to write fresh
     };
     if should_write_env {
@@ -214,6 +234,31 @@ mod tests {
         assert!(
             body.contains("base_url"),
             "empty stub must be upgraded to the quickstart env, got: {body}",
+        );
+    }
+
+    #[test]
+    fn seed_quickstart_upgrades_stub_with_different_formatting() {
+        // Regression: the old check compared the on-disk content
+        // byte-for-byte against EMPTY_DEFAULT_ENV. Files written by
+        // `serde_json::to_string_pretty` (e.g. through EnvManagerDialog
+        // Save) drop the trailing newline; older versions of the seed
+        // wrote a single-line stub. Either of those would have stayed
+        // "empty in spirit" but bypass the byte-compare and never get
+        // upgraded with the quickstart vars. Now we use a semantic
+        // is_empty_stub(...) check, so any equivalent shape upgrades.
+        let dir = tempfile::tempdir().unwrap();
+        let env_dir = dir.path().join(".beardgit/requests/_env");
+        std::fs::create_dir_all(&env_dir).unwrap();
+        // Single-line, no trailing newline — what serde_json
+        // to_string + an EnvManagerDialog round-trip can produce.
+        let weird_stub = r#"{"$schema":"beardgit-env/v1","vars":{},"secrets":[]}"#;
+        std::fs::write(env_dir.join("default.json"), weird_stub).unwrap();
+        seed_quickstart_pack(dir.path()).unwrap();
+        let body = std::fs::read_to_string(env_dir.join("default.json")).unwrap();
+        assert!(
+            body.contains("base_url"),
+            "weirdly-formatted empty stub must still be upgraded to the quickstart env, got: {body}",
         );
     }
 
