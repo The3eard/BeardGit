@@ -1201,7 +1201,14 @@ mod tests {
     }
 
     async fn wait_terminal(coord: &AiBackgroundCoordinator, session_id: &str) {
-        for _ in 0..500 {
+        // 30 s budget — locally the spawn-and-finish round-trip lands in
+        // <100 ms, but GitHub Actions runners under contention have been
+        // observed to take several seconds to schedule the spawned task,
+        // and the previous 5 s window flaked the workspace test job on
+        // beta after release-day's compile-cache invalidation. Returning
+        // as soon as the session is terminal means the upper bound only
+        // ever applies to *failure* paths, not to the happy path.
+        for _ in 0..3000 {
             if let Some(s) = coord.get(session_id)
                 && s.background_status
                     .as_ref()
