@@ -43,6 +43,9 @@
   import GeneralSettings, {
     settingsIndex as generalIndex,
   } from "./GeneralSettings.svelte";
+  import EditorSettings, {
+    settingsIndex as editorIndex,
+  } from "./EditorSettings.svelte";
   import GitSettings, {
     settingsIndex as gitIndex,
   } from "./GitSettings.svelte";
@@ -78,6 +81,7 @@
    */
   const SETTINGS_INDEX: SettingDescriptor[] = [
     ...generalIndex,
+    ...editorIndex,
     ...gitIndex,
     ...aiIndex,
     ...integrationsIndex,
@@ -106,6 +110,11 @@
       id: "general",
       label: m.settings_cat_general_title(),
       icon: "\uF085", // gear
+    },
+    {
+      id: "editor",
+      label: m.settings_category_editor(),
+      icon: "\uF044", // pencil-square
     },
     {
       id: "git",
@@ -142,6 +151,8 @@
     switch (activeCategory) {
       case "general":
         return m.settings_cat_general_description();
+      case "editor":
+        return m.settings_cat_editor_description();
       case "git":
         return m.settings_cat_git_description();
       case "ai":
@@ -341,6 +352,8 @@
       <div class="settings-content__body">
         {#if activeCategory === "general"}
           <GeneralSettings />
+        {:else if activeCategory === "editor"}
+          <EditorSettings />
         {:else if activeCategory === "git"}
           <GitSettings />
         {:else if activeCategory === "ai"}

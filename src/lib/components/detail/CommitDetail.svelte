@@ -8,12 +8,15 @@
   import { IconButton, Button } from "$lib/components/ui";
   import { hashString as _hashString } from "$lib/utils/ref-colors";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
+  import { activeViewStore } from "$lib/stores/navigation";
+  import { openTab as openEditorTab } from "$lib/stores/fileEditor";
   import { formatDateTime } from "../../utils/time";
 
   let {
     commit,
     files = [],
     showNavigateToGraph = false,
+    showOpenInEditor = false,
     onNavigateToGraph,
     onClose,
     onFileClick,
@@ -22,6 +25,15 @@
     commit: CommitInfo;
     files?: CommitFileChange[];
     showNavigateToGraph?: boolean;
+    /**
+     * When `true`, the per-file right-click menu includes an "Open in
+     * editor" entry that switches to the editor view and opens the
+     * **workdir** version of the path. Surfaced from the Branches and
+     * Reflog panels where the user is exploring nearby commits but
+     * still working in the workdir; suppressed from the Graph commit
+     * detail where the at-commit blob is the relevant artifact.
+     */
+    showOpenInEditor?: boolean;
     onNavigateToGraph?: (oid: string) => void;
     onClose?: () => void;
     onFileClick?: (path: string) => void;
@@ -42,7 +54,7 @@
   }
 
   function buildFileContextItems(path: string): MenuItem[] {
-    return [
+    const items: MenuItem[] = [
       {
         label: m.context_blame(),
         action: () => {
@@ -59,6 +71,16 @@
         },
       },
     ];
+    if (showOpenInEditor) {
+      items.push({
+        label: m.editor_open_in_editor(),
+        action: () => {
+          activeViewStore.set('editor');
+          void openEditorTab(path);
+        },
+      });
+    }
+    return items;
   }
 
   function handleFileSelect(path: string) {

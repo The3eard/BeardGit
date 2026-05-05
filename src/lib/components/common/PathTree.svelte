@@ -20,6 +20,18 @@
      * rendered next to the folder name (e.g. "+12 −3 · 4 files").
      */
     aggregateLabel?: (descendants: Item[]) => string;
+    /**
+     * When `true`, render Nerd Font folder / file glyphs alongside each
+     * row. Off by default so existing consumers (PR diff lists) keep
+     * their compact layout; the in-app file editor opts in.
+     */
+    showIcons?: boolean;
+    /**
+     * Pluggable per-leaf icon picker used only when `showIcons` is on.
+     * Receives the leaf's basename and returns the glyph string. When
+     * omitted, leaves fall back to the generic Nerd Font "file" glyph.
+     */
+    fileIconResolver?: (name: string) => string;
   }
   let {
     items,
@@ -27,6 +39,8 @@
     selectedPath,
     onSelect,
     aggregateLabel,
+    showIcons = false,
+    fileIconResolver,
   }: Props = $props();
 
   interface Node { name: string; fullPath: string; isFolder: boolean; item?: Item; children: Node[]; }
@@ -52,7 +66,19 @@
         level = node.children;
       }
     }
+    sortNodes(root);
     return root;
+  }
+
+  /** Recursively sort sibling nodes: folders first, then files, case-insensitive alpha. */
+  function sortNodes(level: Node[]): void {
+    level.sort((a, b) => {
+      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
+    for (const node of level) {
+      if (node.children.length > 0) sortNodes(node.children);
+    }
   }
 
   let isTree = $derived(items.length > autoFlattenThreshold);
@@ -99,11 +125,16 @@
       <button
         data-pathtree-folder
         class="folder"
-        style="padding-left: {depth * 12}px"
+        style="padding-left: {depth * 16}px"
         onclick={() => toggle(node.fullPath)}
+        aria-label={node.fullPath}
       >
-        <span class="chev">{expanded.has(node.fullPath) ? "" : ""}</span>
-        <span class="folder-name">{node.name}/</span>
+        {#if showIcons}
+          <span class="ftype folder-icon"
+            >{expanded.has(node.fullPath) ? "" : ""}</span
+          >
+        {/if}
+        <span class="folder-name">{node.name}{showIcons ? "" : "/"}</span>
         {#if aggregateLabel}<span class="agg">{aggregateLabel(leaves(node))}</span>{/if}
       </button>
       {#if expanded.has(node.fullPath)}
@@ -117,26 +148,39 @@
       <button
         data-pathtree-leaf
         class="leaf"
-        style="padding-left: {depth * 12}px"
+        style="padding-left: {depth * 16}px"
         class:selected={selectedPath === node.fullPath}
         onclick={() => onSelect?.(node.fullPath)}
         aria-label={node.fullPath}
-      >{node.name}</button>
+      >
+        {#if showIcons}
+          <span class="ftype file-icon"
+            >{fileIconResolver ? fileIconResolver(node.name) : ""}</span
+          >
+        {/if}
+        <span class="leaf-name">{node.name}</span>
+      </button>
     {/if}
   </li>
 {/snippet}
 
 <style>
   .path-tree, .path-flat { list-style: none; padding: 0; margin: 0; }
+  .path-tree :global(ul), .path-flat :global(ul) { list-style: none; padding: 0; margin: 0; }
+  .path-tree li, .path-flat li { list-style: none; }
   .folder, .leaf {
-    display: flex; align-items: baseline; gap: 6px;
+    display: flex; align-items: center; gap: 6px;
     width: 100%; background: none; border: none;
     text-align: left; cursor: pointer;
     font-family: var(--font-mono); font-size: 12px;
     color: var(--text-primary); padding: 3px 10px;
+    line-height: 1.4;
   }
   .folder:hover, .leaf:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
   .leaf.selected { background: var(--overlay-accent-blue); }
-  .chev { font-family: var(--font-icons); font-size: 9px; width: 10px; color: var(--text-secondary); }
+  .ftype { font-family: var(--font-icons); font-size: 14px; width: 16px; flex-shrink: 0; text-align: center; line-height: 1; }
+  .folder-icon { color: var(--accent-blue); }
+  .file-icon { color: var(--text-secondary); }
+  .folder-name, .leaf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .agg { margin-left: auto; font-size: 11px; color: var(--text-secondary); }
 </style>

@@ -1089,6 +1089,39 @@ export interface SidebarNavLayout {
   hidden: string[];
 }
 
+// Editor preferences
+// ---------------------------------------------------------------------------
+
+/**
+ * Mirrors the Rust `storage::EditorPreferences` struct (snake_case
+ * field names — the struct has no `#[serde(rename_all = …)]`). All
+ * fields round-trip through `get_editor_preferences` /
+ * `set_editor_preferences`. PR3 will consume these to gate the
+ * CodeMirror extensions in the in-app editor; PR2 only persists them.
+ */
+export interface EditorPreferences {
+  // Toggleable CodeMirror extensions
+  autocomplete: boolean;
+  close_brackets: boolean;
+  bracket_matching: boolean;
+  highlight_active_line: boolean;
+  highlight_selection_matches: boolean;
+  fold_gutter: boolean;
+  indent_on_input: boolean;
+  line_wrapping: boolean;
+  rectangular_selection: boolean;
+  crosshair_cursor: boolean;
+  // Behavior
+  /** Visual width of an indent. Backend clamps to 1..=8. */
+  tab_size: number;
+  /** When true, indent inserts a tab character; otherwise spaces. */
+  indent_with_tabs: boolean;
+  /** When true, the file tree hides paths matched by `.gitignore`. */
+  respect_gitignore_in_tree: boolean;
+  /** File-size warning threshold in KB. Backend clamps to 1..=2048. */
+  large_file_warning_kb: number;
+}
+
 // File editor (workdir CRUD)
 // ---------------------------------------------------------------------------
 

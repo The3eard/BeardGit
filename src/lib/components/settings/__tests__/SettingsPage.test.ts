@@ -201,20 +201,25 @@ describe("SettingsPage shell", () => {
     expect(get(pendingSettingsSection)).toBeNull();
   });
 
-  it('legacy "editor" deep-link falls back to the general category', async () => {
+  it('legacy "editor" deep-link now resolves to the editor category', async () => {
+    // Before PR2 the legacy section id "editor" fell back to General
+    // (the category had been folded in). PR2 introduces a top-level
+    // Editor category, so the bridge should now route the legacy id
+    // straight to it.
     render(SettingsPage);
     await tick();
 
     pendingSettingsSection.set("editor");
     await tick();
 
-    expect(get(settingsRoute).category).toBe("general");
+    expect(get(settingsRoute).category).toBe("editor");
     expect(get(pendingSettingsSection)).toBeNull();
   });
 
-  it("locks the nav down to the spec's five categories", () => {
+  it("locks the nav down to the spec's six categories", () => {
     expect(Array.from(CATEGORY_IDS)).toEqual([
       "general",
+      "editor",
       "git",
       "ai",
       "integrations",

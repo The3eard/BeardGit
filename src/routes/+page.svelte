@@ -40,6 +40,7 @@
   import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment, openTabs, getActiveTerminalSegment, getCompositeTerminals } from "$lib/stores/tabs";
   import { getSidebarCollapsed, setSidebarCollapsed, resolveStartupTheme } from "$lib/api/tauri";
   import { loadSidebarLayout } from "$lib/stores/sidebarLayout";
+  import { loadEditorPrefs } from "$lib/stores/editorPrefs";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
   import AiConfigEditor from "$lib/components/ai-config/AiConfigEditor.svelte";
   import AiSessionsView from "$lib/components/ai-sessions/AiSessionsView.svelte";
@@ -70,6 +71,11 @@
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
   import RepoConfigPage from "$lib/components/repo-config/RepoConfigPage.svelte";
   import RequestsPanel from "$lib/components/requests/RequestsPanel.svelte";
+  import FileEditorPanel from "$lib/components/file-editor/FileEditorPanel.svelte";
+  import {
+    persistTabsForProject as persistEditorTabs,
+    startFileEditorListeners,
+  } from "$lib/stores/fileEditor";
   import { initRepoConfigRouteSync } from "$lib/stores/repoConfigRoute";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
   import { startConversationListeners, stopConversationListeners } from "$lib/stores/aiConversations";
@@ -98,6 +104,7 @@
   let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
   let teardownRepoConfigRoute: (() => void) | null = null;
   let teardownProviderReroute: (() => void) | null = null;
+  let teardownFileEditor: (() => void) | null = null;
   let showAiBackgroundDialog = $state(false);
 
   // Open the dialog whenever any entry point pings the shared signal store.
@@ -202,9 +209,25 @@
     // other settings so the first Sidebar render uses the persisted
     // order + hidden set instead of flashing the default order first.
     await loadSidebarLayout();
+    // Hydrate the editor preferences store so the (PR3) editor panel
+    // can read the persisted toggles synchronously when it first
+    // mounts. Failure is non-fatal — the store stays `null` and
+    // consumers render their loading state until a later success.
+    await loadEditorPrefs();
+
+    // Start the file-editor's project-mutated listener (flags external
+    // changes on open buffers) and remember the teardown for onDestroy.
+    teardownFileEditor = startFileEditorListeners();
 
     // Reset view to graph on project tab switch for instant responsiveness
     onProjectSwitch(() => {
+      // Persist the just-leaving project's open editor tabs so reopening
+      // the project (this session or after a restart) restores the same
+      // set. Persist BEFORE the new project starts loading so we capture
+      // the right paths.
+      const prev = get(activeProject);
+      if (prev?.path) persistEditorTabs(prev.path);
+
       tryChangeView("graph");
       selectedDiff = null;
       selectedStagingFile = null;
@@ -489,6 +512,8 @@
     teardownRepoConfigRoute = null;
     teardownProviderReroute?.();
     teardownProviderReroute = null;
+    teardownFileEditor?.();
+    teardownFileEditor = null;
   });
 
   /**
@@ -931,6 +956,8 @@
         <RepoConfigPage bind:this={repoConfigPageRef} />
       {:else if activeView === "requests"}
         <RequestsPanel />
+      {:else if activeView === "editor"}
+        <FileEditorPanel />
       {:else if $isLoading}
         <div class="welcome-screen">
           <div class="spinner spinner--large"></div>
@@ -1032,6 +1059,7 @@
           commit={$branchSelectedCommit}
           files={$branchSelectedFiles}
           showNavigateToGraph={true}
+          showOpenInEditor={true}
           onNavigateToGraph={(oid) => { navigateToCommit(oid); handleNavigate("graph"); }}
           onClose={() => closeBranchCommitDetail()}
           onFileClick={handleBranchFileClick}

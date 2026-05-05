@@ -5,6 +5,7 @@ import type { SidebarNavItem } from "./applyLayout";
 const ITEMS: SidebarNavItem[] = [
   { id: "graph", label: "Graph", icon: "" },
   { id: "changes", label: "Changes", icon: "" },
+  { id: "editor", label: "Editor", icon: "" },
   { id: "branches", label: "Branches", icon: "" },
   { id: "tags", label: "Tags", icon: "" },
   { id: "stashes", label: "Stashes", icon: "" },
@@ -22,6 +23,7 @@ describe("applyLayout", () => {
     expect(DEFAULT_ORDER).toEqual([
       "graph",
       "changes",
+      "editor",
       "branches",
       "tags",
       "stashes",

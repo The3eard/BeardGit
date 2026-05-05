@@ -130,6 +130,7 @@
       {commit}
       {files}
       showNavigateToGraph={true}
+      showOpenInEditor={true}
       onNavigateToGraph={onNavigateToGraph}
       onNavigate={onNavigate}
       {onFileClick}

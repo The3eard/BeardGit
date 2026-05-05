@@ -30,6 +30,75 @@ fn default_ai_background_concurrency_cap() -> u32 {
     3
 }
 
+/// Default editor-preferences value used by `serde(default = …)` so old
+/// config files (written before the editor preferences existed) load
+/// cleanly with the canonical defaults filled in.
+pub fn default_editor_preferences() -> EditorPreferences {
+    EditorPreferences::default()
+}
+
+/// User-tunable preferences for the in-app mini editor.
+///
+/// All extension toggles default to the values most users expect from a
+/// modern code editor (most ON; rectangular-selection / crosshair OFF
+/// because they're niche). `respect_gitignore_in_tree` defaults to `false`
+/// per the product brief — the file tree shows `.gitignore`d files unless
+/// the user opts into hiding them.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EditorPreferences {
+    // --- Toggleable CodeMirror extensions ---
+    /// Show the autocomplete popup as the user types.
+    pub autocomplete: bool,
+    /// Auto-close brackets / quotes when typing the opening character.
+    pub close_brackets: bool,
+    /// Highlight the matching bracket of the bracket under the cursor.
+    pub bracket_matching: bool,
+    /// Highlight the line the cursor is currently on.
+    pub highlight_active_line: bool,
+    /// Highlight every other occurrence of the current selection.
+    pub highlight_selection_matches: bool,
+    /// Render a fold gutter so users can collapse code regions.
+    pub fold_gutter: bool,
+    /// Auto-indent on Enter / closing tag.
+    pub indent_on_input: bool,
+    /// Soft-wrap long lines (no horizontal scroll).
+    pub line_wrapping: bool,
+    /// Allow rectangular (column) selections with Alt+drag.
+    pub rectangular_selection: bool,
+    /// Render a crosshair cursor while Alt is held (pairs with rectangular selection).
+    pub crosshair_cursor: bool,
+    // --- Behavior ---
+    /// Number of spaces (or visual width of a tab) per indentation level. Clamped 1..=8.
+    pub tab_size: u8,
+    /// When true, the editor inserts tab characters; otherwise spaces.
+    pub indent_with_tabs: bool,
+    /// When true, the file tree hides paths matched by `.gitignore`. Default `false`.
+    pub respect_gitignore_in_tree: bool,
+    /// File-size threshold (KB) above which the editor warns before opening. Clamped 1..=2048.
+    pub large_file_warning_kb: u32,
+}
+
+impl Default for EditorPreferences {
+    fn default() -> Self {
+        Self {
+            autocomplete: true,
+            close_brackets: true,
+            bracket_matching: true,
+            highlight_active_line: true,
+            highlight_selection_matches: true,
+            fold_gutter: true,
+            indent_on_input: true,
+            line_wrapping: true,
+            rectangular_selection: false,
+            crosshair_cursor: false,
+            tab_size: 2,
+            indent_with_tabs: false,
+            respect_gitignore_in_tree: false,
+            large_file_warning_kb: 256,
+        }
+    }
+}
+
 /// Canonical order of the Navigation sidebar items. Kept in lockstep with
 /// the `DEFAULT_ORDER` constant on the frontend (`src/lib/utils/applyLayout.ts`).
 /// When a new nav item ships, append its id here — existing user layouts
@@ -38,6 +107,7 @@ fn default_sidebar_nav_order() -> Vec<String> {
     vec![
         "graph",
         "changes",
+        "editor",
         "branches",
         "tags",
         "stashes",
@@ -180,6 +250,11 @@ pub struct AppConfig {
     #[serde(default)]
     pub diff_show_whitespace: bool,
 
+    /// Persisted editor-panel preferences. New users get the
+    /// `EditorPreferences::default()` set.
+    #[serde(default = "default_editor_preferences")]
+    pub editor_preferences: EditorPreferences,
+
     /// Whether the user has dismissed the macOS Gatekeeper re-authorization
     /// notice. When `true`, the install flow skips the apology dialog on
     /// macOS. Independent from the Windows flag below — users might
@@ -231,6 +306,7 @@ impl Default for AppConfig {
             diff_show_whitespace: false,
             auto_update_reauth_notice_dismissed_macos: false,
             auto_update_reauth_notice_dismissed_windows: false,
+            editor_preferences: EditorPreferences::default(),
             provider_kind: None,
             provider_instance_url: None,
             gitlab_instance_url: None,
@@ -572,7 +648,7 @@ mod tests {
 
     #[test]
     fn test_sidebar_nav_layout_defaults_and_roundtrip() {
-        // Fresh defaults should match the canonical 12-item order and have
+        // Fresh defaults should match the canonical 13-item order and have
         // no hidden items.
         let cfg = AppConfig::default();
         assert_eq!(
@@ -580,6 +656,7 @@ mod tests {
             vec![
                 "graph",
                 "changes",
+                "editor",
                 "branches",
                 "tags",
                 "stashes",
@@ -626,9 +703,63 @@ mod tests {
         std::fs::write(&path, json).unwrap();
 
         let cfg = AppConfig::load(&path).unwrap();
-        assert_eq!(cfg.sidebar_nav_order.len(), 12);
+        assert_eq!(cfg.sidebar_nav_order.len(), 13);
         assert_eq!(cfg.sidebar_nav_order.first().unwrap(), "graph");
         assert!(cfg.sidebar_nav_hidden.is_empty());
+    }
+
+    #[test]
+    fn editor_preferences_default_matches_struct_default() {
+        // The `default_editor_preferences` helper is what `serde(default = …)`
+        // calls when the field is missing from a config file; it must agree
+        // with `EditorPreferences::default()` so legacy configs and fresh
+        // ones converge on the same shape.
+        assert_eq!(default_editor_preferences(), EditorPreferences::default());
+    }
+
+    #[test]
+    fn editor_preferences_round_trip_through_appconfig_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        let prefs = EditorPreferences {
+            autocomplete: false,
+            close_brackets: false,
+            bracket_matching: true,
+            highlight_active_line: false,
+            highlight_selection_matches: false,
+            fold_gutter: false,
+            indent_on_input: false,
+            line_wrapping: false,
+            rectangular_selection: true,
+            crosshair_cursor: true,
+            tab_size: 4,
+            indent_with_tabs: true,
+            respect_gitignore_in_tree: true,
+            large_file_warning_kb: 1024,
+        };
+        let cfg = AppConfig {
+            editor_preferences: prefs.clone(),
+            ..AppConfig::default()
+        };
+        cfg.save(&path).unwrap();
+
+        let loaded = AppConfig::load(&path).unwrap();
+        assert_eq!(loaded.editor_preferences, prefs);
+    }
+
+    #[test]
+    fn appconfig_with_missing_editor_preferences_falls_back_to_default() {
+        // An old config file that pre-dates the editor preferences must still
+        // load — `serde(default = …)` should fill the field with the helper's
+        // value, matching `EditorPreferences::default()`.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{"theme": "github-dark"}"#;
+        std::fs::write(&path, json).unwrap();
+
+        let cfg = AppConfig::load(&path).unwrap();
+        assert_eq!(cfg.editor_preferences, EditorPreferences::default());
     }
 
     #[test]
