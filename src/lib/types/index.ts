@@ -1088,3 +1088,36 @@ export interface SidebarNavLayout {
   order: string[];
   hidden: string[];
 }
+
+// File editor (workdir CRUD)
+// ---------------------------------------------------------------------------
+
+/**
+ * One entry returned by `list_workdir_tree`. Mirrors
+ * `git_engine::WorkdirTreeEntry`. Field names stay snake_case because
+ * the Rust struct is plain `Serialize` (no `rename_all`).
+ */
+export interface WorkdirTreeEntry {
+  /** Repo-relative, forward-slashed path. */
+  path: string;
+  /** Final segment of `path`. */
+  name: string;
+  /** `true` for directories, `false` for files. */
+  is_directory: boolean;
+  /**
+   * File size in bytes. `null` for directories or when stat'ing the
+   * entry failed.
+   */
+  size: number | null;
+}
+
+/**
+ * Tagged result of `read_workdir_file`. Mirrors
+ * `app_core::commands::file_editor::ReadWorkdirFileResult`. The
+ * discriminator is `kind`; field names stay snake_case to match the
+ * Rust serde shape.
+ */
+export type ReadWorkdirFileResult =
+  | { kind: "text"; data: string; size: number }
+  | { kind: "binary"; size: number }
+  | { kind: "too_large"; size: number };
