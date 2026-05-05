@@ -2,7 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [Unreleased]
+## [0.1.11] — Requests panel + brand mark refresh — 2026-05-05
 
 ### Requests panel — `.http` API testing inside the repo
 
