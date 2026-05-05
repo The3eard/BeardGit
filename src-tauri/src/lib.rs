@@ -137,6 +137,7 @@ pub fn run() {
             app_core::commands::stage_hunks,
             app_core::commands::unstage_hunks,
             app_core::commands::discard_hunks,
+            app_core::commands::discard_files,
             app_core::commands::create_commit,
             app_core::commands::create_branch,
             app_core::commands::create_branch_at,
