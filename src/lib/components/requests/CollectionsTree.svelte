@@ -193,10 +193,34 @@
     return items;
   }
 
-  /** Show the context menu at the cursor for a given leaf. */
+  /**
+   * Folder context menu — Rename and Delete (recursive). Folders have
+   * no "Copy as cURL" / "Duplicate" / "Open in editor" because there's
+   * nothing single-leaf to act on, but the same inline-rename and
+   * ConfirmDialog plumbing as leaves applies once the user picks an
+   * action.
+   */
+  function buildFolderMenu(node: Node): MenuItem[] {
+    return [
+      { label: "Rename folder", action: () => startRename(node) },
+      { separator: true },
+      {
+        label: "Delete folder",
+        action: () => {
+          pendingDelete = { node };
+        },
+      },
+    ];
+  }
+
+  /**
+   * Show the context menu at the cursor. Files get the leaf menu;
+   * folders get the folder menu. Builder is decided here so the
+   * `<ContextMenu>` callsite stays kind-agnostic.
+   */
   function showCtxMenu(e: MouseEvent, node: Node) {
-    if (node.kind !== "file") return;
     e.preventDefault();
+    e.stopPropagation();
     ctxMenu = { x: e.clientX, y: e.clientY, node };
   }
 
@@ -280,9 +304,14 @@
       cancelRename();
       return;
     }
-    const finalValue = trimmed.toLowerCase().endsWith(".http")
-      ? trimmed
-      : `${trimmed}.http`;
+    // Auto-append `.http` only for files. Folders rename verbatim
+    // (a stray `.http` extension on a folder would be misleading).
+    const finalValue =
+      node.kind === "folder"
+        ? trimmed
+        : trimmed.toLowerCase().endsWith(".http")
+          ? trimmed
+          : `${trimmed}.http`;
     if (finalValue === node.rel_path) {
       cancelRename();
       return;
@@ -294,13 +323,23 @@
         toPath: finalValue,
         projectPath: projectPath || null,
       });
-      // If the renamed item was the active source, follow it so the
-      // editor doesn't lose its document.
-      if (
-        $currentSource?.kind === "project" &&
-        $currentSource.path === node.rel_path
-      ) {
-        currentSource.set({ kind: "project", path: finalValue });
+      // Follow the rename for the active source so the editor doesn't
+      // lose its document. For folder renames, anything inside the
+      // renamed folder needs its source path rewritten too — splice
+      // the new prefix in place of the old one.
+      if ($currentSource?.kind === "project") {
+        const cur = $currentSource.path;
+        if (cur === node.rel_path) {
+          currentSource.set({ kind: "project", path: finalValue });
+        } else if (
+          node.kind === "folder" &&
+          cur.startsWith(node.rel_path + "/")
+        ) {
+          currentSource.set({
+            kind: "project",
+            path: finalValue + cur.slice(node.rel_path.length),
+          });
+        }
       }
       treeReloadSignal.update((n) => n + 1);
     } catch (err) {
@@ -343,13 +382,18 @@
         sourcePath: target.node.rel_path,
         projectPath: projectPath || null,
       });
-      // Drop the active source if it was the deleted item, else the
-      // editor would render a stale doc.
-      if (
-        $currentSource?.kind === "project" &&
-        $currentSource.path === target.node.rel_path
-      ) {
-        currentSource.set(null);
+      // Drop the active source if it was the deleted item OR was
+      // anywhere inside a deleted folder — otherwise the editor renders
+      // a stale doc that no longer exists on disk.
+      if ($currentSource?.kind === "project") {
+        const cur = $currentSource.path;
+        const folderPrefix = target.node.rel_path + "/";
+        if (
+          cur === target.node.rel_path ||
+          (target.node.kind === "folder" && cur.startsWith(folderPrefix))
+        ) {
+          currentSource.set(null);
+        }
       }
       treeReloadSignal.update((n) => n + 1);
     } catch (err) {
@@ -402,6 +446,23 @@
 
   {#snippet treeNode(node: Node, depth: number)}
     {#if node.kind === "folder"}
+      {#if pendingRename && pendingRename.node.rel_path === node.rel_path}
+        <div class="tree-leaf rename" style="padding-left: {depth * 16 + 12}px">
+          <!-- svelte-ignore a11y_autofocus -->
+          <input
+            type="text"
+            class="rename-input"
+            bind:value={renameValue}
+            onkeydown={(e) => {
+              if (e.key === "Enter") commitRename();
+              else if (e.key === "Escape") cancelRename();
+            }}
+            onblur={commitRename}
+            autofocus
+            data-testid="rename-input"
+          />
+        </div>
+      {:else}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="tree-folder"
@@ -412,6 +473,7 @@
         onkeydown={(e) => {
           if (e.key === "Enter" || e.key === " ") toggleFolder(node.rel_path);
         }}
+        oncontextmenu={(e) => showCtxMenu(e, node)}
       >
         <span class="folder-chevron nf" class:open={folderOpen[node.rel_path] !== false}
           >{""}</span
@@ -421,6 +483,7 @@
         >
         <span class="folder-name">{node.name}</span>
       </div>
+      {/if}
       {#if folderOpen[node.rel_path] !== false}
         {#each node.children as child (child.rel_path)}
           {@render treeNode(child, depth + 1)}
@@ -468,11 +531,6 @@
     {/if}
   {/snippet}
 
-  <!--
-    TODO: folder context menu (Rename / Delete recursive). Skipped for
-    v1 — folder rename and recursive delete need extra confirmation
-    UX that's out of scope for the leaf-CRUD pass.
-  -->
 </div>
 
 <NewRequestDialog
@@ -483,7 +541,9 @@
 
 {#if ctxMenu}
   <ContextMenu
-    items={buildLeafMenu(ctxMenu.node)}
+    items={ctxMenu.node.kind === "folder"
+      ? buildFolderMenu(ctxMenu.node)
+      : buildLeafMenu(ctxMenu.node)}
     x={ctxMenu.x}
     y={ctxMenu.y}
     visible={true}
@@ -493,9 +553,13 @@
 
 {#if pendingDelete}
   <ConfirmDialog
-    title="Delete request?"
+    title={pendingDelete.node.kind === "folder"
+      ? "Delete folder?"
+      : "Delete request?"}
     detail={pendingDelete.node.name}
-    message={`Permanently delete "${pendingDelete.node.name}". This cannot be undone.`}
+    message={pendingDelete.node.kind === "folder"
+      ? `Permanently delete "${pendingDelete.node.name}" and everything inside it. This cannot be undone.`
+      : `Permanently delete "${pendingDelete.node.name}". This cannot be undone.`}
     confirmLabel="Delete"
     destructive={true}
     onConfirm={confirmDelete}
