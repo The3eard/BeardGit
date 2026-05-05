@@ -9,6 +9,8 @@
   import { addGitignorePattern } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
   import { Button } from "$lib/components/ui";
+  import { activeViewStore } from "$lib/stores/navigation";
+  import { openTab as openEditorTab } from "$lib/stores/fileEditor";
 
   let {
     files,
@@ -149,6 +151,14 @@
     items.push({
       label: m.changes_menu_copy_path(),
       action: () => navigator.clipboard.writeText(filePath),
+    });
+
+    items.push({
+      label: m.editor_open_in_editor(),
+      action: () => {
+        activeViewStore.set("editor");
+        void openEditorTab(filePath);
+      },
     });
 
     items.push({ separator: true });

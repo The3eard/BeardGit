@@ -71,6 +71,7 @@ describe("Sidebar — edit mode", () => {
       order: [],
       hidden: [
         "changes",
+        "editor",
         "branches",
         "tags",
         "stashes",
@@ -111,7 +112,7 @@ describe("Sidebar — edit mode", () => {
     await clickPencil(getByTestId);
     await fireEvent.click(getByTestId("sidebar-edit-reset"));
     expect(get(sidebarLayout).hidden).toEqual([]);
-    expect(get(sidebarLayout).order.length).toBe(12);
+    expect(get(sidebarLayout).order.length).toBe(13);
     expect(get(sidebarLayout).order[0]).toBe("graph");
   });
 

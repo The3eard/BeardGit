@@ -13,7 +13,7 @@ pub mod project_cache;
 pub mod theme;
 
 pub use commits_cache::CachedCommit;
-pub use config::{AppConfig, GraphColumnConfig};
+pub use config::{AppConfig, EditorPreferences, GraphColumnConfig};
 pub use database::Database;
 pub use error::StorageError;
 pub use project_cache::ProjectSnapshot;

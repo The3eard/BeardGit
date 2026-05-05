@@ -29,6 +29,7 @@ import { pendingSettingsSection } from "./navigation";
 /** Canonical category slugs used by the shell + category components. */
 export const CATEGORY_IDS = [
   "general",
+  "editor",
   "git",
   "ai",
   "integrations",
@@ -62,10 +63,9 @@ const LEGACY_SECTION_MAP: Record<string, CategoryId> = {
   // Appearance tab was folded into General — legacy deep-links land
   // on the Look & Feel card inside General.
   appearance: "general",
-  // Editor/Diff tab was empty — legacy deep-links fall back to the
-  // default category (General) since there's nothing editor-specific
-  // to show. Keep this in sync with `DEFAULT_CATEGORY` below.
-  editor: "general",
+  // Editor preferences live in their own top-level category as of PR2.
+  // Legacy deep-links keep working unchanged.
+  editor: "editor",
   advanced: "advanced",
 };
 

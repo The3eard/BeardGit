@@ -29,6 +29,7 @@ export interface SidebarNavItem {
 export const DEFAULT_ORDER: readonly string[] = [
   "graph",
   "changes",
+  "editor",
   "branches",
   "tags",
   "stashes",

@@ -28,6 +28,7 @@
   const navItems: SidebarNavItem[] = [
     { label: m.sidebar_graph(), icon: "", id: "graph" },
     { label: m.sidebar_changes(), icon: "", id: "changes" },
+    { label: m.sidebar_editor(), icon: "", id: "editor" },
     { label: m.sidebar_branches(), icon: "", id: "branches" },
     { label: m.sidebar_tags(), icon: "", id: "tags" },
     { label: m.sidebar_stashes(), icon: "", id: "stashes" },

@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry } from "../types";
+import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
@@ -568,6 +568,25 @@ export async function getDiffShowWhitespace(): Promise<boolean> {
 /** Persist the `diff_show_whitespace` preference. */
 export async function setDiffShowWhitespace(enabled: boolean): Promise<void> {
   return invoke<void>("set_diff_show_whitespace", { enabled });
+}
+
+/**
+ * Read the persisted editor preferences (Settings → Editor). The Rust
+ * struct lives on `AppConfig::editor_preferences`. PR3 consumes the
+ * returned shape to gate CodeMirror extensions in the in-app editor.
+ */
+export async function getEditorPreferences(): Promise<EditorPreferences> {
+  return invoke<EditorPreferences>("get_editor_preferences");
+}
+
+/**
+ * Persist a full editor-preferences struct. The backend clamps
+ * `tab_size` to 1..=8 and `large_file_warning_kb` to 1..=2048 before
+ * writing — clients can pass raw user input without pre-validating
+ * those numeric bounds.
+ */
+export async function setEditorPreferences(prefs: EditorPreferences): Promise<void> {
+  return invoke<void>("set_editor_preferences", { prefs });
 }
 
 /**

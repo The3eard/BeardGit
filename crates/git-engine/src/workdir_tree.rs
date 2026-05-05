@@ -177,11 +177,16 @@ impl Repository {
             }
         }
 
-        // Directories first, then files; alphabetical case-insensitive.
+        // Directories first, then files. Within each group sort by full
+        // *path* (case-insensitive) rather than `name`, so a recursive
+        // walk groups siblings under the same parent together — sorting
+        // by `name` alone interleaves files at different depths and
+        // produces a chaotic root order once the frontend builds a tree
+        // from the leaf paths.
         out.sort_by(|a, b| match (a.is_directory, b.is_directory) {
             (true, false) => std::cmp::Ordering::Less,
             (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            _ => a.path.to_lowercase().cmp(&b.path.to_lowercase()),
         });
 
         Ok(out)

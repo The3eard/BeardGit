@@ -243,6 +243,43 @@ pub fn ai_background_set_settings(
     config.save(&state.config_path).map_err(|e| e.to_string())
 }
 
+// ─── Editor preferences (PR2) ────────────────────────────────────────
+
+/// Clamp the numeric editor-preferences fields into their accepted ranges
+/// so an out-of-band frontend payload can't poison the persisted config:
+/// `tab_size` to `1..=8`, `large_file_warning_kb` to `1..=2048`. The boolean
+/// fields are passed through unchanged.
+///
+/// Extracted as a pure helper so a unit test can exercise the clamp without
+/// requiring a live `State<AppState>`.
+pub(crate) fn clamp_editor_preferences(
+    mut prefs: storage::EditorPreferences,
+) -> storage::EditorPreferences {
+    prefs.tab_size = prefs.tab_size.clamp(1, 8);
+    prefs.large_file_warning_kb = prefs.large_file_warning_kb.clamp(1, 2048);
+    prefs
+}
+
+/// Return the persisted editor preferences.
+#[tauri::command]
+pub fn get_editor_preferences(state: State<'_, AppState>) -> storage::EditorPreferences {
+    let config = state.config.lock().unwrap();
+    config.editor_preferences.clone()
+}
+
+/// Persist editor preferences. Behavior fields are clamped server-side
+/// (`tab_size` to 1..=8, `large_file_warning_kb` to 1..=2048).
+#[tauri::command]
+pub fn set_editor_preferences(
+    prefs: storage::EditorPreferences,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let clamped = clamp_editor_preferences(prefs);
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.editor_preferences = clamped;
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
 /// Load a project's cached snapshot for instant UI display.
 #[tauri::command]
 pub fn get_project_snapshot(path: String) -> Result<Option<storage::ProjectSnapshot>, String> {
@@ -307,8 +344,10 @@ mod tests {
     //! config path — the file-backed persistence that every setter
     //! ultimately relies on.
 
-    use super::{clamp_concurrency_cap, clamp_ui_scale, normalize_worktree_root};
-    use storage::AppConfig;
+    use super::{
+        clamp_concurrency_cap, clamp_editor_preferences, clamp_ui_scale, normalize_worktree_root,
+    };
+    use storage::{AppConfig, EditorPreferences};
     use tempfile::tempdir;
 
     #[test]
@@ -333,6 +372,40 @@ mod tests {
             Some("/tmp/wt".to_string()),
             "whitespace around a real path is trimmed"
         );
+    }
+
+    #[test]
+    fn clamp_editor_preferences_clamps_numeric_fields_only() {
+        // Out-of-band values from a malformed FE payload must be pulled back
+        // into the accepted range — boolean fields are pass-through.
+        let prefs = EditorPreferences {
+            tab_size: 0,
+            large_file_warning_kb: 99_999,
+            indent_with_tabs: true,
+            ..EditorPreferences::default()
+        };
+        let clamped = clamp_editor_preferences(prefs);
+        assert_eq!(clamped.tab_size, 1);
+        assert_eq!(clamped.large_file_warning_kb, 2048);
+        assert!(clamped.indent_with_tabs);
+
+        let prefs = EditorPreferences {
+            tab_size: 99,
+            large_file_warning_kb: 0,
+            ..EditorPreferences::default()
+        };
+        let clamped = clamp_editor_preferences(prefs);
+        assert_eq!(clamped.tab_size, 8);
+        assert_eq!(clamped.large_file_warning_kb, 1);
+
+        // In-range values pass through unchanged.
+        let prefs = EditorPreferences {
+            tab_size: 4,
+            large_file_warning_kb: 512,
+            ..EditorPreferences::default()
+        };
+        let clamped = clamp_editor_preferences(prefs.clone());
+        assert_eq!(clamped, prefs);
     }
 
     #[test]
