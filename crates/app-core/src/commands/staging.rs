@@ -103,6 +103,28 @@ pub fn unstage_hunks(
     })
 }
 
+/// Discard unstaged changes for whole files.
+///
+/// For tracked files with working-tree modifications the working copy is
+/// reset to match the index (`git checkout -- <path>` semantics — staged
+/// content is preserved). For untracked files the file is deleted from disk.
+///
+/// # Parameters
+/// - `paths` – Workspace-relative paths to discard.
+#[tauri::command]
+#[instrument(skip(state, app), name = "cmd::staging::discard_files")]
+pub fn discard_files(
+    paths: Vec<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
+        with_active_repo(&state, |repo| {
+            repo.discard_files(&paths).map_err(|e| e.to_string())
+        })
+    })
+}
+
 /// Discard selected hunks or individual lines from the working directory.
 ///
 /// # Parameters

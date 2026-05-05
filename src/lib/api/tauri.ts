@@ -122,6 +122,16 @@ export async function discardHunks(path: string, selections: HunkSelection[]): P
   return invoke<void>("discard_hunks", { path, selections });
 }
 
+/**
+ * Discard unstaged changes for whole files.
+ *
+ * Tracked files are reset to the index version (staged content preserved).
+ * Untracked files are deleted from disk.
+ */
+export async function discardFiles(paths: string[]): Promise<void> {
+  return invoke<void>("discard_files", { paths });
+}
+
 export async function createCommit(message: string): Promise<string> {
   return invoke<string>("create_commit", { message });
 }

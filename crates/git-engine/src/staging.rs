@@ -131,6 +131,82 @@ impl Repository {
         repo.reset(head.as_object(), git2::ResetType::Mixed, None)?;
         Ok(())
     }
+
+    /// Discard unstaged changes for the given files.
+    ///
+    /// For tracked files (modified, deleted, or renamed in the working tree)
+    /// the working-tree copy is reset to match the index — i.e. `git checkout -- <path>`
+    /// semantics. Staged content is preserved.
+    ///
+    /// For untracked files (status `"new"` and not staged) the file is deleted
+    /// from disk. Each path is canonicalized and verified to be inside the repo
+    /// root before deletion to guard against path traversal.
+    ///
+    /// Paths that match neither category (e.g. unknown / already clean) are
+    /// silently ignored.
+    ///
+    /// # Safety
+    /// This permanently destroys uncommitted work. Callers must confirm with
+    /// the user before invoking.
+    pub fn discard_files(&self, paths: &[String]) -> Result<(), GitError> {
+        if paths.is_empty() {
+            return Ok(());
+        }
+
+        let repo = self.inner();
+        let mut tracked: Vec<&String> = Vec::new();
+        let mut untracked: Vec<&String> = Vec::new();
+
+        let dirty_wt = git2::Status::WT_MODIFIED
+            | git2::Status::WT_DELETED
+            | git2::Status::WT_RENAMED
+            | git2::Status::WT_TYPECHANGE;
+
+        for p in paths {
+            // status_file inspects a single path against the working tree and
+            // index. Files that are both staged and re-modified will report
+            // both INDEX_* and WT_* bits — we route on the WT_* bits because
+            // the operation only affects the working tree.
+            let Ok(s) = repo.status_file(Path::new(p)) else {
+                continue;
+            };
+            if s.contains(git2::Status::WT_NEW) {
+                untracked.push(p);
+            } else if s.intersects(dirty_wt) {
+                tracked.push(p);
+            }
+        }
+
+        if !tracked.is_empty() {
+            let mut checkout = git2::build::CheckoutBuilder::new();
+            checkout.force();
+            for p in &tracked {
+                checkout.path(p.as_str());
+            }
+            repo.checkout_index(None, Some(&mut checkout))?;
+        }
+
+        if !untracked.is_empty() {
+            let repo_root = self.path().canonicalize().map_err(GitError::Io)?;
+            for p in untracked {
+                let full = repo_root.join(p);
+                let canonical = match full.canonicalize() {
+                    Ok(c) => c,
+                    Err(_) => continue,
+                };
+                if !canonical.starts_with(&repo_root) {
+                    continue;
+                }
+                if canonical.is_dir() {
+                    let _ = std::fs::remove_dir_all(&canonical);
+                } else {
+                    let _ = std::fs::remove_file(&canonical);
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +290,58 @@ mod tests {
         repo.stage_all().unwrap();
         let statuses = repo.file_statuses().unwrap();
         assert!(statuses.iter().all(|s| s.is_staged));
+    }
+
+    #[test]
+    fn test_discard_files_restores_modified_to_index() {
+        let (dir, repo) = create_repo_with_committed_file();
+        // Working-tree change with nothing staged → discard reverts it.
+        fs::write(dir.path().join("existing.txt"), "modified\n").unwrap();
+
+        repo.discard_files(&["existing.txt".to_string()]).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("existing.txt")).unwrap();
+        assert_eq!(
+            content, "original content\n",
+            "discard should restore from index"
+        );
+        let statuses = repo.file_statuses().unwrap();
+        assert!(statuses.is_empty(), "no pending changes after discard");
+    }
+
+    #[test]
+    fn test_discard_files_deletes_untracked() {
+        let (dir, repo) = create_repo_with_committed_file();
+        fs::write(dir.path().join("junk.txt"), "garbage\n").unwrap();
+
+        repo.discard_files(&["junk.txt".to_string()]).unwrap();
+
+        assert!(
+            !dir.path().join("junk.txt").exists(),
+            "untracked file should be deleted"
+        );
+    }
+
+    #[test]
+    fn test_discard_files_preserves_staged_content() {
+        // Stage a change, then make a further unstaged change. Discard must
+        // only reset the working tree to the staged version, not to HEAD.
+        let (dir, repo) = create_repo_with_committed_file();
+        fs::write(dir.path().join("existing.txt"), "staged\n").unwrap();
+        repo.stage_files(&["existing.txt".to_string()]).unwrap();
+        fs::write(dir.path().join("existing.txt"), "staged + more\n").unwrap();
+
+        repo.discard_files(&["existing.txt".to_string()]).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("existing.txt")).unwrap();
+        assert_eq!(content, "staged\n", "discard should keep staged content");
+    }
+
+    #[test]
+    fn test_discard_files_ignores_clean_paths() {
+        // Path with no pending change is a no-op; must not error.
+        let (_dir, repo) = create_repo_with_committed_file();
+        repo.discard_files(&["existing.txt".to_string()]).unwrap();
     }
 
     #[test]

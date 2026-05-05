@@ -5,7 +5,7 @@
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
-  import { cleanPaths } from "$lib/api/tauri";
+  import { cleanPaths, discardFiles } from "$lib/api/tauri";
   import { addGitignorePattern } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
   import { Button } from "$lib/components/ui";
@@ -34,6 +34,9 @@
   let contextMenuFile = $state<string | null>(null);
   let showDeleteConfirm = $state(false);
   let deleteTargetPath = $state<string | null>(null);
+  let showDiscardConfirm = $state(false);
+  let discardTargetPath = $state<string | null>(null);
+  let discardTargetIsUntracked = $state(false);
 
   let selected = $state(new Set<string>());
 
@@ -165,11 +168,21 @@
       },
     });
 
-    // Untracked file actions: delete + gitignore patterns
+    // Unstaged-only actions: discard, delete (untracked), gitignore patterns
     if (!isStaged) {
       const file = files.find(f => f.path === filePath);
-      if (file && file.status === "new") {
+      if (file) {
         items.push({ separator: true });
+        items.push({
+          label: m.changes_menu_discard(),
+          action: () => {
+            discardTargetPath = filePath;
+            discardTargetIsUntracked = file.status === "new";
+            showDiscardConfirm = true;
+          },
+        });
+      }
+      if (file && file.status === "new") {
         items.push({
           label: m.changes_menu_delete_file(),
           action: () => {
@@ -216,6 +229,28 @@
     }
     showDeleteConfirm = false;
     deleteTargetPath = null;
+  }
+
+  async function handleConfirmDiscard() {
+    if (!discardTargetPath) return;
+    const path = discardTargetPath;
+    const isUntracked = discardTargetIsUntracked;
+    try {
+      await runMutation<void>({
+        kind: "discard",
+        invoke: async () => {
+          if (isUntracked) await cleanPaths([path]);
+          else await discardFiles([path]);
+        },
+        successToast: () => (isUntracked ? `Deleted ${path}` : `Discarded changes in ${path}`),
+        failureToastPrefix: "Discard failed",
+      });
+    } catch {
+      // runMutation already surfaced the toast.
+    }
+    showDiscardConfirm = false;
+    discardTargetPath = null;
+    discardTargetIsUntracked = false;
   }
 
   function openContextMenu(e: MouseEvent, filePath: string) {
@@ -313,6 +348,20 @@
     destructive={true}
     onConfirm={handleConfirmDelete}
     onCancel={() => { showDeleteConfirm = false; deleteTargetPath = null; }}
+  />
+{/if}
+
+{#if showDiscardConfirm && discardTargetPath}
+  <ConfirmDialog
+    title={discardTargetIsUntracked
+      ? m.changes_menu_delete_confirm_title()
+      : m.changes_menu_discard_confirm_title()}
+    message={discardTargetIsUntracked
+      ? m.changes_menu_delete_confirm_message({ path: discardTargetPath })
+      : m.changes_menu_discard_confirm_message({ path: discardTargetPath })}
+    destructive={true}
+    onConfirm={handleConfirmDiscard}
+    onCancel={() => { showDiscardConfirm = false; discardTargetPath = null; discardTargetIsUntracked = false; }}
   />
 {/if}
 
