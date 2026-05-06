@@ -122,8 +122,8 @@ Edita archivos del repo sin salir de BeardGit. CodeMirror 6 con snippets por len
 
 **Te va a gustar si:**
 
-- Usas **GitHub *y* GitLab** y quieres que se sientan iguales.
-- Pruebas APIs contra el repo que estás mirando y odias saltar a Postman.
+- Trabajas en **GitHub *o* GitLab** y quieres una experiencia de primera en cualquiera de las dos — no “GitHub con un GitLab pegado encima”.
+- Pruebas APIs contra el repo que estás mirando y odias saltar a un cliente de API aparte.
 - Lanzas **Claude Code / Codex / OpenCode** y los quieres aislados en worktrees, no sueltos en tu árbol.
 - Te importa que tu cliente git no arrastre 200 MB de Chromium para pintar una sidebar.
 - Quieres una GUI cuidada con **Linux como plataforma de primera**, no como añadido.
