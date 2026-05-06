@@ -122,8 +122,8 @@ Edit repo files without leaving BeardGit. CodeMirror 6 with per-language snippet
 
 **You'll like it if you:**
 
-- Use both **GitHub *and* GitLab** and want them to feel the same.
-- Test APIs against the repo you're staring at and hate context-switching to Postman.
+- Live on **GitHub *or* GitLab** and want a first-class experience on either — not "GitHub plus a GitLab bolt-on."
+- Test APIs against the repo you're staring at and hate context-switching to a separate API client.
 - Run **Claude Code / Codex / OpenCode** and want them isolated in worktrees, not loose in your tree.
 - Care that your git client doesn't ship a 200 MB Chromium runtime to render a sidebar.
 - Want a polished GUI with **Linux as a first-class platform**, not an afterthought.
