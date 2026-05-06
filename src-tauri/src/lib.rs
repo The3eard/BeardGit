@@ -182,6 +182,7 @@ pub fn run() {
             app_core::commands::fetch_remote,
             app_core::commands::pull_remote,
             app_core::commands::push_remote,
+            app_core::commands::delete_remote_branch,
             app_core::commands::rename_remote,
             app_core::commands::remove_remote,
             app_core::commands::ensure_commit_local,

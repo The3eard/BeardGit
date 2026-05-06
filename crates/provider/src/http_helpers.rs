@@ -63,6 +63,39 @@ pub fn trim_base_url(url: &str) -> &str {
     url.trim_end_matches('/')
 }
 
+/// Return `true` if a `reqwest::Client` targeting `url` may safely accept
+/// invalid TLS certificates.
+///
+/// Self-hosted GitHub Enterprise and GitLab CE/EE instances are commonly
+/// served with private/self-signed certificates and rely on the PAT for
+/// authentication. The public clouds (`api.github.com`, `github.com`,
+/// `gitlab.com`) **must** validate certs strictly — otherwise a MITM on the
+/// same network can capture the bearer token and decrypt every subsequent
+/// API request.
+///
+/// Returns `false` (i.e. require strict TLS) for any URL whose host equals
+/// one of the public-cloud hostnames; returns `true` for everything else.
+pub fn should_accept_invalid_certs(url: &str) -> bool {
+    !is_public_forge_host(url)
+}
+
+/// Hostname check for the public clouds. Case-insensitive; tolerates an
+/// optional port and any path / query segment.
+fn is_public_forge_host(url: &str) -> bool {
+    const PUBLIC_HOSTS: &[&str] = &["api.github.com", "github.com", "gitlab.com"];
+
+    let after_scheme = url.split_once("://").map(|(_, rest)| rest).unwrap_or(url);
+    let host = after_scheme
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or("")
+        .split(':')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    PUBLIC_HOSTS.iter().any(|h| host == *h)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,5 +131,40 @@ mod tests {
     fn trim_base_url_strips_trailing_slash() {
         assert_eq!(trim_base_url("https://gitlab.com/"), "https://gitlab.com");
         assert_eq!(trim_base_url("https://gitlab.com"), "https://gitlab.com");
+    }
+
+    #[test]
+    fn public_clouds_require_strict_tls() {
+        for url in [
+            "https://api.github.com",
+            "https://api.github.com/",
+            "https://api.github.com/user",
+            "https://github.com",
+            "https://github.com/api/v3",
+            "https://gitlab.com",
+            "https://gitlab.com/api/v4/projects",
+            "https://API.GITHUB.COM/user",
+        ] {
+            assert!(
+                !should_accept_invalid_certs(url),
+                "expected strict TLS for {url}"
+            );
+        }
+    }
+
+    #[test]
+    fn self_hosted_instances_allow_invalid_certs() {
+        for url in [
+            "https://github.example.com/api/v3",
+            "https://gitlab.example.com/api/v4",
+            "https://my-internal-gitlab/",
+            "https://gitlab.com.attacker.example",
+            "https://192.168.1.10/",
+        ] {
+            assert!(
+                should_accept_invalid_certs(url),
+                "expected lenient TLS for {url}"
+            );
+        }
     }
 }

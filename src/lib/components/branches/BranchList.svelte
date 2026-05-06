@@ -11,6 +11,7 @@
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import type { BranchTreeNode as TreeNode } from "./branch-tree";
   import type { InitialSource } from "./suggest-local-name";
+  import { parseRemoteBranch } from "./parse-remote-branch";
   import {
     branches,
     branchesLoading,
@@ -25,7 +26,7 @@
   } from "../../stores/branches";
   import { remotes, refreshRemotes } from "../../stores/remotes";
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
-  import { rebaseBranch, pushRemote } from "../../api/tauri";
+  import { rebaseBranch, pushRemote, deleteRemoteBranch } from "../../api/tauri";
   import { runMutation } from "../../api/runMutation";
   import type { BranchInfo } from "../../types";
 
@@ -121,6 +122,17 @@
   let forceDelete = $state(false);
   let confirmRebase = $state<string | null>(null);
   let confirmForcePush = $state<{ remote: string; branch: string } | null>(null);
+  /**
+   * Remote-branch deletion confirmation. The two fields hold the parsed
+   * `<remote>/<branch>` split so the modal can show a clear "delete X
+   * on Y" message and the IPC call passes the right pieces. `null`
+   * means the dialog is closed.
+   */
+  let confirmDeleteRemote = $state<{
+    remote: string;
+    branch: string;
+    fullPath: string;
+  } | null>(null);
 
   // Rename dialog state — mounted locally so it has access to branch context
   let renameDialogOpen = $state(false);
@@ -129,6 +141,25 @@
   function openRenameDialog(name: string) {
     renameTarget = name;
     renameDialogOpen = true;
+  }
+
+  /**
+   * Trigger the remote branch deletion task. The task streams output
+   * through the standard task drawer and the watcher picks up the
+   * pruned `refs/remotes/<remote>/<branch>` to refresh the list.
+   */
+  async function doDeleteRemoteBranch(remote: string, branch: string) {
+    try {
+      await runMutation({
+        kind: "remote_branch_delete",
+        invoke: () => deleteRemoteBranch(remote, branch),
+        successToast: () => `Deleted ${remote}/${branch}`,
+        failureToastPrefix: "Remote branch delete failed",
+        trackAsTask: true,
+      });
+    } catch {
+      // runMutation already surfaced the toast.
+    }
   }
 
   /**
@@ -212,6 +243,17 @@
           confirmDelete = contextBranch;
         },
       });
+    }
+    if (contextIsRemote) {
+      const parsed = parseRemoteBranch(contextBranch);
+      if (parsed) {
+        items.push({
+          label: "Delete on remote",
+          action: () => {
+            confirmDeleteRemote = { ...parsed, fullPath: contextBranch };
+          },
+        });
+      }
     }
     if (!contextIsRemote && $remotes.length > 0) {
       items.push({ separator: true });
@@ -436,6 +478,22 @@
       await doPush(remote, branch, true);
     }}
     onCancel={() => (confirmForcePush = null)}
+  />
+{/if}
+
+{#if confirmDeleteRemote !== null}
+  <ConfirmDialog
+    title="Delete branch on remote"
+    detail={confirmDeleteRemote.fullPath}
+    message={`This will delete branch "${confirmDeleteRemote.branch}" on remote "${confirmDeleteRemote.remote}". The branch is removed for everyone using this remote and cannot be undone from BeardGit.`}
+    confirmLabel="Delete on remote"
+    destructive={true}
+    onConfirm={async () => {
+      const { remote, branch } = confirmDeleteRemote!;
+      confirmDeleteRemote = null;
+      await doDeleteRemoteBranch(remote, branch);
+    }}
+    onCancel={() => (confirmDeleteRemote = null)}
   />
 {/if}
 

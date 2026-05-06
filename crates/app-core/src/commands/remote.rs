@@ -113,6 +113,45 @@ pub async fn push_remote(
     Ok(id)
 }
 
+/// Delete a branch on a remote as a background task.
+///
+/// Spawns `git push <remote> --delete <branch>` via the task manager and
+/// returns immediately with the task ID. Output streams to the tasks
+/// drawer the same way as other network ops. The local remote-tracking
+/// ref (`refs/remotes/<remote>/<branch>`) is pruned by git itself when
+/// the push succeeds; the watcher picks up the ref change and the branch
+/// list refreshes through the usual `project-mutated` fan-out.
+///
+/// `branch` is the branch name on the remote (e.g. `feature/foo`),
+/// **not** the qualified `<remote>/<branch>` form the UI shows in the
+/// remote-branches list. The frontend strips the remote prefix before
+/// invoking this command (see `BranchList.svelte::parseRemoteBranch`).
+#[tauri::command]
+#[instrument(skip(state, task_manager), name = "cmd::remote::delete_branch")]
+pub async fn delete_remote_branch(
+    remote: String,
+    branch: String,
+    state: State<'_, AppState>,
+    task_manager: State<'_, Arc<TaskManager>>,
+) -> Result<TaskId, String> {
+    let cwd = get_active_project_path(&state)?;
+
+    let label = format!("Delete {}/{}", remote, branch);
+    let id = task_manager
+        .spawn_with_options(SpawnOptions {
+            label,
+            command: "git",
+            args: &["push", &remote, "--delete", &branch],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::GitPush,
+            stdin: None,
+        })
+        .await;
+
+    Ok(id)
+}
+
 /// Renames a remote in the active repository.
 ///
 /// Equivalent to `git remote rename <old_name> <new_name>`. Returns an error

@@ -116,6 +116,20 @@ impl CredentialFile {
             AuthError::CredentialFile(format!("Failed to write {}: {e}", self.path.display()))
         })?;
 
+        // Tighten the file mode on Unix so other local users cannot read the
+        // ciphertext. The encryption is sound on its own, but the machine ID
+        // used to derive the key is also readable by every local user, so a
+        // 0644 file is effectively a same-user binding rather than a same-
+        // machine binding. 0600 closes that gap.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(
+                &self.path,
+                std::fs::Permissions::from_mode(0o600),
+            );
+        }
+
         Ok(())
     }
 }

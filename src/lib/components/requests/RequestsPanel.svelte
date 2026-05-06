@@ -15,12 +15,15 @@
   `refs/`, `HEAD`, and the working tree's status, not about arbitrary
   files inside `.beardgit/`). To keep the tree fresh when the user
   deletes/renames the folder from a terminal — or any other external
-  edit lands underneath — we run a 2 s `setInterval` while the panel
+  edit lands underneath — we run a 10 s `setInterval` while the panel
   is mounted that re-fetches `requests_list_project`. When the file
   count or paths change we bump `treeReloadSignal` so `CollectionsTree`
   re-renders, and if the file backing `currentSource` has disappeared
   we null the source so the editor switches back to `SeedPrompt`
-  rather than displaying a stale doc.
+  rather than displaying a stale doc. The interval used to be 2 s,
+  but external edits are infrequent and the IPC noise was disruptive
+  during dev — 10 s keeps the UX responsive without spamming the
+  command tree.
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
@@ -106,7 +109,7 @@
     void pollProjectTree();
     pollHandle = setInterval(() => {
       void pollProjectTree();
-    }, 2000);
+    }, 10000);
   });
 
   onDestroy(() => {

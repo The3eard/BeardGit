@@ -30,10 +30,23 @@ use crate::error::AuthError;
 use crate::machine_key;
 
 /// A stored credential: an authentication token paired with its provider type.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// `Debug` is implemented manually to redact the token — without that a stray
+/// `tracing::debug!(?cred)` or `dbg!(cred)` somewhere downstream would write
+/// the raw PAT into the rotating log file.
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Credential {
     pub token: String,
     pub provider: ProviderKind,
+}
+
+impl std::fmt::Debug for Credential {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Credential")
+            .field("token", &"[REDACTED]")
+            .field("provider", &self.provider)
+            .finish()
+    }
 }
 
 /// Encrypted credential store backed by `~/.config/beardgit/credentials.enc`.

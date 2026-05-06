@@ -5,11 +5,22 @@ use ::provider::http_helpers;
 use serde::de::DeserializeOwned;
 
 /// Async HTTP client authenticated against a GitLab instance via a Personal Access Token.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GitLabClient {
     http: reqwest::Client,
     base_url: String,
     token: String,
+}
+
+// Custom Debug that redacts the PRIVATE-TOKEN. Without this a `tracing::debug!(?client)`
+// or accidental `dbg!` would leak the PAT into log files.
+impl std::fmt::Debug for GitLabClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GitLabClient")
+            .field("base_url", &self.base_url)
+            .field("token", &"[REDACTED]")
+            .finish()
+    }
 }
 
 /// Errors that can be returned by any [`GitLabClient`] request.
@@ -34,20 +45,21 @@ pub enum ApiError {
 impl GitLabClient {
     /// Create a new client targeting `base_url` authenticated with `token`.
     ///
-    /// Invalid TLS certificates are accepted to support self-hosted instances with
-    /// self-signed certificates; the PAT is relied upon for authentication.
+    /// TLS validation is strict for the public cloud (`gitlab.com`) so a
+    /// MITM on the same network cannot swap in a fake cert and capture the
+    /// PAT. For self-hosted CE/EE instances with private/self-signed certs
+    /// the client opts into accepting invalid certs.
     pub fn new(base_url: &str, token: &str) -> Self {
-        // Accept invalid certs for self-hosted GitLab instances with
-        // internal/self-signed certificates. The PAT validates the connection.
-        let http = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
+        let trimmed = http_helpers::trim_base_url(base_url);
+        let mut builder = reqwest::Client::builder().timeout(std::time::Duration::from_secs(30));
+        if http_helpers::should_accept_invalid_certs(trimmed) {
+            builder = builder.danger_accept_invalid_certs(true);
+        }
+        let http = builder.build().unwrap_or_else(|_| reqwest::Client::new());
 
         Self {
             http,
-            base_url: http_helpers::trim_base_url(base_url).to_string(),
+            base_url: trimmed.to_string(),
             token: token.to_string(),
         }
     }

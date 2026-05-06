@@ -52,11 +52,11 @@ pub async fn validate_gitlab_pat(
     token: &str,
 ) -> Result<ProviderUser, AuthError> {
     let url = format!("{}/api/v4/user", instance_url.trim_end_matches('/'));
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new());
+    let mut builder = reqwest::Client::builder().timeout(std::time::Duration::from_secs(30));
+    if provider::http_helpers::should_accept_invalid_certs(instance_url) {
+        builder = builder.danger_accept_invalid_certs(true);
+    }
+    let client = builder.build().unwrap_or_else(|_| reqwest::Client::new());
 
     let response = client
         .get(&url)
@@ -102,11 +102,13 @@ pub async fn validate_github_pat(
 ) -> Result<ProviderUser, AuthError> {
     let base = github_api::GitHubClient::normalize_url(instance_url);
     let url = format!("{}/user", base);
-    let client = reqwest::Client::builder()
+    let mut builder = reqwest::Client::builder()
         .user_agent("BeardGit")
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new());
+        .timeout(std::time::Duration::from_secs(30));
+    if provider::http_helpers::should_accept_invalid_certs(&base) {
+        builder = builder.danger_accept_invalid_certs(true);
+    }
+    let client = builder.build().unwrap_or_else(|_| reqwest::Client::new());
 
     let response = client
         .get(&url)
