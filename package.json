@@ -14,6 +14,7 @@
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "build:og": "node scripts/build-og.mjs",
+    "build:favicons": "node scripts/build-favicons.mjs",
     "tauri": "tauri",
     "lint:style": "stylelint \"src/**/*.{css,svelte}\"",
     "lint:js": "eslint \"src/**/*.{ts,svelte}\"",
