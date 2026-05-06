@@ -13,6 +13,10 @@
   --brand-green: #3FB950;
   --brand-blue: #2F81F7;
 
+  /* Type stack — Satoshi (Indian Type Foundry) for everything except mono. */
+  --font-sans: "Satoshi", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+
   /* Semantic tokens — default to DARK (GitHub dark + BeardGit orange) */
   --bg: #0D1117;
   --bg-elev: #161B22;
@@ -116,7 +120,7 @@
 html, body { margin: 0; padding: 0; }
 
 html {
-  font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 16px;
   line-height: 1.55;
   background: var(--bg);
@@ -178,16 +182,16 @@ body::after {
 
 /* ---------- Typography ---------- */
 h1, h2, h3, h4 {
-  font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
+  font-family: var(--font-sans);
   font-weight: 500;
   font-variation-settings: "opsz" 144, "SOFT" 30;
   letter-spacing: -0.01em;
   margin: 0;
 }
 .italic { font-style: italic; font-variation-settings: "opsz" 144, "SOFT" 100; }
-.mono { font-family: "Fira Code", ui-monospace, monospace; font-feature-settings: "liga" 1, "calt" 1; }
+.mono { font-family: var(--font-mono); font-feature-settings: "liga" 1, "calt" 1; }
 .eyebrow {
-  font-family: "Fira Code", monospace;
+  font-family: var(--font-mono);
   text-transform: uppercase;
   font-size: 0.72rem;
   letter-spacing: 0.18em;
@@ -253,7 +257,7 @@ section + section { border-top: 1px solid var(--rule); }
   }
 }
 
-.brand-name { font-family: "Fraunces", serif; font-weight: 500; font-size: 1.05rem; letter-spacing: -0.01em; }
+.brand-name { font-family: var(--font-sans); font-weight: 500; font-size: 1.05rem; letter-spacing: -0.01em; }
 .brand-version { color: var(--fg-muted); font-size: 0.72rem; letter-spacing: 0.12em; }
 .nav-links { display: flex; gap: 1.6rem; }
 .nav-links a { border: none; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-dim); }
@@ -301,6 +305,7 @@ section + section { border-top: 1px solid var(--rule); }
 
 .hero-title {
   font-size: clamp(3rem, 8.2vw, 7.2rem);
+  font-weight: 700;
   line-height: 0.95;
   letter-spacing: -0.035em;
   margin-bottom: 1.5rem;
@@ -400,7 +405,7 @@ section + section { border-top: 1px solid var(--rule); }
   padding-top: 1.6rem;
   border-top: 1px solid var(--rule);
 }
-.stat-num { font-family: "Fraunces", serif; font-size: clamp(1.6rem, 2.4vw, 2.2rem); line-height: 1; color: var(--fg); }
+.stat-num { font-family: var(--font-sans); font-size: clamp(1.6rem, 2.4vw, 2.2rem); line-height: 1; color: var(--fg); }
 .stat-num .italic { color: var(--accent); }
 .stat-lbl { color: var(--fg-muted); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; margin-top: 0.4rem; }
 
@@ -443,14 +448,14 @@ section + section { border-top: 1px solid var(--rule); }
 .edge.accent { stroke: var(--accent); animation-delay: 0.6s; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 
-.graph-label { font-family: "Fira Code", monospace; font-size: 11px; fill: var(--fg-dim); }
-.graph-hash { font-family: "Fira Code", monospace; font-size: 10px; fill: var(--fg-muted); letter-spacing: 0.05em; }
+.graph-label { font-family: var(--font-mono); font-size: 11px; fill: var(--fg-dim); }
+.graph-hash { font-family: var(--font-mono); font-size: 10px; fill: var(--fg-muted); letter-spacing: 0.05em; }
 
 /* ---------- Manifesto ---------- */
 .manifesto { display: grid; grid-template-columns: 1fr 2fr; gap: clamp(2rem, 5vw, 5rem); }
 .manifesto-label { border-top: 2px solid var(--fg); padding-top: 0.8rem; }
 .manifesto-body {
-  font-family: "Fraunces", serif;
+  font-family: var(--font-sans);
   font-size: clamp(1.35rem, 2vw, 1.9rem);
   line-height: 1.35;
   letter-spacing: -0.01em;
@@ -460,13 +465,13 @@ section + section { border-top: 1px solid var(--rule); }
 .manifesto-body strong { color: var(--fg); font-weight: 500; }
 .manifesto-body .italic { color: var(--accent); }
 .manifesto-body::first-letter {
-  font-family: "Fraunces", serif;
-  font-style: italic;
-  font-size: 4.4em;
-  line-height: 0.85;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 3.6em;
+  line-height: 0.9;
   float: left;
-  padding: 0.08em 0.28em 0 0;
-  margin-right: 0.08em;
+  padding: 0.12em 0.18em 0 0;
+  margin-right: 0.05em;
   shape-outside: margin-box;
   color: var(--accent);
 }
@@ -475,53 +480,68 @@ section + section { border-top: 1px solid var(--rule); }
 .section-head { display: flex; justify-content: space-between; align-items: end; gap: 2rem; margin-bottom: 3rem; flex-wrap: wrap; }
 .section-head h2 {
   font-size: clamp(2rem, 4.2vw, 3.6rem);
+  font-weight: 700;
   line-height: 1;
   letter-spacing: -0.025em;
-  max-width: 14ch;
+  text-wrap: balance;
 }
 .section-head .italic { color: var(--accent); }
-.section-head-meta { color: var(--fg-muted); font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; }
+.section-head-meta {
+  color: var(--fg-dim);
+  font-size: 0.95rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  background: var(--rule);
+  /* Auto-fit lets the grid breathe from 1 to 4 columns based on viewport.
+     min(260px, 100%) prevents overflow on viewports narrower than the
+     min track width (e.g. 320px phones). At ~1264px content width the
+     grid resolves to 4 columns × 2 rows and all 8 cards fit at once. */
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   border: 1px solid var(--rule);
   border-radius: 12px;
   overflow: hidden;
+  background: var(--bg);
 }
 .feature {
-  padding: clamp(1.5rem, 2.4vw, 2.2rem);
+  padding: clamp(1.1rem, 1.6vw, 1.5rem) clamp(1.2rem, 1.8vw, 1.6rem);
   background: var(--bg);
-  min-height: 260px;
   min-width: 0;
   position: relative;
   transition: background .25s;
   display: flex;
   flex-direction: column;
+  /* Cell separators via box-shadow so adjacent cells share a single
+     1px line and an incomplete last row leaves no orphan rules. The
+     container's overflow:hidden + border clips outer edges. */
+  box-shadow:
+    1px 0 0 var(--rule),
+    0 1px 0 var(--rule);
 }
 /* legacy modifiers neutralised — grid is uniform now */
 .feature.wide,
-.feature.tall { grid-column: auto; grid-row: auto; min-height: 260px; }
+.feature.tall { grid-column: auto; grid-row: auto; }
 .feature:hover { background: var(--bg-elev); }
-.feature-num { font-family: "Fira Code", monospace; font-size: 0.72rem; color: var(--fg-muted); letter-spacing: 0.14em; }
-.feature-title { font-family: "Fraunces", serif; font-size: clamp(1.35rem, 2vw, 1.7rem); line-height: 1.15; margin: 0.5rem 0 0.8rem; }
+.feature-num { font-family: var(--font-mono); font-size: 0.66rem; color: var(--fg-muted); letter-spacing: 0.16em; }
+.feature-title { font-family: var(--font-sans); font-weight: 500; font-size: clamp(1rem, 1.3vw, 1.15rem); line-height: 1.3; margin: 0.35rem 0 0.45rem; letter-spacing: -0.01em; padding-right: 2rem; }
 .feature-title .italic { color: var(--accent); }
-.feature-body { color: var(--fg-dim); font-size: 0.92rem; line-height: 1.55; }
+.feature-body { color: var(--fg-dim); font-size: 0.84rem; line-height: 1.5; }
 .feature-icon {
   position: absolute;
-  top: clamp(1.5rem, 2.4vw, 2.2rem);
-  right: clamp(1.5rem, 2.4vw, 2.2rem);
+  top: clamp(1.1rem, 1.6vw, 1.5rem);
+  right: clamp(1.2rem, 1.8vw, 1.6rem);
   color: var(--fg-muted);
   transition: color .25s, transform .4s cubic-bezier(.2,.7,.3,1);
 }
-.feature-icon svg { width: 32px; height: 32px; }
+.feature-icon svg { width: 22px; height: 22px; }
 .feature:hover .feature-icon { color: var(--accent); transform: rotate(6deg) scale(1.1); }
 
 .feature pre {
   margin: 1rem 0 0;
-  font-family: "Fira Code", monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   background: var(--code-bg);
   color: var(--code-fn);
@@ -569,7 +589,7 @@ section + section { border-top: 1px solid var(--rule); }
 .mock-item.active { background: var(--mock-active); color: var(--accent); border-left: 2px solid var(--accent); padding-left: calc(1rem - 2px); }
 .mock-item .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: 0.7; flex-shrink: 0; }
 
-.mock-graph { padding: 0.8rem 1rem; font-family: "Fira Code", monospace; font-size: 0.74rem; color: var(--mock-text); }
+.mock-graph { padding: 0.8rem 1rem; font-family: var(--font-mono); font-size: 0.74rem; color: var(--mock-text); }
 .mock-graph-row { display: grid; grid-template-columns: 70px 1fr auto; gap: 0.8rem; padding: 0.28rem 0; align-items: center; }
 .mock-graph-row .glyph { color: var(--fg-muted); white-space: pre; }
 .mock-graph-row.hl { background: var(--mock-active); }
@@ -577,7 +597,7 @@ section + section { border-top: 1px solid var(--rule); }
 .mock-graph-row .msg { color: var(--mock-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mock-graph-row .tag { font-size: 0.62rem; padding: 1px 6px; border: 1px solid var(--accent); color: var(--accent); letter-spacing: 0.08em; }
 
-.mock-diff { padding: 0.8rem 0; font-family: "Fira Code", monospace; font-size: 0.72rem; line-height: 1.6; color: var(--mock-text); }
+.mock-diff { padding: 0.8rem 0; font-family: var(--font-mono); font-size: 0.72rem; line-height: 1.6; color: var(--mock-text); }
 .mock-diff-row { padding: 0 1rem; display: grid; grid-template-columns: 34px 1fr; gap: 0.9rem; }
 .mock-diff-row .ln { color: var(--mock-text-dim); text-align: right; }
 .mock-diff-row.add { background: rgba(123, 170, 102, 0.10); }
@@ -617,7 +637,10 @@ section + section { border-top: 1px solid var(--rule); }
 
 .screenshot-strip {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Same auto-fit pattern as the features grid: 1→2→3 columns based
+     on viewport. Five figures (graph, AI, forge, requests, editor)
+     fall on whichever columns the viewport allows. */
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 1rem;
   margin-top: 1.5rem;
 }
@@ -676,7 +699,7 @@ section + section { border-top: 1px solid var(--rule); }
 .mock-fallback > summary {
   cursor: pointer;
   color: var(--fg-muted);
-  font-family: "Fira Code", monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -712,9 +735,9 @@ section + section { border-top: 1px solid var(--rule); }
 .install-card:hover { background: var(--bg-elev); }
 .install-os { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.5rem; }
 .install-os svg { width: 22px; height: 22px; color: var(--fg-muted); }
-.install-os-name { font-family: "Fraunces", serif; font-size: 1.5rem; }
+.install-os-name { font-family: var(--font-sans); font-size: 1.5rem; }
 .install-arch { color: var(--fg-muted); font-size: 0.78rem; letter-spacing: 0.08em; margin-bottom: 1.2rem; text-transform: uppercase; }
-.install-arch code { color: var(--accent); font-family: "Fira Code", monospace; }
+.install-arch code { color: var(--accent); font-family: var(--font-mono); }
 .install-link {
   display: inline-flex; align-items: center; gap: 0.4rem;
   border: 1px solid var(--accent);
@@ -760,7 +783,7 @@ section + section { border-top: 1px solid var(--rule); }
   overflow-y: hidden;
   scrollbar-width: thin;
   padding: 0.7rem 0.9rem;
-  font-family: "Fira Code", monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   color: var(--code-fn);
   white-space: nowrap;
@@ -854,7 +877,7 @@ section + section { border-top: 1px solid var(--rule); }
   align-items: center; justify-content: center;
   width: 28px; height: 28px;
   border-radius: 50%;
-  font-family: "Fraunces", serif;
+  font-family: var(--font-sans);
   font-style: italic;
   font-size: 1rem;
   line-height: 1;
@@ -871,7 +894,7 @@ section + section { border-top: 1px solid var(--rule); }
 }
 .audience-title {
   margin: 0;
-  font-family: "Fraunces", serif;
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 1.15rem;
   letter-spacing: -0.01em;
@@ -931,7 +954,7 @@ section + section { border-top: 1px solid var(--rule); }
   content: "</>";
   position: absolute;
   right: -30px; bottom: -50px;
-  font-family: "Fraunces", serif;
+  font-family: var(--font-sans);
   font-size: 18rem;
   font-style: italic;
   color: var(--accent);
@@ -949,7 +972,7 @@ section + section { border-top: 1px solid var(--rule); }
 /* ---------- Footer ---------- */
 footer { border-top: 1px solid var(--rule); padding: 3rem 0 4rem; }
 .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 2rem; }
-.footer-col h4 { font-family: "Fira Code", monospace; font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--fg-muted); margin-bottom: 1rem; font-weight: 400; }
+.footer-col h4 { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--fg-muted); margin-bottom: 1rem; font-weight: 400; }
 .footer-col ul { list-style: none; padding: 0; margin: 0; }
 .footer-col li { margin-bottom: 0.55rem; }
 .footer-col a { border: none; color: var(--fg-dim); font-size: 0.88rem; }
@@ -987,7 +1010,7 @@ footer { border-top: 1px solid var(--rule); padding: 3rem 0 4rem; }
   padding: clamp(1.4rem, 2.4vw, 2rem);
 }
 .shortcut-group-title {
-  font-family: "Fira Code", monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -1015,7 +1038,7 @@ footer { border-top: 1px solid var(--rule); padding: 3rem 0 4rem; }
   justify-content: center;
   min-width: 1.6rem;
   padding: 0.18rem 0.45rem;
-  font-family: "Fira Code", monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   line-height: 1;
   color: var(--fg);
@@ -1041,7 +1064,7 @@ footer { border-top: 1px solid var(--rule); padding: 3rem 0 4rem; }
   align-items: center;
   gap: 1.5rem;
   padding: 1.4rem 0;
-  font-family: "Fraunces", "Iowan Old Style", Georgia, serif;
+  font-family: var(--font-sans);
   font-weight: 500;
   font-variation-settings: "opsz" 144, "SOFT" 30;
   font-size: clamp(1.15rem, 1.6vw, 1.4rem);
@@ -1051,7 +1074,7 @@ footer { border-top: 1px solid var(--rule); padding: 3rem 0 4rem; }
 .faq-item > summary::-webkit-details-marker { display: none; }
 .faq-item > summary::after {
   content: "+";
-  font-family: "Fira Code", monospace;
+  font-family: var(--font-mono);
   font-size: 1.3rem;
   color: var(--accent);
   flex-shrink: 0;
@@ -1068,9 +1091,9 @@ footer { border-top: 1px solid var(--rule); padding: 3rem 0 4rem; }
   line-height: 1.65;
   max-width: 72ch;
 }
-.faq-body code { color: var(--accent); font-family: "Fira Code", monospace; font-size: 0.88em; }
+.faq-body code { color: var(--accent); font-family: var(--font-mono); font-size: 0.88em; }
 .faq-body em {
-  font-family: "Fraunces", serif;
+  font-family: var(--font-sans);
   font-style: italic;
   color: var(--fg);
 }
@@ -1090,9 +1113,10 @@ html.js-reveal .reveal.in { opacity: 1; transform: none; }
                install commands allowed to scroll horizontally, lightbox
                suppressed in favour of native anchor behaviour. */
 @media (max-width: 900px) {
-  /* All grid sections collapse to a single column. */
+  /* Other grids still collapse to one column at this breakpoint;
+     .features-grid and .screenshot-strip use auto-fit and breathe on
+     their own, so they're intentionally absent here. */
   .hero-grid,
-  .features-grid,
   .install-grid,
   .shortcuts-grid,
   .footer-grid {
@@ -1100,15 +1124,9 @@ html.js-reveal .reveal.in { opacity: 1; transform: none; }
     gap: 24px;
   }
 
-  /* Screenshot strip (fig. 02–04) stacks too — at portrait widths the
-     three-up grid squeezes each shot below the legibility threshold. */
-  .screenshot-strip {
-    grid-template-columns: 1fr;
-    gap: 1.2rem;
-  }
   /* The .small slot's 4/3 aspect ratio is fine portrait-side, but the
-     min-height clamp was tuned for the desktop column width — drop it so
-     the slot height tracks the new wider single-column layout instead of
+     min-height clamp was tuned for the desktop column width — drop it
+     so the slot height tracks the auto-fit column layout instead of
      forcing a tiny letterbox. */
   .screenshot-slot.small { min-height: 0; }
 
