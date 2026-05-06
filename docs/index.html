@@ -32,7 +32,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,144,500,30..100;1,144,500,30..100&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400..700;1,400..700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/styles.css" />
 
   <script type="application/ld+json">
@@ -110,12 +110,10 @@
           </h1>
 
           <p class="hero-sub reveal mono">
-            Graph, branches, staging, <strong style="color:var(--fg)">PRs &amp; MRs</strong>, issues,
-            <strong style="color:var(--fg)">CI/CD pipelines</strong>, releases, terminals,
+            Graph, <strong style="color:var(--fg)">PRs &amp; MRs</strong>, CI/CD, issues, releases, terminals,
             <strong style="color:var(--fg)">AI agents</strong>, an in-repo
-            <strong style="color:var(--fg)">.http request workspace</strong>, and an
-            <strong style="color:var(--fg)">in-app code editor</strong> — in a single native app. Stop jumping
-            between GitHub, GitLab, the terminal, Postman, VS Code, and three other clients just to ship a commit.
+            <strong style="color:var(--fg)">.http workspace</strong>, and an
+            <strong style="color:var(--fg)">in-app editor</strong> — in one native app.
           </p>
 
           <div class="cta-row reveal">
@@ -219,12 +217,9 @@
         <div class="manifesto-body reveal">
           You ship code from <strong>one keyboard</strong>, not seventeen tabs. BeardGit is built on a simple
           premise: <span class="italic">everything you touch to release a change should live in one app.</span>
-          Your commit graph. Your branches. Your staging. Your pull requests and merge requests on
-          <strong>GitHub and GitLab</strong>. Your CI pipelines and deploy jobs. Your issues, labels, and releases.
-          Your terminals. Your AI agents. Your <strong>API requests</strong>, committed alongside the code that
-          calls them. <strong>Your repo files</strong>, edited in place — open any file row, type, save, stage in
-          one keystroke. Close the browser tabs. Close the other clients. BeardGit is the
-          <strong>one window</strong> you keep open.
+          Graph. Branches. Staging. <strong>PRs &amp; MRs</strong> on GitHub and GitLab. CI. Issues. Releases.
+          Terminals. <strong>AI agents</strong>. Your API requests, committed next to the code. Your repo files,
+          edited in place. Close the other clients — BeardGit is the <strong>one window</strong> you keep open.
         </div>
       </div>
     </div>
@@ -252,7 +247,7 @@
           </div>
           <div class="feature-num">01 / 08</div>
           <h3 class="feature-title">A <span class="italic">canvas graph</span> that scales.</h3>
-          <p class="feature-body">100K+ commits render smoothly via a viewport-sliced renderer. Branch lanes, merge curves, sync-state lines, and author highlighting — all on HTML canvas, not DOM. Tip: <code class="mono">⌘F</code> filters by author, message, or ref; the graph re-lays out lanes only for the matches.</p>
+          <p class="feature-body">100K+ commits render smoothly. Branch lanes, merge curves, sync-state lines, and author highlighting — all on HTML canvas, not DOM. <code class="mono">⌘F</code> filters by author, message, or ref.</p>
         </div>
 
         <div class="feature reveal">
@@ -265,7 +260,7 @@
           </div>
           <div class="feature-num">02 / 08</div>
           <h3 class="feature-title">Multi-repo <span class="italic">tabs</span>.</h3>
-          <p class="feature-body">Every repository is a tab. Heavy state — repo, layout, file watcher — loads only for the active tab; background tabs keep just their metadata, so a dozen open repos cost the same as one. <code class="mono">⌘1…⌘9</code> jumps between them.</p>
+          <p class="feature-body">Every repo is a tab. Heavy state loads only for the active one — a dozen open repos cost the same as one. <code class="mono">⌘1…⌘9</code> jumps between them.</p>
         </div>
 
         <div class="feature reveal">
@@ -281,7 +276,7 @@
           </div>
           <div class="feature-num">03 / 08</div>
           <h3 class="feature-title">Forge-native for <span class="italic">GitHub + GitLab</span>.</h3>
-          <p class="feature-body">Create, edit, merge, approve, and comment on PRs/MRs with inline review threads. Manage issues, labels, milestones, assignees. Trigger / retry / cancel pipelines. Publish releases. Edit repo settings (description, visibility, branch protection, labels) — without leaving the app. Self-hosted GitHub Enterprise and on-prem GitLab work too. <code class="mono">gh</code> and <code class="mono">glab</code> ship bundled.</p>
+          <p class="feature-body">Full PR/MR lifecycle with inline review threads. Issues, pipelines, releases, repo settings — without leaving the app. Self-hosted GitHub Enterprise and on-prem GitLab too. <code class="mono">gh</code> and <code class="mono">glab</code> bundled.</p>
         </div>
 
         <div class="feature tall reveal">
@@ -294,7 +289,7 @@
           </div>
           <div class="feature-num">04 / 08</div>
           <h3 class="feature-title">Your own AI CLI, in a <span class="italic">worktree</span>.</h3>
-          <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh git worktree — no terminal, no key juggling. You keep the CLI you already configured; the app just spawns it, queues runs at a configurable concurrency cap, and pipes the transcript back in-app. Tip: every run lands on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch you can review, merge, or discard. More providers will follow.</p>
+          <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh worktree — no terminal, no key juggling. Each run lands on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch you can review, merge, or discard.</p>
 <pre><span class="cm"># Cmd+Shift+A — pick prompt + provider + worktree root</span>
 <span class="kw">AiBackgroundCoordinator</span>::queue(run) <span class="cm">// FIFO</span>
   .launch(<span class="str">"claude-code"</span>, <span class="str">"--print --stream-json"</span>)
@@ -312,7 +307,7 @@
           </div>
           <div class="feature-num">05 / 08</div>
           <h3 class="feature-title">Visual <span class="italic">bisect</span>.</h3>
-          <p class="feature-body">Pick the good commit, pick the bad commit, step through with buttons. The auto-bisect mode runs your test command at every step and resolves "good" or "bad" without you watching. Pairs with the bundled CLIs and the AI worktree flow — no terminal juggling.</p>
+          <p class="feature-body">Pick the good commit, pick the bad commit, step through with buttons. Auto-mode runs your test command at every step and resolves it without you watching.</p>
         </div>
 
         <div class="feature reveal">
@@ -325,7 +320,7 @@
           </div>
           <div class="feature-num">06 / 08</div>
           <h3 class="feature-title">Bundled <span class="italic">CLIs</span>.</h3>
-          <p class="feature-body"><code class="mono">gh</code> and <code class="mono">glab</code> ship inside every installer. No PATH setup. Run them in a real PTY terminal inside the app (xterm.js + WebGL), or let BeardGit call them for you on every PR / pipeline / release action.</p>
+          <p class="feature-body"><code class="mono">gh</code> and <code class="mono">glab</code> ship inside every installer. No PATH setup. Run them in a real PTY terminal — or let BeardGit call them for you.</p>
         </div>
 
         <div class="feature reveal">
@@ -338,7 +333,7 @@
           </div>
           <div class="feature-num">07 / 08</div>
           <h3 class="feature-title">An in-app <span class="italic">code editor</span>.</h3>
-          <p class="feature-body">Edit repo files without leaving BeardGit. CodeMirror 6 with per-language snippets (Rust, TS / JS, Python, Go), keyword completion, JSON lint with rules for <code class="mono">package.json</code> and <code class="mono">tsconfig.json</code>, inline color pickers in CSS, indent guides, and a gitignore-aware file tree. Save writes to disk; <code class="mono">⇧ Save</code> also stages it for the next commit. Tip: right-click any file row in Changes, Branches, or Reflog and pick <strong>Open in editor</strong> to jump straight to it.</p>
+          <p class="feature-body">CodeMirror 6 with per-language snippets, keyword completion, JSON lint, inline color pickers, and a gitignore-aware tree. Save writes to disk; <code class="mono">⇧ Save</code> also stages for the next commit.</p>
         </div>
 
         <div class="feature wide reveal">
@@ -353,7 +348,7 @@
           </div>
           <div class="feature-num">08 / 08</div>
           <h3 class="feature-title">An <span class="italic">.http</span> workspace, in your repo.</h3>
-          <p class="feature-body">Your API requests live next to the code that calls them. Plain <code class="mono">.http</code> files under <code class="mono">.beardgit/requests/</code>, committed with the rest of the project, so a <code class="mono">git pull</code> shares them with the team. Environments split into commit-safe <code class="mono">_env/&lt;name&gt;.json</code> files; secrets stay encrypted in the local credential store, never in git. JSON syntax highlighting, <code class="mono">{{var}}</code> autocomplete, response history with diff between any two runs, and Copy-as cURL / fetch / HTTPie / wget. Cancel actually cancels the in-flight request — the runtime tickets the run through the same task system as fetch / pull / push. Tip: pick "Load test set" on first open to seed nine working examples against JSONPlaceholder + httpbin.</p>
+          <p class="feature-body">Plain <code class="mono">.http</code> files under <code class="mono">.beardgit/requests/</code>, committed with the project — <code class="mono">git pull</code> shares them with the team. Envs in commit-safe JSON, secrets encrypted locally. <code class="mono">{{var}}</code> autocomplete, response diff between any two runs, Copy-as cURL / fetch / HTTPie.</p>
 <pre><span class="cm"># .beardgit/requests/users/get.http</span>
 <span class="kw">GET</span> {{base_url}}/users/{{user_id}}
 <span class="kw">Authorization:</span> Bearer {{api_token}}</pre>
@@ -517,7 +512,7 @@
       </div>
 
       <p class="audience-lede mono reveal">
-        Five minutes from download to first commit. No accounts, no logins, no “BeardGit Cloud”. BeardGit doesn’t try to be every other client — it’s a deliberate choice for a specific kind of developer. If that’s you, you’ll feel it in the first hour.
+        Five minutes from download to first commit. No accounts, no cloud. A deliberate choice for a specific kind of developer.
       </p>
 
       <div class="audience-grid">
@@ -549,7 +544,7 @@
       </div>
 
       <p class="audience-foot mono reveal">
-        BeardGit is <strong>free and source-available</strong>. The CC&nbsp;BY-NC-SA license blocks reselling BeardGit <em>itself</em> — using it commercially in your team is fine.
+        <strong>Free and source-available.</strong> CC&nbsp;BY-NC-SA blocks reselling BeardGit itself; commercial team use is fine.
       </p>
     </div>
   </section>
@@ -609,7 +604,7 @@
       </div>
 
       <p class="install-lede mono reveal">
-        Builds are currently <strong>unsigned</strong>, so your OS will block the first launch. Grab the installer for your platform, <strong>approve the app manually once</strong>, and it runs like any other native app. The per-platform workarounds below are temporary and will go away as soon as code-signing is in place. <span class="mono">gh</span> and <span class="mono">glab</span> ship bundled — no PATH setup.
+        Builds are <strong>unsigned</strong>, so your OS blocks the first launch. <strong>Approve the app once</strong> and it runs native. <span class="mono">gh</span> and <span class="mono">glab</span> ship bundled. Code-signing is on the roadmap.
       </p>
 
       <div class="install-grid">
@@ -696,28 +691,28 @@
         <details class="faq-item reveal">
           <summary>Why is the app unsigned?</summary>
           <div class="faq-body">
-            Code-signing certificates for macOS and Windows cost real money per year, and BeardGit is a one-person project shipping a beta. Until that changes, every build is unsigned and your OS will block first launch. The per-platform workaround in <a href="#install">§&nbsp;06</a> takes a single command. Signing is on the roadmap.
+            Signing certificates cost real money per year and BeardGit is a one-person beta. Until that changes, your OS will block first launch — the workaround in <a href="#install">§&nbsp;06</a> is one command. Signing is on the roadmap.
           </div>
         </details>
 
         <details class="faq-item reveal">
           <summary>Where do my AI keys live?</summary>
           <div class="faq-body">
-            BeardGit doesn't manage keys. It drives <em>your local install</em> of <code class="mono">claude-code</code>, <code class="mono">codex</code>, or <code class="mono">opencode</code>, which already have their own auth in your home directory. The app spawns the CLI in a fresh worktree and pipes the transcript back — your tokens never touch BeardGit's storage.
+            BeardGit doesn't manage keys. It drives <em>your local install</em> of <code class="mono">claude-code</code>, <code class="mono">codex</code>, or <code class="mono">opencode</code>, which already have their own auth. Your tokens never touch BeardGit's storage.
           </div>
         </details>
 
         <details class="faq-item reveal">
           <summary>Why no Electron?</summary>
           <div class="faq-body">
-            Electron ships a Chromium runtime per app — ~150 MB of memory before you do anything. BeardGit is built on Tauri 2, which uses the OS's native webview (WebKit on macOS, WebView2 on Windows, WebKitGTK on Linux). The installer is small and the cold start is fast.
+            Electron ships a Chromium runtime per app — ~150 MB before you do anything. BeardGit is built on Tauri 2 and uses the OS's native webview. Small installer, fast cold start.
           </div>
         </details>
 
         <details class="faq-item reveal">
           <summary>How does it compare to GitKraken / Fork / Sourcetree / Tower?</summary>
           <div class="faq-body">
-            Honestly? BeardGit isn’t trying to beat any of them at being themselves. They’re mature commercial products with full-time teams; BeardGit is a deliberate, opinionated alternative for developers who want all the surface area of a release in one window — including AI agents in worktrees, an in-repo <code class="mono">.http</code> workspace, and an in-app code editor, none of which the others ship today. If you’re happy paying for one of those clients, stay there. If the trade-offs in <a href="#audience">§&nbsp;04 — Who it’s for</a> sound like you, give BeardGit an afternoon.
+            BeardGit isn’t trying to beat any of them at being themselves — they’re mature commercial products. BeardGit is the opinionated alternative for developers who want AI worktree runs, an in-repo <code class="mono">.http</code> workspace, and an in-app editor in the same window as the graph. See <a href="#audience">§&nbsp;04 — Who it’s for</a>.
           </div>
         </details>
 
@@ -738,7 +733,7 @@
         <details class="faq-item reveal">
           <summary>Is BeardGit really free?</summary>
           <div class="faq-body">
-            Yes — free to download, free to use, no account, no telemetry, no paywall. Use it on your own machine, at work, on as many repos as you like. The licence is <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>: the only thing it forbids is repackaging or reselling BeardGit itself as a commercial product, so the author keeps the right to do that down the line. Using it to earn money <em>with your code</em> is fine — that's the whole point.
+            Yes. Free to download and use, no account, no telemetry, no paywall. <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a> only forbids repackaging or reselling BeardGit itself — using it to earn money <em>with your code</em> is fine.
           </div>
         </details>
 
