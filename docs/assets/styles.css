@@ -371,6 +371,28 @@ section + section { border-top: 1px solid var(--rule); }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .btn svg { width: 16px; height: 16px; }
 
+/* Inline live-count badge inside a button (e.g. star count). Sits flush
+   to the right of the label and stays vertically centered. */
+.btn .btn-badge {
+  width: auto;
+  height: 18px;
+  margin-left: 0.15rem;
+  border-radius: 3px;
+  vertical-align: middle;
+  opacity: 0.95;
+  transition: opacity .18s;
+}
+.btn-star:hover .btn-badge { opacity: 1; }
+.btn-star svg { color: var(--accent); }
+
+/* Tiny line right under the hero CTAs — gentle nudge to star the repo. */
+.hero-microcta {
+  margin: 0 0 1.4rem;
+  color: var(--fg-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
 .hero-stats {
   display: grid;
   grid-template-columns: repeat(3, auto);
@@ -787,6 +809,112 @@ section + section { border-top: 1px solid var(--rule); }
 .install-copy:hover { color: var(--accent); border-color: var(--accent); background: var(--bg-panel); }
 .install-copy.copied { color: var(--brand-green); border-color: var(--brand-green); }
 .install-meta { color: var(--fg-muted); font-size: 0.75rem; margin-top: 1rem; letter-spacing: 0.04em; }
+
+/* ---------- Audience / Positioning ---------- */
+.audience-lede {
+  max-width: 70ch;
+  color: var(--fg-dim);
+  margin: 0 0 2.4rem;
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+.audience-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+.audience-card {
+  border: 1px solid var(--rule-strong);
+  border-radius: 12px;
+  padding: clamp(1.6rem, 3vw, 2.4rem);
+  background: linear-gradient(180deg, var(--bg-elev) 0%, var(--bg) 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  position: relative;
+  overflow: hidden;
+}
+.audience-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--rule-strong);
+  opacity: 0.6;
+  transition: background .25s, opacity .25s;
+}
+.audience-fit::after { background: var(--accent); opacity: 0.55; }
+.audience-fit:hover::after { opacity: 0.85; }
+.audience-skip::after { background: var(--fg-muted); opacity: 0.35; }
+.audience-head {
+  display: flex; align-items: center; gap: 0.9rem;
+}
+.audience-mark {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  font-size: 1rem;
+  line-height: 1;
+}
+.audience-fit .audience-mark {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+}
+.audience-skip .audience-mark {
+  background: var(--bg-panel);
+  color: var(--fg-muted);
+  border: 1px solid var(--rule-strong);
+}
+.audience-title {
+  margin: 0;
+  font-family: "Fraunces", serif;
+  font-weight: 500;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+.audience-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.audience-list li {
+  position: relative;
+  padding-left: 1.2rem;
+  color: var(--fg-dim);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+.audience-list li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.65em;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--fg-muted);
+  opacity: 0.55;
+}
+.audience-fit .audience-list li::before { background: var(--accent); opacity: 0.7; }
+.audience-list li strong { color: var(--fg); }
+.audience-list li em { color: var(--accent); font-style: italic; }
+.audience-foot {
+  max-width: 70ch;
+  color: var(--fg-muted);
+  margin-top: 2rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+.audience-foot strong { color: var(--fg-dim); }
+
+@media (max-width: 760px) {
+  .audience-grid { grid-template-columns: 1fr; }
+}
 
 /* ---------- Callout ---------- */
 .callout {
