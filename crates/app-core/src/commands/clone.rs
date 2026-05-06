@@ -112,8 +112,12 @@ pub(crate) fn run_clone_pipeline(
         });
     }
 
+    // The `--` separator stops `git` from interpreting a URL that begins with
+    // `--` (or any unknown clone-url shape we add later) as a CLI flag. Belt-
+    // and-suspenders next to `looks_like_clone_url`.
     let output = Command::new("git")
         .arg("clone")
+        .arg("--")
         .arg(url)
         .arg(&target)
         .output()

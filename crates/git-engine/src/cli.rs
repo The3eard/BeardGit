@@ -514,9 +514,11 @@ impl Repository {
     /// When `tag_name` is `None`, all local tags are pushed (`--tags`).
     #[instrument(skip(self), fields(remote = %remote))]
     pub fn push_tag(&self, remote: &str, tag_name: Option<&str>) -> Result<GitCliResult, GitError> {
+        // `--` terminates flag parsing so a remote name like `--something`
+        // (rare but configurable) cannot be misread as an option.
         match tag_name {
-            Some(name) => self.git_cmd(&["push", remote, &format!("refs/tags/{name}")]),
-            None => self.git_cmd(&["push", remote, "--tags"]),
+            Some(name) => self.git_cmd(&["push", "--", remote, &format!("refs/tags/{name}")]),
+            None => self.git_cmd(&["push", "--tags", "--", remote]),
         }
     }
 
@@ -550,22 +552,27 @@ impl Repository {
     /// Fetch all updates from the named remote.
     #[instrument(skip(self), fields(remote = %remote))]
     pub fn fetch_remote(&self, remote: &str) -> Result<GitCliResult, GitError> {
-        self.git_cmd(&["fetch", remote])
+        self.git_cmd(&["fetch", "--", remote])
     }
 
     /// Pull `branch` from `remote` into the current branch.
     #[instrument(skip(self), fields(remote = %remote, branch = %branch))]
     pub fn pull_remote(&self, remote: &str, branch: &str) -> Result<GitCliResult, GitError> {
-        self.git_cmd(&["pull", remote, branch])
+        self.git_cmd(&["pull", "--", remote, branch])
     }
 
     /// Build the argv vector for `git push`. Extracted so callers can
     /// unit-test the flag composition without shelling out.
+    ///
+    /// All flags appear before the `--` separator; `remote` and `branch`
+    /// are positional, never flag-parsed, even if a future caller passes
+    /// values that begin with `-`.
     pub fn push_args<'a>(&self, remote: &'a str, branch: &'a str, force: bool) -> Vec<&'a str> {
         let mut args: Vec<&str> = vec!["push", "-u"];
         if force {
             args.push("--force-with-lease");
         }
+        args.push("--");
         args.push(remote);
         args.push(branch);
         args
@@ -967,7 +974,7 @@ mod tests {
         let args = repo.push_args("origin", "main", true);
         assert_eq!(
             args,
-            vec!["push", "-u", "--force-with-lease", "origin", "main"]
+            vec!["push", "-u", "--force-with-lease", "--", "origin", "main"]
         );
     }
 
@@ -975,6 +982,6 @@ mod tests {
     fn push_remote_builds_plain_args() {
         let (_dir, repo) = create_test_repo();
         let args = repo.push_args("origin", "main", false);
-        assert_eq!(args, vec!["push", "-u", "origin", "main"]);
+        assert_eq!(args, vec!["push", "-u", "--", "origin", "main"]);
     }
 }

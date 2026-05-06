@@ -302,6 +302,17 @@ export async function pushRemote(remote: string, branch: string, force: boolean)
   return invoke<number>("push_remote", { remote, branch, force });
 }
 
+/**
+ * Delete a branch on a remote: `git push <remote> --delete <branch>`.
+ *
+ * Returns the spawned task id; output streams via the standard task
+ * events. `branch` must be the remote-side name (e.g. `feature/foo`),
+ * not the local `<remote>/<branch>` display form.
+ */
+export async function deleteRemoteBranch(remote: string, branch: string): Promise<number> {
+  return invoke<number>("delete_remote_branch", { remote, branch });
+}
+
 /** Rename a local branch. Works for the currently checked-out branch too. */
 export async function renameBranch(oldName: string, newName: string): Promise<void> {
   return invoke("rename_branch", { oldName, newName });

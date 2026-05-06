@@ -36,8 +36,8 @@
   import { onMount, onDestroy } from "svelte";
   import { EditorView, lineNumbers, keymap, tooltips } from "@codemirror/view";
   import { EditorState, Compartment } from "@codemirror/state";
+  import type { Extension } from "@codemirror/state";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-  import { json } from "@codemirror/lang-json";
   import {
     autocompletion,
     completionKeymap,
@@ -47,6 +47,7 @@
   import { activeProject } from "$lib/stores/projects";
   import { activeTheme } from "$lib/stores/theme";
   import { createCodemirrorTheme } from "$lib/components/editor/codemirror-theme";
+  import { loadLanguageExtension } from "$lib/components/editor/language-support";
   import { varCompletion } from "./varCompletion";
   import { get } from "svelte/store";
 
@@ -70,6 +71,14 @@
   const themeCompartment = new Compartment();
 
   /**
+   * Compartment for the JSON language extension. We can't import
+   * `@codemirror/lang-json` statically without bloating the initial JS
+   * bundle, so we lazy-load it via the shared `loadLanguageExtension`
+   * helper and reconfigure this compartment once it resolves.
+   */
+  const langCompartment = new Compartment();
+
+  /**
    * Build a CodeMirror theme extension from the current `activeTheme`.
    * We read the store imperatively (via `get`) when the editor first
    * mounts and again whenever the store changes, so the helper can be
@@ -83,8 +92,12 @@
     );
   }
 
-  onMount(() => {
+  onMount(async () => {
     const initial = get(currentRequest)?.body ?? "";
+    // Lazy-load the JSON grammar before constructing the view so the
+    // language extension is in place from frame one once the user
+    // actually opens the Requests panel.
+    const jsonExt: Extension = (await loadLanguageExtension("json")) ?? [];
     view = new EditorView({
       state: EditorState.create({
         doc: initial,
@@ -106,7 +119,7 @@
             ...completionKeymap,
           ]),
           EditorView.lineWrapping,
-          json(),
+          langCompartment.of(jsonExt),
           autocompletion({
             override: [
               varCompletion(

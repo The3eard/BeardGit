@@ -11,11 +11,32 @@ use crate::{
 
 pub const BODY_CAP_BYTES: usize = 5 * 1024 * 1024;
 
+/// Hard ceiling on how long a single request is allowed to run. Without it
+/// a malicious or unreachable host could leave the runner blocked
+/// indefinitely, holding cancellation tokens and a tokio task slot.
+const REQUEST_TIMEOUT_SECS: u64 = 30;
+
 pub async fn execute(
     req: &ResolvedRequest,
     cancel: CancellationToken,
 ) -> Result<ExecutionResult, RequestsError> {
+    // Reject anything that isn't plain http(s). Variable resolution can
+    // produce a URL like `file:///etc/passwd` if a `.http` file references
+    // a `{{var}}` that resolves to a local path; rejecting up front keeps
+    // the runner from accidentally dereferencing local resources.
+    let scheme = req
+        .url
+        .split_once("://")
+        .map(|(s, _)| s.to_ascii_lowercase());
+    if !matches!(scheme.as_deref(), Some("http") | Some("https")) {
+        return Err(RequestsError::Network(format!(
+            "unsupported URL scheme; only http(s) is allowed: {}",
+            req.url
+        )));
+    }
+
     let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
         .build()
         .map_err(|e| RequestsError::Network(e.to_string()))?;
     let started = Instant::now();

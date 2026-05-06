@@ -29,11 +29,12 @@
   import { onMount, onDestroy } from "svelte";
   import { EditorView, lineNumbers } from "@codemirror/view";
   import { EditorState, Compartment } from "@codemirror/state";
-  import { json } from "@codemirror/lang-json";
+  import type { Extension } from "@codemirror/state";
   import { Button } from "$lib/components/ui";
   import { lastResponse } from "./stores";
   import { activeTheme } from "$lib/stores/theme";
   import { createCodemirrorTheme } from "$lib/components/editor/codemirror-theme";
+  import { loadLanguageExtension } from "$lib/components/editor/language-support";
   import { get } from "svelte/store";
 
   /** DOM container that hosts the read-only `EditorView`. */
@@ -105,12 +106,21 @@
     );
   }
 
+  /**
+   * Lazy-loaded JSON grammar. Loaded once in `onMount` via the shared
+   * `loadLanguageExtension()` helper so the `@codemirror/lang-json` pack
+   * stays out of the initial JS bundle (Requests is a route-switched
+   * panel — most users never open it).
+   */
+  let jsonExtension: Extension | null = null;
+
   /** Build the language extension for the current response. */
-  function buildLangExt() {
-    return isJson ? json() : [];
+  function buildLangExt(): Extension {
+    return isJson && jsonExtension ? jsonExtension : [];
   }
 
-  onMount(() => {
+  onMount(async () => {
+    jsonExtension = await loadLanguageExtension("json");
     view = new EditorView({
       state: EditorState.create({
         doc: pretty,

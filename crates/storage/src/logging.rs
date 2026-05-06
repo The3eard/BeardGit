@@ -25,22 +25,30 @@ pub struct DebugInfo {
 }
 
 /// Get the platform-specific log directory.
+///
+/// Falls back to the OS temp directory (rather than the empty `PathBuf`)
+/// when the user's home / config dir cannot be resolved, so logs land in a
+/// well-known writable location instead of silently degrading to a relative
+/// path under cwd.
 pub fn log_directory() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
         dirs::home_dir()
-            .unwrap_or_default()
+            .unwrap_or_else(std::env::temp_dir)
             .join("Library/Logs/BeardGit")
     }
     #[cfg(target_os = "linux")]
     {
         dirs::data_local_dir()
-            .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".local/share"))
+            .or_else(|| dirs::home_dir().map(|h| h.join(".local/share")))
+            .unwrap_or_else(std::env::temp_dir)
             .join("beardgit/logs")
     }
     #[cfg(target_os = "windows")]
     {
-        dirs::config_dir().unwrap_or_default().join("BeardGit/logs")
+        dirs::config_dir()
+            .unwrap_or_else(std::env::temp_dir)
+            .join("BeardGit/logs")
     }
 }
 

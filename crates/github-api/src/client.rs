@@ -34,11 +34,22 @@ pub enum ApiError {
 /// `Accept` and `X-GitHub-Api-Version` headers on every request.
 /// Checks `x-ratelimit-remaining` on each response and returns
 /// [`ApiError::RateLimited`] when the quota is exhausted.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GitHubClient {
     http: reqwest::Client,
     base_url: String,
     token: String,
+}
+
+// Custom Debug that redacts the bearer token. Without this a `tracing::debug!(?client)`
+// or accidental `dbg!` would leak the PAT into log files.
+impl std::fmt::Debug for GitHubClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GitHubClient")
+            .field("base_url", &self.base_url)
+            .field("token", &"[REDACTED]")
+            .finish()
+    }
 }
 
 impl GitHubClient {
@@ -46,19 +57,25 @@ impl GitHubClient {
     ///
     /// For github.com, use `"https://api.github.com"`.
     /// For GitHub Enterprise, use `"https://<host>/api/v3"`.
+    ///
+    /// TLS validation is strict for the public cloud (`api.github.com` /
+    /// `github.com`) so a MITM cannot swap in a fake cert and capture the
+    /// bearer token. For Enterprise instances with private/self-signed
+    /// certs the client opts into accepting invalid certs, mirroring how
+    /// the user's `gh` CLI typically already trusts those internal CAs.
     pub fn new(base_url: &str, token: &str) -> Self {
-        // Accept invalid certs for GitHub Enterprise instances with
-        // internal/self-signed certificates. The PAT validates the connection.
-        let http = reqwest::Client::builder()
+        let normalized = Self::normalize_url(base_url);
+        let mut builder = reqwest::Client::builder()
             .user_agent("BeardGit")
-            .danger_accept_invalid_certs(true)
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
+            .timeout(std::time::Duration::from_secs(30));
+        if http_helpers::should_accept_invalid_certs(&normalized) {
+            builder = builder.danger_accept_invalid_certs(true);
+        }
+        let http = builder.build().unwrap_or_else(|_| reqwest::Client::new());
 
         Self {
             http,
-            base_url: Self::normalize_url(base_url),
+            base_url: normalized,
             token: token.to_string(),
         }
     }

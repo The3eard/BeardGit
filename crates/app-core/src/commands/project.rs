@@ -175,36 +175,42 @@ pub(super) fn adjust_active_after_close(
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::project::close")]
 pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), String> {
-    let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
-    let mut active = state.active_index.lock().map_err(|e| e.to_string())?;
+    // Each AppState mutex is taken in its own scope so that no two are ever
+    // held simultaneously — the `with_active_repo` chain is the only reason
+    // the lock ordering elsewhere is deadlock-safe, and any divergence here
+    // would invalidate that invariant.
 
-    if index >= projects.len() {
-        return Err("Project index out of bounds".to_string());
-    }
+    // 1. Mutate projects and capture the data the next two scopes need.
+    let (closed_path, prior_len) = {
+        let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
+        if index >= projects.len() {
+            return Err("Project index out of bounds".to_string());
+        }
+        let closed_path = projects[index].path.clone();
+        let prior_len = projects.len();
+        projects.remove(index);
+        (closed_path, prior_len)
+    };
 
-    let closed_path = projects[index].path.clone();
-    let prior_len = projects.len();
-    projects.remove(index);
+    // 2. Recompute the active index without holding the projects lock.
+    let (active_changed, new_active) = {
+        let mut active = state.active_index.lock().map_err(|e| e.to_string())?;
+        let previous_active = *active;
+        *active = adjust_active_after_close(previous_active, index, prior_len);
+        (previous_active != *active, *active)
+    };
 
-    // Adjust active index
-    let previous_active = *active;
-    *active = adjust_active_after_close(previous_active, index, prior_len);
-    let active_changed = previous_active != *active;
-
-    // Persist to config
+    // 3. Persist to config.
     {
         let mut config = state.config.lock().map_err(|e| e.to_string())?;
         config.open_projects.retain(|p| p != &closed_path);
-        config.active_project_index = *active;
+        config.active_project_index = new_active;
         config.recent_repos.retain(|r| r != &closed_path);
         config.recent_repos.insert(0, closed_path);
         config.recent_repos.truncate(20);
         config.save(&state.config_path).map_err(|e| e.to_string())?;
     }
 
-    // Drop the locks before invalidating the forge provider cache.
-    drop(active);
-    drop(projects);
     if active_changed {
         invalidate_forge_provider_cache(&state);
     }
@@ -226,11 +232,17 @@ pub async fn switch_project(
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<RepoInfo, String> {
-    // 1. Unload the previous active project's heavy data
+    // 1. Unload the previous active project's heavy data.
+    //    Read `active_index` and drop its guard before touching `projects`
+    //    so we never hold two AppState mutexes at the same time — keeps the
+    //    no-two-locks invariant that `with_active_repo` relies on.
+    let prev_idx = {
+        let active = state.active_index.lock().map_err(|e| e.to_string())?;
+        *active
+    };
     {
         let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
-        let active = state.active_index.lock().map_err(|e| e.to_string())?;
-        if let Some(prev_idx) = *active
+        if let Some(prev_idx) = prev_idx
             && let Some(prev_slot) = projects.get_mut(prev_idx)
         {
             if let Some(repo) = &prev_slot.repo {
@@ -275,7 +287,8 @@ pub async fn switch_project(
 
     let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
 
-    // 5. Store in slot and update active index
+    // 5. Store in slot and update active index — each in its own scope so
+    //    `projects` is dropped before `active_index` is acquired.
     {
         let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
         if let Some(slot) = projects.get_mut(index) {
@@ -285,6 +298,8 @@ pub async fn switch_project(
             slot.head_branch = status.head_branch.clone();
             slot.change_count = change_count;
         }
+    }
+    {
         let mut active = state.active_index.lock().map_err(|e| e.to_string())?;
         *active = Some(index);
     }
@@ -419,12 +434,16 @@ pub fn restore_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, 
 /// Return recent repos filtered to exclude already-open paths.
 #[tauri::command]
 pub fn get_recent_repos(state: State<'_, AppState>) -> Result<Vec<RecentRepo>, String> {
-    // Acquire projects first, then config — consistent with the ordering used
-    // elsewhere to avoid ABBA deadlocks.
-    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    // Snapshot the open paths under the `projects` lock, drop it, then take
+    // `config` separately. Holding both locks at once would break the no-two-
+    // locks-simultaneously invariant that the rest of `app-core` relies on.
+    let open_paths: Vec<String> = {
+        let projects = state.projects.lock().map_err(|e| e.to_string())?;
+        projects.iter().map(|p| p.path.clone()).collect()
+    };
     let config = state.config.lock().map_err(|e| e.to_string())?;
-    let open_paths: Vec<&String> = projects.iter().map(|p| &p.path).collect();
-    Ok(filter_recent_repos(&config.recent_repos, &open_paths))
+    let open_path_refs: Vec<&String> = open_paths.iter().collect();
+    Ok(filter_recent_repos(&config.recent_repos, &open_path_refs))
 }
 
 /// Pure helper: given a recent-repos list and a set of currently open paths,
