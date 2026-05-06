@@ -28,6 +28,7 @@
 
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -225,144 +226,12 @@
     </div>
   </section>
 
-  <!-- ============ FEATURES ============ -->
-  <section id="features">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <h2>Everything you do, in <span class="italic">one place</span>.</h2>
-        <div class="section-head-meta">§ 02 — Capabilities</div>
-      </div>
-
-      <div class="features-grid">
-        <div class="feature wide reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="5" cy="6" r="2.25"/>
-              <circle cx="5" cy="18" r="2.25"/>
-              <circle cx="19" cy="12" r="2.25"/>
-              <path d="M5 8.25v7.5"/>
-              <path d="M7 6h6a4 4 0 0 1 4 4v0"/>
-              <path d="M7 18h6a4 4 0 0 0 4-4v0"/>
-            </svg>
-          </div>
-          <div class="feature-num">01 / 08</div>
-          <h3 class="feature-title">A <span class="italic">canvas graph</span> that scales.</h3>
-          <p class="feature-body">100K+ commits render smoothly. Branch lanes, merge curves, sync-state lines, and author highlighting — all on HTML canvas, not DOM. <code class="mono">⌘F</code> filters by author, message, or ref.</p>
-        </div>
-
-        <div class="feature reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 8l9-4 9 4-9 4-9-4z"/>
-              <path d="M3 12l9 4 9-4"/>
-              <path d="M3 16l9 4 9-4"/>
-            </svg>
-          </div>
-          <div class="feature-num">02 / 08</div>
-          <h3 class="feature-title">Multi-repo <span class="italic">tabs</span>.</h3>
-          <p class="feature-body">Every repo is a tab. Heavy state loads only for the active one — a dozen open repos cost the same as one. <code class="mono">⌘1…⌘9</code> jumps between them.</p>
-        </div>
-
-        <div class="feature reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="6" cy="6" r="2.25"/>
-              <circle cx="6" cy="18" r="2.25"/>
-              <circle cx="18" cy="18" r="2.25"/>
-              <path d="M6 8.25v7.5"/>
-              <path d="M14 6h2a2 2 0 0 1 2 2v8"/>
-              <path d="M11 3l3 3-3 3"/>
-            </svg>
-          </div>
-          <div class="feature-num">03 / 08</div>
-          <h3 class="feature-title">Forge-native for <span class="italic">GitHub + GitLab</span>.</h3>
-          <p class="feature-body">Full PR/MR lifecycle with inline review threads. Issues, pipelines, releases, repo settings — without leaving the app. Self-hosted GitHub Enterprise and on-prem GitLab too. <code class="mono">gh</code> and <code class="mono">glab</code> bundled.</p>
-        </div>
-
-        <div class="feature tall reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/>
-              <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/>
-              <path d="M5 15l.75 1.75L7.5 17.5l-1.75.75L5 20l-.75-1.75L2.5 17.5l1.75-.75L5 15z"/>
-            </svg>
-          </div>
-          <div class="feature-num">04 / 08</div>
-          <h3 class="feature-title">Your own AI CLI, in a <span class="italic">worktree</span>.</h3>
-          <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh worktree — no terminal, no key juggling. Each run lands on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch you can review, merge, or discard.</p>
-<pre><span class="cm"># Cmd+Shift+A — pick prompt + provider + worktree root</span>
-<span class="kw">AiBackgroundCoordinator</span>::queue(run) <span class="cm">// FIFO</span>
-  .launch(<span class="str">"claude-code"</span>, <span class="str">"--print --stream-json"</span>)
-  .in_worktree(<span class="str">".beardgit/ai-worktrees/&lt;id&gt;"</span>)
-  .cap(<span class="num">3</span>) <span class="cm">// concurrent runs</span></pre>
-        </div>
-
-        <div class="feature wide reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="7"/>
-              <path d="M8.5 11l2 2 4-4.5"/>
-              <path d="M16.5 16.5L21 21"/>
-            </svg>
-          </div>
-          <div class="feature-num">05 / 08</div>
-          <h3 class="feature-title">Visual <span class="italic">bisect</span>.</h3>
-          <p class="feature-body">Pick the good commit, pick the bad commit, step through with buttons. Auto-mode runs your test command at every step and resolves it without you watching.</p>
-        </div>
-
-        <div class="feature reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="16" rx="2"/>
-              <path d="M7 9l3 3-3 3"/>
-              <path d="M13 15h4"/>
-            </svg>
-          </div>
-          <div class="feature-num">06 / 08</div>
-          <h3 class="feature-title">Bundled <span class="italic">CLIs</span>.</h3>
-          <p class="feature-body"><code class="mono">gh</code> and <code class="mono">glab</code> ship inside every installer. No PATH setup. Run them in a real PTY terminal — or let BeardGit call them for you.</p>
-        </div>
-
-        <div class="feature reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="16 18 22 12 16 6"/>
-              <polyline points="8 6 2 12 8 18"/>
-              <path d="M14 4l-4 16"/>
-            </svg>
-          </div>
-          <div class="feature-num">07 / 08</div>
-          <h3 class="feature-title">An in-app <span class="italic">code editor</span>.</h3>
-          <p class="feature-body">CodeMirror 6 with per-language snippets, keyword completion, JSON lint, inline color pickers, and a gitignore-aware tree. Save writes to disk; <code class="mono">⇧ Save</code> also stages for the next commit.</p>
-        </div>
-
-        <div class="feature wide reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 6h16"/>
-              <path d="M4 12h10"/>
-              <path d="M4 18h7"/>
-              <path d="M16 14l5 5"/>
-              <path d="M21 14h-5v5"/>
-            </svg>
-          </div>
-          <div class="feature-num">08 / 08</div>
-          <h3 class="feature-title">An <span class="italic">.http</span> workspace, in your repo.</h3>
-          <p class="feature-body">Plain <code class="mono">.http</code> files under <code class="mono">.beardgit/requests/</code>, committed with the project — <code class="mono">git pull</code> shares them with the team. Envs in commit-safe JSON, secrets encrypted locally. <code class="mono">{{var}}</code> autocomplete, response diff between any two runs, Copy-as cURL / fetch / HTTPie.</p>
-<pre><span class="cm"># .beardgit/requests/users/get.http</span>
-<span class="kw">GET</span> {{base_url}}/users/{{user_id}}
-<span class="kw">Authorization:</span> Bearer {{api_token}}</pre>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- ============ SHOWCASE ============ -->
   <section id="showcase" class="showcase">
     <div class="wrap">
       <div class="section-head reveal">
         <h2>The whole repo, one <span class="italic">window</span>.</h2>
-        <div class="section-head-meta">§ 03 — Interface</div>
+        <div class="section-head-meta">§ 02 — Interface</div>
       </div>
 
       <figure class="shot-figure reveal">
@@ -499,6 +368,138 @@
           </div>
           <figcaption class="shot-caption mono">fig. 06 — in-app editor</figcaption>
         </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Everything you do, in <span class="italic">one place</span>.</h2>
+        <div class="section-head-meta">§ 03 — Capabilities</div>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature wide reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="5" cy="6" r="2.25"/>
+              <circle cx="5" cy="18" r="2.25"/>
+              <circle cx="19" cy="12" r="2.25"/>
+              <path d="M5 8.25v7.5"/>
+              <path d="M7 6h6a4 4 0 0 1 4 4v0"/>
+              <path d="M7 18h6a4 4 0 0 0 4-4v0"/>
+            </svg>
+          </div>
+          <div class="feature-num">01 / 08</div>
+          <h3 class="feature-title">A <span class="italic">canvas graph</span> that scales.</h3>
+          <p class="feature-body">100K+ commits render smoothly. Branch lanes, merge curves, sync-state lines, and author highlighting — all on HTML canvas, not DOM. <code class="mono">⌘F</code> filters by author, message, or ref.</p>
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 8l9-4 9 4-9 4-9-4z"/>
+              <path d="M3 12l9 4 9-4"/>
+              <path d="M3 16l9 4 9-4"/>
+            </svg>
+          </div>
+          <div class="feature-num">02 / 08</div>
+          <h3 class="feature-title">Multi-repo <span class="italic">tabs</span>.</h3>
+          <p class="feature-body">Every repo is a tab. Heavy state loads only for the active one — a dozen open repos cost the same as one. <code class="mono">⌘1…⌘9</code> jumps between them.</p>
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="6" cy="6" r="2.25"/>
+              <circle cx="6" cy="18" r="2.25"/>
+              <circle cx="18" cy="18" r="2.25"/>
+              <path d="M6 8.25v7.5"/>
+              <path d="M14 6h2a2 2 0 0 1 2 2v8"/>
+              <path d="M11 3l3 3-3 3"/>
+            </svg>
+          </div>
+          <div class="feature-num">03 / 08</div>
+          <h3 class="feature-title">Forge-native for <span class="italic">GitHub + GitLab</span>.</h3>
+          <p class="feature-body">Full PR/MR lifecycle with inline review threads. Issues, pipelines, releases, repo settings — without leaving the app. Self-hosted GitHub Enterprise and on-prem GitLab too. <code class="mono">gh</code> and <code class="mono">glab</code> bundled.</p>
+        </div>
+
+        <div class="feature tall reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/>
+              <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/>
+              <path d="M5 15l.75 1.75L7.5 17.5l-1.75.75L5 20l-.75-1.75L2.5 17.5l1.75-.75L5 15z"/>
+            </svg>
+          </div>
+          <div class="feature-num">04 / 08</div>
+          <h3 class="feature-title">Your own AI CLI, in a <span class="italic">worktree</span>.</h3>
+          <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh worktree — no terminal, no key juggling. Each run lands on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch you can review, merge, or discard.</p>
+<pre><span class="cm"># Cmd+Shift+A — pick prompt + provider + worktree root</span>
+<span class="kw">AiBackgroundCoordinator</span>::queue(run) <span class="cm">// FIFO</span>
+  .launch(<span class="str">"claude-code"</span>, <span class="str">"--print --stream-json"</span>)
+  .in_worktree(<span class="str">".beardgit/ai-worktrees/&lt;id&gt;"</span>)
+  .cap(<span class="num">3</span>) <span class="cm">// concurrent runs</span></pre>
+        </div>
+
+        <div class="feature wide reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"/>
+              <path d="M8.5 11l2 2 4-4.5"/>
+              <path d="M16.5 16.5L21 21"/>
+            </svg>
+          </div>
+          <div class="feature-num">05 / 08</div>
+          <h3 class="feature-title">Visual <span class="italic">bisect</span>.</h3>
+          <p class="feature-body">Pick the good commit, pick the bad commit, step through with buttons. Auto-mode runs your test command at every step and resolves it without you watching.</p>
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"/>
+              <path d="M7 9l3 3-3 3"/>
+              <path d="M13 15h4"/>
+            </svg>
+          </div>
+          <div class="feature-num">06 / 08</div>
+          <h3 class="feature-title">Bundled <span class="italic">CLIs</span>.</h3>
+          <p class="feature-body"><code class="mono">gh</code> and <code class="mono">glab</code> ship inside every installer. No PATH setup. Run them in a real PTY terminal — or let BeardGit call them for you.</p>
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+              <path d="M14 4l-4 16"/>
+            </svg>
+          </div>
+          <div class="feature-num">07 / 08</div>
+          <h3 class="feature-title">An in-app <span class="italic">code editor</span>.</h3>
+          <p class="feature-body">CodeMirror 6 with per-language snippets, keyword completion, JSON lint, inline color pickers, and a gitignore-aware tree. Save writes to disk; <code class="mono">⇧ Save</code> also stages for the next commit.</p>
+        </div>
+
+        <div class="feature wide reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 6h16"/>
+              <path d="M4 12h10"/>
+              <path d="M4 18h7"/>
+              <path d="M16 14l5 5"/>
+              <path d="M21 14h-5v5"/>
+            </svg>
+          </div>
+          <div class="feature-num">08 / 08</div>
+          <h3 class="feature-title">An <span class="italic">.http</span> workspace, in your repo.</h3>
+          <p class="feature-body">Plain <code class="mono">.http</code> files under <code class="mono">.beardgit/requests/</code>, committed with the project — <code class="mono">git pull</code> shares them with the team. Envs in commit-safe JSON, secrets encrypted locally. <code class="mono">{{var}}</code> autocomplete, response diff between any two runs, Copy-as cURL / fetch / HTTPie.</p>
+<pre><span class="cm"># .beardgit/requests/users/get.http</span>
+<span class="kw">GET</span> {{base_url}}/users/{{user_id}}
+<span class="kw">Authorization:</span> Bearer {{api_token}}</pre>
+        </div>
       </div>
     </div>
   </section>

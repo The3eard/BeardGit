@@ -466,12 +466,12 @@ section + section { border-top: 1px solid var(--rule); }
 .manifesto-body .italic { color: var(--accent); }
 .manifesto-body::first-letter {
   font-family: var(--font-sans);
-  font-style: italic;
-  font-size: 4.4em;
-  line-height: 0.85;
+  font-weight: 600;
+  font-size: 3.6em;
+  line-height: 0.9;
   float: left;
-  padding: 0.08em 0.28em 0 0;
-  margin-right: 0.08em;
+  padding: 0.12em 0.18em 0 0;
+  margin-right: 0.05em;
   shape-outside: margin-box;
   color: var(--accent);
 }
