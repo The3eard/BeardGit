@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
+    "build:og": "node scripts/build-og.mjs",
     "tauri": "tauri",
     "lint:style": "stylelint \"src/**/*.{css,svelte}\"",
     "lint:js": "eslint \"src/**/*.{ts,svelte}\"",

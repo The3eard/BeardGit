@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>BeardGit — OG composition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,144,500..700,30..100;1,144,500..700,30..100&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0D1117;
+      --bg-elev: #161B22;
+      --fg: #E6EDF3;
+      --fg-dim: #C9D1D9;
+      --fg-muted: #8B949E;
+      --accent: #FF6A16;
+      --accent-soft: rgba(255, 106, 22, 0.16);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "Fraunces", Georgia, serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+
+    .stage {
+      position: relative;
+      width: var(--w, 1280px);
+      height: var(--h, 640px);
+      overflow: hidden;
+      background:
+        radial-gradient(80% 100% at 100% 0%, var(--accent-soft) 0%, transparent 55%),
+        radial-gradient(70% 90% at 0% 100%, rgba(255, 106, 22, 0.05) 0%, transparent 50%),
+        var(--bg);
+    }
+
+    /* Subtle dotted texture across the whole canvas */
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(230, 237, 243, 0.05) 1px, transparent 1px);
+      background-size: 22px 22px;
+      pointer-events: none;
+    }
+
+    /* Right-edge product screenshot */
+    .shot {
+      position: absolute;
+      right: -4%;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 65%;
+      aspect-ratio: 2784 / 1824;
+      background-image: url("../docs/assets/screenshots/main-dark.png");
+      background-size: cover;
+      background-position: left center;
+      border-radius: 14px;
+      box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(230, 237, 243, 0.08) inset;
+    }
+
+    /* Fade-out gradient on the screenshot's left edge so it merges into the bg */
+    .shot::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      background: linear-gradient(
+        90deg,
+        var(--bg) 0%,
+        rgba(13, 17, 23, 0.85) 8%,
+        rgba(13, 17, 23, 0.0) 28%
+      );
+    }
+
+    /* Left content block */
+    .content {
+      position: relative;
+      z-index: 2;
+      padding: 56px 0 56px 64px;
+      width: 56%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .brand .logo {
+      width: 64px;
+      height: 64px;
+      filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5));
+    }
+    .brand .wordmark {
+      font-family: "Fraunces", serif;
+      font-weight: 600;
+      font-size: 44px;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      color: var(--fg);
+    }
+
+    .pitch {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .tagline {
+      font-family: "Fraunces", serif;
+      font-weight: 500;
+      font-size: 76px;
+      line-height: 1.02;
+      letter-spacing: -0.025em;
+      color: var(--fg);
+    }
+    .tagline .em {
+      font-style: italic;
+      font-weight: 500;
+      color: var(--accent);
+    }
+    .sub {
+      font-family: "Fira Code", ui-monospace, monospace;
+      font-size: 17px;
+      letter-spacing: 0;
+      color: var(--fg-muted);
+      max-width: 520px;
+      line-height: 1.45;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-family: "Fira Code", ui-monospace, monospace;
+      font-size: 14px;
+      color: var(--fg-muted);
+    }
+    .footer .dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--fg-muted);
+      opacity: 0.6;
+    }
+    .footer .pill {
+      padding: 6px 12px;
+      border: 1px solid rgba(230, 237, 243, 0.14);
+      border-radius: 999px;
+      color: var(--fg-dim);
+      background: rgba(22, 27, 34, 0.6);
+    }
+    .footer .accent {
+      color: var(--accent);
+      border-color: rgba(255, 106, 22, 0.35);
+      background: rgba(255, 106, 22, 0.08);
+    }
+
+    /* Decorative graph nodes bleeding from the bottom-left, just for character */
+    .graph-deco {
+      position: absolute;
+      left: -40px;
+      bottom: -40px;
+      width: 280px;
+      height: 280px;
+      opacity: 0.18;
+      pointer-events: none;
+    }
+
+    /* 1200x630 variant overrides */
+    .stage.size-og {
+      --w: 1200px;
+      --h: 630px;
+    }
+    .stage.size-og .content { padding: 52px 0 52px 60px; }
+    .stage.size-og .tagline { font-size: 70px; }
+    .stage.size-og .brand .wordmark { font-size: 42px; }
+    .stage.size-og .brand .logo { width: 60px; height: 60px; }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="shot" aria-hidden="true"></div>
+
+    <svg class="graph-deco" viewBox="0 0 280 280" aria-hidden="true">
+      <g fill="none" stroke="#FF6A16" stroke-width="2">
+        <path d="M40 240 L40 80 C 40 60, 100 60, 100 40" />
+        <path d="M40 160 C 40 140, 160 140, 160 120 L 160 220" />
+        <path d="M100 40 L 100 120" />
+      </g>
+      <g fill="#FF6A16">
+        <circle cx="40" cy="240" r="6" />
+        <circle cx="40" cy="160" r="6" />
+        <circle cx="40" cy="80"  r="6" />
+        <circle cx="100" cy="40" r="6" />
+        <circle cx="100" cy="120" r="6" />
+        <circle cx="160" cy="120" r="6" />
+        <circle cx="160" cy="220" r="6" />
+      </g>
+    </svg>
+
+    <div class="content">
+      <div class="brand">
+        <img class="logo" src="../docs/assets/logo.svg" alt="" />
+        <div class="wordmark">BeardGit</div>
+      </div>
+
+      <div class="pitch">
+        <div class="tagline">Your whole repo,<br/>in <span class="em">one</span> window.</div>
+        <div class="sub">Graph · PRs &amp; MRs · CI/CD · issues · releases · terminals · AI agents · .http workspace · in-app editor.</div>
+      </div>
+
+      <div class="footer">
+        <span class="pill">macOS</span>
+        <span class="pill">Linux</span>
+        <span class="pill">Windows</span>
+        <span class="dot"></span>
+        <span class="pill accent">Free &amp; native</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // The runner script reads ?size=og to switch to 1200x630.
+    const params = new URLSearchParams(location.search);
+    if (params.get("size") === "og") {
+      document.getElementById("stage").classList.add("size-og");
+    }
+  </script>
+</body>
+</html>
