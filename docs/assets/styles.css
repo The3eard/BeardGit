@@ -483,10 +483,16 @@ section + section { border-top: 1px solid var(--rule); }
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.025em;
-  max-width: 14ch;
+  text-wrap: balance;
 }
 .section-head .italic { color: var(--accent); }
-.section-head-meta { color: var(--fg-muted); font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; }
+.section-head-meta {
+  color: var(--fg-dim);
+  font-size: 0.95rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
 
 .features-grid {
   display: grid;
