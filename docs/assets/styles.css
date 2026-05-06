@@ -490,12 +490,15 @@ section + section { border-top: 1px solid var(--rule); }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  background: var(--rule);
+  /* Auto-fit lets the grid breathe from 1 to 4 columns based on viewport.
+     min(260px, 100%) prevents overflow on viewports narrower than the
+     min track width (e.g. 320px phones). At ~1264px content width the
+     grid resolves to 4 columns × 2 rows and all 8 cards fit at once. */
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   border: 1px solid var(--rule);
   border-radius: 12px;
   overflow: hidden;
+  background: var(--bg);
 }
 .feature {
   padding: clamp(1.1rem, 1.6vw, 1.5rem) clamp(1.2rem, 1.8vw, 1.6rem);
@@ -505,6 +508,12 @@ section + section { border-top: 1px solid var(--rule); }
   transition: background .25s;
   display: flex;
   flex-direction: column;
+  /* Cell separators via box-shadow so adjacent cells share a single
+     1px line and an incomplete last row leaves no orphan rules. The
+     container's overflow:hidden + border clips outer edges. */
+  box-shadow:
+    1px 0 0 var(--rule),
+    0 1px 0 var(--rule);
 }
 /* legacy modifiers neutralised — grid is uniform now */
 .feature.wide,
@@ -622,7 +631,10 @@ section + section { border-top: 1px solid var(--rule); }
 
 .screenshot-strip {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Same auto-fit pattern as the features grid: 1→2→3 columns based
+     on viewport. Five figures (graph, AI, forge, requests, editor)
+     fall on whichever columns the viewport allows. */
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 1rem;
   margin-top: 1.5rem;
 }
@@ -1095,9 +1107,10 @@ html.js-reveal .reveal.in { opacity: 1; transform: none; }
                install commands allowed to scroll horizontally, lightbox
                suppressed in favour of native anchor behaviour. */
 @media (max-width: 900px) {
-  /* All grid sections collapse to a single column. */
+  /* Other grids still collapse to one column at this breakpoint;
+     .features-grid and .screenshot-strip use auto-fit and breathe on
+     their own, so they're intentionally absent here. */
   .hero-grid,
-  .features-grid,
   .install-grid,
   .shortcuts-grid,
   .footer-grid {
@@ -1105,15 +1118,9 @@ html.js-reveal .reveal.in { opacity: 1; transform: none; }
     gap: 24px;
   }
 
-  /* Screenshot strip (fig. 02–04) stacks too — at portrait widths the
-     three-up grid squeezes each shot below the legibility threshold. */
-  .screenshot-strip {
-    grid-template-columns: 1fr;
-    gap: 1.2rem;
-  }
   /* The .small slot's 4/3 aspect ratio is fine portrait-side, but the
-     min-height clamp was tuned for the desktop column width — drop it so
-     the slot height tracks the new wider single-column layout instead of
+     min-height clamp was tuned for the desktop column width — drop it
+     so the slot height tracks the auto-fit column layout instead of
      forcing a tiny letterbox. */
   .screenshot-slot.small { min-height: 0; }
 
