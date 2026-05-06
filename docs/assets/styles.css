@@ -13,8 +13,8 @@
   --brand-green: #3FB950;
   --brand-blue: #2F81F7;
 
-  /* Type stack — Inter (variable) for everything except mono. */
-  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Type stack — Satoshi (Indian Type Foundry) for everything except mono. */
+  --font-sans: "Satoshi", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Semantic tokens — default to DARK (GitHub dark + BeardGit orange) */
@@ -305,7 +305,7 @@ section + section { border-top: 1px solid var(--rule); }
 
 .hero-title {
   font-size: clamp(3rem, 8.2vw, 7.2rem);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 0.95;
   letter-spacing: -0.035em;
   margin-bottom: 1.5rem;
@@ -466,7 +466,7 @@ section + section { border-top: 1px solid var(--rule); }
 .manifesto-body .italic { color: var(--accent); }
 .manifesto-body::first-letter {
   font-family: var(--font-sans);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 3.6em;
   line-height: 0.9;
   float: left;
@@ -480,7 +480,7 @@ section + section { border-top: 1px solid var(--rule); }
 .section-head { display: flex; justify-content: space-between; align-items: end; gap: 2rem; margin-bottom: 3rem; flex-wrap: wrap; }
 .section-head h2 {
   font-size: clamp(2rem, 4.2vw, 3.6rem);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: -0.025em;
   max-width: 14ch;
@@ -498,9 +498,8 @@ section + section { border-top: 1px solid var(--rule); }
   overflow: hidden;
 }
 .feature {
-  padding: clamp(1.5rem, 2.4vw, 2.2rem);
+  padding: clamp(1.1rem, 1.6vw, 1.5rem) clamp(1.2rem, 1.8vw, 1.6rem);
   background: var(--bg);
-  min-height: 260px;
   min-width: 0;
   position: relative;
   transition: background .25s;
@@ -509,20 +508,20 @@ section + section { border-top: 1px solid var(--rule); }
 }
 /* legacy modifiers neutralised — grid is uniform now */
 .feature.wide,
-.feature.tall { grid-column: auto; grid-row: auto; min-height: 260px; }
+.feature.tall { grid-column: auto; grid-row: auto; }
 .feature:hover { background: var(--bg-elev); }
-.feature-num { font-family: var(--font-mono); font-size: 0.72rem; color: var(--fg-muted); letter-spacing: 0.14em; }
-.feature-title { font-family: var(--font-sans); font-weight: 600; font-size: clamp(1.35rem, 2vw, 1.7rem); line-height: 1.2; margin: 0.5rem 0 0.8rem; letter-spacing: -0.01em; }
+.feature-num { font-family: var(--font-mono); font-size: 0.66rem; color: var(--fg-muted); letter-spacing: 0.16em; }
+.feature-title { font-family: var(--font-sans); font-weight: 500; font-size: clamp(1rem, 1.3vw, 1.15rem); line-height: 1.3; margin: 0.35rem 0 0.45rem; letter-spacing: -0.01em; padding-right: 2rem; }
 .feature-title .italic { color: var(--accent); }
-.feature-body { color: var(--fg-dim); font-size: 0.92rem; line-height: 1.55; }
+.feature-body { color: var(--fg-dim); font-size: 0.84rem; line-height: 1.5; }
 .feature-icon {
   position: absolute;
-  top: clamp(1.5rem, 2.4vw, 2.2rem);
-  right: clamp(1.5rem, 2.4vw, 2.2rem);
+  top: clamp(1.1rem, 1.6vw, 1.5rem);
+  right: clamp(1.2rem, 1.8vw, 1.6rem);
   color: var(--fg-muted);
   transition: color .25s, transform .4s cubic-bezier(.2,.7,.3,1);
 }
-.feature-icon svg { width: 32px; height: 32px; }
+.feature-icon svg { width: 22px; height: 22px; }
 .feature:hover .feature-icon { color: var(--accent); transform: rotate(6deg) scale(1.1); }
 
 .feature pre {
