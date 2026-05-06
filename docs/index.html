@@ -33,7 +33,10 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400..700;1,400..700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,301,400,401,500,501,700,701,900,901&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/styles.css" />
 
   <script type="application/ld+json">
@@ -436,12 +439,7 @@
           </div>
           <div class="feature-num">04 / 08</div>
           <h3 class="feature-title">Your own AI CLI, in a <span class="italic">worktree</span>.</h3>
-          <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh worktree — no terminal, no key juggling. Each run lands on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch you can review, merge, or discard.</p>
-<pre><span class="cm"># Cmd+Shift+A — pick prompt + provider + worktree root</span>
-<span class="kw">AiBackgroundCoordinator</span>::queue(run) <span class="cm">// FIFO</span>
-  .launch(<span class="str">"claude-code"</span>, <span class="str">"--print --stream-json"</span>)
-  .in_worktree(<span class="str">".beardgit/ai-worktrees/&lt;id&gt;"</span>)
-  .cap(<span class="num">3</span>) <span class="cm">// concurrent runs</span></pre>
+          <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh worktree. Each run lands on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch — review, merge, or discard.</p>
         </div>
 
         <div class="feature wide reveal">
@@ -495,10 +493,7 @@
           </div>
           <div class="feature-num">08 / 08</div>
           <h3 class="feature-title">An <span class="italic">.http</span> workspace, in your repo.</h3>
-          <p class="feature-body">Plain <code class="mono">.http</code> files under <code class="mono">.beardgit/requests/</code>, committed with the project — <code class="mono">git pull</code> shares them with the team. Envs in commit-safe JSON, secrets encrypted locally. <code class="mono">{{var}}</code> autocomplete, response diff between any two runs, Copy-as cURL / fetch / HTTPie.</p>
-<pre><span class="cm"># .beardgit/requests/users/get.http</span>
-<span class="kw">GET</span> {{base_url}}/users/{{user_id}}
-<span class="kw">Authorization:</span> Bearer {{api_token}}</pre>
+          <p class="feature-body">Plain <code class="mono">.http</code> files in your repo, committed with the project. Envs in JSON, secrets encrypted locally. Response diff between any two runs.</p>
         </div>
       </div>
     </div>
