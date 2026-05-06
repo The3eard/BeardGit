@@ -3,28 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>BeardGit — a Git client for the patient</title>
-  <meta name="description" content="BeardGit is a native desktop Git client built with Rust and Svelte. Visual graph, built-in CI, multi-repo tabs, in-repo HTTP request testing, an in-app code editor, AI agents in worktrees. Craft over ceremony." />
+  <title>BeardGit — your whole repo, in one window</title>
+  <meta name="description" content="Your whole repo in one window — graph, PRs/MRs, issues, CI/CD, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor. Native desktop. No Electron. macOS · Linux · Windows." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)" />
 
   <link rel="canonical" href="https://the3eard.github.io/BeardGit/" />
 
-  <meta property="og:title" content="BeardGit — a Git client for the patient" />
-  <meta property="og:description" content="Native desktop Git client. Rust + Svelte. No Electron. Craft over ceremony." />
+  <meta property="og:title" content="BeardGit — your whole repo, in one window" />
+  <meta property="og:description" content="Stop juggling six tabs to ship a commit. Graph, PRs/MRs, issues, CI/CD, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor — in a single native desktop app. No Electron. No telemetry." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://the3eard.github.io/BeardGit/" />
   <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="BeardGit main window — commit graph and diff side by side" />
+  <meta property="og:image:alt" content="BeardGit — your whole repo, in one window" />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="BeardGit — a Git client for the patient" />
-  <meta name="twitter:description" content="Native desktop Git client. Rust + Svelte. No Electron. Craft over ceremony." />
+  <meta name="twitter:title" content="BeardGit — your whole repo, in one window" />
+  <meta name="twitter:description" content="Stop juggling six tabs to ship a commit. Graph, PRs/MRs, issues, CI/CD, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor — in a single native desktop app." />
   <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png" />
-  <meta name="twitter:image:alt" content="BeardGit main window — commit graph and diff side by side" />
+  <meta name="twitter:image:alt" content="BeardGit — your whole repo, in one window" />
 
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
@@ -40,7 +40,7 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "BeardGit",
-    "description": "Native desktop Git client with built-in graph, PRs/MRs, CI/CD pipelines, issues, releases, terminals, AI agents, an in-repo .http API testing workspace, and an in-app code editor — for GitHub and GitLab.",
+    "description": "Your whole repo in one window. Native desktop Git client for GitHub and GitLab with a canvas graph, full PR/MR lifecycle, CI/CD pipelines, issues, releases, terminals, AI agents that run in isolated worktrees, an in-repo .http API testing workspace, and an in-app code editor. macOS, Linux, Windows. No Electron, no telemetry.",
     "url": "https://the3eard.github.io/BeardGit/",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "macOS, Linux, Windows",
@@ -76,6 +76,7 @@
         <a href="#manifesto">Manifesto</a>
         <a href="#features">Features</a>
         <a href="#showcase">Showcase</a>
+        <a href="#audience">For you?</a>
         <a href="#shortcuts">Keys</a>
         <a href="#install">Install</a>
         <a href="#faq">FAQ</a>
@@ -122,11 +123,14 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v13M5 12l7 7 7-7M4 21h16"/></svg>
               <span data-dl-label>Download BeardGit</span>
             </a>
-            <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener" class="btn btn-ghost">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
-              Read the source
+            <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener" class="btn btn-ghost btn-star" aria-label="Star BeardGit on GitHub">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l3.06 6.2 6.84.99-4.95 4.83 1.17 6.81L12 18.13l-6.12 3.22 1.17-6.81L2.1 9.69l6.84-.99L12 2.5z"/></svg>
+              Star on GitHub
+              <img class="btn-badge" alt="" height="18" src="https://img.shields.io/github/stars/The3eard/BeardGit?style=flat&label=&color=21262d&labelColor=21262d" loading="lazy" />
             </a>
           </div>
+
+          <p class="hero-microcta mono reveal">If BeardGit saves you a tab, drop a ★ — it’s how the project gets seen.</p>
 
           <div class="hero-stats reveal">
             <div>
@@ -504,12 +508,58 @@
     </div>
   </section>
 
+  <!-- ============ AUDIENCE / POSITIONING ============ -->
+  <section id="audience">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Made for the dev with <span class="italic">six tabs open</span>.</h2>
+        <div class="section-head-meta">§ 04 — Who it's for</div>
+      </div>
+
+      <p class="audience-lede mono reveal">
+        Five minutes from download to first commit. No accounts, no logins, no “BeardGit Cloud”. BeardGit doesn’t try to be every other client — it’s a deliberate choice for a specific kind of developer. If that’s you, you’ll feel it in the first hour.
+      </p>
+
+      <div class="audience-grid">
+        <div class="audience-card audience-fit reveal">
+          <div class="audience-head">
+            <span class="audience-mark" aria-hidden="true">✓</span>
+            <h3 class="audience-title">You’ll like it if you</h3>
+          </div>
+          <ul class="audience-list">
+            <li>use <strong>GitHub <em>and</em> GitLab</strong> and want them to feel the same</li>
+            <li>test APIs against the repo you’re staring at and hate context-switching to Postman</li>
+            <li>run <strong>Claude Code / Codex / OpenCode</strong> and want them isolated in worktrees, not loose in your tree</li>
+            <li>care that your git client doesn’t ship a 200&nbsp;MB Chromium runtime to render a sidebar</li>
+            <li>want a polished GUI with <strong>Linux as a first-class platform</strong>, not an afterthought</li>
+          </ul>
+        </div>
+
+        <div class="audience-card audience-skip reveal">
+          <div class="audience-head">
+            <span class="audience-mark" aria-hidden="true">✕</span>
+            <h3 class="audience-title">You probably won’t if you</h3>
+          </div>
+          <ul class="audience-list">
+            <li>live entirely on <code class="mono">git</code> CLI and <code class="mono">lazygit</code> — BeardGit is GUI-first</li>
+            <li>need <strong>SVN, Mercurial, Perforce</strong>, or self-hosted Bitbucket — not supported</li>
+            <li>want a paid product with phone support and an enterprise SSO portal — that’s not this</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="audience-foot mono reveal">
+        BeardGit is <strong>free and source-available</strong>. The CC&nbsp;BY-NC-SA license blocks reselling BeardGit <em>itself</em> — using it commercially in your team is fine.
+      </p>
+    </div>
+  </section>
+
   <!-- ============ KEYBOARD ============ -->
   <section id="shortcuts">
     <div class="wrap">
       <div class="section-head reveal">
         <h2>Twelve keys, <span class="italic">no menus</span>.</h2>
-        <div class="section-head-meta">§ 04 — Keyboard</div>
+        <div class="section-head-meta">§ 05 — Keyboard</div>
       </div>
 
       <p class="shortcuts-lede mono reveal">
@@ -555,7 +605,7 @@
     <div class="wrap">
       <div class="section-head reveal">
         <h2>Download, <span class="italic">approve</span>, launch.</h2>
-        <div class="section-head-meta">§ 05 — Getting started</div>
+        <div class="section-head-meta">§ 06 — Getting started</div>
       </div>
 
       <p class="install-lede mono reveal">
@@ -620,9 +670,9 @@
 
       <div class="callout reveal">
         <div>
-          <div class="eyebrow" style="margin-bottom:0.8rem">§ 05.1 — From source</div>
+          <div class="eyebrow" style="margin-bottom:0.8rem">§ 06.1 — From source</div>
           <h2>Rather <span class="italic">build it</span> yourself?</h2>
-          <p class="callout-body">Rust + Node + Tauri 2. Full setup and platform prerequisites live in the <a href="https://github.com/The3eard/BeardGit#development" target="_blank" rel="noopener">README</a>. Licensed <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
+          <p class="callout-body">Rust + Node + Tauri 2. Full setup and platform prerequisites live in the <a href="https://github.com/The3eard/BeardGit#building-from-source" target="_blank" rel="noopener">README</a>. Licensed <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
         </div>
         <div>
           <a href="https://github.com/The3eard/BeardGit" class="btn btn-ghost" target="_blank" rel="noopener">
@@ -639,14 +689,14 @@
     <div class="wrap">
       <div class="section-head reveal">
         <h2>Frequently <span class="italic">asked</span>.</h2>
-        <div class="section-head-meta">§ 06 — FAQ</div>
+        <div class="section-head-meta">§ 07 — FAQ</div>
       </div>
 
       <div class="faq-list">
         <details class="faq-item reveal">
           <summary>Why is the app unsigned?</summary>
           <div class="faq-body">
-            Code-signing certificates for macOS and Windows cost real money per year, and BeardGit is a one-person project shipping a beta. Until that changes, every build is unsigned and your OS will block first launch. The per-platform workaround in <a href="#install">§&nbsp;05</a> takes a single command. Signing is on the roadmap.
+            Code-signing certificates for macOS and Windows cost real money per year, and BeardGit is a one-person project shipping a beta. Until that changes, every build is unsigned and your OS will block first launch. The per-platform workaround in <a href="#install">§&nbsp;06</a> takes a single command. Signing is on the roadmap.
           </div>
         </details>
 
@@ -661,6 +711,13 @@
           <summary>Why no Electron?</summary>
           <div class="faq-body">
             Electron ships a Chromium runtime per app — ~150 MB of memory before you do anything. BeardGit is built on Tauri 2, which uses the OS's native webview (WebKit on macOS, WebView2 on Windows, WebKitGTK on Linux). The installer is small and the cold start is fast.
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>How does it compare to GitKraken / Fork / Sourcetree / Tower?</summary>
+          <div class="faq-body">
+            Honestly? BeardGit isn’t trying to beat any of them at being themselves. They’re mature commercial products with full-time teams; BeardGit is a deliberate, opinionated alternative for developers who want all the surface area of a release in one window — including AI agents in worktrees, an in-repo <code class="mono">.http</code> workspace, and an in-app code editor, none of which the others ship today. If you’re happy paying for one of those clients, stay there. If the trade-offs in <a href="#audience">§&nbsp;04 — Who it’s for</a> sound like you, give BeardGit an afternoon.
           </div>
         </details>
 
@@ -705,7 +762,7 @@
             <span class="brand-name">BeardGit</span>
           </div>
           <p class="footer-tagline mono">
-            A native desktop Git client. One window for graph, PRs, MRs, CI, issues, releases, terminals, and AI agents.
+            A native desktop Git client. One window for graph, PRs, MRs, CI, issues, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor.
           </p>
         </div>
         <div class="footer-col">
@@ -733,12 +790,14 @@
           <ul>
             <li><a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">License</a></li>
             <li><a href="https://github.com/The3eard/BeardGit/blob/main/CLA.md" target="_blank" rel="noopener">CLA</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/SECURITY.md" target="_blank" rel="noopener">Security</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/README.es.md" target="_blank" rel="noopener" hreflang="es" lang="es">Leer en español ↗</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
         <span>© 2026 Adolfo Fuentes</span>
-        <span class="mono">Graph · PRs · MRs · CI · issues · releases · AI · terminals — one app.</span>
+        <span class="mono">Graph · PRs · MRs · CI · issues · releases · terminals · AI · .http · editor — one app.</span>
       </div>
     </div>
   </footer>
