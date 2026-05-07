@@ -51,7 +51,19 @@ pub struct FileDiff {
     pub additions: usize,
     /// Total number of deleted lines across all hunks.
     pub deletions: usize,
+    /// `true` when the diff was truncated for performance (e.g. a single
+    /// commit touched a 50 MB minified blob). The frontend renders a
+    /// "diff too large to display" placeholder. Defaults to `false` so
+    /// existing call sites and JSON payloads stay untouched.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub truncated: bool,
 }
+
+/// Maximum size, in bytes, of the raw `git diff` output rendered in
+/// `commit_file_diff`. Beyond this, parsing is skipped and a synthetic
+/// truncated `FileDiff` is returned. 5 MB is enough for any honest
+/// commit while keeping IPC + frontend rendering responsive.
+pub const MAX_COMMIT_DIFF_BYTES: usize = 5 * 1024 * 1024;
 
 /// A single contiguous diff hunk within a file.
 #[derive(Debug, Clone, Serialize)]
@@ -195,6 +207,18 @@ impl Repository {
             }
         };
 
+        if output.len() > MAX_COMMIT_DIFF_BYTES {
+            return Ok(vec![FileDiff {
+                path: path.to_string(),
+                old_path: None,
+                status: "modified".to_string(),
+                hunks: Vec::new(),
+                additions: 0,
+                deletions: 0,
+                truncated: true,
+            }]);
+        }
+
         Ok(parse_unified_diff(&output))
     }
 
@@ -237,6 +261,7 @@ fn collect_file_diffs(diff: &Diff) -> Result<Vec<FileDiff>, GitError> {
             hunks: Vec::new(),
             additions: 0,
             deletions: 0,
+            truncated: false,
         });
     }
 
@@ -329,6 +354,7 @@ pub fn parse_unified_diff(diff_text: &str) -> Vec<FileDiff> {
                 hunks: Vec::new(),
                 additions: 0,
                 deletions: 0,
+                truncated: false,
             });
             current_hunk = None;
         } else if line.starts_with("--- ") {

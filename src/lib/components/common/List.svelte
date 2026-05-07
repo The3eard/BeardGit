@@ -53,6 +53,23 @@
     footer?: Snippet;
     /** When provided, replaces the entire items area. Loading/empty/each are skipped. */
     customContent?: Snippet;
+    /**
+     * Pixel height of a single row. When set together with a list size
+     * above `virtualizeOver`, the component switches to a windowed
+     * renderer that only mounts rows visible in the viewport (plus a
+     * small overscan above and below). Required for virtualization —
+     * the implementation assumes a uniform row height.
+     */
+    rowHeight?: number;
+    /**
+     * Threshold above which virtualization kicks in. Defaults to 500
+     * rows, matching the value documented in
+     * `lib/components/common/CLAUDE.md`. Below this we keep the plain
+     * `{#each}` path so layouts that depend on intrinsic row heights
+     * stay correct. Set to `0` to force virtualization for any non-
+     * empty list (useful in tests).
+     */
+    virtualizeOver?: number;
   }
 
   let {
@@ -76,6 +93,8 @@
     afterHeader,
     footer,
     customContent,
+    rowHeight,
+    virtualizeOver = 500,
   }: Props = $props();
 
   // ── Filter state ──────────────────────────────────────────────────────
@@ -97,6 +116,57 @@
       ? items.filter((item) => filterFn!(item, filterQuery))
       : items,
   );
+
+  // ── Virtualization ────────────────────────────────────────────────────
+  // Only kicks in when `rowHeight` is set AND the filtered list size is
+  // above `virtualizeOver`. The window is scroll-driven: we track the
+  // scroll container's `scrollTop` + measured viewport height and slice
+  // a [start, end) range out of `filteredItems` with a small overscan
+  // so fast scrolls don't reveal blank rows.
+  const OVERSCAN = 6;
+  let scrollTop = $state(0);
+  let viewportHeight = $state(0);
+
+  let isVirtualized = $derived(
+    rowHeight !== undefined && filteredItems.length > virtualizeOver,
+  );
+
+  let virtualWindow = $derived.by(() => {
+    if (!isVirtualized || rowHeight === undefined) {
+      return { start: 0, end: filteredItems.length, totalHeight: 0 };
+    }
+    const total = filteredItems.length * rowHeight;
+    const visible = Math.ceil((viewportHeight || 600) / rowHeight) + OVERSCAN * 2;
+    const rawStart = Math.floor(scrollTop / rowHeight) - OVERSCAN;
+    const start = Math.max(0, rawStart);
+    const end = Math.min(filteredItems.length, start + visible);
+    return { start, end, totalHeight: total };
+  });
+
+  function handleScroll(e: Event) {
+    if (!isVirtualized) return;
+    const el = e.currentTarget as HTMLDivElement;
+    scrollTop = el.scrollTop;
+    // Measure viewport height lazily on the scroll path so we never
+    // depend on `bind:clientHeight` (which Svelte 5 wires through
+    // ResizeObserver — not available in the JSDOM-based test env).
+    if (viewportHeight !== el.clientHeight) {
+      viewportHeight = el.clientHeight;
+    }
+  }
+
+  // Measure viewport height once when virtualization first kicks in.
+  // We avoid `bind:clientHeight` because Svelte 5 implements it via
+  // ResizeObserver, which JSDOM does not provide and which would crash
+  // every `List`-using test that doesn't shim it. The fallback in
+  // `virtualWindow` (`viewportHeight || 600`) keeps the first paint
+  // sane until either this measurement or the first real scroll runs.
+  $effect(() => {
+    if (!isVirtualized || !listEl) return;
+    if (viewportHeight === 0 && listEl.clientHeight > 0) {
+      viewportHeight = listEl.clientHeight;
+    }
+  });
 
   // ── Keyboard navigation ───────────────────────────────────────────────
   let listEl: HTMLDivElement | undefined = $state();
@@ -188,7 +258,11 @@
   {/if}
 
   <!-- Items -->
-  <div class="list-items" bind:this={listEl}>
+  <div
+    class="list-items"
+    bind:this={listEl}
+    onscroll={handleScroll}
+  >
     {#if customContent}
       {@render customContent()}
     {:else if loading && items.length === 0}
@@ -200,6 +274,42 @@
         {@render emptyState()}
       {:else}
         <div class="list-empty">{emptyMessage}</div>
+      {/if}
+    {:else if isVirtualized && rowHeight !== undefined}
+      <!-- Virtualized window: a tall sizer keeps the scrollbar honest,
+           and only the visible slice is mounted with absolute
+           positioning anchored to (start * rowHeight). -->
+      <div
+        class="virt-sizer"
+        style="height: {virtualWindow.totalHeight}px; position: relative"
+      >
+        {#each filteredItems.slice(virtualWindow.start, virtualWindow.end) as item, i (getKey(item))}
+          {@const absoluteIndex = virtualWindow.start + i}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div
+            class="list-row"
+            class:selected={getKey(item) === selectedKey}
+            style="position: absolute; left: 0; right: 0; top: {absoluteIndex * rowHeight}px; height: {rowHeight}px"
+            onclick={() => onSelect?.(item)}
+            ondblclick={() => onDoubleClick?.(item)}
+            oncontextmenu={(e) => {
+              if (onContextMenu) {
+                e.preventDefault();
+                onContextMenu(e, item);
+              }
+            }}
+            role="option"
+            tabindex="-1"
+            aria-selected={getKey(item) === selectedKey}
+          >
+            {#if row}
+              {@render row({ item, selected: getKey(item) === selectedKey })}
+            {/if}
+          </div>
+        {/each}
+      </div>
+      {#if footer}
+        {@render footer()}
       {/if}
     {:else}
       {#each filteredItems as item (getKey(item))}

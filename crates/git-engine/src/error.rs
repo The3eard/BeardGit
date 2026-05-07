@@ -25,6 +25,15 @@ pub enum GitError {
     /// diff. Not a failure per se; a structured signal.
     #[error("binary file")]
     Binary,
+    /// The blob at the requested path is larger than the per-file cap
+    /// for the current operation. Callers should render a placeholder
+    /// instead of attempting to load + diff the content. Not a failure
+    /// per se; a structured signal. `size` is the byte size of the blob.
+    #[error("file too large ({size} bytes)")]
+    FileTooLarge {
+        /// Byte size of the blob.
+        size: usize,
+    },
     /// A repo-relative path supplied by a caller failed validation. Raised
     /// by helpers that refuse absolute paths, paths containing `..`
     /// segments, or paths that would resolve outside the repository's

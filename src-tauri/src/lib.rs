@@ -81,6 +81,14 @@ pub fn run() {
             }
 
             // Listen for OS theme changes and re-emit resolved theme when auto is enabled.
+            //
+            // Reads the user's theme preference from the in-memory
+            // `AppState::config` rather than re-loading `settings.json`
+            // from disk on every OS theme switch. The themes dir is
+            // resolved from `state.config_dir` for the same reason —
+            // this handler is now consistent with the in-state pattern
+            // used by the `set_theme` / `resolve_startup_theme`
+            // commands in `commands/theme.rs`.
             let main_window = app.get_webview_window("main");
             if let Some(window) = main_window {
                 let app_handle = app.handle().clone();
@@ -89,18 +97,19 @@ pub fn run() {
                         let handle = app_handle.clone();
                         let os_dark = matches!(theme, tauri::Theme::Dark);
                         tauri::async_runtime::spawn(async move {
-                            let config_dir = dirs::config_dir()
-                                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                                .join("beardgit");
-                            let config_path = config_dir.join("settings.json");
-                            let config = storage::AppConfig::load(&config_path).unwrap_or_default();
-
-                            if config.theme_auto {
-                                let new_id = app_core::commands::resolve_theme_for_mode(
-                                    &config.theme,
+                            use tauri::Manager as _;
+                            let state = handle.state::<app_core::state::AppState>();
+                            let (theme_auto, base_theme) = {
+                                let cfg = state.config.lock().unwrap();
+                                (cfg.theme_auto, cfg.theme.clone())
+                            };
+                            if theme_auto {
+                                let themes_dir = state.config_dir.join("themes");
+                                let new_id = storage::theme::resolve_theme_for_mode(
+                                    &base_theme,
                                     os_dark,
+                                    &themes_dir,
                                 );
-                                let themes_dir = config_dir.join("themes");
                                 let resolved = storage::theme::resolve_theme(&new_id, &themes_dir);
                                 use tauri::Emitter as _;
                                 let _ = handle.emit("theme-changed", &resolved);

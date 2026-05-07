@@ -2,7 +2,8 @@
   import { fileStatuses, stageFiles, unstageFiles, commit, amendCommit, refreshStatuses, refreshDiffs } from "../../stores/changes";
   import ChangesList from "./ChangesList.svelte";
   import CleanDialog from "./CleanDialog.svelte";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
+  import type { UnlistenFn } from "@tauri-apps/api/event";
   import * as m from "$lib/paraglide/messages";
   import { getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote, saveAiReview } from "$lib/api/tauri";
   import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -34,6 +35,28 @@
   let showOverflowMenu = $state(false);
   let patchStagedOnly = $state(true);
   let aiCommitLoading = $state(false);
+
+  // Tracked AI-task listeners. We register Tauri `task-completed` /
+  // `task-failed` listeners on demand for each AI run; if the user
+  // navigates away before the task fires, the matching event never
+  // arrives and the listener leaks. Components that register through
+  // `trackListener` get cleaned up automatically in `onDestroy`.
+  const pendingUnlistens = new Set<UnlistenFn>();
+
+  function trackListener(fn: UnlistenFn): UnlistenFn {
+    pendingUnlistens.add(fn);
+    return () => {
+      pendingUnlistens.delete(fn);
+      fn();
+    };
+  }
+
+  onDestroy(() => {
+    for (const fn of pendingUnlistens) {
+      try { fn(); } catch { /* ignore */ }
+    }
+    pendingUnlistens.clear();
+  });
 
   onMount(() => {
     refreshStatuses();
@@ -98,21 +121,21 @@
       // behaviour the Code Review button now has.
       selectTask(taskId);
 
-      const unlistenCompleted = await listen<TaskInfo>("task-completed", (event) => {
+      const unlistenCompleted = trackListener(await listen<TaskInfo>("task-completed", (event) => {
         if (event.payload.id === taskId) {
           unlistenCompleted();
           unlistenFailed();
           collectAiOutput(taskId);
           aiCommitLoading = false;
         }
-      });
-      const unlistenFailed = await listen<TaskInfo>("task-failed", (event) => {
+      }));
+      const unlistenFailed = trackListener(await listen<TaskInfo>("task-failed", (event) => {
         if (event.payload.id === taskId) {
           unlistenCompleted();
           unlistenFailed();
           aiCommitLoading = false;
         }
-      });
+      }));
     } catch {
       aiCommitLoading = false;
     }
@@ -177,17 +200,17 @@
     // statusbar if they want to follow the stream; otherwise they wait
     // for the success toast.
 
-    const unlistenCompleted = await listen<TaskInfo>("task-completed", async (event) => {
+    const unlistenCompleted = trackListener(await listen<TaskInfo>("task-completed", async (event) => {
       if (event.payload.id !== taskId) return;
       unlistenCompleted();
       unlistenFailed();
       await persistReviewOutput(taskId);
-    });
-    const unlistenFailed = await listen<TaskInfo>("task-failed", (event) => {
+    }));
+    const unlistenFailed = trackListener(await listen<TaskInfo>("task-failed", (event) => {
       if (event.payload.id !== taskId) return;
       unlistenCompleted();
       unlistenFailed();
-    });
+    }));
   }
 
   /**

@@ -22,6 +22,37 @@ import { fetchListIntoStore } from "../utils/store-helpers";
 
 export const branches = writable<BranchInfo[]>([]);
 export const branchesLoading = writable(false);
+
+/**
+ * Per-project branch list cache for instant rendering on tab switch.
+ *
+ * Mirrors `graph.ts`'s `viewportCache` pattern. Branch lists are
+ * cheap to fetch (~100 ms for repos with thousands of refs) but
+ * the round-trip is still visible after `apiSwitchProject`. Caching
+ * the last seen list lets us paint immediately and reconcile when
+ * the fresh fetch arrives. Keyed by repo path.
+ *
+ * The cache is purely RAM — no disk persistence. On cold start the
+ * usual loading spinner shows until `refreshBranches` resolves.
+ */
+const branchCache = new Map<string, BranchInfo[]>();
+
+/** Save the current branch list under `projectPath` for a future tab switch. */
+export function cacheBranchesForProject(projectPath: string): void {
+  const list = get(branches);
+  if (list.length > 0) branchCache.set(projectPath, list);
+}
+
+/** Restore a cached branch list. Returns `true` if the cache had an entry. */
+export function restoreCachedBranches(projectPath: string): boolean {
+  const cached = branchCache.get(projectPath);
+  if (cached) {
+    branches.set(cached);
+    return true;
+  }
+  branches.set([]);
+  return false;
+}
 export const selectedBranchName = writable<string | null>(null);
 export const selectedBranchCommits = writable<CommitInfo[]>([]);
 export const loadingDetail = writable(false);

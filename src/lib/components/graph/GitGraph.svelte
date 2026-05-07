@@ -127,21 +127,44 @@
   });
   let isFiltering = $derived(graphSearchTags.length > 0);
 
-  async function handleGraphSearch(tags: SearchTag[]) {
+  // Sequence guard so a slow in-flight search can't clobber a newer one
+  // (user removes a tag, presses Enter again, etc. — the older `await
+  // filterGraphRemote` may resolve after the newer one and overwrite the
+  // viewport). Each call bumps the sequence; only the latest result wins.
+  let graphSearchSeq = 0;
+  let graphSearchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+  function handleGraphSearch(tags: SearchTag[]) {
     graphSearchTags = tags;
     filteredOffset = 0;
     if (tags.length === 0) {
+      if (graphSearchDebounce) {
+        clearTimeout(graphSearchDebounce);
+        graphSearchDebounce = null;
+      }
+      graphSearchSeq++;
       filteredViewport = null;
+      searchLoading = false;
       return;
     }
     searchLoading = true;
+    if (graphSearchDebounce) clearTimeout(graphSearchDebounce);
+    graphSearchDebounce = setTimeout(() => {
+      const seq = ++graphSearchSeq;
+      void runFilteredSearch(tags, seq);
+    }, 120);
+  }
+
+  async function runFilteredSearch(tags: SearchTag[], seq: number) {
     try {
       const result = await filterGraphRemote(tags);
+      if (seq !== graphSearchSeq) return; // stale
       filteredViewport = result;
     } catch {
+      if (seq !== graphSearchSeq) return;
       filteredViewport = null;
     } finally {
-      searchLoading = false;
+      if (seq === graphSearchSeq) searchLoading = false;
     }
   }
 

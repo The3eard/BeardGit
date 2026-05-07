@@ -35,6 +35,17 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { TaskInfo, TaskId, TaskOutputLine, TaskOutputEvent } from "../types";
 import * as api from "../api/tauri";
 
+/**
+ * Maximum lines retained per task in the `taskOutput` buffer. Long-running
+ * subprocess tasks (compilation, file watchers, AI streams) can dump tens
+ * of thousands of lines; keeping all of them in memory pins the renderer
+ * after a multi-hour session. We retain the most recent
+ * `MAX_TASK_OUTPUT_LINES` lines and silently drop the rest — the UI
+ * already truncates with a "show full output" affordance for the rare
+ * case where someone wants the head.
+ */
+const MAX_TASK_OUTPUT_LINES = 5_000;
+
 /** Every task reported by the Rust `TaskManager`, upserted in place. */
 export const tasks = writable<TaskInfo[]>([]);
 /** Output lines keyed by task ID. Mutated in-place, cloned on rAF tick. */
@@ -88,6 +99,11 @@ export async function initTaskStore(): Promise<void> {
       taskOutput.update((map) => {
         const lines = map.get(event.payload.task_id) ?? [];
         lines.push(event.payload.line);
+        // Drop the head once we exceed the cap. `splice` mutates in place,
+        // matching the deferred-clone pattern used by the rAF tick.
+        if (lines.length > MAX_TASK_OUTPUT_LINES) {
+          lines.splice(0, lines.length - MAX_TASK_OUTPUT_LINES);
+        }
         map.set(event.payload.task_id, lines);
         return map; // mutate in place, defer clone
       });
