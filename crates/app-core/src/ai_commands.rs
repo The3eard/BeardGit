@@ -52,11 +52,16 @@ fn parse_kind(provider: &str) -> Result<AiProviderKind, String> {
 /// without needing to call into `git-engine`. The `--no-ext-diff` flag
 /// bypasses any user-configured `diff.external` (e.g. `difftastic`) so the
 /// AI provider always receives canonical unified-diff text.
-fn get_staged_diff_text(cwd: &Path) -> Result<String, String> {
-    let output = std::process::Command::new("git")
+///
+/// Runs through `tokio::process::Command` so the IPC executor is not
+/// blocked while `git` walks the index — large staged diffs in big repos
+/// can take hundreds of milliseconds.
+async fn get_staged_diff_text(cwd: &Path) -> Result<String, String> {
+    let output = tokio::process::Command::new("git")
         .current_dir(cwd)
         .args(["diff", "--no-ext-diff", "--cached"])
         .output()
+        .await
         .map_err(|e| format!("failed to run git diff: {e}"))?;
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
@@ -219,7 +224,7 @@ pub async fn ai_generate_commit_message(
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
-    let diff = get_staged_diff_text(&cwd)?;
+    let diff = get_staged_diff_text(&cwd).await?;
     let cmd = p
         .build_commit_message_cmd(&diff, &cwd)
         .map_err(|e| e.to_string())?;
@@ -285,7 +290,7 @@ pub async fn ai_generate_pr_description(
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
-    let diff = get_staged_diff_text(&cwd)?;
+    let diff = get_staged_diff_text(&cwd).await?;
     let cmd = p
         .build_pr_description_cmd(&diff, &cwd)
         .map_err(|e| e.to_string())?;

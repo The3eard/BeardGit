@@ -53,64 +53,127 @@ export const selectedJobSteps = derived(
 export const isConnecting = writable(false);
 export const providerError = writable<string | null>(null);
 
-let ciRunListTimer: ReturnType<typeof setInterval> | null = null;
-let ciRunDetailTimer: ReturnType<typeof setInterval> | null = null;
-let jobLogTimer: ReturnType<typeof setInterval> | null = null;
+// ---------------------------------------------------------------------------
+// CI Polling
+// ---------------------------------------------------------------------------
+//
+// Three independent polling loops (list / run-detail / job-log) share the
+// same lightweight scheduler so we can:
+//
+// 1. **Pause when the window is hidden** — laptops on battery shouldn't
+//    keep firing `git diff` / forge HTTP calls every 3 s while tucked away
+//    in another desktop. We listen to `visibilitychange` once at module
+//    init and resume each active loop when the page becomes visible again
+//    (firing one tick immediately so the user doesn't see stale data).
+//
+// 2. **Skip overlapping ticks** — if a previous fetch is still in flight,
+//    the next tick is dropped instead of piling up concurrent requests.
+//    Helps when the provider API is slow (cold cache, GH search rate limit)
+//    so we never have N>1 in-flight calls of the same kind.
+//
+// We deliberately keep three separate `setInterval`s rather than coalescing
+// into a single bucket loop: the cadences (15 s / 10 s / 3 s) are
+// independent and only the active panel's loop is typically running, so
+// the wake-up cost is negligible compared to the readability win.
+
+const noop = async () => {};
+
+interface PollLoop {
+  id: ReturnType<typeof setInterval> | null;
+  intervalMs: number;
+  tick: () => Promise<void>;
+  inFlight: boolean;
+}
+
+const ciRunListLoop: PollLoop = { id: null, intervalMs: 15_000, tick: noop, inFlight: false };
+const ciRunDetailLoop: PollLoop = { id: null, intervalMs: 10_000, tick: noop, inFlight: false };
+const jobLogLoop: PollLoop = { id: null, intervalMs: 3_000, tick: noop, inFlight: false };
+
+function startLoop(loop: PollLoop) {
+  stopLoop(loop);
+  if (typeof document !== "undefined" && document.hidden) {
+    // Will be resumed by the visibilitychange listener.
+    return;
+  }
+  loop.id = setInterval(() => {
+    if (loop.inFlight) return;
+    if (typeof document !== "undefined" && document.hidden) return;
+    loop.inFlight = true;
+    loop.tick().catch(() => { /* swallow polling errors */ }).finally(() => {
+      loop.inFlight = false;
+    });
+  }, loop.intervalMs);
+}
+
+function stopLoop(loop: PollLoop) {
+  if (loop.id !== null) {
+    clearInterval(loop.id);
+    loop.id = null;
+  }
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopLoop(ciRunListLoop);
+      stopLoop(ciRunDetailLoop);
+      stopLoop(jobLogLoop);
+    } else {
+      // Resume + fire one immediate tick so the UI catches up after a
+      // long hidden interval. Loops with `tick === noop` were stopped
+      // explicitly and stay paused.
+      for (const loop of [ciRunListLoop, ciRunDetailLoop, jobLogLoop]) {
+        if (loop.tick !== noop) {
+          startLoop(loop);
+          if (!loop.inFlight) {
+            loop.inFlight = true;
+            loop.tick().catch(() => {}).finally(() => { loop.inFlight = false; });
+          }
+        }
+      }
+    }
+  });
+}
 
 export function startCiRunListPolling(refreshFn?: () => Promise<void>) {
-  stopCiRunListPolling();
-  const fn = refreshFn ?? (async () => { await loadCiRuns(); });
-  ciRunListTimer = setInterval(async () => {
-    try {
-      await fn();
-    } catch { /* ignore polling errors */ }
-  }, 15000);
+  ciRunListLoop.tick = refreshFn ?? (async () => { await loadCiRuns(); });
+  startLoop(ciRunListLoop);
 }
 
 export function stopCiRunListPolling() {
-  if (ciRunListTimer) {
-    clearInterval(ciRunListTimer);
-    ciRunListTimer = null;
-  }
+  ciRunListLoop.tick = noop;
+  stopLoop(ciRunListLoop);
 }
 
 export function startCiRunDetailPolling(runId: number) {
-  stopCiRunDetailPolling();
-  ciRunDetailTimer = setInterval(async () => {
-    try {
-      const detail = await api.getCiRunDetail(runId);
-      selectedCiRun.set(detail);
-      const status = detail.run.status;
-      if (status !== 'running' && status !== 'pending' && status !== 'queued') {
-        stopCiRunDetailPolling();
-      }
-    } catch { /* ignore */ }
-  }, 10000);
+  ciRunDetailLoop.tick = async () => {
+    const detail = await api.getCiRunDetail(runId);
+    selectedCiRun.set(detail);
+    const status = detail.run.status;
+    if (status !== 'running' && status !== 'pending' && status !== 'queued') {
+      stopCiRunDetailPolling();
+    }
+  };
+  startLoop(ciRunDetailLoop);
 }
 
 export function stopCiRunDetailPolling() {
-  if (ciRunDetailTimer) {
-    clearInterval(ciRunDetailTimer);
-    ciRunDetailTimer = null;
-  }
+  ciRunDetailLoop.tick = noop;
+  stopLoop(ciRunDetailLoop);
 }
 
 export function startJobLogPolling(jobId: number) {
-  stopJobLogPolling();
-  jobLogTimer = setInterval(async () => {
-    try {
-      const log = await api.getJobLog(jobId);
-      jobLog.set(log);
-      jobLogUnavailable.set(false);
-    } catch { /* ignore — will retry next tick */ }
-  }, 3000);
+  jobLogLoop.tick = async () => {
+    const log = await api.getJobLog(jobId);
+    jobLog.set(log);
+    jobLogUnavailable.set(false);
+  };
+  startLoop(jobLogLoop);
 }
 
 export function stopJobLogPolling() {
-  if (jobLogTimer) {
-    clearInterval(jobLogTimer);
-    jobLogTimer = null;
-  }
+  jobLogLoop.tick = noop;
+  stopLoop(jobLogLoop);
 }
 
 export function stopAllPolling() {

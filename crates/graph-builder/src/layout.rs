@@ -287,20 +287,23 @@ impl GraphLayout {
             // 3. At the cap — try to reclaim a stale (duplicate-OID) lane.
             //    A lane is stale if its OID appears in at least one other lane.
             //    Search from highest index so lower lanes stay stable.
-            let mut stale_idx: Option<usize> = None;
-            for i in (0..lanes.len()).rev() {
-                if let Some(ref lane_oid) = lanes[i] {
-                    // Check if this OID appears in any other lane
-                    let is_duplicate = lanes
-                        .iter()
-                        .enumerate()
-                        .any(|(j, slot)| j != i && slot.as_deref() == Some(lane_oid));
-                    if is_duplicate {
-                        stale_idx = Some(i);
-                        break;
-                    }
-                }
+            //
+            //    Previously this used a nested `lanes.iter().any(...)` per
+            //    candidate, comparing string contents on each pair — O(MAX_LANES²)
+            //    per call with full-string equality. We now build a
+            //    one-shot occurrence table over the active lanes (O(MAX_LANES))
+            //    and then look up `count > 1` in O(1) per candidate.
+            let mut occ: std::collections::HashMap<&str, u8> =
+                std::collections::HashMap::with_capacity(lanes.len());
+            for o in lanes.iter().flatten() {
+                *occ.entry(o.as_ref()).or_insert(0) += 1;
             }
+            let stale_idx: Option<usize> = (0..lanes.len()).rev().find(|&i| {
+                lanes[i]
+                    .as_ref()
+                    .map(|o| occ.get(o.as_ref()).copied().unwrap_or(0) > 1)
+                    .unwrap_or(false)
+            });
             let reclaim_idx = stale_idx.unwrap_or(lanes.len() - 1);
             // Close the existing segment before overwriting — mark as recycled
             // so the renderer draws a continuation arrow.
@@ -505,7 +508,7 @@ mod tests {
     #[test]
     fn test_linear_layout_single_lane() {
         let commits = vec![commit("c", &["b"]), commit("b", &["a"]), commit("a", &[])];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
 
         assert_eq!(layout.nodes.len(), 3);
@@ -526,7 +529,7 @@ mod tests {
             commit("b2", &["base"]),
             commit("base", &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
 
         assert!(
@@ -544,7 +547,7 @@ mod tests {
             commit("b2", &["base"]),
             commit("base", &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
 
         for curve in &layout.merge_curves {
@@ -565,7 +568,7 @@ mod tests {
 
     #[test]
     fn test_empty_dag() {
-        let dag = Dag::build(&[]);
+        let dag = Dag::build(vec![]);
         let layout = GraphLayout::compute(&dag);
         assert_eq!(layout.nodes.len(), 0);
         assert_eq!(layout.lane_count, 0);
@@ -574,7 +577,7 @@ mod tests {
     #[test]
     fn test_linear_history_produces_one_segment() {
         let commits = vec![commit("c", &["b"]), commit("b", &["a"]), commit("a", &[])];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         assert_eq!(layout.lane_segments.len(), 1);
         assert_eq!(
@@ -600,7 +603,7 @@ mod tests {
             commit("b2", &["base"]),
             commit("base", &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         assert!(
             layout.lane_segments.len() >= 2,
@@ -615,7 +618,7 @@ mod tests {
 
     #[test]
     fn test_no_segments_for_empty_graph() {
-        let dag = Dag::build(&[]);
+        let dag = Dag::build(vec![]);
         let layout = GraphLayout::compute(&dag);
         assert!(layout.lane_segments.is_empty());
         assert!(layout.merge_curves.is_empty());
@@ -624,7 +627,7 @@ mod tests {
     #[test]
     fn test_single_commit_produces_one_segment() {
         let commits = vec![commit("a", &[])];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         assert_eq!(layout.lane_segments.len(), 1);
         assert_eq!(
@@ -650,7 +653,7 @@ mod tests {
             commit("b", &["a"]),
             commit("a", &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         let lane0_segs: Vec<&LaneSegment> = layout
             .lane_segments
@@ -677,7 +680,7 @@ mod tests {
             commit("b2", &["base"]),
             commit("base", &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
 
         // `base` must be placed in exactly one lane (lane 0), not duplicated
@@ -709,7 +712,7 @@ mod tests {
             make_commit("f1", &["base"], &[], "f1 work"),
             make_commit("base", &[], &[], "initial"),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         // Peak is 3 (lanes 0, 1, 2 active at rows 2-3).
         // All lanes are freed once `base` is processed.
@@ -738,7 +741,7 @@ mod tests {
             make_commit("f1", &["base"], &["feature1"], "f1 work"),
             make_commit("base", &[], &[], "initial"),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         // After f1's lane merges back, f2 should reuse it
         // Lane count should be <= 3, not grow unbounded
@@ -755,7 +758,7 @@ mod tests {
             make_commit("a", &[], &["HEAD", "refs/heads/main"], "latest"),
             make_commit("b", &["a"], &[], "previous"),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         assert!(layout.head_lane.is_some());
         let head_node = layout.nodes.iter().find(|n| n.oid == "a").unwrap();
@@ -765,7 +768,7 @@ mod tests {
     #[test]
     fn test_head_lane_none_when_no_head() {
         let commits = vec![make_commit("a", &[], &["refs/heads/main"], "only")];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         assert!(layout.head_lane.is_none());
     }
@@ -777,7 +780,7 @@ mod tests {
             commit("b", &["a"]),
             commit("a", &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         for seg in &layout.lane_segments {
             assert_eq!(seg.sync_state, SyncState::Unknown);
@@ -796,7 +799,7 @@ mod tests {
             commit("b", &["a"]),
             commit("a", &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         for seg in &layout.lane_segments {
             assert_eq!(seg.sync_state, SyncState::Synced);
@@ -810,7 +813,7 @@ mod tests {
             commit("b", &["a"]),
             make_commit("a", &[], &["refs/remotes/origin/main"], "remote tip"),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         assert_eq!(layout.lane_segments.len(), 1);
         let seg = &layout.lane_segments[0];
@@ -824,7 +827,7 @@ mod tests {
             make_commit("b", &["a"], &["refs/heads/main"], "local tip"),
             commit("a", &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
         let layout = GraphLayout::compute(&dag);
         assert_eq!(layout.lane_segments.len(), 1);
         let seg = &layout.lane_segments[0];

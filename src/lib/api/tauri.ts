@@ -631,18 +631,21 @@ export async function setGraphColumns(columns: GraphColumnConfig[]): Promise<voi
 /** Tagged result from `get_file_at_commit`. */
 export type FileAtCommitResult =
   | { kind: "text"; data: string }
-  | { kind: "binary" };
+  | { kind: "binary" }
+  | { kind: "too_large"; size: number };
 
-/** Returns raw file content at a commit, or a `binary` marker for binary blobs. */
+/** Returns raw file content at a commit, or a structured marker for
+ * blobs that can't be diffed (binary content, or larger than the
+ * server-side cap of ~5 MB). */
 export async function getFileAtCommit(oid: string, path: string): Promise<FileAtCommitResult> {
   return invoke<FileAtCommitResult>("get_file_at_commit", { oid, path });
 }
 
 /**
- * Back-compat helper — returns the text content or `""` for binary blobs.
- * Existing consumers (graph, branches, reflog diff opens) rely on a
- * bare string. Swap them to `getFileAtCommit` when binary handling is
- * added there.
+ * Back-compat helper — returns the text content or `""` for binary
+ * blobs and oversized blobs. Existing consumers (graph, branches,
+ * reflog diff opens) rely on a bare string; swap them to
+ * `getFileAtCommit` when binary or too-large handling is added there.
  */
 export async function getFileAtCommitText(oid: string, path: string): Promise<string> {
   const r = await getFileAtCommit(oid, path);

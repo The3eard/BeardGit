@@ -74,35 +74,45 @@ pub struct Dag {
 }
 
 impl Dag {
-    /// Build a DAG from a slice of commits.
+    /// Build a DAG from an owned vector of commits.
+    ///
+    /// Takes the commits by value so the per-commit `String` / `Vec<String>`
+    /// fields (`refs`, `summary`, `author`, `email`) can be moved into the
+    /// `DagNode` rather than cloned. For repos with hundreds of thousands
+    /// of commits the avoided allocations add up — the previous slice-based
+    /// API cloned five owned fields per commit on every layout rebuild.
     ///
     /// Two-pass:
     /// 1. Create a `DagNode` for every commit.
     /// 2. Iterate nodes and, for each parent reference, push the current node's
     ///    oid into the parent's `children` list.
-    pub fn build(commits: &[GraphCommit]) -> Self {
+    pub fn build(commits: Vec<GraphCommit>) -> Self {
         let mut dag = Dag::default();
+        dag.order.reserve(commits.len());
+        dag.nodes.reserve(commits.len());
 
         // Pass 1 — create nodes
-        for (index, commit) in commits.iter().enumerate() {
+        for (index, commit) in commits.into_iter().enumerate() {
             let oid: Arc<str> = commit.oid.as_str().into();
             let parents: Vec<Arc<str>> = commit
                 .parents
-                .iter()
+                .into_iter()
                 .map(|s| Arc::from(s.as_str()))
                 .collect();
+            let is_merge = parents.len() > 1;
+            let is_root = parents.is_empty();
             let node = DagNode {
                 oid: Arc::clone(&oid),
-                parents: parents.clone(),
+                parents,
                 children: Vec::new(),
-                refs: commit.refs.clone(),
-                summary: commit.summary.clone(),
-                author: commit.author.clone(),
-                email: commit.email.clone(),
+                refs: commit.refs,
+                summary: commit.summary,
+                author: commit.author,
+                email: commit.email,
                 timestamp: commit.timestamp,
                 index,
-                is_merge: parents.len() > 1,
-                is_root: parents.is_empty(),
+                is_merge,
+                is_root,
             };
             dag.order.push(Arc::clone(&oid));
             dag.nodes.insert(oid, node);
@@ -187,7 +197,7 @@ mod tests {
             commit("b", &["a"], &[]),
             commit("a", &[], &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
 
         assert_eq!(dag.len(), 3);
 
@@ -212,7 +222,7 @@ mod tests {
             commit("b2", &["base"], &[]),
             commit("base", &[], &[]),
         ];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
 
         let m = dag.get("m").unwrap();
         assert!(m.is_merge);
@@ -221,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_empty_input() {
-        let dag = Dag::build(&[]);
+        let dag = Dag::build(vec![]);
         assert!(dag.is_empty());
         assert_eq!(dag.len(), 0);
         assert!(dag.nodes().is_empty());
@@ -230,7 +240,7 @@ mod tests {
     #[test]
     fn test_children_populated() {
         let commits = vec![commit("b", &["a"], &[]), commit("a", &[], &[])];
-        let dag = Dag::build(&commits);
+        let dag = Dag::build(commits);
 
         let a = dag.get("a").unwrap();
         assert_eq!(arc_strs(&a.children), vec!["b"], "a should list b as child");

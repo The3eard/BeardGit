@@ -1,4 +1,9 @@
 //! Theme listing, selection, auto-detection, and startup resolution commands.
+//!
+//! These commands read and write the in-memory `state.config` rather than
+//! re-loading `settings.json` on every call — the AppState's `config`
+//! mutex is the canonical source of truth for the user's theme prefs and
+//! `set_*` commands persist via `AppConfig::save(&state.config_path)`.
 
 use tauri::{AppHandle, State};
 
@@ -7,11 +12,7 @@ use crate::state::AppState;
 /// List all available themes (built-in + user-installed).
 #[tauri::command]
 pub fn list_themes(state: State<'_, AppState>) -> Vec<storage::ThemeMeta> {
-    let _ = &state;
-    let config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("beardgit");
-    let themes_dir = config_dir.join("themes");
+    let themes_dir = state.config_dir.join("themes");
     let _ = storage::theme::ensure_themes_dir(&themes_dir);
     storage::theme::list_all_themes(&themes_dir)
 }
@@ -19,30 +20,20 @@ pub fn list_themes(state: State<'_, AppState>) -> Vec<storage::ThemeMeta> {
 /// Resolve a full theme by name (built-in or user file).
 #[tauri::command]
 pub fn get_theme(name: String, state: State<'_, AppState>) -> storage::Theme {
-    let _ = &state;
-    let config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("beardgit");
-    let themes_dir = config_dir.join("themes");
+    let themes_dir = state.config_dir.join("themes");
     storage::theme::resolve_theme(&name, &themes_dir)
 }
 
 /// Set the active theme name and emit a `theme-changed` event with the resolved theme.
 #[tauri::command]
 pub fn set_theme(name: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("beardgit");
-    let config_path = config_dir.join("settings.json");
-    let mut config = storage::AppConfig::load(&config_path).unwrap_or_default();
-    config.theme = name.clone();
-    config.save(&config_path).map_err(|e| e.to_string())?;
+    {
+        let mut cfg = state.config.lock().unwrap();
+        cfg.theme = name.clone();
+        cfg.save(&state.config_path).map_err(|e| e.to_string())?;
+    }
 
-    // Also update the in-memory config
-    let mut cfg = state.config.lock().unwrap();
-    cfg.theme = name.clone();
-
-    let themes_dir = config_dir.join("themes");
+    let themes_dir = state.config_dir.join("themes");
     let theme = storage::theme::resolve_theme(&name, &themes_dir);
     use tauri::Emitter as _;
     let _ = app.emit("theme-changed", &theme);
@@ -51,47 +42,30 @@ pub fn set_theme(name: String, app: AppHandle, state: State<'_, AppState>) -> Re
 
 /// Get the current `theme_auto` setting.
 #[tauri::command]
-pub fn get_theme_auto(_state: State<'_, AppState>) -> bool {
-    let config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("beardgit");
-    let config_path = config_dir.join("settings.json");
-    storage::AppConfig::load(&config_path)
-        .map(|c| c.theme_auto)
-        .unwrap_or(true)
+pub fn get_theme_auto(state: State<'_, AppState>) -> bool {
+    state.config.lock().unwrap().theme_auto
 }
 
 /// Set the `theme_auto` preference and persist to config.
 #[tauri::command]
 pub fn set_theme_auto(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("beardgit");
-    let config_path = config_dir.join("settings.json");
-    let mut config = storage::AppConfig::load(&config_path).unwrap_or_default();
-    config.theme_auto = enabled;
-    config.save(&config_path).map_err(|e| e.to_string())?;
-
-    // Also update the in-memory config
     let mut cfg = state.config.lock().unwrap();
     cfg.theme_auto = enabled;
-
-    Ok(())
+    cfg.save(&state.config_path).map_err(|e| e.to_string())
 }
 
 /// Resolve the startup theme, respecting the `theme_auto` setting and OS dark/light mode.
 #[tauri::command]
-pub fn resolve_startup_theme(app: AppHandle, _state: State<'_, AppState>) -> storage::Theme {
-    let config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("beardgit");
-    let config_path = config_dir.join("settings.json");
-    let themes_dir = config_dir.join("themes");
+pub fn resolve_startup_theme(app: AppHandle, state: State<'_, AppState>) -> storage::Theme {
+    let themes_dir = state.config_dir.join("themes");
     let _ = storage::theme::ensure_themes_dir(&themes_dir);
 
-    let config = storage::AppConfig::load(&config_path).unwrap_or_default();
+    let (theme_auto, base_theme) = {
+        let cfg = state.config.lock().unwrap();
+        (cfg.theme_auto, cfg.theme.clone())
+    };
 
-    let theme_id = if config.theme_auto {
+    let theme_id = if theme_auto {
         use tauri::Manager as _;
         let os_dark = app
             .get_webview_window("main")
@@ -99,9 +73,9 @@ pub fn resolve_startup_theme(app: AppHandle, _state: State<'_, AppState>) -> sto
             .map(|t| matches!(t, tauri::Theme::Dark))
             .unwrap_or(true);
 
-        resolve_theme_for_mode(&config.theme, os_dark)
+        storage::theme::resolve_theme_for_mode(&base_theme, os_dark, &themes_dir)
     } else {
-        config.theme.clone()
+        base_theme
     };
 
     storage::theme::resolve_theme(&theme_id, &themes_dir)

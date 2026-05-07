@@ -57,8 +57,9 @@ pub async fn get_commit_file_diff(
 
 /// Structured result for [`get_file_at_commit`].
 ///
-/// Uses an internally-tagged enum so the IPC payload serialises as either
-/// `{ "kind": "text", "data": "..." }` or `{ "kind": "binary" }`.
+/// Uses an internally-tagged enum so the IPC payload serialises as
+/// `{ "kind": "text", "data": "..." }`, `{ "kind": "binary" }`, or
+/// `{ "kind": "too_large", "size": 12345678 }`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FileAtCommitResult {
@@ -69,6 +70,13 @@ pub enum FileAtCommitResult {
     },
     /// Blob contained a NUL byte in its first 8 KB.
     Binary,
+    /// Blob exceeded `MAX_FILE_AT_COMMIT_BYTES` and was not loaded.
+    /// The frontend should render a "file too large to diff"
+    /// placeholder rather than try to fetch it.
+    TooLarge {
+        /// Byte size of the blob.
+        size: usize,
+    },
 }
 
 /// Returns raw file content at a commit, or the tagged sentinel
@@ -90,6 +98,9 @@ pub fn get_file_at_commit(
     with_active_repo(&state, |repo| match repo.get_file_at_commit(&oid, &path) {
         Ok(content) => Ok(FileAtCommitResult::Text { data: content }),
         Err(git_engine::GitError::Binary) => Ok(FileAtCommitResult::Binary),
+        Err(git_engine::GitError::FileTooLarge { size }) => {
+            Ok(FileAtCommitResult::TooLarge { size })
+        }
         Err(e) => Err(e.to_string()),
     })
 }

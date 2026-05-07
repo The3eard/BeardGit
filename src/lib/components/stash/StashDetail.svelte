@@ -46,6 +46,7 @@
               oldContent={contents.oldContent}
               newContent={contents.newContent}
               filename={diff.path}
+              placeholder={diff.truncated ? "Diff too large to display." : undefined}
               editorTheme={$activeTheme?.editor}
               isDark={$activeTheme?.meta.mode !== 'light'}
             />
