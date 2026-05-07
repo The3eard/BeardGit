@@ -259,6 +259,7 @@ mod tests {
             }],
             additions: 1,
             deletions: 1,
+            truncated: false,
         }
     }
 

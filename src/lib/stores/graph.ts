@@ -8,13 +8,84 @@
 
 import { writable, get } from "svelte/store";
 import type { GraphViewport, CommitInfo, CommitFileChange } from "../types";
-import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow, getFileAtCommitText as getFileAtCommit, refreshGraphLayout as apiRefreshGraphLayout } from "../api/tauri";
+import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow, getFileAtCommit, refreshGraphLayout as apiRefreshGraphLayout } from "../api/tauri";
 
 /** Holds raw file content for the DiffEditor panel. */
 export interface RawDiffContent {
   oldContent: string;
   newContent: string;
   filename: string;
+  /**
+   * When set, the DiffEditor renders this string as a placeholder
+   * instead of trying to compute a diff. Used for binary blobs and
+   * for blobs that exceeded the server-side size cap (5 MB).
+   */
+  placeholder?: string;
+}
+
+/** Format a byte count in MB with one decimal — used in too-large messages. */
+function formatMB(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+/**
+ * Fetch both sides of a file diff and classify the result.
+ *
+ * Handles:
+ * - Missing parent (added file or root commit) — `parentOid === null`
+ *   ⇒ old side is treated as empty text.
+ * - Binary blob on either side ⇒ returns a placeholder marker.
+ * - Blob exceeding the server-side cap (`MAX_FILE_AT_COMMIT_BYTES`)
+ *   ⇒ returns a placeholder marker with the byte size.
+ * - Fetch error (404, permission, …) ⇒ that side is treated as empty.
+ *
+ * Shared between the graph's own `openFileDiff` and detail panels
+ * (Tag, Stash, …) that show the same diff layout outside the main
+ * graph viewport.
+ */
+type FetchSide =
+  | { kind: "text"; data: string }
+  | { kind: "binary" }
+  | { kind: "too_large"; size: number };
+
+const EMPTY_TEXT: FetchSide = { kind: "text", data: "" };
+
+export async function fetchDiffSides(
+  oid: string,
+  parentOid: string | null,
+  path: string,
+): Promise<RawDiffContent> {
+  const [oldRes, newRes]: [FetchSide, FetchSide] = await Promise.all([
+    parentOid
+      ? getFileAtCommit(parentOid, path).catch(() => EMPTY_TEXT)
+      : Promise.resolve(EMPTY_TEXT),
+    getFileAtCommit(oid, path).catch(() => EMPTY_TEXT),
+  ]);
+
+  const tooLarge: FetchSide | undefined = [oldRes, newRes].find(
+    (r) => r.kind === "too_large",
+  );
+  if (tooLarge && tooLarge.kind === "too_large") {
+    return {
+      oldContent: "",
+      newContent: "",
+      filename: path,
+      placeholder: `File too large to diff (${formatMB(tooLarge.size)}).`,
+    };
+  }
+  if (oldRes.kind === "binary" || newRes.kind === "binary") {
+    return {
+      oldContent: "",
+      newContent: "",
+      filename: path,
+      placeholder: "Binary file — no text diff available.",
+    };
+  }
+
+  // After the early returns, both sides must be `kind: "text"`.
+  const oldData = oldRes.kind === "text" ? oldRes.data : "";
+  const newData = newRes.kind === "text" ? newRes.data : "";
+  return { oldContent: oldData, newContent: newData, filename: path };
 }
 
 export const viewport = writable<GraphViewport | null>(null);
@@ -191,16 +262,9 @@ export async function openFileDiff(oid: string, path: string) {
   loadingFileDiff.set(true);
   fileDiffPanel.set(null);
   try {
-    // Resolve the parent OID for the "old" side.
     const commit = get(selectedCommit);
     const parentOid = commit?.parents?.[0] ?? null;
-
-    const [oldContent, newContent] = await Promise.all([
-      parentOid ? getFileAtCommit(parentOid, path).catch(() => "") : Promise.resolve(""),
-      getFileAtCommit(oid, path).catch(() => ""),
-    ]);
-
-    fileDiffPanel.set({ oldContent, newContent, filename: path });
+    fileDiffPanel.set(await fetchDiffSides(oid, parentOid, path));
   } finally {
     loadingFileDiff.set(false);
   }

@@ -25,6 +25,24 @@ import * as api from "../api/tauri";
 
 // ─── State ────────────────────────────────────────────────────────────────
 
+/**
+ * Maximum number of transcript lines retained per session. AI providers
+ * (Claude, Codex, …) can dump tens of thousands of JSON lines on long
+ * runs; without a cap each terminal session would grow without bound
+ * and the in-memory `Map<sessionId, string[]>` could pin hundreds of
+ * MB after a day of use. Older lines are dropped silently — the user
+ * can re-attach a PTY terminal to read the full transcript on disk.
+ */
+const MAX_TRANSCRIPT_LINES = 5_000;
+
+/**
+ * Maximum number of background sessions kept in memory simultaneously.
+ * When a new session is added beyond this cap, the oldest *terminal*
+ * (completed/failed/cancelled) session is evicted. Active sessions
+ * (queued/running) are never evicted — only terminal ones can fall off.
+ */
+const MAX_BACKGROUND_SESSIONS = 100;
+
 /** All known AI background runs, keyed by session id. */
 export const aiBackgroundRuns = writable<Map<string, AiSession>>(new Map());
 
@@ -113,7 +131,13 @@ function flushPendingLines(): void {
     const next = new Map(map);
     for (const [sessionId, lines] of pendingLines) {
       const existing = next.get(sessionId) ?? [];
-      next.set(sessionId, existing.concat(lines));
+      const merged = existing.concat(lines);
+      next.set(
+        sessionId,
+        merged.length > MAX_TRANSCRIPT_LINES
+          ? merged.slice(merged.length - MAX_TRANSCRIPT_LINES)
+          : merged,
+      );
     }
     return next;
   });
@@ -142,11 +166,40 @@ export function setAiBackgroundRuns(sessions: AiSession[]): void {
   aiBackgroundRuns.set(new Map(sessions.map((s) => [s.id, s])));
 }
 
-/** Merge a single session into the store (insert-or-update). */
+/** Merge a single session into the store (insert-or-update).
+ *
+ * If we exceed `MAX_BACKGROUND_SESSIONS` after insert, the oldest
+ * terminal (completed/failed/cancelled) session and its transcript are
+ * evicted. Active sessions (queued/running) are never evicted — losing
+ * a live coordinator handle would orphan the underlying PTY.
+ */
 export function upsertAiBackgroundRun(session: AiSession): void {
   aiBackgroundRuns.update((map) => {
     const next = new Map(map);
     next.set(session.id, session);
+
+    if (next.size > MAX_BACKGROUND_SESSIONS) {
+      const evictableTerminal = Array.from(next.values())
+        .filter((s) => {
+          const state = s.background_status?.state;
+          return state === "completed" || state === "failed" || state === "cancelled";
+        })
+        .sort((a, b) => (a.started_at ?? 0) - (b.started_at ?? 0));
+
+      const toEvict = next.size - MAX_BACKGROUND_SESSIONS;
+      const victims = evictableTerminal.slice(0, toEvict);
+      for (const victim of victims) {
+        next.delete(victim.id);
+      }
+      if (victims.length > 0) {
+        aiBackgroundTranscripts.update((tm) => {
+          const tn = new Map(tm);
+          for (const v of victims) tn.delete(v.id);
+          return tn;
+        });
+      }
+    }
+
     return next;
   });
 }

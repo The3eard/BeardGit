@@ -37,7 +37,7 @@ import { refreshStatuses, clearChangesState } from "./changes";
 import { loadProjectSnapshot, saveCurrentSnapshot, restorePersistedViewport } from "./project-cache";
 import { refreshUserEmails, clearGraphState, cacheViewport, restoreCachedViewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
-import { clearBranchState } from "./branches";
+import { clearBranchState, cacheBranchesForProject, restoreCachedBranches } from "./branches";
 import { clearTagState } from "./tags";
 import { clearStashState } from "./stashes";
 import { clearBlameState } from "./blame";
@@ -183,11 +183,16 @@ export async function switchToTab(tabIndex: number) {
   const prevIdx = get(activeTabIndex);
   const tab = tabs[tabIndex];
 
-  // Cache outgoing project's graph BEFORE changing activeTabIndex
-  // (activeProjectFromTab derives from activeTabIndex, so must read first)
+  // Cache outgoing project's graph + branch list BEFORE changing
+  // activeTabIndex (activeProjectFromTab derives from activeTabIndex,
+  // so must read first). The branch cache mirrors the viewport
+  // pattern: on the next switch back to this project we paint the
+  // last-seen list immediately and reconcile when the fresh
+  // `apiBranches` IPC resolves, instead of flashing an empty list.
   const prevProject = get(activeProjectFromTab);
   if (prevProject) {
     cacheViewport(prevProject.path);
+    cacheBranchesForProject(prevProject.path);
   }
 
   // Set active index immediately for instant tab highlight
@@ -233,6 +238,11 @@ async function activateProjectTab(tabIndex: number) {
   const tabs = get(openTabs);
   const targetTab = tabs[tabIndex];
   const targetPath = (targetTab?.kind === "project" || targetTab?.kind === "composite") ? targetTab.project.path : null;
+  // Restore branch list from cache so the panel paints instantly on
+  // tab switch. Falls back to clearing when no cache entry exists
+  // (cold tab), keeping the existing empty-and-loading UX. The fresh
+  // list lands later when `refreshBranches` resolves below.
+  if (targetPath !== null) restoreCachedBranches(targetPath);
   const hasCachedGraph = targetPath
     ? (restoreCachedViewport(targetPath) || restorePersistedViewport(targetPath))
     : false;

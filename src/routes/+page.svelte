@@ -8,10 +8,9 @@
   import StagingArea from "$lib/components/changes/StagingArea.svelte";
   import DiffEditor from "$lib/components/editor/DiffEditor.svelte";
   import StagingDiffEditor from "$lib/components/editor/StagingDiffEditor.svelte";
-  import SettingsPage from "$lib/components/settings/SettingsPage.svelte";
-  import PipelineView from "$lib/components/pipeline/PipelineView.svelte";
+  import LazyComponent from "$lib/components/common/LazyComponent.svelte";
   import { repoInfo, isLoading, error } from "$lib/stores/repo";
-  import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit, graphNavigateDown, graphNavigateUp, graphNavigateFirst, graphNavigateLast } from "$lib/stores/graph";
+  import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit, graphNavigateDown, graphNavigateUp, graphNavigateFirst, graphNavigateLast, fetchDiffSides, fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
   import type { RawDiffContent } from "$lib/stores/graph";
   import * as m from "$lib/paraglide/messages";
   import TasksPopover from "$lib/components/tasks/TasksPopover.svelte";
@@ -28,23 +27,17 @@
   import BranchView from "$lib/components/branches/BranchView.svelte";
   import WorktreeList from "$lib/components/worktrees/WorktreeList.svelte";
   import SubmoduleList from "$lib/components/submodules/SubmoduleList.svelte";
-  import BlameView from "$lib/components/blame/BlameView.svelte";
   import MrPrView from "$lib/components/mr-pr/MrPrView.svelte";
   import IssueView from "$lib/components/issues/IssueView.svelte";
-  import ReleaseView from "$lib/components/releases/ReleaseView.svelte";
   import { activeViewStore, installProviderDisconnectReroute } from "$lib/stores/navigation";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
-  import TerminalView from "$lib/components/terminal/TerminalView.svelte";
   import { initTerminalEvents } from "$lib/stores/terminal";
   import { activeTab, activeTabIndex, findLastProjectTabIndex, openTerminalTab, switchSegment, openTabs, getActiveTerminalSegment, getCompositeTerminals } from "$lib/stores/tabs";
   import { getSidebarCollapsed, setSidebarCollapsed, resolveStartupTheme } from "$lib/api/tauri";
   import { loadSidebarLayout } from "$lib/stores/sidebarLayout";
   import { loadEditorPrefs } from "$lib/stores/editorPrefs";
   import ReflogView from "$lib/components/reflog/ReflogView.svelte";
-  import AiConfigEditor from "$lib/components/ai-config/AiConfigEditor.svelte";
-  import AiSessionsView from "$lib/components/ai-sessions/AiSessionsView.svelte";
-  import BisectWorkflow from "$lib/components/bisect/BisectWorkflow.svelte";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
   import {
@@ -54,13 +47,12 @@
     selectedReflogEntry as selectedReflogEntryStore,
   } from "$lib/stores/reflog";
   import type { ReflogEntry } from "$lib/types";
-  import { getFileAtCommitText as getFileAtCommit, getFileIndex, getFileWorkdir } from "$lib/api/tauri";
+  import { getFileIndex, getFileWorkdir } from "$lib/api/tauri";
   import { shortOid } from "$lib/utils/git";
   import * as api from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
   import { unstagedDiffs, stagedDiffs } from "$lib/stores/changes";
   import type { FileDiff } from "$lib/types";
-  import { fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
   import { addToast } from "$lib/stores/toast";
@@ -70,8 +62,6 @@
   import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
   import RepoConfigPage from "$lib/components/repo-config/RepoConfigPage.svelte";
-  import RequestsPanel from "$lib/components/requests/RequestsPanel.svelte";
-  import FileEditorPanel from "$lib/components/file-editor/FileEditorPanel.svelte";
   import {
     persistTabsForProject as persistEditorTabs,
     startFileEditorListeners,
@@ -599,11 +589,7 @@
     if (!commit) return;
     const parentOid = commit.parents?.[0] ?? null;
     try {
-      const [oldContent, newContent] = await Promise.all([
-        parentOid ? getFileAtCommit(parentOid, path).catch(() => "") : Promise.resolve(""),
-        getFileAtCommit(commit.oid, path).catch(() => ""),
-      ]);
-      branchFileDiff.set({ oldContent, newContent, filename: path });
+      branchFileDiff.set(await fetchDiffSides(commit.oid, parentOid, path));
     } catch {
       branchFileDiff.set(null);
     }
@@ -615,11 +601,7 @@
     try {
       const detail = await api.getCommitDetail(entry.oid);
       const parentOid = detail.parents?.[0] ?? null;
-      const [oldContent, newContent] = await Promise.all([
-        parentOid ? getFileAtCommit(parentOid, path).catch(() => "") : Promise.resolve(""),
-        getFileAtCommit(entry.oid, path).catch(() => ""),
-      ]);
-      reflogFileDiff.set({ oldContent, newContent, filename: path });
+      reflogFileDiff.set(await fetchDiffSides(entry.oid, parentOid, path));
     } catch {
       reflogFileDiff.set(null);
     }
@@ -830,13 +812,19 @@
         {#each $openTabs as tab, i}
           {#if tab.kind === "terminal"}
             <div class="terminal-persist" class:visible={i === $activeTabIndex} style:background={$activeTheme?.colors.background}>
-              <TerminalView terminal={tab.terminal} />
+              <LazyComponent
+                loader={() => import("$lib/components/terminal/TerminalView.svelte")}
+                props={{ terminal: tab.terminal }}
+              />
             </div>
           {:else if tab.kind === "composite"}
             {#each tab.segments as segment, si (segment.type === "terminal" ? `c${i}-t-${segment.info.sessionId}` : `c${i}-skip-${si}`)}
               {#if segment.type === "terminal"}
                 <div class="terminal-persist" class:visible={i === $activeTabIndex && tab.activeSegmentIndex === si} style:background={$activeTheme?.colors.background}>
-                  <TerminalView terminal={segment.info} />
+                  <LazyComponent
+                    loader={() => import("$lib/components/terminal/TerminalView.svelte")}
+                    props={{ terminal: segment.info }}
+                  />
                 </div>
               {/if}
             {/each}
@@ -845,9 +833,9 @@
         {#if $activeTab?.kind === "terminal" || ($activeTab?.kind === "composite" && $activeTab.activeSegmentIndex >= 0 && $activeTab.segments[$activeTab.activeSegmentIndex]?.type === "terminal")}
           <!-- Terminal is showing via persistent layer above -->
         {:else if activeView === "settings"}
-        <SettingsPage />
+        <LazyComponent loader={() => import("$lib/components/settings/SettingsPage.svelte")} />
       {:else if activeView === "pipelines"}
-        <PipelineView />
+        <LazyComponent loader={() => import("$lib/components/pipeline/PipelineView.svelte")} />
       {:else if activeView === "stashes"}
         <StashView />
       {:else if activeView === "tags"}
@@ -865,6 +853,7 @@
                 oldContent={$branchFileDiff.oldContent}
                 newContent={$branchFileDiff.newContent}
                 filename={$branchFileDiff.filename}
+                placeholder={$branchFileDiff.placeholder}
                 editorTheme={$activeTheme?.editor}
                 isDark={$activeTheme?.meta.mode !== 'light'}
                 onClose={() => branchFileDiff.set(null)}
@@ -894,6 +883,7 @@
                 oldContent={$reflogFileDiff.oldContent}
                 newContent={$reflogFileDiff.newContent}
                 filename={$reflogFileDiff.filename}
+                placeholder={$reflogFileDiff.placeholder}
                 editorTheme={$activeTheme?.editor}
                 isDark={$activeTheme?.meta.mode !== 'light'}
                 onClose={() => reflogFileDiff.set(null)}
@@ -904,13 +894,16 @@
       {:else if activeView === "submodules"}
         <SubmoduleList />
       {:else if activeView === "bisect"}
-        <BisectWorkflow />
+        <LazyComponent loader={() => import("$lib/components/bisect/BisectWorkflow.svelte")} />
       {:else if activeView === "ai-config"}
-        <AiConfigEditor />
+        <LazyComponent loader={() => import("$lib/components/ai-config/AiConfigEditor.svelte")} />
       {:else if activeView === "ai-sessions"}
-        <AiSessionsView />
+        <LazyComponent loader={() => import("$lib/components/ai-sessions/AiSessionsView.svelte")} />
       {:else if activeView === "blame"}
-        <BlameView onNavigateBack={(view) => tryChangeView(view)} />
+        <LazyComponent
+          loader={() => import("$lib/components/blame/BlameView.svelte")}
+          props={{ onNavigateBack: (view: string) => tryChangeView(view) }}
+        />
       {:else if activeView === "merge-requests"}
         <div class="branch-layout mr-pr-layout">
           <div class="branch-main">
@@ -951,13 +944,13 @@
       {:else if activeView === "issues"}
         <IssueView />
       {:else if activeView === "releases"}
-        <ReleaseView />
+        <LazyComponent loader={() => import("$lib/components/releases/ReleaseView.svelte")} />
       {:else if activeView === "repo-config"}
         <RepoConfigPage bind:this={repoConfigPageRef} />
       {:else if activeView === "requests"}
-        <RequestsPanel />
+        <LazyComponent loader={() => import("$lib/components/requests/RequestsPanel.svelte")} />
       {:else if activeView === "editor"}
-        <FileEditorPanel />
+        <LazyComponent loader={() => import("$lib/components/file-editor/FileEditorPanel.svelte")} />
       {:else if $isLoading}
         <div class="welcome-screen">
           <div class="spinner spinner--large"></div>
@@ -1004,6 +997,7 @@
                   oldContent={$fileDiffPanel.oldContent}
                   newContent={$fileDiffPanel.newContent}
                   filename={$fileDiffPanel.filename}
+                  placeholder={$fileDiffPanel.placeholder}
                   editorTheme={$activeTheme?.editor}
                   isDark={$activeTheme?.meta.mode !== 'light'}
                   onClose={closeFileDiff}

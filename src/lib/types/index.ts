@@ -143,6 +143,16 @@ export interface FileDiff {
   hunks: DiffHunkInfo[];
   additions: number;
   deletions: number;
+  /**
+   * `true` when the diff was truncated server-side because the raw
+   * patch exceeded `MAX_COMMIT_DIFF_BYTES` (5 MB). Frontends should
+   * render a placeholder ("Diff too large to display") instead of
+   * trying to highlight an empty hunks array.
+   *
+   * Field is omitted from JSON when `false` (serde
+   * `skip_serializing_if`), so older payloads parse as `undefined`.
+   */
+  truncated?: boolean;
 }
 
 export interface DiffHunkInfo {

@@ -6,8 +6,8 @@
   import DiffEditor from "../editor/DiffEditor.svelte";
   import CommitDetail from "../detail/CommitDetail.svelte";
   import { formatRelativeTime, formatDate } from "../../utils/time";
-  import { getFileAtCommitText as getFileAtCommit, getCommitDetail, getCommitFiles } from "../../api/tauri";
-  import { navigateToCommit } from "../../stores/graph";
+  import { getCommitDetail, getCommitFiles } from "../../api/tauri";
+  import { navigateToCommit, fetchDiffSides } from "../../stores/graph";
   import type { RawDiffContent } from "../../stores/graph";
   import type { CommitInfo, CommitFileChange } from "../../types";
   import { activeTheme } from "../../stores/theme";
@@ -50,11 +50,7 @@
     if (!$selectedCommitInfo) return;
     const parentOid = $selectedCommitInfo.parents?.[0] ?? null;
     try {
-      const [oldContent, newContent] = await Promise.all([
-        parentOid ? getFileAtCommit(parentOid, path).catch(() => "") : Promise.resolve(""),
-        getFileAtCommit($selectedCommitInfo.oid, path).catch(() => ""),
-      ]);
-      fileDiff = { oldContent, newContent, filename: path };
+      fileDiff = await fetchDiffSides($selectedCommitInfo.oid, parentOid, path);
     } catch {
       fileDiff = null;
     }
@@ -175,6 +171,7 @@
             oldContent={fileDiff.oldContent}
             newContent={fileDiff.newContent}
             filename={fileDiff.filename}
+            placeholder={fileDiff.placeholder}
             editorTheme={$activeTheme?.editor}
             isDark={$activeTheme?.meta.mode !== 'light'}
             onClose={() => { fileDiff = null; }}
