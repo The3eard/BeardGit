@@ -56,9 +56,31 @@ fn cache_material(repo: &Repository) -> Result<(String, Vec<(String, String)>), 
     Ok((head_oid, pairs))
 }
 
+/// Maximum number of commits walked when building the in-memory layout
+/// for the active project's `ProjectSlot`.
+///
+/// Trade-off:
+/// - Higher cap → more history visible without scrolling beyond, but
+///   `open_repo` (cache miss) and `refresh_graph_layout` (after every
+///   ref change) become proportionally slower and pin more RAM.
+/// - Lower cap → instant first paint and a smaller layout, at the cost
+///   of older history needing `load_graph_chunk` on demand from the
+///   frontend (which is wired to call it on scroll past the cached
+///   range).
+///
+/// 20 000 is enough to cover the working set most users actually scroll
+/// through (a few thousand commits at most), while keeping the walk
+/// well under a second on a typical mechanical-disk repo and the
+/// resulting `GraphLayout` under ~50 MB serialized. Repos that need
+/// older commits than this still get them via `load_graph_chunk` —
+/// they just don't pay the cost up front.
+const MAX_INITIAL_LAYOUT_COMMITS: usize = 20_000;
+
 /// Walk the repo and build a fresh [`GraphLayout`] with no cache interaction.
 fn build_fresh_layout(repo: &Repository) -> Result<GraphLayout, String> {
-    let commits = repo.walk_commits(0, 50_000).map_err(|e| e.to_string())?;
+    let commits = repo
+        .walk_commits(0, MAX_INITIAL_LAYOUT_COMMITS)
+        .map_err(|e| e.to_string())?;
     let graph_commits: Vec<GraphCommit> = commits
         .iter()
         .map(|c| GraphCommit {
@@ -71,7 +93,7 @@ fn build_fresh_layout(repo: &Repository) -> Result<GraphLayout, String> {
             email: c.email.clone(),
         })
         .collect();
-    let dag = Dag::build(&graph_commits);
+    let dag = Dag::build(graph_commits);
     Ok(GraphLayout::compute(&dag))
 }
 

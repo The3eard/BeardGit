@@ -13,6 +13,13 @@
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
+/// Maximum size, in bytes, of a single blob returned by
+/// [`Repository::get_file_at_commit`]. Beyond this, the call returns
+/// [`GitError::FileTooLarge`] and the frontend renders a placeholder
+/// instead of allocating a 50 MB string and asking CodeMirror to diff
+/// it. 5 MB matches the cap on `commit_file_diff` in `diff.rs`.
+pub const MAX_FILE_AT_COMMIT_BYTES: usize = 5 * 1024 * 1024;
+
 use crate::error::GitError;
 use crate::repository::Repository;
 
@@ -83,6 +90,11 @@ impl Repository {
         let entry = tree.get_path(std::path::Path::new(path))?;
         let blob = self.inner().find_blob(entry.id())?;
         let content = blob.content();
+        if content.len() > MAX_FILE_AT_COMMIT_BYTES {
+            return Err(GitError::FileTooLarge {
+                size: content.len(),
+            });
+        }
         let sniff_len = content.len().min(8192);
         if content[..sniff_len].contains(&0u8) {
             return Err(GitError::Binary);

@@ -104,7 +104,7 @@ mod tests {
                 email: String::new(),
             });
         }
-        Dag::build(&commits)
+        Dag::build(commits)
     }
 
     fn branching_dag() -> Dag {
@@ -146,7 +146,7 @@ mod tests {
                 email: String::new(),
             },
         ];
-        Dag::build(&commits)
+        Dag::build(commits)
     }
 
     #[test]
