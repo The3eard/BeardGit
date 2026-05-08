@@ -12,6 +12,14 @@
 /// the application window is closed.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // macOS/Linux GUI apps inherit launchd's minimal PATH (no `/opt/homebrew/bin`,
+    // `/usr/local/bin`, `~/.bun/bin`, mise/asdf shims, …), so `which::which`
+    // misses user-installed binaries — `claude`, `codex`, `opencode`, plus
+    // any system `gh`/`glab` installed outside the launchd defaults.
+    // `fix-path-env` runs `$SHELL -ilc` once and adopts the resulting PATH.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    let _ = fix_path_env::fix();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
