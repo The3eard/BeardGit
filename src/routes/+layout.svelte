@@ -12,7 +12,10 @@
     startMutationListener,
     stopMutationListener,
   } from "$lib/stores/mutations";
-  import { loadDiffShowWhitespace } from "$lib/stores/diffSettings";
+  import {
+    loadDiffShowWhitespace,
+    loadDiffLineWrapping,
+  } from "$lib/stores/diffSettings";
   import ToastContainer from "$lib/components/ui/ToastContainer.svelte";
   let { children } = $props();
 
@@ -46,11 +49,11 @@
       stopMutations = stopMutationListener;
     });
     runStartupCheck();
-    // Hydrate the diff-display preference from the persisted config so
-    // open DiffEditor instances pick up the user's saved choice on cold
-    // start. Async + non-fatal — the default (off) holds until it
-    // resolves.
+    // Hydrate the diff-display preferences from the persisted config so
+    // open diff views pick up the user's saved choice on cold start.
+    // Async + non-fatal — the defaults hold until they resolve.
     void loadDiffShowWhitespace();
+    void loadDiffLineWrapping();
     const cleanupShortcuts = initShortcutListener();
     return () => {
       stopMutations?.();

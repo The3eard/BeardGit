@@ -582,6 +582,21 @@ export async function setDiffShowWhitespace(enabled: boolean): Promise<void> {
 }
 
 /**
+ * Return whether diff views (commit, PR/MR, stash, tag and the staging
+ * panel in Changes) should soft-wrap long lines. Default `true`.
+ * Persisted in `AppConfig::diff_line_wrapping`. Independent from the
+ * editor `line_wrapping` preference, which only affects the file editor.
+ */
+export async function getDiffLineWrapping(): Promise<boolean> {
+  return invoke<boolean>("get_diff_line_wrapping");
+}
+
+/** Persist the `diff_line_wrapping` preference. */
+export async function setDiffLineWrapping(enabled: boolean): Promise<void> {
+  return invoke<void>("set_diff_line_wrapping", { enabled });
+}
+
+/**
  * Read the persisted editor preferences (Settings → Editor). The Rust
  * struct lives on `AppConfig::editor_preferences`. PR3 consumes the
  * returned shape to gate CodeMirror extensions in the in-app editor.

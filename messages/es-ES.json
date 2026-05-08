@@ -1023,6 +1023,8 @@
   "settings_general_diff_section_description": "Cómo el visor de diffs lado a lado muestra los cambios.",
   "settings_general_diff_show_whitespace_label": "Mostrar espacios en blanco en los diffs",
   "settings_general_diff_show_whitespace_hint": "Renderiza los espacios como · y los tabuladores como → para que los cambios de solo espacios sean visibles.",
+  "settings_general_diff_line_wrapping_label": "Ajustar líneas largas en los diffs",
+  "settings_general_diff_line_wrapping_hint": "Envuelve las líneas largas para que se vea todo el contenido. Si está desactivado, los diffs muestran una barra de scroll horizontal. Independiente del ajuste de líneas del editor.",
   "settings_git_section_title": "Configuración de Git",
   "settings_git_section_description": "Editor inline para la configuración local y global de Git.",
   "settings_ai_providers_section_title": "Proveedores IA",
