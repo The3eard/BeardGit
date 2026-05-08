@@ -13,7 +13,11 @@ const pkg = JSON.parse(
   readFileSync(fileURLToPath(new URL("./package.json", import.meta.url)), "utf-8"),
 );
 
-export default defineConfig(async () => ({
+// `defineConfig` receives a plain object (not an async factory) so Vite can
+// hash the config statically and reuse `node_modules/.vite/deps` across
+// runs. With an async wrapper Vite produces a fresh config hash on each
+// startup and re-bundles every dependency from scratch (~120 s cold start).
+export default defineConfig({
   plugins: [
     paraglide({
       project: "./project.inlang",
@@ -49,4 +53,4 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**", "**/.beardgit/**"],
     },
   },
-}));
+});
