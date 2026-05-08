@@ -102,6 +102,13 @@ export function applyTheme(theme: ThemeData): void {
   el.setProperty("--accent-orange", d.accent_orange);
   el.setProperty("--accent-purple", d.accent_purple);
   el.setProperty("--accent-red", d.accent_red);
+  // Per-theme signature accents. New components (and progressive
+  // migrations of existing ones) lean on `--accent-primary` for
+  // primary actions / focus / spinner so each theme can assert its
+  // own identity instead of every theme being "blue-flavoured".
+  el.setProperty("--accent-primary", d.accent_primary);
+  el.setProperty("--accent-secondary", d.accent_secondary);
+  el.setProperty("--accent-tertiary", d.accent_tertiary);
   el.setProperty("--border", d.border);
   el.setProperty("--selection", d.selection);
   el.setProperty("--theme-mode", theme.meta.mode);

@@ -13,6 +13,12 @@
     action?: () => void;
     separator?: boolean;
     disabled?: boolean;
+    /**
+     * Visual emphasis. `"danger"` paints the item red and is intended
+     * for destructive actions (reset --hard, force-delete branch,
+     * discard changes). Defaults to `"default"`.
+     */
+    tone?: "default" | "danger";
     /** One-level submenu. Parent items with children do not fire `action`. */
     children?: MenuItem[];
   }
@@ -76,6 +82,7 @@
             class="menu-item"
             class:disabled={item.disabled}
             class:has-children={!!item.children}
+            class:menu-item--danger={item.tone === "danger"}
             onclick={() => handleClick(item)}
             onmouseenter={() => (openSubmenu = item.children ? i : -1)}
           >
@@ -97,6 +104,7 @@
                   <button
                     class="menu-item"
                     class:disabled={child.disabled}
+                    class:menu-item--danger={child.tone === "danger"}
                     onclick={() => handleChildClick(child)}
                   >
                     {child.label}
@@ -147,6 +155,13 @@
     font-size: 12px;
     text-align: left;
     cursor: pointer;
+  }
+
+  .menu-item--danger {
+    color: var(--accent-red);
+  }
+  .menu-item--danger:hover:not(.disabled) {
+    background: var(--overlay-accent-red);
   }
 
   .menu-item-label {
