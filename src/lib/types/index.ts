@@ -513,6 +513,10 @@ export interface DerivedColors {
   accent_orange: string;
   accent_purple: string;
   accent_red: string;
+  /** Per-theme signature accent for primary actions / focus / spinner. */
+  accent_primary: string;
+  accent_secondary: string;
+  accent_tertiary: string;
   border: string;
   selection: string;
 }

@@ -57,6 +57,8 @@
   import type { FileDiff } from "$lib/types";
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
+  import { openCommandPalette } from "$lib/stores/commandPalette";
+  import CommandPalette from "$lib/components/common/CommandPalette.svelte";
   import { addToast } from "$lib/stores/toast";
   import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
   import { get } from "svelte/store";
@@ -96,6 +98,7 @@
   let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
   let teardownRepoConfigRoute: (() => void) | null = null;
   let teardownProviderReroute: (() => void) | null = null;
+  let teardownDragDropListener: (() => void) | null = null;
   let teardownFileEditor: (() => void) | null = null;
   let showAiBackgroundDialog = $state(false);
 
@@ -126,6 +129,9 @@
   let isDraggingChanges = $state(false);
   let sidebarCollapsed = $state(false);
   let recentRepos = $state<{ path: string; name: string }[]>([]);
+  /** True while the OS is hovering a draggable file/folder over the
+   * welcome screen. Drives the dashed-border highlight. */
+  let isDraggingOverWelcome = $state(false);
 
   // Lazy-load recent repos for the welcome screen. The list is small and
   // only matters when no project is active, so we re-fetch on every
@@ -231,6 +237,34 @@
       } catch {
         addToast({ message: m.theme_load_failed(), type: "error" });
       }
+    }
+
+    // Welcome-screen drag-drop: open a folder by dropping it on the
+    // window when no project is active. We listen globally and gate
+    // on `$activeProject` rather than scoping to a DOM node because
+    // Tauri's drag-drop event bypasses HTML5 dispatch when
+    // `dragDropEnabled` is on.
+    try {
+      const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+      teardownDragDropListener = await getCurrentWebview().onDragDropEvent((event) => {
+        const payload = event.payload as
+          | { type: "enter" | "over"; paths?: string[] }
+          | { type: "drop"; paths: string[] }
+          | { type: "leave" };
+        if (payload.type === "enter" || payload.type === "over") {
+          if (!$activeProject) isDraggingOverWelcome = true;
+        } else if (payload.type === "leave") {
+          isDraggingOverWelcome = false;
+        } else if (payload.type === "drop") {
+          isDraggingOverWelcome = false;
+          if ($activeProject) return;
+          const path = payload.paths?.[0];
+          if (path) void openProjectTab(path);
+        }
+      });
+    } catch {
+      // Optional feature — older Tauri / non-desktop envs simply
+      // skip the drag-drop listener.
     }
     await listenThemeChanges();
 
@@ -511,6 +545,13 @@
         global: true,
       },
       {
+        id: "util.commandPalette",
+        keys: { mod: true, shift: true, key: "P" },
+        label: m.command_palette_title(),
+        category: "General",
+        action: () => openCommandPalette(),
+      },
+      {
         id: "util.tasks",
         keys: { mod: true, shift: true, key: "T" },
         label: m.tasks_title(),
@@ -561,6 +602,8 @@
     teardownRepoConfigRoute = null;
     teardownProviderReroute?.();
     teardownProviderReroute = null;
+    teardownDragDropListener?.();
+    teardownDragDropListener = null;
     teardownFileEditor?.();
     teardownFileEditor = null;
   });
@@ -1090,7 +1133,7 @@
           {/if}
         {/if}
       {:else}
-        <div class="welcome-screen">
+        <div class="welcome-screen" class:welcome-screen--drop-target={isDraggingOverWelcome}>
           <img class="welcome-logo" src="/logo.svg" alt="BeardGit" />
           <h2 class="welcome-title">{m.app_title()}</h2>
           <p class="welcome-subtitle">{m.app_welcome_subtitle()}</p>
@@ -1159,6 +1202,7 @@
   </div>
 
   <ShortcutOverlay />
+  <CommandPalette />
   <StatusBar />
 
   <TasksPopover open={$tasksPopoverOpen} onClose={closeTasksPopover} />
@@ -1241,6 +1285,15 @@
     align-items: center;
     justify-content: center;
     gap: 12px;
+    border: 2px dashed transparent;
+    border-radius: 8px;
+    margin: 24px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .welcome-screen--drop-target {
+    border-color: var(--accent-primary);
+    background: var(--overlay-accent-blue);
   }
 
   .welcome-logo {
