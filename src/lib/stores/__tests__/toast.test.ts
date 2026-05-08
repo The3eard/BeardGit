@@ -79,6 +79,38 @@ describe("toast store", () => {
     expect(t.progress).toBeCloseTo(0.25);
   });
 
+  it("error toasts default to sticky (duration: null)", () => {
+    const id = addToast({ message: "Boom", type: "error" });
+    const t = get(toasts).find((x) => x.id === id)!;
+    expect(t.duration).toBeNull();
+  });
+
+  it("error toasts honour an explicit duration override", () => {
+    const id = addToast({ message: "Brief boom", type: "error", duration: 2000 });
+    const t = get(toasts).find((x) => x.id === id)!;
+    expect(t.duration).toBe(2000);
+  });
+
+  it("info / success / warning still default to 5s auto-dismiss", () => {
+    const idInfo = addToast({ message: "i", type: "info" });
+    const idOk = addToast({ message: "ok", type: "success" });
+    const idWarn = addToast({ message: "w", type: "warning" });
+    const list = get(toasts);
+    expect(list.find((t) => t.id === idInfo)!.duration).toBe(5000);
+    expect(list.find((t) => t.id === idOk)!.duration).toBe(5000);
+    expect(list.find((t) => t.id === idWarn)!.duration).toBe(5000);
+  });
+
+  it("preserves an optional details payload for copy", () => {
+    const id = addToast({
+      message: "Failed",
+      type: "error",
+      details: "stack trace line 1\nstack trace line 2",
+    });
+    const t = get(toasts).find((x) => x.id === id)!;
+    expect(t.details).toContain("stack trace line 1");
+  });
+
   it("updateToast can bump the progress field on a live toast", () => {
     const id = addToast({
       message: "Downloading",

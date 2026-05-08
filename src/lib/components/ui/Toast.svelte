@@ -3,9 +3,11 @@
   import { removeToast, type Toast } from "../../stores/toast";
   import IconButton from "./IconButton.svelte";
   import Button from "./Button.svelte";
+  import * as m from "$lib/paraglide/messages";
 
   let { toast }: { toast: Toast } = $props();
   let visible = $state(false);
+  let copied = $state(false);
 
   onMount(() => {
     // Trigger slide-in on next frame
@@ -19,6 +21,18 @@
   function dismiss() {
     visible = false;
     setTimeout(() => removeToast(toast.id), 200);
+  }
+
+  async function copyDetails() {
+    if (!toast.details) return;
+    try {
+      await navigator.clipboard.writeText(toast.details);
+      copied = true;
+      setTimeout(() => { copied = false; }, 1500);
+    } catch {
+      // Clipboard write blocked (e.g. webview without permission). Surface
+      // nothing to the user — the details are still visible in the toast.
+    }
   }
 </script>
 
@@ -61,8 +75,18 @@
         </Button>
       {/each}
     {/if}
+    {#if toast.details}
+      <Button
+        variant="neutral"
+        size="sm"
+        testid="toast-action-copy-details"
+        onclick={copyDetails}
+      >
+        {copied ? m.toast_copied() : m.toast_copy_details()}
+      </Button>
+    {/if}
     {#if toast.dismissible}
-      <IconButton tone="default" size="sm" icon={""} description="Dismiss" onclick={dismiss} />
+      <IconButton tone="default" size="sm" icon={""} description={m.toast_dismiss()} onclick={dismiss} />
     {/if}
   </div>
 </div>
