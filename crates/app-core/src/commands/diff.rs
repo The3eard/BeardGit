@@ -11,13 +11,18 @@ use crate::state::AppState;
 /// # Parameters
 /// - `oid` – Full or abbreviated commit SHA.
 #[tauri::command]
-pub fn get_commit_files(
+#[instrument(skip(state), name = "cmd::diff::commit_files")]
+pub async fn get_commit_files(
     oid: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::CommitFileChange>, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.commit_files(&oid).map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Return files changed between two arbitrary commits.
@@ -26,15 +31,20 @@ pub fn get_commit_files(
 /// - `from_oid` – SHA of the base commit.
 /// - `to_oid` – SHA of the target commit.
 #[tauri::command]
-pub fn get_diff_between_commits(
+#[instrument(skip(state), name = "cmd::diff::diff_between_commits")]
+pub async fn get_diff_between_commits(
     from_oid: String,
     to_oid: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::CommitFileChange>, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.diff_commits(&from_oid, &to_oid)
             .map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Return the full diff (hunks + lines) for a single file in a commit.

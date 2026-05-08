@@ -141,3 +141,19 @@ input, textarea, pre, code {
   to { transform: rotate(360deg); }
 }
 
+/* Respect users who disable system animations: collapse durations to a
+ * near-zero value so transitions and animations resolve instantly. The
+ * spinner ring still renders, just no longer rotates. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
