@@ -1,7 +1,9 @@
 //! Repository state snapshot — captured pre/post every mutation so
 //! `diff` can produce a precise [`crate::MutationFlags`].
 
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, BTreeSet};
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 use thiserror::Error;
 
@@ -35,21 +37,28 @@ pub struct Snapshot {
     pub worktree_count: usize,
     pub remote_names: BTreeSet<String>,
     pub status_dirty: bool,
-    /// Per-file status fingerprint: `(path, libgit2 Status bitflags)`.
+    /// Order-independent fingerprint over `(path, status_bits)` for every
+    /// file libgit2 reported in the status walk. We previously stored the
+    /// full `BTreeSet<(String, u32)>` — that allocated a `String` per file
+    /// per snapshot, which on dirty monorepos became the dominant cost of
+    /// `MutationGuard` (snapshot is captured twice per mutation).
     ///
     /// `status_dirty` alone is insufficient for the staging flow — both
     /// before and after `git add` have `dirty=true`, so the boolean
-    /// doesn't flip and the diff misses index movement. Storing the
-    /// full entry set lets `diff` detect per-file changes (staging,
-    /// unstaging, discarding) even when the overall dirty flag is
-    /// unchanged.
-    pub status_entries: BTreeSet<(String, u32)>,
+    /// doesn't flip. The fingerprint catches per-file changes (staging,
+    /// unstaging, discarding) even when the overall dirty flag is stable.
+    pub status_fingerprint: u64,
 }
 
 impl Snapshot {
     /// Capture a snapshot of the repository rooted at `path`.
     pub fn capture(path: &Path) -> Result<Self, SnapshotError> {
-        let repo = git2::Repository::open(path).map_err(|source| SnapshotError::OpenRepo {
+        // Open once as `mut` so `stash_foreach` (which requires
+        // `&mut Repository`) can reuse this handle. The previous
+        // implementation opened the repo twice — fine on first capture
+        // but `MutationGuard` triggers two snapshots per mutation, so
+        // the duplicate open ran four times per user action.
+        let mut repo = git2::Repository::open(path).map_err(|source| SnapshotError::OpenRepo {
             path: path.display().to_string(),
             source,
         })?;
@@ -67,9 +76,7 @@ impl Snapshot {
         }
 
         let mut stash_count = 0;
-        // `stash_foreach` needs `&mut` repo; reopen for it.
-        let mut stash_repo = git2::Repository::open(path).map_err(SnapshotError::from)?;
-        stash_repo.stash_foreach(|_, _, _| {
+        repo.stash_foreach(|_, _, _| {
             stash_count += 1;
             true
         })?;
@@ -89,15 +96,18 @@ impl Snapshot {
             .recurse_untracked_dirs(false);
         let statuses = repo.statuses(Some(&mut status_opts))?;
         let status_dirty = !statuses.is_empty();
-        let status_entries: BTreeSet<(String, u32)> = statuses
-            .iter()
-            .map(|entry| {
-                (
-                    entry.path().unwrap_or_default().to_string(),
-                    entry.status().bits(),
-                )
-            })
-            .collect();
+
+        // Order-independent fingerprint: hash each `(path, bits)` pair
+        // separately, then XOR-fold. The result is a single `u64` and
+        // it skips the per-file `String` allocation the previous
+        // BTreeSet paid for.
+        let mut status_fingerprint: u64 = 0;
+        for entry in statuses.iter() {
+            let mut h = DefaultHasher::new();
+            entry.path().unwrap_or_default().hash(&mut h);
+            entry.status().bits().hash(&mut h);
+            status_fingerprint ^= h.finish();
+        }
 
         Ok(Self {
             head_oid,
@@ -106,7 +116,7 @@ impl Snapshot {
             worktree_count,
             remote_names,
             status_dirty,
-            status_entries,
+            status_fingerprint,
         })
     }
 
@@ -120,7 +130,7 @@ impl Snapshot {
         MutationFlags {
             head_changed: self.head_oid != after.head_oid,
             refs_changed: self.refs != after.refs,
-            status_changed: self.status_entries != after.status_entries,
+            status_changed: self.status_fingerprint != after.status_fingerprint,
             stashes_changed: self.stash_count != after.stash_count,
             worktrees_changed: self.worktree_count != after.worktree_count,
             remotes_changed: self.remote_names != after.remote_names,

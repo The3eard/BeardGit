@@ -94,7 +94,7 @@ fn build_fresh_layout(repo: &Repository) -> Result<GraphLayout, String> {
         })
         .collect();
     let dag = Dag::build(graph_commits);
-    Ok(GraphLayout::compute(&dag))
+    Ok(GraphLayout::compute(dag))
 }
 
 /// Build the graph layout for a repo, consulting the persistent cache first.

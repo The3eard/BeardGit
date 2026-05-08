@@ -163,7 +163,35 @@ impl Dag {
     pub fn get(&self, oid: &str) -> Option<&DagNode> {
         self.nodes.get(oid)
     }
+
+    /// Consume the DAG and return its nodes in insertion order, transferring
+    /// ownership of every node's owned fields (`refs`, `summary`, `author`,
+    /// `email`). Used by `GraphLayout::compute` to avoid cloning ~5 owned
+    /// fields per commit on every layout rebuild.
+    ///
+    /// Returns the parent map alongside so the caller can still answer
+    /// "who are the parents of this oid?" after the DAG has been consumed.
+    pub fn into_ordered_nodes_with_parents(self) -> OrderedDagNodes {
+        let Dag { order, mut nodes } = self;
+        let mut parents_map: ParentMap = HashMap::with_capacity(order.len());
+        let mut ordered: Vec<DagNode> = Vec::with_capacity(order.len());
+        for oid in order {
+            if let Some(node) = nodes.remove(&oid) {
+                parents_map.insert(Arc::clone(&oid), node.parents.clone());
+                ordered.push(node);
+            }
+        }
+        (ordered, parents_map)
+    }
 }
+
+/// Map of commit OID → its parents' OIDs. Used by [`GraphLayout::compute`]
+/// after consuming the DAG, so it can still answer parent lookups.
+pub type ParentMap = HashMap<Arc<str>, Vec<Arc<str>>>;
+
+/// Tuple returned by [`Dag::into_ordered_nodes_with_parents`]: the nodes in
+/// insertion order plus a parent-only view of the original DAG.
+pub type OrderedDagNodes = (Vec<DagNode>, ParentMap);
 
 // ---------------------------------------------------------------------------
 // Tests

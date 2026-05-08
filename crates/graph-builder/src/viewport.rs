@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn test_viewport_returns_slice() {
         let dag = linear_dag(100);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         let result = layout.viewport(10, 20);
         assert_eq!(result.nodes.len(), 20);
         assert_eq!(result.total_count, 100);
@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn test_viewport_clamps_to_end() {
         let dag = linear_dag(50);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         let result = layout.viewport(45, 20);
         assert_eq!(result.nodes.len(), 5);
         assert_eq!(result.total_count, 50);
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn test_viewport_offset_beyond_end() {
         let dag = linear_dag(10);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         let result = layout.viewport(100, 20);
         assert_eq!(result.nodes.len(), 0);
         assert_eq!(result.total_count, 10);
@@ -184,7 +184,7 @@ mod tests {
     #[test]
     fn test_viewport_includes_overlapping_segments() {
         let dag = linear_dag(100);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         let result = layout.viewport(10, 20);
         assert!(
             !result.lane_segments.is_empty(),
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn test_viewport_includes_overlapping_merge_curves() {
         let dag = branching_dag();
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         let full = layout.viewport(0, 100);
         let curve_count = full.merge_curves.len();
         let partial = layout.viewport(0, 4);
@@ -208,7 +208,7 @@ mod tests {
     #[test]
     fn test_viewport_excludes_non_overlapping_segments() {
         let dag = linear_dag(100);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         let result = layout.viewport(95, 5);
         assert!(!result.lane_segments.is_empty());
     }

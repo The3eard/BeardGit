@@ -89,6 +89,37 @@ fn build_ref_map(repo: &git2::Repository) -> HashMap<String, Vec<String>> {
     map
 }
 
+/// Return the short refs that point at `target` without materialising the
+/// full repository-wide ref map. O(refs) but with a single pass and no map
+/// allocation per OID — used by [`Repository::get_commit`] which only needs
+/// the refs of a single commit.
+fn refs_for_oid(repo: &git2::Repository, target: git2::Oid) -> Vec<String> {
+    let Ok(references) = repo.references() else {
+        return Vec::new();
+    };
+
+    let mut hits = Vec::new();
+    for reference in references.flatten() {
+        let oid = match reference.target() {
+            Some(oid) => oid,
+            None => match reference.resolve().ok().and_then(|r| r.target()) {
+                Some(oid) => oid,
+                None => continue,
+            },
+        };
+        if oid != target {
+            continue;
+        }
+        hits.push(
+            reference
+                .shorthand()
+                .unwrap_or_else(|| reference.name().unwrap_or("unknown"))
+                .to_owned(),
+        );
+    }
+    hits
+}
+
 impl Repository {
     /// Walk all commits reachable from any ref, skipping `offset` and returning at most `max_count`.
     ///
@@ -260,10 +291,16 @@ impl Repository {
     /// Retrieve a single commit by its OID string.
     pub fn get_commit(&self, oid_str: &str) -> Result<CommitInfo, GitError> {
         let repo = self.inner();
-        let ref_map = build_ref_map(repo);
-
         let oid = git2::Oid::from_str(oid_str)?;
         let commit = repo.find_commit(oid)?;
+        // Avoid `build_ref_map` here — it walks every reference in the repo
+        // even though we only need the refs touching this single OID. On
+        // repos with many tags, click-to-load-commit was O(refs).
+        let mut ref_map: HashMap<String, Vec<String>> = HashMap::new();
+        let refs = refs_for_oid(repo, oid);
+        if !refs.is_empty() {
+            ref_map.insert(oid.to_string(), refs);
+        }
         Ok(commit_to_info(&commit, oid, &ref_map))
     }
 }
