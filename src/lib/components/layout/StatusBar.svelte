@@ -27,6 +27,7 @@
   import ForgeSlot from "./statusbar/ForgeSlot.svelte";
   import AiSlot from "./statusbar/AiSlot.svelte";
   import NetworkSlot from "./statusbar/NetworkSlot.svelte";
+  import HelpSlot from "./statusbar/HelpSlot.svelte";
   import VersionSlot from "./statusbar/VersionSlot.svelte";
   import { toggleTasksPopover } from "$lib/stores/tasksPopover";
   import { activeViewStore, pendingSettingsSection } from "$lib/stores/navigation";
@@ -68,6 +69,8 @@
     <NetworkSlot />
   </div>
   <div class="status-right">
+    <HelpSlot />
+    <span class="divider" aria-hidden="true"></span>
     <VersionSlot {onNavigate} />
   </div>
 </footer>

@@ -5,9 +5,103 @@
 //! - Linux: `~/.local/share/beardgit/logs/`
 //! - Windows: `%APPDATA%/BeardGit/logs/`
 
+use std::borrow::Cow;
+use std::io;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
+use regex::Regex;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
+
+/// Maximum number of rotated log files retained on disk. Older days are
+/// dropped automatically by `tracing_appender`.
+const MAX_LOG_FILES: usize = 14;
+
+/// Compiled regex catching common credential shapes that may leak into log
+/// streams (errors emitted by `git`/`gh`/`glab`, accidental debug prints, …).
+///
+/// Covers GitHub / GitLab personal access tokens, the `x-access-token` git
+/// credential helper, `Authorization` headers, and `user:password@` segments
+/// embedded in URLs. The match is intentionally conservative — we only redact
+/// when a known prefix is present so unrelated identifiers are not mangled.
+fn secret_pattern() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(concat!(
+            r"(?i)",
+            // GitHub PATs (classic + fine-grained + scoped variants).
+            r"(?:ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)[A-Za-z0-9_]{16,}",
+            r"|",
+            // GitLab PATs and runner tokens.
+            r"(?:glpat-|glptt-|glrt-)[A-Za-z0-9_\-]{16,}",
+            r"|",
+            // git's credential-helper format.
+            r"x-access-token:[A-Za-z0-9_\-\.]+",
+            r"|",
+            // Authorization header (bearer / basic / token).
+            r"authorization:\s*(?:bearer|basic|token)\s+[A-Za-z0-9._\-+/=]+",
+            r"|",
+            // user:secret@host basic-auth segment in URLs.
+            r"//[^/\s:@]+:[^@\s/]+@",
+        ))
+        .expect("redaction regex must compile")
+    })
+}
+
+/// Replace credential-like substrings in `s` with `<redacted>`. Returns the
+/// borrowed input unchanged when nothing matches.
+pub fn redact_secrets(s: &str) -> Cow<'_, str> {
+    secret_pattern().replace_all(s, "<redacted>")
+}
+
+/// `io::Write` wrapper that redacts known credential patterns before forwarding
+/// bytes to the inner writer. Tracing's fmt layer writes each event as a single
+/// `write` call, so chunk boundaries do not split tokens in practice.
+struct RedactingWriter<W: io::Write> {
+    inner: W,
+}
+
+impl<W: io::Write> io::Write for RedactingWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let original_len = buf.len();
+        let owned;
+        let text: &str = match std::str::from_utf8(buf) {
+            Ok(s) => s,
+            Err(_) => {
+                owned = String::from_utf8_lossy(buf).into_owned();
+                &owned
+            }
+        };
+        match redact_secrets(text) {
+            Cow::Borrowed(_) => self.inner.write(buf),
+            Cow::Owned(replaced) => {
+                self.inner.write_all(replaced.as_bytes())?;
+                Ok(original_len)
+            }
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+/// `MakeWriter` adapter that wraps each created writer in a [`RedactingWriter`].
+struct RedactingMakeWriter<M> {
+    inner: M,
+}
+
+impl<'a, M> fmt::MakeWriter<'a> for RedactingMakeWriter<M>
+where
+    M: fmt::MakeWriter<'a>,
+{
+    type Writer = RedactingWriter<M::Writer>;
+    fn make_writer(&'a self) -> Self::Writer {
+        RedactingWriter {
+            inner: self.inner.make_writer(),
+        }
+    }
+}
 
 /// Debug information for error reports and the "About" screen.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -112,6 +206,7 @@ fn build_file_appender(
         .rotation(tracing_appender::rolling::Rotation::DAILY)
         .filename_prefix("beardgit")
         .filename_suffix("log")
+        .max_log_files(MAX_LOG_FILES)
         .build(log_dir)
         .expect("rolling file appender builder should not fail for a valid directory")
 }
@@ -136,7 +231,9 @@ pub fn init_logging() -> Result<(), String> {
         .unwrap_or_else(|_| EnvFilter::new("info,git_engine=debug,app_core=debug"));
 
     let file_layer = fmt::layer()
-        .with_writer(non_blocking)
+        .with_writer(RedactingMakeWriter {
+            inner: non_blocking,
+        })
         .with_ansi(false)
         .with_target(true)
         .with_thread_ids(true);
@@ -180,7 +277,79 @@ pub fn collect_debug_info() -> DebugInfo {
 mod tests {
     use super::*;
     use std::fs;
+    use std::io::Write;
     use std::time::{Duration, SystemTime};
+
+    // Test fixtures use the literal `EXAMPLE_FAKE` infix so secret-scanning
+    // tools (GitHub, TruffleHog, …) don't pattern-match them as live tokens.
+
+    #[test]
+    fn redact_strips_github_classic_pat() {
+        let s = "auth: ghp_EXAMPLE_FAKE_PAT_VALUE_1234567890 done";
+        let r = redact_secrets(s);
+        assert!(r.contains("<redacted>"), "got {r}");
+        assert!(!r.contains("ghp_"));
+    }
+
+    #[test]
+    fn redact_strips_github_fine_grained_pat() {
+        let s = "token=github_pat_EXAMPLE_FAKE_VALUE_1234567890ABC more";
+        let r = redact_secrets(s);
+        assert!(!r.contains("github_pat_"));
+    }
+
+    #[test]
+    fn redact_strips_gitlab_pat() {
+        let s = "PRIVATE-TOKEN: glpat-EXAMPLE_FAKE_VALUE_1234567890";
+        let r = redact_secrets(s);
+        assert!(!r.contains("glpat-"));
+    }
+
+    #[test]
+    fn redact_strips_x_access_token_in_url() {
+        let s = "https://x-access-token:ghp_EXAMPLE_FAKE_PAT_VALUE_1234567890@github.com/foo/bar.git";
+        let r = redact_secrets(s);
+        assert!(!r.contains("ghp_"));
+        assert!(!r.contains("x-access-token:"));
+    }
+
+    #[test]
+    fn redact_strips_basic_auth_in_url() {
+        let s = "remote=https://alice:EXAMPLE_FAKE_PASSWORD@example.com/repo.git";
+        let r = redact_secrets(s);
+        assert!(!r.contains("alice:EXAMPLE_FAKE_PASSWORD"));
+    }
+
+    #[test]
+    fn redact_strips_authorization_header() {
+        let s = "headers: Authorization: Bearer EXAMPLE_FAKE_BEARER_VALUE_12345";
+        let r = redact_secrets(s);
+        assert!(r.contains("<redacted>"), "got {r}");
+        assert!(!r.contains("EXAMPLE_FAKE_BEARER_VALUE"));
+    }
+
+    #[test]
+    fn redact_passes_through_clean_text() {
+        let s = "INFO: branch updated to main; oid=4b825dc";
+        let r = redact_secrets(s);
+        assert_eq!(r.as_ref(), s);
+        assert!(matches!(r, Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn redacting_writer_replaces_secret_chunks() {
+        let mut buf: Vec<u8> = Vec::new();
+        {
+            let mut w = RedactingWriter { inner: &mut buf };
+            w.write_all(b"line=ghp_EXAMPLE_FAKE_PAT_VALUE_1234567890 ok\n")
+                .unwrap();
+            w.write_all(b"plain line, nothing to redact\n").unwrap();
+        }
+        let s = String::from_utf8(buf).unwrap();
+        assert!(!s.contains("ghp_"));
+        assert!(s.contains("<redacted>"));
+        assert!(s.contains("plain line, nothing to redact"));
+    }
 
     /// Helper: create a log file with a modified time set to `days_ago` days in the past.
     fn create_aged_log(dir: &std::path::Path, name: &str, days_ago: u64) {

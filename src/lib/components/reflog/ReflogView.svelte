@@ -3,6 +3,7 @@
 -->
 <script lang="ts">
   import SplitView from "../common/SplitView.svelte";
+  import EmptyState from "../common/EmptyState.svelte";
   import ReflogList from "./ReflogList.svelte";
   import ReflogDetail from "./ReflogDetail.svelte";
   import { reflogEntries, selectedReflogEntry, loadReflog } from "../../stores/reflog";
@@ -35,20 +36,7 @@
         {onFileClick}
       />
     {:else}
-      <div class="no-diff">
-        <p>{m.reflog_select_entry()}</p>
-      </div>
+      <EmptyState title={m.reflog_select_entry()} />
     {/if}
   {/snippet}
 </SplitView>
-
-<style>
-  .no-diff {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
-</style>
