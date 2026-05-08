@@ -117,6 +117,28 @@ pub fn set_diff_show_whitespace(enabled: bool, state: State<'_, AppState>) -> Re
     config.save(&state.config_path).map_err(|e| e.to_string())
 }
 
+/// Return whether diff views should soft-wrap long lines.
+///
+/// Default `true`. When enabled, every diff view (commit, PR/MR, stash,
+/// tag, and the staging panel in Changes) wraps lines that exceed the
+/// viewport width. When disabled, lines render with `white-space: pre`
+/// and the surrounding container exposes a horizontal scrollbar.
+#[tauri::command]
+pub fn get_diff_line_wrapping(state: State<'_, AppState>) -> Result<bool, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(config.diff_line_wrapping)
+}
+
+/// Persist the `diff_line_wrapping` preference. The change takes effect
+/// on the next diff render — the FE store fires a re-render of any open
+/// diff view so the wrap toggle is applied immediately.
+#[tauri::command]
+pub fn set_diff_line_wrapping(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.diff_line_wrapping = enabled;
+    config.save(&state.config_path).map_err(|e| e.to_string())
+}
+
 /// Return whether the per-OS re-authorization notice has been dismissed.
 ///
 /// `os` must be `"macos"` or `"windows"`; other values return `false`

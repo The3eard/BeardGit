@@ -340,6 +340,8 @@ pub fn run() {
             app_core::commands::set_auto_check_updates,
             app_core::commands::get_diff_show_whitespace,
             app_core::commands::set_diff_show_whitespace,
+            app_core::commands::get_diff_line_wrapping,
+            app_core::commands::set_diff_line_wrapping,
             app_core::commands::get_editor_preferences,
             app_core::commands::set_editor_preferences,
             app_core::commands::get_reauth_dismissed,

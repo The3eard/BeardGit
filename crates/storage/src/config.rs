@@ -18,6 +18,10 @@ fn default_auto_check_updates() -> bool {
     true
 }
 
+fn default_diff_line_wrapping() -> bool {
+    true
+}
+
 fn default_locale() -> String {
     "en-US".to_string()
 }
@@ -311,6 +315,15 @@ pub struct AppConfig {
     #[serde(default)]
     pub diff_show_whitespace: bool,
 
+    /// When true, all diff views (commit, PR/MR, stash, tag, and the
+    /// staging panel in Changes) soft-wrap long lines so they stay
+    /// visible without horizontal scrolling. When false, diffs render
+    /// with `white-space: pre` and the surrounding container exposes a
+    /// horizontal scrollbar. Independent from `editor_preferences.line_wrapping`,
+    /// which only controls the file editor. Default `true`.
+    #[serde(default = "default_diff_line_wrapping")]
+    pub diff_line_wrapping: bool,
+
     /// Persisted editor-panel preferences. New users get the
     /// `EditorPreferences::default()` set.
     #[serde(default = "default_editor_preferences")]
@@ -365,6 +378,7 @@ impl Default for AppConfig {
             ai_prompt_auto_accept: false,
             auto_check_updates: default_auto_check_updates(),
             diff_show_whitespace: false,
+            diff_line_wrapping: default_diff_line_wrapping(),
             auto_update_reauth_notice_dismissed_macos: false,
             auto_update_reauth_notice_dismissed_windows: false,
             editor_preferences: EditorPreferences::default(),
