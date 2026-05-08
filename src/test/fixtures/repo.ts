@@ -8,7 +8,9 @@
  */
 
 import type {
+  ConflictStatus,
   ProjectInfo,
+  ProjectSnapshot,
   RecentRepo,
   RemoteInfo,
   RepoInfo,
@@ -69,6 +71,36 @@ export function makeRemoteInfo(
   return {
     name: "origin",
     url: "git@github.com:adolfofuentes/sample.git",
+    ...overrides,
+  };
+}
+
+export function makeProjectSnapshot(
+  overrides: Partial<ProjectSnapshot> = {},
+): ProjectSnapshot {
+  return {
+    path: "/Users/test/projects/sample",
+    head_branch: "feat/example",
+    ahead: 0,
+    behind: 0,
+    staged: 0,
+    unstaged: 0,
+    untracked: 0,
+    conflicted: 0,
+    stash_count: 0,
+    change_count: 0,
+    graph_viewport_cache: null,
+    ...overrides,
+  };
+}
+
+export function makeConflictStatus(
+  overrides: Partial<ConflictStatus> = {},
+): ConflictStatus {
+  return {
+    state: "none",
+    conflicted_files: [],
+    can_continue: false,
     ...overrides,
   };
 }

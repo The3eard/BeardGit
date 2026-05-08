@@ -11,3 +11,5 @@ export * from "./changes";
 export * from "./mrs";
 export * from "./issues";
 export * from "./pipelines";
+export * from "./theme";
+export * from "./prefs";
