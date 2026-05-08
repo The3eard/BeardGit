@@ -86,6 +86,16 @@ pub(crate) fn run_clone_pipeline(
             message: "URL is empty".into(),
         });
     }
+    // Reject any control character (CR/LF, NUL, …) or whitespace inside the
+    // URL — `git clone` accepts these silently and they are the standard
+    // exfiltration vectors for CVE-class clone attacks (e.g. embedded
+    // newline that flips a follow-up `git config` line). The legitimate
+    // clone URL space contains none of them.
+    if url.chars().any(|c| c.is_control() || c.is_whitespace()) {
+        return Err(CloneRepoError::InvalidUrl {
+            message: format!("'{url}' contains whitespace or control characters"),
+        });
+    }
     if !looks_like_clone_url(url) {
         return Err(CloneRepoError::InvalidUrl {
             message: format!(
@@ -188,6 +198,39 @@ pub fn clone_repo(options: CloneRepoOptions) -> Result<CloneRepoSuccess, CloneRe
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rejects_url_with_newline() {
+        let opts = CloneRepoOptions {
+            url: "https://example.com/repo.git\nrm -rf /".into(),
+            parent_dir: ".".into(),
+        };
+        let err = run_clone_pipeline(&opts).unwrap_err();
+        assert!(
+            matches!(err, CloneRepoError::InvalidUrl { ref message } if message.contains("control")),
+            "got {err:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_url_with_embedded_space() {
+        let opts = CloneRepoOptions {
+            url: "https://example.com/repo .git".into(),
+            parent_dir: ".".into(),
+        };
+        let err = run_clone_pipeline(&opts).unwrap_err();
+        assert!(matches!(err, CloneRepoError::InvalidUrl { .. }));
+    }
+
+    #[test]
+    fn rejects_url_with_nul_byte() {
+        let opts = CloneRepoOptions {
+            url: "https://example.com/repo\u{0}/x.git".into(),
+            parent_dir: ".".into(),
+        };
+        let err = run_clone_pipeline(&opts).unwrap_err();
+        assert!(matches!(err, CloneRepoError::InvalidUrl { .. }));
+    }
 
     #[test]
     fn derive_name_handles_https() {
