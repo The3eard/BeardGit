@@ -13,6 +13,11 @@ build/
 .svelte-kit/
 coverage/
 
+# Playwright (visual regression suite)
+test-results/
+playwright-report/
+playwright/.cache/
+
 # Tauri
 src-tauri/target/
 
