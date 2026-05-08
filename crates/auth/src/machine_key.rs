@@ -11,6 +11,40 @@
 //! | macOS | `IOPlatformUUID` via `ioreg` |
 //! | Linux | `/etc/machine-id` |
 //! | Windows | `MachineGuid` from registry |
+//!
+//! ## Threat model and known gap
+//!
+//! The key material here (`IOPlatformUUID`, `/etc/machine-id`,
+//! `MachineGuid`) is **readable by any process running as the same user**
+//! and is stable over the machine's lifetime. AES-256-GCM with this key
+//! defeats only the "lost laptop / cloned disk" scenario:
+//!
+//! - **Defended:** an attacker who exfiltrates `credentials.enc` alone
+//!   (Time Machine backup, iCloud sync, repo upload mistake) cannot
+//!   decrypt without the per-machine ID.
+//! - **Not defended:** in-process malware running as the user. It can
+//!   shell out to `ioreg -rd1 -c IOPlatformExpertDevice`, read the
+//!   credentials file, and reproduce HKDF in seconds. Local privilege
+//!   escalation isn't required.
+//!
+//! ## Hardening plan (TODO)
+//!
+//! Move primary credential storage to the OS keychain — `Keychain` on
+//! macOS via `security-framework`, libsecret / `Secret Service` on Linux,
+//! DPAPI / Credential Manager on Windows. Keep the current AES-GCM
+//! envelope as a wrapping layer for defense in depth, or keep it as the
+//! sole mechanism for plain-text fallback when the keychain is locked.
+//!
+//! Implementation notes for the future migration:
+//! - bump `SALT_V1` → `SALT_V2` and add a one-shot migration in
+//!   [`crate::credential_store::CredentialStore`] that decrypts with v1,
+//!   re-encrypts via the keychain, and removes the on-disk file.
+//! - the existing `SALT_VERSIONING` infra below is exactly what makes
+//!   this migration painless.
+//!
+//! Estimated effort: 3–5 days (per-platform crates, test fixtures, CI
+//! coverage). Not blocking the current security pass; tracked here so
+//! the next maintainer sees the open item.
 
 use hkdf::Hkdf;
 use sha2::Sha256;

@@ -13,7 +13,7 @@ use provider::ProviderKind;
 use requests_runner::{
     codegen::copy_as,
     env::{EnvFile, list_envs, load_env, save_env as save_env_file},
-    executor::execute,
+    executor::{ExecuteOptions, execute},
     history::record,
     parser::{import_curl, parse_http_file},
     resolver::resolve,
@@ -846,7 +846,7 @@ pub async fn requests_run(
 
     let resolved = resolve(&req, &ctx).map_err(|e| e.to_string())?;
     let started = chrono::Utc::now().timestamp();
-    let result = execute(&resolved, cancel)
+    let result = execute(&resolved, cancel, ExecuteOptions::default())
         .await
         .map_err(|e| e.to_string())?;
 

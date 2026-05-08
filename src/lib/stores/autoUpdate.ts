@@ -38,6 +38,36 @@ import {
 } from "$lib/api/tauri";
 import type { TaskEntry } from "$lib/types/tasks";
 
+/**
+ * Compare two semver-like version strings ("0.1.12", "1.2.3-beta") and
+ * return `true` if `candidate` is strictly newer than `current`.
+ * Pre-release suffixes are ignored — we accept `1.2.3-beta` over `1.2.2`.
+ *
+ * Used as a downgrade guard for the auto-updater: `tauri-plugin-updater`
+ * reports any version mismatch as "available", so a compromised release
+ * pipeline could push an older signed manifest to roll users back to a
+ * vulnerable build. The guard rejects anything that's not strictly
+ * higher numerically.
+ */
+export function isStrictlyNewer(candidate: string, current: string): boolean {
+  const parse = (v: string): number[] =>
+    v
+      .split("-")[0]
+      .split(".")
+      .map((p) => parseInt(p, 10))
+      .map((n) => (Number.isFinite(n) ? n : 0));
+  const a = parse(candidate);
+  const b = parse(current);
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const ai = a[i] ?? 0;
+    const bi = b[i] ?? 0;
+    if (ai > bi) return true;
+    if (ai < bi) return false;
+  }
+  return false; // equal
+}
+
 /** Phase of the update lifecycle. */
 export type UpdateStatus =
   | "idle"
@@ -123,6 +153,17 @@ export async function checkForUpdates(): Promise<UpdateStatus> {
     const update = await check();
     const lastCheckedAt = Date.now();
     if (!update) {
+      autoUpdateState.set({ status: "up_to_date", lastCheckedAt });
+      return "up_to_date";
+    }
+    // Reject downgrades. Tauri's plugin reports any non-equal version
+    // as "available", so a compromised release pipeline could push a
+    // signed but older `latest.json` to roll users back to a known-
+    // vulnerable build. Insist on strict-greater so we never apply an
+    // older or equal tag.
+    const currentVersion =
+      (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "0.0.0";
+    if (!isStrictlyNewer(update.version, currentVersion)) {
       autoUpdateState.set({ status: "up_to_date", lastCheckedAt });
       return "up_to_date";
     }

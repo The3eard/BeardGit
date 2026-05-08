@@ -112,8 +112,12 @@ impl CredentialFile {
         output.extend_from_slice(&nonce_bytes);
         output.extend_from_slice(&ciphertext);
 
-        std::fs::write(&self.path, &output).map_err(|e| {
-            AuthError::CredentialFile(format!("Failed to write {}: {e}", self.path.display()))
+        // Atomic write: stage to a sibling temp file, fsync, then rename.
+        // A crash mid-write would otherwise truncate `credentials.enc` and
+        // wipe every stored PAT — `std::fs::write` is not atomic.
+        let tmp_path = self.path.with_extension("enc.tmp");
+        std::fs::write(&tmp_path, &output).map_err(|e| {
+            AuthError::CredentialFile(format!("Failed to write {}: {e}", tmp_path.display()))
         })?;
 
         // Tighten the file mode on Unix so other local users cannot read the
@@ -124,8 +128,19 @@ impl CredentialFile {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&self.path, std::fs::Permissions::from_mode(0o600));
+            let _ = std::fs::set_permissions(&tmp_path, std::fs::Permissions::from_mode(0o600));
         }
+
+        std::fs::rename(&tmp_path, &self.path).map_err(|e| {
+            // Best-effort cleanup if rename fails — the temp file is
+            // useless on its own and would leak otherwise.
+            let _ = std::fs::remove_file(&tmp_path);
+            AuthError::CredentialFile(format!(
+                "Failed to rename {} -> {}: {e}",
+                tmp_path.display(),
+                self.path.display()
+            ))
+        })?;
 
         Ok(())
     }
@@ -202,6 +217,41 @@ mod tests {
         cf.write(&key_a, &data).unwrap();
         let result = cf.read(&key_b);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_atomic_write_leaves_no_temp_file() {
+        // After a successful write, only `credentials.enc` should exist —
+        // not the `credentials.enc.tmp` staging file.
+        let dir = tempfile::tempdir().unwrap();
+        let cf = CredentialFile::new(dir.path());
+        let key = test_key();
+
+        let mut data = HashMap::new();
+        data.insert("k".to_string(), serde_json::json!("v"));
+        cf.write(&key, &data).unwrap();
+
+        assert!(dir.path().join(CREDENTIALS_FILENAME).exists());
+        assert!(!dir.path().join("credentials.enc.tmp").exists());
+    }
+
+    #[test]
+    fn test_overwrite_preserves_data_on_success() {
+        // Two sequential writes must not corrupt the second's contents.
+        let dir = tempfile::tempdir().unwrap();
+        let cf = CredentialFile::new(dir.path());
+        let key = test_key();
+
+        let mut first = HashMap::new();
+        first.insert("a".to_string(), serde_json::json!("1"));
+        cf.write(&key, &first).unwrap();
+
+        let mut second = HashMap::new();
+        second.insert("b".to_string(), serde_json::json!("2"));
+        cf.write(&key, &second).unwrap();
+
+        let read = cf.read(&key).unwrap();
+        assert_eq!(read, second);
     }
 
     #[test]
