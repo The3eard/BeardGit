@@ -249,8 +249,35 @@ pub struct DerivedColors {
     pub accent_orange: String,
     pub accent_purple: String,
     pub accent_red: String,
+    /// Per-theme signature accent for primary actions (selected button,
+    /// active tab, focus ring, spinner). Each TOML chooses which of its
+    /// ANSI colors plays this role via `[accents]`; themes without an
+    /// `[accents]` section fall back to `blue`, matching the legacy
+    /// behaviour where every theme used `--accent-blue` for primary.
+    pub accent_primary: String,
+    pub accent_secondary: String,
+    pub accent_tertiary: String,
     pub border: String,
     pub selection: String,
+}
+
+/// Optional `[accents]` section: maps the three semantic accent slots
+/// (`primary`, `secondary`, `tertiary`) to one of the theme's ANSI
+/// color names. Lets each theme assert its visual identity — Dracula
+/// pushes `magenta` as primary, Gruvbox pushes `yellow`, Nord pushes
+/// `cyan`, etc.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ThemeAccents {
+    /// ANSI color name for the primary accent. Recognised values: any
+    /// of the 16 standard ANSI names (`black`, `red`, …, `bright_red`,
+    /// …) or a literal `#RRGGBB` hex string. Defaults to `"blue"`.
+    pub primary: Option<String>,
+    /// ANSI color name (or hex) for the secondary accent.
+    /// Defaults to `"magenta"`.
+    pub secondary: Option<String>,
+    /// ANSI color name (or hex) for the tertiary accent.
+    /// Defaults to `"green"`.
+    pub tertiary: Option<String>,
 }
 
 /// Editor color tokens for CodeMirror 6 integration.
@@ -419,9 +446,33 @@ fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors 
         accent_orange: colors.yellow.clone(),
         accent_purple: colors.magenta.clone(),
         accent_red: colors.red.clone(),
+        accent_primary: colors.blue.clone(),
+        accent_secondary: colors.magenta.clone(),
+        accent_tertiary: colors.green.clone(),
         border: with_alpha(&colors.bright_black, "80"),
         selection: with_alpha(&colors.blue, "33"),
     }
+}
+
+/// Apply the per-theme `[accents]` overrides on top of the legacy
+/// blue/magenta/green defaults already in `derived`.
+fn apply_accent_overrides(
+    derived: &mut DerivedColors,
+    colors: &ThemeColors,
+    accents: &ThemeAccents,
+) {
+    derived.accent_primary =
+        resolve_accent(colors, accents.primary.as_deref(), &derived.accent_primary);
+    derived.accent_secondary = resolve_accent(
+        colors,
+        accents.secondary.as_deref(),
+        &derived.accent_secondary,
+    );
+    derived.accent_tertiary = resolve_accent(
+        colors,
+        accents.tertiary.as_deref(),
+        &derived.accent_tertiary,
+    );
 }
 
 /// Shift the hue of a `#RRGGBB` color by `degrees` (-180..180).
@@ -658,6 +709,39 @@ struct RawTheme {
     colors: Option<ThemeColors>,
     graph: Option<RawGraphOverride>,
     editor: Option<RawEditorOverride>,
+    accents: Option<ThemeAccents>,
+}
+
+/// Resolve an `accent` slot to a concrete `#RRGGBB` value. Accepts any
+/// of the 16 ANSI color names (`"red"`, `"bright_blue"`, …) or a
+/// literal hex string. Falls back to `default_color` if the slot is
+/// `None` or names an unknown identifier — never panics on bad input.
+fn resolve_accent(colors: &ThemeColors, slot: Option<&str>, default: &str) -> String {
+    let Some(name) = slot else {
+        return default.to_string();
+    };
+    if name.starts_with('#') {
+        return name.to_string();
+    }
+    match name {
+        "black" => colors.black.clone(),
+        "red" => colors.red.clone(),
+        "green" => colors.green.clone(),
+        "yellow" => colors.yellow.clone(),
+        "blue" => colors.blue.clone(),
+        "magenta" => colors.magenta.clone(),
+        "cyan" => colors.cyan.clone(),
+        "white" => colors.white.clone(),
+        "bright_black" => colors.bright_black.clone(),
+        "bright_red" => colors.bright_red.clone(),
+        "bright_green" => colors.bright_green.clone(),
+        "bright_yellow" => colors.bright_yellow.clone(),
+        "bright_blue" => colors.bright_blue.clone(),
+        "bright_magenta" => colors.bright_magenta.clone(),
+        "bright_cyan" => colors.bright_cyan.clone(),
+        "bright_white" => colors.bright_white.clone(),
+        _ => default.to_string(),
+    }
 }
 
 /// Apply partial overrides from a `RawGraphOverride` onto a derived `ThemeGraph`.
@@ -817,8 +901,12 @@ pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
     validate_color("colors.bright_cyan", &colors.bright_cyan)?;
     validate_color("colors.bright_white", &colors.bright_white)?;
 
-    // Derive semantic colors from base palette
-    let derived = derive_semantic_colors(&colors, is_dark);
+    // Derive semantic colors from base palette, then layer the
+    // per-theme [accents] overrides (if any) on top.
+    let mut derived = derive_semantic_colors(&colors, is_dark);
+    if let Some(accents) = raw.accents.as_ref() {
+        apply_accent_overrides(&mut derived, &colors, accents);
+    }
 
     // Derive graph from base palette + derived, then merge overrides
     let mut graph = derive_graph(&colors, &derived);
@@ -1064,6 +1152,57 @@ bright-white = "#ffffff"
         assert_eq!(ed.cursor, "#0000ff");
         assert_eq!(ed.added_text, "#00ff00");
         assert_eq!(ed.removed_text, "#ff0000");
+    }
+
+    #[test]
+    fn test_accents_default_to_blue_magenta_green() {
+        let theme = parse_theme(MINIMAL_THEME).unwrap();
+        assert_eq!(theme.derived.accent_primary, theme.colors.blue);
+        assert_eq!(theme.derived.accent_secondary, theme.colors.magenta);
+        assert_eq!(theme.derived.accent_tertiary, theme.colors.green);
+    }
+
+    #[test]
+    fn test_accents_override_picks_named_ansi_color() {
+        let toml = format!(
+            r##"{}
+[accents]
+primary = "magenta"
+secondary = "cyan"
+tertiary = "yellow"
+"##,
+            MINIMAL_THEME
+        );
+        let theme = parse_theme(&toml).unwrap();
+        assert_eq!(theme.derived.accent_primary, theme.colors.magenta);
+        assert_eq!(theme.derived.accent_secondary, theme.colors.cyan);
+        assert_eq!(theme.derived.accent_tertiary, theme.colors.yellow);
+    }
+
+    #[test]
+    fn test_accents_override_accepts_hex_literal() {
+        let toml = format!(
+            r##"{}
+[accents]
+primary = "#ff00ff"
+"##,
+            MINIMAL_THEME
+        );
+        let theme = parse_theme(&toml).unwrap();
+        assert_eq!(theme.derived.accent_primary, "#ff00ff");
+    }
+
+    #[test]
+    fn test_accents_unknown_name_falls_back_to_default() {
+        let toml = format!(
+            r##"{}
+[accents]
+primary = "neon-pink"
+"##,
+            MINIMAL_THEME
+        );
+        let theme = parse_theme(&toml).unwrap();
+        assert_eq!(theme.derived.accent_primary, theme.colors.blue);
     }
 
     #[test]

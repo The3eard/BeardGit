@@ -22,3 +22,8 @@ bright-blue = "#81a1c1"
 bright-magenta = "#b48ead"
 bright-cyan = "#8fbcbb"
 bright-white = "#eceff4"
+
+[accents]
+primary = "cyan"
+secondary = "blue"
+tertiary = "magenta"

@@ -192,13 +192,13 @@
      every primary or destructive button look "highlighted" before
      the user even touched it. */
   .bg-btn--primary {
-    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
-    border-color: color-mix(in srgb, var(--accent-blue) 60%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
+    color: var(--accent-primary);
   }
   .bg-btn--primary:hover:not(:disabled) {
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
     color: var(--text-primary);
   }
 
