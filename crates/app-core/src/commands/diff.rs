@@ -65,6 +65,24 @@ pub async fn get_commit_file_diff(
     .map_err(|e| e.to_string())?
 }
 
+/// Return the structured diff for **every** file in a commit in a single
+/// libgit2 walk. Used by detail panes to avoid the N-subprocess fan-out of
+/// `get_commit_file_diff` per file.
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::diff::commit_full_diff")]
+pub async fn get_commit_full_diff(
+    oid: String,
+    state: State<'_, AppState>,
+) -> Result<std::collections::HashMap<String, git_engine::FileDiff>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.commit_full_diff(&oid).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Structured result for [`get_file_at_commit`].
 ///
 /// Uses an internally-tagged enum so the IPC payload serialises as
