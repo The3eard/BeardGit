@@ -14,3 +14,4 @@ export {
   waitForAppReady,
   type BootstrapOpts,
 } from "./bootstrap";
+export { clickNav } from "./nav";

@@ -34,14 +34,7 @@ test.describe("mock IPC smoke", () => {
     await page.goto("/");
 
     const harness = await page.evaluate(() => {
-      const internals = window.__TAURI_INTERNALS__ as
-        | {
-            invoke?: unknown;
-            transformCallback?: unknown;
-            unregisterCallback?: unknown;
-            convertFileSrc?: unknown;
-          }
-        | undefined;
+      const internals = window.__TAURI_INTERNALS__;
       const state = window.__beardgitMockIPC;
       return {
         hasInvoke: typeof internals?.invoke === "function",
@@ -72,10 +65,7 @@ test.describe("mock IPC smoke", () => {
     });
 
     const result = await page.evaluate(async () => {
-      const internals = window.__TAURI_INTERNALS__ as {
-        invoke: (cmd: string, args?: unknown) => Promise<unknown>;
-      };
-      return internals.invoke("get_status_summary");
+      return window.__TAURI_INTERNALS__!.invoke("get_status_summary");
     });
     expect(result).toEqual(
       expect.objectContaining({ staged: 5, unstaged: 0 }),
@@ -89,11 +79,8 @@ test.describe("mock IPC smoke", () => {
     await page.goto("/");
 
     await page.evaluate(async () => {
-      const internals = window.__TAURI_INTERNALS__ as {
-        invoke: (cmd: string, args?: unknown) => Promise<unknown>;
-      };
-      await internals.invoke("open_repo", { path: "/x" });
-      await internals.invoke("open_repo", { path: "/y" });
+      await window.__TAURI_INTERNALS__!.invoke("open_repo", { path: "/x" });
+      await window.__TAURI_INTERNALS__!.invoke("open_repo", { path: "/y" });
     });
 
     const calls = await getMockCalls(page, "open_repo");

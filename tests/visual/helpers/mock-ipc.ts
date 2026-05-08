@@ -51,6 +51,16 @@ interface MockState {
 declare global {
   interface Window {
     __beardgitMockIPC?: MockState;
+    __TAURI_INTERNALS__?: {
+      invoke: (cmd: string, args?: unknown, options?: unknown) => Promise<unknown>;
+      transformCallback: (callback: (payload: unknown) => void, once?: boolean) => number;
+      unregisterCallback: (id: number) => void;
+      convertFileSrc: (path: string, protocol?: string) => string;
+      metadata?: { currentWindow?: { label?: string } };
+    };
+    __TAURI_EVENT_PLUGIN_INTERNALS__: {
+      unregisterListener: (event: string, eventId: number) => void;
+    };
   }
 }
 
