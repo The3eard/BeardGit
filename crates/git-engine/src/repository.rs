@@ -244,21 +244,22 @@ impl Repository {
             })
             .unwrap_or((0, 0));
 
-        // Stash count via CLI (stash_foreach requires &mut self)
-        let stash_count = {
-            let mut cmd = std::process::Command::new("git");
-            cmd.args(["stash", "list"]).current_dir(&self.path);
-
-            #[cfg(target_os = "windows")]
-            {
-                use std::os::windows::process::CommandExt;
-                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-            }
-
-            cmd.output()
-                .map(|o| String::from_utf8_lossy(&o.stdout).lines().count())
-                .unwrap_or(0)
-        };
+        // Stash count via libgit2 — `stash_foreach` requires `&mut Repository`,
+        // and our handle is `&self`, so we open a transient mut handle on the
+        // same path. That open is microseconds; spawning `git stash list` was
+        // 30–80 ms on macOS and ran on every status refresh.
+        let stash_count = git2::Repository::open(&self.path)
+            .ok()
+            .and_then(|mut r| {
+                let mut count = 0usize;
+                r.stash_foreach(|_, _, _| {
+                    count += 1;
+                    true
+                })
+                .ok()
+                .map(|_| count)
+            })
+            .unwrap_or(0);
 
         Ok(StatusSummary {
             ahead,
