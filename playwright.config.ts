@@ -3,6 +3,11 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/visual",
   fullyParallel: true,
+  // Vite's dev-server occasionally fails the first dynamic-import for
+  // `.svelte-kit/generated/client/nodes/0.js` when several Playwright
+  // workers ramp up simultaneously; one retry papers over that without
+  // hiding real flakiness.
+  retries: 1,
   reporter: [["list"]],
   use: {
     baseURL: "http://localhost:1420",
