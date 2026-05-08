@@ -32,4 +32,6 @@ tauri-plugin-process = "2"
 tokio = { workspace = true }
 
 [target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
-fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
+# Pinned rev: the crate is git-only (not on crates.io), so without this pin
+# different machines / CI runs could resolve different commits over time.
+fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs", rev = "c4c45d503ea115a839aae718d02f79e7c7f0f673" }

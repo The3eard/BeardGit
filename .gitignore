@@ -1,7 +1,10 @@
 # Rust
 /target/
 **/*.rs.bk
-Cargo.lock
+# `src-tauri/` is a workspace member, so the workspace root `Cargo.lock`
+# is authoritative. The `src-tauri/Cargo.lock` is a vestigial artifact
+# from before the workspace migration — never updated by cargo.
+src-tauri/Cargo.lock
 
 # Node / Frontend
 node_modules/
