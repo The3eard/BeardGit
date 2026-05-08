@@ -119,6 +119,25 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
+      - name: Embed READ_BEFORE_RUN.md in macOS DMG
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node scripts/post-bundle-dmg.mjs
+          DMG=$(find src-tauri/target -path '*/release/bundle/dmg/*.dmg' -print -quit)
+          if [ -z "$DMG" ]; then
+            echo "::error::No DMG found to re-upload"
+            exit 1
+          fi
+          echo "Re-uploading $DMG to $RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" "$DMG" \
+            --clobber --repo "$RELEASE_REPO"
+
   publish:
     name: Publish release (undraft)
     needs: release
