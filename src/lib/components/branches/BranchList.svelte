@@ -3,6 +3,7 @@
   import { debounce } from "../../utils/debounce";
   import ContextMenu from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import EmptyState from "../common/EmptyState.svelte";
   import List from "../common/List.svelte";
   import BranchTreeNode from "./BranchTreeNode.svelte";
   import RenameBranchDialog from "./RenameBranchDialog.svelte";
@@ -357,7 +358,7 @@
           <div class="spinner"></div>
         </div>
       {:else if localTree.length === 0}
-        <div class="list-empty">No local branches</div>
+        <EmptyState title={m.branches_no_local()} />
       {:else}
         {#each localTree as node (node.fullPath)}
           <BranchTreeNode
@@ -389,7 +390,7 @@
 
     {#if !remoteCollapsed}
       {#if remoteTree.length === 0}
-        <div class="list-empty">No remote branches</div>
+        <EmptyState title={m.branches_no_remote()} />
       {:else}
         {#each remoteTree as node (node.fullPath)}
           <BranchTreeNode
@@ -599,9 +600,4 @@
     to { transform: rotate(360deg); }
   }
 
-  .list-empty {
-    padding: 8px 12px;
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
 </style>

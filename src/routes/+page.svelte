@@ -9,6 +9,7 @@
   import DiffEditor from "$lib/components/editor/DiffEditor.svelte";
   import StagingDiffEditor from "$lib/components/editor/StagingDiffEditor.svelte";
   import LazyComponent from "$lib/components/common/LazyComponent.svelte";
+  import EmptyState from "$lib/components/common/EmptyState.svelte";
   import { repoInfo, isLoading, error } from "$lib/stores/repo";
   import { selectedCommit, selectedOid, selectedCommitFiles, openFileDiff, navigateToCommit, graphNavigateDown, graphNavigateUp, graphNavigateFirst, graphNavigateLast, fetchDiffSides, fileDiffPanel, loadingFileDiff, closeFileDiff } from "$lib/stores/graph";
   import type { RawDiffContent } from "$lib/stores/graph";
@@ -20,7 +21,8 @@
     openTasksPopover,
     closeTasksPopover,
   } from "$lib/stores/tasksPopover";
-  import { initProjects, openFolderAsProject, activeProject, switchToNextTab, switchToPrevTab, closeActiveTab, switchToTab, onProjectSwitch } from "$lib/stores/projects";
+  import { initProjects, openFolderAsProject, openProjectTab, activeProject, switchToNextTab, switchToPrevTab, closeActiveTab, switchToTab, onProjectSwitch } from "$lib/stores/projects";
+  import { openCloneDialog } from "$lib/stores/cloneDialog";
   import StashView from "$lib/components/stash/StashView.svelte";
   import ConflictToolbar from "$lib/components/conflict/ConflictToolbar.svelte";
   import TagView from "$lib/components/tags/TagView.svelte";
@@ -116,14 +118,32 @@
     return diffs.find(d => d.path === selectedStagingFile!.filename) ?? null;
   });
   let registeredShortcutIds: string[] = [];
-  let diffPanelHeight = $state(250);
-  let changesSidebarWidth = $state(320);
+  const DIFF_PANEL_DEFAULT_HEIGHT = 250;
+  const CHANGES_SIDEBAR_DEFAULT_WIDTH = 320;
+  let diffPanelHeight = $state(DIFF_PANEL_DEFAULT_HEIGHT);
+  let changesSidebarWidth = $state(CHANGES_SIDEBAR_DEFAULT_WIDTH);
+  let isDraggingDiff = $state(false);
+  let isDraggingChanges = $state(false);
   let sidebarCollapsed = $state(false);
+  let recentRepos = $state<{ path: string; name: string }[]>([]);
+
+  // Lazy-load recent repos for the welcome screen. The list is small and
+  // only matters when no project is active, so we re-fetch on every
+  // welcome render rather than caching globally.
+  $effect(() => {
+    if ($activeProject) return;
+    let cancelled = false;
+    api.getRecentRepos()
+      .then((r) => { if (!cancelled) recentRepos = r.slice(0, 5); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  });
 
   function startDiffResize(e: MouseEvent) {
     e.preventDefault();
     const startY = e.clientY;
     const startHeight = diffPanelHeight;
+    isDraggingDiff = true;
 
     function onMouseMove(e: MouseEvent) {
       const delta = startY - e.clientY; // dragging up increases height
@@ -135,16 +155,37 @@
     function onMouseUp() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      isDraggingDiff = false;
     }
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
   }
 
+  function resetDiffPanelHeight() {
+    diffPanelHeight = DIFF_PANEL_DEFAULT_HEIGHT;
+  }
+
+  function handleDiffResizeKeys(e: KeyboardEvent) {
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const container = document.querySelector(".graph-with-diff") as HTMLElement | null;
+      const maxH = container ? container.clientHeight * 0.6 : 500;
+      diffPanelHeight = Math.min(maxH, diffPanelHeight + 20);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      diffPanelHeight = Math.max(150, diffPanelHeight - 20);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      resetDiffPanelHeight();
+    }
+  }
+
   function startChangesSidebarResize(e: MouseEvent) {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = changesSidebarWidth;
+    isDraggingChanges = true;
 
     function onMouseMove(e: MouseEvent) {
       const delta = e.clientX - startX;
@@ -154,10 +195,28 @@
     function onMouseUp() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      isDraggingChanges = false;
     }
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+  }
+
+  function resetChangesSidebarWidth() {
+    changesSidebarWidth = CHANGES_SIDEBAR_DEFAULT_WIDTH;
+  }
+
+  function handleChangesResizeKeys(e: KeyboardEvent) {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      changesSidebarWidth = Math.max(240, changesSidebarWidth - 20);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      changesSidebarWidth = Math.min(600, changesSidebarWidth + 20);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      resetChangesSidebarWidth();
+    }
   }
 
   onMount(async () => {
@@ -847,7 +906,9 @@
           </div>
           {#if $branchFileDiff}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
             <div class="diff-panel" style="height: {diffPanelHeight}px">
               <DiffEditor
                 oldContent={$branchFileDiff.oldContent}
@@ -877,7 +938,9 @@
           </div>
           {#if $reflogFileDiff}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
             <div class="diff-panel" style="height: {diffPanelHeight}px">
               <DiffEditor
                 oldContent={$reflogFileDiff.oldContent}
@@ -911,7 +974,9 @@
           </div>
           {#if $prFileDiff || $loadingPrFileDiff || $prFileDiffError}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
             <div class="diff-panel" style="height: {diffPanelHeight}px">
               {#if $loadingPrFileDiff}
                 <div class="diff-panel-loading"><div class="spinner"></div></div>
@@ -968,7 +1033,9 @@
               <StagingArea onFileClick={handleFileClick} onNavigate={handleNavigate} />
             </div>
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="changes-resize-handle" onmousedown={startChangesSidebarResize}></div>
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+            <div class="changes-resize-handle" class:is-dragging={isDraggingChanges} role="separator" aria-orientation="vertical" aria-label={m.resize_changes_sidebar()} tabindex="0" onmousedown={startChangesSidebarResize} ondblclick={resetChangesSidebarWidth} onkeydown={handleChangesResizeKeys}></div>
             <div class="changes-diff">
               {#if selectedStagingDiff && selectedStagingFile}
                 <StagingDiffEditor
@@ -978,9 +1045,8 @@
                   onClose={() => { selectedStagingFile = null; }}
                 />
               {:else}
-                <div class="no-diff">
-                  <p>{m.diff_empty()}</p>
-                </div>
+                <EmptyState title={m.diff_empty()} />
+
               {/if}
             </div>
           </div>
@@ -991,7 +1057,9 @@
                 <GitGraph />
               </div>
               <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
               <div class="diff-panel" style="height: {diffPanelHeight}px">
                 <DiffEditor
                   oldContent={$fileDiffPanel.oldContent}
@@ -1010,7 +1078,9 @@
                 <GitGraph />
               </div>
               <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div class="diff-resize-handle" onmousedown={startDiffResize}></div>
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
               <div class="diff-panel diff-panel-loading" style="height: {diffPanelHeight}px">
                 <div class="spinner"></div>
               </div>
@@ -1024,7 +1094,32 @@
           <img class="welcome-logo" src="/logo.svg" alt="BeardGit" />
           <h2 class="welcome-title">{m.app_title()}</h2>
           <p class="welcome-subtitle">{m.app_welcome_subtitle()}</p>
-          <button class="open-btn" onclick={openFolderAsProject}>{m.app_open_repo()}</button>
+          <div class="welcome-actions">
+            <button class="welcome-action-btn welcome-action-btn--primary" onclick={openFolderAsProject}>
+              {m.welcome_open()}
+            </button>
+            <button class="welcome-action-btn" onclick={openCloneDialog}>
+              {m.welcome_clone()}
+            </button>
+          </div>
+          <div class="welcome-recent">
+            <h3 class="welcome-recent-title">{m.welcome_recent_title()}</h3>
+            {#if recentRepos.length === 0}
+              <p class="welcome-recent-empty">{m.welcome_no_recent()}</p>
+            {:else}
+              <ul class="welcome-recent-list">
+                {#each recentRepos as repo}
+                  <li>
+                    <button class="welcome-recent-row" onclick={() => openProjectTab(repo.path)}>
+                      <span class="welcome-recent-name">{repo.name}</span>
+                      <span class="welcome-recent-path">{repo.path}</span>
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
+          <p class="welcome-hint">{m.welcome_shortcut_hint()}</p>
         </div>
       {/if}
       </div><!-- /content-wrapper -->
@@ -1168,21 +1263,108 @@
     color: var(--text-secondary);
   }
 
-  .open-btn {
+  .welcome-actions {
+    display: flex;
+    gap: 8px;
     margin-top: 8px;
-    padding: 8px 24px;
-    background: var(--accent-blue);
+  }
+
+  .welcome-action-btn {
+    padding: 8px 20px;
+    background: transparent;
     color: var(--text-primary);
-    border: none;
+    border: 1px solid var(--border);
     border-radius: 6px;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: background 0.15s, border-color 0.15s;
   }
 
-  .open-btn:hover {
+  .welcome-action-btn:hover {
+    background: var(--overlay-hover);
+    border-color: var(--text-secondary);
+  }
+
+  .welcome-action-btn--primary {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+  }
+
+  .welcome-action-btn--primary:hover {
     opacity: 0.9;
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+  }
+
+  .welcome-recent {
+    margin-top: 24px;
+    width: min(420px, 80%);
+    text-align: center;
+  }
+
+  .welcome-recent-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  .welcome-recent-empty {
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+  }
+
+  .welcome-recent-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+
+  .welcome-recent-row {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-primary);
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .welcome-recent-row:hover {
+    background: var(--overlay-hover);
+    border-color: var(--border);
+  }
+
+  .welcome-recent-name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .welcome-recent-path {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .welcome-hint {
+    margin-top: 24px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    opacity: 0.7;
   }
 
   .loading-text {
@@ -1219,6 +1401,10 @@
   }
 
   .changes-resize-handle:hover {
+    background: var(--overlay-accent-blue);
+  }
+
+  .changes-resize-handle.is-dragging {
     background: var(--accent-blue);
   }
 
@@ -1270,6 +1456,10 @@
   }
 
   .diff-resize-handle:hover {
+    background: var(--overlay-accent-blue);
+  }
+
+  .diff-resize-handle.is-dragging {
     background: var(--accent-blue);
   }
 
@@ -1283,19 +1473,6 @@
     align-items: center;
     justify-content: center;
     border-top: 1px solid var(--border);
-  }
-
-  .no-diff {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-secondary);
-    font-size: 13px;
-    font-style: italic;
-    opacity: 0.5;
-    gap: 8px;
   }
 
   .nav-btn {
