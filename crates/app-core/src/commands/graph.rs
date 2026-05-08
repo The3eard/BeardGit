@@ -127,7 +127,7 @@ pub async fn search_commits(
 
         let total_commits = graph_commits.len();
         let dag = Dag::build(graph_commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         let vp = layout.viewport(0, total_commits);
 
         Ok(GraphViewport {
@@ -221,7 +221,7 @@ fn build_graph_chunk(
 
     let total_commits = graph_commits.len();
     let dag = Dag::build(graph_commits);
-    let layout = GraphLayout::compute(&dag);
+    let layout = GraphLayout::compute(dag);
     let vp = layout.viewport(0, total_commits);
 
     Ok(GraphViewport {

@@ -4,6 +4,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::{database::Database, error::StorageError};
 
+/// ASCII Unit Separator — used to pack `Vec<String>` columns (`parents`,
+/// `refs`) into a single TEXT cell. None of the values we store contain
+/// this byte, so split/join round-trip losslessly.
+const VEC_SEP: char = '\u{1f}';
+
+fn pack_strings(items: &[String]) -> String {
+    items.join(&VEC_SEP.to_string())
+}
+
+fn unpack_strings(packed: &str) -> Vec<String> {
+    if packed.is_empty() {
+        return Vec::new();
+    }
+    packed.split(VEC_SEP).map(String::from).collect()
+}
+
 /// A flattened git commit record stored in the `commits_cache` SQLite table.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedCommit {
@@ -42,8 +58,8 @@ impl Database {
             )?;
 
             for commit in commits {
-                let parents_json = serde_json::to_string(&commit.parents)?;
-                let refs_json = serde_json::to_string(&commit.refs)?;
+                let parents_packed = pack_strings(&commit.parents);
+                let refs_packed = pack_strings(&commit.refs);
                 stmt.execute(rusqlite::params![
                     repo_path,
                     commit.oid,
@@ -52,8 +68,8 @@ impl Database {
                     commit.author,
                     commit.email,
                     commit.timestamp,
-                    parents_json,
-                    refs_json,
+                    parents_packed,
+                    refs_packed,
                 ])?;
             }
         }
@@ -91,9 +107,7 @@ impl Database {
 
         let mut commits = Vec::new();
         for row in rows {
-            let (oid, summary, body, author, email, timestamp, parents_json, refs_json) = row?;
-            let parents: Vec<String> = serde_json::from_str(&parents_json)?;
-            let refs: Vec<String> = serde_json::from_str(&refs_json)?;
+            let (oid, summary, body, author, email, timestamp, parents_packed, refs_packed) = row?;
             commits.push(CachedCommit {
                 oid,
                 summary,
@@ -101,8 +115,8 @@ impl Database {
                 author,
                 email,
                 timestamp,
-                parents,
-                refs,
+                parents: unpack_strings(&parents_packed),
+                refs: unpack_strings(&refs_packed),
             });
         }
 
@@ -213,6 +227,31 @@ mod tests {
         // Last page: offset 15, only 5 items remain
         let last_page = db.get_commits(repo, 15, 10).unwrap();
         assert_eq!(last_page.len(), 5);
+    }
+
+    #[test]
+    fn test_pack_unpack_roundtrip() {
+        let v = vec!["refs/heads/main".to_string(), "refs/tags/v1.0".to_string()];
+        let packed = pack_strings(&v);
+        assert_eq!(unpack_strings(&packed), v);
+    }
+
+    #[test]
+    fn test_pack_empty_vec_unpacks_empty() {
+        assert!(unpack_strings("").is_empty());
+        assert_eq!(pack_strings(&[]), "");
+    }
+
+    #[test]
+    fn test_insert_retrieves_parents_and_refs() {
+        let db = Database::open_in_memory().unwrap();
+        let mut commit = make_commit("aaa", "first", 1);
+        commit.parents = vec!["bbb".into(), "ccc".into()];
+        commit.refs = vec!["refs/heads/main".into()];
+        db.insert_commits("/r", &[commit]).unwrap();
+        let got = db.get_commits("/r", 0, 1).unwrap();
+        assert_eq!(got[0].parents, vec!["bbb".to_string(), "ccc".to_string()]);
+        assert_eq!(got[0].refs, vec!["refs/heads/main".to_string()]);
     }
 
     #[test]

@@ -221,7 +221,12 @@ impl GraphLayout {
     /// Lane allocation is capped at MAX_LANES. When all lanes are full and
     /// a new one is needed, the last lane is shared (edges may overlap but
     /// the graph stays compact and readable).
-    pub fn compute(dag: &Dag) -> Self {
+    pub fn compute(dag: Dag) -> Self {
+        // Pre-extract the parents map so the second pass (merge curves) can
+        // still answer "who are the parents of this oid?" after we have
+        // moved every node's owned fields (`refs`, `summary`, `author`,
+        // `email`) into its `LayoutNode`.
+        let (ordered_nodes, parents_by_oid) = dag.into_ordered_nodes_with_parents();
         let mut active_lanes: Vec<Option<Arc<str>>> = Vec::new();
         let mut layout_nodes: Vec<LayoutNode> = Vec::new();
         let mut position: std::collections::HashMap<Arc<str>, (usize, usize)> =
@@ -329,7 +334,7 @@ impl GraphLayout {
 
         let mut max_lanes: usize = 0;
 
-        for (row, dag_node) in dag.nodes().into_iter().enumerate() {
+        for (row, dag_node) in ordered_nodes.into_iter().enumerate() {
             let lane = if let Some(idx) = find_lane(&active_lanes, &dag_node.oid) {
                 idx
             } else {
@@ -406,10 +411,12 @@ impl GraphLayout {
                 oid: dag_node.oid.to_string(),
                 lane,
                 row,
-                refs: dag_node.refs.clone(),
-                summary: dag_node.summary.clone(),
-                author: dag_node.author.clone(),
-                email: dag_node.email.clone(),
+                // Move owned fields out of the consumed DagNode rather than
+                // cloning them. Saves ~5 owned-field clones per commit.
+                refs: dag_node.refs,
+                summary: dag_node.summary,
+                author: dag_node.author,
+                email: dag_node.email,
                 timestamp: dag_node.timestamp,
                 is_merge: dag_node.is_merge,
                 is_root: dag_node.is_root,
@@ -433,11 +440,16 @@ impl GraphLayout {
             }
         }
 
-        // Second pass: compute merge curves for cross-lane parent edges
+        // Second pass: compute merge curves for cross-lane parent edges.
+        // The DAG itself has been consumed; `parents_by_oid` carries
+        // exactly what this pass needs.
         let mut merge_curves: Vec<MergeCurve> = Vec::new();
         for layout_node in &layout_nodes {
-            let dag_node = dag.get(&layout_node.oid).unwrap();
-            for parent_oid in &dag_node.parents {
+            let oid_arc: Arc<str> = Arc::from(layout_node.oid.as_str());
+            let Some(parents) = parents_by_oid.get(&oid_arc) else {
+                continue;
+            };
+            for parent_oid in parents {
                 if let Some(&(parent_lane, parent_row)) = position.get(parent_oid)
                     && layout_node.lane != parent_lane
                 {
@@ -509,7 +521,7 @@ mod tests {
     fn test_linear_layout_single_lane() {
         let commits = vec![commit("c", &["b"]), commit("b", &["a"]), commit("a", &[])];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
 
         assert_eq!(layout.nodes.len(), 3);
         assert_eq!(layout.lane_count, 1, "linear history should fit in 1 lane");
@@ -530,7 +542,7 @@ mod tests {
             commit("base", &[]),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
 
         assert!(
             layout.lane_count >= 2,
@@ -548,7 +560,7 @@ mod tests {
             commit("base", &[]),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
 
         for curve in &layout.merge_curves {
             assert!(
@@ -569,7 +581,7 @@ mod tests {
     #[test]
     fn test_empty_dag() {
         let dag = Dag::build(vec![]);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         assert_eq!(layout.nodes.len(), 0);
         assert_eq!(layout.lane_count, 0);
     }
@@ -578,7 +590,7 @@ mod tests {
     fn test_linear_history_produces_one_segment() {
         let commits = vec![commit("c", &["b"]), commit("b", &["a"]), commit("a", &[])];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         assert_eq!(layout.lane_segments.len(), 1);
         assert_eq!(
             layout.lane_segments[0],
@@ -604,7 +616,7 @@ mod tests {
             commit("base", &[]),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         assert!(
             layout.lane_segments.len() >= 2,
             "got {} segments",
@@ -619,7 +631,7 @@ mod tests {
     #[test]
     fn test_no_segments_for_empty_graph() {
         let dag = Dag::build(vec![]);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         assert!(layout.lane_segments.is_empty());
         assert!(layout.merge_curves.is_empty());
     }
@@ -628,7 +640,7 @@ mod tests {
     fn test_single_commit_produces_one_segment() {
         let commits = vec![commit("a", &[])];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         assert_eq!(layout.lane_segments.len(), 1);
         assert_eq!(
             layout.lane_segments[0],
@@ -654,7 +666,7 @@ mod tests {
             commit("a", &[]),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         let lane0_segs: Vec<&LaneSegment> = layout
             .lane_segments
             .iter()
@@ -681,7 +693,7 @@ mod tests {
             commit("base", &[]),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
 
         // `base` must be placed in exactly one lane (lane 0), not duplicated
         let base_nodes: Vec<_> = layout.nodes.iter().filter(|n| n.oid == "base").collect();
@@ -713,7 +725,7 @@ mod tests {
             make_commit("base", &[], &[], "initial"),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         // Peak is 3 (lanes 0, 1, 2 active at rows 2-3).
         // All lanes are freed once `base` is processed.
         assert!(
@@ -742,7 +754,7 @@ mod tests {
             make_commit("base", &[], &[], "initial"),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         // After f1's lane merges back, f2 should reuse it
         // Lane count should be <= 3, not grow unbounded
         assert!(
@@ -759,7 +771,7 @@ mod tests {
             make_commit("b", &["a"], &[], "previous"),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         assert!(layout.head_lane.is_some());
         let head_node = layout.nodes.iter().find(|n| n.oid == "a").unwrap();
         assert_eq!(layout.head_lane.unwrap(), head_node.lane);
@@ -769,7 +781,7 @@ mod tests {
     fn test_head_lane_none_when_no_head() {
         let commits = vec![make_commit("a", &[], &["refs/heads/main"], "only")];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         assert!(layout.head_lane.is_none());
     }
 
@@ -781,7 +793,7 @@ mod tests {
             commit("a", &[]),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         for seg in &layout.lane_segments {
             assert_eq!(seg.sync_state, SyncState::Unknown);
         }
@@ -800,7 +812,7 @@ mod tests {
             commit("a", &[]),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         for seg in &layout.lane_segments {
             assert_eq!(seg.sync_state, SyncState::Synced);
         }
@@ -814,7 +826,7 @@ mod tests {
             make_commit("a", &[], &["refs/remotes/origin/main"], "remote tip"),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         assert_eq!(layout.lane_segments.len(), 1);
         let seg = &layout.lane_segments[0];
         assert_eq!(seg.sync_state, SyncState::LocalOnly);
@@ -828,7 +840,7 @@ mod tests {
             commit("a", &[]),
         ];
         let dag = Dag::build(commits);
-        let layout = GraphLayout::compute(&dag);
+        let layout = GraphLayout::compute(dag);
         assert_eq!(layout.lane_segments.len(), 1);
         let seg = &layout.lane_segments[0];
         assert_eq!(seg.sync_state, SyncState::RemoteOnly);
