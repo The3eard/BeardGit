@@ -14,7 +14,7 @@
   import type { ThemeEditorData } from '$lib/types';
   import { diffCommentsLayer, type DiffCommentsLayerProps } from './diff-comments-layer';
   import IconButton from '$lib/components/ui/IconButton.svelte';
-  import { diffShowWhitespace } from '$lib/stores/diffSettings';
+  import { diffShowWhitespace, diffLineWrapping } from '$lib/stores/diffSettings';
 
   interface Props {
     oldContent: string;
@@ -63,8 +63,14 @@
       lineNumbers(),
       EditorState.readOnly.of(true),
       EditorView.editable.of(false),
-      EditorView.lineWrapping,
     ];
+    // Soft-wrap is opt-in via Settings → General → "Wrap long lines in
+    // diffs". When off, CodeMirror's default behaviour is horizontal
+    // scroll inside the .cm-scroller so the user can still reach the
+    // full line.
+    if ($diffLineWrapping) {
+      sharedExtensions.push(EditorView.lineWrapping);
+    }
     // Whitespace glyphs (· / →) — toggled by Settings → General →
     // "Show whitespace in diffs". The view is rebuilt whenever the
     // store flips (see the $effect below) so the change is visible
@@ -104,6 +110,9 @@
     // Whitespace toggle — re-init the MergeView when it flips so the
     // highlightWhitespace extension is added or removed in place.
     const _whitespace = $diffShowWhitespace;
+    // Line-wrapping toggle — same story; rebuild so EditorView.lineWrapping
+    // gets added/removed when the user flips the Settings toggle.
+    const _wrap = $diffLineWrapping;
 
     if (!containerEl || placeholder) return;
 
