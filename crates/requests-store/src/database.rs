@@ -11,6 +11,19 @@ pub struct RequestsDatabase {
     pub(crate) conn: Connection,
 }
 
+/// Apply performance and concurrency pragmas. WAL mode is silently ignored on
+/// in-memory databases, the rest apply universally.
+fn configure_connection(conn: &Connection) -> Result<(), RequestsStoreError> {
+    conn.execute_batch(
+        "PRAGMA journal_mode = WAL;
+         PRAGMA synchronous = NORMAL;
+         PRAGMA busy_timeout = 5000;
+         PRAGMA temp_store = MEMORY;
+         PRAGMA foreign_keys = ON;",
+    )?;
+    Ok(())
+}
+
 impl RequestsDatabase {
     /// Open or create the requests database at the given path; runs migrations.
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, RequestsStoreError> {
@@ -19,6 +32,7 @@ impl RequestsDatabase {
             std::fs::create_dir_all(parent)?;
         }
         let conn = Connection::open(path)?;
+        configure_connection(&conn)?;
         let db = Self { conn };
         db.run_migrations()?;
         Ok(db)
@@ -27,6 +41,7 @@ impl RequestsDatabase {
     /// Open an in-memory database; runs migrations. Used by tests.
     pub fn open_in_memory() -> Result<Self, RequestsStoreError> {
         let conn = Connection::open_in_memory()?;
+        configure_connection(&conn)?;
         let db = Self { conn };
         db.run_migrations()?;
         Ok(db)
