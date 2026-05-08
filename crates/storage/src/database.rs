@@ -55,6 +55,9 @@ impl Database {
         if version < 1 {
             self.migrate_v1()?;
         }
+        if version < 2 {
+            self.migrate_v2()?;
+        }
 
         Ok(())
     }
@@ -79,6 +82,20 @@ impl Database {
                 ON commits_cache(repo_path, timestamp DESC);
 
             PRAGMA user_version = 1;
+            ",
+        )?;
+        Ok(())
+    }
+
+    /// v2 — `parents` / `refs` columns switched from JSON-encoded arrays
+    /// (`["a","b"]`) to Unit-Separator (`\x1f`) joined strings. The cache is
+    /// purged on upgrade because reconstructing it from libgit2 on next
+    /// launch is faster than parsing both encodings indefinitely.
+    fn migrate_v2(&self) -> Result<(), StorageError> {
+        self.conn.execute_batch(
+            "
+            DELETE FROM commits_cache;
+            PRAGMA user_version = 2;
             ",
         )?;
         Ok(())
@@ -115,7 +132,7 @@ mod tests {
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("pragma failed");
 
-        assert_eq!(version, 1, "user_version should be 1 after migration");
+        assert_eq!(version, 2, "user_version should be 2 after migration");
     }
 
     #[test]
