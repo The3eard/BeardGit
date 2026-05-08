@@ -79,6 +79,14 @@ export async function getCommitFileDiff(oid: string, path: string): Promise<File
   return invoke<FileDiff[]>("get_commit_file_diff", { oid, path });
 }
 
+/**
+ * Return the structured diff for every file in a commit in a single
+ * libgit2 walk — avoids the N-subprocess fan-out of `getCommitFileDiff`.
+ */
+export async function getCommitFullDiff(oid: string): Promise<Record<string, FileDiff>> {
+  return invoke<Record<string, FileDiff>>("get_commit_full_diff", { oid });
+}
+
 export async function getBranches(): Promise<BranchInfo[]> {
   return invoke<BranchInfo[]>("get_branches");
 }
