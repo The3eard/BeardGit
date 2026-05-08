@@ -10,6 +10,7 @@
   import { runMutation } from "$lib/api/runMutation";
   import ConfirmDialog from "$lib/components/common/ConfirmDialog.svelte";
   import { Button, IconButton } from "$lib/components/ui";
+  import { diffLineWrapping } from "$lib/stores/diffSettings";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -216,7 +217,7 @@
   }
 </script>
 
-<div class="staging-diff-editor">
+<div class="staging-diff-editor" class:wrap={$diffLineWrapping}>
   <!-- Header bar -->
   <div class="header">
     <div class="header-left">
@@ -429,7 +430,29 @@
   .hunk-list {
     flex: 1;
     overflow-y: auto;
+    /* Default: horizontal scroll. The wrap variant below switches it
+       off so wrapping does the work instead. */
+    overflow-x: auto;
+  }
+
+  .staging-diff-editor.wrap .hunk-list {
     overflow-x: hidden;
+  }
+
+  /* Scroll mode: rows extend beyond the viewport so the parent can
+     scroll horizontally. `width: max-content` lets each row be exactly
+     as wide as its longest line; `min-width: 100%` keeps short rows
+     spanning the viewport (so backgrounds/borders look right when the
+     content is shorter than the visible area). The intermediate
+     containers (`hunk`, `hunk-lines`) get the same treatment so their
+     `border-bottom` / background span the full scroll width rather
+     than clipping at the original viewport edge. */
+  .staging-diff-editor:not(.wrap) .hunk,
+  .staging-diff-editor:not(.wrap) .hunk-header,
+  .staging-diff-editor:not(.wrap) .hunk-lines,
+  .staging-diff-editor:not(.wrap) .line {
+    width: max-content;
+    min-width: 100%;
   }
 
   .hunk {
@@ -562,6 +585,33 @@
     display: flex;
     align-items: center;
     min-width: 0;
+  }
+
+  /* Wrap mode: let long lines break across multiple visual rows so the
+     whole content stays on screen without horizontal scroll. The line
+     numbers + origin column align to the top so they sit next to the
+     first wrapped line rather than centring on the wrapped block. */
+  .staging-diff-editor.wrap .line {
+    align-items: flex-start;
+  }
+
+  .staging-diff-editor.wrap .line-content {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    align-items: flex-start;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    /* Take all remaining row width so wrapping has a stable target
+       width (otherwise `flex: 0 1 auto` would only let the cell shrink,
+       not grow, and short context lines would leave the wrap target
+       cramped). */
+    flex: 1;
+  }
+
+  .staging-diff-editor.wrap .line-number,
+  .staging-diff-editor.wrap .origin {
+    align-items: flex-start;
+    padding-top: 2px;
   }
 
   .empty-diff {

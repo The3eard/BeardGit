@@ -1023,6 +1023,8 @@
   "settings_general_diff_section_description": "How the side-by-side diff viewer renders changes.",
   "settings_general_diff_show_whitespace_label": "Show whitespace in diffs",
   "settings_general_diff_show_whitespace_hint": "Render spaces as · and tabs as → so whitespace-only edits are visible.",
+  "settings_general_diff_line_wrapping_label": "Wrap long lines in diffs",
+  "settings_general_diff_line_wrapping_hint": "Soft-wrap long lines so the entire content stays visible. When off, diffs render with a horizontal scrollbar. Independent from the editor's own line-wrapping preference.",
   "settings_git_section_title": "Git configuration",
   "settings_git_section_description": "Inline editor for local + global Git config.",
   "settings_ai_providers_section_title": "AI providers",

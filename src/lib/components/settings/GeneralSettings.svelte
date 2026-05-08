@@ -58,6 +58,14 @@
       category: "general",
       anchor: "diff-show-whitespace",
     },
+    {
+      id: "general.diff-line-wrapping",
+      label: "Wrap long lines in diffs",
+      description:
+        "Soft-wrap long lines in every diff view (commit, PR/MR, stash, tag, and the staging panel in Changes) instead of clipping them. Independent from the editor's own line-wrapping preference.",
+      category: "general",
+      anchor: "diff-line-wrapping",
+    },
   ];
 </script>
 
@@ -68,6 +76,8 @@
   import {
     diffShowWhitespace,
     updateDiffShowWhitespace,
+    diffLineWrapping,
+    updateDiffLineWrapping,
   } from "$lib/stores/diffSettings";
 
   async function handleToggleDiffWhitespace(event: Event) {
@@ -77,6 +87,15 @@
     } catch {
       // Persistence failed — re-sync the checkbox to the (reverted)
       // store state. The store reverts inside `updateDiffShowWhitespace`.
+      input.checked = !input.checked;
+    }
+  }
+
+  async function handleToggleDiffLineWrapping(event: Event) {
+    const input = event.target as HTMLInputElement;
+    try {
+      await updateDiffLineWrapping(input.checked);
+    } catch {
       input.checked = !input.checked;
     }
   }
@@ -107,6 +126,22 @@
           data-testid="diff-show-whitespace-toggle"
           checked={$diffShowWhitespace}
           onchange={handleToggleDiffWhitespace}
+        />
+      </FormRow>
+    </div>
+    <div data-setting-anchor="diff-line-wrapping">
+      <FormRow
+        label={m.settings_general_diff_line_wrapping_label()}
+        for="diff-line-wrapping-toggle"
+        helperText={m.settings_general_diff_line_wrapping_hint()}
+      >
+        <input
+          id="diff-line-wrapping-toggle"
+          type="checkbox"
+          class="bg-checkbox"
+          data-testid="diff-line-wrapping-toggle"
+          checked={$diffLineWrapping}
+          onchange={handleToggleDiffLineWrapping}
         />
       </FormRow>
     </div>
