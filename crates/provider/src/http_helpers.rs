@@ -73,10 +73,25 @@ pub fn trim_base_url(url: &str) -> &str {
 /// same network can capture the bearer token and decrypt every subsequent
 /// API request.
 ///
-/// Returns `false` (i.e. require strict TLS) for any URL whose host equals
-/// one of the public-cloud hostnames; returns `true` for everything else.
+/// Returns `true` (skip cert verification) **only** when the user has set
+/// `BEARDGIT_INSECURE_TLS=1` *and* the host is not one of the public
+/// clouds. Otherwise always returns `false` so TLS verification stays on.
+///
+/// The previous behaviour silently disabled cert checks for any host that
+/// wasn't a public-cloud forge — a MITM with a self-signed cert on a
+/// corporate LAN could harvest PATs from every BeardGit instance pointed
+/// at `gitlab.company.com` without warning. Switching to opt-in matches
+/// the precedent set by `gh` (`GH_INSECURE`) and makes the trust
+/// decision visible in the user's environment instead of implicit in
+/// the binary.
 pub fn should_accept_invalid_certs(url: &str) -> bool {
-    !is_public_forge_host(url)
+    if is_public_forge_host(url) {
+        return false;
+    }
+    matches!(
+        std::env::var("BEARDGIT_INSECURE_TLS").as_deref(),
+        Ok("1" | "true" | "yes")
+    )
 }
 
 /// Hostname check for the public clouds. Case-insensitive; tolerates an
@@ -153,7 +168,17 @@ mod tests {
     }
 
     #[test]
-    fn self_hosted_instances_allow_invalid_certs() {
+    fn tls_default_strict_and_opt_in_only_for_self_hosted() {
+        // Single combined test because all three behaviours read the same
+        // process-global env var; running them in parallel would race.
+        // SAFETY: we hold the lock for the whole test and restore the
+        // variable on exit, so concurrent module tests stay deterministic.
+        let _g = ENV_LOCK.lock().unwrap();
+        unsafe {
+            std::env::remove_var("BEARDGIT_INSECURE_TLS");
+        }
+
+        // 1. Self-hosted defaults to strict TLS.
         for url in [
             "https://github.example.com/api/v3",
             "https://gitlab.example.com/api/v4",
@@ -162,9 +187,31 @@ mod tests {
             "https://192.168.1.10/",
         ] {
             assert!(
-                should_accept_invalid_certs(url),
-                "expected lenient TLS for {url}"
+                !should_accept_invalid_certs(url),
+                "expected strict TLS by default for {url}"
             );
         }
+
+        // 2. Opt-in flips self-hosted to lenient.
+        unsafe {
+            std::env::set_var("BEARDGIT_INSECURE_TLS", "1");
+        }
+        assert!(
+            should_accept_invalid_certs("https://my-internal-gitlab/"),
+            "BEARDGIT_INSECURE_TLS=1 should permit self-hosted laxity"
+        );
+
+        // 3. Public clouds stay strict even with the opt-in.
+        assert!(
+            !should_accept_invalid_certs("https://api.github.com/user"),
+            "public clouds must stay strict regardless of env"
+        );
+
+        unsafe {
+            std::env::remove_var("BEARDGIT_INSECURE_TLS");
+        }
     }
+
+    /// Lock to serialise tests that mutate `BEARDGIT_INSECURE_TLS`.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 }
