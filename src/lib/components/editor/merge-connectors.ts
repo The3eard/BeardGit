@@ -121,7 +121,7 @@ function renderBezier(
 
     const fillPath = document.createElementNS(SVG_NS, 'path');
     fillPath.setAttribute('d', d);
-    fillPath.style.fill = 'var(--accent-blue)';
+    fillPath.style.fill = 'var(--accent-primary)';
     fillPath.style.fillOpacity = '0.06';
     fillPath.style.stroke = 'none';
     svg.appendChild(fillPath);
@@ -131,7 +131,7 @@ function renderBezier(
     topCurve.setAttribute('d',
       `M ${sideX} ${sideTop} C ${cp1X} ${sideTop}, ${cp2X} ${centerTop}, ${centerX} ${centerTop}`);
     topCurve.style.fill = 'none';
-    topCurve.style.stroke = 'var(--accent-blue)';
+    topCurve.style.stroke = 'var(--accent-primary)';
     topCurve.style.strokeOpacity = '0.3';
     topCurve.style.strokeWidth = '1';
     svg.appendChild(topCurve);
@@ -141,7 +141,7 @@ function renderBezier(
     botCurve.setAttribute('d',
       `M ${sideX} ${sideBot} C ${cp1X} ${sideBot}, ${cp2X} ${centerBot}, ${centerX} ${centerBot}`);
     botCurve.style.fill = 'none';
-    botCurve.style.stroke = 'var(--accent-blue)';
+    botCurve.style.stroke = 'var(--accent-primary)';
     botCurve.style.strokeOpacity = '0.3';
     botCurve.style.strokeWidth = '1';
     svg.appendChild(botCurve);
@@ -168,7 +168,7 @@ function renderSimplified(
     line.setAttribute('y1', String(sideMid));
     line.setAttribute('x2', String(centerX));
     line.setAttribute('y2', String(centerMid));
-    line.style.stroke = 'var(--accent-blue)';
+    line.style.stroke = 'var(--accent-primary)';
     line.style.strokeOpacity = '0.35';
     line.style.strokeWidth = '1.5';
     svg.appendChild(line);
@@ -182,7 +182,7 @@ function renderSimplified(
     sideTick.setAttribute('y1', String(pair.side.top));
     sideTick.setAttribute('x2', String(sideX));
     sideTick.setAttribute('y2', String(pair.side.bottom));
-    sideTick.style.stroke = 'var(--accent-blue)';
+    sideTick.style.stroke = 'var(--accent-primary)';
     sideTick.style.strokeOpacity = '0.25';
     sideTick.style.strokeWidth = '2';
     svg.appendChild(sideTick);
@@ -193,7 +193,7 @@ function renderSimplified(
     centerTick.setAttribute('y1', String(centerMid - tickLen));
     centerTick.setAttribute('x2', String(centerX));
     centerTick.setAttribute('y2', String(centerMid + tickLen));
-    centerTick.style.stroke = 'var(--accent-blue)';
+    centerTick.style.stroke = 'var(--accent-primary)';
     centerTick.style.strokeOpacity = '0.25';
     centerTick.style.strokeWidth = '2';
     svg.appendChild(centerTick);

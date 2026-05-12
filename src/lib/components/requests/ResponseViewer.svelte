@@ -91,7 +91,7 @@
 
   .tabs__item:focus-visible {
     outline: none;
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .tabs__item--active {

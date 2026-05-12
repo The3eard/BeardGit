@@ -33,7 +33,7 @@
 
   let statusColor = $derived(
     isActiveTab && activeSegmentIndex === -1
-      ? "var(--accent-blue)"
+      ? "var(--accent-primary)"
       : project.change_count > 0
         ? "var(--accent-orange)"
         : "var(--accent-green)"
@@ -231,7 +231,7 @@
   .divider {
     width: 1px;
     height: 100%;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     opacity: 0.3;
     flex-shrink: 0;
   }
@@ -252,7 +252,7 @@
 
   .worktree-icon {
     font-size: 12px;
-    color: var(--accent-cyan, var(--accent-blue));
+    color: var(--accent-cyan, var(--accent-primary));
     flex-shrink: 0;
   }
 

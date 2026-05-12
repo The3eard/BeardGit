@@ -531,7 +531,7 @@
 
   .filter-input:focus {
     outline: none;
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .section-header {
@@ -591,7 +591,7 @@
     width: 16px;
     height: 16px;
     border: 2px solid var(--border);
-    border-top-color: var(--accent-blue);
+    border-top-color: var(--accent-primary);
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }

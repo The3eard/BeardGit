@@ -168,7 +168,7 @@
   }
 
   .reauth-dismiss input[type="checkbox"] {
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
     width: 14px;
     height: 14px;
     cursor: pointer;

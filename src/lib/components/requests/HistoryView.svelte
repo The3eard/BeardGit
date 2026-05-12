@@ -180,9 +180,9 @@
     border-radius: 4px;
   }
   .hrow--checked {
-    background: color-mix(in srgb, var(--accent-blue) 14%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
     box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--accent-blue) 40%, transparent);
+      color-mix(in srgb, var(--accent-primary) 40%, transparent);
   }
 
   .dot {

@@ -167,6 +167,6 @@
 
   .bg-select:focus,
   .bg-input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 </style>

@@ -174,8 +174,8 @@
   }
 
   .badge-head {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
   }
 
   .badge-remote {
@@ -193,7 +193,7 @@
 
   .meta-oid {
     font-family: var(--font-mono);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .branch-commits-panel {
@@ -278,7 +278,7 @@
   .commit-oid {
     font-family: var(--font-mono);
     font-size: 10px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     margin-left: auto;
     flex-shrink: 0;
   }

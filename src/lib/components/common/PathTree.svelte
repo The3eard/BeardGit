@@ -179,7 +179,7 @@
   .folder:hover, .leaf:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
   .leaf.selected { background: var(--overlay-accent-blue); }
   .ftype { font-family: var(--font-icons); font-size: 14px; width: 16px; flex-shrink: 0; text-align: center; line-height: 1; }
-  .folder-icon { color: var(--accent-blue); }
+  .folder-icon { color: var(--accent-primary); }
   .file-icon { color: var(--text-secondary); }
   .folder-name, .leaf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .agg { margin-left: auto; font-size: 11px; color: var(--text-secondary); }

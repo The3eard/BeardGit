@@ -69,7 +69,7 @@
 }
 
 .filter-input:focus {
-  border-color: var(--accent-blue);
+  border-color: var(--accent-primary);
 }
 
 /* ─── Row base ─── */
@@ -93,5 +93,5 @@
 }
 
 .list-row.selected {
-  background: color-mix(in srgb, var(--accent-blue) 8%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
 }

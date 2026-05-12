@@ -121,8 +121,8 @@
   }
   .picker-item.selected {
     background: var(--overlay-accent-blue);
-    color: var(--accent-blue);
-    border-color: var(--accent-blue);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
   }
   .picker-name {
     font-size: 13px;

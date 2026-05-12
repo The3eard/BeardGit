@@ -314,7 +314,7 @@
   }
 
   .form-input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   /* ── Active state ── */
@@ -331,7 +331,7 @@
     gap: 10px;
     padding: 10px 14px;
     background: var(--overlay-accent-blue);
-    border: 1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
     border-radius: 8px;
   }
 
@@ -340,7 +340,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     flex-shrink: 0;
   }
 
@@ -392,7 +392,7 @@
     width: 14px;
     height: 14px;
     border: 2px solid var(--border);
-    border-top-color: var(--accent-blue);
+    border-top-color: var(--accent-primary);
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }

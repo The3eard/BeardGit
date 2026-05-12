@@ -91,7 +91,7 @@
 
   .stash-oid {
     font-family: var(--font-mono);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .stash-detail-diffs {

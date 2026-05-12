@@ -96,7 +96,7 @@
   }
 
   const REF_COLORS = [
-    { color: 'var(--accent-blue)', rgb: '88, 166, 255' },
+    { color: 'var(--accent-primary)', rgb: '88, 166, 255' },
     { color: 'var(--accent-green)', rgb: '63, 185, 80' },
     { color: 'var(--accent-orange)', rgb: '240, 136, 62' },
     { color: 'var(--accent-purple)', rgb: '188, 140, 255' },
@@ -300,7 +300,7 @@
   }
 
   .detail-value.email {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .detail-value.sha {
@@ -313,7 +313,7 @@
   .parent-oid {
     font-family: "SF Mono", "Fira Code", "Consolas", monospace;
     font-size: 11px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     margin-top: 4px;
     cursor: default;
   }
@@ -324,7 +324,7 @@
     padding: 0;
     font-family: var(--font-mono);
     font-size: 12px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     cursor: pointer;
   }
 

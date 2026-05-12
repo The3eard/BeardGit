@@ -305,9 +305,9 @@
   }
 
   .badge-scope {
-    background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
-    color: var(--accent-blue);
-    border: 1px solid color-mix(in srgb, var(--accent-blue) 20%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+    color: var(--accent-primary);
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
   }
 
   .badge-lang {

@@ -129,7 +129,7 @@
 
   .oid {
     font-family: 'Fira Code', var(--font-mono), monospace;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     flex-shrink: 0;
     font-size: 11px;
   }

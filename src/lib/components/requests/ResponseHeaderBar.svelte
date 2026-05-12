@@ -72,7 +72,7 @@
   }
   .pill--running {
     background: var(--overlay-accent-blue);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
   .pill--idle {
     background: var(--overlay-accent-muted);

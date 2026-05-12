@@ -328,14 +328,14 @@
   }
 
   .rebase-row.drag-over {
-    border-top: 2px solid var(--accent-blue);
+    border-top: 2px solid var(--accent-primary);
   }
 
   /* Action-based left border colors */
   .rebase-row.action-pick { border-left-color: var(--accent-green); }
   .rebase-row.action-squash { border-left-color: var(--accent-orange); }
   .rebase-row.action-fixup { border-left-color: var(--accent-purple); }
-  .rebase-row.action-edit { border-left-color: var(--accent-blue); }
+  .rebase-row.action-edit { border-left-color: var(--accent-primary); }
   .rebase-row.action-drop { border-left-color: var(--accent-red); }
 
   .rebase-row.is-drop {
@@ -423,7 +423,7 @@
   .legend-dot.pick { background: var(--accent-green); }
   .legend-dot.squash { background: var(--accent-orange); }
   .legend-dot.fixup { background: var(--accent-purple); }
-  .legend-dot.edit { background: var(--accent-blue); }
+  .legend-dot.edit { background: var(--accent-primary); }
   .legend-dot.drop { background: var(--accent-red); }
 
   .rebase-footer {

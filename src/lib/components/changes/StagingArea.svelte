@@ -493,7 +493,7 @@
   }
 
   .commit-input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
     box-shadow: 0 0 0 2px var(--overlay-accent-blue);
   }
 
@@ -582,7 +582,7 @@
 
   .amend-toggle input[type="checkbox"] {
     margin: 0;
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
   }
 
   .patch-source-dialog {
@@ -604,7 +604,7 @@
   }
 
   .radio-label input[type="radio"] {
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
   }
 
   .patch-dialog-actions {

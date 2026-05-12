@@ -682,7 +682,7 @@
   .folder-icon {
     font-size: 13px;
     flex-shrink: 0;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     opacity: 0.7;
   }
 
@@ -731,7 +731,7 @@
     padding: 3px 6px;
     font-size: 12px;
     background: var(--bg-primary);
-    border: 1px solid var(--accent-blue);
+    border: 1px solid var(--accent-primary);
     border-radius: 3px;
     color: var(--text-primary);
     box-sizing: border-box;
@@ -749,7 +749,7 @@
 
   .tree-leaf.selected .leaf-icon,
   .tree-leaf:hover .leaf-icon {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .leaf-name {
@@ -780,8 +780,8 @@
   }
 
   .method-badge--get {
-    color: var(--accent-blue);
-    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+    color: var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
   }
 
   .method-badge--post {

@@ -153,7 +153,7 @@
   }
 
   .field-input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .checkbox-label {
@@ -167,7 +167,7 @@
   }
 
   .checkbox-label input[type="checkbox"] {
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
   }
 
   .error-text {

@@ -210,7 +210,7 @@
   }
   .dialog-error { color: var(--accent-red); font-size: 12px; background: var(--overlay-accent-red); padding: 6px 8px; border-radius: 4px; }
   .empty { color: var(--text-secondary); font-size: 12px; }
-  .spinner { border: 2px solid var(--border); border-top-color: var(--accent-blue); border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; align-self: center; }
+  .spinner { border: 2px solid var(--border); border-top-color: var(--accent-primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; align-self: center; }
   .spinner--sm { width: 10px; height: 10px; border-width: 1.5px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>

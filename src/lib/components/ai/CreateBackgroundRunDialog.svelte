@@ -373,7 +373,7 @@
   }
 
   .field-input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .tabs {
@@ -398,8 +398,8 @@
   }
 
   .tab.active {
-    color: var(--accent-blue);
-    border-bottom-color: var(--accent-blue);
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
   }
 
   .tab-panel {
@@ -428,7 +428,7 @@
   }
 
   .prompt-area:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .empty {

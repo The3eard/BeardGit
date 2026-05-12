@@ -191,7 +191,7 @@
   .file-path {
     font-family: 'Fira Code', var(--font-mono), monospace;
     font-size: 13px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -237,7 +237,7 @@
   }
 
   .tab-btn.active {
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     color: var(--text-primary);
   }
 

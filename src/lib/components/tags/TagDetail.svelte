@@ -362,7 +362,7 @@
 
   .commit-sha {
     font-family: var(--font-mono);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .stats-card {
@@ -426,7 +426,7 @@
   .parent-oid {
     font-size: 11px;
     font-family: var(--font-mono);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     background: var(--overlay-accent-blue);
     padding: 2px 8px;
     border-radius: 4px;
@@ -439,7 +439,7 @@
 
   .parent-oid.clickable:hover {
     text-decoration: underline;
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   }
 
   .tag-diff-preview {

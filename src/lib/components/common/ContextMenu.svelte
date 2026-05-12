@@ -175,7 +175,7 @@
   }
 
   .menu-item:hover:not(.disabled) {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   }
 
   .menu-item.disabled {

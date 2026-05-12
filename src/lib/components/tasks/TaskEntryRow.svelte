@@ -271,7 +271,7 @@
 
   .task-row__progress-bar {
     height: 100%;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     width: var(--progress, 100%);
     transition: width 0.15s ease;
   }
@@ -281,7 +281,7 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      var(--accent-blue) 50%,
+      var(--accent-primary) 50%,
       transparent 100%
     );
     animation: task-row-indet 1.4s linear infinite;
