@@ -208,6 +208,22 @@ impl GitLabCli {
         )?;
         Ok(())
     }
+
+    pub(super) fn reply_to_review_comment_impl(
+        &self,
+        number: u64,
+        discussion_id: &str,
+        body: &str,
+    ) -> Result<(), ForgeError> {
+        let json_body = serde_json::json!({ "body": body }).to_string();
+        let api_path =
+            format!("projects/:id/merge_requests/{number}/discussions/{discussion_id}/notes");
+        self.run_with_stdin(
+            &["api", &api_path, "--method", "POST", "--input", "-"],
+            &json_body,
+        )?;
+        Ok(())
+    }
 }
 
 /// Build the JSON body for a GitLab inline-discussion POST.

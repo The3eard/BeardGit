@@ -304,6 +304,7 @@ pub fn run() {
             app_core::commands::reopen_mr_pr,
             app_core::commands::resolve_discussion,
             app_core::commands::unresolve_discussion,
+            app_core::commands::reply_to_review_comment,
             app_core::commands::list_labels,
             app_core::commands::checkout_mr_pr_locally,
             // Phase 8.3 — Issues

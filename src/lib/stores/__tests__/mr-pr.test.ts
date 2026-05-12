@@ -32,6 +32,7 @@ vi.mock("../../api/tauri", () => ({
   reopenMrPr: vi.fn(),
   resolveDiscussion: vi.fn(),
   unresolveDiscussion: vi.fn(),
+  replyToReviewComment: vi.fn(),
   listLabels: vi.fn(),
   checkoutMrPrLocally: vi.fn(),
 }));

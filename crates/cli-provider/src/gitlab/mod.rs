@@ -143,6 +143,15 @@ impl ForgeProvider for GitLabCli {
         self.add_mr_pr_inline_comment_impl(number, path, line, body, base_sha, head_sha)
     }
 
+    fn reply_to_review_comment(
+        &self,
+        number: u64,
+        thread_id: &str,
+        body: &str,
+    ) -> Result<(), ForgeError> {
+        self.reply_to_review_comment_impl(number, thread_id, body)
+    }
+
     // ─── Labels ────────────────────────────────────────────────────────
 
     fn add_mr_pr_labels(&self, number: u64, labels: &[String]) -> Result<(), ForgeError> {

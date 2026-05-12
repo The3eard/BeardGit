@@ -226,10 +226,15 @@ fn parse_string_array(value: &Value, field: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Parse a JSON comment into `Comment` for GitHub.
+/// Parse a JSON comment into `Comment` for GitHub (top-level / issue-style).
+///
+/// This handles the shape returned by `gh pr view --json comments`, which
+/// only includes issue-level comments — no `path` or `line`.
 ///
 /// GitHub has no equivalent of GitLab's resolvable discussion threads, so
 /// `resolvable`, `resolved`, and `discussion_id` are always `None`.
+/// Inline review comments live at a separate REST endpoint; see
+/// [`parse_github_review_comment`].
 pub fn parse_github_comment(c: &Value) -> Comment {
     Comment {
         id: c["id"].as_u64().unwrap_or(0),
@@ -242,6 +247,37 @@ pub fn parse_github_comment(c: &Value) -> Comment {
         resolvable: None,
         resolved: None,
         discussion_id: None,
+    }
+}
+
+/// Parse a JSON review comment into `Comment` for GitHub (inline / per-line).
+///
+/// Handles the shape returned by
+/// `GET /repos/{owner}/{repo}/pulls/{n}/comments` — populates `path`, `line`,
+/// and stamps `discussion_id` with the root comment id (the `in_reply_to_id`
+/// when present, or the comment's own `id` for roots). That id is what
+/// [`crate::ForgeProvider::reply_to_review_comment`] passes to
+/// `POST /pulls/{n}/comments/{id}/replies` so the new note lands inside the
+/// existing thread.
+///
+/// `resolvable` and `resolved` stay `None` — GitHub PR review threads have
+/// a `resolveReviewThread` GraphQL mutation but the REST endpoint we use
+/// here doesn't expose thread resolution state.
+pub fn parse_github_review_comment(c: &Value) -> Comment {
+    let id = c["id"].as_u64().unwrap_or(0);
+    let in_reply_to = c["in_reply_to_id"].as_u64();
+    let thread_root_id = in_reply_to.unwrap_or(id);
+    Comment {
+        id,
+        author: c["user"]["login"].as_str().unwrap_or("").to_string(),
+        body: c["body"].as_str().unwrap_or("").to_string(),
+        created_at: c["created_at"].as_str().unwrap_or("").to_string(),
+        path: c["path"].as_str().map(|s| s.to_string()),
+        line: c["line"].as_u64().or_else(|| c["original_line"].as_u64()),
+        is_review: true,
+        resolvable: None,
+        resolved: None,
+        discussion_id: Some(thread_root_id.to_string()),
     }
 }
 
@@ -774,6 +810,71 @@ mod tests {
         assert!(c.resolvable.is_none());
         assert!(c.resolved.is_none());
         assert!(c.discussion_id.is_none());
+    }
+
+    #[test]
+    fn test_parse_github_review_comment_root_stamps_self_as_thread_id() {
+        // The shape returned by GET /pulls/{n}/comments. A root comment has
+        // no `in_reply_to_id`, so the parser must stamp `discussion_id`
+        // with the comment's own id — that's the value
+        // reply_to_review_comment then POSTs to /comments/{id}/replies.
+        let item = json!({
+            "id": 7,
+            "in_reply_to_id": null,
+            "user": { "login": "alice" },
+            "body": "nit: rename this",
+            "created_at": "2026-05-12T10:00:00Z",
+            "path": "src/lib.rs",
+            "line": 42,
+            "side": "RIGHT"
+        });
+        let c = parse_github_review_comment(&item);
+        assert_eq!(c.id, 7);
+        assert_eq!(c.author, "alice");
+        assert_eq!(c.path.as_deref(), Some("src/lib.rs"));
+        assert_eq!(c.line, Some(42));
+        assert!(c.is_review);
+        assert_eq!(c.discussion_id.as_deref(), Some("7"));
+        // Resolution state is not exposed via REST.
+        assert!(c.resolvable.is_none());
+        assert!(c.resolved.is_none());
+    }
+
+    #[test]
+    fn test_parse_github_review_comment_reply_stamps_root_as_thread_id() {
+        // A reply carries `in_reply_to_id` pointing at the thread root.
+        // The parser must surface the root id (not the reply's own id) so
+        // subsequent replies from the UI land on the same thread.
+        let item = json!({
+            "id": 9,
+            "in_reply_to_id": 7,
+            "user": { "login": "bob" },
+            "body": "fixed in 1a2b3c",
+            "created_at": "2026-05-12T10:05:00Z",
+            "path": "src/lib.rs",
+            "line": 42,
+            "side": "RIGHT"
+        });
+        let c = parse_github_review_comment(&item);
+        assert_eq!(c.id, 9);
+        assert_eq!(c.discussion_id.as_deref(), Some("7"));
+    }
+
+    #[test]
+    fn test_parse_github_review_comment_falls_back_to_original_line() {
+        // Comments anchored to outdated diffs only have `original_line`,
+        // not `line` (GitHub blanks `line` once the diff moves).
+        let item = json!({
+            "id": 1,
+            "user": { "login": "x" },
+            "body": "stale",
+            "created_at": "",
+            "path": "a.rs",
+            "line": null,
+            "original_line": 12
+        });
+        let c = parse_github_review_comment(&item);
+        assert_eq!(c.line, Some(12));
     }
 
     #[test]
