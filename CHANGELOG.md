@@ -2,7 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [0.1.13] — Per-theme accents, command palette, security & performance pass — 2026-05-08
+## [0.1.13] — Per-theme accents, command palette, security & performance pass — 2026-05-12
 
 ### Themes finally have an identity
 
@@ -45,6 +45,14 @@ A new shared `EmptyState.svelte` (title + description + icon + optional action s
 `fix(perf): drop async wrapper from vite.config` — the dev server's cold-start dropped from ~120 s to seconds because Vite was hashing the config statically again and reusing `node_modules/.vite/deps`; the async wrapper was forcing a fresh hash on every startup. `fix(detection): adopt user shell PATH on macOS/Linux GUI launch` makes the `gh` / `glab` / `git` binary detection survive when the user's `PATH` is set in `.zshrc` rather than the GUI launchd environment. `chore(deps): track workspace Cargo.lock and pin fix-path-env rev` finally checks the workspace lockfile in (it had been gitignored), and `fix(deps): resync package-lock — add missing nested picomatch/yaml entries` plugs a JS lockfile drift that was making `npm ci` fail on fresh machines. `fix(auth): apply cargo fmt to credential_file` is a formatting-only follow-up to the credential store work.
 
 `feat(settings): toggle for diff line wrapping` — the diff viewer learns a per-user "wrap long lines" toggle in Editor settings, defaulting off so existing users see no change. `chore(release): embed READ_BEFORE_RUN.md in macOS DMG` ships the Gatekeeper-bypass instructions inside the DMG itself so first-run macOS users have the apology + workaround handy without needing the GitHub release page.
+
+### Visual regression suite
+
+The first end-to-end visual safety net lands this release. A Playwright harness in `tests/` boots the SvelteKit app with the Tauri IPC layer stubbed out — `tests/mocks/ipc.ts` shims `__TAURI_INTERNALS__.invoke` against deterministic fixtures (`tests/fixtures/{branches,changes,commits,issues,mrs,pipelines,prefs,repo,theme}.ts`) so renders are byte-stable across machines. `routes.spec.ts` snapshots all 32 sidebar route × theme permutations (dark + light), and a new per-component spec layer adds 52 more baselines covering the smaller surfaces — dialogs, popovers, toolbars, empty states, and the welcome screen variants. A short `tests/README.md` documents the mock contract and how to regenerate baselines when an intentional visual change lands. The harness runs headless so the snapshots can gate PRs without a display server.
+
+### Post-merge polish
+
+After folding `perf/backend`, `sec/audit-fixes`, `feat/ux-ui-themes`, and `feat/quick-wins` onto `beta` together, a quick pass cleans up the rough edges the integration surfaced. `git.push` moves from `Cmd+Shift+P` to `Cmd+Shift+K` (mirroring `Cmd+Shift+L` for pull) so the Command Palette can finally claim its conventional binding — push and palette had silently collided since the palette landed. `core:window:allow-start-dragging` joins the Tauri capabilities list, restoring the `data-tauri-drag-region` chrome on `TabBar` / `Toolbar` that had been throwing an unhandled-rejection on every drag attempt since the capability surface tightened. The `src/test/e2e/mr-pr-diff.test.ts` race fixes three stacked issues — the provider-disconnect reroute bouncing `merge-requests` back to `graph` (mocked `providerStatus` so `hasActiveProvider` is true), an unmocked `list_mr_prs` IPC that left `mrPrList` undefined and crashed the filter (returns `[]` from the mock), and an order-of-render race where `prFileDiff` resolved before `.diff-panel` was in the DOM (folded the DOM check into the same `waitFor`). Plus a one-line `rustfmt` fix to `crates/storage/src/logging.rs`.
 
 ### Landing page redesign
 
