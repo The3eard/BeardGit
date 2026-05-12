@@ -10,6 +10,7 @@ import {
   mrPrDetail, mrPrDiffFiles, selectedMrPrNumber,
   prFileDiff, loadingPrFileDiff,
 } from "$lib/stores/mr-pr";
+import { providerStatus } from "$lib/stores/provider";
 import { invokeMock, mockInvokeResponse } from "../setup";
 
 beforeEach(() => {
@@ -25,6 +26,21 @@ beforeEach(() => {
   mockInvokeResponse("get_sidebar_collapsed", false);
   mockInvokeResponse("restore_projects", []);
   mockInvokeResponse("get_active_project_index", null);
+  // MrPrList mounts and immediately calls refreshMrPrList → list_mr_prs.
+  // Without a mock it resolves to undefined and crashes the filter.
+  mockInvokeResponse("list_mr_prs", []);
+  // Pretend a forge is connected so the provider-disconnect reroute in
+  // navigation.ts doesn't bounce "merge-requests" back to "graph" while
+  // onMount is finishing.
+  providerStatus.set({
+    providers: [{
+      kind: "github",
+      instance_url: "https://github.com",
+      user: { id: 1, username: "u", name: "U", email: null, avatar_url: null, profile_url: "" },
+      project_name: null,
+    }],
+    active_index: 0,
+  });
 });
 
 describe("PR diff panel wiring", () => {
@@ -54,7 +70,9 @@ describe("PR diff panel wiring", () => {
     const row = getByRole("button", { name: /a\.ts/ });
     await fireEvent.click(row);
 
-    await waitFor(() => expect(get(prFileDiff)).not.toBeNull());
-    expect(container.querySelector(".diff-panel")).toBeTruthy();
+    await waitFor(() => {
+      expect(get(prFileDiff)).not.toBeNull();
+      expect(container.querySelector(".diff-panel")).toBeTruthy();
+    });
   });
 });

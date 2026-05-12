@@ -429,7 +429,7 @@
       },
       {
         id: "git.push",
-        keys: { mod: true, shift: true, key: "P" },
+        keys: { mod: true, shift: true, key: "K" },
         label: m.toolbar_push(),
         category: "Git",
         action: async () => {
