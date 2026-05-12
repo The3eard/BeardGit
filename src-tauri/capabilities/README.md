@@ -30,6 +30,14 @@ which already requires a user click.
 
 Exposes `restart` and `exit` only (no spawn). Acceptable.
 
+### `core:window:allow-start-dragging` (risk: Low)
+
+Lets the webview drag the window via Tauri's `data-tauri-drag-region`
+attribute. Used by the custom `TabBar` and `Toolbar` headers so the
+user can grab the chrome to move the window. The plugin only initiates
+an OS-native drag — no payload or coordinates cross the boundary — so
+the surface is limited to "user can move their own window."
+
 ### `updater:default` (risk: Medium)
 
 Auto-updater fetches the manifest from a fixed URL and verifies signatures

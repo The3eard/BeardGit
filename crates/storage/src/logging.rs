@@ -307,7 +307,8 @@ mod tests {
 
     #[test]
     fn redact_strips_x_access_token_in_url() {
-        let s = "https://x-access-token:ghp_EXAMPLE_FAKE_PAT_VALUE_1234567890@github.com/foo/bar.git";
+        let s =
+            "https://x-access-token:ghp_EXAMPLE_FAKE_PAT_VALUE_1234567890@github.com/foo/bar.git";
         let r = redact_secrets(s);
         assert!(!r.contains("ghp_"));
         assert!(!r.contains("x-access-token:"));
