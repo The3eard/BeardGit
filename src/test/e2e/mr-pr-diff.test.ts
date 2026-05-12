@@ -36,7 +36,7 @@ beforeEach(() => {
     providers: [{
       kind: "github",
       instance_url: "https://github.com",
-      user: { id: 1, username: "u", name: "U", email: null, avatar_url: null, profile_url: "" },
+      user: { id: 1, username: "u", display_name: "U", email: null, avatar_url: null, profile_url: "" },
       project_name: null,
     }],
     active_index: 0,
