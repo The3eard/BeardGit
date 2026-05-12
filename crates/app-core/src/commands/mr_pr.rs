@@ -332,6 +332,28 @@ pub async fn unresolve_discussion(
     .await
 }
 
+/// Reply to an existing review-comment thread on a MR/PR.
+///
+/// `thread_id` is the forge-specific identifier carried on inline comments
+/// in the `discussion_id` field: a GitLab discussion id, or a GitHub root
+/// review-comment id (decimal string). See
+/// [`forge_provider::ForgeProvider::reply_to_review_comment`].
+#[tauri::command]
+pub async fn reply_to_review_comment(
+    number: u64,
+    thread_id: String,
+    body: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
+    run_blocking(move || {
+        provider
+            .reply_to_review_comment(number, &thread_id, &body)
+            .map_err(|e| e.to_string())
+    })
+    .await
+}
+
 /// List all repository labels for populating the label picker UI.
 #[tauri::command]
 pub async fn list_labels(state: State<'_, AppState>) -> Result<Vec<Label>, String> {

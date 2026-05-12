@@ -87,6 +87,7 @@
     mrPrDiffFiles,
     selectedPrFilePath,
     postReviewComment,
+    replyToReviewComment,
     resolveDiscussion,
     unresolveDiscussion,
     registerPrDiffShortcuts,
@@ -748,14 +749,13 @@
       onPost: async (line, body) => {
         await postReviewComment(detail.summary.number, path, line, body);
       },
-      onReply: async (_threadId, body) => {
-        // GitHub: no dedicated reply endpoint via CLI — post a new
-        // inline comment on the same line; the thread groups on the
-        // GitHub side. GitLab: same endpoint + the discussion id
-        // is implicit because the note lands in the same discussion
-        // when position matches.
-        const line = comments[0]?.line ?? 1;
-        await postReviewComment(detail.summary.number, path, line, body);
+      onReply: async (threadId, body) => {
+        // `threadId` is the forge-specific identifier the parser stored on
+        // the inline comment's `discussion_id`:
+        //   - GitHub → root review-comment id; POST /pulls/{n}/comments/{id}/replies
+        //   - GitLab → discussion id;          POST /merge_requests/{n}/discussions/{id}/notes
+        // Both endpoints land the new note inside the existing thread.
+        await replyToReviewComment(detail.summary.number, threadId, body);
       },
       onToggleResolve: async (discussionId, resolved) => {
         if (resolved) await unresolveDiscussion(detail.summary.number, discussionId);

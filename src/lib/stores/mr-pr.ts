@@ -41,6 +41,7 @@ import {
   reopenMrPr as apiReopen,
   resolveDiscussion as apiResolveDiscussion,
   unresolveDiscussion as apiUnresolveDiscussion,
+  replyToReviewComment as apiReplyToReviewComment,
   listLabels as apiListLabels,
   checkoutMrPrLocally as apiCheckoutLocally,
   addMrPrInlineComment as apiAddInlineComment,
@@ -446,6 +447,26 @@ export async function unresolveDiscussion(number: number, discussionId: string):
     invoke: () => apiUnresolveDiscussion(number, discussionId),
     successToast: () => "Discussion reopened",
     failureToastPrefix: "Reopen discussion failed",
+  });
+  await loadMrPrDetail(number);
+}
+
+/**
+ * Reply to an existing review-comment thread on a MR/PR.
+ *
+ * `threadId` is what the parser stored on the inline comment's
+ * `discussion_id` field — opaque to the frontend.
+ */
+export async function replyToReviewComment(
+  number: number,
+  threadId: string,
+  body: string,
+): Promise<void> {
+  await runMutation({
+    kind: "pr_comment_reply",
+    invoke: () => apiReplyToReviewComment(number, threadId, body),
+    successToast: () => "Reply posted",
+    failureToastPrefix: "Reply failed",
   });
   await loadMrPrDetail(number);
 }
