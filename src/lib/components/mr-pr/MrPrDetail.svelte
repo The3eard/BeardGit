@@ -751,7 +751,7 @@
   }
 
   .merge-dropdown-menu button.active {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     font-weight: 600;
   }
 
@@ -823,7 +823,7 @@
   }
 
   .description-body :global(a) {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     text-decoration: none;
   }
 
@@ -967,7 +967,7 @@
   }
   .comment-file {
     font-family: var(--font-mono);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     font-size: 10px;
   }
   .comment-body {
@@ -987,7 +987,7 @@
   }
 
   .comment-body :global(a) {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     text-decoration: none;
   }
 
@@ -1056,9 +1056,9 @@
 
   .btn-comment {
     padding: 5px 12px;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     color: var(--text-primary);
-    border: 1px solid var(--accent-blue);
+    border: 1px solid var(--accent-primary);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;

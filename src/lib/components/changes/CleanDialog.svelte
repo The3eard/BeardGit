@@ -214,7 +214,7 @@
 
   .toggle input[type="checkbox"] {
     margin: 0;
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
   }
 
   .file-list-container {

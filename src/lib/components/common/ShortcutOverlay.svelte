@@ -119,7 +119,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     margin: 0 0 8px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--border);

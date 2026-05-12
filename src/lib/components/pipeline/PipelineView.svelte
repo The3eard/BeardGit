@@ -103,7 +103,7 @@
   }
 
   .vertical-resize-handle:hover {
-    background: var(--accent-blue);
+    background: var(--accent-primary);
   }
 
   .pipelines-log {

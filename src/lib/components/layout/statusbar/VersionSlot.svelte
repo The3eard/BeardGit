@@ -70,11 +70,11 @@
   }
 
   .version-slot.update-available {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .update-dot {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     font-size: 16px;
     line-height: 0;
     margin-left: 1px;

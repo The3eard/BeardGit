@@ -110,7 +110,7 @@
   }
 
   .bg-setting-section__toggle:hover .bg-setting-section__title {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .bg-setting-section__chevron {

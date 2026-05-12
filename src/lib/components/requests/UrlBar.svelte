@@ -273,7 +273,7 @@
   }
 
   .bg-select:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .method {
@@ -305,7 +305,7 @@
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 500;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     background: var(--overlay-accent-blue);
     white-space: nowrap;
   }

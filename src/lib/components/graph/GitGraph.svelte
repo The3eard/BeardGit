@@ -1026,7 +1026,7 @@
   }
 
   .column-option input[type="checkbox"] {
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
   }
 
 

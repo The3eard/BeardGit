@@ -121,7 +121,7 @@
   }
 
   .bg-search:focus-within {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .bg-search__icon {

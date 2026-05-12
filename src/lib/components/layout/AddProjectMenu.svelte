@@ -131,7 +131,7 @@
     width: 16px;
     text-align: center;
     flex-shrink: 0;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .menu-divider {

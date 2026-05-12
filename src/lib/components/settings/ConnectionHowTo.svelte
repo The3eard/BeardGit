@@ -320,7 +320,7 @@ glab auth status</code></pre>
   }
 
   .toggle:hover {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .chevron {
@@ -357,7 +357,7 @@ glab auth status</code></pre>
   }
 
   .mode-select:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
     outline: none;
   }
 
@@ -381,7 +381,7 @@ glab auth status</code></pre>
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .path-title:first-of-type {
@@ -424,7 +424,7 @@ glab auth status</code></pre>
   }
 
   a {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     text-decoration: none;
   }
 
@@ -463,7 +463,7 @@ glab auth status</code></pre>
   }
 
   .callout--warning {
-    border-left-color: var(--accent-blue);
+    border-left-color: var(--accent-primary);
   }
 
   .callout--warning :global(strong) {

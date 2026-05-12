@@ -172,7 +172,7 @@
     outline: none;
   }
   .input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
   .input.readonly {
     background: var(--bg-toolbar);

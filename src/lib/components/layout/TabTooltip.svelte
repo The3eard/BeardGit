@@ -87,7 +87,7 @@
 
   .branch-icon {
     font-family: var(--font-icons);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     font-size: 12px;
     flex-shrink: 0;
   }

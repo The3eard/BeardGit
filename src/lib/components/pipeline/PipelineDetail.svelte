@@ -229,7 +229,7 @@
   }
 
   .meta-ref {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     font-weight: 500;
   }
 
@@ -243,7 +243,7 @@
 
   .auto-refresh-label {
     font-size: 11px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     opacity: 0.7;
     font-style: italic;
     margin-left: auto;
@@ -362,7 +362,7 @@
     border: 1px solid var(--border); border-radius: 4px;
     padding: 4px 10px; font-size: 11px; cursor: pointer;
   }
-  .detail-actions button:hover:not(:disabled) { border-color: var(--accent-blue); color: var(--accent-blue); }
+  .detail-actions button:hover:not(:disabled) { border-color: var(--accent-primary); color: var(--accent-primary); }
   .detail-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
   .action-error { color: var(--accent-red); font-size: 11px; margin-top: 6px; }
 

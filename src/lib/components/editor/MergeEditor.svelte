@@ -911,7 +911,7 @@
 
   .merge-filename {
     font-family: var(--font-mono);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -963,7 +963,7 @@
 
   .panel-header-center {
     flex: 1.2;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .panel-editors {

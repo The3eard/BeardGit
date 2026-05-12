@@ -608,7 +608,7 @@
   .wt-path {
     font-family: var(--font-mono);
     font-size: 11px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     word-break: break-all;
   }
 
@@ -715,7 +715,7 @@
   }
 
   .split-link:hover:not(:disabled) {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .split-link:disabled {
@@ -772,7 +772,7 @@
     padding: 0;
   }
   .report-body :global(a) {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     text-decoration: none;
   }
   .report-body :global(a:hover) {
@@ -851,7 +851,7 @@
   }
 
   .split-handle:hover {
-    background: var(--accent-blue);
+    background: var(--accent-primary);
   }
 
   .transcript-pane {

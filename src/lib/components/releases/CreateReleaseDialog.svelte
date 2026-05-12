@@ -303,7 +303,7 @@
     font-size: 12px;
   }
   .tab.active {
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     color: var(--text-primary);
   }
   .error-msg {
