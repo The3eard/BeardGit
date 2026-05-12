@@ -1118,6 +1118,21 @@ export async function unresolveDiscussion(number: number, discussionId: string):
   return invoke<void>("unresolve_discussion", { number, discussionId });
 }
 
+/**
+ * Reply to an existing review-comment thread on a MR/PR.
+ *
+ * `threadId` is forge-specific and matches what the parser stored on the
+ * inline comment's `discussion_id` field — a GitLab discussion id, or a
+ * GitHub root review-comment id (decimal string).
+ */
+export async function replyToReviewComment(
+  number: number,
+  threadId: string,
+  body: string,
+): Promise<void> {
+  return invoke<void>("reply_to_review_comment", { number, threadId, body });
+}
+
 /** List all repository labels (for the label picker UI). */
 export async function listLabels(): Promise<Label[]> {
   return invoke<Label[]>("list_labels");

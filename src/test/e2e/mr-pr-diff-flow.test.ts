@@ -98,6 +98,32 @@ describe("mr-pr diff flow", () => {
     expect(get(mrPrDetail)?.comments[0]?.resolved).toBe(true);
   });
 
+  it("replyToReviewComment forwards thread id to the backend", async () => {
+    const { invokeMock } = await import("../setup");
+    invokeMock.mockReset();
+    mockInvokeResponse("reply_to_review_comment", null);
+    mockInvokeResponse("get_mr_pr_detail", () => ({
+      ...FIXTURE_GH_DETAIL(),
+      comments: [
+        {
+          id: 7, author: "a", body: "nit", created_at: "",
+          path: "x.ts", line: 5, is_review: true,
+          resolvable: null, resolved: null, discussion_id: "7",
+        },
+        {
+          id: 9, author: "b", body: "fixed", created_at: "",
+          path: "x.ts", line: 5, is_review: true,
+          resolvable: null, resolved: null, discussion_id: "7",
+        },
+      ],
+    }));
+    mockInvokeResponse("get_mr_pr_diff", []);
+    const { replyToReviewComment } = await import("$lib/stores/mr-pr");
+    await replyToReviewComment(1, "7", "+1");
+    const reply = invokeMock.mock.calls.find(([cmd]) => cmd === "reply_to_review_comment");
+    expect(reply?.[1]).toEqual({ number: 1, threadId: "7", body: "+1" });
+  });
+
   it("bracket shortcuts cycle PR files", () => {
     mrPrDiffFiles.set([
       { path: "a.ts", old_path: null, status: "modified", additions: 1, deletions: 0, patch: null },

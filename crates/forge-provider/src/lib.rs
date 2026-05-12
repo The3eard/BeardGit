@@ -156,6 +156,23 @@ pub trait ForgeProvider: Send + Sync {
         Err(ForgeError::NotSupported)
     }
 
+    /// Reply to an existing review-comment thread on a MR/PR.
+    ///
+    /// `thread_id` is forge-specific and matches the `discussion_id` populated
+    /// on the inline [`Comment`] by the corresponding parser:
+    /// - GitHub: the root review-comment id (REST `id`, as a decimal string).
+    ///   The reply posts to `POST /pulls/{n}/comments/{id}/replies`.
+    /// - GitLab: the discussion id (UUID-like string). The reply posts to
+    ///   `POST /projects/:id/merge_requests/{n}/discussions/{id}/notes`.
+    fn reply_to_review_comment(
+        &self,
+        _number: u64,
+        _thread_id: &str,
+        _body: &str,
+    ) -> Result<(), ForgeError> {
+        Err(ForgeError::NotSupported)
+    }
+
     /// 8.2 — check out a MR/PR branch locally.
     ///
     /// Both CLIs handle fork-remote setup, fetch, and checkout in a single

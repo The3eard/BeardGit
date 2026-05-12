@@ -11,7 +11,9 @@ use forge_provider::{
 };
 
 use super::{GitHubCli, state_to_gh_str};
-use crate::parsers::{GITHUB_FIELDS, parse_github_comment, parse_mr_pr};
+use crate::parsers::{
+    GITHUB_FIELDS, parse_github_comment, parse_github_review_comment, parse_mr_pr,
+};
 
 impl GitHubCli {
     pub(super) fn list_mr_prs_impl(
@@ -42,10 +44,21 @@ impl GitHubCli {
             _ => ReviewStatus::Pending,
         };
 
-        let comments: Vec<Comment> = raw["comments"]
+        // Top-level (issue-style) comments come from the JSON we already
+        // fetched. Inline review comments live at a different REST endpoint
+        // and are missing from `gh pr view --json comments`, so we fetch
+        // them separately. Best-effort: if the API call fails (rate limit,
+        // auth, network) we still return the detail with the top-level
+        // comments rather than failing the whole PR view.
+        let mut comments: Vec<Comment> = raw["comments"]
             .as_array()
             .map(|arr| arr.iter().map(parse_github_comment).collect())
             .unwrap_or_default();
+        let inline_path = format!("repos/{{owner}}/{{repo}}/pulls/{number}/comments");
+        let inline: Vec<serde_json::Value> = self
+            .run_json(&["api", &inline_path, "--paginate"])
+            .unwrap_or_default();
+        comments.extend(inline.iter().map(parse_github_review_comment));
 
         let mergeable = match raw["mergeable"].as_str().unwrap_or("") {
             "MERGEABLE" => Some(true),
@@ -194,6 +207,22 @@ impl GitHubCli {
         self.run_with_stdin(
             &["api", &api_path, "--method", "POST", "--input", "-"],
             &json_body.to_string(),
+        )?;
+        Ok(())
+    }
+
+    pub(super) fn reply_to_review_comment_impl(
+        &self,
+        number: u64,
+        parent_comment_id: &str,
+        body: &str,
+    ) -> Result<(), ForgeError> {
+        let json_body = serde_json::json!({ "body": body }).to_string();
+        let api_path =
+            format!("repos/{{owner}}/{{repo}}/pulls/{number}/comments/{parent_comment_id}/replies");
+        self.run_with_stdin(
+            &["api", &api_path, "--method", "POST", "--input", "-"],
+            &json_body,
         )?;
         Ok(())
     }

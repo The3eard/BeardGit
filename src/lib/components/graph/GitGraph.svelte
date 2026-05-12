@@ -17,7 +17,7 @@
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
-  import { cherryPick, checkoutBranch, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns, createCommitPatches } from "../../api/tauri";
+  import { cherryPick, checkoutBranch, checkoutDetached, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns, createCommitPatches } from "../../api/tauri";
   import { runMutation } from "../../api/runMutation";
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
   import { buildCreateBranchSource } from "./GitGraph.helpers";
@@ -580,7 +580,16 @@
               return;
             }
           }
-          alert(m.graph_checkout_detached());
+          try {
+            await runMutation({
+              kind: "checkout_detached",
+              invoke: () => checkoutDetached(node.oid),
+              successToast: () => `Checked out ${sha} (detached)`,
+              failureToastPrefix: "Checkout failed",
+            });
+          } catch {
+            // runMutation already surfaced the toast.
+          }
         },
       },
       { label: "", action: () => {}, separator: true },
