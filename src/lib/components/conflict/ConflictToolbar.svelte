@@ -215,7 +215,7 @@
   }
 
   .conflict-files-btn:hover {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .conflict-files-btn.resolved {
@@ -259,7 +259,7 @@
 
   .conflict-file-item:hover {
     background: color-mix(in srgb, var(--text-primary) 4%, transparent);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .file-icon {

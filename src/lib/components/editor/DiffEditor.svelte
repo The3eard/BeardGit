@@ -162,7 +162,7 @@
 
   .diff-filename {
     font-family: var(--font-mono);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

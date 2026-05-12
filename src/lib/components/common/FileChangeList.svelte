@@ -128,7 +128,7 @@
   .status-deleted  { color: var(--accent-red); }
   .status-modified { color: var(--accent-orange); }
   .status-renamed  { color: var(--accent-purple); }
-  .status-copied   { color: var(--accent-blue); }
+  .status-copied   { color: var(--accent-primary); }
 
   .file-path {
     font-family: var(--font-mono);

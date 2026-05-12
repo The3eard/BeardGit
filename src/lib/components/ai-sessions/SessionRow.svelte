@@ -64,13 +64,13 @@
   }
 
   .session-row:focus-visible {
-    outline: 2px solid var(--accent-blue);
+    outline: 2px solid var(--accent-primary);
     outline-offset: -2px;
   }
 
   .session-row.selected {
-    background: color-mix(in srgb, var(--accent-blue) 10%, transparent);
-    border-left-color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+    border-left-color: var(--accent-primary);
   }
 
   .row-icon {

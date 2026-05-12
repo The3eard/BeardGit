@@ -344,7 +344,7 @@
   }
 
   .section-add:hover {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
@@ -356,14 +356,14 @@
     gap: 8px;
     padding: 10px 12px;
     margin: 6px 8px;
-    background: color-mix(in srgb, var(--accent-blue) 6%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent-blue) 15%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent);
     border-radius: 4px;
   }
 
   .banner-icon {
     font-size: 13px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     flex-shrink: 0;
     margin-top: 1px;
   }
@@ -457,7 +457,7 @@
 
   .tree-leaf.selected .file-icon,
   .tree-leaf:hover .file-icon {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .file-name {

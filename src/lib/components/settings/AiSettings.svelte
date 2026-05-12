@@ -299,7 +299,7 @@
   }
 
   .provider-row.preferred {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
     background: var(--overlay-accent-blue);
   }
 
@@ -350,7 +350,7 @@
   .preferred-badge {
     font-size: 10px;
     font-weight: 600;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     background: var(--overlay-accent-blue);
     padding: 2px 8px;
     border-radius: 4px;
@@ -391,11 +391,11 @@
   }
 
   .field-input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .bg-checkbox {
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
     width: 16px;
     height: 16px;
     cursor: pointer;

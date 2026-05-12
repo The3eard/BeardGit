@@ -244,7 +244,7 @@ const commentGutterTheme = EditorView.baseTheme({
     display: "inline-block",
     padding: "0 5px",
     borderRadius: "8px",
-    background: "var(--accent-blue)",
+    background: "var(--accent-primary)",
     color: "white",
     fontSize: "10px",
     cursor: "pointer",

@@ -85,7 +85,7 @@
 
 <style>
   .xref {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     text-decoration: none;
     cursor: pointer;
     background: none;

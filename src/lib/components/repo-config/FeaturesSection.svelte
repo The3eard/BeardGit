@@ -122,7 +122,7 @@
 
   .bg-select:focus {
     outline: none;
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .bg-toggle {

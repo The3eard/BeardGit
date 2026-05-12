@@ -151,7 +151,7 @@
     right: 0;
     bottom: 0;
     height: 2px;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
   }
   .tab-label {
     background: none;
@@ -179,7 +179,7 @@
     flex-shrink: 0;
   }
   .indicator.dirty {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
   .indicator.external {
     color: var(--accent-orange);

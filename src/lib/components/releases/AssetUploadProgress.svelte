@@ -69,7 +69,7 @@
     width: 12px;
     height: 12px;
     border: 2px solid var(--border);
-    border-top-color: var(--accent-blue);
+    border-top-color: var(--accent-primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }

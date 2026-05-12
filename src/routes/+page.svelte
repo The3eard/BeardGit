@@ -1340,14 +1340,14 @@
   }
 
   .welcome-action-btn--primary {
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
   }
 
   .welcome-action-btn--primary:hover {
     opacity: 0.9;
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
   }
 
   .welcome-recent {
@@ -1458,7 +1458,7 @@
   }
 
   .changes-resize-handle.is-dragging {
-    background: var(--accent-blue);
+    background: var(--accent-primary);
   }
 
   .changes-diff {
@@ -1513,7 +1513,7 @@
   }
 
   .diff-resize-handle.is-dragging {
-    background: var(--accent-blue);
+    background: var(--accent-primary);
   }
 
   .diff-panel {

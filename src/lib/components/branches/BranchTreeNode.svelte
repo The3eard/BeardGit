@@ -110,7 +110,7 @@
   .folder-icon {
     font-size: 13px;
     flex-shrink: 0;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     opacity: 0.7;
   }
 
@@ -154,7 +154,7 @@
 
   .tree-leaf.selected .branch-icon,
   .tree-leaf:hover .branch-icon {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .branch-name {
@@ -174,7 +174,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     flex-shrink: 0;
   }
 

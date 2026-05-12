@@ -426,7 +426,7 @@
     pointer-events: none;
   }
   .description-body :global(a) {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     text-decoration: none;
   }
   .description-body :global(a:hover) {
@@ -449,8 +449,8 @@
   .assignee-tag {
     padding: 2px 8px;
     border-radius: 12px;
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
     font-size: 11px;
   }
   .empty-inline {
@@ -516,7 +516,7 @@
     pointer-events: none;
   }
   .comment-body :global(a) {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     text-decoration: none;
   }
   .comment-body :global(a:hover) {
@@ -551,9 +551,9 @@
   }
   .btn-comment {
     padding: 5px 12px;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     color: var(--text-primary);
-    border: 1px solid var(--accent-blue);
+    border: 1px solid var(--accent-primary);
     border-radius: 4px;
     font-size: 11px;
     cursor: pointer;

@@ -184,7 +184,7 @@
   }
 
   .field-input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .field-input.mono {
@@ -212,7 +212,7 @@
   }
 
   .field-textarea:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .field-row {
@@ -231,7 +231,7 @@
   }
 
   .toggle-label input[type="checkbox"] {
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
     width: 14px;
     height: 14px;
     cursor: pointer;

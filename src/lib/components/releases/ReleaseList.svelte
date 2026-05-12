@@ -205,8 +205,8 @@
     color: var(--accent-orange);
   }
   .badge-prerelease {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
   }
   .badge-published {
     background: color-mix(in srgb, var(--accent-green) 15%, transparent);

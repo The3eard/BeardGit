@@ -359,7 +359,7 @@
   .row-time { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
 
   .source-badge { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; flex-shrink: 0; }
-  .source-badge--branch { background: var(--overlay-accent-blue); color: var(--accent-blue); }
+  .source-badge--branch { background: var(--overlay-accent-blue); color: var(--accent-primary); }
   .source-badge--mr { background: var(--overlay-accent-purple); color: var(--accent-purple); }
   .source-badge--schedule { background: var(--overlay-accent-orange); color: var(--accent-orange); }
   .source-badge--gray { background: var(--overlay-accent-muted); color: var(--text-secondary); }

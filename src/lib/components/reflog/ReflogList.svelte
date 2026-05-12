@@ -20,15 +20,15 @@
       case "commit":
         return { icon: "\uF444", color: "var(--accent-green)" };
       case "checkout":
-        return { icon: "\uE725", color: "var(--accent-blue)" };
+        return { icon: "\uE725", color: "var(--accent-primary)" };
       case "rebase":
         return { icon: "\uF021", color: "var(--accent-purple)" };
       case "reset":
         return { icon: "\uF0E2", color: "var(--accent-orange)" };
       case "merge":
-        return { icon: "\uE727", color: "var(--accent-blue)" };
+        return { icon: "\uE727", color: "var(--accent-primary)" };
       case "pull":
-        return { icon: "\uF063", color: "var(--accent-blue)" };
+        return { icon: "\uF063", color: "var(--accent-primary)" };
       case "cherry-pick":
         return { icon: "\uF41E", color: "var(--accent-purple)" };
       default:

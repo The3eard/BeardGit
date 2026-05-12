@@ -55,7 +55,7 @@
 
   function tagColor(type: string): string {
     switch (type) {
-      case "branch": return "var(--accent-blue)";
+      case "branch": return "var(--accent-primary)";
       case "user": return "var(--accent-green)";
       case "commit": return "var(--accent-orange)";
       case "status": return "var(--accent-purple)";
@@ -118,7 +118,7 @@
   }
 
   .search-tags-input:focus-within {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .search-tag {

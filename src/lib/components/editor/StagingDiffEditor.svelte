@@ -418,7 +418,7 @@
 
   .selection-info {
     font-size: 11px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     background: var(--overlay-accent-blue);
     padding: 2px 8px;
     border-radius: 4px;
@@ -477,7 +477,7 @@
 
   .hunk-checkbox-label input[type="checkbox"] {
     margin: 0;
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
     flex-shrink: 0;
   }
 
@@ -518,7 +518,7 @@
   }
 
   .line-selected {
-    border-left-color: var(--accent-blue);
+    border-left-color: var(--accent-primary);
   }
 
   .line-selected.line-added {
@@ -543,7 +543,7 @@
 
   .line-checkbox-cell input[type="checkbox"] {
     margin: 0;
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
   }
 
   .line-number {

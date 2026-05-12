@@ -204,8 +204,8 @@
 
   .new-run-btn {
     background: transparent;
-    border: 1px solid var(--accent-blue);
-    color: var(--accent-blue);
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-primary);
     border-radius: 5px;
     padding: 2px 8px;
     font-size: 10px;
@@ -216,7 +216,7 @@
   }
 
   .new-run-btn:hover {
-    background: color-mix(in srgb, var(--accent-blue) 14%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
   }
 
   .sections {
@@ -255,7 +255,7 @@
 
   .section-count {
     font-size: 10px;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     color: var(--text-primary);
     border-radius: 8px;
     padding: 0 6px;

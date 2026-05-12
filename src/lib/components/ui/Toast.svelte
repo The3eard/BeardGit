@@ -120,7 +120,7 @@
     border-radius: 2px;
     flex-shrink: 0;
   }
-  .toast--info .toast__accent { background: var(--accent-blue); }
+  .toast--info .toast__accent { background: var(--accent-primary); }
   .toast--success .toast__accent { background: var(--accent-green); }
   .toast--warning .toast__accent { background: var(--accent-orange); }
   .toast--error .toast__accent { background: var(--accent-red); }
@@ -143,7 +143,7 @@
   }
   .toast__progress-bar {
     height: 100%;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     transition: width 0.15s ease;
   }
   .toast__actions {

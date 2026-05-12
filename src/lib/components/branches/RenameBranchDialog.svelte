@@ -169,7 +169,7 @@
 
   .input:focus {
     outline: none;
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .dialog-actions {

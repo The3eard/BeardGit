@@ -22,7 +22,7 @@
 
   let statusColor = $derived(
     isActive
-      ? "var(--accent-blue)"
+      ? "var(--accent-primary)"
       : project.change_count > 0
         ? "var(--accent-orange)"
         : "var(--accent-green)"
@@ -152,7 +152,7 @@
   .worktree-icon {
     font-family: var(--font-icons);
     font-size: 10px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     line-height: 1;
     flex-shrink: 0;
   }
