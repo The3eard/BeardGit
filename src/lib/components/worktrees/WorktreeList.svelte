@@ -306,7 +306,7 @@
   .wt-branch {
     font-family: var(--font-mono);
     font-size: 12px;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -353,8 +353,8 @@
   }
 
   .wt-badge.ai-status.clean {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
   }
 
   .wt-path {

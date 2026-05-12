@@ -150,7 +150,7 @@
   }
 
   .visibility-option.selected {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
     background: var(--overlay-accent-blue);
   }
 

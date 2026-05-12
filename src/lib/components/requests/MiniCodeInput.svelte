@@ -260,7 +260,7 @@
    * fire.
    */
   .mini-host:focus-within {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   /*
@@ -284,7 +284,7 @@
   }
   .mini-host :global(.cm-content) {
     padding: 0 10px;
-    caret-color: var(--accent-blue);
+    caret-color: var(--accent-primary);
   }
   .mini-host :global(.cm-line) {
     padding: 0;

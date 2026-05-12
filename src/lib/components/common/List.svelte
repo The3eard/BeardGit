@@ -366,7 +366,7 @@
   .loading-bar-fill {
     height: 100%;
     width: 40%;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     border-radius: 1px;
     animation: list-loading-slide 1s ease-in-out infinite;
   }

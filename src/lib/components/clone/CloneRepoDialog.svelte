@@ -255,8 +255,8 @@
     color: var(--accent-red);
   }
   .banner-progress {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
   }
   input[type="text"] {
     padding: 6px 8px;

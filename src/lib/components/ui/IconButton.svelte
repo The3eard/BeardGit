@@ -167,10 +167,10 @@
      MergeEditor, the columns toggle in GitGraph, the draft toggle
      in MrPrDetail, etc. */
   .ic-btn--active {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
   .ic-btn--active:hover:not(:disabled) {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .ic-btn__glyph {

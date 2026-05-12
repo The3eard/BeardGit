@@ -152,7 +152,7 @@
 
   .bg-cat-nav__item:focus-visible {
     outline: none;
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .bg-cat-nav__item--active {

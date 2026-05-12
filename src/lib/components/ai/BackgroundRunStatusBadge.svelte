@@ -79,8 +79,8 @@
   }
 
   .badge-running {
-    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+    color: var(--accent-primary);
   }
 
   .badge-completed {

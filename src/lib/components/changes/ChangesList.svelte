@@ -397,7 +397,7 @@
 
   .select-all-checkbox {
     margin: 0;
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
     cursor: pointer;
   }
 
@@ -436,13 +436,13 @@
 
   .file-item:hover {
     background: var(--overlay-hover);
-    border-left-color: var(--accent-blue);
+    border-left-color: var(--accent-primary);
   }
 
   .file-checkbox {
     margin: 0;
     flex-shrink: 0;
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
     cursor: pointer;
   }
 
@@ -510,7 +510,7 @@
     border: none;
     border-radius: 4px;
     line-height: 1;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     cursor: pointer;
     padding: 2px 6px;
     flex-shrink: 0;

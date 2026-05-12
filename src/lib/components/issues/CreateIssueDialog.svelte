@@ -232,8 +232,8 @@
   .chip {
     padding: 2px 6px 2px 8px;
     border-radius: 10px;
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
     font-size: 11px;
     display: inline-flex;
     align-items: center;

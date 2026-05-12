@@ -277,7 +277,7 @@
     height: 100%;
   }
   .detail.drag-over {
-    outline: 2px dashed var(--accent-blue);
+    outline: 2px dashed var(--accent-primary);
     outline-offset: -8px;
   }
   .drop-hint {
@@ -286,10 +286,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, var(--accent-blue) 8%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
     font-size: 14px;
     font-weight: 600;
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     pointer-events: none;
   }
   .header {
@@ -364,7 +364,7 @@
     pointer-events: none;
   }
   .body :global(a) {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     text-decoration: none;
   }
   .body :global(a:hover) {
@@ -420,7 +420,7 @@
     letter-spacing: 0.3px;
   }
   .assets-table a {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
     text-decoration: none;
   }
   .assets-table a:hover {
@@ -451,8 +451,8 @@
     color: var(--accent-orange);
   }
   .badge-prerelease {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--accent-primary);
   }
   .badge-published {
     background: color-mix(in srgb, var(--accent-green) 15%, transparent);

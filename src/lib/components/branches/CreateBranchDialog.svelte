@@ -260,7 +260,7 @@
 
   .input:focus {
     outline: none;
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .source-row {
@@ -320,7 +320,7 @@
   }
 
   .source-option:hover {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   }
 
   .source-empty {

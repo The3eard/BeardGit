@@ -432,7 +432,7 @@
 
   .env-manager__item--selected {
     background: var(--overlay-accent-blue);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .env-manager__item--new {
@@ -534,6 +534,6 @@
   }
 
   .bg-input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 </style>

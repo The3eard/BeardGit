@@ -275,6 +275,6 @@
   }
 
   .action-menu-item.selected {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 </style>

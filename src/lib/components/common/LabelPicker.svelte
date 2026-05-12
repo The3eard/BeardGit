@@ -157,7 +157,7 @@
     background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   }
   .picker-item.selected {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   }
   .color-swatch {
     width: 12px;

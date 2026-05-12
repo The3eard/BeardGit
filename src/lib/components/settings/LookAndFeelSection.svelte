@@ -160,11 +160,11 @@
   }
 
   .bg-select:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .bg-checkbox {
-    accent-color: var(--accent-blue);
+    accent-color: var(--accent-primary);
     width: 16px;
     height: 16px;
     cursor: pointer;

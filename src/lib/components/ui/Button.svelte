@@ -256,12 +256,12 @@
      family at rest. Hover stays at neutral hover so the user gets
      clear feedback that re-clicking does something. */
   .bg-btn--neutral.bg-btn--active {
-    background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
-    border-color: color-mix(in srgb, var(--accent-blue) 60%, transparent);
-    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
+    color: var(--accent-primary);
   }
   .bg-btn--neutral.bg-btn--active:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-blue) 28%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 28%, transparent);
   }
 
   .bg-btn__spinner {

@@ -485,8 +485,8 @@
   }
 
   .edit-action.primary {
-    color: var(--accent-blue);
-    border-color: var(--accent-blue);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
   }
 
   .nav-item {
@@ -517,11 +517,11 @@
 
   .sidebar:not(.edit-mode) .nav-item.active {
     background: var(--overlay-accent-blue);
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .sidebar:not(.edit-mode) .nav-item.active .nav-icon {
-    color: var(--accent-blue);
+    color: var(--accent-primary);
   }
 
   .nav-icon {
@@ -541,7 +541,7 @@
 
   .nav-badge {
     font-size: 10px;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     color: var(--text-primary);
     border-radius: 8px;
     padding: 0 5px;
@@ -582,7 +582,7 @@
   }
 
   .edit-row.drag-over {
-    background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   }
 
   .drag-handle {
@@ -596,7 +596,7 @@
   }
 
   .drag-handle:focus {
-    outline: 1px solid var(--accent-blue);
+    outline: 1px solid var(--accent-primary);
     border-radius: 2px;
   }
 

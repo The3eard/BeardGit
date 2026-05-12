@@ -451,7 +451,7 @@
   }
 
   .filter-input:focus {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-primary);
   }
 
   .config-error {
@@ -570,7 +570,7 @@
     width: 100%;
     padding: 2px 4px;
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    border: 1px solid var(--accent-blue);
+    border: 1px solid var(--accent-primary);
     border-radius: 3px;
     color: var(--text-primary);
     font-size: 12px;
