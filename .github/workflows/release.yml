@@ -49,6 +49,11 @@ jobs:
           targets: ${{ matrix.rust-targets }}
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Release builds run once per tag and start cold; skipping the
+          # post-job save sidesteps a flaky Windows tar failure on shutdown
+          # that has zero impact on the produced artifacts.
+          save-if: false
 
       - name: Install system dependencies (Linux)
         if: matrix.platform == 'ubuntu-22.04'
@@ -129,7 +134,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/post-bundle-dmg.mjs
-          DMG=$(find src-tauri/target -path '*/release/bundle/dmg/*.dmg' -print -quit)
+          DMG=$(find target -path '*/release/bundle/dmg/*.dmg' -print -quit)
           if [ -z "$DMG" ]; then
             echo "::error::No DMG found to re-upload"
             exit 1
