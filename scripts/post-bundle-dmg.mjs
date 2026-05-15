@@ -30,7 +30,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
 const extrasDir = join(repoRoot, "src-tauri", "dmg");
-const targetRoot = join(repoRoot, "src-tauri", "target");
+const targetRoot = join(repoRoot, "target");
 
 if (process.platform !== "darwin") {
   console.log("[post-bundle-dmg] Skipping (not macOS)");
@@ -92,7 +92,7 @@ function embedExtras(originalDmg, files) {
   const rel = relative(repoRoot, originalDmg);
   console.log(`[post-bundle-dmg] Processing ${rel}`);
 
-  const workDir = join(repoRoot, "src-tauri", "target", ".dmg-postbundle");
+  const workDir = join(repoRoot, "target", ".dmg-postbundle");
   mkdirSync(workDir, { recursive: true });
 
   const rwDmg = join(workDir, "rw.dmg");
