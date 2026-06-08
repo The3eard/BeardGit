@@ -15,7 +15,7 @@
    * Size is held in the `diffPanelSize` store so it persists across view
    * switches. The diff content is provided by the caller as `children`.
    */
-  import type { Snippet } from "svelte";
+  import { onMount, onDestroy, type Snippet } from "svelte";
   import {
     diffPanelHeight,
     diffPanelWidth,
@@ -55,29 +55,40 @@
     return rowEl?.clientWidth ?? window.innerWidth;
   }
 
+  // Clamp into [min(MIN, hi), hi]. On a very short window/container the upper
+  // bound can fall below MIN; the lower bound is capped at `hi` so the result
+  // never exceeds the cap (a naive max(MIN, min(hi, h)) would push it back up).
   function clampHeight(h: number): number {
-    return Math.max(MIN_HEIGHT, Math.min(maxHeight(), h));
+    const hi = maxHeight();
+    return Math.max(Math.min(MIN_HEIGHT, hi), Math.min(hi, h));
   }
   function clampWidth(w: number): number {
-    return Math.max(MIN_WIDTH, Math.min(maxWidth(), w));
+    const hi = maxWidth();
+    return Math.max(Math.min(MIN_WIDTH, hi), Math.min(hi, w));
   }
+
+  // Active drag teardown, so a mid-drag unmount (the panel is conditionally
+  // rendered) doesn't leak window mousemove/mouseup listeners.
+  let activeDragCleanup: (() => void) | null = null;
 
   function startHeightResize(e: MouseEvent) {
     e.preventDefault();
     const startY = e.clientY;
     const startHeight = $diffPanelHeight;
     isDraggingHeight = true;
-    function onMove(ev: MouseEvent) {
+    const onMove = (ev: MouseEvent) => {
       const delta = startY - ev.clientY; // dragging up grows the panel
       diffPanelHeight.set(clampHeight(startHeight + delta));
-    }
-    function onUp() {
+    };
+    const stop = () => {
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("mouseup", stop);
       isDraggingHeight = false;
-    }
+      activeDragCleanup = null;
+    };
+    activeDragCleanup = stop;
     window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("mouseup", stop);
   }
 
   function startWidthResize(e: MouseEvent) {
@@ -85,18 +96,36 @@
     const startX = e.clientX;
     const startWidth = panelEl?.offsetWidth ?? maxWidth();
     isDraggingWidth = true;
-    function onMove(ev: MouseEvent) {
+    const onMove = (ev: MouseEvent) => {
       const delta = ev.clientX - startX; // dragging right grows the panel
       diffPanelWidth.set(clampWidth(startWidth + delta));
-    }
-    function onUp() {
+    };
+    const stop = () => {
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("mouseup", stop);
       isDraggingWidth = false;
-    }
+      activeDragCleanup = null;
+    };
+    activeDragCleanup = stop;
     window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("mouseup", stop);
   }
+
+  // Correct a persisted oversize value on mount and whenever the window
+  // shrinks — clamping otherwise only ran inside the drag/keyboard handlers,
+  // so a panel sized large in a maximized window kept its size after a resize.
+  onMount(() => {
+    const reclamp = () => {
+      diffPanelHeight.set(clampHeight($diffPanelHeight));
+      diffPanelWidth.update((w) => (w == null ? w : clampWidth(w)));
+    };
+    reclamp();
+    window.addEventListener("resize", reclamp);
+    return () => window.removeEventListener("resize", reclamp);
+  });
+
+  // Safety net: if the panel unmounts mid-drag, tear the window listeners down.
+  onDestroy(() => activeDragCleanup?.());
 
   function handleHeightKeys(e: KeyboardEvent) {
     if (e.key === "ArrowUp") {

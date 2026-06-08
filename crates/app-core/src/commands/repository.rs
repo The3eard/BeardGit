@@ -134,6 +134,22 @@ pub fn get_status_summary(state: State<'_, AppState>) -> Result<git_engine::Stat
     })
 }
 
+/// Return [`RepoInfo`] (path + HEAD branch/OID + branch count) for the active
+/// repository. Lets the mutation pipeline refresh `repoInfo` after a HEAD move
+/// (e.g. a checkout to an existing branch) without re-opening the repo.
+#[tauri::command]
+pub fn get_repo_info(state: State<'_, AppState>) -> Result<RepoInfo, String> {
+    with_active_repo(&state, |repo| {
+        let status = repo.status().map_err(|e| e.to_string())?;
+        Ok(RepoInfo {
+            path: status.path,
+            head_branch: status.head_branch,
+            head_oid: status.head_oid,
+            branch_count: status.branch_count,
+        })
+    })
+}
+
 /// List all configured remotes for the active repository.
 #[tauri::command]
 pub fn get_remotes(state: State<'_, AppState>) -> Result<Vec<RemoteInfo>, String> {

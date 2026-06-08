@@ -28,6 +28,11 @@ export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
 }
 
+/** Re-read RepoInfo (HEAD branch/OID + branch count) for the active repo. */
+export async function getRepoInfo(): Promise<RepoInfo> {
+  return invoke<RepoInfo>("get_repo_info");
+}
+
 export async function getGraphViewport(offset: number, limit: number): Promise<GraphViewport> {
   return invoke<GraphViewport>("get_graph_viewport", { offset, limit });
 }

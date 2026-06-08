@@ -463,7 +463,7 @@ export function clearAll(): void {
   treeLoading.set(false);
 }
 
-let externalListenerUnlisten: UnlistenFn | null = null;
+let externalListenerPromise: Promise<UnlistenFn> | null = null;
 
 /**
  * Subscribe to `project-mutated` so external file edits flag every
@@ -476,26 +476,26 @@ let externalListenerUnlisten: UnlistenFn | null = null;
  * or "Keep my version" (which just clears the flag).
  */
 export function startFileEditorListeners(): () => void {
-  if (externalListenerUnlisten) {
-    return () => {
-      externalListenerUnlisten?.();
-      externalListenerUnlisten = null;
-    };
-  }
-  void listen<MutationEvent>("project-mutated", (event) => {
+  // `??=` is synchronous, so two calls racing before the first `listen()`
+  // resolves reuse the SAME promise rather than each registering a listener
+  // (the previous guard checked an UnlistenFn only assigned inside `.then`,
+  // so the first listener leaked).
+  externalListenerPromise ??= listen<MutationEvent>("project-mutated", (event) => {
     if (!event.payload.flags.status_changed) return;
     tabs.update((list) =>
       list.map((t) =>
         t.dirty || t.externalChange ? t : { ...t, externalChange: true },
       ),
     );
-  }).then((fn) => {
-    externalListenerUnlisten = fn;
   });
-  return () => {
-    externalListenerUnlisten?.();
-    externalListenerUnlisten = null;
-  };
+  return stopFileEditorListeners;
+}
+
+/** Tear down the project-mutated listener (resolving the pending promise). */
+function stopFileEditorListeners(): void {
+  const pending = externalListenerPromise;
+  externalListenerPromise = null;
+  void pending?.then((fn) => fn());
 }
 
 /**
@@ -564,6 +564,5 @@ export function __resetForTests(): void {
   treeEntries.set([]);
   treeLoading.set(false);
   treeTruncated.set(false);
-  externalListenerUnlisten?.();
-  externalListenerUnlisten = null;
+  stopFileEditorListeners();
 }

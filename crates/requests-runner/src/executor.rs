@@ -62,23 +62,38 @@ fn host_is_forbidden(host: &str) -> bool {
         return true;
     }
     if let Ok(ip) = host.parse::<IpAddr>() {
-        return match ip {
-            IpAddr::V4(v4) => {
-                v4.is_loopback()
-                    || v4.is_private()
-                    || v4.is_link_local()
-                    || v4.is_broadcast()
-                    || v4.is_unspecified()
-            }
-            IpAddr::V6(v6) => {
-                v6.is_loopback()
-                    || v6.is_unspecified()
-                    || (v6.segments()[0] & 0xfe00) == 0xfc00 // ULA fc00::/7
-                    || (v6.segments()[0] & 0xffc0) == 0xfe80 // link-local fe80::/10
-            }
-        };
+        return ip_is_forbidden(ip);
     }
     false
+}
+
+/// Screen a concrete IP against the private/loopback/link-local/ULA/IMDS
+/// ranges. Used both for literal-IP URLs and (post-resolution) for hostnames.
+fn ip_is_forbidden(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => ipv4_is_forbidden(v4),
+        IpAddr::V6(v6) => {
+            // An IPv4-mapped address (`::ffff:a.b.c.d`) actually connects to
+            // the embedded V4 address, so screen it with the V4 ruleset —
+            // otherwise `[::ffff:127.0.0.1]` / `[::ffff:169.254.169.254]`
+            // would slip past the V6-only checks below.
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return ipv4_is_forbidden(v4);
+            }
+            v6.is_loopback()
+                || v6.is_unspecified()
+                || (v6.segments()[0] & 0xfe00) == 0xfc00 // ULA fc00::/7
+                || (v6.segments()[0] & 0xffc0) == 0xfe80 // link-local fe80::/10
+        }
+    }
+}
+
+fn ipv4_is_forbidden(v4: std::net::Ipv4Addr) -> bool {
+    v4.is_loopback()
+        || v4.is_private()
+        || v4.is_link_local()
+        || v4.is_broadcast()
+        || v4.is_unspecified()
 }
 
 /// Optional knobs for [`execute`]. Default reads
@@ -129,6 +144,28 @@ pub async fn execute(
             "host '{host}' targets a private/loopback range; \
              set BEARDGIT_REQUESTS_ALLOW_PRIVATE=1 to permit"
         )));
+    }
+
+    // Defense against a public hostname that resolves to a private/loopback/
+    // IMDS address (DNS rebinding, or simply an attacker-controlled A record):
+    // the string check above only sees the literal host. Resolve it and reject
+    // if ANY resolved IP is forbidden. reqwest re-resolves at dial time, so a
+    // determined rebinding attacker has a narrow TOCTOU window, but this closes
+    // the common case. Skipped for literal IPs (already screened) and when
+    // private hosts are explicitly allowed.
+    if !opts.allow_private_hosts
+        && host.parse::<IpAddr>().is_err()
+        && let Ok(addrs) = tokio::net::lookup_host(format!("{host}:0")).await
+    {
+        for addr in addrs {
+            if ip_is_forbidden(addr.ip()) {
+                return Err(RequestsError::Network(format!(
+                    "host '{host}' resolves to a private/loopback address ({}); \
+                     set BEARDGIT_REQUESTS_ALLOW_PRIVATE=1 to permit",
+                    addr.ip()
+                )));
+            }
+        }
     }
 
     let client = reqwest::Client::builder()
@@ -335,6 +372,17 @@ mod tests {
     #[test]
     fn extract_host_handles_ipv6_brackets() {
         assert_eq!(extract_host("http://[::1]:8080/").as_deref(), Some("::1"));
+    }
+
+    #[test]
+    fn ipv4_mapped_ipv6_is_forbidden() {
+        // ::ffff:a.b.c.d connects to the embedded V4 address, so the V4 ruleset
+        // must apply — these used to slip past the V6-only checks.
+        assert!(host_is_forbidden("::ffff:127.0.0.1"));
+        assert!(host_is_forbidden("::ffff:169.254.169.254"));
+        assert!(host_is_forbidden("::ffff:10.0.0.1"));
+        // A genuine public IPv6 address is still allowed.
+        assert!(!host_is_forbidden("2606:4700:4700::1111"));
     }
 
     #[tokio::test]

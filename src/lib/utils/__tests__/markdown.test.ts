@@ -67,6 +67,29 @@ describe("renderMarkdown — sanitiser / XSS", () => {
     expect(html).toContain("x");
   });
 
+  it("neutralises entity-obfuscated javascript: URLs", () => {
+    // A browser decodes `&#115;` → `s` before evaluating the scheme, so the
+    // old literal-`javascript:` deny-list missed this. The href must be
+    // neutralised to "#".
+    const html = renderMarkdown("[x](java&#115;cript:alert(1))");
+    expect(html).not.toMatch(/href="java/i);
+    expect(html).toMatch(/href="#"/);
+  });
+
+  it("neutralises data: URLs (allow-list rejects non-http/https/mailto)", () => {
+    const html = renderMarkdown("[x](data:text/html,stuff)");
+    expect(html).toMatch(/href="#"/);
+  });
+
+  it("preserves safe http/https/mailto links", () => {
+    expect(renderMarkdown("[x](https://example.com/a)")).toMatch(
+      /href="https:\/\/example\.com\/a"/,
+    );
+    expect(renderMarkdown("[x](mailto:a@b.com)")).toMatch(/href="mailto:a@b\.com"/);
+    // Relative + fragment URLs (no scheme) pass through unchanged.
+    expect(renderMarkdown("[x](#section)")).toMatch(/href="#section"/);
+  });
+
   it("strips event-handler attributes on allowed tags", () => {
     const html = renderMarkdown('<a href="x" onclick="evil()">y</a>');
     expect(html).not.toMatch(/onclick/i);

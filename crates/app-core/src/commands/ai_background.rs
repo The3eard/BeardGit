@@ -252,13 +252,16 @@ pub fn ai_open_background_terminal(
 
     let config = TerminalConfig {
         cwd: worktree_path,
-        shell: Some(program),
-        args,
+        shell: None,
+        args: Vec::new(),
         env: HashMap::new(),
         cols: 220,
         rows: 50,
     };
-    terminal_manager.spawn(config).map_err(|e| e.to_string())
+    // Trusted, app-built command — bypass the webview shell/arg allowlist.
+    terminal_manager
+        .spawn_program(&program, &args, config)
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

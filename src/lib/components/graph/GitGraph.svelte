@@ -794,7 +794,7 @@
     resizeObserver.observe(container);
 
     // Re-render canvas when DPI changes (e.g. moving window between screens)
-    let dprQuery: MediaQueryList;
+    let dprQuery: MediaQueryList | undefined;
     function watchDpr() {
       dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
       dprQuery.addEventListener("change", onDprChange, { once: true });
@@ -828,7 +828,7 @@
     return () => {
       if (drawRafId !== null) cancelAnimationFrame(drawRafId);
       resizeObserver.disconnect();
-      dprQuery.removeEventListener("change", onDprChange);
+      dprQuery?.removeEventListener("change", onDprChange);
       window.removeEventListener("click", handleWindowClick);
       window.removeEventListener("keydown", handleKeyDown);
     };

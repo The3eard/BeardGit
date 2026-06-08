@@ -7,6 +7,14 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Identifies which AI coding tool a provider represents.
+///
+/// NOTE on wire format: `snake_case` serializes `OpenCode` as **`open_code`**
+/// (and `ClaudeCode` as `claude_code`), even though the binary and directory
+/// are named `opencode`/`claude`. Every IPC payload and parser MUST use the
+/// `snake_case` wire string (`open_code`, not `opencode`) — see
+/// `app-core::ai_commands::parse_kind`. The `provider_kind_serializes_snake_case`
+/// test pins these exact strings; do not change the rename without updating
+/// every parser and any persisted config.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AiProviderKind {

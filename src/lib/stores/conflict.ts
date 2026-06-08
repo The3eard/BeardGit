@@ -13,6 +13,7 @@ import {
   abortOperation as apiAbortOperation,
   continueOperation as apiContinueOperation,
 } from "../api/tauri";
+import { runMutation } from "../api/runMutation";
 
 const defaultStatus: ConflictStatus = {
   state: "none",
@@ -48,11 +49,30 @@ export async function refreshConflictStatus() {
 }
 
 export async function abortOperation() {
-  await apiAbortOperation();
+  // Route through runMutation so a failure surfaces a toast + a recoverable
+  // task-drawer entry (these are wired directly to buttons; a bare reject
+  // would otherwise be silent). Refresh the banner either way.
+  try {
+    await runMutation({
+      kind: "abort_operation",
+      invoke: () => apiAbortOperation(),
+      failureToastPrefix: "Abort failed",
+    });
+  } catch {
+    // runMutation already surfaced the toast.
+  }
   await refreshConflictStatus();
 }
 
 export async function continueOperation() {
-  await apiContinueOperation();
+  try {
+    await runMutation({
+      kind: "continue_operation",
+      invoke: () => apiContinueOperation(),
+      failureToastPrefix: "Continue failed",
+    });
+  } catch {
+    // runMutation already surfaced the toast.
+  }
   await refreshConflictStatus();
 }

@@ -18,6 +18,9 @@ import { refreshWorktrees } from "./worktrees";
 import { refreshRepoConfig } from "./repoConfig";
 import { refreshRemotes } from "./remotes";
 import { refreshBranches } from "./branches";
+import { refreshTags } from "./tags";
+import { loadReflog } from "./reflog";
+import { refreshRepoInfo } from "./repo";
 import { saveCurrentSnapshot } from "./project-cache";
 
 /** Shape emitted by `mutation_events::emit_mutation`. */
@@ -70,14 +73,25 @@ function accumulate(path: string, flags: MutationFlags): void {
  * `repo-changed` listener used to refresh.
  */
 export function dispatchRefresh(flags: MutationFlags, path?: string): void {
-  if (flags.refs_changed) {
-    // Branch list mirrors `refs/heads/**` and `refs/remotes/**`, so any
-    // ref movement (create/delete/rename, fetch/push) needs the
-    // sidebar list re-fetched alongside the graph layout. Without
-    // this, deleted branches linger as ghost rows until the user
-    // manually hits the section's refresh button.
+  if (flags.head_changed || flags.refs_changed) {
+    // HEAD moved (commit, checkout, reset, rebase, merge) OR refs changed
+    // (create/delete/rename, fetch/push). Both affect the branch list
+    // (current-branch indicator + ghost rows), the graph (HEAD marker +
+    // topology), the reflog (every HEAD movement), and repoInfo
+    // (head_branch/head_oid feed the title bar + tab snapshot). A checkout to
+    // an EXISTING branch flips ONLY head_changed — the symbolic HEAD has no
+    // OID in the snapshot refs map — so gating these on refs_changed alone
+    // left the sidebar highlighting the old branch and the graph HEAD stale.
     void refreshAndReloadGraph();
     void refreshBranches();
+    void loadReflog();
+    void refreshRepoInfo();
+  }
+  if (flags.refs_changed) {
+    // refs/tags/** live in the snapshot refs map, so tag create/delete
+    // (including an external `git tag` from the terminal) flips refs_changed.
+    // The tags store isn't covered by the branch/graph refresh above.
+    void refreshTags();
   }
   if (flags.head_changed || flags.status_changed) {
     void refreshStatuses();

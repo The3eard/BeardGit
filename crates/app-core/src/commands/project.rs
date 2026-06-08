@@ -115,6 +115,9 @@ pub fn open_project(
     };
 
     projects.push(slot);
+    // Release the `projects` lock before taking `config` — AppState's
+    // one-mutex-at-a-time invariant (see CLAUDE.md) forbids holding two.
+    drop(projects);
 
     // Persist to config
     {
@@ -232,30 +235,14 @@ pub async fn switch_project(
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<RepoInfo, String> {
-    // 1. Unload the previous active project's heavy data.
-    //    Read `active_index` and drop its guard before touching `projects`
-    //    so we never hold two AppState mutexes at the same time — keeps the
-    //    no-two-locks invariant that `with_active_repo` relies on.
+    // 1. Read the previous active index. We DON'T unload it yet — unloading
+    //    before the target finishes loading would strand the previous tab with
+    //    `repo = None` if the load fails (active_index would still point at it).
+    //    The unload happens in step 5, only after a successful load.
     let prev_idx = {
         let active = state.active_index.lock().map_err(|e| e.to_string())?;
         *active
     };
-    {
-        let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
-        if let Some(prev_idx) = prev_idx
-            && let Some(prev_slot) = projects.get_mut(prev_idx)
-        {
-            if let Some(repo) = &prev_slot.repo {
-                if let Ok(status) = repo.status() {
-                    prev_slot.head_branch = status.head_branch;
-                }
-                prev_slot.change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
-            }
-            prev_slot.repo = None;
-            prev_slot.layout = None;
-            prev_slot.watcher = None;
-        }
-    }
 
     // 2. Read the target path
     let path = {
@@ -287,10 +274,27 @@ pub async fn switch_project(
 
     let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
 
-    // 5. Store in slot and update active index — each in its own scope so
-    //    `projects` is dropped before `active_index` is acquired.
+    // 5. Target loaded successfully. Now (and only now) unload the previous
+    //    tab's heavy state — capturing its lightweight metadata first — and
+    //    install the target, both under a single `projects` lock. Deferring
+    //    the unload to here means a failed load above leaves the previous tab
+    //    fully intact instead of stranding it with `repo = None`.
     {
         let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
+        if let Some(prev_idx) = prev_idx
+            && prev_idx != index
+            && let Some(prev_slot) = projects.get_mut(prev_idx)
+        {
+            if let Some(repo) = &prev_slot.repo {
+                if let Ok(status) = repo.status() {
+                    prev_slot.head_branch = status.head_branch;
+                }
+                prev_slot.change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
+            }
+            prev_slot.repo = None;
+            prev_slot.layout = None;
+            prev_slot.watcher = None;
+        }
         if let Some(slot) = projects.get_mut(index) {
             slot.repo = Some(repo);
             slot.layout = Some(layout);

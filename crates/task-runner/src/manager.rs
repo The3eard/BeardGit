@@ -24,6 +24,41 @@ use crate::types::{
 /// `cancel`) bypass the throttle so terminal states never get dropped.
 const PROGRESS_THROTTLE: Duration = Duration::from_millis(200);
 
+/// Maximum output lines retained per task. Mirrors the frontend cap
+/// (`taskPanel.ts` MAX_TASK_OUTPUT_LINES) so a chatty subprocess can't grow a
+/// handle's buffer without bound. Oldest lines are dropped past this.
+const MAX_TASK_OUTPUT_LINES: usize = 5000;
+
+/// Slack above [`MAX_TASK_OUTPUT_LINES`] before trimming, so the buffer is
+/// drained in batches rather than shifting the Vec on every appended line.
+const OUTPUT_TRIM_SLACK: usize = 1024;
+
+/// Maximum FINISHED tasks retained in the registry. Past this, the oldest
+/// finished tasks are evicted so a long session of many ops doesn't leak every
+/// `TaskHandle` (and its output) for the whole process lifetime.
+const MAX_FINISHED_TASKS: usize = 256;
+
+/// Evict the oldest finished tasks once more than [`MAX_FINISHED_TASKS`] have
+/// accumulated. Running tasks (`finished_at == None`) are always kept. Tasks
+/// are pushed in id order, so the earliest finished entries in the Vec are the
+/// oldest. Token/throttle maps for these ids were already cleaned in
+/// `finish_task`, so removing the handle is the only remaining cleanup.
+fn prune_finished_tasks(tasks: &mut Vec<TaskHandle>) {
+    let finished = tasks.iter().filter(|t| t.finished_at.is_some()).count();
+    if finished <= MAX_FINISHED_TASKS {
+        return;
+    }
+    let mut to_remove = finished - MAX_FINISHED_TASKS;
+    tasks.retain(|t| {
+        if to_remove > 0 && t.finished_at.is_some() {
+            to_remove -= 1;
+            false
+        } else {
+            true
+        }
+    });
+}
+
 /// Options accepted by [`TaskManager::spawn_with_options`].
 pub struct SpawnOptions<'a> {
     pub label: String,
@@ -228,6 +263,7 @@ impl TaskManager {
         {
             let mut tasks = self.tasks.lock().await;
             tasks.push(handle);
+            prune_finished_tasks(&mut tasks);
         }
 
         let token = if cancellable {
@@ -280,27 +316,21 @@ impl TaskManager {
             }
         };
 
-        // Write the stdin payload (if any) then close the pipe so the child
-        // sees EOF and proceeds.
+        // Feed the stdin payload (if any) from a CONCURRENT task so the reader
+        // loop below keeps the child's stdout/stderr pipes drained while we
+        // write. Writing inline (and awaiting) before spawning the reader can
+        // deadlock: a child that fills its ~64 KB stdout pipe before consuming
+        // all of stdin blocks on its write, while we block forever on ours.
         if let Some(payload) = stdin
             && let Some(mut child_stdin) = child.stdin.take()
         {
-            use tokio::io::AsyncWriteExt;
-            // Best-effort — if the child died early or closed stdin, fail
-            // the task rather than leaving it stuck.
-            if let Err(e) = child_stdin.write_all(payload.as_bytes()).await {
-                self.finish_task(
-                    id,
-                    TaskStatus::Failed {
-                        error: format!("failed to write prompt on stdin: {e}"),
-                    },
-                )
-                .await;
-                let _ = child.kill().await;
-                return id;
-            }
-            // Drop closes stdin explicitly.
-            drop(child_stdin);
+            tokio::spawn(async move {
+                use tokio::io::AsyncWriteExt;
+                // Best-effort: a write error means the child closed stdin or
+                // exited early — the reader loop + child.wait() surface that as
+                // a failed exit. Dropping child_stdin closes the pipe (EOF).
+                let _ = child_stdin.write_all(payload.as_bytes()).await;
+            });
         }
 
         let stdout = child.stdout.take().expect("stdout piped");
@@ -477,6 +507,12 @@ impl TaskManager {
         let mut tasks = self.tasks.lock().await;
         if let Some(handle) = tasks.iter_mut().find(|t| t.id == task_id) {
             handle.output.push(line);
+            // Drop the oldest lines once we exceed the cap (plus slack, so we
+            // drain in batches rather than shifting the Vec on every line).
+            if handle.output.len() > MAX_TASK_OUTPUT_LINES + OUTPUT_TRIM_SLACK {
+                let overflow = handle.output.len() - MAX_TASK_OUTPUT_LINES;
+                handle.output.drain(0..overflow);
+            }
         }
     }
 
@@ -1190,5 +1226,111 @@ mod tests {
             "terminal snapshot lost to throttle: {:?}",
             snapshots.iter().map(|s| &s.status).collect::<Vec<_>>()
         );
+    }
+
+    fn make_handle(id: TaskId, finished: bool) -> TaskHandle {
+        TaskHandle {
+            id,
+            label: format!("t{id}"),
+            status: if finished {
+                TaskStatus::Completed
+            } else {
+                TaskStatus::Running
+            },
+            cancellable: false,
+            started_at: Some(Instant::now()),
+            finished_at: finished.then(Instant::now),
+            output: Vec::new(),
+            command: "x".into(),
+            started_at_ms: None,
+            exit_code: None,
+            kind: TaskKind::Generic,
+        }
+    }
+
+    #[test]
+    fn prune_finished_tasks_evicts_oldest_finished_over_cap() {
+        let mut tasks: Vec<TaskHandle> = Vec::new();
+        // More finished than the cap, pushed oldest-id first.
+        for id in 1..=(MAX_FINISHED_TASKS as u64 + 10) {
+            tasks.push(make_handle(id, true));
+        }
+        // Running tasks must always survive pruning.
+        tasks.push(make_handle(9001, false));
+        tasks.push(make_handle(9002, false));
+
+        prune_finished_tasks(&mut tasks);
+
+        let finished = tasks.iter().filter(|t| t.finished_at.is_some()).count();
+        assert_eq!(
+            finished, MAX_FINISHED_TASKS,
+            "finished tasks must be capped"
+        );
+        assert!(tasks.iter().any(|t| t.id == 9001), "running kept");
+        assert!(tasks.iter().any(|t| t.id == 9002), "running kept");
+        assert!(!tasks.iter().any(|t| t.id == 1), "oldest finished evicted");
+        assert!(
+            tasks.iter().any(|t| t.id == MAX_FINISHED_TASKS as u64 + 10),
+            "newest finished retained"
+        );
+    }
+
+    /// Regression: a stdin payload larger than the pipe buffer must not
+    /// deadlock against the child's unread stdout. `cat` echoes stdin to
+    /// stdout, so before the concurrent-write fix this would hang.
+    #[tokio::test]
+    #[cfg(unix)]
+    async fn large_stdin_does_not_deadlock() {
+        let (manager, _events) = new_manager();
+        let cwd = std::env::temp_dir();
+        let payload = "x\n".repeat(200_000); // ~400 KB, well over a pipe buffer
+        let id = manager
+            .spawn_with_options(SpawnOptions {
+                label: "cat".into(),
+                command: "cat",
+                args: &[],
+                cwd: &cwd,
+                cancellable: false,
+                kind: TaskKind::Generic,
+                stdin: Some(payload),
+            })
+            .await;
+
+        let status = tokio::time::timeout(Duration::from_secs(15), manager.wait_for_terminal(id))
+            .await
+            .expect("cat with large stdin must not hang")
+            .expect("wait_for_terminal");
+        assert!(matches!(status, TaskStatus::Completed));
+    }
+
+    /// The per-task output buffer must be capped so a chatty subprocess can't
+    /// grow it without bound.
+    #[tokio::test]
+    #[cfg(unix)]
+    async fn output_buffer_is_capped() {
+        let (manager, _events) = new_manager();
+        let cwd = std::env::temp_dir();
+        let id = manager
+            .spawn_with_options(SpawnOptions {
+                label: "seq".into(),
+                command: "seq",
+                args: &["20000"],
+                cwd: &cwd,
+                cancellable: false,
+                kind: TaskKind::Generic,
+                stdin: None,
+            })
+            .await;
+
+        let _ = tokio::time::timeout(Duration::from_secs(15), manager.wait_for_terminal(id))
+            .await
+            .expect("seq should finish");
+        let output = manager.get_output(id).await.expect("output present");
+        assert!(
+            output.len() <= MAX_TASK_OUTPUT_LINES + OUTPUT_TRIM_SLACK,
+            "buffer not capped: {}",
+            output.len()
+        );
+        assert!(output.len() < 20000, "buffer should have been trimmed");
     }
 }

@@ -16,6 +16,13 @@ use crate::types::{SessionId, TerminalConfig, TerminalError};
 /// Interval between foreground-process polls on the active session.
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_secs(3);
 
+/// Maximum bytes of an incomplete OSC 7 prefix carried over between PTY
+/// reads. A real `ESC]7;file://…` cwd sequence is far under this; the cap
+/// stops an unterminated sequence (a binary dump after `ESC]7;`, or hostile
+/// output) from growing `osc_pending` without bound and re-scanning all
+/// accumulated bytes on every read (O(n²) CPU + unbounded memory).
+const MAX_OSC_PENDING: usize = 4096;
+
 /// Handle to a running terminal session.
 struct Session {
     /// Writer for sending input to the PTY.
@@ -58,9 +65,13 @@ impl TerminalManager {
         }
     }
 
-    /// Spawn a new terminal session. Returns the session ID immediately.
+    /// Spawn a new terminal session from a **webview-originated** request.
+    ///
+    /// The shell + args are validated against the allowlist
+    /// (`validate_shell` / `is_safe_shell_arg`) so a compromised renderer
+    /// cannot turn the terminal into an arbitrary-binary/RCE primitive.
+    /// App-built commands (e.g. AI CLIs) must use [`Self::spawn_program`].
     pub fn spawn(&self, config: TerminalConfig) -> Result<SessionId, TerminalError> {
-        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         // Validate shell: must be either the auto-detected default, or
         // one listed in `/etc/shells` (Unix) / explicit allowlist
         // (Windows). Rejecting arbitrary `shell` paths prevents an XSS
@@ -70,6 +81,43 @@ impl TerminalManager {
             None => detect_shell().unwrap_or_else(|_| default_shell()),
             Some(s) => validate_shell(s)?.to_string(),
         };
+        for arg in &config.args {
+            // Whitelist common interactive/login flags. Anything else
+            // (e.g. `-c "curl … | sh"`) becomes a code-execution
+            // primitive once an attacker controls the IPC payload.
+            if !is_safe_shell_arg(arg) {
+                return Err(TerminalError::SpawnFailed(format!(
+                    "rejected unsafe shell arg: {arg}"
+                )));
+            }
+        }
+        self.spawn_inner(&shell, &config.args, &config)
+    }
+
+    /// Spawn a **trusted, app-built** command (e.g. an AI CLI invoked as
+    /// `claude --resume <id>`). Bypasses the shell/arg allowlist that
+    /// [`Self::spawn`] enforces, because `program` and `args` are constructed
+    /// by app-core (the binary is resolved server-side), NOT supplied by the
+    /// renderer. Never call this with webview-controlled values.
+    pub fn spawn_program(
+        &self,
+        program: &str,
+        args: &[String],
+        config: TerminalConfig,
+    ) -> Result<SessionId, TerminalError> {
+        self.spawn_inner(program, args, &config)
+    }
+
+    /// Shared spawn implementation. `program` + `args` are used verbatim; the
+    /// caller is responsible for any allowlist validation. The environment is
+    /// still filtered through [`is_dangerous_env_key`] for both paths.
+    fn spawn_inner(
+        &self,
+        program: &str,
+        args: &[String],
+        config: &TerminalConfig,
+    ) -> Result<SessionId, TerminalError> {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
 
         let pty_system = NativePtySystem::default();
         let pair = pty_system
@@ -81,17 +129,9 @@ impl TerminalManager {
             })
             .map_err(|e| TerminalError::SpawnFailed(e.to_string()))?;
 
-        let mut cmd = CommandBuilder::new(&shell);
+        let mut cmd = CommandBuilder::new(program);
         cmd.cwd(&config.cwd);
-        for arg in &config.args {
-            // Whitelist common interactive/login flags. Anything else
-            // (e.g. `-c "curl … | sh"`) becomes a code-execution
-            // primitive once an attacker controls the IPC payload.
-            if !is_safe_shell_arg(arg) {
-                return Err(TerminalError::SpawnFailed(format!(
-                    "rejected unsafe shell arg: {arg}"
-                )));
-            }
+        for arg in args {
             cmd.arg(arg);
         }
         for (key, value) in &config.env {
@@ -141,8 +181,10 @@ impl TerminalManager {
                             sink.on_cwd_changed(id, cwd);
                         }
 
-                        // Carry over incomplete OSC 7 prefix for the next chunk.
-                        if result.pending_bytes > 0 {
+                        // Carry over incomplete OSC 7 prefix for the next chunk,
+                        // but abandon it past MAX_OSC_PENDING so a never-closed
+                        // sequence can't accumulate unbounded.
+                        if result.pending_bytes > 0 && result.pending_bytes <= MAX_OSC_PENDING {
                             let mut combined = std::mem::take(&mut osc_pending);
                             combined.extend_from_slice(chunk);
                             let start = combined.len().saturating_sub(result.pending_bytes);
@@ -201,15 +243,15 @@ impl TerminalManager {
                 pixel_width: 0,
                 pixel_height: 0,
             })
-            .map_err(|e| TerminalError::SpawnFailed(e.to_string()))?;
+            .map_err(|e| TerminalError::ResizeFailed(e.to_string()))?;
         Ok(())
     }
 
     /// Kill a terminal session and remove it.
     pub fn kill(&self, id: SessionId) -> Result<(), TerminalError> {
         let mut sessions = self.sessions.lock().expect("sessions lock poisoned");
-        sessions.remove(&id).ok_or(TerminalError::NotFound(id))?;
-        // Dropping the Session closes the PTY and kills the child
+        let mut session = sessions.remove(&id).ok_or(TerminalError::NotFound(id))?;
+        reap_child(&mut session);
         Ok(())
     }
 
@@ -217,7 +259,9 @@ impl TerminalManager {
     pub fn kill_all(&self) {
         self.stop_process_polling();
         let mut sessions = self.sessions.lock().expect("sessions lock poisoned");
-        sessions.clear();
+        for (_, mut session) in sessions.drain() {
+            reap_child(&mut session);
+        }
     }
 
     /// Set which terminal session is currently visible in the UI.
@@ -308,6 +352,19 @@ impl Drop for TerminalManager {
     fn drop(&mut self) {
         self.stop_process_polling();
     }
+}
+
+/// Terminate and reap a session's child process.
+///
+/// Dropping the PTY pair closes the master fd (SIGHUP), but a child that
+/// ignores SIGHUP would survive, and stdlib never `wait()`s a `Child` on
+/// drop — so every killed terminal would leak a zombie PID until process
+/// exit. Explicitly `kill()` then `wait()` to reap. Both are best-effort:
+/// a child that already exited makes `kill` fail harmlessly, and `wait`
+/// then reaps the zombie.
+fn reap_child(session: &mut Session) {
+    let _ = session._child.kill();
+    let _ = session._child.wait();
 }
 
 /// Default shell used when the system has no `SHELL` env var. Matches
@@ -576,6 +633,42 @@ mod tests {
         let default = default_shell();
         // The auto-detected default must always validate.
         assert!(validate_shell(&default).is_ok());
+    }
+
+    /// Regression for the AI-terminal allowlist break: a trusted, app-built
+    /// command (a non-shell binary with flags) must run via `spawn_program`
+    /// even though the webview-facing `spawn` rejects it.
+    #[test]
+    #[cfg(unix)]
+    fn spawn_program_bypasses_shell_allowlist() {
+        let sink = Arc::new(CollectingSink::new());
+        let mgr = TerminalManager::new(Arc::clone(&sink) as Arc<dyn TerminalEventSink>);
+
+        let config = TerminalConfig {
+            cwd: std::env::temp_dir(),
+            shell: None,
+            args: Vec::new(),
+            env: HashMap::new(),
+            cols: 80,
+            rows: 24,
+        };
+
+        // /bin/echo is not in /etc/shells, so the webview path must reject it.
+        let mut webview_cfg = config.clone();
+        webview_cfg.shell = Some("/bin/echo".to_string());
+        assert!(matches!(
+            mgr.spawn(webview_cfg),
+            Err(TerminalError::SpawnFailed(_))
+        ));
+
+        // The trusted path runs it verbatim with its argument.
+        let id = mgr
+            .spawn_program("/bin/echo", &["spawn_program_ok".to_string()], config)
+            .expect("trusted spawn should bypass the allowlist");
+        thread::sleep(Duration::from_millis(300));
+        let out = String::from_utf8_lossy(&sink.output_bytes()).to_string();
+        assert!(out.contains("spawn_program_ok"), "got: {out}");
+        let _ = mgr.kill(id);
     }
 
     #[test]
