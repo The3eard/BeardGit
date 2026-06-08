@@ -14,12 +14,18 @@ const {
   refreshAndReloadGraph,
   refreshStatuses,
   refreshBranches,
+  refreshTags,
+  loadReflog,
+  refreshRepoInfo,
   saveCurrentSnapshot,
 } = vi.hoisted(() => ({
   listenMock: vi.fn(),
   refreshAndReloadGraph: vi.fn(),
   refreshStatuses: vi.fn(),
   refreshBranches: vi.fn(),
+  refreshTags: vi.fn(),
+  loadReflog: vi.fn(),
+  refreshRepoInfo: vi.fn(),
   saveCurrentSnapshot: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -28,6 +34,9 @@ vi.mock("@tauri-apps/api/event", () => ({
 vi.mock("../graph", () => ({ refreshAndReloadGraph }));
 vi.mock("../changes", () => ({ refreshStatuses }));
 vi.mock("../branches", () => ({ refreshBranches }));
+vi.mock("../tags", () => ({ refreshTags }));
+vi.mock("../reflog", () => ({ loadReflog }));
+vi.mock("../repo", () => ({ refreshRepoInfo }));
 vi.mock("../project-cache", () => ({ saveCurrentSnapshot }));
 
 // Activate project is the tab-switch gate. `vi.hoisted` dodges the
@@ -66,6 +75,9 @@ beforeEach(() => {
   refreshAndReloadGraph.mockReset();
   refreshStatuses.mockReset();
   refreshBranches.mockReset();
+  refreshTags.mockReset();
+  loadReflog.mockReset();
+  refreshRepoInfo.mockReset();
   saveCurrentSnapshot.mockReset();
   saveCurrentSnapshot.mockResolvedValue(undefined);
   refreshActiveTitleBar.mockReset();
@@ -112,6 +124,40 @@ describe("startMutationListener", () => {
     // branch-list refresh too — without this, deleted branches stay in
     // the sidebar until the user refreshes manually.
     expect(refreshBranches).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes branches/graph/reflog/repoInfo on head_changed without refs_changed", async () => {
+    // A checkout to an EXISTING branch moves only the symbolic HEAD, so the
+    // snapshot diff yields head_changed=true, refs_changed=false. The branch
+    // list, graph HEAD marker, reflog, and repoInfo must still refresh.
+    let handler: ((ev: unknown) => void) | null = null;
+    listenMock.mockImplementation(async (_name, cb) => {
+      handler = cb as (ev: unknown) => void;
+      return () => {};
+    });
+    await startMutationListener();
+
+    handler!({
+      payload: {
+        project_path: "/repo",
+        kind: { type: "checkout" },
+        flags: {
+          refs_changed: false,
+          head_changed: true,
+          status_changed: false,
+          stashes_changed: false,
+          worktrees_changed: false,
+          remotes_changed: false,
+        },
+      },
+    });
+
+    expect(refreshBranches).toHaveBeenCalledTimes(1);
+    expect(refreshAndReloadGraph).toHaveBeenCalledTimes(1);
+    expect(loadReflog).toHaveBeenCalledTimes(1);
+    expect(refreshRepoInfo).toHaveBeenCalledTimes(1);
+    // Tags only change on refs_changed, so a plain checkout must not refetch them.
+    expect(refreshTags).not.toHaveBeenCalled();
   });
 
   it("buffers events for inactive projects", async () => {

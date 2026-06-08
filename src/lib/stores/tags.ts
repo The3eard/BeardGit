@@ -178,10 +178,9 @@ export async function doCreateTag(name: string, target: string, message: string 
     successToast: () => `Tagged ${name}`,
     failureToastPrefix: "Tag create failed",
   });
-  // Tag list refresh: `refs_changed` via project-mutated. Tags store
-  // is not yet wired into the dispatcher, so we keep the explicit
-  // refreshTags() here until it is.
-  await refreshTags();
+  // Tag list refresh is now driven by the mutation dispatcher
+  // (refs_changed → refreshTags in stores/mutations.ts), so no explicit
+  // refresh here — that would double-fetch.
 }
 
 export async function doDeleteTag(name: string) {
@@ -199,7 +198,7 @@ export async function doDeleteTag(name: string) {
     selectedCommitFiles.set(null);
     loadingDetail.set(false);
   }
-  await refreshTags();
+  // Refresh is driven by the mutation dispatcher (refs_changed → refreshTags).
 }
 
 export async function doPushTag(tagName: string | null, remote: string) {
