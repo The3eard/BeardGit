@@ -430,6 +430,7 @@
   "rebase_start": "Start Rebase",
   "rebase_cancel": "Cancel",
   "rebase_commits_count": "{count} commits",
+  "rebase_first_squash_error": "The first commit can't be squashed or fixed up — there's no earlier commit to combine it into.",
   "graph_interactive_rebase": "Interactive rebase from here",
   "shortcuts_title": "Keyboard Shortcuts",
   "command_palette_title": "Command Palette",

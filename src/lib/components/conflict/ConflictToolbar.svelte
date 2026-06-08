@@ -14,6 +14,7 @@
     refreshConflictStatus,
   } from "../../stores/conflict";
   import { getConflictFileContents, writeResolvedFile } from "../../api/tauri";
+  import { runMutation } from "../../api/runMutation";
   import type { ConflictFileContents } from "../../types";
   import MergeEditor from "../editor/MergeEditor.svelte";
   import { activeTheme } from "../../stores/theme";
@@ -41,10 +42,18 @@
   /** Handle resolve from the merge editor: write content and refresh status. */
   async function handleResolve(content: string) {
     if (!mergeFile) return;
+    const file = mergeFile;
     try {
-      await writeResolvedFile(mergeFile, content);
+      await runMutation({
+        kind: "resolve_conflict",
+        invoke: () => writeResolvedFile(file, content),
+        failureToastPrefix: "Resolve failed",
+      });
     } catch {
-      // Write may fail if file was already resolved.
+      // The write failed (permission, disk full, index locked). runMutation
+      // already surfaced the toast — keep the editor open so the user can
+      // retry or copy their resolution out, instead of discarding their work.
+      return;
     }
     mergeFile = null;
     mergeContents = null;
