@@ -311,9 +311,12 @@ impl GraphLayout {
             });
             let reclaim_idx = stale_idx.unwrap_or(lanes.len() - 1);
             // Close the existing segment before overwriting — mark as recycled
-            // so the renderer draws a continuation arrow.
+            // so the renderer draws a continuation arrow. Guard `start <
+            // current_row`: an octopus merge with >MAX_LANES parents can
+            // reclaim a lane allocated at THIS same row, which would emit an
+            // inverted segment (end_row = current_row - 1 < start_row).
             if let Some(start) = lane_start_row[reclaim_idx]
-                && current_row > 0
+                && start < current_row
             {
                 lane_segments.push(LaneSegment {
                     lane: reclaim_idx,
