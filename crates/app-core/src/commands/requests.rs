@@ -6,7 +6,7 @@
 //! `requests.db` global library.
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use auth::Credential;
 use provider::ProviderKind;
@@ -270,6 +270,21 @@ pub fn requests_load(
     parse_http_file(&content).map_err(|e| e.to_string())
 }
 
+/// Resolve a project-scoped requests path, rejecting any `rel` that escapes
+/// `<project>/.beardgit/requests/` via `..`. The relative path is
+/// frontend-controlled (CollectionsTree node ids), so without this check a
+/// value like `../../foo` would let save/read/delete/rename/open operate on
+/// arbitrary files outside the requests tree.
+fn resolve_project_request_path(project_path: &str, rel: &str) -> Result<PathBuf, String> {
+    let root = Path::new(project_path).join(".beardgit").join("requests");
+    let candidate = crate::ai_commands::normalize_lexical(&root.join(rel));
+    let root_norm = crate::ai_commands::normalize_lexical(&root);
+    if !candidate.starts_with(&root_norm) {
+        return Err(format!("path escapes the requests directory: {rel}"));
+    }
+    Ok(candidate)
+}
+
 /// Persist the raw `.http` content for a project file or global item.
 ///
 /// Project sources are written under `<project>/.beardgit/requests/<source_path>`,
@@ -286,10 +301,7 @@ pub fn requests_save(
     match source_kind.as_str() {
         "project" => {
             let root = project_path.ok_or("project_path required")?;
-            let path = Path::new(&root)
-                .join(".beardgit")
-                .join("requests")
-                .join(&source_path);
+            let path = resolve_project_request_path(&root, &source_path)?;
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
@@ -324,10 +336,7 @@ fn read_source(
     match source_kind {
         "project" => {
             let root = project_path.ok_or("project_path required")?;
-            let path = Path::new(root)
-                .join(".beardgit")
-                .join("requests")
-                .join(source_path);
+            let path = resolve_project_request_path(root, source_path)?;
             std::fs::read_to_string(&path).map_err(|e| e.to_string())
         }
         "global" => {
@@ -395,10 +404,7 @@ pub fn requests_delete(
     match source_kind.as_str() {
         "project" => {
             let root = project_path.ok_or("project_path required")?;
-            let path = Path::new(&root)
-                .join(".beardgit")
-                .join("requests")
-                .join(&source_path);
+            let path = resolve_project_request_path(&root, &source_path)?;
             if path.exists() {
                 // Folder rows from the tree resolve to a directory on
                 // disk; recursively remove the subtree. Single-file
@@ -446,14 +452,8 @@ pub fn requests_rename(
     match source_kind.as_str() {
         "project" => {
             let root = project_path.ok_or("project_path required")?;
-            let from = Path::new(&root)
-                .join(".beardgit")
-                .join("requests")
-                .join(&from_path);
-            let to = Path::new(&root)
-                .join(".beardgit")
-                .join("requests")
-                .join(&to_path);
+            let from = resolve_project_request_path(&root, &from_path)?;
+            let to = resolve_project_request_path(&root, &to_path)?;
             if let Some(parent) = to.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
@@ -495,16 +495,10 @@ pub fn requests_duplicate(
     match source_kind.as_str() {
         "project" => {
             let root = project_path.ok_or("project_path required")?;
-            let from = Path::new(&root)
-                .join(".beardgit")
-                .join("requests")
-                .join(&source_path);
+            let from = resolve_project_request_path(&root, &source_path)?;
             let content = std::fs::read_to_string(&from).map_err(|e| e.to_string())?;
             let to_rel = duplicate_path(&source_path);
-            let to = Path::new(&root)
-                .join(".beardgit")
-                .join("requests")
-                .join(&to_rel);
+            let to = resolve_project_request_path(&root, &to_rel)?;
             if let Some(parent) = to.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
@@ -1041,10 +1035,7 @@ pub fn requests_open_in_editor(
         return Err("only project items can be opened in an external editor".into());
     }
     let root = project_path.ok_or("project_path required")?;
-    let p = std::path::Path::new(&root)
-        .join(".beardgit")
-        .join("requests")
-        .join(&source_path);
+    let p = resolve_project_request_path(&root, &source_path)?;
     if !p.exists() {
         return Err(format!("file not found: {}", p.display()));
     }
@@ -1142,6 +1133,17 @@ mod tests {
 
         // After the guard drops, the entry is gone.
         assert!(map.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn resolve_project_request_path_contains_traversal() {
+        // In-tree paths resolve under the requests root.
+        let ok = resolve_project_request_path("/proj", "users/get.http").unwrap();
+        assert!(ok.ends_with("users/get.http"));
+        assert!(ok.starts_with("/proj/.beardgit/requests"));
+        // `..` escapes are rejected.
+        assert!(resolve_project_request_path("/proj", "../../etc/passwd").is_err());
+        assert!(resolve_project_request_path("/proj", "a/../../../etc/x").is_err());
     }
 
     #[test]

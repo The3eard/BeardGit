@@ -740,24 +740,15 @@ pub fn ai_get_config_files(state: State<'_, AppState>) -> Result<Vec<AiConfigFil
 ///
 /// Allowed: project repo root (and children) or `~/.claude/` (and children).
 fn validate_config_path(path: &str, repo_root: &Path) -> Result<PathBuf, String> {
-    let resolved = PathBuf::from(path);
-    let canonical = resolved
-        .canonicalize()
-        .or_else(|_| {
-            // File might not exist yet — canonicalize parent.
-            if let Some(parent) = resolved.parent() {
-                std::fs::create_dir_all(parent).ok();
-                parent
-                    .canonicalize()
-                    .map(|p| p.join(resolved.file_name().unwrap_or_default()))
-            } else {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "no parent",
-                ))
-            }
-        })
-        .map_err(|e| format!("invalid path: {e}"))?;
+    // Resolve `.`/`..` lexically FIRST (so a `..` can't later defeat the
+    // `starts_with` scope check, which is component-based and would otherwise
+    // accept `<repo>/../../etc/passwd`), then canonicalize the longest existing
+    // prefix to resolve symlinks. Crucially this NEVER creates directories —
+    // the previous implementation ran `create_dir_all` before the scope check,
+    // which polluted the filesystem for rejected paths and turned the read
+    // command into a silent mkdir.
+    let lexical = normalize_lexical(&PathBuf::from(path));
+    let canonical = canonicalize_existing_prefix(&lexical)?;
 
     let repo_canon = repo_root
         .canonicalize()
@@ -774,6 +765,44 @@ fn validate_config_path(path: &str, repo_root: &Path) -> Result<PathBuf, String>
     }
 
     Err(format!("path outside allowed scope: {path}"))
+}
+
+/// Lexically resolve `.` and `..` components without touching the filesystem.
+/// Leading `..` on an absolute path are dropped (can't ascend past root).
+pub(crate) fn normalize_lexical(p: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for comp in p.components() {
+        match comp {
+            Component::ParentDir => {
+                out.pop();
+            }
+            Component::CurDir => {}
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Canonicalize the deepest existing ancestor of `p` (resolving symlinks),
+/// then re-append the remaining components. `p` must already be lexically
+/// normalized so the non-existing tail contains no `..`/`.` that could escape
+/// the canonicalized prefix. Never creates anything on disk.
+fn canonicalize_existing_prefix(p: &Path) -> Result<PathBuf, String> {
+    let mut existing = p;
+    while !existing.exists() {
+        match existing.parent() {
+            Some(parent) => existing = parent,
+            None => return Err(format!("invalid path: {}", p.display())),
+        }
+    }
+    let canon_base = existing
+        .canonicalize()
+        .map_err(|e| format!("invalid path: {e}"))?;
+    let tail = p
+        .strip_prefix(existing)
+        .map_err(|e| format!("invalid path: {e}"))?;
+    Ok(canon_base.join(tail))
 }
 
 /// Resolve the filesystem path for a new config file from its kind, scope, and name.
@@ -903,6 +932,31 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path();
         assert!(validate_config_path("/tmp/evil.json", repo).is_err());
+    }
+
+    #[test]
+    fn validate_path_rejects_dotdot_escape() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path();
+        // A `..` chain under the repo must not pass the scope check after
+        // lexical normalization.
+        let escape = format!("{}/.claude/../../../../../../etc/passwd", repo.display());
+        assert!(validate_config_path(&escape, repo).is_err());
+    }
+
+    #[test]
+    fn validate_path_does_not_create_directories() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path();
+        // An in-scope but non-existent nested path must validate WITHOUT
+        // materializing its parent directories (the read command relied on
+        // validation being side-effect free).
+        let target = repo.join(".claude/new/deep/file.json");
+        assert!(validate_config_path(target.to_str().unwrap(), repo).is_ok());
+        assert!(
+            !repo.join(".claude/new").exists(),
+            "validation must not create directories"
+        );
     }
 
     #[test]
