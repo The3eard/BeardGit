@@ -225,7 +225,9 @@ pub async fn ensure_commit_local(
     }
 
     let remote = remote_url.unwrap_or_else(|| "origin".to_string());
-    let short = &sha[..sha.len().min(8)];
+    // Truncate on char boundaries — `sha` is an untrusted-shaped String param,
+    // so byte-slicing at index 8 would panic on a multibyte boundary.
+    let short: String = sha.chars().take(8).collect();
     let label = format!("Fetch {short}");
     let id = task_manager
         .spawn_with_options(SpawnOptions {
@@ -247,8 +249,7 @@ pub async fn ensure_commit_local(
 
     if !commit_exists_locally(&cwd, &sha) {
         return Err(format!(
-            "commit {} not found after fetching from {remote}",
-            &sha[..sha.len().min(8)]
+            "commit {short} not found after fetching from {remote}"
         ));
     }
     Ok(())

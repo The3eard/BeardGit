@@ -100,7 +100,9 @@ pub async fn stash_apply(
     app: AppHandle,
 ) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-    with_mutation_guard_async(&state, &app, MutationKind::StashPop, || async move {
+    // `apply` does NOT remove the stash entry — use the generic `Stash` kind,
+    // not `StashPop` (which would mislabel the event as a removal).
+    with_mutation_guard_async(&state, &app, MutationKind::Stash, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             let result = repo.stash_apply(index).map_err(|e| e.to_string())?;
@@ -133,7 +135,8 @@ pub async fn stash_apply_file(
     app: AppHandle,
 ) -> Result<String, String> {
     let repo_path = get_active_project_path(&state)?;
-    with_mutation_guard_async(&state, &app, MutationKind::StashPop, || async move {
+    // `apply` does NOT remove the stash entry — use the generic `Stash` kind.
+    with_mutation_guard_async(&state, &app, MutationKind::Stash, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             let result = repo
