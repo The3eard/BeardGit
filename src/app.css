@@ -122,7 +122,12 @@ html, body {
 
 /* Allow text selection in specific areas */
 .commit-summary, .commit-body, .sha, .diff-content, .commit-input,
-input, textarea, pre, code {
+input, textarea, pre, code,
+/* Diff viewers: CodeMirror diff/merge content (.cm-content) and the
+   Changes-panel staging diff lines (.line-content). The global
+   `user-select: none` above otherwise blocks copying from read-only
+   diffs, since a non-editable CodeMirror relies on native selection. */
+.cm-content, .line-content {
   -webkit-user-select: text;
   user-select: text;
 }
