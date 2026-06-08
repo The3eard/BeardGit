@@ -236,25 +236,25 @@ impl Repository {
     /// Merge `branch` into the current branch using `--no-edit` (no interactive prompt).
     #[instrument(skip(self), fields(branch = %branch))]
     pub fn merge_branch(&self, branch: &str) -> Result<GitCliResult, GitError> {
-        self.git_cmd(&["merge", branch, "--no-edit"])
+        self.git_cmd(&merge_args(branch))
     }
 
     /// Rebase the current branch onto `onto`.
     #[instrument(skip(self), fields(onto = %onto))]
     pub fn rebase_branch(&self, onto: &str) -> Result<GitCliResult, GitError> {
-        self.git_cmd(&["rebase", onto])
+        self.git_cmd(&rebase_args(onto))
     }
 
     /// Cherry-pick a single commit by its OID onto the current branch.
     #[instrument(skip(self), fields(oid = %oid))]
     pub fn cherry_pick(&self, oid: &str) -> Result<GitCliResult, GitError> {
-        self.git_cmd(&["cherry-pick", oid])
+        self.git_cmd(&cherry_pick_args(oid))
     }
 
     /// Revert a single commit by its OID, creating a new revert commit automatically.
     #[instrument(skip(self), fields(oid = %oid))]
     pub fn revert_commit(&self, oid: &str) -> Result<GitCliResult, GitError> {
-        self.git_cmd(&["revert", oid, "--no-edit"])
+        self.git_cmd(&revert_args(oid))
     }
 
     /// Save uncommitted changes to the stash, optionally with a description message.
@@ -364,12 +364,16 @@ impl Repository {
                 continue;
             }
 
-            // Parse index from "stash@{0}"
-            let index = parts[0]
+            // Parse index from "stash@{0}". Skip (rather than default to 0) on
+            // an unparseable index, so a malformed line can't collapse onto a
+            // real entry and make stash pop/drop/apply target the wrong stash.
+            let Ok(index) = parts[0]
                 .trim_start_matches("stash@{")
                 .trim_end_matches('}')
                 .parse::<usize>()
-                .unwrap_or(0);
+            else {
+                continue;
+            };
 
             // Parse branch and message from subject like "On main: my message"
             // or "WIP on main: abc1234 commit msg"
@@ -422,8 +426,9 @@ impl Repository {
     #[instrument(skip(self), fields(tag = %name))]
     pub fn create_tag(&self, name: &str, message: Option<&str>) -> Result<GitCliResult, GitError> {
         let result = match message {
-            Some(msg) => self.git_cmd(&["tag", "-a", name, "-m", msg])?,
-            None => self.git_cmd(&["tag", name])?,
+            // `--` keeps a tag name beginning with `-` from being parsed as a flag.
+            Some(msg) => self.git_cmd(&["tag", "-a", "-m", msg, "--", name])?,
+            None => self.git_cmd(&["tag", "--", name])?,
         };
         if result.success {
             self.invalidate_tag_cache();
@@ -434,7 +439,7 @@ impl Repository {
     /// Delete a local tag by name.
     #[instrument(skip(self), fields(tag = %name))]
     pub fn delete_tag(&self, name: &str) -> Result<GitCliResult, GitError> {
-        let result = self.git_cmd(&["tag", "-d", name])?;
+        let result = self.git_cmd(&["tag", "-d", "--", name])?;
         if result.success {
             self.invalidate_tag_cache();
         }
@@ -592,6 +597,32 @@ impl Repository {
         let args = self.push_args(remote, branch, force);
         self.git_cmd(&args)
     }
+}
+
+// ---------------------------------------------------------------------------
+// Argv builders
+//
+// Extracted as pure functions (like `push_args`) so the flag/operand layout
+// is unit-testable without shelling out. Every one places a user-controlled
+// ref/oid AFTER a `--` separator so a value beginning with `-` can never be
+// reparsed by git as an option (argument injection). This mirrors the
+// convention already applied to push/fetch/pull/tag.
+// ---------------------------------------------------------------------------
+
+fn merge_args(branch: &str) -> [&str; 4] {
+    ["merge", "--no-edit", "--", branch]
+}
+
+fn rebase_args(onto: &str) -> [&str; 3] {
+    ["rebase", "--", onto]
+}
+
+fn cherry_pick_args(oid: &str) -> [&str; 3] {
+    ["cherry-pick", "--", oid]
+}
+
+fn revert_args(oid: &str) -> [&str; 4] {
+    ["revert", "--no-edit", "--", oid]
 }
 
 // ---------------------------------------------------------------------------
@@ -983,5 +1014,32 @@ mod tests {
         let (_dir, repo) = create_test_repo();
         let args = repo.push_args("origin", "main", false);
         assert_eq!(args, vec!["push", "-u", "--", "origin", "main"]);
+    }
+
+    // Argument-injection guard: every user-controlled ref/oid must sit after a
+    // `--` so a leading-dash value cannot be reparsed by git as an option.
+    #[test]
+    fn ref_arg_builders_put_operand_after_double_dash() {
+        assert_eq!(
+            merge_args("--upload-pack=x"),
+            ["merge", "--no-edit", "--", "--upload-pack=x"]
+        );
+        assert_eq!(rebase_args("--exec=x"), ["rebase", "--", "--exec=x"]);
+        assert_eq!(cherry_pick_args("-x"), ["cherry-pick", "--", "-x"]);
+        assert_eq!(revert_args("-x"), ["revert", "--no-edit", "--", "-x"]);
+        // `--` must immediately precede the operand in every case.
+        for args in [
+            merge_args("b").as_slice(),
+            rebase_args("b").as_slice(),
+            cherry_pick_args("b").as_slice(),
+            revert_args("b").as_slice(),
+        ] {
+            let dd = args
+                .iter()
+                .position(|a| *a == "--")
+                .expect("must contain --");
+            assert_eq!(args[dd + 1], "b", "operand must follow -- in {args:?}");
+            assert_eq!(dd, args.len() - 2, "-- must be the last flag in {args:?}");
+        }
     }
 }

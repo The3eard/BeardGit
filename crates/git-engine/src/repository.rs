@@ -234,12 +234,16 @@ impl Repository {
             .and_then(|head| {
                 let local_oid = head.target()?;
                 let branch_name = head.shorthand()?.to_string();
-                let upstream_name = format!("origin/{}", branch_name);
-                let upstream_ref = self
+                // Resolve the branch's CONFIGURED upstream (branch.<name>.remote/
+                // .merge) rather than guessing `origin/<branch>`. This matches
+                // `branches()` and is correct for fork workflows (e.g. tracking
+                // `upstream/main`) and upstreams whose name differs from the
+                // local branch. No configured upstream → (0, 0).
+                let branch = self
                     .repo
-                    .find_reference(&format!("refs/remotes/{}", upstream_name))
+                    .find_branch(&branch_name, git2::BranchType::Local)
                     .ok()?;
-                let upstream_oid = upstream_ref.target()?;
+                let upstream_oid = branch.upstream().ok()?.get().target()?;
                 self.repo.graph_ahead_behind(local_oid, upstream_oid).ok()
             })
             .unwrap_or((0, 0));
@@ -338,6 +342,50 @@ mod tests {
         assert!(status.head_oid.is_some());
         // At least one branch (the default branch)
         assert!(status.branch_count >= 1);
+    }
+
+    /// A bare `refs/remotes/origin/<branch>` that the local branch does NOT
+    /// track must not produce spurious ahead/behind counts. Before the fix,
+    /// `status_summary` compared against a hard-coded `origin/<branch>`.
+    #[test]
+    fn test_status_summary_ignores_untracked_origin_ref() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = create_repo_with_commit(&dir);
+        let git_repo = git2::Repository::open(&path).unwrap();
+
+        let branch = git_repo.head().unwrap().shorthand().unwrap().to_string();
+        let first_oid = git_repo.head().unwrap().target().unwrap();
+
+        // Point refs/remotes/origin/<branch> at the first commit (no
+        // branch.<name>.remote/.merge config is set, so it is NOT the upstream).
+        git_repo
+            .reference(
+                &format!("refs/remotes/origin/{branch}"),
+                first_oid,
+                true,
+                "test",
+            )
+            .unwrap();
+
+        // Add a second commit so HEAD diverges from that origin ref. Scoped so
+        // the borrows release before the handle is dropped.
+        {
+            let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
+            let parent = git_repo.find_commit(first_oid).unwrap();
+            let tree = parent.tree().unwrap();
+            git_repo
+                .commit(Some("HEAD"), &sig, &sig, "second", &tree, &[&parent])
+                .unwrap();
+        }
+        drop(git_repo);
+
+        let repo = Repository::open(&path).unwrap();
+        let summary = repo.status_summary().unwrap();
+        assert_eq!(
+            (summary.ahead, summary.behind),
+            (0, 0),
+            "an untracked origin/<branch> must not yield ahead/behind"
+        );
     }
 
     #[test]

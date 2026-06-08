@@ -19,7 +19,7 @@ impl Repository {
         if result.success {
             Ok(())
         } else {
-            Err(GitError::Io(std::io::Error::other(result.stderr)))
+            Err(GitError::CliError(result.stderr))
         }
     }
 
@@ -32,7 +32,7 @@ impl Repository {
         if result.success {
             Ok(())
         } else {
-            Err(GitError::Io(std::io::Error::other(result.stderr)))
+            Err(GitError::CliError(result.stderr))
         }
     }
 }

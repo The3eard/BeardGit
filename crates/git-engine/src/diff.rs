@@ -97,6 +97,13 @@ pub struct DiffLineInfo {
 
 impl Repository {
     /// Diff between working directory and index (unstaged changes).
+    ///
+    /// Rename/copy detection is intentionally NOT enabled here (nor in
+    /// [`Repository::diff_index`]): the hunk-staging patch builder
+    /// (`hunk_staging::build_patch`) models a rename as a separate
+    /// delete+add and does not emit `rename from`/`rename to` headers, so a
+    /// detected-rename delta would produce a patch that `git apply` rejects.
+    /// Callers that need rename status use `file_status_all` instead.
     pub fn diff_workdir(&self) -> Result<Vec<FileDiff>, GitError> {
         let repo = self.inner();
         let diff = repo.diff_index_to_workdir(
@@ -190,22 +197,33 @@ impl Repository {
     /// always parseable unified diff. For root commits (no parent), uses
     /// `git diff-tree -p`.
     pub fn commit_file_diff(&self, oid: &str, path: &str) -> Result<Vec<FileDiff>, GitError> {
-        let result = self.git_cmd(&[
-            "diff",
-            "--no-ext-diff",
-            &format!("{oid}^..{oid}"),
-            "--",
-            path,
-        ]);
-
-        let output = match result {
-            Ok(r) if r.success => r.stdout,
-            _ => {
-                // Fallback for root commits
-                let root = self.git_cmd(&["diff-tree", "-p", "--root", oid, "--", path])?;
-                root.stdout
-            }
+        // Decide up-front whether this is a root commit (no parent) via
+        // libgit2, then run the matching command. The previous code treated
+        // ANY failure of `<oid>^..<oid>` as "must be a root commit" and fell
+        // through to `diff-tree --root`, masking real failures (bad oid,
+        // corrupt repo, transient git error) as an empty diff.
+        let is_root = {
+            let repo = self.inner();
+            let commit = repo.find_commit(git2::Oid::from_str(oid)?)?;
+            commit.parent_count() == 0
         };
+
+        let result = if is_root {
+            self.git_cmd(&["diff-tree", "-p", "--root", oid, "--", path])?
+        } else {
+            self.git_cmd(&[
+                "diff",
+                "--no-ext-diff",
+                &format!("{oid}^..{oid}"),
+                "--",
+                path,
+            ])?
+        };
+
+        if !result.success {
+            return Err(GitError::CliError(result.stderr));
+        }
+        let output = result.stdout;
 
         if output.len() > MAX_COMMIT_DIFF_BYTES {
             return Ok(vec![FileDiff {
@@ -826,5 +844,17 @@ diff --git a/b.txt b/b.txt
     fn test_parse_unified_diff_empty() {
         let files = parse_unified_diff("");
         assert!(files.is_empty());
+    }
+
+    /// A non-existent commit oid must surface an error rather than being
+    /// silently swallowed into an empty diff by the root-commit fallback.
+    #[test]
+    fn test_commit_file_diff_bad_oid_errors() {
+        let (_dir, repo) = create_repo_with_file();
+        let result = repo.commit_file_diff("0000000000000000000000000000000000000000", "test.txt");
+        assert!(
+            result.is_err(),
+            "a non-existent oid must error, not return an empty diff"
+        );
     }
 }

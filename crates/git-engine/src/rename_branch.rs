@@ -20,11 +20,12 @@ impl Repository {
     /// valid ref name.
     #[instrument(skip(self), fields(old = %old_name, new = %new_name))]
     pub fn rename_branch(&self, old_name: &str, new_name: &str) -> Result<(), GitError> {
-        let result = self.git_cmd(&["branch", "-m", old_name, new_name])?;
+        // `--` keeps a branch name beginning with `-` from being parsed as a flag.
+        let result = self.git_cmd(&["branch", "-m", "--", old_name, new_name])?;
         if result.success {
             Ok(())
         } else {
-            Err(GitError::Io(std::io::Error::other(result.stderr)))
+            Err(GitError::CliError(result.stderr))
         }
     }
 }

@@ -16,8 +16,9 @@ impl Repository {
     /// - `mode` – One of `"soft"`, `"mixed"`, or `"hard"`.
     ///
     /// # Errors
-    /// Returns [`GitError::RepoNotFound`] for an unrecognised `mode` or when
-    /// the underlying `git reset` invocation exits with a non-zero status.
+    /// Returns [`GitError::InvalidArgument`] for an unrecognised `mode`, or
+    /// [`GitError::CliError`] when the underlying `git reset` invocation exits
+    /// with a non-zero status.
     #[instrument(skip(self), fields(oid = %oid, mode = %mode))]
     pub fn reset_to_commit(&self, oid: &str, mode: &str) -> Result<(), GitError> {
         let flag = match mode {
@@ -25,16 +26,21 @@ impl Repository {
             "mixed" => "--mixed",
             "hard" => "--hard",
             _ => {
-                return Err(GitError::RepoNotFound(format!(
+                return Err(GitError::InvalidArgument(format!(
                     "Invalid reset mode: {mode}"
                 )));
             }
         };
+        // NOTE: `git reset` cannot use a `--` separator before the commit —
+        // `git reset <flag> -- <x>` switches to path-reset mode and treats `x`
+        // as a pathspec. The oid here is always a commit SHA resolved by the
+        // frontend (never a leading-dash value), so option-injection is a
+        // non-issue for this command.
         let result = self.git_cmd(&["reset", flag, oid])?;
         if result.success {
             Ok(())
         } else {
-            Err(GitError::RepoNotFound(result.stderr))
+            Err(GitError::CliError(result.stderr))
         }
     }
 
@@ -47,7 +53,7 @@ impl Repository {
     /// - `message` – The replacement commit message.
     ///
     /// # Errors
-    /// Returns [`GitError::RepoNotFound`] when `git commit --amend` exits
+    /// Returns [`GitError::CliError`] when `git commit --amend` exits
     /// with a non-zero status (e.g. nothing to amend, detached HEAD, etc.).
     #[instrument(skip(self))]
     pub fn amend_commit(&self, message: &str) -> Result<(), GitError> {
@@ -55,7 +61,7 @@ impl Repository {
         if result.success {
             Ok(())
         } else {
-            Err(GitError::RepoNotFound(result.stderr))
+            Err(GitError::CliError(result.stderr))
         }
     }
 
@@ -181,6 +187,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let repo = init_repo_with_commits(tmp.path());
         let result = repo.reset_to_commit("HEAD", "invalid");
-        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(crate::error::GitError::InvalidArgument(_))
+        ));
     }
 }
