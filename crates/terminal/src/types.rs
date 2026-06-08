@@ -73,6 +73,9 @@ pub enum TerminalError {
     /// Failed to spawn the shell process.
     #[error("failed to spawn shell: {0}")]
     SpawnFailed(String),
+    /// Failed to resize an already-running PTY session.
+    #[error("failed to resize terminal: {0}")]
+    ResizeFailed(String),
     /// An I/O error occurred.
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
