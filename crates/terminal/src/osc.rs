@@ -118,8 +118,12 @@ fn decode_file_url(url: &str) -> Option<String> {
     let path_start = rest.find('/')?;
     let encoded_path = &rest[path_start..];
 
-    // Decode percent-encoding
-    let mut decoded = String::with_capacity(encoded_path.len());
+    // Decode percent-encoding into raw bytes first, then interpret the whole
+    // sequence as UTF-8. Pushing each decoded byte as a `char` would map it to
+    // the Latin-1 code point of the same value (so a UTF-8 `é` encoded as
+    // `%C3%A9` would become `Ã©`); collecting bytes and decoding once
+    // reassembles multibyte sequences correctly.
+    let mut decoded: Vec<u8> = Vec::with_capacity(encoded_path.len());
     let mut bytes = encoded_path.bytes();
     while let Some(b) = bytes.next() {
         if b == b'%' {
@@ -128,12 +132,13 @@ fn decode_file_url(url: &str) -> Option<String> {
             let hex = [hi, lo];
             let s = std::str::from_utf8(&hex).ok()?;
             let byte = u8::from_str_radix(s, 16).ok()?;
-            decoded.push(byte as char);
+            decoded.push(byte);
         } else {
-            decoded.push(b as char);
+            decoded.push(b);
         }
     }
 
+    let decoded = String::from_utf8(decoded).ok()?;
     if decoded.is_empty() {
         None
     } else {
@@ -144,6 +149,15 @@ fn decode_file_url(url: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decode_file_url_handles_utf8_percent_encoding() {
+        // "café" — the é is percent-encoded as the two UTF-8 bytes %C3%A9.
+        // It must decode back to "café", not the Latin-1 mojibake "cafÃ©".
+        let data = "\x1b]7;file://host/Users/x/caf%C3%A9\x07".as_bytes();
+        let result = scan_osc7(&[], data);
+        assert_eq!(result.cwd.as_deref(), Some("/Users/x/café"));
+    }
 
     #[test]
     fn parse_complete_osc7_zsh_format() {

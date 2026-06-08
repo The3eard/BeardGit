@@ -469,13 +469,17 @@ pub fn ai_launch_interactive(
     verify_executable(&program)?;
     let config = TerminalConfig {
         cwd: cwd.to_path_buf(),
-        shell: Some(program),
-        args,
+        shell: None,
+        args: Vec::new(),
         env: HashMap::new(),
         cols: 220,
         rows: 50,
     };
-    terminal_manager.spawn(config).map_err(|e| e.to_string())
+    // Trusted, app-built command (binary resolved server-side) — use the
+    // trusted spawn path so the webview shell/arg allowlist doesn't reject it.
+    terminal_manager
+        .spawn_program(&program, &args, config)
+        .map_err(|e| e.to_string())
 }
 
 /// Launch an AI session with worktree isolation.
@@ -502,13 +506,15 @@ pub fn ai_launch_worktree(
     verify_executable(&program)?;
     let config = TerminalConfig {
         cwd: cwd.to_path_buf(),
-        shell: Some(program),
-        args,
+        shell: None,
+        args: Vec::new(),
         env: HashMap::new(),
         cols: 220,
         rows: 50,
     };
-    let session_id = terminal_manager.spawn(config).map_err(|e| e.to_string())?;
+    let session_id = terminal_manager
+        .spawn_program(&program, &args, config)
+        .map_err(|e| e.to_string())?;
     Ok(Some(session_id))
 }
 
@@ -536,13 +542,15 @@ pub fn ai_resume_conversation(
     verify_executable(&program)?;
     let config = TerminalConfig {
         cwd: cwd.to_path_buf(),
-        shell: Some(program),
-        args,
+        shell: None,
+        args: Vec::new(),
         env: HashMap::new(),
         cols: 220,
         rows: 50,
     };
-    let session = terminal_manager.spawn(config).map_err(|e| e.to_string())?;
+    let session = terminal_manager
+        .spawn_program(&program, &args, config)
+        .map_err(|e| e.to_string())?;
     Ok(Some(session))
 }
 
