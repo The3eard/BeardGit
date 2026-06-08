@@ -9,7 +9,7 @@
 import { writable, get } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { RepoInfo, BranchInfo } from "../types";
-import { openRepo as apiOpenRepo, getBranches as apiGetBranches, detectProject } from "../api/tauri";
+import { openRepo as apiOpenRepo, getBranches as apiGetBranches, getRepoInfo as apiGetRepoInfo, detectProject } from "../api/tauri";
 import { checkStatus as checkProviderStatus } from "./provider";
 import { refreshStatuses, refreshDiffs } from "./changes";
 import { refreshConflictStatus } from "./conflict";
@@ -22,6 +22,20 @@ export const repoInfo = writable<RepoInfo | null>(null);
 export const branches = writable<BranchInfo[]>([]);
 export const isLoading = writable(false);
 export const error = writable<string | null>(null);
+
+/**
+ * Re-fetch RepoInfo (HEAD branch/OID + branch count) for the active repo and
+ * update the `repoInfo` store. Called from the mutation pipeline after a HEAD
+ * move so the title bar / tab snapshot (which read `head_branch`/`head_oid`)
+ * don't lag behind a checkout. Failures are non-fatal — the stale value stays.
+ */
+export async function refreshRepoInfo(): Promise<void> {
+  try {
+    repoInfo.set(await apiGetRepoInfo());
+  } catch {
+    // IPC unavailable / no active repo — keep the previous value.
+  }
+}
 
 let unlistenWatcher: UnlistenFn | null = null;
 let watcherDebounceTimer: ReturnType<typeof setTimeout> | null = null;
