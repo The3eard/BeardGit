@@ -2,7 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [0.1.14] — Audit hardening pass + a resizable, selectable diff panel — 2026-06-08
+## [0.2.0] — Audit hardening pass + a resizable, selectable diff panel — 2026-06-08
 
 A multi-agent code audit swept the whole workspace (20 Rust crates + the Svelte frontend) and surfaced 5 high-severity issues plus a long tail of medium/low findings. This release closes the high-severity set and the high-value remainder, each with a regression test, alongside one user-facing feature and a security dependency bump. The full CI gate (`cargo fmt`/`clippy`/`test` across the workspace, `svelte-check`, `vitest`, `stylelint`+`eslint`) is green.
 
