@@ -256,7 +256,17 @@ pub fn import_curl(curl_cmd: &str) -> Result<ParsedRequest, RequestsError> {
         match t.as_str() {
             "-X" | "--request" => {
                 let v = tokens.get(i + 1).cloned().unwrap_or_default();
-                method = HttpMethod::parse(&v);
+                // An explicit -X with an unrecognized method is an error, not a
+                // silent fall-through to GET/POST (which would drop the user's
+                // intended method, e.g. a typo'd `POSt` or an unmodeled `PURGE`).
+                let Some(m) = HttpMethod::parse(&v) else {
+                    return Err(RequestsError::Parse {
+                        line: 1,
+                        col: 1,
+                        reason: format!("unrecognized HTTP method in curl -X: {v}"),
+                    });
+                };
+                method = Some(m);
                 i += 2;
             }
             "-H" | "--header" => {
@@ -363,6 +373,14 @@ mod import_curl_tests {
     #[test]
     fn missing_url_errors() {
         let err = import_curl("curl -X POST").unwrap_err();
+        assert!(matches!(err, RequestsError::Parse { .. }));
+    }
+
+    #[test]
+    fn unknown_explicit_method_errors() {
+        // An explicit -X with an unrecognized method must error rather than
+        // silently downgrading to GET/POST.
+        let err = import_curl("curl -X PURGE https://example.com/x").unwrap_err();
         assert!(matches!(err, RequestsError::Parse { .. }));
     }
 }
