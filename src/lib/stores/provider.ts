@@ -267,13 +267,19 @@ export async function loadJobLog(jobId: number, jobStatus?: string) {
   selectedJobId.set(jobId);
   try {
     const log = await api.getJobLog(jobId);
+    // Staleness guard: a rapid click on another job may have superseded this
+    // request while awaiting. Don't clobber the newer selection's log.
+    if (get(selectedJobId) !== jobId) return;
     jobLog.set(log);
   } catch {
     // GitHub API returns error for running jobs — logs not yet available
+    if (get(selectedJobId) !== jobId) return;
     jobLog.set(null);
     jobLogUnavailable.set(true);
   } finally {
-    loadingJobLog.set(false);
+    if (get(selectedJobId) === jobId) {
+      loadingJobLog.set(false);
+    }
   }
   if (jobStatus === 'running' || jobStatus === 'queued' || jobStatus === 'pending') {
     startJobLogPolling(jobId);

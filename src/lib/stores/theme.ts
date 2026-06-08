@@ -1,5 +1,5 @@
 import { writable, get } from "svelte/store";
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { ThemeData, GraphTheme } from "../types";
 import { getTheme, getUiScale } from "../api/tauri";
@@ -162,11 +162,21 @@ export async function initTheme(themeName: string): Promise<void> {
   }
 }
 
+let unlistenThemeChanged: UnlistenFn | null = null;
+
 export async function listenThemeChanges(): Promise<void> {
-  await listen<ThemeData>("theme-changed", (event) => {
+  // Idempotent: a second call without teardown would leak the prior listener.
+  if (unlistenThemeChanged) return;
+  unlistenThemeChanged = await listen<ThemeData>("theme-changed", (event) => {
     activeTheme.set(event.payload);
     applyTheme(event.payload);
   });
+}
+
+/** Tear down the theme-changed listener (teardown symmetry / HMR safety). */
+export function stopThemeListener(): void {
+  unlistenThemeChanged?.();
+  unlistenThemeChanged = null;
 }
 
 export async function applyUiScale(percent: number): Promise<void> {
