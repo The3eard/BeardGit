@@ -96,6 +96,9 @@ let unlistenConfigChanged: (() => void) | null = null;
 
 /** Start watching AI config directories. Call on AiConfigEditor mount. */
 export async function startConfigWatcher(): Promise<void> {
+  // Idempotent: a re-mount without teardown would leak the previous
+  // ai-config-changed listener and double-arm the Rust watcher.
+  if (unlistenConfigChanged) return;
   await api.aiWatchConfigDirs();
 
   const unlisten = await listen<AiConfigChangeEvent>("ai-config-changed", (event) => {
