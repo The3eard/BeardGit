@@ -89,14 +89,17 @@ impl CiProvider for GitHubProvider {
         page: u32,
     ) -> Result<Vec<CiRun>, ProviderError> {
         let mut path = format!("/repos/{project_ref}/actions/runs?per_page={per_page}&page={page}");
+        // URL-encode filter values: a branch like `feature/a&b` or one
+        // containing `#`/spaces would otherwise inject extra query params or
+        // truncate the query.
         if let Some(ref branch) = filters.branch {
-            path.push_str(&format!("&branch={branch}"));
+            path.push_str(&format!("&branch={}", urlencoding::encode(branch)));
         }
         if let Some(ref status) = filters.status {
-            path.push_str(&format!("&status={status}"));
+            path.push_str(&format!("&status={}", urlencoding::encode(status)));
         }
         if let Some(ref event) = filters.source {
-            path.push_str(&format!("&event={event}"));
+            path.push_str(&format!("&event={}", urlencoding::encode(event)));
         }
 
         let resp: types::WorkflowRunsResponse =

@@ -246,7 +246,7 @@ pub(crate) const MAX_DIFF_PAYLOAD_BYTES: usize = 50 * 1024 * 1024;
 /// this slightly-larger budget lets Rust emit a clean
 /// `ForgeError::Cli("command timed out …")` rather than the frontend
 /// abandoning a still-running child.
-const DIFF_FETCH_TIMEOUT: Duration = Duration::from_secs(20);
+pub(crate) const DIFF_FETCH_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Parse stdout from `gh api repos/…/pulls/{n}/files --paginate` into a
 /// list of [`MrPrDiffFile`]s.

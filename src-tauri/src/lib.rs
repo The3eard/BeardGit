@@ -138,6 +138,7 @@ pub fn run() {
             app_core::commands::search_commits,
             app_core::commands::get_commit_detail,
             app_core::commands::get_status_summary,
+            app_core::commands::get_repo_info,
             app_core::commands::get_commit_files,
             app_core::commands::get_diff_between_commits,
             app_core::commands::get_commit_file_diff,

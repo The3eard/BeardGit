@@ -178,9 +178,10 @@ export async function doCreateTag(name: string, target: string, message: string 
     successToast: () => `Tagged ${name}`,
     failureToastPrefix: "Tag create failed",
   });
-  // Tag list refresh: `refs_changed` via project-mutated. Tags store
-  // is not yet wired into the dispatcher, so we keep the explicit
-  // refreshTags() here until it is.
+  // Refresh immediately so the panel updates without waiting on the
+  // project-mutated round-trip. External tag mutations (e.g. `git tag` from
+  // the terminal) are additionally covered by the dispatcher
+  // (refs_changed → refreshTags in stores/mutations.ts).
   await refreshTags();
 }
 
@@ -199,6 +200,7 @@ export async function doDeleteTag(name: string) {
     selectedCommitFiles.set(null);
     loadingDetail.set(false);
   }
+  // Immediate refresh; external deletions are also covered by the dispatcher.
   await refreshTags();
 }
 

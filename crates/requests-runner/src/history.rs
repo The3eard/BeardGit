@@ -16,6 +16,13 @@ pub fn record(
     result: &ExecutionResult,
     executed_at: i64,
 ) -> Result<i64, RequestsError> {
+    // NOTE: `request` is the fully-RESOLVED request, so any `{{secret}}` that
+    // was expanded from the credential store (e.g. `Authorization: Bearer …`)
+    // is serialized in plaintext into the history DB. This is deliberate — the
+    // history feature replays the exact request that ran, and re-resolving
+    // would fail once the originating env/secret is gone. The history DB is a
+    // local, user-owned store; secrets at rest there share the trust boundary
+    // of the working copy. Do not redact here without also reworking replay.
     let snapshot = serde_json::to_string(request)?;
     let headers = serde_json::to_string(&result.headers)?;
     let id = db.insert_history(HistoryInsert {

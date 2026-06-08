@@ -48,7 +48,7 @@ impl Repository {
         ])?;
 
         if !result.success {
-            return Err(GitError::RepoNotFound(result.stderr));
+            return Err(GitError::CliError(result.stderr));
         }
 
         Ok(result
@@ -81,15 +81,12 @@ impl Repository {
         base_oid: &str,
         actions: &[RebaseAction],
     ) -> Result<(), GitError> {
-        // Build the todo list content.
+        // Build the todo list content. Use the FULL oid — a 7-char prefix can
+        // be ambiguous in large repos, which makes `git rebase -i` abort with
+        // "short SHA1 ... is ambiguous". The frontend already supplies full oids.
         let mut todo = String::new();
         for action in actions {
-            let short_oid = if action.oid.len() > 7 {
-                &action.oid[..7]
-            } else {
-                &action.oid
-            };
-            todo.push_str(&format!("{} {}\n", action.action, short_oid));
+            todo.push_str(&format!("{} {}\n", action.action, action.oid));
         }
 
         // Write todo to a temp file.
@@ -117,7 +114,7 @@ impl Repository {
             // Conflict is not a fatal error — the ConflictToolbar will handle it.
             Ok(())
         } else {
-            Err(GitError::RepoNotFound(result.stderr))
+            Err(GitError::CliError(result.stderr))
         }
     }
 }
@@ -127,12 +124,7 @@ impl Repository {
 fn build_todo(actions: &[RebaseAction]) -> String {
     let mut todo = String::new();
     for action in actions {
-        let short_oid = if action.oid.len() > 7 {
-            &action.oid[..7]
-        } else {
-            &action.oid
-        };
-        todo.push_str(&format!("{} {}\n", action.action, short_oid));
+        todo.push_str(&format!("{} {}\n", action.action, action.oid));
     }
     todo
 }
@@ -241,6 +233,11 @@ mod tests {
         ];
 
         let todo = build_todo(&actions);
-        assert_eq!(todo, "pick abc1234\nsquash def5678\ndrop short\n");
+        // Full OIDs are written verbatim (no 7-char truncation) to avoid
+        // ambiguous-SHA aborts in large repos.
+        assert_eq!(
+            todo,
+            "pick abc1234567890\nsquash def5678901234\ndrop short\n"
+        );
     }
 }

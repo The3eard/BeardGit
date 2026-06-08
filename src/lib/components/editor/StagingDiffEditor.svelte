@@ -25,6 +25,15 @@
   /** Track which lines are selected per hunk: Map<hunkIndex, Set<lineIndex>> */
   let selectedLines = $state(new Map<number, Set<number>>());
 
+  // Reset the selection whenever the diff identity changes. The selection is
+  // keyed by positional indices into diff.hunks[i].lines[j]; the page
+  // re-resolves `diff` from the stores after a mutation WITHOUT remounting
+  // this component, so a stale selection would stage/discard the wrong lines.
+  $effect(() => {
+    void diff;
+    selectedLines = new Map();
+  });
+
   /** Whether a discard confirmation dialog is open. */
   let showDiscardConfirm = $state(false);
 

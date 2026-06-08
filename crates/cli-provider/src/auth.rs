@@ -102,12 +102,20 @@ pub fn check_glab_auth_status(binary_path: &Path) -> CliAuthStatus {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);
             let combined = format!("{stdout}{stderr}");
-            // glab may exit 0 or print "Logged in" even on non-zero
-            let authenticated = output.status.success() || combined.contains("Logged in");
+            // glab prints "✓ Logged in to <host> as <user>" — but also
+            // "✗ Not logged in to <host>". A bare `contains("Logged in")` would
+            // match the negative line too, so require an affirmative
+            // "logged in to" line that isn't a "not logged in" line.
+            let logged_in_line = |l: &&str| {
+                let lower = l.to_ascii_lowercase();
+                lower.contains("logged in to") && !lower.contains("not logged in")
+            };
+            let authenticated =
+                output.status.success() || combined.lines().any(|l| logged_in_line(&l));
             // glab outputs: "Logged in to gitlab.com as USERNAME ..."
             let username = combined
                 .lines()
-                .find(|l| l.contains("Logged in"))
+                .find(logged_in_line)
                 .and_then(|l| l.split("as ").nth(1))
                 .map(|s| s.split_whitespace().next().unwrap_or("").to_string())
                 .filter(|s| !s.is_empty());

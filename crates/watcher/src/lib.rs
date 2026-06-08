@@ -30,7 +30,12 @@ use tauri::AppHandle;
 /// only `refs/` subtree and the `HEAD` file are relevant — these change on
 /// commits, branch creation/deletion, and checkouts.
 fn is_relevant_event(event: &notify_debouncer_mini::DebouncedEvent) -> bool {
-    let path = &event.path;
+    path_is_relevant(&event.path)
+}
+
+/// Pure path classifier behind [`is_relevant_event`] — extracted so the
+/// allowlist can be unit-tested without constructing a `DebouncedEvent`.
+fn path_is_relevant(path: &std::path::Path) -> bool {
     let components: Vec<_> = path.components().collect();
 
     // Find the .git component index
@@ -41,13 +46,17 @@ fn is_relevant_event(event: &notify_debouncer_mini::DebouncedEvent) -> bool {
         return true;
     };
 
-    // Inside .git/ — only allow refs/ and HEAD
+    // Inside .git/ — allow the entries that change on real repo mutations:
+    //  - refs/**, HEAD: commits, branch create/delete, checkout
+    //  - packed-refs: refs packed by gc / fetch / branch -d of a packed ref
+    //  - index: external stage/unstage/reset (writes .git/index only — the
+    //    working tree is untouched, so nothing else in the batch is relevant)
+    //  - FETCH_HEAD / MERGE_HEAD / ORIG_HEAD: fetch / merge / rebase flows
     let after_git: Vec<_> = components[idx + 1..].iter().collect();
-    match after_git.first() {
-        Some(c) if c.as_os_str() == "refs" => true,
-        Some(c) if c.as_os_str() == "HEAD" => true,
-        _ => false,
-    }
+    matches!(
+        after_git.first().and_then(|c| c.as_os_str().to_str()),
+        Some("refs" | "HEAD" | "packed-refs" | "index" | "FETCH_HEAD" | "MERGE_HEAD" | "ORIG_HEAD")
+    )
 }
 
 /// A live filesystem watcher that emits `project-mutated` Tauri events.
@@ -197,5 +206,36 @@ mod emit_tests {
         let after = Snapshot::capture(tmp.path()).unwrap();
         let flags = before.diff(&after);
         assert!(flags.head_changed && flags.refs_changed);
+    }
+}
+
+#[cfg(test)]
+mod filter_tests {
+    use super::path_is_relevant;
+    use std::path::Path;
+
+    #[test]
+    fn working_tree_changes_are_relevant() {
+        assert!(path_is_relevant(Path::new("/repo/src/main.rs")));
+        assert!(path_is_relevant(Path::new("/repo/README.md")));
+    }
+
+    #[test]
+    fn git_internal_allowlist() {
+        // Allowed git-internal entries (incl. the newly-added ones).
+        assert!(path_is_relevant(Path::new("/repo/.git/HEAD")));
+        assert!(path_is_relevant(Path::new("/repo/.git/refs/heads/main")));
+        assert!(path_is_relevant(Path::new("/repo/.git/packed-refs")));
+        assert!(path_is_relevant(Path::new("/repo/.git/index")));
+        assert!(path_is_relevant(Path::new("/repo/.git/FETCH_HEAD")));
+        assert!(path_is_relevant(Path::new("/repo/.git/MERGE_HEAD")));
+        assert!(path_is_relevant(Path::new("/repo/.git/ORIG_HEAD")));
+    }
+
+    #[test]
+    fn git_internal_noise_is_filtered() {
+        assert!(!path_is_relevant(Path::new("/repo/.git/objects/ab/cdef")));
+        assert!(!path_is_relevant(Path::new("/repo/.git/logs/HEAD")));
+        assert!(!path_is_relevant(Path::new("/repo/.git/COMMIT_EDITMSG")));
     }
 }

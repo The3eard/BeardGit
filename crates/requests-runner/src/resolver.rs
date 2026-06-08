@@ -53,6 +53,11 @@ fn expand(
     let mut out = String::new();
     let bytes = s.as_bytes();
     let mut i = 0;
+    // Start of the current literal (non-`{{…}}`) run. Literal text is copied
+    // as UTF-8 `&str` slices — copying byte-by-byte with `byte as char` would
+    // reinterpret each byte of a multibyte sequence as a Latin-1 code point and
+    // mangle any non-ASCII content (e.g. "café" → "cafÃ©").
+    let mut lit_start = 0;
     while i < bytes.len() {
         if i + 1 < bytes.len()
             && bytes[i] == b'{'
@@ -61,10 +66,12 @@ fn expand(
         {
             let name = s[i + 2..end].trim();
             if name.is_empty() {
-                out.push_str(&s[i..i + 2]);
+                // Not a variable — leave the `{{` in the literal run.
                 i += 2;
                 continue;
             }
+            // Flush the literal text before the marker (a char-boundary slice).
+            out.push_str(&s[lit_start..i]);
             if seen.contains(name) {
                 let mut vars: Vec<String> = seen.iter().cloned().collect();
                 vars.push(name.to_string());
@@ -76,11 +83,12 @@ fn expand(
             seen.remove(name);
             out.push_str(&resolved);
             i = end + 2;
+            lit_start = i;
             continue;
         }
-        out.push(bytes[i] as char);
         i += 1;
     }
+    out.push_str(&s[lit_start..]);
     Ok(out)
 }
 
@@ -156,6 +164,24 @@ mod tests {
     fn unresolved_errors() {
         let err = resolve(&req("{{ghost}}"), &ResolveCtx::default()).unwrap_err();
         assert!(matches!(err, RequestsError::UnresolvedVar { .. }));
+    }
+
+    #[test]
+    fn preserves_non_ascii_literal() {
+        // Non-ASCII literal text around a resolved variable must survive intact
+        // (byte-by-byte copying would mangle multibyte UTF-8, e.g. café→cafÃ©).
+        let r = resolve(
+            &req("https://café.example/{{p}}/münchen"),
+            &ctx_with_vars(&[("p", "naïve")]),
+        )
+        .unwrap();
+        assert_eq!(r.url, "https://café.example/naïve/münchen");
+    }
+
+    #[test]
+    fn preserves_non_ascii_in_resolved_value() {
+        let r = resolve(&req("{{v}}"), &ctx_with_vars(&[("v", "Ωμέγα")])).unwrap();
+        assert_eq!(r.url, "Ωμέγα");
     }
 
     #[test]

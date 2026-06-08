@@ -32,6 +32,9 @@ import {
   jobLog,
   hasMoreCiRuns,
   loadingDetail,
+  selectedJobId,
+  jobLogUnavailable,
+  loadingJobLog,
 } from "./provider";
 import { refreshStatuses, clearChangesState } from "./changes";
 import { loadProjectSnapshot, saveCurrentSnapshot, restorePersistedViewport } from "./project-cache";
@@ -312,6 +315,12 @@ async function activateProjectTab(tabIndex: number) {
     jobLog.set(null);
     hasMoreCiRuns.set(false);
     loadingDetail.set(false);
+    // Job-detail state also lives in the provider store — reset it too, or a
+    // stale selectedJobId from the previous project leaves the job-steps view
+    // blank with no signal.
+    selectedJobId.set(null);
+    jobLogUnavailable.set(false);
+    loadingJobLog.set(false);
 
     // Provider + status refreshes in parallel
     await Promise.all([

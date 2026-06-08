@@ -53,7 +53,11 @@ impl Repository {
         tmp.write_all(patch_content.as_bytes())?;
         tmp.flush()?;
 
-        let tmp_path = tmp.path().to_str().unwrap_or("");
+        // Refuse to substitute an empty path (which would make `git apply`
+        // silently read from stdin) when the temp path is non-UTF8.
+        let tmp_path = tmp.path().to_str().ok_or_else(|| {
+            GitError::Io(std::io::Error::other("temp patch path is not valid UTF-8"))
+        })?;
         let mut args = vec!["apply"];
         args.extend(extra_args);
         args.push("--unidiff-zero");
@@ -63,11 +67,28 @@ impl Repository {
         if result.success {
             Ok(())
         } else {
-            Err(GitError::RepoNotFound(format!(
+            Err(GitError::CliError(format!(
                 "git apply failed: {}",
                 result.stderr
             )))
         }
+    }
+}
+
+/// Append one diff line to the patch, preserving the no-trailing-newline state.
+///
+/// libgit2 yields the final line of a file that lacks an EOF newline with no
+/// `\n` in its content (and reports the `\ No newline at end of file` info via
+/// a separate origin that `collect_file_diffs` drops). For such a line we must
+/// re-emit that marker so `git apply` knows the line genuinely has no trailing
+/// newline. Fabricating a bare `\n` instead produces a patch that does not
+/// apply — and, when it does, silently adds a newline that was never there.
+fn push_patch_line(patch: &mut String, line: &DiffLineInfo) {
+    patch.push(line.origin);
+    patch.push_str(&line.content);
+    if !line.content.ends_with('\n') {
+        patch.push('\n');
+        patch.push_str("\\ No newline at end of file\n");
     }
 }
 
@@ -76,7 +97,7 @@ fn find_file_diff<'a>(diffs: &'a [FileDiff], path: &str) -> Result<&'a FileDiff,
     diffs
         .iter()
         .find(|d| d.path == path)
-        .ok_or_else(|| GitError::RepoNotFound(format!("No diff found for: {path}")))
+        .ok_or_else(|| GitError::InvalidArgument(format!("No diff found for: {path}")))
 }
 
 /// Build a valid unified diff patch from selected hunks/lines.
@@ -104,7 +125,7 @@ fn build_patch(
 
     for sel in selections {
         if sel.hunk_index >= diff.hunks.len() {
-            return Err(GitError::RepoNotFound(format!(
+            return Err(GitError::InvalidArgument(format!(
                 "Hunk index {} out of bounds ({})",
                 sel.hunk_index,
                 diff.hunks.len()
@@ -117,11 +138,7 @@ fn build_patch(
                 // Entire hunk selected — emit as-is.
                 patch.push_str(&format_hunk_header(hunk));
                 for line in &hunk.lines {
-                    patch.push(line.origin);
-                    patch.push_str(&line.content);
-                    if !line.content.ends_with('\n') {
-                        patch.push('\n');
-                    }
+                    push_patch_line(&mut patch, line);
                 }
             }
             Some(ranges) => {
@@ -147,11 +164,7 @@ fn build_patch(
                 ));
 
                 for line in &filtered {
-                    patch.push(line.origin);
-                    patch.push_str(&line.content);
-                    if !line.content.ends_with('\n') {
-                        patch.push('\n');
-                    }
+                    push_patch_line(&mut patch, line);
                 }
             }
         }
@@ -437,6 +450,110 @@ mod tests {
         assert!(
             !index_diffs.is_empty(),
             "index should have staged changes from hunk"
+        );
+    }
+
+    /// A diff line whose content lacks a trailing newline (the final line of a
+    /// file with no EOF newline) must emit the literal `\ No newline at end of
+    /// file` trailer, not a fabricated `\n`.
+    #[test]
+    fn test_build_patch_emits_no_newline_marker() {
+        let diff = FileDiff {
+            path: "f.txt".to_string(),
+            old_path: None,
+            status: "modified".to_string(),
+            hunks: vec![DiffHunkInfo {
+                header: "@@ -1,2 +1,2 @@".to_string(),
+                old_start: 1,
+                old_lines: 2,
+                new_start: 1,
+                new_lines: 2,
+                lines: vec![
+                    DiffLineInfo {
+                        origin: ' ',
+                        content: "line1\n".to_string(),
+                        old_lineno: Some(1),
+                        new_lineno: Some(1),
+                    },
+                    // No trailing newline → the EOF-newline marker is required.
+                    DiffLineInfo {
+                        origin: '-',
+                        content: "line2".to_string(),
+                        old_lineno: Some(2),
+                        new_lineno: None,
+                    },
+                    DiffLineInfo {
+                        origin: '+',
+                        content: "CHANGED".to_string(),
+                        old_lineno: None,
+                        new_lineno: Some(2),
+                    },
+                ],
+            }],
+            additions: 1,
+            deletions: 1,
+            truncated: false,
+        };
+        let selections = vec![HunkSelection {
+            hunk_index: 0,
+            line_ranges: None,
+        }];
+        let patch = build_patch("f.txt", &diff, &selections).unwrap();
+
+        // Both changed lines lack a newline, so each is followed by the marker.
+        assert_eq!(
+            patch.matches("\\ No newline at end of file\n").count(),
+            2,
+            "expected one no-newline marker per changed last line:\n{patch}"
+        );
+        // The marker must follow the line it annotates.
+        assert!(patch.contains("-line2\n\\ No newline at end of file\n"));
+        assert!(patch.contains("+CHANGED\n\\ No newline at end of file\n"));
+    }
+
+    /// End-to-end regression: staging the last hunk of a file that has no
+    /// trailing EOF newline must succeed. Before the fix, `build_patch`
+    /// fabricated a `\n` and `git apply --cached` rejected the patch.
+    #[test]
+    fn test_stage_hunk_no_eof_newline_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let git_repo = git2::Repository::init(dir.path()).unwrap();
+        let sig = git2::Signature::now("Test", "test@test.com").unwrap();
+
+        // Commit a file WITHOUT a trailing newline at EOF.
+        fs::write(dir.path().join("f.txt"), "line1\nline2\nline3").unwrap();
+        let mut index = git_repo.index().unwrap();
+        index.add_path(Path::new("f.txt")).unwrap();
+        index.write().unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = git_repo.find_tree(tree_id).unwrap();
+        git_repo
+            .commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .unwrap();
+
+        let repo = Repository::open(dir.path()).unwrap();
+
+        // Edit the last line, still with no trailing newline.
+        fs::write(dir.path().join("f.txt"), "line1\nline2\nCHANGED").unwrap();
+
+        let diffs = repo.diff_workdir().unwrap();
+        let file_diff = diffs.iter().find(|d| d.path == "f.txt").unwrap();
+        assert!(!file_diff.hunks.is_empty());
+
+        // Staging the whole hunk must not error (the patch must apply cleanly).
+        repo.stage_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: None,
+            }],
+        )
+        .expect("staging the last hunk of a no-EOF-newline file should succeed");
+
+        let index_diffs = repo.diff_index().unwrap();
+        assert!(
+            index_diffs.iter().any(|d| d.path == "f.txt"),
+            "the change should now be staged"
         );
     }
 }

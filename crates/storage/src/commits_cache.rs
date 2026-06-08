@@ -48,10 +48,15 @@ impl Database {
         repo_path: &str,
         commits: &[CachedCommit],
     ) -> Result<(), StorageError> {
-        let conn = &self.conn;
-        conn.execute_batch("BEGIN")?;
+        // Use a transaction GUARD rather than manual BEGIN/COMMIT: if any
+        // `stmt.execute(...)?` below fails, the early return drops `tx`, whose
+        // Drop rolls back. The previous manual BEGIN/COMMIT left the
+        // transaction open on error, poisoning the long-lived connection so
+        // every later write failed with "cannot start a transaction within a
+        // transaction". (`unchecked_transaction` because `self` is shared.)
+        let tx = self.conn.unchecked_transaction()?;
         {
-            let mut stmt = conn.prepare(
+            let mut stmt = tx.prepare(
                 "INSERT OR REPLACE INTO commits_cache
                     (repo_path, oid, summary, body, author, email, timestamp, parents, refs)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
@@ -73,7 +78,7 @@ impl Database {
                 ])?;
             }
         }
-        conn.execute_batch("COMMIT")?;
+        tx.commit()?;
         Ok(())
     }
 

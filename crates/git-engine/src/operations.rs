@@ -71,7 +71,8 @@ impl Repository {
     #[instrument(skip(self), fields(branch = %name, force))]
     pub fn delete_branch(&self, name: &str, force: bool) -> Result<(), GitError> {
         let flag = if force { "-D" } else { "-d" };
-        let result = self.git_cmd(&["branch", flag, name])?;
+        // `--` keeps a branch name beginning with `-` from being parsed as a flag.
+        let result = self.git_cmd(&["branch", flag, "--", name])?;
         if result.success {
             Ok(())
         } else {

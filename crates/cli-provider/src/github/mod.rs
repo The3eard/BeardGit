@@ -28,6 +28,10 @@ mod releases;
 mod repo_create;
 mod reviewers;
 
+// Shared diff-fetch hardening constants, reused by the GitLab diff path so
+// both providers apply the same wall-clock and payload caps.
+pub(crate) use mr_pr::{DIFF_FETCH_TIMEOUT, MAX_DIFF_PAYLOAD_BYTES};
+
 /// CLI-backed [`ForgeProvider`] for GitHub (using the bundled `gh` binary).
 pub struct GitHubCli {
     /// Absolute path to the `gh` binary.

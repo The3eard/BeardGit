@@ -28,13 +28,13 @@ impl GitLabClient {
             path.push_str(&format!("&ref={}", urlencoding::encode(r)));
         }
         if let Some(s) = scope {
-            path.push_str(&format!("&scope={s}"));
+            path.push_str(&format!("&scope={}", urlencoding::encode(s)));
         }
         if let Some(s) = source {
-            path.push_str(&format!("&source={s}"));
+            path.push_str(&format!("&source={}", urlencoding::encode(s)));
         }
         if let Some(s) = status {
-            path.push_str(&format!("&status={s}"));
+            path.push_str(&format!("&status={}", urlencoding::encode(s)));
         }
         self.get(&path).await
     }

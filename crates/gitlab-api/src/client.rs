@@ -55,7 +55,14 @@ impl GitLabClient {
         if http_helpers::should_accept_invalid_certs(trimmed) {
             builder = builder.danger_accept_invalid_certs(true);
         }
-        let http = builder.build().unwrap_or_else(|_| reqwest::Client::new());
+        // The fallback must still carry a timeout — a default `Client::new()`
+        // has none and could hang indefinitely on a stalled connection.
+        let http = builder.build().unwrap_or_else(|_| {
+            reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new())
+        });
 
         Self {
             http,

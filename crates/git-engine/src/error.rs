@@ -40,4 +40,10 @@ pub enum GitError {
     /// working tree.
     #[error("invalid path: {0}")]
     InvalidPath(String),
+    /// A caller-supplied argument was invalid (e.g. an unrecognised reset
+    /// mode or an out-of-bounds hunk index). Distinct from
+    /// [`GitError::CliError`], which is reserved for a non-zero exit of the
+    /// system `git` binary.
+    #[error("invalid argument: {0}")]
+    InvalidArgument(String),
 }
