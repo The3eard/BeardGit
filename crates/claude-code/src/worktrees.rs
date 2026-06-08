@@ -45,10 +45,18 @@ pub fn list_worktrees(repo_path: &Path) -> Result<Vec<AiWorktree>, AiError> {
 }
 
 /// Remove a worktree and delete its branch.
+///
+/// Both git commands are run with `current_dir` set to the OWNING repo's main
+/// worktree. They are repo-relative — especially `git branch -D` — so without
+/// a cwd they would inherit the application process's cwd and either fail
+/// ("not a git repository") or, worse, delete a same-named branch in whatever
+/// unrelated repo happened to be the cwd (data loss).
 pub fn cleanup_worktree(worktree: &AiWorktree) -> Result<(), AiError> {
     let path_str = worktree.path.to_string_lossy();
+    let main_repo = main_worktree_dir(&worktree.path)?;
 
     let output = Command::new("git")
+        .current_dir(&main_repo)
         .args(["worktree", "remove", &path_str, "--force"])
         .output()?;
 
@@ -60,6 +68,7 @@ pub fn cleanup_worktree(worktree: &AiWorktree) -> Result<(), AiError> {
     }
 
     let output = Command::new("git")
+        .current_dir(&main_repo)
         .args(["branch", "-D", &worktree.branch])
         .output()?;
 
@@ -71,6 +80,32 @@ pub fn cleanup_worktree(worktree: &AiWorktree) -> Result<(), AiError> {
     }
 
     Ok(())
+}
+
+/// Resolve the main working directory of the repository that owns
+/// `worktree_path`. `git worktree list --porcelain` always lists the main
+/// worktree first, so its path is the repo root we must run cleanup from.
+fn main_worktree_dir(worktree_path: &Path) -> Result<PathBuf, AiError> {
+    let output = Command::new("git")
+        .current_dir(worktree_path)
+        .args(["worktree", "list", "--porcelain"])
+        .output()
+        .map_err(|e| AiError::CommandBuild(format!("git worktree list failed: {e}")))?;
+
+    if !output.status.success() {
+        return Err(AiError::CommandBuild(format!(
+            "could not resolve owning repo for worktree {}: {}",
+            worktree_path.display(),
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_porcelain_output(&stdout)
+        .into_iter()
+        .next()
+        .map(|e| e.path)
+        .ok_or_else(|| AiError::CommandBuild("no main worktree found".into()))
 }
 
 /// Parse `git worktree list --porcelain` output into entries.
@@ -178,5 +213,58 @@ branch refs/heads/worktree-ai-task
             branch: "worktree-test".into(),
         };
         assert_eq!(determine_status(&entry), WorktreeStatus::Orphaned);
+    }
+
+    /// Regression: cleanup must run in the OWNING repo (resolved from the
+    /// worktree), not the process cwd — so the branch is deleted in the right
+    /// place. The test process cwd is not `main`, so this would mis-delete (or
+    /// fail) before the `current_dir` fix.
+    #[test]
+    fn cleanup_worktree_removes_worktree_and_branch_in_owning_repo() {
+        let git = |args: &[&str], cwd: &Path| {
+            Command::new("git")
+                .current_dir(cwd)
+                .args(args)
+                .output()
+                .unwrap()
+        };
+        let tmp = tempfile::tempdir().unwrap();
+        let main = tmp.path().join("main");
+        std::fs::create_dir(&main).unwrap();
+        git(&["init", "-q"], &main);
+        git(&["config", "user.email", "t@t.com"], &main);
+        git(&["config", "user.name", "t"], &main);
+        std::fs::write(main.join("f.txt"), "x").unwrap();
+        git(&["add", "."], &main);
+        git(&["commit", "-qm", "init"], &main);
+
+        let wt = tmp.path().join("wt");
+        git(
+            &[
+                "worktree",
+                "add",
+                "-b",
+                "worktree-test",
+                wt.to_str().unwrap(),
+            ],
+            &main,
+        );
+        assert!(wt.is_dir(), "worktree should be created");
+
+        let aiwt = AiWorktree {
+            path: wt.clone(),
+            branch: "worktree-test".into(),
+            provider: AiProviderKind::ClaudeCode,
+            session_id: None,
+            status: WorktreeStatus::Clean,
+        };
+        cleanup_worktree(&aiwt).expect("cleanup should succeed");
+
+        assert!(!wt.exists(), "worktree dir should be removed");
+        let branches = git(&["branch", "--list", "worktree-test"], &main);
+        assert!(
+            String::from_utf8_lossy(&branches.stdout).trim().is_empty(),
+            "branch must be deleted in the owning repo"
+        );
     }
 }

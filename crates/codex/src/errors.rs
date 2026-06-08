@@ -27,20 +27,40 @@ pub fn classify_stderr(stderr: &str) -> Option<AiError> {
         || lower.contains("please run codex login")
         || lower.contains("authentication required")
         || lower.contains("unauthorized")
-        || lower.contains("401")
+        || mentions_http_status(&lower, "401")
     {
         return Some(AiError::AuthExpired(first_line_or_stderr(stderr)));
     }
 
     if lower.contains("rate limit")
         || lower.contains("too many requests")
-        || lower.contains("429")
+        || mentions_http_status(&lower, "429")
         || lower.contains("quota")
     {
         return Some(AiError::RateLimited(first_line_or_stderr(stderr)));
     }
 
     None
+}
+
+/// Match an HTTP status `code` only when it appears in a status-ish context.
+/// A bare `401`/`429` shows up routinely in byte counts, ports, durations,
+/// and timestamps, so matching the raw substring misclassifies unrelated
+/// failures as auth/rate-limit errors.
+fn mentions_http_status(lower: &str, code: &str) -> bool {
+    [
+        format!("http {code}"),
+        format!("http/1.1 {code}"),
+        format!("http/2 {code}"),
+        format!("status {code}"),
+        format!("status: {code}"),
+        format!("status code {code}"),
+        format!("code {code}"),
+        format!("({code})"),
+        format!("[{code}]"),
+    ]
+    .iter()
+    .any(|p| lower.contains(p.as_str()))
 }
 
 /// Classify the stderr and fall back to `Other` on unknown output.
