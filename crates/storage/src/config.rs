@@ -432,7 +432,14 @@ impl AppConfig {
             std::fs::create_dir_all(parent)?;
         }
         let content = serde_json::to_string_pretty(self)?;
-        std::fs::write(path, content)?;
+        // Atomic write: serialize to a sibling temp file then rename over the
+        // target. `std::fs::write` truncates first, so a crash/power-loss
+        // mid-write would otherwise leave settings.json empty or half-written;
+        // rename on the same directory is atomic and never exposes a partial
+        // file.
+        let tmp = path.with_extension("json.tmp");
+        std::fs::write(&tmp, content)?;
+        std::fs::rename(&tmp, path)?;
         Ok(())
     }
 }

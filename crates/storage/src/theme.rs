@@ -918,6 +918,12 @@ pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
     if graph.lane_colors.len() < 2 {
         return Err(ThemeError::InsufficientLaneColors);
     }
+    // The user-supplied `[graph] lane-colors` array is merged without per-entry
+    // validation otherwise, so an invalid hex would reach the frontend. Reject
+    // it here (load_user_themes filters out themes that fail to parse).
+    for (i, c) in graph.lane_colors.iter().enumerate() {
+        validate_color(&format!("graph.lane_colors[{i}]"), c)?;
+    }
 
     // Derive editor from base palette + derived, then merge overrides
     let mut editor = derive_editor(&colors, &derived, is_dark);
