@@ -8,6 +8,7 @@
   import StagingArea from "$lib/components/changes/StagingArea.svelte";
   import DiffEditor from "$lib/components/editor/DiffEditor.svelte";
   import StagingDiffEditor from "$lib/components/editor/StagingDiffEditor.svelte";
+  import ResizableDiffPanel from "$lib/components/editor/ResizableDiffPanel.svelte";
   import LazyComponent from "$lib/components/common/LazyComponent.svelte";
   import EmptyState from "$lib/components/common/EmptyState.svelte";
   import { repoInfo, isLoading, error } from "$lib/stores/repo";
@@ -122,11 +123,8 @@
     return diffs.find(d => d.path === selectedStagingFile!.filename) ?? null;
   });
   let registeredShortcutIds: string[] = [];
-  const DIFF_PANEL_DEFAULT_HEIGHT = 250;
   const CHANGES_SIDEBAR_DEFAULT_WIDTH = 320;
-  let diffPanelHeight = $state(DIFF_PANEL_DEFAULT_HEIGHT);
   let changesSidebarWidth = $state(CHANGES_SIDEBAR_DEFAULT_WIDTH);
-  let isDraggingDiff = $state(false);
   let isDraggingChanges = $state(false);
   let sidebarCollapsed = $state(false);
   let recentRepos = $state<{ path: string; name: string }[]>([]);
@@ -146,47 +144,6 @@
     return () => { cancelled = true; };
   });
 
-  function startDiffResize(e: MouseEvent) {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startHeight = diffPanelHeight;
-    isDraggingDiff = true;
-
-    function onMouseMove(e: MouseEvent) {
-      const delta = startY - e.clientY; // dragging up increases height
-      const container = document.querySelector('.graph-with-diff') as HTMLElement;
-      const maxH = container ? container.clientHeight * 0.6 : 500;
-      diffPanelHeight = Math.max(150, Math.min(maxH, startHeight + delta));
-    }
-
-    function onMouseUp() {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      isDraggingDiff = false;
-    }
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  }
-
-  function resetDiffPanelHeight() {
-    diffPanelHeight = DIFF_PANEL_DEFAULT_HEIGHT;
-  }
-
-  function handleDiffResizeKeys(e: KeyboardEvent) {
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      const container = document.querySelector(".graph-with-diff") as HTMLElement | null;
-      const maxH = container ? container.clientHeight * 0.6 : 500;
-      diffPanelHeight = Math.min(maxH, diffPanelHeight + 20);
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      diffPanelHeight = Math.max(150, diffPanelHeight - 20);
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      resetDiffPanelHeight();
-    }
-  }
 
   function startChangesSidebarResize(e: MouseEvent) {
     e.preventDefault();
@@ -948,11 +905,7 @@
             <BranchView />
           </div>
           {#if $branchFileDiff}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
-            <div class="diff-panel" style="height: {diffPanelHeight}px">
+            <ResizableDiffPanel>
               <DiffEditor
                 oldContent={$branchFileDiff.oldContent}
                 newContent={$branchFileDiff.newContent}
@@ -962,7 +915,7 @@
                 isDark={$activeTheme?.meta.mode !== 'light'}
                 onClose={() => branchFileDiff.set(null)}
               />
-            </div>
+            </ResizableDiffPanel>
           {/if}
         </div>
       {:else if activeView === "worktrees"}
@@ -980,11 +933,7 @@
             />
           </div>
           {#if $reflogFileDiff}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
-            <div class="diff-panel" style="height: {diffPanelHeight}px">
+            <ResizableDiffPanel>
               <DiffEditor
                 oldContent={$reflogFileDiff.oldContent}
                 newContent={$reflogFileDiff.newContent}
@@ -994,7 +943,7 @@
                 isDark={$activeTheme?.meta.mode !== 'light'}
                 onClose={() => reflogFileDiff.set(null)}
               />
-            </div>
+            </ResizableDiffPanel>
           {/if}
         </div>
       {:else if activeView === "submodules"}
@@ -1016,13 +965,9 @@
             <MrPrView onFileClick={handlePrFileClick} />
           </div>
           {#if $prFileDiff || $loadingPrFileDiff || $prFileDiffError}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
-            <div class="diff-panel" style="height: {diffPanelHeight}px">
+            <ResizableDiffPanel loading={$loadingPrFileDiff}>
               {#if $loadingPrFileDiff}
-                <div class="diff-panel-loading"><div class="spinner"></div></div>
+                <div class="spinner"></div>
               {:else if $prFileDiffError}
                 <div class="diff-error" role="alert">{$prFileDiffError}</div>
               {:else if $prFileDiff}
@@ -1046,7 +991,7 @@
                   {/snippet}
                 </DiffEditor>
               {/if}
-            </div>
+            </ResizableDiffPanel>
           {/if}
         </div>
       {:else if activeView === "issues"}
@@ -1099,11 +1044,7 @@
               <div class="graph-area">
                 <GitGraph />
               </div>
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
-              <div class="diff-panel" style="height: {diffPanelHeight}px">
+              <ResizableDiffPanel>
                 <DiffEditor
                   oldContent={$fileDiffPanel.oldContent}
                   newContent={$fileDiffPanel.newContent}
@@ -1113,20 +1054,16 @@
                   isDark={$activeTheme?.meta.mode !== 'light'}
                   onClose={closeFileDiff}
                 />
-              </div>
+              </ResizableDiffPanel>
             </div>
           {:else if $loadingFileDiff}
             <div class="graph-with-diff">
               <div class="graph-area">
                 <GitGraph />
               </div>
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-            <div class="diff-resize-handle" class:is-dragging={isDraggingDiff} role="separator" aria-orientation="horizontal" aria-label={m.resize_diff_panel()} tabindex="0" onmousedown={startDiffResize} ondblclick={resetDiffPanelHeight} onkeydown={handleDiffResizeKeys}></div>
-              <div class="diff-panel diff-panel-loading" style="height: {diffPanelHeight}px">
+              <ResizableDiffPanel loading>
                 <div class="spinner"></div>
-              </div>
+              </ResizableDiffPanel>
             </div>
           {:else}
             <GitGraph />
@@ -1497,35 +1434,6 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-  }
-
-  .diff-resize-handle {
-    height: 4px;
-    cursor: row-resize;
-    background: transparent;
-    transition: background 0.15s;
-    flex-shrink: 0;
-    border-top: 1px solid var(--border);
-  }
-
-  .diff-resize-handle:hover {
-    background: var(--overlay-accent-blue);
-  }
-
-  .diff-resize-handle.is-dragging {
-    background: var(--accent-primary);
-  }
-
-  .diff-panel {
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .diff-panel-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-top: 1px solid var(--border);
   }
 
   .nav-btn {
