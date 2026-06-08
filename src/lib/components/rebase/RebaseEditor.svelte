@@ -114,7 +114,11 @@
 
     const updated = [...entries];
     const [moved] = updated.splice(dragIndex, 1);
-    updated.splice(targetIndex, 0, moved);
+    // When dragging DOWN, removing the source first shifts the target up by
+    // one, so insert at targetIndex - 1 to land where the drop indicator
+    // showed (upward drags are unaffected).
+    const insertAt = dragIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    updated.splice(insertAt, 0, moved);
     entries = updated;
 
     dragIndex = null;
@@ -130,7 +134,19 @@
     entries = entries.map((e, i) => (i === index ? { ...e, action } : e));
   }
 
+  /** The first non-dropped entry — git requires it to be pick/edit/reword. */
+  const firstKept = $derived(entries.find((e) => e.action !== "drop"));
+  /** Index of that entry, so the UI can disable squash/fixup on its row. */
+  const firstKeptIndex = $derived(entries.findIndex((e) => e.action !== "drop"));
+
   async function handleStart() {
+    // git rejects a todo whose first non-dropped line is squash/fixup
+    // ("cannot 'squash' without a previous commit"). Catch it here with a
+    // clear message instead of surfacing the raw git error after the attempt.
+    if (firstKept && (firstKept.action === "squash" || firstKept.action === "fixup")) {
+      error = m.rebase_first_squash_error();
+      return;
+    }
     submitting = true;
     try {
       const actions: RebaseAction[] = entries.map((e) => ({
@@ -189,7 +205,11 @@
                 onchange={(e) => setAction(i, (e.target as HTMLSelectElement).value as RebaseActionType)}
               >
                 {#each ACTION_OPTIONS as opt}
-                  <option value={opt}>{actionLabel(opt)}</option>
+                  <option
+                    value={opt}
+                    disabled={i === firstKeptIndex &&
+                      (opt === "squash" || opt === "fixup")}
+                  >{actionLabel(opt)}</option>
                 {/each}
               </select>
 

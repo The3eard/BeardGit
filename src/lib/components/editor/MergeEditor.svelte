@@ -412,7 +412,16 @@
     resultView.dispatch({ effects: setMergeHighlights.of(centerHighlights) });
   }
 
-  import { untrack } from 'svelte';
+  import { untrack, onDestroy } from 'svelte';
+
+  // Inputs the editors were last built from. A theme / dark-mode flip
+  // re-fires the mount effect, but rebuilding would reset `resolvedConflicts`
+  // and the merged result — wiping the user's in-progress resolution. We only
+  // rebuild when the merge inputs themselves change.
+  let mountedOurs: string | undefined;
+  let mountedTheirs: string | undefined;
+  let mountedBase: string | undefined;
+  let mountedFile: string | undefined;
 
   // ---------------------------------------------------------------------------
   // SVG connectors
@@ -782,14 +791,17 @@
    * content / theme props change.
    */
   $effect(() => {
-
     // Read reactive deps so the effect re-runs on change.
     const _ours = ours;
     const _theirs = theirs;
     const _base = base;
     const _file = filename;
-    const _theme = editorTheme;
-    const _dark = isDark;
+    // Theme/dark are tracked so a later real rebuild picks up the current
+    // theme, but they intentionally do NOT trigger a rebuild on their own (see
+    // the guard below). Live theme updates in an open merge are sacrificed to
+    // preserve the in-progress resolution.
+    void editorTheme;
+    void isDark;
     // DOM refs must be reactive so the effect re-runs after mount.
     const _thEl = theirsEl;
     const _rEl = resultEl;
@@ -797,16 +809,36 @@
 
     if (!_thEl || !_rEl || !_oEl) return;
 
-    initEditors();
+    // Rebuild ONLY when the merge inputs change. A theme / dark-mode flip
+    // re-fires this effect; rebuilding then would call initEditors(), which
+    // resets `resolvedConflicts` and rebuilds the merged doc — silently
+    // discarding the user's accepted hunks and manual edits.
+    if (
+      theirsView &&
+      _ours === mountedOurs &&
+      _theirs === mountedTheirs &&
+      _base === mountedBase &&
+      _file === mountedFile
+    ) {
+      return;
+    }
 
-    return () => {
-      theirsView?.destroy();
-      resultView?.destroy();
-      oursView?.destroy();
-      theirsView = undefined;
-      resultView = undefined;
-      oursView = undefined;
-    };
+    mountedOurs = _ours;
+    mountedTheirs = _theirs;
+    mountedBase = _base;
+    mountedFile = _file;
+    untrack(() => initEditors());
+  });
+
+  // Final teardown on unmount. (The mount effect no longer returns a teardown
+  // — that would destroy the views on every theme/dark re-fire.)
+  onDestroy(() => {
+    theirsView?.destroy();
+    resultView?.destroy();
+    oursView?.destroy();
+    theirsView = undefined;
+    resultView = undefined;
+    oursView = undefined;
   });
 </script>
 
