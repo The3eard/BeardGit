@@ -71,7 +71,14 @@ impl GitHubClient {
         if http_helpers::should_accept_invalid_certs(&normalized) {
             builder = builder.danger_accept_invalid_certs(true);
         }
-        let http = builder.build().unwrap_or_else(|_| reqwest::Client::new());
+        // The fallback must still carry a timeout — a default `Client::new()`
+        // has none and could hang indefinitely on a stalled connection.
+        let http = builder.build().unwrap_or_else(|_| {
+            reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new())
+        });
 
         Self {
             http,
@@ -136,9 +143,12 @@ impl GitHubClient {
             .send()
             .await?;
 
-        Self::check_rate_limit(&resp)?;
-
         if !resp.status().is_success() {
+            // Only treat a quota-exhausted response as RateLimited on an error
+            // status — a 2xx that happens to consume the last quota unit
+            // (x-ratelimit-remaining: 0) is a successful fetch and must return
+            // its data rather than being discarded as a failure.
+            Self::check_rate_limit(&resp)?;
             let status = resp.status().as_u16();
             let message = resp.text().await.unwrap_or_default();
             return Err(ApiError::Api { status, message });
@@ -164,8 +174,9 @@ impl GitHubClient {
             .send()
             .await?;
 
-        Self::check_rate_limit(&resp)?;
         if !resp.status().is_success() {
+            // See `get`: only a non-2xx response is treated as rate-limited.
+            Self::check_rate_limit(&resp)?;
             let status = resp.status().as_u16();
             let message = resp.text().await.unwrap_or_default();
             return Err(ApiError::Api { status, message });
@@ -185,9 +196,12 @@ impl GitHubClient {
             .send()
             .await?;
 
-        Self::check_rate_limit(&resp)?;
-
         if !resp.status().is_success() {
+            // Only treat a quota-exhausted response as RateLimited on an error
+            // status — a 2xx that happens to consume the last quota unit
+            // (x-ratelimit-remaining: 0) is a successful fetch and must return
+            // its data rather than being discarded as a failure.
+            Self::check_rate_limit(&resp)?;
             let status = resp.status().as_u16();
             let message = resp.text().await.unwrap_or_default();
             return Err(ApiError::Api { status, message });
