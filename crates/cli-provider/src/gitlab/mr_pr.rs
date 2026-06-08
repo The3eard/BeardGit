@@ -73,10 +73,28 @@ impl GitLabCli {
     }
 
     pub(super) fn get_mr_pr_diff_impl(&self, number: u64) -> Result<Vec<MrPrDiffFile>, ForgeError> {
-        let raw: Vec<serde_json::Value> = self.run_json(&[
-            "api",
-            &format!("projects/:id/merge_requests/{number}/diffs"),
-        ])?;
+        // `--paginate` so an MR touching > 20 files isn't silently truncated
+        // (the /diffs endpoint defaults to 20 per page and glab does not
+        // auto-paginate). The wall-clock + payload caps mirror the GitHub path
+        // so a huge MR can't hang the subprocess or feed an unbounded string
+        // into serde_json.
+        let stdout = self.run_with_timeout(
+            &[
+                "api",
+                &format!("projects/:id/merge_requests/{number}/diffs"),
+                "--paginate",
+            ],
+            crate::github::DIFF_FETCH_TIMEOUT,
+        )?;
+        let cap = crate::github::MAX_DIFF_PAYLOAD_BYTES;
+        if stdout.len() > cap {
+            return Err(ForgeError::Cli(format!(
+                "diff payload too large ({} bytes, cap {cap})",
+                stdout.len()
+            )));
+        }
+        let raw: Vec<serde_json::Value> =
+            serde_json::from_str(&stdout).map_err(|e| ForgeError::Cli(e.to_string()))?;
         Ok(raw
             .iter()
             .map(|f| {

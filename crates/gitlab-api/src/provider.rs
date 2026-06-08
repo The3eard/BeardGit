@@ -88,10 +88,10 @@ impl CiProvider for GitLabProvider {
             path.push_str(&format!("&ref={}", urlencoding::encode(branch)));
         }
         if let Some(ref status) = filters.status {
-            path.push_str(&format!("&status={status}"));
+            path.push_str(&format!("&status={}", urlencoding::encode(status)));
         }
         if let Some(ref source) = filters.source {
-            path.push_str(&format!("&source={source}"));
+            path.push_str(&format!("&source={}", urlencoding::encode(source)));
         }
 
         let pipelines: Vec<types::Pipeline> =

@@ -69,6 +69,17 @@ impl GitLabCli {
         runner::run_with_stdin(&self.binary_path, &self.repo_path, args, stdin_data)
             .map_err(Into::into)
     }
+
+    /// Run `glab` with a hard wall-clock cap. See [`runner::run_with_timeout`]
+    /// for the kill-on-timeout semantics. Used by the diff fetch path.
+    pub(super) fn run_with_timeout(
+        &self,
+        args: &[&str],
+        timeout: std::time::Duration,
+    ) -> Result<String, ForgeError> {
+        runner::run_with_timeout(&self.binary_path, &self.repo_path, args, timeout)
+            .map_err(Into::into)
+    }
 }
 
 impl ForgeProvider for GitLabCli {

@@ -67,36 +67,30 @@ fn preprocess_gitlab_line(line: &str) -> Option<String> {
 
     // Try to parse: ISO_TIMESTAMP STREAM_CODE CONTENT
     // Timestamp is 27 chars: 2026-04-01T11:08:41.057014Z
-    if cleaned.len() >= 31 {
-        let ts = &cleaned[..27];
-        if ts.len() >= 19
-            && ts.as_bytes().get(4) == Some(&b'-')
-            && ts.as_bytes().get(10) == Some(&b'T')
-        {
-            let time = &ts[11..19]; // HH:MM:SS
-            if time.as_bytes().get(2) == Some(&b':') && time.as_bytes().get(5) == Some(&b':') {
-                // Skip space + stream code (00O, 01E, 00O+, etc.)
-                let rest = &cleaned[28..];
-                // Stream code is 3–4 alphanumeric chars possibly followed by '+'
-                let content_start = rest
-                    .find(|c: char| !c.is_ascii_alphanumeric() && c != '+')
-                    .unwrap_or(rest.len())
-                    .max(3);
-                let content = if content_start < rest.len() {
-                    rest[content_start..].trim_start()
-                } else {
-                    ""
-                };
-                if content.is_empty() {
-                    return None;
-                }
-                // Check for section markers in extracted content too.
-                if content.starts_with("section_start:") || content.starts_with("section_end:") {
-                    return None;
-                }
-                return Some(format!("{} {}", time, content));
-            }
+    // Use `get(..)` (not byte indexing) so a non-ASCII line whose bytes don't
+    // land on char boundaries falls through to passthrough instead of panicking.
+    if let Some(ts) = cleaned.get(..27)
+        && let Some(rest) = cleaned.get(28..)
+        && ts.as_bytes().get(4) == Some(&b'-')
+        && ts.as_bytes().get(10) == Some(&b'T')
+        && let Some(time) = ts.get(11..19)
+        && time.as_bytes().get(2) == Some(&b':')
+        && time.as_bytes().get(5) == Some(&b':')
+    {
+        // Stream code is 3–4 alphanumeric chars possibly followed by '+'.
+        let content_start = rest
+            .find(|c: char| !c.is_ascii_alphanumeric() && c != '+')
+            .unwrap_or(rest.len())
+            .max(3);
+        let content = rest.get(content_start..).map_or("", str::trim_start);
+        if content.is_empty() {
+            return None;
         }
+        // Check for section markers in extracted content too.
+        if content.starts_with("section_start:") || content.starts_with("section_end:") {
+            return None;
+        }
+        return Some(format!("{} {}", time, content));
     }
 
     // No timestamp — pass through as-is (e.g. bare ANSI output).
@@ -129,19 +123,19 @@ fn preprocess_github_line(line: &str) -> Option<String> {
         return Some(format!("\x1b[33;1m{}\x1b[0m", msg));
     }
 
-    // Try to strip ISO timestamp prefix.
-    if line.len() > 28
-        && line.as_bytes().get(4) == Some(&b'-')
+    // Try to strip ISO timestamp prefix. `get(..)` keeps a non-ASCII line from
+    // panicking on a byte index that isn't a char boundary.
+    if line.as_bytes().get(4) == Some(&b'-')
         && line.as_bytes().get(10) == Some(&b'T')
+        && let Some(time) = line.get(11..19)
+        && time.as_bytes().get(2) == Some(&b':')
+        && let Some(rest) = line.get(28..)
     {
-        let time = &line[11..19];
-        if time.as_bytes().get(2) == Some(&b':') {
-            let rest = line[28..].trim_start();
-            if rest.is_empty() {
-                return None;
-            }
-            return Some(format!("{} {}", time, rest));
+        let rest = rest.trim_start();
+        if rest.is_empty() {
+            return None;
         }
+        return Some(format!("{} {}", time, rest));
     }
 
     Some(line.to_string())
@@ -158,6 +152,29 @@ mod tests {
         assert!(result.starts_with("11:08:41"));
         assert!(result.contains("\x1b[32;1m")); // ANSI preserved
         assert!(result.contains("Job succeeded"));
+    }
+
+    #[test]
+    fn test_gitlab_non_ascii_at_boundary_does_not_panic() {
+        // 27-char ASCII timestamp immediately followed by a multibyte char, so
+        // byte 28 lands mid-character. Byte-index slicing would panic here.
+        let line = "2026-04-01T11:08:41.057014Z日本語のログ";
+        assert!(preprocess_gitlab_line(line).is_some());
+    }
+
+    #[test]
+    fn test_gitlab_non_ascii_content_extracted() {
+        let line = "2026-04-01T11:08:41.057014Z 00O Lánzate 日本語 ✓";
+        let result = preprocess_gitlab_line(line).unwrap();
+        assert!(result.starts_with("11:08:41"));
+        assert!(result.contains("日本語"));
+        assert!(result.contains('✓'));
+    }
+
+    #[test]
+    fn test_github_non_ascii_at_boundary_does_not_panic() {
+        let line = "2026-04-01T11:08:41.000000Z日本語ログ output";
+        assert!(preprocess_github_line(line).is_some());
     }
 
     #[test]
