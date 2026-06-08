@@ -2,6 +2,34 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [0.1.14] — Audit hardening pass + a resizable, selectable diff panel — 2026-06-08
+
+A multi-agent code audit swept the whole workspace (20 Rust crates + the Svelte frontend) and surfaced 5 high-severity issues plus a long tail of medium/low findings. This release closes the high-severity set and the high-value remainder, each with a regression test, alongside one user-facing feature and a security dependency bump. The full CI gate (`cargo fmt`/`clippy`/`test` across the workspace, `svelte-check`, `vitest`, `stylelint`+`eslint`) is green.
+
+### The bottom diff panel is now resizable on both axes — and selectable
+
+The diff panel that hangs below the graph, branch, reflog and PR/MR views gained two ergonomic wins. Its drag-to-resize ceiling moved from 60% of the surrounding container to **4/5 of the window height**, so a tall diff can actually fill the screen, while a guard keeps the view above it from collapsing below 80px. It also picked up a **horizontal** resize handle on its right edge — a flex sibling outside the panel, so it never sits on top of the diff's own scrollbar — letting you narrow the panel and reclaim width. Both dimensions persist across view switches via a small `diffPanelSize` store, and the whole thing is now a single reusable `ResizableDiffPanel` component instead of the handle markup that had been copy-pasted across five call sites. And the long-standing annoyance that **you couldn't select text in a diff** is fixed: the global `user-select: none` (which suppresses the native context menu) never re-enabled selection on the read-only CodeMirror diff content, so the allow-list in `app.css` now covers `.cm-content` and the staging diff's `.line-content`. Copying a line out of a diff just works.
+
+### Audit — correctness & data-integrity
+
+The headline fix: **partial hunk staging corrupted patches for files with no trailing newline at EOF.** `build_patch` fabricated a `\n` on the final line and `collect_file_diffs` dropped libgit2's `\ No newline at end of file` marker, so staging, unstaging, *or discarding* the last hunk of such a file produced a patch `git apply` rejected outright (surfaced as a generic failure). The marker is now preserved end-to-end, verified with a no-EOF-newline staging roundtrip test.
+
+A plain **checkout to an existing branch never refreshed the UI.** Such a checkout moves only the symbolic HEAD (`head_changed`, but `refs_changed` stays false because the symbolic HEAD carries no OID in the snapshot ref map), and the mutation dispatcher only refreshed branches/graph on `refs_changed` — leaving the sidebar highlighting the old branch, the graph HEAD marker stale, and the title bar showing the wrong branch. The dispatcher now refreshes the branch list, graph, reflog and a freshly-added `get_repo_info` on any HEAD move, and external `git tag` mutations finally refresh the tags store.
+
+The **merge editor silently discarded in-progress conflict resolution on a theme or dark-mode flip** — the mount effect rebuilt all three views (resetting accepted hunks + manual edits) whenever the theme changed, which an OS auto dark/light switch triggers on its own. It now rebuilds only when the merge inputs change. `switch_project` no longer strands the previous tab with `repo = None` when loading the target fails (it defers the unload until the load succeeds), the staging diff resets its line selection when the underlying diff refreshes (so a stale positional selection can't stage the wrong lines), `ConflictToolbar` keeps the editor open and toasts on a failed resolve-write instead of closing as if resolved, and interactive rebase blocks squash/fixup on the first commit and fixes a drag-reorder off-by-one.
+
+### Audit — security hardening
+
+The markdown sanitiser's `javascript:` filter was **bypassable via HTML-entity or whitespace obfuscation** (`java&#115;cript:`, `java&Tab;script:`) — and its output is injected via `{@html}` into attacker-controllable PR/MR, release and issue bodies inside the IPC-privileged webview. It now decodes entities + strips whitespace and **allow-lists URL schemes** (http/https/mailto) on `href`/`src` rather than denying one. The Requests `.http` engine's SSRF screen now checks the *resolved* IP (closing DNS-rebinding + public-name-to-private-IP) and canonicalises IPv4-mapped IPv6 (`::ffff:127.0.0.1`), the project-scoped Requests file commands reject `..` path-traversal, and the AI-config path validator no longer creates directories before its scope check (and resolves `..` lexically). git ref/oid arguments (merge/rebase/cherry-pick/revert/tag/branch) now sit after a `--` separator so a leading-dash value can't be reparsed as a flag, and the AI-terminal launches that the earlier shell allowlist had broken now run through a dedicated trusted spawn path (the allowlist still guards webview-originated spawns).
+
+### Audit — robustness, resources & UTF-8
+
+Killed terminals are now reaped (`kill`/`wait`) instead of leaking zombie PIDs; the task-runner caps its per-task output buffer + finished-task registry and feeds stdin concurrently to avoid a large-prompt pipe deadlock; `AppConfig` saves atomically (temp + rename) and the commits-cache uses a transaction guard so an error can't poison the connection. The fs watcher now refreshes on `.git/index`, `packed-refs` and `FETCH/MERGE/ORIG_HEAD` (external staging, packs, and merge/rebase flows were previously invisible). A cluster of byte-index UTF-8 bugs that panicked or mangled non-ASCII input was fixed across the CI log preprocessor, the OSC-7 cwd decoder, the `.http` variable resolver, and a couple of `sha[..8]` slices. GitLab MR diffs now paginate + time out like the GitHub path, CI query filters are URL-encoded, and a 2xx response that merely exhausted the GitHub rate-limit quota is no longer discarded as a failure.
+
+### Dependencies
+
+`@sveltejs/kit` 2.59.1 → 2.63.1 and `brace-expansion` 5.0.5 → 5.0.6, clearing two moderate `npm audit` advisories (a `query.batch` cross-talk and a range-DoS); both stayed within the declared ranges, so only the lockfile changed.
+
 ## [0.1.13] — Per-theme accents, command palette, security & performance pass — 2026-05-12
 
 ### Themes finally have an identity
