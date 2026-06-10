@@ -2,6 +2,22 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [0.2.1] — Staging diffs that stay fresh + sidebar reorder that works everywhere — 2026-06-10
+
+Patch release for three regressions reported right after 0.2.0 — two in the Changes view, one in the sidebar's edit mode. Each fix ships with regression coverage (dispatcher unit tests plus a new functional Playwright spec exercising all three flows, green under both Chromium and WebKit), and the full CI gate (`cargo fmt`/`clippy`/`test`, `svelte-check`, `vitest`, `stylelint`+`eslint`) passes.
+
+### Unstaged files show their diff again
+
+The staged/unstaged `FileDiff` stores feeding the Changes-view diff panel were only hydrated when the staging area mounted — plus by a `repo-changed` listener that has been dead since the watcher moved to the `project-mutated` pipeline. Any stage/unstage/commit or external edit after mount refreshed the *file list* but left the *diff stores* frozen, so clicking a file that changed state since mount resolved no diff and the panel stayed empty (most visibly for unstaged files). The mutation dispatcher now refreshes the diffs alongside the statuses on every `head_changed`/`status_changed` event, and the click handler falls back to a refetch whenever the clicked path is missing from the store — not just when the store is empty — closing the click-vs-refresh race.
+
+### The selected file is highlighted in the changes lists
+
+Clicking a file updated the diff panel but nothing in the staged/unstaged lists marked which file you were looking at — the rows had no selected state at all. The page-level selection (which already drives the diff panel) now flows down into both lists, and the active row paints the same tonal `--overlay-accent-blue` highlight the commit-detail file list uses.
+
+### Sidebar (and rebase) reorder no longer relies on HTML5 drag & drop
+
+Reordering the navigation in the sidebar's edit mode did nothing on Windows: with Tauri's `dragDropEnabled` on (required for the drop-a-folder-to-open welcome screen), wry's native drag handler swallows in-webview HTML5 drag sessions, so `dragover`/`drop` never fire — the reorder logic itself was fine. A new `pointerReorder` utility tracks plain `mousemove`/`mouseup` from the row's `mousedown` and hit-tests rows by their vertical band, never entering the native drag machinery, so dragging now works on every platform. The interactive-rebase editor used the same HTML5 pattern and was equally affected, so it gets the same treatment. Keyboard reorder (↑/↓ on the drag handle) is untouched, and each list keeps its drop semantics — the sidebar lands the item at the hovered row, the rebase editor inserts above the indicator line.
+
 ## [0.2.0] — Audit hardening pass + a resizable, selectable diff panel — 2026-06-08
 
 A multi-agent code audit swept the whole workspace (20 Rust crates + the Svelte frontend) and surfaced 5 high-severity issues plus a long tail of medium/low findings. This release closes the high-severity set and the high-value remainder, each with a regression test, alongside one user-facing feature and a security dependency bump. The full CI gate (`cargo fmt`/`clippy`/`test` across the workspace, `svelte-check`, `vitest`, `stylelint`+`eslint`) is green.
