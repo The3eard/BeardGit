@@ -75,3 +75,6 @@ src/lib/paraglide/
 
 # Bundled CLI binaries (downloaded by scripts/download-cli-binaries.js)
 src-tauri/binaries/
+
+# CodeGraph MCP local index
+.codegraph/
