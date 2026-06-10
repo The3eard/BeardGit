@@ -6,7 +6,7 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../graph", () => ({ refreshAndReloadGraph: vi.fn() }));
-vi.mock("../changes", () => ({ refreshStatuses: vi.fn() }));
+vi.mock("../changes", () => ({ refreshStatuses: vi.fn(), refreshDiffs: vi.fn() }));
 vi.mock("../stashes", () => ({ refreshStashes: vi.fn() }));
 vi.mock("../worktrees", () => ({ refreshWorktrees: vi.fn() }));
 vi.mock("../repoConfig", () => ({ refreshRepoConfig: vi.fn(), repoConfig: { subscribe: vi.fn() } }));

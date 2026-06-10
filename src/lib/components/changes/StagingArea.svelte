@@ -23,9 +23,12 @@
   let {
     onFileClick,
     onNavigate,
+    selectedFile = null,
   }: {
     onFileClick?: (path: string, staged: boolean) => void;
     onNavigate?: (view: string) => void;
+    /** File currently shown in the diff panel — highlighted in its list. */
+    selectedFile?: { filename: string; isStaged: boolean } | null;
   } = $props();
 
   let message = $state("");
@@ -327,6 +330,7 @@
       files={staged}
       title={m.staging_staged()}
       isStaged={true}
+      selectedPath={selectedFile?.isStaged ? selectedFile.filename : null}
       onUnstage={(paths) => unstageFiles(paths)}
       onFileClick={(path) => onFileClick?.(path, true)}
       onNavigate={onNavigate}
@@ -336,6 +340,7 @@
       files={unstaged}
       title={m.staging_unstaged()}
       isStaged={false}
+      selectedPath={selectedFile && !selectedFile.isStaged ? selectedFile.filename : null}
       onStage={(paths) => stageFiles(paths)}
       onFileClick={(path) => onFileClick?.(path, false)}
       onNavigate={onNavigate}
