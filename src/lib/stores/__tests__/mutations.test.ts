@@ -13,6 +13,7 @@ const {
   listenMock,
   refreshAndReloadGraph,
   refreshStatuses,
+  refreshDiffs,
   refreshBranches,
   refreshTags,
   loadReflog,
@@ -22,6 +23,7 @@ const {
   listenMock: vi.fn(),
   refreshAndReloadGraph: vi.fn(),
   refreshStatuses: vi.fn(),
+  refreshDiffs: vi.fn(),
   refreshBranches: vi.fn(),
   refreshTags: vi.fn(),
   loadReflog: vi.fn(),
@@ -32,7 +34,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   listen: listenMock,
 }));
 vi.mock("../graph", () => ({ refreshAndReloadGraph }));
-vi.mock("../changes", () => ({ refreshStatuses }));
+vi.mock("../changes", () => ({ refreshStatuses, refreshDiffs }));
 vi.mock("../branches", () => ({ refreshBranches }));
 vi.mock("../tags", () => ({ refreshTags }));
 vi.mock("../reflog", () => ({ loadReflog }));
@@ -74,6 +76,7 @@ beforeEach(() => {
   listenMock.mockReset();
   refreshAndReloadGraph.mockReset();
   refreshStatuses.mockReset();
+  refreshDiffs.mockReset();
   refreshBranches.mockReset();
   refreshTags.mockReset();
   loadReflog.mockReset();
@@ -120,10 +123,42 @@ describe("startMutationListener", () => {
 
     expect(refreshAndReloadGraph).toHaveBeenCalledTimes(1);
     expect(refreshStatuses).toHaveBeenCalledTimes(1);
+    // The Changes view resolves its diff panel from the staged/unstaged
+    // FileDiff stores; status changes must refresh them alongside the
+    // statuses or clicking a file finds no diff (stale-store regression).
+    expect(refreshDiffs).toHaveBeenCalledTimes(1);
     // Branch list mirrors `refs/**`, so refs_changed must trigger a
     // branch-list refresh too — without this, deleted branches stay in
     // the sidebar until the user refreshes manually.
     expect(refreshBranches).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes diffs alongside statuses on status_changed only", async () => {
+    // External stage/unstage (`git add` from a terminal) flips only
+    // status_changed. Both the file list AND the diff stores must
+    // refresh — the diff panel reads FileDiff entries by path.
+    let handler: ((ev: unknown) => void) | null = null;
+    listenMock.mockImplementation(async (_n, cb) => {
+      handler = cb as (ev: unknown) => void;
+      return () => {};
+    });
+    await startMutationListener();
+    handler!({
+      payload: {
+        project_path: "/repo",
+        kind: { type: "external" },
+        flags: {
+          refs_changed: false,
+          head_changed: false,
+          status_changed: true,
+          stashes_changed: false,
+          worktrees_changed: false,
+          remotes_changed: false,
+        },
+      },
+    });
+    expect(refreshStatuses).toHaveBeenCalledTimes(1);
+    expect(refreshDiffs).toHaveBeenCalledTimes(1);
   });
 
   it("refreshes branches/graph/reflog/repoInfo on head_changed without refs_changed", async () => {
