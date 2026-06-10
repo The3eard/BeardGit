@@ -18,6 +18,7 @@
     onStage,
     onUnstage,
     isStaged = false,
+    selectedPath = null,
     onFileClick,
     onNavigate,
   }: {
@@ -26,6 +27,8 @@
     onStage?: (paths: string[]) => void;
     onUnstage?: (paths: string[]) => void;
     isStaged?: boolean;
+    /** Path whose diff is open in the panel — its row renders highlighted. */
+    selectedPath?: string | null;
     onFileClick?: (path: string) => void;
     onNavigate?: (view: string) => void;
   } = $props();
@@ -313,6 +316,7 @@
     {#each files as file}
       <div
         class="file-item"
+        class:selected={file.path === selectedPath}
         role="listitem"
         data-testid="file-row-{file.path.replace(/\//g, '-')}"
         oncontextmenu={(e) => openContextMenu(e, file.path)}
@@ -436,6 +440,13 @@
 
   .file-item:hover {
     background: var(--overlay-hover);
+    border-left-color: var(--accent-primary);
+  }
+
+  /* Row whose diff is open in the panel. Mirrors the selected style of
+     `common/FileChangeList.svelte` so both file lists read the same. */
+  .file-item.selected {
+    background: var(--overlay-accent-blue);
     border-left-color: var(--accent-primary);
   }
 

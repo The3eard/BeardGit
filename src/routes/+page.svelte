@@ -637,9 +637,12 @@
 
   async function handleFileClick(path: string, staged: boolean) {
     selectedStagingFile = { filename: path, isStaged: staged };
-    // Ensure diffs are loaded — they may be empty after a project switch
+    // Ensure the clicked file's diff is actually loaded. Checking for the
+    // path (not just a non-empty store) covers stale stores: after a
+    // mutation the dispatcher refreshes them, but a click can race that
+    // refresh, and an empty-store-only check left the panel blank.
     const diffs = staged ? get(stagedDiffs) : get(unstagedDiffs);
-    if (diffs.length === 0) {
+    if (!diffs.some((d) => d.path === path)) {
       await refreshDiffs();
     }
   }
@@ -1018,7 +1021,7 @@
         {#if activeView === "changes"}
           <div class="changes-layout">
             <div class="changes-sidebar" style="width: {changesSidebarWidth}px">
-              <StagingArea onFileClick={handleFileClick} onNavigate={handleNavigate} />
+              <StagingArea onFileClick={handleFileClick} onNavigate={handleNavigate} selectedFile={selectedStagingFile} />
             </div>
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
