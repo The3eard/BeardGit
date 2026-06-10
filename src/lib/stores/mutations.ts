@@ -12,7 +12,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { get } from "svelte/store";
 import { activeProject, refreshActiveTitleBar } from "./projects";
 import { refreshAndReloadGraph } from "./graph";
-import { refreshStatuses } from "./changes";
+import { refreshStatuses, refreshDiffs } from "./changes";
 import { refreshStashes } from "./stashes";
 import { refreshWorktrees } from "./worktrees";
 import { refreshRepoConfig } from "./repoConfig";
@@ -95,6 +95,11 @@ export function dispatchRefresh(flags: MutationFlags, path?: string): void {
   }
   if (flags.head_changed || flags.status_changed) {
     void refreshStatuses();
+    // The staged/unstaged FileDiff stores feed the Changes view's diff
+    // panel. They were only hydrated on StagingArea mount (plus a dead
+    // `repo-changed` listener), so any stage/unstage/commit/external
+    // edit left them stale and clicking a file found no diff.
+    void refreshDiffs();
   }
   if (flags.stashes_changed) void refreshStashes();
   if (flags.worktrees_changed) void refreshWorktrees();
