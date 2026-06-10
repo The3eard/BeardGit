@@ -3,14 +3,17 @@
 
   Displays a draggable list of commits between a base commit and HEAD.
   Each commit has an action dropdown (pick, squash, fixup, edit, drop)
-  and can be reordered via HTML5 drag-and-drop. The list shows oldest
-  commits at the top (same order as `git rebase -i`).
+  and can be reordered by dragging rows (mouse-tracked — see
+  `$lib/utils/pointerReorder`; HTML5 drag & drop doesn't survive Tauri's
+  native drag interception). The list shows oldest commits at the top
+  (same order as `git rebase -i`).
 -->
 <script lang="ts">
   import { getRebaseCommits, startInteractiveRebase } from "../../api/tauri";
   import type { RebaseCommit, RebaseAction } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import { shortOid } from "../../utils/git";
+  import { startPointerReorder } from "../../utils/pointerReorder";
   import Button from "$lib/components/ui/Button.svelte";
 
   interface Props {
@@ -41,6 +44,7 @@
   // Drag state
   let dragIndex = $state<number | null>(null);
   let dragOverIndex = $state<number | null>(null);
+  let listEl: HTMLElement | undefined = $state();
 
   /** Map action type to the i18n label. */
   function actionLabel(action: RebaseActionType): string {
@@ -84,50 +88,39 @@
       });
   });
 
-  function handleDragStart(e: DragEvent, index: number) {
+  /**
+   * Mouse-based reorder (see `$lib/utils/pointerReorder`): HTML5 drag &
+   * drop is swallowed by Tauri's native drag handler (`dragDropEnabled`)
+   * on Windows and on recent macOS WebKit builds, so the rows track
+   * plain mousemove instead.
+   */
+  function handleRowMouseDown(e: MouseEvent, index: number) {
+    const target = e.target as HTMLElement;
+    // Keep the action <select> (and any future controls) clickable.
+    if (target.closest("select, button, input")) return;
+    if (!listEl) return;
     dragIndex = index;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", String(index));
-    }
-  }
-
-  function handleDragOver(e: DragEvent, index: number) {
-    e.preventDefault();
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = "move";
-    }
-    dragOverIndex = index;
-  }
-
-  function handleDragLeave() {
-    dragOverIndex = null;
-  }
-
-  function handleDrop(e: DragEvent, targetIndex: number) {
-    e.preventDefault();
-    if (dragIndex === null || dragIndex === targetIndex) {
-      dragIndex = null;
-      dragOverIndex = null;
-      return;
-    }
-
-    const updated = [...entries];
-    const [moved] = updated.splice(dragIndex, 1);
-    // When dragging DOWN, removing the source first shifts the target up by
-    // one, so insert at targetIndex - 1 to land where the drop indicator
-    // showed (upward drags are unaffected).
-    const insertAt = dragIndex < targetIndex ? targetIndex - 1 : targetIndex;
-    updated.splice(insertAt, 0, moved);
-    entries = updated;
-
-    dragIndex = null;
-    dragOverIndex = null;
-  }
-
-  function handleDragEnd() {
-    dragIndex = null;
-    dragOverIndex = null;
+    startPointerReorder({
+      event: e,
+      index,
+      container: listEl,
+      rowSelector: ".rebase-row",
+      onDragOver: (i) => (dragOverIndex = i),
+      onDrop: (from, to) => {
+        const updated = [...entries];
+        const [moved] = updated.splice(from, 1);
+        // When dragging DOWN, removing the source first shifts the target
+        // up by one, so insert at to - 1 to land where the drop indicator
+        // (a line ABOVE the hovered row) showed; upward drags unaffected.
+        const insertAt = from < to ? to - 1 : to;
+        updated.splice(insertAt, 0, moved);
+        entries = updated;
+      },
+      onEnd: () => {
+        dragIndex = null;
+        dragOverIndex = null;
+      },
+    });
   }
 
   function setAction(index: number, action: RebaseActionType) {
@@ -182,7 +175,7 @@
       {:else if entries.length === 0}
         <div class="rebase-empty">No commits to rebase.</div>
       {:else}
-        <div class="rebase-list">
+        <div class="rebase-list" bind:this={listEl}>
           {#each entries as entry, i}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
@@ -190,12 +183,7 @@
               class:dragging={dragIndex === i}
               class:drag-over={dragOverIndex === i}
               class:is-drop={entry.action === "drop"}
-              draggable="true"
-              ondragstart={(e) => handleDragStart(e, i)}
-              ondragover={(e) => handleDragOver(e, i)}
-              ondragleave={handleDragLeave}
-              ondrop={(e) => handleDrop(e, i)}
-              ondragend={handleDragEnd}
+              onmousedown={(e) => handleRowMouseDown(e, i)}
             >
               <span class="drag-handle">{"\u2630"}</span>
 

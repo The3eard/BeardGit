@@ -8,6 +8,7 @@
     DEFAULT_ORDER,
     type SidebarNavItem,
   } from "../../utils/applyLayout";
+  import { startPointerReorder } from "../../utils/pointerReorder";
   import { addToast } from "../../stores/toast";
   import { IconButton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
@@ -182,43 +183,37 @@
     }
   }
 
-  function handleDragStart(e: DragEvent, index: number) {
+  /**
+   * Mouse-based reorder (see `$lib/utils/pointerReorder`): HTML5 drag &
+   * drop is swallowed by Tauri's native drag handler (`dragDropEnabled`)
+   * on Windows and on recent macOS WebKit builds, so the rows track
+   * plain mousemove instead. The drop lands the moved item AT the
+   * hovered index, matching the full-row `.drag-over` tint.
+   */
+  function handleRowMouseDown(e: MouseEvent, index: number) {
+    const target = e.target as HTMLElement;
+    // The eye-toggle keeps its click; the handle and the rest of the
+    // row start a drag.
+    if (target.closest("button") && !target.closest(".drag-handle")) return;
+    if (!sidebarEl) return;
     dragIndex = index;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", String(index));
-    }
-  }
-
-  function handleDragOver(e: DragEvent, index: number) {
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-    dragOverIndex = index;
-  }
-
-  function handleDragLeave() {
-    dragOverIndex = null;
-  }
-
-  function handleDrop(e: DragEvent, targetIndex: number) {
-    e.preventDefault();
-    if (dragIndex === null || dragIndex === targetIndex) {
-      dragIndex = null;
-      dragOverIndex = null;
-      return;
-    }
-    const order = currentOrder();
-    const next = [...order];
-    const [moved] = next.splice(dragIndex, 1);
-    next.splice(targetIndex, 0, moved);
-    updateLayout({ order: next });
-    dragIndex = null;
-    dragOverIndex = null;
-  }
-
-  function handleDragEnd() {
-    dragIndex = null;
-    dragOverIndex = null;
+    startPointerReorder({
+      event: e,
+      index,
+      container: sidebarEl,
+      rowSelector: ".edit-row",
+      onDragOver: (i) => (dragOverIndex = i),
+      onDrop: (from, to) => {
+        const next = [...currentOrder()];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        updateLayout({ order: next });
+      },
+      onEnd: () => {
+        dragIndex = null;
+        dragOverIndex = null;
+      },
+    });
   }
 
   function resetLayout() {
@@ -280,12 +275,7 @@
           class:dragging={dragIndex === i}
           class:drag-over={dragOverIndex === i}
           data-testid="nav-{item.id}"
-          draggable="true"
-          ondragstart={(e) => handleDragStart(e, i)}
-          ondragover={(e) => handleDragOver(e, i)}
-          ondragleave={handleDragLeave}
-          ondrop={(e) => handleDrop(e, i)}
-          ondragend={handleDragEnd}
+          onmousedown={(e) => handleRowMouseDown(e, i)}
         >
           <button
             type="button"
