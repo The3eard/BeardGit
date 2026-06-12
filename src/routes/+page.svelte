@@ -983,7 +983,14 @@
               {#if $loadingPrFileDiff}
                 <div class="spinner"></div>
               {:else if $prFileDiffError}
-                <div class="diff-error" role="alert">{$prFileDiffError}</div>
+                <div class="diff-error-state" role="alert">
+                  <EmptyState
+                    fill
+                    icon={"\uF071"}
+                    title={m.pr_diff_error_title()}
+                    description={$prFileDiffError}
+                  />
+                </div>
               {:else if $prFileDiff}
                 <DiffEditor
                   oldContent={$prFileDiff.oldContent}
@@ -1460,10 +1467,10 @@
     color: var(--text-secondary); font-size: var(--font-size-xs); margin-left: auto;
     padding-right: 8px;
   }
-  .diff-error {
-    padding: 12px 16px;
-    color: var(--text-error, #f85149);
-    font-size: var(--font-size-md);
+  .diff-error-state {
+    display: flex;
+    height: 100%;
+    overflow-y: auto;
   }
 
 </style>

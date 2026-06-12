@@ -10,7 +10,7 @@ import {
   mrPrDetail, mrPrDiffFiles, selectedMrPrNumber,
   prFileDiff, selectedPrFilePath,
   loadPrFileDiff, postReviewComment,
-  registerPrDiffShortcuts,
+  registerPrDiffShortcuts, clearMrPrState,
 } from "$lib/stores/mr-pr";
 import { shortcuts } from "$lib/stores/shortcuts";
 import { invokeMock, mockInvokeResponse } from "../setup";
@@ -29,6 +29,9 @@ const FIXTURE_GH_DETAIL = (overrides: Partial<{ head_repo_url: string | null }> 
 
 beforeEach(() => {
   invokeMock.mockReset();
+  // Also clears the module-level ensured-sha cache — the fixtures reuse
+  // the same base/head shas across cases.
+  clearMrPrState();
   mrPrDetail.set(null); mrPrDiffFiles.set([]); prFileDiff.set(null);
   selectedMrPrNumber.set(null); selectedPrFilePath.set(null);
 });
