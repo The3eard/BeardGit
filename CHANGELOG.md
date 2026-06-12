@@ -2,6 +2,41 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased] — Design identity overhaul: own themes, merged title bar, coherent diffs
+
+A full design pass over the app, driven by a visual review of every view (the repo's 32 Playwright baselines, dark + light) plus live iteration. The goal: stop reading as a GitHub Desktop fork and become a product with its own identity — without breaking a single workflow. Every change landed as its own commit with before/after captures, and the full CI gate (`cargo fmt`/`clippy`/`test`, `svelte-check`, `vitest`, `stylelint`+`eslint`, 90 Playwright tests) is green throughout.
+
+### Own theme families — BeardGit (copper) is the new default
+
+Three original theme pairs join the built-ins, each with a dark and a light variant wired for OS auto-switching: **BeardGit** (near-neutral charcoal/paper surfaces with a copper primary accent — softened from an earlier warmer draft that read too gruvbox), **Fjord** (blue-slate with ice cyan) and **Nebula** (indigo with violet). BeardGit Dark/Light replace `github-dark`/`-light` as the default theme everywhere a default is wired (Rust constants, `AppConfig`, frontend bootstrap fallback, `:root` statics, test fixtures); the GitHub pair stays available in the picker, pinned to its authentic editor scheme so it looks exactly as before.
+
+### Editors and diffs now follow the theme — 100%, by construction
+
+Code views had a strong dissonance with the rest of the UI, with three root causes, all fixed. `derive_editor` hardcoded GitHub's diff backgrounds and leaned the whole syntax palette on blue — diff line backgrounds now blend the theme's own green/red over its background, and syntax spreads across the theme's ANSI palette (keyword red, string green, function purple, type blue, number yellow, property cyan). The CodeMirror theme bridge captured concrete colors at build time — it now emits `var(--token)` CSS custom properties (`--syntax-*`, `--diff-*`, `--editor-*`, written by `applyTheme()`), so every editor and diff surface follows the active theme live, with no rebuilds and nothing to forget to pass. And the staging diff in Changes — previously plain text — gained per-line **syntax highlighting** through the same lazily-loaded lezer grammars the editors use, with identical added/removed backgrounds, so both diff renderers finally speak the same visual language. The graph canvas' pre-theme fallback also derives from the `:root` tokens (no more blue-lane flash on startup), and the HEAD-lane tint follows the theme's primary accent instead of always blue.
+
+### The tab bar is the title bar now
+
+The native title bar duplicated chrome above the tab strip. On macOS the window switches to `titleBarStyle: Overlay` + `hiddenTitle` — the traffic lights float over the tab bar, which gains a left inset; on Windows/Linux, platform configs ship `decorations: false` and a new `WindowControls` component (minimize / maximize-restore / close, token-themed, close-hover red) renders at the bar's right edge. The bar was already a drag region; window-control permissions joined the capability set. Registering `tauri-plugin-os` on the Rust side (it was frontend-only, so `type()` always threw) fixes the platform detection this needs — and, as a bonus, the auto-updater's OS detection that had been silently falling back to "other". The git summary that lived in the window title (branch + `↑↓+!?⚑` counters) moved to a new status-bar slot, mutation-fresh and clickable into Changes. Tab pills got a polish pass for their new home: close buttons materialise only on the active/hovered tab, the focused segment of a composite tab carries an inset border, dividers calmed down — and the status chips no longer leak onto the active composite tab when a terminal segment has focus.
+
+### A single design language for primitives and states
+
+- **Checkbox & Switch primitives** — all 46 native checkboxes across 19 component files replaced: custom-drawn Checkbox for selection (staging lists, dialogs, pickers) and a role="switch" toggle for boolean settings, both keeping a real hidden input so keyboard/AT semantics are untouched. Native controls also stopped rendering light-mode on dark themes (`color-scheme` was never set, now synced per theme). Markdown task-lists in issue/PR/release bodies re-skin to the same checkbox visual.
+- **Skeleton loaders** — list panels and every detail pane's first load sketch their incoming content (shimmer rows / heading+paragraph bars) instead of a centered spinner; spinners remain for point operations only. The status-bar tasks slot swaps its "sync" glyph (which read as a refresh button) for a checklist icon at rest and a real spinner ring while work runs.
+- **EmptyState everywhere** — every "Select a X to view details" italic one-liner became the shared icon + title block (with CTAs where they help, e.g. "New Worktree"), and elevation got a system: two shadow tokens replace 27 ad-hoc box-shadows, master list panes sit one surface step above detail panes.
+- **Typography** — all 641 hardcoded font sizes now reference the `--font-size-*` scale, and the graph canvas uses deliberate type: ref badges, SHA and date columns in Fira Code, prose in the system sans.
+
+### Copper branding, end to end
+
+`src-tauri/icons/app-icon.svg` is now the single vector source of truth — a dark warm rounded tile with a copper rim and the bearded mark re-tinted to the theme palette. Every bundle icon (icns/ico/png/Android/iOS) regenerates from it via `tauri icon`; web favicons, the landing logo and the OG/social images follow the same palette, and the website accent moves from the old orange to copper.
+
+### Interaction & ergonomics
+
+The side-by-side diff gained a draggable **centre split** (20–80%, double-click recenters, keyboard-adjustable, session-sticky) while the bottom panel's outer edge stopped being a drag target — it now always sticks to the surrounding columns. Resize limits got laxer across the board (SplitView panes, the Changes sidebar and the pipeline split grow to 80% of their container; defaults unchanged). The collapsed sidebar shows section-name tooltips on hover/focus. Tab hover tooltips wait a calm 700 ms instead of 300. The status bar gained lateral breathing room and a clearer slot order (Tasks · AI · repo summary · forge · network). Graph and Worktrees no longer share a sidebar glyph.
+
+### Fixes along the way
+
+GitLab repo settings surfaced raw `401 Unauthorized` CLI failures as a cryptic error (and logged nothing) — auth-shaped failures now map to the authenticate CTA and the loader logs to the log file. The status-bar forge pill almost never appeared (the provider heuristic read remotes off a type that doesn't carry them; it now uses the live remotes store, refreshed on project activation) and the remotes store is hardened against non-array payloads — a poisoning that could take down the page's reactivity. Settings' "Look & feel"/"Diff display" headings rendered twice; issue rows wrapped long milestones into a one-character column; PR rows ran the date into the title. All fixed.
+
 ## [0.2.1] — Staging diffs that stay fresh + sidebar reorder that works everywhere — 2026-06-10
 
 Patch release for three regressions reported right after 0.2.0 — two in the Changes view, one in the sidebar's edit mode. Each fix ships with regression coverage (dispatcher unit tests plus a new functional Playwright spec exercising all three flows, green under both Chromium and WebKit), and the full CI gate (`cargo fmt`/`clippy`/`test`, `svelte-check`, `vitest`, `stylelint`+`eslint`) passes.
