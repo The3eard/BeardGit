@@ -13,6 +13,12 @@ use serde::{Deserialize, Serialize};
 
 // -- Built-in theme TOML sources --
 
+const BEARDGIT_DARK_TOML: &str = include_str!("themes/beardgit_dark.toml");
+const BEARDGIT_LIGHT_TOML: &str = include_str!("themes/beardgit_light.toml");
+const FJORD_DARK_TOML: &str = include_str!("themes/fjord_dark.toml");
+const FJORD_LIGHT_TOML: &str = include_str!("themes/fjord_light.toml");
+const NEBULA_DARK_TOML: &str = include_str!("themes/nebula_dark.toml");
+const NEBULA_LIGHT_TOML: &str = include_str!("themes/nebula_light.toml");
 const GITHUB_DARK_TOML: &str = include_str!("themes/github_dark.toml");
 const GITHUB_LIGHT_TOML: &str = include_str!("themes/github_light.toml");
 const GITLAB_DARK_TOML: &str = include_str!("themes/gitlab_dark.toml");
@@ -29,11 +35,11 @@ const GRUVBOX_DARK_TOML: &str = include_str!("themes/gruvbox_dark.toml");
 const MONOKAI_PRO_TOML: &str = include_str!("themes/monokai_pro.toml");
 
 /// The default theme used when the requested theme is not found.
-pub const DEFAULT_THEME_ID: &str = "github-dark";
+pub const DEFAULT_THEME_ID: &str = "beardgit-dark";
 /// Default dark theme for fallback when no complementary pair exists.
-pub const DEFAULT_DARK_THEME_ID: &str = "github-dark";
+pub const DEFAULT_DARK_THEME_ID: &str = "beardgit-dark";
 /// Default light theme for fallback when no complementary pair exists.
-pub const DEFAULT_LIGHT_THEME_ID: &str = "github-light";
+pub const DEFAULT_LIGHT_THEME_ID: &str = "beardgit-light";
 
 /// README content written into the user themes directory.
 const THEMES_README: &str = r##"# BeardGit Custom Themes
@@ -976,6 +982,12 @@ impl Theme {
 /// Parse and return all built-in themes, skipping any that fail to parse.
 pub fn load_builtin_themes() -> Vec<Theme> {
     [
+        BEARDGIT_DARK_TOML,
+        BEARDGIT_LIGHT_TOML,
+        FJORD_DARK_TOML,
+        FJORD_LIGHT_TOML,
+        NEBULA_DARK_TOML,
+        NEBULA_LIGHT_TOML,
         GITHUB_DARK_TOML,
         GITHUB_LIGHT_TOML,
         GITLAB_DARK_TOML,
@@ -1050,7 +1062,7 @@ pub fn resolve_theme(id: &str, themes_dir: &Path) -> Theme {
         }
     }
     // Fallback
-    parse_theme(GITHUB_DARK_TOML).expect("built-in github-dark theme must parse")
+    parse_theme(BEARDGIT_DARK_TOML).expect("built-in beardgit-dark theme must parse")
 }
 
 /// Resolve the correct theme when the OS switches between dark and light mode.
@@ -1344,7 +1356,7 @@ lane-colors = ["#0000ff"]
     #[test]
     fn test_load_builtin_themes() {
         let themes = load_builtin_themes();
-        assert_eq!(themes.len(), 14);
+        assert_eq!(themes.len(), 20);
     }
 
     #[test]
@@ -1352,8 +1364,8 @@ lane-colors = ["#0000ff"]
         let themes = load_builtin_themes();
         let dark_count = themes.iter().filter(|t| t.meta.mode == "dark").count();
         let light_count = themes.iter().filter(|t| t.meta.mode == "light").count();
-        assert_eq!(dark_count, 10);
-        assert_eq!(light_count, 4);
+        assert_eq!(dark_count, 13);
+        assert_eq!(light_count, 7);
     }
 
     #[test]
@@ -1747,7 +1759,7 @@ syntax-comment = "#888888"
     fn test_resolve_theme_for_mode_no_complementary_falls_back() {
         let dir = tempfile::tempdir().unwrap();
         let result = resolve_theme_for_mode("dracula", false, dir.path());
-        assert_eq!(result, "github-light");
+        assert_eq!(result, DEFAULT_LIGHT_THEME_ID);
     }
 
     #[test]

@@ -1,0 +1,33 @@
+[meta]
+id = "nebula-light"
+name = "Nebula Light"
+mode = "light"
+complementary = "nebula-dark"
+
+# Light variant of Nebula — lavender-tinted paper with a deepened
+# violet primary accent.
+
+[colors]
+background = "#faf9fd"
+foreground = "#312b46"
+black = "#4a4368"
+red = "#bb4860"
+green = "#2c7d58"
+yellow = "#96691f"
+blue = "#3a5fc0"
+magenta = "#6d4ec4"
+cyan = "#1f7799"
+white = "#8b84a8"
+bright-black = "#675f8b"
+bright-red = "#a13a50"
+bright-green = "#236a4a"
+bright-yellow = "#7d5617"
+bright-blue = "#2f4fa6"
+bright-magenta = "#5b3eaa"
+bright-cyan = "#196481"
+bright-white = "#ffffff"
+
+[accents]
+primary = "magenta"
+secondary = "blue"
+tertiary = "green"
