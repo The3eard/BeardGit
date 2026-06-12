@@ -1072,6 +1072,8 @@
   "sidebar_show_aria": "Show {label}",
   "theme_load_failed": "Could not load theme. Using built-in defaults.",
   "diff_binary_file": "Binary file — no preview",
+  "pr_diff_error_title": "Couldn't load this diff",
+  "pr_diff_missing_shas": "This pull request is missing its base/head commit info — try refreshing the list.",
   "tooltip_close": "Close",
   "tooltip_close_log": "Close log",
   "tooltip_remove": "Remove",

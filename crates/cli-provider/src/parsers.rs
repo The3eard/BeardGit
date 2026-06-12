@@ -54,6 +54,15 @@ pub struct MrPrFieldMap {
     /// Path (dotted) to the head-repo URL; `None` if the provider's list
     /// JSON doesn't expose it (so parse falls back to `None`).
     pub head_repo_url_path: Option<&'static [&'static str]>,
+    /// URL prefix prepended to the value at `head_repo_url_path` when the
+    /// provider exposes a `owner/name` slug instead of a clone URL.
+    /// GitHub's `headRepository` carries only `name` / `nameWithOwner`
+    /// (no `url` field), so the https clone URL is built from the slug.
+    pub head_repo_url_prefix: Option<&'static str>,
+    /// Boolean field that is `true` only for cross-repository (fork)
+    /// MRs/PRs. When present and falsy, `head_repo_url` is forced to
+    /// `None` so same-repo PRs keep fetching through `origin`.
+    pub cross_repo_flag: Option<&'static str>,
 }
 
 /// GitHub field mapping.
@@ -76,7 +85,9 @@ pub const GITHUB_FIELDS: MrPrFieldMap = MrPrFieldMap {
     state_merged: "MERGED",
     head_sha: "headRefOid",
     base_sha: "baseRefOid",
-    head_repo_url_path: Some(&["headRepository", "url"]),
+    head_repo_url_path: Some(&["headRepository", "nameWithOwner"]),
+    head_repo_url_prefix: Some("https://github.com/"),
+    cross_repo_flag: Some("isCrossRepository"),
 };
 
 /// GitLab field mapping.
@@ -100,6 +111,8 @@ pub const GITLAB_FIELDS: MrPrFieldMap = MrPrFieldMap {
     head_sha: "head_sha",
     base_sha: "base_sha",
     head_repo_url_path: Some(&["source_project", "http_url_to_repo"]),
+    head_repo_url_prefix: None,
+    cross_repo_flag: None,
 };
 
 /// Parse a JSON value into an `MrPr` using the given field mapping.
@@ -134,7 +147,7 @@ pub fn parse_mr_pr(item: &Value, fields: &MrPrFieldMap) -> MrPr {
         changed_files: item["changedFiles"].as_u64(),
         base_sha: sha_from(item, fields.base_sha),
         head_sha: sha_from(item, fields.head_sha),
-        head_repo_url: head_repo_url_from(item, fields.head_repo_url_path),
+        head_repo_url: head_repo_url_from(item, fields),
     }
 }
 
@@ -151,16 +164,29 @@ fn sha_from(item: &Value, key: &str) -> String {
     item[key].as_str().unwrap_or("").to_string()
 }
 
-/// Walk a dotted path to extract a non-empty string, or return `None`.
-fn head_repo_url_from(item: &Value, path: Option<&[&str]>) -> Option<String> {
-    let segs = path?;
+/// Resolve the head-repo clone URL for fork MRs/PRs, or `None`.
+///
+/// Walks `fields.head_repo_url_path` to a non-empty string and, when the
+/// provider only exposes an `owner/name` slug (GitHub), builds the https
+/// clone URL via `fields.head_repo_url_prefix`. Same-repo PRs return
+/// `None` when the provider exposes a cross-repo flag, so the diff
+/// preflight keeps fetching through `origin` (and its configured auth).
+fn head_repo_url_from(item: &Value, fields: &MrPrFieldMap) -> Option<String> {
+    if let Some(flag) = fields.cross_repo_flag
+        && !item[flag].as_bool().unwrap_or(false)
+    {
+        return None;
+    }
+    let segs = fields.head_repo_url_path?;
     let mut cur = item;
     for seg in segs {
         cur = &cur[*seg];
     }
-    cur.as_str()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
+    let value = cur.as_str().filter(|s| !s.is_empty())?;
+    Some(match fields.head_repo_url_prefix {
+        Some(prefix) => format!("{prefix}{value}.git"),
+        None => value.to_string(),
+    })
 }
 
 /// Parse a state string into `MrPrState` using the field map.
@@ -1027,6 +1053,10 @@ mod tests {
 
     #[test]
     fn parse_mr_pr_populates_head_base_sha_github() {
+        // Mirrors real `gh pr view --json headRepository,isCrossRepository`
+        // output: headRepository exposes only id / name / nameWithOwner —
+        // there is NO `url` field — so the clone URL must be built from
+        // the slug.
         let item = serde_json::json!({
             "number": 42,
             "title": "x",
@@ -1036,7 +1066,8 @@ mod tests {
             "baseRefName": "main",
             "headRefOid": "aaaa1111",
             "baseRefOid": "bbbb2222",
-            "headRepository": { "url": "https://github.com/alice/fork" },
+            "headRepository": { "id": "R_1", "name": "fork", "nameWithOwner": "alice/fork" },
+            "isCrossRepository": true,
             "url": "u",
             "isDraft": false,
             "labels": [],
@@ -1049,8 +1080,35 @@ mod tests {
         assert_eq!(mr.head_sha, "aaaa1111");
         assert_eq!(
             mr.head_repo_url.as_deref(),
-            Some("https://github.com/alice/fork")
+            Some("https://github.com/alice/fork.git")
         );
+    }
+
+    #[test]
+    fn parse_mr_pr_same_repo_github_has_no_head_repo_url() {
+        // Same-repo PRs must keep `head_repo_url: None` so the diff
+        // preflight fetches through `origin` (and its configured auth)
+        // instead of an anonymous https URL.
+        let item = serde_json::json!({
+            "number": 43,
+            "title": "x",
+            "state": "OPEN",
+            "author": { "login": "alice" },
+            "headRefName": "feat",
+            "baseRefName": "main",
+            "headRefOid": "aaaa1111",
+            "baseRefOid": "bbbb2222",
+            "headRepository": { "id": "R_1", "name": "repo", "nameWithOwner": "alice/repo" },
+            "isCrossRepository": false,
+            "url": "u",
+            "isDraft": false,
+            "labels": [],
+            "reviewRequests": [],
+            "createdAt": "",
+            "updatedAt": "",
+        });
+        let mr = parse_mr_pr(&item, &GITHUB_FIELDS);
+        assert_eq!(mr.head_repo_url, None);
     }
 
     #[test]

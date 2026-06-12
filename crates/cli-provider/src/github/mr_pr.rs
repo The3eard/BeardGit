@@ -32,7 +32,7 @@ impl GitHubCli {
         let raw: serde_json::Value = self.run_json(&[
             "pr", "view", &num_str,
             "--json",
-            "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,body,mergeable,reviewDecision,additions,deletions,changedFiles,comments,headRefOid,baseRefOid,headRepository",
+            "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,body,mergeable,reviewDecision,additions,deletions,changedFiles,comments,headRefOid,baseRefOid,headRepository,isCrossRepository",
         ])?;
 
         let summary = parse_mr_pr(&raw, &GITHUB_FIELDS);
@@ -294,7 +294,7 @@ pub(crate) fn build_gh_mr_pr_list_args(filter: &MrPrFilter, limit: u32) -> Vec<S
         "pr".into(),
         "list".into(),
         "--json".into(),
-        "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,additions,deletions,changedFiles,headRefOid,baseRefOid,headRepository".into(),
+        "number,title,state,author,headRefName,baseRefName,url,isDraft,labels,reviewRequests,createdAt,updatedAt,additions,deletions,changedFiles,headRefOid,baseRefOid,headRepository,isCrossRepository".into(),
         "--limit".into(),
         limit.to_string(),
     ];
@@ -431,7 +431,12 @@ mod tests {
         // `get_mr_pr_impl` embeds a static --json field list; this test pins
         // the list so we don't regress on head/baseRefOid, which the PR diff
         // view needs to drive ensure_commit_local + getFileAtCommit.
-        let expected_fields = ["headRefOid", "baseRefOid", "headRepository"];
+        let expected_fields = [
+            "headRefOid",
+            "baseRefOid",
+            "headRepository",
+            "isCrossRepository",
+        ];
         let src = include_str!("mr_pr.rs");
         for f in expected_fields {
             assert!(src.contains(f), "gh pr view --json list must contain {f}");

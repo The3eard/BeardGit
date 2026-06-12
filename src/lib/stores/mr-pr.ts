@@ -210,6 +210,9 @@ export function clearMrPrState() {
   mrPrList.set([]);
   mrPrFilter.set("open");
   clearMrPrDetail();
+  // Ensured shas are per-repo facts — a sha present in the previous
+  // project's odb says nothing about the new one.
+  clearEnsuredShas();
 }
 
 // ---------------------------------------------------------------------------
@@ -510,24 +513,82 @@ export const prFileDiffError = writable<string | null>(null);
 export const selectedPrFilePath = writable<string | null>(null);
 
 /**
+ * Commits already materialised locally (or with an ensure in flight),
+ * keyed by sha. Without it, every file click in a PR re-ran the
+ * `ensure_commit_local` preflight — and when the commit couldn't be
+ * fetched, every click (and every `[` / `]` file-nav keystroke)
+ * spawned a fresh failing `git fetch` task, surfacing the same error
+ * over and over. Failed ensures are evicted so an explicit retry can
+ * attempt one new fetch, but nothing retries automatically.
+ */
+const ensuredShas = new Map<string, Promise<void>>();
+
+/** Forget ensured commits — must run when the active repo changes. */
+function clearEnsuredShas(): void {
+  ensuredShas.clear();
+}
+
+/**
+ * Ensure `sha` exists in the local object database, deduped per sha.
+ * Fork-head clone URLs can be unfetchable (e.g. anonymous https against
+ * a private fork), while the base repo advertises PR head objects too —
+ * so a failed fetch from `remoteUrl` falls back to `origin` before
+ * surfacing the error.
+ */
+function ensureShaLocal(sha: string, remoteUrl: string | null): Promise<void> {
+  const inFlight = ensuredShas.get(sha);
+  if (inFlight) return inFlight;
+  const attempt = (async () => {
+    const { ensureCommitLocal } = await import("../api/tauri");
+    try {
+      await ensureCommitLocal(sha, remoteUrl);
+    } catch (err) {
+      if (remoteUrl === null) throw err;
+      await ensureCommitLocal(sha, null);
+    }
+  })().catch((err: unknown) => {
+    ensuredShas.delete(sha);
+    throw err;
+  });
+  ensuredShas.set(sha, attempt);
+  return attempt;
+}
+
+/** Monotonic id so a stale (slower) load can't clobber a newer one. */
+let prFileDiffRequestId = 0;
+
+/**
  * Loads the diff for `path` in the PR summarised by `detail`. Ensures
- * the head commit is local (fork PRs), then reads both base and head
- * blobs in parallel. Swaps to a binary placeholder if either blob is
- * flagged binary. Sets `prFileDiffError` on failure.
+ * BOTH the base and head commits are local first — `baseRefOid` is the
+ * remote base-branch tip and is routinely absent from the local odb, in
+ * which case the old `getFileAtCommit(base_sha)` failure was silently
+ * swallowed and the whole file rendered as added. With presence
+ * guaranteed up front, a per-file read error only means "path absent at
+ * that commit" (added/deleted files), which legitimately maps to an
+ * empty side. Swaps to a binary placeholder if either blob is flagged
+ * binary. Sets `prFileDiffError` on failure.
  */
 export async function loadPrFileDiff(detail: MrPrDetail, path: string): Promise<void> {
   const { base_sha, head_sha, head_repo_url } = detail.summary;
+  const requestId = ++prFileDiffRequestId;
   prFileDiff.set(null);
   prFileDiffError.set(null);
   loadingPrFileDiff.set(true);
   selectedPrFilePath.set(path);
   try {
-    const { ensureCommitLocal, getFileAtCommit } = await import("../api/tauri");
-    await ensureCommitLocal(head_sha, head_repo_url);
+    if (!base_sha || !head_sha) {
+      throw new Error(m.pr_diff_missing_shas());
+    }
+    const { getFileAtCommit } = await import("../api/tauri");
+    // Sequential on purpose: concurrent `git fetch` children race on
+    // FETCH_HEAD. Both calls are cheap no-ops once the sha is cached.
+    await ensureShaLocal(head_sha, head_repo_url);
+    await ensureShaLocal(base_sha, null);
     const [oldR, newR] = await Promise.all([
       getFileAtCommit(base_sha, path).catch(() => ({ kind: "text" as const, data: "" })),
       getFileAtCommit(head_sha, path).catch(() => ({ kind: "text" as const, data: "" })),
     ]);
+    if (requestId !== prFileDiffRequestId) return;
     const binary = oldR.kind === "binary" || newR.kind === "binary";
     prFileDiff.set({
       oldContent: oldR.kind === "text" ? oldR.data : "",
@@ -536,9 +597,10 @@ export async function loadPrFileDiff(detail: MrPrDetail, path: string): Promise<
       binary,
     });
   } catch (e) {
+    if (requestId !== prFileDiffRequestId) return;
     prFileDiffError.set(e instanceof Error ? e.message : String(e));
   } finally {
-    loadingPrFileDiff.set(false);
+    if (requestId === prFileDiffRequestId) loadingPrFileDiff.set(false);
   }
 }
 

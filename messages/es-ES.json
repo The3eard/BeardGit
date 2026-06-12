@@ -1072,6 +1072,8 @@
   "sidebar_show_aria": "Mostrar {label}",
   "theme_load_failed": "No se pudo cargar el tema. Se usarán los valores predeterminados.",
   "diff_binary_file": "Archivo binario — sin vista previa",
+  "pr_diff_error_title": "No se pudo cargar este diff",
+  "pr_diff_missing_shas": "Esta pull request no tiene la información de commits base/head — prueba a refrescar la lista.",
   "tooltip_close": "Cerrar",
   "tooltip_close_log": "Cerrar registro",
   "tooltip_remove": "Eliminar",
