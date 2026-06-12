@@ -406,7 +406,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 6px;
-    box-shadow: 0 8px 24px var(--overlay-shadow);
+    box-shadow: var(--shadow-overlay);
     z-index: 10;
     max-height: 280px;
     overflow-y: auto;

@@ -263,7 +263,7 @@
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 10px;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: drop shadow neutral */
+    box-shadow: var(--shadow-modal);
     overflow: hidden;
   }
 

@@ -186,7 +186,7 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 18px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: drop shadow neutral */
+    box-shadow: var(--shadow-modal);
     display: flex;
     flex-direction: column;
     gap: 10px;

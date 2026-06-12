@@ -123,7 +123,7 @@
     border-radius: 8px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-modal);
   }
   .picker-search {
     margin: 12px;

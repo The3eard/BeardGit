@@ -88,7 +88,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: drop shadow neutral */
+    box-shadow: var(--shadow-modal);
   }
   .picker-title {
     margin: 0;

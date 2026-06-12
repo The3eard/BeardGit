@@ -352,6 +352,10 @@
     height: 100%;
     overflow: hidden;
     outline: none;
+    /* Surface hierarchy: master list panes sit one step above the
+       detail pane (bg-primary) so the split reads as two surfaces
+       instead of one flat sheet. Matches BranchList / Sidebar. */
+    background: var(--bg-secondary);
   }
 
   .list-loading-bar {

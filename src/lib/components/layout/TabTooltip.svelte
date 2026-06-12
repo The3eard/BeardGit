@@ -67,7 +67,7 @@
     border-radius: 8px;
     padding: 10px 14px;
     min-width: 210px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-overlay);
     z-index: 9999;
     pointer-events: none;
   }

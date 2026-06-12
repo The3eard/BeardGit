@@ -254,7 +254,7 @@
     max-width: 560px;
     max-height: 80vh;
     overflow-y: auto;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: drop shadow neutral */
+    box-shadow: var(--shadow-modal);
   }
   .dialog-title {
     margin: 0 0 16px;

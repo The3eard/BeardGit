@@ -174,7 +174,7 @@
     padding: 4px 0;
     z-index: 10;
     min-width: 200px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-overlay);
   }
 
   .reset-option {
