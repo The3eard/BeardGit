@@ -106,13 +106,14 @@ describe("TasksSlot", () => {
     expect(queryByTestId("statusbar-tasks-error-dot")).toBeNull();
   });
 
-  it("spins while any task is running", async () => {
+  it("shows a spinner ring while any task is running", async () => {
     mocks.anyRunning.set(true);
     const { getByTestId } = render(TasksSlot, { props: { onOpen: vi.fn() } });
     await tick();
     const slot = getByTestId("statusbar-tasks-slot");
     expect(slot.classList.contains("spinning")).toBe(true);
-    expect(slot.querySelector(".glyph.spin")).toBeTruthy();
+    expect(slot.querySelector(".slot-spinner")).toBeTruthy();
+    expect(slot.querySelector(".glyph")).toBeNull();
   });
 
   it("stops spinning when anyRunning flips false", async () => {

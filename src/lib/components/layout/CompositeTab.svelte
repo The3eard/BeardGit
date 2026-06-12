@@ -92,7 +92,7 @@
       } catch {
         hoverSnapshot = null;
       }
-    }, 300);
+    }, 700);
   }
 
   function handleMouseLeave() {
