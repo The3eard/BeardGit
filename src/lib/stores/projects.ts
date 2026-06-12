@@ -71,6 +71,7 @@ import {
   getCompositeTerminals,
 } from "./tabs";
 import { writable } from "svelte/store";
+import { refreshRemotes } from "./remotes";
 
 // Re-export for backward compatibility with components that read these.
 export { openTabs, activeTabIndex };
@@ -335,6 +336,11 @@ async function activateProjectTab(tabIndex: number) {
   try {
     const info = await apiSwitchProject(projectIdx);
     repoInfo.set(info);
+
+    // Remotes feed `projectProvider` (status-bar forge pill, provider
+    // heuristics) — refresh on activation, since the mutation pipeline
+    // only updates them on `remotes_changed`.
+    void refreshRemotes();
 
     // Replay any mutation-event flags buffered for this project while
     // it was in the background. Must run AFTER repoInfo.set so the

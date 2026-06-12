@@ -19,6 +19,7 @@ import * as api from "../api/tauri";
 // below observing `undefined` at module-init time (see Phase 9).
 import { activeProjectFromTab } from "./tabs";
 import { repoConfig } from "./repoConfig";
+import { remotes } from "./remotes";
 
 /** Full provider connection status (all providers + active index). */
 export const providerStatus = writable<ProviderStatusResponse>({ providers: [], active_index: null });
@@ -374,8 +375,8 @@ export async function listCiWorkflows(): Promise<import("../types").Workflow[]> 
  * explicitly via the repo-settings dialog.
  */
 export const projectProvider = derived(
-  [activeProjectFromTab, providerStatus, repoConfig],
-  ([$project, $status, $config]) => {
+  [activeProjectFromTab, providerStatus, repoConfig, remotes],
+  ([$project, $status, $config, $remotes]) => {
     if (!$project) return null;
 
     const pickByKind = (kind: "github" | "gitlab") => {
@@ -386,9 +387,15 @@ export const projectProvider = derived(
     if ($config?.provider === "github") return pickByKind("github");
     if ($config?.provider === "gitlab") return pickByKind("gitlab");
 
-    const origin = (
-      $project as { remotes?: Array<{ name: string; url: string }> }
-    ).remotes?.find((r) => r.name === "origin")?.url;
+    // ProjectInfo doesn't actually carry remotes today — the cast is a
+    // legacy shape. Fall back to the live remotes store (refreshed on
+    // project activation + remotes_changed mutations) so the heuristic
+    // works without an explicit repoConfig.provider override.
+    const origin =
+      (
+        $project as { remotes?: Array<{ name: string; url: string }> }
+      ).remotes?.find((r) => r.name === "origin")?.url ??
+      $remotes.find((r) => r.name === "origin")?.url;
     if (origin) {
       if (/github\.com[:/]/.test(origin)) return pickByKind("github");
       if (/gitlab\.(com|[\w.-]+)[:/]/.test(origin)) return pickByKind("gitlab");

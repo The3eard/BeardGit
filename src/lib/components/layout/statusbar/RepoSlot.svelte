@@ -44,7 +44,7 @@
       title={m.statusbar_repo_open_changes()}
       onclick={() => onOpenView("changes")}
     >
-      <span class="branch-icon nf" aria-hidden="true">{""}</span>
+      <span class="branch-icon nf" aria-hidden="true">{"\uE725"}</span>
       <span class="branch-name">{$activeRepoStatus.branch}</span>
       {#each counters as c (c.kind)}
         <span class="counter counter-{c.kind}">{c.glyph}{c.n}</span>
