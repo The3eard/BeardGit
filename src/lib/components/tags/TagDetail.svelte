@@ -9,6 +9,7 @@
   import { formatRelativeTime, formatDate } from "../../utils/time";
   import { getCommitDetail, getCommitFiles } from "../../api/tauri";
   import { navigateToCommit, fetchDiffSides } from "../../stores/graph";
+  import { activeViewStore } from "../../stores/navigation";
   import type { RawDiffContent } from "../../stores/graph";
   import type { CommitInfo, CommitFileChange } from "../../types";
   import { activeTheme } from "../../stores/theme";
@@ -66,6 +67,18 @@
     ]);
     parentCommit = commit;
     parentFiles = files;
+  }
+
+  /**
+   * "Show in Graph" from the embedded parent CommitDetail. Every other
+   * CommitDetail host pairs `navigateToCommit` with a view switch (see
+   * `+page.svelte`'s branches/reflog/worktrees wirings) — without it the
+   * commit is selected in the graph store but the user stays on the
+   * Tags view and nothing visibly happens.
+   */
+  function handleNavigateToGraph(oid: string) {
+    void navigateToCommit(oid);
+    activeViewStore.set("graph");
   }
 </script>
 
@@ -198,7 +211,7 @@
             commit={parentCommit}
             files={parentFiles}
             showNavigateToGraph={true}
-            onNavigateToGraph={navigateToCommit}
+            onNavigateToGraph={handleNavigateToGraph}
             onClose={() => { parentCommit = null; parentFiles = []; }}
           />
         </div>
@@ -445,10 +458,23 @@
     margin-bottom: 20px;
   }
 
+  /*
+   * The embedded CommitDetail is the graph view's sidebar <aside>
+   * (border-left, full-bleed section dividers). Dropped raw into this
+   * card-based body it read as a misplaced sidebar fragment, so frame
+   * it like every other `.section-card` and strip the sidebar border.
+   */
   .parent-detail-panel {
-    border-top: 1px solid var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg-secondary);
     margin-top: 8px;
     margin-bottom: 20px;
+  }
+
+  .parent-detail-panel :global(.commit-detail) {
+    border-left: none;
   }
 
   .files-card {
