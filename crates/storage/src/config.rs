@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::StorageError;
 
 fn default_theme() -> String {
-    "beardgit-dark".to_string()
+    "github-dark".to_string()
 }
 
 fn default_theme_auto() -> bool {
@@ -221,7 +221,7 @@ pub struct GraphColumnConfig {
 /// `providers` vec on read. Legacy fields are never written back.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
-    /// Active theme name (defaults to `"beardgit-dark"`).
+    /// Active theme name (defaults to `"github-dark"`).
     #[serde(default = "default_theme")]
     pub theme: String,
     /// Whether the app should automatically switch between light/dark themes
@@ -451,7 +451,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = AppConfig::default();
-        assert_eq!(config.theme, "beardgit-dark");
+        assert_eq!(config.theme, "github-dark");
         assert!(config.providers.is_empty());
     }
 
@@ -608,7 +608,7 @@ mod tests {
     fn test_theme_auto_default_true() {
         let config = AppConfig::default();
         assert!(config.theme_auto);
-        assert_eq!(config.theme, "beardgit-dark");
+        assert_eq!(config.theme, "github-dark");
     }
 
     #[test]
