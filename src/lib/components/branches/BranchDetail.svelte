@@ -1,7 +1,7 @@
 <script lang="ts">
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import EmptyState from "../common/EmptyState.svelte";
-  import { Button } from "$lib/components/ui";
+  import { Button, Skeleton } from "$lib/components/ui";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
   import {
@@ -28,10 +28,7 @@
 
 <div class="branch-detail">
   {#if $loadingDetail}
-    <div class="detail-loading">
-      <div class="spinner"></div>
-      <span>Loading commits…</span>
-    </div>
+    <Skeleton variant="detail" rows={6} />
   {:else if $selectedBranchInfo}
     <!-- Header -->
     <div class="detail-header">

@@ -7,7 +7,7 @@
   import { shortOid } from "../../utils/git";
   import { loadReflog } from "../../stores/reflog";
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
-  import { Button } from "$lib/components/ui";
+  import { Button, Skeleton } from "$lib/components/ui";
 
   let {
     entry,
@@ -136,9 +136,7 @@
       {onFileClick}
     />
   {:else}
-    <div class="detail-loading">
-      <div class="spinner"></div>
-    </div>
+    <Skeleton variant="detail" rows={6} />
   {/if}
 </div>
 
@@ -205,10 +203,4 @@
     font-size: var(--font-size-md);
   }
 
-  .detail-loading {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
 </style>

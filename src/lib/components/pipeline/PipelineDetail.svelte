@@ -3,7 +3,7 @@
   import type { CiJob } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import { ciStatusColor } from "../../utils/status";
-  import { Button } from "$lib/components/ui";
+  import { Button, Skeleton } from "$lib/components/ui";
   import EmptyState from "../common/EmptyState.svelte";
 
   let { onSelectJob }: { onSelectJob?: (jobId: number) => void } = $props();
@@ -96,10 +96,7 @@
 
 <div class="pipeline-detail">
   {#if $loadingDetail}
-    <div class="detail-loading">
-      <div class="spinner"></div>
-      <span>{m.pipeline_loading_detail()}</span>
-    </div>
+    <Skeleton variant="detail" rows={6} />
   {:else if $selectedCiRun}
     <div class="detail-header">
       <div class="detail-title">
