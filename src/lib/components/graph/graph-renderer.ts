@@ -79,7 +79,7 @@ export function defaultGraphTheme(): GraphTheme {
       cssToken("--graph-color-4", "#f778ba"),
       cssToken("--graph-color-5", "#79c0ff"),
     ],
-    headLaneTint: tokenAlpha("--accent-blue", "#58a6ff", 0.04),
+    headLaneTint: tokenAlpha("--accent-primary", "#58a6ff", 0.04),
     dimOpacity: 0.3,
     selectionHighlight: tokenAlpha("--accent-blue", "#58a6ff", 0.08),
     nodeRadius: 5,

@@ -575,7 +575,10 @@ fn derive_graph(_colors: &ThemeColors, derived: &DerivedColors) -> ThemeGraph {
         text_secondary: derived.text_secondary.clone(),
         text_sha: derived.accent_blue.clone(),
         selection: with_alpha(&sel_base, "44"),
-        head_lane_tint: with_alpha(&derived.accent_blue, "22"),
+        // Follow the theme's signature accent, not blue — a copper or
+        // violet theme would otherwise paint a blue wash behind the
+        // HEAD lane that reads as a rendering glitch.
+        head_lane_tint: with_alpha(&derived.accent_primary, "22"),
         selection_highlight: with_alpha(&sel_base, "66"),
         dim_opacity: 0.4,
         node_radius: 4.0,
