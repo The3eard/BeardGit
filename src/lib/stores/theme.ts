@@ -112,6 +112,10 @@ export function applyTheme(theme: ThemeData): void {
   el.setProperty("--border", d.border);
   el.setProperty("--selection", d.selection);
   el.setProperty("--theme-mode", theme.meta.mode);
+  // Native controls (checkbox, select, scrollbar) follow the theme's
+  // mode instead of always rendering light. Mirrors the static default
+  // in app.css `:root`.
+  el.setProperty("color-scheme", theme.meta.mode);
 
   const overlays = computeOverlays(theme.meta.mode);
   for (const [key, value] of Object.entries(overlays)) {
