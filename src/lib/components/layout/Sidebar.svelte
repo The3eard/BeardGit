@@ -221,6 +221,42 @@
   }
 
   let changeCount = $derived($fileStatuses.length);
+
+  // ─── Collapsed-mode tooltip ─────────────────────────────────────────
+  // The shared `ui/Tooltip.svelte` only places top/bottom and positions
+  // itself absolutely *inside* the trigger — the sidebar's
+  // `overflow-y: auto` scroll container would clip a right-side popover.
+  // Instead we render one fixed-position tooltip at the hovered item's
+  // right edge, which escapes the scroll clipping entirely. Same visual
+  // language as the Tooltip primitive (tokens + --shadow-overlay).
+  let collapsedTip = $state<{ text: string; top: number; left: number } | null>(null);
+  let tipTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function showTip(e: MouseEvent | FocusEvent, label: string) {
+    if (!collapsed) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => {
+      collapsedTip = {
+        text: label,
+        top: rect.top + rect.height / 2,
+        left: rect.right + 8,
+      };
+    }, 250);
+  }
+
+  function hideTip() {
+    clearTimeout(tipTimer);
+    collapsedTip = null;
+  }
+
+  /** Clear any pending tooltip when the component unmounts. */
+  $effect(() => () => clearTimeout(tipTimer));
+
+  /** Tooltips make no sense once expanded — drop any in-flight one. */
+  $effect(() => {
+    if (!collapsed) hideTip();
+  });
 </script>
 
 <aside
@@ -305,8 +341,12 @@
         <button
           class="nav-item"
           class:active={activeView === item.id}
-          onclick={() => handleNav(item.id)}
-          title={collapsed ? item.label : undefined}
+          onclick={() => { hideTip(); handleNav(item.id); }}
+          onmouseenter={(e) => showTip(e, item.label)}
+          onmouseleave={hideTip}
+          onfocusin={(e) => showTip(e, item.label)}
+          onfocusout={hideTip}
+          aria-label={collapsed ? item.label : undefined}
           data-testid="nav-{item.id}"
         >
           <span class="nav-icon">{item.icon}</span>
@@ -362,8 +402,12 @@
         <button
           class="nav-item"
           class:active={activeView === item.id}
-          onclick={() => handleNav(item.id)}
-          title={collapsed ? item.label : undefined}
+          onclick={() => { hideTip(); handleNav(item.id); }}
+          onmouseenter={(e) => showTip(e, item.label)}
+          onmouseleave={hideTip}
+          onfocusin={(e) => showTip(e, item.label)}
+          onfocusout={hideTip}
+          aria-label={collapsed ? item.label : undefined}
           data-testid="nav-{item.id}"
         >
           <span class="nav-icon">{item.icon}</span>
@@ -381,8 +425,12 @@
     <button
       class="nav-item"
       class:active={activeView === "settings"}
-      onclick={() => handleNav("settings")}
-      title={collapsed ? m.sidebar_settings() : undefined}
+      onclick={() => { hideTip(); handleNav("settings"); }}
+      onmouseenter={(e) => showTip(e, m.sidebar_settings())}
+      onmouseleave={hideTip}
+      onfocusin={(e) => showTip(e, m.sidebar_settings())}
+      onfocusout={hideTip}
+      aria-label={collapsed ? m.sidebar_settings() : undefined}
       data-testid="nav-settings"
     >
       <span class="nav-icon">{""}</span>
@@ -392,8 +440,12 @@
     </button>
     <button
       class="nav-item collapse-btn"
-      onclick={onToggleCollapse}
-      title={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
+      onclick={() => { hideTip(); onToggleCollapse?.(); }}
+      onmouseenter={(e) => showTip(e, m.sidebar_expand())}
+      onmouseleave={hideTip}
+      onfocusin={(e) => showTip(e, m.sidebar_expand())}
+      onfocusout={hideTip}
+      aria-label={collapsed ? m.sidebar_expand() : undefined}
     >
       <span class="nav-icon">{collapsed ? "" : ""}</span>
       {#if !collapsed}
@@ -402,6 +454,14 @@
     </button>
   </div>
 </aside>
+
+{#if collapsedTip}
+  <span
+    class="collapsed-tooltip"
+    role="tooltip"
+    style="top: {collapsedTip.top}px; left: {collapsedTip.left}px"
+  >{collapsedTip.text}</span>
+{/if}
 
 <style>
   .sidebar {
@@ -641,6 +701,26 @@
   .nav-badge--muted {
     background: color-mix(in srgb, var(--text-secondary) 30%, transparent);
     color: var(--text-secondary);
+  }
+
+  /* Collapsed-mode tooltip: fixed-positioned so it escapes the
+     sidebar's overflow-y scroll clipping. Mirrors ui/Tooltip.svelte's
+     visual language (popover bg, border, --shadow-overlay). */
+  .collapsed-tooltip {
+    position: fixed;
+    transform: translateY(-50%);
+    z-index: 1000;
+    padding: 4px 8px;
+    background: var(--bg-toolbar);
+    color: var(--text-primary);
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: var(--shadow-overlay);
+    pointer-events: none;
+    user-select: none;
   }
 
   .sr-only {
