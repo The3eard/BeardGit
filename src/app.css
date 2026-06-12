@@ -3,6 +3,7 @@
 @import "./lib/styles/dialog.css";
 @import "./lib/styles/empty-state.css";
 @import "./lib/styles/markdown.css";
+@import "./lib/styles/syntax.css";
 
 /* Monospace — Fira Code with ligatures */
 @font-face {
@@ -63,6 +64,28 @@
   --overlay-accent-red: rgba(224, 96, 76, 0.1);
   --overlay-accent-muted: rgba(148, 142, 134, 0.15);
   --border: rgba(243, 240, 234, 0.1);
+
+  /* Syntax + diff tokens — mirror the default theme's [editor] palette;
+   * overridden at runtime by `theme.ts::applyTheme()`. Consumed by the
+   * line-level highlighter (lib/styles/syntax.css) and the staging
+   * diff's added/removed line backgrounds. */
+  --syntax-keyword: #e0604c;
+  --syntax-string: #8fbc62;
+  --syntax-comment: #948e86;
+  --syntax-function: #c78bb0;
+  --syntax-type: #6fb1cc;
+  --syntax-number: #e0a458;
+  --syntax-operator: #e0604c;
+  --syntax-property: #7cc7b8;
+  --diff-added-bg: #2a3120;
+  --diff-removed-bg: #39201c;
+  --diff-added-text: var(--accent-green);
+  --diff-removed-text: var(--accent-red);
+  --editor-cursor: var(--accent-blue);
+  --editor-selection: var(--selection);
+  --editor-line-highlight: transparent;
+  --editor-gutter-bg: var(--bg-primary);
+  --editor-gutter-fg: var(--text-secondary);
 
   /* Graph lane colors */
   --graph-color-0: #6fb1cc;

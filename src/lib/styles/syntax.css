@@ -1,0 +1,88 @@
+/* Syntax-token colors for line-level highlighting outside CodeMirror
+   (StagingDiffEditor and friends, via `editor/line-highlight.ts`).
+   The `tok-*` classes are emitted by @lezer/highlight's
+   classHighlighter; the `--syntax-*` custom properties are kept in
+   sync with the active theme's [editor] palette by
+   `theme.ts::applyTheme()` (defaults in app.css `:root`). */
+
+.tok-keyword,
+.tok-modifier,
+.tok-controlKeyword,
+.tok-operatorKeyword {
+  color: var(--syntax-keyword);
+}
+
+.tok-string,
+.tok-string2,
+.tok-regexp,
+.tok-special {
+  color: var(--syntax-string);
+}
+
+.tok-comment,
+.tok-lineComment,
+.tok-blockComment,
+.tok-docComment,
+.tok-meta {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+.tok-function,
+.tok-macroName {
+  color: var(--syntax-function);
+}
+
+.tok-typeName,
+.tok-className,
+.tok-namespace,
+.tok-standard {
+  color: var(--syntax-type);
+}
+
+.tok-number,
+.tok-bool,
+.tok-atom,
+.tok-literal,
+.tok-unit,
+.tok-null {
+  color: var(--syntax-number);
+}
+
+.tok-operator,
+.tok-definitionOperator,
+.tok-compareOperator,
+.tok-arithmeticOperator,
+.tok-logicOperator,
+.tok-bitwiseOperator,
+.tok-updateOperator {
+  color: var(--syntax-operator);
+}
+
+.tok-propertyName,
+.tok-attributeName,
+.tok-labelName {
+  color: var(--syntax-property);
+}
+
+.tok-link {
+  color: var(--accent-blue);
+  text-decoration: underline;
+}
+
+.tok-heading {
+  color: var(--syntax-keyword);
+  font-weight: 700;
+}
+
+.tok-emphasis {
+  font-style: italic;
+}
+
+.tok-strong {
+  font-weight: 700;
+}
+
+.tok-invalid {
+  color: var(--accent-red);
+}
