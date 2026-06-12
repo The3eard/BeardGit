@@ -23,45 +23,82 @@ export const TEXT_PADDING = 14;
 export const REF_BADGE_HEIGHT = 16;
 export const REF_BADGE_PADDING = 6;
 
-/* beardgit:allow-hex: DEFAULT_GRAPH_THEME is a canvas-API fallback (GraphTheme interface
- * uses string colors passed to ctx.fillStyle/strokeStyle, not CSS custom properties).
- * The runtime theme overwrites these via GitGraph.svelte's applyTheme / graphTheme store. */
-export const DEFAULT_GRAPH_THEME: GraphTheme = {
-  background: "#0d1117",
-  currentLine: "#161b22",
-  selection: "#1c2333",
-  foreground: "#c9d1d9",
-  comment: "#6272A4",
-  red: "#ff7b72",
-  orange: "#f0883e",
-  yellow: "#f1fa8c",
-  green: "#3fb950",
-  cyan: "#58a6ff",
-  purple: "#bb80ff",
-  pink: "#f778ba",
-  laneColors: [
-    "#58a6ff", "#3fb950", "#f0883e", "#bb80ff", "#f778ba",
-    "#79c0ff", "#d2a8ff", "#ffa657", "#7ee787", "#ff7b72",
-  ],
-  headLaneTint: "rgba(88, 166, 255, 0.04)",
-  dimOpacity: 0.3,
-  selectionHighlight: "rgba(88, 166, 255, 0.08)",
-  nodeRadius: 5,
-  mergeRadius: 6,
-  refBadge: {
-    branch: "#58a6ff",
-    remote: "#bb80ff",
-    tag: "#f0883e",
-    head: "#f778ba",
-  },
-  textPrimary: "#c9d1d9",
-  textSecondary: "#8b949e",
-  textSha: "#f0883e",
-  bisectGoodColor: "rgba(63, 185, 80, 0.15)",
-  bisectBadColor: "rgba(248, 81, 73, 0.15)",
-  bisectSkipColor: "rgba(139, 148, 158, 0.15)",
-  bisectCurrentColor: "rgba(227, 179, 65, 0.15)",
-};
+/* beardgit:allow-hex: the canvas API needs concrete color strings, so the
+ * pre-theme fallback reads the CSS custom properties from `:root` (which
+ * mirror the default theme) and only falls back to these literals when the
+ * tokens are unavailable (unit tests / detached documents). The runtime
+ * theme overwrites all of this via GitGraph.svelte's graphTheme store. */
+function cssToken(name: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return value || fallback;
+}
+
+/** `rgba()` string from a `#RRGGBB` token value at the given alpha. */
+function tokenAlpha(name: string, fallback: string, alpha: number): string {
+  const hex = cssToken(name, fallback);
+  if (!hex.startsWith("#") || hex.length < 7) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * Pre-theme canvas fallback, built from the `:root` design tokens so the
+ * first rendered frame matches the default theme's statics instead of
+ * flashing a hardcoded palette until `applyTheme()` lands.
+ */
+export function defaultGraphTheme(): GraphTheme {
+  const blue = cssToken("--accent-blue", "#58a6ff");
+  const green = cssToken("--accent-green", "#3fb950");
+  const orange = cssToken("--accent-orange", "#f0883e");
+  const purple = cssToken("--accent-purple", "#bc8cff");
+  const red = cssToken("--accent-red", "#f85149");
+  const secondary = cssToken("--accent-secondary", "#bc8cff");
+  return {
+    background: cssToken("--bg-primary", "#0d1117"),
+    currentLine: cssToken("--bg-secondary", "#161b22"),
+    selection: cssToken("--selection", "#1c2333"),
+    foreground: cssToken("--text-primary", "#c9d1d9"),
+    comment: cssToken("--text-secondary", "#8b949e"),
+    red,
+    orange,
+    yellow: orange,
+    green,
+    cyan: blue,
+    purple,
+    pink: secondary,
+    laneColors: [
+      cssToken("--graph-color-0", "#58a6ff"),
+      cssToken("--graph-color-1", "#3fb950"),
+      cssToken("--graph-color-2", "#f0883e"),
+      cssToken("--graph-color-3", "#bb80ff"),
+      cssToken("--graph-color-4", "#f778ba"),
+      cssToken("--graph-color-5", "#79c0ff"),
+    ],
+    headLaneTint: tokenAlpha("--accent-blue", "#58a6ff", 0.04),
+    dimOpacity: 0.3,
+    selectionHighlight: tokenAlpha("--accent-blue", "#58a6ff", 0.08),
+    nodeRadius: 5,
+    mergeRadius: 6,
+    refBadge: {
+      branch: blue,
+      remote: purple,
+      tag: orange,
+      head: secondary,
+    },
+    textPrimary: cssToken("--text-primary", "#c9d1d9"),
+    textSecondary: cssToken("--text-secondary", "#8b949e"),
+    textSha: orange,
+    bisectGoodColor: tokenAlpha("--accent-green", "#3fb950", 0.15),
+    bisectBadColor: tokenAlpha("--accent-red", "#f85149", 0.15),
+    bisectSkipColor: tokenAlpha("--text-secondary", "#8b949e", 0.15),
+    bisectCurrentColor: tokenAlpha("--accent-orange", "#e3b341", 0.15),
+  };
+}
 
 // ── Column configuration ────────────────────────────────────────────────
 
@@ -180,7 +217,7 @@ export function renderGraph(
   columns: GraphColumn[] = DEFAULT_COLUMNS,
   laneSegments: LaneSegment[] = [],
   mergeCurves: MergeCurve[] = [],
-  theme: GraphTheme = DEFAULT_GRAPH_THEME,
+  theme: GraphTheme = defaultGraphTheme(),
   headLane: number | null = null,
   userEmails: string[] = [],
   selectedGroup: number | null = null,

@@ -12,7 +12,7 @@
   import { get } from "svelte/store";
   import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails, reloadGraph } from "../../stores/graph";
   import { repoInfo } from "../../stores/repo";
-  import { renderGraph, hitTest, graphHitTest, getResizeTarget, ROW_HEIGHT, DEFAULT_COLUMNS, DEFAULT_GRAPH_THEME, type GraphColumn } from "./graph-renderer";
+  import { renderGraph, hitTest, graphHitTest, getResizeTarget, ROW_HEIGHT, DEFAULT_COLUMNS, defaultGraphTheme, type GraphColumn } from "./graph-renderer";
   import { getLastMetrics, getRollingFps } from "./graph-perf";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
@@ -244,7 +244,7 @@
     const canvasW = canvas.width / canvasDpr;
     const canvasH = canvas.height / canvasDpr;
 
-    const graphTheme = $activeTheme ? buildGraphTheme($activeTheme) : DEFAULT_GRAPH_THEME;
+    const graphTheme = $activeTheme ? buildGraphTheme($activeTheme) : defaultGraphTheme();
 
     if (filteredViewport) {
       // Slice filtered nodes for offset-based scrolling within filtered results

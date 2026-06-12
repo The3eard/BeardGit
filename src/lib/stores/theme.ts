@@ -3,7 +3,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { ThemeData, GraphTheme } from "../types";
 import { getTheme, getUiScale } from "../api/tauri";
-import { DEFAULT_GRAPH_THEME } from "../components/graph/graph-renderer";
+import { defaultGraphTheme } from "../components/graph/graph-renderer";
 
 export const activeTheme = writable<ThemeData | null>(null);
 
@@ -157,7 +157,7 @@ export function getThemedStatusColor(status: string): string {
 
 export function currentGraphTheme(): GraphTheme {
   const theme = get(activeTheme);
-  return theme ? buildGraphTheme(theme) : DEFAULT_GRAPH_THEME;
+  return theme ? buildGraphTheme(theme) : defaultGraphTheme();
 }
 
 export async function initTheme(themeName: string): Promise<void> {
