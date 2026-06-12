@@ -32,6 +32,10 @@ pub struct GraphLayoutOptions {
     /// mainline and commits reachable solely through second parents are
     /// excluded from the walk.
     pub first_parent: bool,
+    /// Show only the history reachable from this branch tip (local `main` or
+    /// remote `origin/main`) instead of from every ref. Composes with
+    /// `first_parent` for a clean single-branch mainline view.
+    pub branch: Option<String>,
 }
 
 impl GraphLayoutOptions {
@@ -43,7 +47,18 @@ impl GraphLayoutOptions {
         if self.first_parent {
             parts.push("fp=1".to_string());
         }
+        if let Some(branch) = &self.branch {
+            parts.push(format!("branch={branch}"));
+        }
         parts.join(";")
+    }
+
+    /// View of these options as git-engine walk options.
+    pub(crate) fn walk_options(&self) -> CommitWalkOptions<'_> {
+        CommitWalkOptions {
+            first_parent: self.first_parent,
+            branch: self.branch.as_deref(),
+        }
     }
 }
 
@@ -108,13 +123,7 @@ fn build_fresh_layout(
     options: &GraphLayoutOptions,
 ) -> Result<GraphLayout, String> {
     let commits = repo
-        .walk_commits_with_options(
-            0,
-            MAX_INITIAL_LAYOUT_COMMITS,
-            CommitWalkOptions {
-                first_parent: options.first_parent,
-            },
-        )
+        .walk_commits_with_options(0, MAX_INITIAL_LAYOUT_COMMITS, options.walk_options())
         .map_err(|e| e.to_string())?;
     let graph_commits: Vec<GraphCommit> = commits
         .iter()
@@ -291,7 +300,10 @@ mod tests {
         let path_str = repo_path.to_str().unwrap();
 
         let default_opts = GraphLayoutOptions::default();
-        let fp_opts = GraphLayoutOptions { first_parent: true };
+        let fp_opts = GraphLayoutOptions {
+            first_parent: true,
+            ..Default::default()
+        };
 
         // Warm both variants.
         let (full, hit_full) =
@@ -317,6 +329,48 @@ mod tests {
             load_or_build_layout(&repo, path_str, tmp_cfg.path(), &fp_opts).unwrap();
         assert!(hit_full2);
         assert!(hit_fp2);
+    }
+
+    #[test]
+    fn branch_scoped_mode_builds_and_caches_separately() {
+        let (_tmp_repo, repo_path) = git_engine::test_support::create_repo_with_merged_branch();
+        let repo = Repository::open(&repo_path).unwrap();
+        let tmp_cfg = tempfile::tempdir().unwrap();
+        let path_str = repo_path.to_str().unwrap();
+
+        let head_branch = {
+            let git_repo = git2::Repository::open(&repo_path).unwrap();
+            git_repo.head().unwrap().shorthand().unwrap().to_string()
+        };
+        let scoped_opts = GraphLayoutOptions {
+            branch: Some(head_branch.clone()),
+            ..Default::default()
+        };
+        let clean_opts = GraphLayoutOptions {
+            first_parent: true,
+            branch: Some(head_branch),
+        };
+
+        let (scoped, hit1) =
+            load_or_build_layout(&repo, path_str, tmp_cfg.path(), &scoped_opts).unwrap();
+        assert!(!hit1);
+        assert_eq!(scoped.nodes.len(), 4);
+
+        // branch + first_parent composes into the clean mainline view and
+        // gets its own cache slot.
+        let (clean, hit2) =
+            load_or_build_layout(&repo, path_str, tmp_cfg.path(), &clean_opts).unwrap();
+        assert!(!hit2, "composed variant must not hit the branch-only entry");
+        assert_eq!(clean.nodes.len(), 3);
+        assert_eq!(clean.lane_count, 1);
+
+        // Each variant hits its own entry afterwards.
+        let (_l, hit3) =
+            load_or_build_layout(&repo, path_str, tmp_cfg.path(), &scoped_opts).unwrap();
+        let (_l, hit4) =
+            load_or_build_layout(&repo, path_str, tmp_cfg.path(), &clean_opts).unwrap();
+        assert!(hit3);
+        assert!(hit4);
     }
 
     #[test]

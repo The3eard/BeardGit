@@ -126,13 +126,19 @@ fn refs_for_oid(repo: &git2::Repository, target: git2::Oid) -> Vec<String> {
 /// `Default` reproduces the behaviour of [`Repository::walk_commits`]: all
 /// refs are pushed as starting points and every parent edge is followed.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct CommitWalkOptions {
+pub struct CommitWalkOptions<'a> {
     /// Follow only the first parent of each commit (like
     /// `git log --first-parent`). Commits reachable solely through second
     /// parents of merges are excluded from the walk. Note that the returned
     /// [`CommitInfo::parents`] still lists *all* parents of a merge — edge
     /// simplification for graph rendering happens in `graph-builder`.
     pub first_parent: bool,
+    /// Walk only the history reachable from this branch tip instead of from
+    /// every ref. Accepts local (`main`) and remote (`origin/main`) branch
+    /// names, resolved like [`Repository::branch_commits`]. Errors if the
+    /// branch does not exist. Composes with `first_parent` for a clean
+    /// "mainline of one branch" view.
+    pub branch: Option<&'a str>,
 }
 
 impl Repository {
@@ -151,12 +157,12 @@ impl Repository {
     }
 
     /// Like [`Repository::walk_commits`] but parameterised by
-    /// [`CommitWalkOptions`] (e.g. first-parent simplification).
+    /// [`CommitWalkOptions`] (first-parent simplification, branch scoping).
     pub fn walk_commits_with_options(
         &self,
         offset: usize,
         max_count: usize,
-        options: CommitWalkOptions,
+        options: CommitWalkOptions<'_>,
     ) -> Result<Vec<CommitInfo>, GitError> {
         let repo = self.inner();
         let ref_map = build_ref_map(repo);
@@ -167,12 +173,27 @@ impl Repository {
             revwalk.simplify_first_parent()?;
         }
 
-        // Push all heads, remotes, and tags as starting points.
-        if let Ok(refs) = repo.references() {
-            for reference in refs.flatten() {
-                if let Some(oid) = reference.target() {
-                    // Only push commit-ish objects; ignore failures silently.
-                    let _ = revwalk.push(oid);
+        if let Some(branch) = options.branch {
+            // Branch-scoped: walk only from this branch's tip. Try local,
+            // then remote — same resolution as `branch_commits`.
+            let reference = repo
+                .find_reference(&format!("refs/heads/{branch}"))
+                .or_else(|_| repo.find_reference(&format!("refs/remotes/{branch}")))?;
+            let oid = reference
+                .target()
+                .or_else(|| reference.resolve().ok().and_then(|r| r.target()))
+                .ok_or_else(|| {
+                    GitError::Git(git2::Error::from_str("Symbolic ref without target"))
+                })?;
+            revwalk.push(oid)?;
+        } else {
+            // Push all heads, remotes, and tags as starting points.
+            if let Ok(refs) = repo.references() {
+                for reference in refs.flatten() {
+                    if let Some(oid) = reference.target() {
+                        // Only push commit-ish objects; ignore failures silently.
+                        let _ = revwalk.push(oid);
+                    }
                 }
             }
         }
@@ -434,7 +455,14 @@ mod tests {
 
         // First-parent walk follows only the mainline: merge, c2, c1.
         let fp = repo
-            .walk_commits_with_options(0, 100, CommitWalkOptions { first_parent: true })
+            .walk_commits_with_options(
+                0,
+                100,
+                CommitWalkOptions {
+                    first_parent: true,
+                    ..Default::default()
+                },
+            )
             .unwrap();
         assert_eq!(
             fp.len(),
@@ -449,6 +477,100 @@ mod tests {
         // in its metadata.
         let merge = fp.iter().find(|c| c.summary == "merge feature").unwrap();
         assert_eq!(merge.parents.len(), 2);
+    }
+
+    #[test]
+    fn test_walk_commits_branch_scoped_excludes_other_branches() {
+        let (_dir, path) = crate::test_support::create_repo_with_merged_branch();
+
+        // Add a "side" branch ahead of the merge so the all-refs walk picks
+        // up an extra commit that a branch-scoped walk must not see.
+        let head_branch = {
+            let git_repo = git2::Repository::open(&path).unwrap();
+            let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
+            let head = git_repo
+                .find_commit(git_repo.head().unwrap().target().unwrap())
+                .unwrap();
+            let tree = head.tree().unwrap();
+            let side_oid = git_repo
+                .commit(None, &sig, &sig, "side work", &tree, &[&head])
+                .unwrap();
+            let side = git_repo.find_commit(side_oid).unwrap();
+            git_repo.branch("side", &side, false).unwrap();
+            git_repo.head().unwrap().shorthand().unwrap().to_string()
+        };
+
+        let repo = Repository::open(&path).unwrap();
+
+        // All-refs walk: side + merge + feature + 2 mainline = 5.
+        let all = repo.walk_commits(0, 100).unwrap();
+        assert_eq!(all.len(), 5);
+
+        // Scoped to the head branch: the side commit disappears.
+        let scoped = repo
+            .walk_commits_with_options(
+                0,
+                100,
+                CommitWalkOptions {
+                    branch: Some(&head_branch),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(scoped.len(), 4);
+        assert!(!scoped.iter().any(|c| c.summary == "side work"));
+
+        // Scoped to "side": its own commit plus everything it inherits.
+        let side_scoped = repo
+            .walk_commits_with_options(
+                0,
+                100,
+                CommitWalkOptions {
+                    branch: Some("side"),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(side_scoped.len(), 5);
+        assert_eq!(side_scoped[0].summary, "side work");
+    }
+
+    #[test]
+    fn test_walk_commits_branch_scoped_composes_with_first_parent() {
+        let (_dir, path) = crate::test_support::create_repo_with_merged_branch();
+        let repo = Repository::open(&path).unwrap();
+        let head_branch = {
+            let git_repo = git2::Repository::open(&path).unwrap();
+            git_repo.head().unwrap().shorthand().unwrap().to_string()
+        };
+
+        let clean = repo
+            .walk_commits_with_options(
+                0,
+                100,
+                CommitWalkOptions {
+                    first_parent: true,
+                    branch: Some(&head_branch),
+                },
+            )
+            .unwrap();
+        assert_eq!(clean.len(), 3, "mainline of the branch: m, c2, c1");
+        assert!(!clean.iter().any(|c| c.summary == "feature work"));
+    }
+
+    #[test]
+    fn test_walk_commits_branch_scoped_unknown_branch_errors() {
+        let (_dir, path) = create_repo_with_n_commits(2);
+        let repo = Repository::open(&path).unwrap();
+        let result = repo.walk_commits_with_options(
+            0,
+            100,
+            CommitWalkOptions {
+                branch: Some("does-not-exist"),
+                ..Default::default()
+            },
+        );
+        assert!(result.is_err(), "unknown branch must surface an error");
     }
 
     #[test]

@@ -53,6 +53,10 @@ export interface GraphViewOptions {
   /** Follow only the first parent of each commit — merges collapse onto the
    *  mainline and commits reachable solely through second parents disappear. */
   firstParent?: boolean;
+  /** Show only the history reachable from this branch tip (local `main` or
+   *  remote `origin/main`) instead of all refs. Composes with `firstParent`
+   *  for a clean single-branch mainline view. */
+  branch?: string;
 }
 
 export interface GraphViewport {
