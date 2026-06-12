@@ -35,11 +35,11 @@ const GRUVBOX_DARK_TOML: &str = include_str!("themes/gruvbox_dark.toml");
 const MONOKAI_PRO_TOML: &str = include_str!("themes/monokai_pro.toml");
 
 /// The default theme used when the requested theme is not found.
-pub const DEFAULT_THEME_ID: &str = "github-dark";
+pub const DEFAULT_THEME_ID: &str = "beardgit-dark";
 /// Default dark theme for fallback when no complementary pair exists.
-pub const DEFAULT_DARK_THEME_ID: &str = "github-dark";
+pub const DEFAULT_DARK_THEME_ID: &str = "beardgit-dark";
 /// Default light theme for fallback when no complementary pair exists.
-pub const DEFAULT_LIGHT_THEME_ID: &str = "github-light";
+pub const DEFAULT_LIGHT_THEME_ID: &str = "beardgit-light";
 
 /// README content written into the user themes directory.
 const THEMES_README: &str = r##"# BeardGit Custom Themes
@@ -1065,7 +1065,7 @@ pub fn resolve_theme(id: &str, themes_dir: &Path) -> Theme {
         }
     }
     // Fallback
-    parse_theme(GITHUB_DARK_TOML).expect("built-in github-dark theme must parse")
+    parse_theme(BEARDGIT_DARK_TOML).expect("built-in beardgit-dark theme must parse")
 }
 
 /// Resolve the correct theme when the OS switches between dark and light mode.

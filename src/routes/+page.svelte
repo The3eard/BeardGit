@@ -191,7 +191,7 @@
       applyTheme(theme);
     } catch (e) {
       try {
-        await initTheme("github-dark");
+        await initTheme("beardgit-dark");
       } catch {
         addToast({ message: m.theme_load_failed(), type: "error" });
       }
