@@ -1210,5 +1210,6 @@
   "window_controls_minimize": "Minimizar",
   "window_controls_maximize": "Maximizar",
   "window_controls_restore": "Restaurar",
-  "window_controls_close": "Cerrar ventana"
+  "window_controls_close": "Cerrar ventana",
+  "statusbar_repo_open_changes": "Abrir Cambios"
 }
