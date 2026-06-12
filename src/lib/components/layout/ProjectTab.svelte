@@ -110,7 +110,9 @@
   {#if !isActive}
     <TabStatusStrip snapshot={stripSnapshot} />
   {/if}
-  <IconButton tone="danger" size="xs" icon={""} description={m.tab_close()} onclick={handleClose} />
+  <span class="close-wrap">
+    <IconButton tone="danger" size="xs" icon={""} description={m.tab_close()} onclick={handleClose} />
+  </span>
   {#if hoverSnapshot}
     <TabTooltip snapshot={hoverSnapshot} x={tooltipX} y={tooltipY} />
   {/if}
@@ -140,6 +142,22 @@
 
   .project-tab.active {
     background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+
+  /* Browser-style: the close affordance only materialises when the
+     tab is active or pointed at. Width stays reserved (opacity, not
+     display) so tabs don't shift on hover. */
+  .close-wrap {
+    display: inline-flex;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+
+  .project-tab:hover .close-wrap,
+  .project-tab:focus-within .close-wrap,
+  .project-tab.active .close-wrap {
+    opacity: 1;
   }
 
   .status-dot {

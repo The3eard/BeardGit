@@ -134,7 +134,9 @@
     {#if !isActiveTab}
       <TabStatusStrip snapshot={stripSnapshot} />
     {/if}
-    <IconButton tone="danger" size="xs" icon={""} description={m.tab_close()} onclick={handleCloseProject} />
+    <span class="close-wrap">
+      <IconButton tone="danger" size="xs" icon={""} description={m.tab_close()} onclick={handleCloseProject} />
+    </span>
   </div>
 
   <!-- Dynamic segments -->
@@ -172,7 +174,9 @@
         <span class="terminal-icon">{"\uF489"}</span>
         <span class="segment-name">{shortLabel(segment.info.title)}</span>
       {/if}
-      <IconButton tone="danger" size="xs" icon={""} description={m.tab_close()} onclick={(e) => handleCloseSegment(e, i)} />
+      <span class="close-wrap">
+        <IconButton tone="danger" size="xs" icon={""} description={m.tab_close()} onclick={(e) => handleCloseSegment(e, i)} />
+      </span>
     </div>
   {/each}
   {#if hoverSnapshot}
@@ -218,10 +222,11 @@
 
   .segment.active {
     background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+    box-shadow: inset 0 0 0 1px var(--border);
   }
 
   .segment.dimmed {
-    opacity: 0.5;
+    opacity: 0.6;
   }
 
   .segment:not(.active):not(.dimmed) {
@@ -232,11 +237,26 @@
     opacity: 1;
   }
 
+  /* Browser-style: close affordances only materialise on the active
+     or hovered segment. Width stays reserved (opacity, not display)
+     so segments don't shift on hover. */
+  .close-wrap {
+    display: inline-flex;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+
+  .segment:hover .close-wrap,
+  .segment:focus-within .close-wrap,
+  .segment.active .close-wrap {
+    opacity: 1;
+  }
+
   .divider {
     width: 1px;
-    height: 100%;
-    background: var(--accent-primary);
-    opacity: 0.3;
+    height: 60%;
+    align-self: center;
+    background: var(--border);
     flex-shrink: 0;
   }
 
