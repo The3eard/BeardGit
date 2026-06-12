@@ -24,6 +24,9 @@ enum SlotProbe {
 /// - `limit`        – Maximum number of rows to return.
 /// - `first_parent` – When `true`, the graph follows only the first parent of
 ///   each commit (merges collapse onto the mainline). Defaults to `false`.
+/// - `branch`       – When set, show only the history reachable from this
+///   branch tip (local `main` or remote `origin/main`) instead of all refs.
+///   Composes with `first_parent`.
 ///
 /// The active [`crate::state::ProjectSlot`] caches one layout at a time,
 /// tagged with the options it was built with. When the requested options
@@ -39,10 +42,12 @@ pub async fn get_graph_viewport(
     offset: usize,
     limit: usize,
     first_parent: Option<bool>,
+    branch: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<GraphViewport, String> {
     let options = GraphLayoutOptions {
         first_parent: first_parent.unwrap_or(false),
+        branch,
     };
 
     // Fast path: slice the slot's cached layout while holding the lock
@@ -252,7 +257,7 @@ pub async fn get_commit_stats(
 /// - `repo`    – Repository to walk.
 /// - `offset`  – Zero-based index of the first commit to return.
 /// - `limit`   – Maximum number of commits to include in the chunk.
-/// - `options` – Layout mode (e.g. first-parent simplification).
+/// - `options` – Layout mode (first-parent simplification, branch scope).
 fn build_graph_chunk(
     repo: &git_engine::Repository,
     offset: usize,
@@ -262,13 +267,7 @@ fn build_graph_chunk(
     // Walk one extra so we can detect whether more commits exist without
     // paying for a second round-trip.
     let commits = repo
-        .walk_commits_with_options(
-            offset,
-            limit + 1,
-            git_engine::CommitWalkOptions {
-                first_parent: options.first_parent,
-            },
-        )
+        .walk_commits_with_options(offset, limit + 1, options.walk_options())
         .map_err(|e| e.to_string())?;
 
     let has_more = commits.len() > limit;
@@ -324,6 +323,8 @@ fn build_graph_chunk(
 /// - `limit`  – Maximum number of commits to include in the returned chunk.
 /// - `first_parent` – Follow only the first parent of each commit. Defaults
 ///   to `false`. Must match the mode of the layout the chunk extends.
+/// - `branch` – Restrict the walk to history reachable from this branch tip.
+///   Must match the mode of the layout the chunk extends.
 ///
 /// # Returns
 /// A [`GraphViewport`] whose `has_more` is `true` when additional commits
@@ -334,11 +335,13 @@ pub async fn load_graph_chunk(
     offset: usize,
     limit: usize,
     first_parent: Option<bool>,
+    branch: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<GraphViewport, String> {
     let repo_path = get_active_project_path(&state)?;
     let options = GraphLayoutOptions {
         first_parent: first_parent.unwrap_or(false),
+        branch,
     };
 
     tokio::task::spawn_blocking(move || {
@@ -490,12 +493,71 @@ mod tests {
 
         // First-parent mode: the feature commit disappears and everything
         // sits on a single lane.
-        let fp = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions { first_parent: true })
-            .expect("fp");
+        let fp_opts = GraphLayoutOptions {
+            first_parent: true,
+            ..Default::default()
+        };
+        let fp = build_graph_chunk(&repo, 0, 100, &fp_opts).expect("fp");
         assert_eq!(fp.nodes.len(), 3);
         assert_eq!(fp.total_lane_count, 1);
         assert!(fp.nodes.iter().all(|n| n.lane == 0));
         assert!(!fp.nodes.iter().any(|n| n.summary == "feature work"));
+    }
+
+    #[test]
+    fn build_graph_chunk_branch_scoped_walks_single_branch() {
+        let (_dir, path) = git_engine::test_support::create_repo_with_merged_branch();
+
+        // Add a "side" branch one commit ahead of the merge.
+        let head_branch = {
+            let git_repo = git2::Repository::open(&path).unwrap();
+            let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
+            let head = git_repo
+                .find_commit(git_repo.head().unwrap().target().unwrap())
+                .unwrap();
+            let tree = head.tree().unwrap();
+            let side_oid = git_repo
+                .commit(None, &sig, &sig, "side work", &tree, &[&head])
+                .unwrap();
+            let side = git_repo.find_commit(side_oid).unwrap();
+            git_repo.branch("side", &side, false).unwrap();
+            git_repo.head().unwrap().shorthand().unwrap().to_string()
+        };
+
+        let repo = git_engine::Repository::open(&path).unwrap();
+
+        // All refs: 5 commits. Scoped to the head branch: 4, no side work.
+        let full = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions::default()).expect("full");
+        assert_eq!(full.nodes.len(), 5);
+
+        let scoped_opts = GraphLayoutOptions {
+            branch: Some(head_branch.clone()),
+            ..Default::default()
+        };
+        let scoped = build_graph_chunk(&repo, 0, 100, &scoped_opts).expect("scoped");
+        assert_eq!(scoped.nodes.len(), 4);
+        assert!(!scoped.nodes.iter().any(|n| n.summary == "side work"));
+
+        // branch + first_parent = clean mainline of one branch.
+        let clean_opts = GraphLayoutOptions {
+            first_parent: true,
+            branch: Some(head_branch),
+        };
+        let clean = build_graph_chunk(&repo, 0, 100, &clean_opts).expect("clean");
+        assert_eq!(clean.nodes.len(), 3);
+        assert_eq!(clean.total_lane_count, 1);
+        assert!(!clean.nodes.iter().any(|n| n.summary == "feature work"));
+    }
+
+    #[test]
+    fn build_graph_chunk_branch_scoped_unknown_branch_errors() {
+        let (_dir, path) = create_repo_with_n_commits(3);
+        let repo = git_engine::Repository::open(&path).unwrap();
+        let opts = GraphLayoutOptions {
+            branch: Some("does-not-exist".to_string()),
+            ..Default::default()
+        };
+        assert!(build_graph_chunk(&repo, 0, 100, &opts).is_err());
     }
 
     /// After a new commit lands in the repo, `rebuild_layout_blocking`

@@ -39,6 +39,7 @@ export async function getGraphViewport(
   return invoke<GraphViewport>("get_graph_viewport", {
     offset, limit,
     firstParent: options?.firstParent ?? null,
+    branch: options?.branch ?? null,
   });
 }
 
@@ -55,6 +56,7 @@ export async function loadGraphChunk(
   return invoke<GraphViewport>("load_graph_chunk", {
     offset, limit,
     firstParent: options?.firstParent ?? null,
+    branch: options?.branch ?? null,
   });
 }
 

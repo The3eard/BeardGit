@@ -25,26 +25,29 @@ describe("graph wrappers", () => {
       offset: 0,
       limit: 50,
       firstParent: null,
+      branch: null,
     });
   });
 
-  it("getGraphViewport forwards firstParent", async () => {
+  it("getGraphViewport forwards firstParent and branch", async () => {
     mocks.invoke.mockResolvedValue({ nodes: [] });
-    await getGraphViewport(10, 20, { firstParent: true });
+    await getGraphViewport(10, 20, { firstParent: true, branch: "main" });
     expect(mocks.invoke).toHaveBeenCalledWith("get_graph_viewport", {
       offset: 10,
       limit: 20,
       firstParent: true,
+      branch: "main",
     });
   });
 
   it("loadGraphChunk invokes 'load_graph_chunk' with mode params", async () => {
     mocks.invoke.mockResolvedValue({ nodes: [], has_more: true });
-    const out = await loadGraphChunk(100, 50, { firstParent: true });
+    const out = await loadGraphChunk(100, 50, { firstParent: true, branch: "origin/dev" });
     expect(mocks.invoke).toHaveBeenCalledWith("load_graph_chunk", {
       offset: 100,
       limit: 50,
       firstParent: true,
+      branch: "origin/dev",
     });
     expect(out).toEqual({ nodes: [], has_more: true });
   });
