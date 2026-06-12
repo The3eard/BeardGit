@@ -34,7 +34,7 @@
   import { shortOid } from "../../utils/git";
   import { bisectState, markGood, markBad, skipCommit } from "../../stores/bisect";
   import * as m from "$lib/paraglide/messages";
-  import { Button } from "$lib/components/ui";
+  import { Button, Checkbox } from "$lib/components/ui";
 
   // Column visibility state
   let columns = $state<GraphColumn[]>(DEFAULT_COLUMNS.map(c => ({ ...c })));
@@ -886,10 +886,10 @@
       {#if showColumnMenu}
         <div class="column-dropdown">
           {#each columns as col}
-            <label class="column-option">
-              <input type="checkbox" checked={col.visible} onchange={() => toggleColumn(col.id)} />
-              {col.label}
-            </label>
+            <span class="column-option">
+              <Checkbox id="graph-col-{col.id}" checked={col.visible} onchange={() => toggleColumn(col.id)} />
+              <label for="graph-col-{col.id}">{col.label}</label>
+            </span>
           {/each}
         </div>
       {/if}
@@ -1034,8 +1034,8 @@
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
-  .column-option input[type="checkbox"] {
-    accent-color: var(--accent-primary);
+  .column-option label {
+    cursor: pointer;
   }
 
 

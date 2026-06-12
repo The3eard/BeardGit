@@ -71,6 +71,7 @@
     SettingSection,
     FormRow,
     Field,
+    Switch,
   } from "$lib/components/ui";
   // ProviderIcon is shared with AiSessions + Spec 4's generic-icon fix.
   import ProviderIcon from "$lib/components/ai-sessions/ProviderIcon.svelte";
@@ -248,12 +249,13 @@
         for="bg-auto-accept"
         helperText={m.settings_ai_auto_accept_hint()}
       >
-        <input
+        <Switch
           id="bg-auto-accept"
-          type="checkbox"
-          class="bg-checkbox"
-          bind:checked={bgSettings.auto_accept_permissions}
-          onchange={saveBgSettings}
+          checked={bgSettings.auto_accept_permissions}
+          onchange={(e) => {
+            bgSettings.auto_accept_permissions = (e.target as HTMLInputElement).checked;
+            saveBgSettings();
+          }}
         />
       </FormRow>
     </div>
@@ -392,13 +394,6 @@
 
   .field-input:focus {
     border-color: var(--accent-primary);
-  }
-
-  .bg-checkbox {
-    accent-color: var(--accent-primary);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
   }
 
   .error-text {

@@ -18,7 +18,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { save } from "@tauri-apps/plugin-dialog";
   import type { TaskInfo } from "$lib/types";
-  import { Button, IconButton } from "$lib/components/ui";
+  import { Button, Checkbox, IconButton } from "$lib/components/ui";
 
   let {
     onFileClick,
@@ -350,10 +350,18 @@
   <div class="commit-box">
     <!-- Toolbar row: Amend + icon buttons + overflow -->
     <div class="commit-toolbar">
-      <label class="amend-toggle">
-        <input type="checkbox" bind:checked={isAmend} onchange={handleAmendToggle} data-testid="amend-toggle" />
-        <span>{m.staging_amend_toggle()}</span>
-      </label>
+      <span class="amend-toggle">
+        <Checkbox
+          id="amend-toggle"
+          checked={isAmend}
+          testid="amend-toggle"
+          onchange={(e) => {
+            isAmend = (e.target as HTMLInputElement).checked;
+            handleAmendToggle();
+          }}
+        />
+        <label for="amend-toggle">{m.staging_amend_toggle()}</label>
+      </span>
       <div class="toolbar-actions">
         {#if $hasAiProvider}
           <IconButton
@@ -581,13 +589,12 @@
     transition: color 0.15s ease;
   }
 
-  .amend-toggle:hover {
-    color: var(--text-primary);
+  .amend-toggle label {
+    cursor: pointer;
   }
 
-  .amend-toggle input[type="checkbox"] {
-    margin: 0;
-    accent-color: var(--accent-primary);
+  .amend-toggle:hover {
+    color: var(--text-primary);
   }
 
   .patch-source-dialog {

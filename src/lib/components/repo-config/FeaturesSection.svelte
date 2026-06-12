@@ -12,7 +12,7 @@
   Visibility (archive) and Labels (delete).
 -->
 <script lang="ts">
-  import { FormRow } from "$lib/components/ui";
+  import { FormRow, Switch } from "$lib/components/ui";
   import { repoConfigStore, updateCurrent } from "$lib/stores/repoConfig";
   import { localBranches } from "$lib/stores/branches";
 
@@ -57,13 +57,11 @@
       for="repo-config-issues"
       helperText="When disabled, the Issues tab is hidden on the forge."
     >
-      <input
+      <Switch
         id="repo-config-issues"
-        type="checkbox"
-        class="bg-toggle"
         checked={current.issues_enabled}
         onchange={toggleIssues}
-        data-testid="repo-config-issues"
+        testid="repo-config-issues"
       />
     </FormRow>
 
@@ -72,13 +70,11 @@
       for="repo-config-wiki"
       helperText="When disabled, the Wiki tab is hidden on the forge."
     >
-      <input
+      <Switch
         id="repo-config-wiki"
-        type="checkbox"
-        class="bg-toggle"
         checked={current.wiki_enabled}
         onchange={toggleWiki}
-        data-testid="repo-config-wiki"
+        testid="repo-config-wiki"
       />
     </FormRow>
 
@@ -125,8 +121,4 @@
     border-color: var(--accent-primary);
   }
 
-  .bg-toggle {
-    width: 14px;
-    height: 14px;
-  }
 </style>

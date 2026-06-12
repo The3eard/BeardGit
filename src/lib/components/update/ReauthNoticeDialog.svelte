@@ -23,6 +23,7 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
 
   interface Props {
     /**
@@ -105,14 +106,15 @@
       {m.update_reauth_sorry()}
     </p>
 
-    <label class="reauth-dismiss">
-      <input
-        type="checkbox"
-        data-testid="reauth-dismiss-checkbox"
-        bind:checked={dismissForever}
+    <span class="reauth-dismiss">
+      <Checkbox
+        id="reauth-dismiss-checkbox"
+        testid="reauth-dismiss-checkbox"
+        checked={dismissForever}
+        onchange={(e) => { dismissForever = (e.target as HTMLInputElement).checked; }}
       />
-      <span>{m.update_reauth_dismiss_label()}</span>
-    </label>
+      <label for="reauth-dismiss-checkbox">{m.update_reauth_dismiss_label()}</label>
+    </span>
 
     <div class="dialog-actions">
       <Button
@@ -163,14 +165,10 @@
     margin: 0 0 16px;
     font-size: 12px;
     color: var(--text-primary);
-    cursor: pointer;
     user-select: none;
   }
 
-  .reauth-dismiss input[type="checkbox"] {
-    accent-color: var(--accent-primary);
-    width: 14px;
-    height: 14px;
+  .reauth-dismiss label {
     cursor: pointer;
   }
 </style>

@@ -32,7 +32,7 @@
   import { activeTheme, applyUiScale } from "$lib/stores/theme";
   import type { ThemeMeta } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
-  import { FormRow } from "$lib/components/ui";
+  import { FormRow, Switch } from "$lib/components/ui";
 
   const languages = [
     { tag: "en-US", label: "English (US)" },
@@ -102,13 +102,7 @@
 
   <div data-setting-anchor="theme-auto">
     <FormRow label={m.settings_theme_auto()} for="theme-auto">
-      <input
-        id="theme-auto"
-        type="checkbox"
-        class="bg-checkbox"
-        checked={themeAuto}
-        onchange={handleAutoToggle}
-      />
+      <Switch id="theme-auto" checked={themeAuto} onchange={handleAutoToggle} />
     </FormRow>
   </div>
 
@@ -170,10 +164,4 @@
     border-color: var(--accent-primary);
   }
 
-  .bg-checkbox {
-    accent-color: var(--accent-primary);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-  }
 </style>

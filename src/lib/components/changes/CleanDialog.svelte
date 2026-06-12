@@ -10,6 +10,7 @@
   import * as m from "$lib/paraglide/messages";
   import { cleanDryRun, cleanPaths } from "$lib/api/tauri";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
   import { runMutation } from "$lib/api/runMutation";
   import type { CleanItem } from "$lib/types";
 
@@ -117,18 +118,18 @@
   <h3 class="dialog-title">{m.clean_dialog_title()}</h3>
 
   <div class="filter-row">
-    <label class="toggle">
-      <input type="checkbox" checked={includeDirs} onchange={handleToggleDirs} />
-      <span>{m.clean_dialog_include_dirs()}</span>
-    </label>
-    <label class="toggle">
-      <input type="checkbox" checked={includeIgnored} onchange={handleToggleIncludeIgnored} />
-      <span>{m.clean_dialog_include_ignored()}</span>
-    </label>
-    <label class="toggle">
-      <input type="checkbox" checked={onlyIgnored} onchange={handleToggleOnlyIgnored} />
-      <span>{m.clean_dialog_only_ignored()}</span>
-    </label>
+    <span class="toggle">
+      <Checkbox id="clean-include-dirs" checked={includeDirs} onchange={handleToggleDirs} />
+      <label for="clean-include-dirs">{m.clean_dialog_include_dirs()}</label>
+    </span>
+    <span class="toggle">
+      <Checkbox id="clean-include-ignored" checked={includeIgnored} onchange={handleToggleIncludeIgnored} />
+      <label for="clean-include-ignored">{m.clean_dialog_include_ignored()}</label>
+    </span>
+    <span class="toggle">
+      <Checkbox id="clean-only-ignored" checked={onlyIgnored} onchange={handleToggleOnlyIgnored} />
+      <label for="clean-only-ignored">{m.clean_dialog_only_ignored()}</label>
+    </span>
   </div>
 
   <div class="file-list-container">
@@ -138,25 +139,25 @@
       <div class="empty-state">{m.clean_dialog_no_files()}</div>
     {:else}
       <div class="select-row">
-        <label class="toggle">
-          <input type="checkbox" checked={allSelected} onchange={toggleAll} />
-          <span>{allSelected ? m.clean_dialog_deselect_all() : m.clean_dialog_select_all()}</span>
-        </label>
+        <span class="toggle">
+          <Checkbox id="clean-select-all" checked={allSelected} onchange={toggleAll} />
+          <label for="clean-select-all">{allSelected ? m.clean_dialog_deselect_all() : m.clean_dialog_select_all()}</label>
+        </span>
       </div>
       <div class="file-list">
         {#each items as item}
-          <label class="file-item">
-            <input
-              type="checkbox"
+          <div class="file-item">
+            <Checkbox
+              id="clean-item-{item.path}"
               checked={selected.has(item.path)}
               onchange={() => toggleItem(item.path)}
             />
             <span class="file-icon">{item.is_directory ? "\uF4D3" : "\uF4A5"}</span>
-            <span class="file-path">{item.path}{item.is_directory ? "/" : ""}</span>
+            <label class="file-path" for="clean-item-{item.path}">{item.path}{item.is_directory ? "/" : ""}</label>
             {#if item.is_ignored}
               <span class="ignored-badge">ignored</span>
             {/if}
-          </label>
+          </div>
         {/each}
       </div>
     {/if}
@@ -212,9 +213,8 @@
     cursor: pointer;
   }
 
-  .toggle input[type="checkbox"] {
-    margin: 0;
-    accent-color: var(--accent-primary);
+  .toggle label {
+    cursor: pointer;
   }
 
   .file-list-container {

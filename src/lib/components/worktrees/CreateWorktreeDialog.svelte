@@ -3,6 +3,7 @@
   import { addWorktree } from "../../stores/worktrees";
   import * as m from "$lib/paraglide/messages";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
 
   interface Props {
     onClose: () => void;
@@ -94,10 +95,14 @@
     />
   </div>
 
-  <label class="checkbox-label">
-    <input type="checkbox" bind:checked={createNewBranch} />
-    <span>{m.worktree_create_new_branch()}</span>
-  </label>
+  <span class="checkbox-label">
+    <Checkbox
+      id="wt-create-new-branch"
+      checked={createNewBranch}
+      onchange={(e) => { createNewBranch = (e.target as HTMLInputElement).checked; }}
+    />
+    <label for="wt-create-new-branch">{m.worktree_create_new_branch()}</label>
+  </span>
 
   {#if error}
     <p class="error-text">{error}</p>
@@ -163,11 +168,10 @@
     font-size: 12px;
     color: var(--text-primary);
     margin-bottom: 16px;
-    cursor: pointer;
   }
 
-  .checkbox-label input[type="checkbox"] {
-    accent-color: var(--accent-primary);
+  .checkbox-label label {
+    cursor: pointer;
   }
 
   .error-text {

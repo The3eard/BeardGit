@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
 
   let {
     title,
@@ -60,14 +61,15 @@
   {/if}
   <p class="dialog-message">{message}</p>
   {#if checkboxLabel}
-    <label class="dialog-checkbox">
-      <input
-        type="checkbox"
-        bind:checked={checkboxChecked}
-        data-testid="dialog-checkbox"
+    <span class="dialog-checkbox">
+      <Checkbox
+        id="dialog-checkbox"
+        testid="dialog-checkbox"
+        checked={checkboxChecked}
+        onchange={(e) => { checkboxChecked = (e.target as HTMLInputElement).checked; }}
       />
-      <span>{checkboxLabel}</span>
-    </label>
+      <label for="dialog-checkbox">{checkboxLabel}</label>
+    </span>
   {/if}
   <div class="dialog-actions">
     <Button variant="neutral" testid="dialog-cancel-btn" onclick={onCancel}>{cancelLabel}</Button>
@@ -120,12 +122,10 @@
     margin: -8px 0 16px;
     font-size: 12px;
     color: var(--text-primary);
-    cursor: pointer;
     user-select: none;
   }
 
-  .dialog-checkbox input {
-    margin: 0;
+  .dialog-checkbox label {
     cursor: pointer;
   }
 </style>

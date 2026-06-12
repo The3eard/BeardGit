@@ -10,6 +10,7 @@
   import { get } from "svelte/store";
   import { createBranch, createBranchAt, checkoutBranch } from "../../api/tauri";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
   import { runMutation } from "../../api/runMutation";
   import { remoteNames } from "../../stores/remotes";
   import { branches, localBranches, remoteBranches } from "../../stores/branches";
@@ -177,14 +178,15 @@
       </div>
     </div>
 
-    <label class="checkbox-row">
-      <input
-        data-testid="create-branch-checkout"
-        type="checkbox"
-        bind:checked={checkout}
+    <span class="checkbox-row">
+      <Checkbox
+        id="create-branch-checkout"
+        testid="create-branch-checkout"
+        checked={checkout}
+        onchange={(e) => { checkout = (e.target as HTMLInputElement).checked; }}
       />
-      <span>Check out new branch</span>
-    </label>
+      <label for="create-branch-checkout">Check out new branch</label>
+    </span>
 
     <div class="dialog-actions">
       <Button variant="neutral" onclick={onClose}>Cancel</Button>
@@ -335,6 +337,9 @@
     gap: 8px;
     margin-bottom: 16px;
     font-size: 13px;
+  }
+
+  .checkbox-row label {
     cursor: pointer;
   }
 
