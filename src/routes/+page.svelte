@@ -145,15 +145,25 @@
   });
 
 
+  /** Max width for the changes sidebar: 80% of the changes layout,
+   *  measured from the resize handle's container so the diff pane
+   *  always keeps ~20%. Falls back to the window when unmounted. */
+  function changesSidebarMaxWidth(handle: HTMLElement | null): number {
+    const containerWidth =
+      handle?.parentElement?.clientWidth ?? window.innerWidth;
+    return containerWidth * 0.8;
+  }
+
   function startChangesSidebarResize(e: MouseEvent) {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = changesSidebarWidth;
+    const maxW = changesSidebarMaxWidth(e.currentTarget as HTMLElement);
     isDraggingChanges = true;
 
     function onMouseMove(e: MouseEvent) {
       const delta = e.clientX - startX;
-      changesSidebarWidth = Math.max(240, Math.min(600, startWidth + delta));
+      changesSidebarWidth = Math.max(240, Math.min(maxW, startWidth + delta));
     }
 
     function onMouseUp() {
@@ -176,7 +186,8 @@
       changesSidebarWidth = Math.max(240, changesSidebarWidth - 20);
     } else if (e.key === "ArrowRight") {
       e.preventDefault();
-      changesSidebarWidth = Math.min(600, changesSidebarWidth + 20);
+      const maxW = changesSidebarMaxWidth(e.currentTarget as HTMLElement);
+      changesSidebarWidth = Math.min(maxW, changesSidebarWidth + 20);
     } else if (e.key === "Home") {
       e.preventDefault();
       resetChangesSidebarWidth();
