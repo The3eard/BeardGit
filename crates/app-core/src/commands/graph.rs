@@ -6,15 +6,30 @@ use graph_builder::{Dag, GraphCommit, GraphLayout};
 use tauri::State;
 use tracing::instrument;
 
-use super::graph_cache::load_or_build_layout;
+use super::graph_cache::{GraphLayoutOptions, load_or_build_layout};
 use super::helpers::*;
 use crate::state::AppState;
+
+/// Outcome of probing the active slot for a layout matching the requested
+/// options: either a ready viewport slice, or the repo path to rebuild from.
+enum SlotProbe {
+    Sliced(Box<graph_builder::ViewportResult>),
+    NeedsRebuild { path: String },
+}
 
 /// Return a paginated slice of the commit graph for virtual-scroll rendering.
 ///
 /// # Parameters
-/// - `offset` – Zero-based row index of the first commit to include.
-/// - `limit`  – Maximum number of rows to return.
+/// - `offset`       – Zero-based row index of the first commit to include.
+/// - `limit`        – Maximum number of rows to return.
+/// - `first_parent` – When `true`, the graph follows only the first parent of
+///   each commit (merges collapse onto the mainline). Defaults to `false`.
+///
+/// The active [`crate::state::ProjectSlot`] caches one layout at a time,
+/// tagged with the options it was built with. When the requested options
+/// match, this is a cheap in-memory slice; on a mode switch the layout is
+/// rebuilt once (consulting the persistent per-variant disk cache) and
+/// swapped into the slot, so subsequent scrolling is cheap again.
 ///
 /// # Returns
 /// A [`GraphViewport`] containing the layout nodes for the requested window.
@@ -23,12 +38,17 @@ use crate::state::AppState;
 pub async fn get_graph_viewport(
     offset: usize,
     limit: usize,
+    first_parent: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<GraphViewport, String> {
-    // Extract the viewport result while holding the lock briefly.
-    // The layout itself is not Clone/Send, so we compute the viewport
-    // slice synchronously (it's array filtering, not DAG computation).
-    let (result, total_lane_count) = {
+    let options = GraphLayoutOptions {
+        first_parent: first_parent.unwrap_or(false),
+    };
+
+    // Fast path: slice the slot's cached layout while holding the lock
+    // briefly. The layout itself is not Clone/Send, so we compute the
+    // viewport slice synchronously (it's array filtering, not DAG work).
+    let probe = {
         let projects = state.projects.lock().map_err(|e| e.to_string())?;
         let active = state.active_index.lock().map_err(|e| e.to_string())?;
         let idx = active.ok_or_else(|| "No active project".to_string())?;
@@ -36,9 +56,49 @@ pub async fn get_graph_viewport(
             .get(idx)
             .ok_or("Active project index out of bounds")?;
         let layout = slot.layout.as_ref().ok_or("No repository open")?;
-        let total_lane_count = layout.lane_count;
-        let result = layout.viewport(offset, limit);
-        (result, total_lane_count)
+        if slot.layout_options == options {
+            SlotProbe::Sliced(Box::new(layout.viewport(offset, limit)))
+        } else {
+            SlotProbe::NeedsRebuild {
+                path: slot.path.clone(),
+            }
+        }
+    };
+
+    let result = match probe {
+        SlotProbe::Sliced(result) => *result,
+        SlotProbe::NeedsRebuild { path } => {
+            // Mode switch: rebuild off-thread (disk cache makes repeat
+            // switches cheap), then swap the new layout into the slot.
+            let config_dir = state.config_dir.clone();
+            let path_clone = path.clone();
+            let opts = options.clone();
+            let layout = tokio::task::spawn_blocking(move || {
+                let repo = git_engine::Repository::open(PathBuf::from(&path_clone))
+                    .map_err(|e| e.to_string())?;
+                let (layout, _was_cached) =
+                    load_or_build_layout(&repo, &path_clone, &config_dir, &opts)?;
+                Ok::<_, String>(layout)
+            })
+            .await
+            .map_err(|e| e.to_string())??;
+
+            let result = layout.viewport(offset, limit);
+
+            // Re-acquire the lock and install the fresh layout. Only touch
+            // the slot whose path still matches — a project switch that
+            // raced with this call is a silent no-op.
+            let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
+            let active = state.active_index.lock().map_err(|e| e.to_string())?;
+            if let Some(idx) = *active
+                && let Some(slot) = projects.get_mut(idx)
+                && slot.path == path
+            {
+                slot.layout = Some(layout);
+                slot.layout_options = options;
+            }
+            result
+        }
     };
 
     Ok(GraphViewport {
@@ -48,7 +108,7 @@ pub async fn get_graph_viewport(
         total_count: result.total_count,
         offset: result.offset,
         visible_lane_count: result.visible_lane_count,
-        total_lane_count,
+        total_lane_count: result.total_lane_count,
         head_lane: result.head_lane,
         // This command returns a slice of the fully-loaded cached layout,
         // so "more" is a meaningless concept — the entire graph is already
@@ -189,18 +249,26 @@ pub async fn get_commit_stats(
 /// exactly `limit` truncated commits.
 ///
 /// # Parameters
-/// - `repo`   – Repository to walk.
-/// - `offset` – Zero-based index of the first commit to return.
-/// - `limit`  – Maximum number of commits to include in the chunk.
+/// - `repo`    – Repository to walk.
+/// - `offset`  – Zero-based index of the first commit to return.
+/// - `limit`   – Maximum number of commits to include in the chunk.
+/// - `options` – Layout mode (e.g. first-parent simplification).
 fn build_graph_chunk(
     repo: &git_engine::Repository,
     offset: usize,
     limit: usize,
+    options: &GraphLayoutOptions,
 ) -> Result<GraphViewport, String> {
     // Walk one extra so we can detect whether more commits exist without
     // paying for a second round-trip.
     let commits = repo
-        .walk_commits(offset, limit + 1)
+        .walk_commits_with_options(
+            offset,
+            limit + 1,
+            git_engine::CommitWalkOptions {
+                first_parent: options.first_parent,
+            },
+        )
         .map_err(|e| e.to_string())?;
 
     let has_more = commits.len() > limit;
@@ -220,7 +288,11 @@ fn build_graph_chunk(
         .collect();
 
     let total_commits = graph_commits.len();
-    let dag = Dag::build(graph_commits);
+    let dag = if options.first_parent {
+        Dag::build_first_parent(graph_commits)
+    } else {
+        Dag::build(graph_commits)
+    };
     let layout = GraphLayout::compute(dag);
     let vp = layout.viewport(0, total_commits);
 
@@ -250,6 +322,8 @@ fn build_graph_chunk(
 /// - `offset` – Zero-based index of the first commit to return (skips this
 ///   many entries from the topological revwalk).
 /// - `limit`  – Maximum number of commits to include in the returned chunk.
+/// - `first_parent` – Follow only the first parent of each commit. Defaults
+///   to `false`. Must match the mode of the layout the chunk extends.
 ///
 /// # Returns
 /// A [`GraphViewport`] whose `has_more` is `true` when additional commits
@@ -259,13 +333,17 @@ fn build_graph_chunk(
 pub async fn load_graph_chunk(
     offset: usize,
     limit: usize,
+    first_parent: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<GraphViewport, String> {
     let repo_path = get_active_project_path(&state)?;
+    let options = GraphLayoutOptions {
+        first_parent: first_parent.unwrap_or(false),
+    };
 
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        build_graph_chunk(&repo, offset, limit)
+        build_graph_chunk(&repo, offset, limit, &options)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -282,9 +360,10 @@ pub async fn load_graph_chunk(
 fn rebuild_layout_blocking(
     path: &str,
     config_dir: &std::path::Path,
+    options: &GraphLayoutOptions,
 ) -> Result<GraphLayout, String> {
     let repo = git_engine::Repository::open(PathBuf::from(path)).map_err(|e| e.to_string())?;
-    let (layout, _was_cached) = load_or_build_layout(&repo, path, config_dir)?;
+    let (layout, _was_cached) = load_or_build_layout(&repo, path, config_dir, options)?;
     Ok(layout)
 }
 
@@ -311,32 +390,43 @@ fn rebuild_layout_blocking(
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::graph::refresh_layout")]
 pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), String> {
-    // Snapshot the path + config dir so we can drop the lock before doing
-    // the (potentially expensive) walk + layout build off-thread.
-    let (path, config_dir) = {
+    // Snapshot the path + config dir + the slot's current layout options so
+    // we can drop the lock before doing the (potentially expensive) walk +
+    // layout build off-thread. Rebuilding with the slot's own options keeps
+    // the refreshed layout in the mode the user is currently viewing.
+    let (path, config_dir, options) = {
         let projects = state.projects.lock().map_err(|e| e.to_string())?;
         let active = state.active_index.lock().map_err(|e| e.to_string())?;
         let idx = active.ok_or_else(|| "No active project".to_string())?;
         let slot = projects
             .get(idx)
             .ok_or_else(|| "Active project index out of bounds".to_string())?;
-        (slot.path.clone(), state.config_dir.clone())
+        (
+            slot.path.clone(),
+            state.config_dir.clone(),
+            slot.layout_options.clone(),
+        )
     };
 
     let path_clone = path.clone();
-    let layout =
-        tokio::task::spawn_blocking(move || rebuild_layout_blocking(&path_clone, &config_dir))
-            .await
-            .map_err(|e| e.to_string())??;
+    let opts_clone = options.clone();
+    let layout = tokio::task::spawn_blocking(move || {
+        rebuild_layout_blocking(&path_clone, &config_dir, &opts_clone)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     // Re-acquire the lock and swap in the fresh layout. Only touch the slot
     // whose path still matches what we snapshotted — a project switch that
-    // raced with this call is a silent no-op.
+    // raced with this call is a silent no-op. Guard on the options still
+    // matching too, so a concurrent mode switch isn't clobbered with a
+    // layout built for the old mode.
     let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
     let active = state.active_index.lock().map_err(|e| e.to_string())?;
     if let Some(idx) = *active
         && let Some(slot) = projects.get_mut(idx)
         && slot.path == path
+        && slot.layout_options == options
     {
         slot.layout = Some(layout);
     }
@@ -353,7 +443,8 @@ mod tests {
         let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let chunk = build_graph_chunk(&repo, 10, 20).expect("chunk ok");
+        let chunk =
+            build_graph_chunk(&repo, 10, 20, &GraphLayoutOptions::default()).expect("chunk ok");
         assert_eq!(chunk.nodes.len(), 20);
         assert_eq!(chunk.offset, 10);
         assert!(
@@ -367,7 +458,8 @@ mod tests {
         let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let chunk = build_graph_chunk(&repo, 40, 20).expect("chunk ok");
+        let chunk =
+            build_graph_chunk(&repo, 40, 20, &GraphLayoutOptions::default()).expect("chunk ok");
         assert_eq!(chunk.nodes.len(), 10);
         assert!(
             !chunk.has_more,
@@ -380,9 +472,30 @@ mod tests {
         let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let chunk = build_graph_chunk(&repo, 100, 20).expect("chunk ok");
+        let chunk =
+            build_graph_chunk(&repo, 100, 20, &GraphLayoutOptions::default()).expect("chunk ok");
         assert!(chunk.nodes.is_empty());
         assert!(!chunk.has_more);
+    }
+
+    #[test]
+    fn build_graph_chunk_first_parent_collapses_merge() {
+        let (_dir, path) = git_engine::test_support::create_repo_with_merged_branch();
+        let repo = git_engine::Repository::open(&path).unwrap();
+
+        // Default mode: 4 commits (merge + feature + 2 mainline), 2 lanes.
+        let full = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions::default()).expect("full");
+        assert_eq!(full.nodes.len(), 4);
+        assert_eq!(full.total_lane_count, 2);
+
+        // First-parent mode: the feature commit disappears and everything
+        // sits on a single lane.
+        let fp = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions { first_parent: true })
+            .expect("fp");
+        assert_eq!(fp.nodes.len(), 3);
+        assert_eq!(fp.total_lane_count, 1);
+        assert!(fp.nodes.iter().all(|n| n.lane == 0));
+        assert!(!fp.nodes.iter().any(|n| n.summary == "feature work"));
     }
 
     /// After a new commit lands in the repo, `rebuild_layout_blocking`
@@ -398,7 +511,9 @@ mod tests {
         let tmp_cfg = tempfile::tempdir().unwrap();
 
         // Warm the cache with the 5-commit layout.
-        let layout1 = rebuild_layout_blocking(path_str, tmp_cfg.path()).expect("initial build");
+        let layout1 =
+            rebuild_layout_blocking(path_str, tmp_cfg.path(), &GraphLayoutOptions::default())
+                .expect("initial build");
         assert_eq!(layout1.nodes.len(), 5);
 
         // Add one commit so HEAD advances.
@@ -419,7 +534,8 @@ mod tests {
         // Refresh — must surface the new commit, not re-serve the stale
         // 5-node layout from cache.
         let layout2 =
-            rebuild_layout_blocking(path_str, tmp_cfg.path()).expect("post-commit rebuild");
+            rebuild_layout_blocking(path_str, tmp_cfg.path(), &GraphLayoutOptions::default())
+                .expect("post-commit rebuild");
         assert_eq!(
             layout2.nodes.len(),
             6,

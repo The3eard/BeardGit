@@ -555,6 +555,39 @@ mod tests {
     }
 
     #[test]
+    fn test_first_parent_layout_collapses_merge_to_single_lane() {
+        // First-parent walk of a merged-branch history: b2 (only reachable
+        // through m's second parent) is absent from the commit list.
+        let commits = vec![
+            commit("m", &["b1", "b2"]),
+            commit("b1", &["base"]),
+            commit("base", &[]),
+        ];
+        let dag = Dag::build_first_parent(commits);
+        let layout = GraphLayout::compute(dag);
+
+        assert_eq!(
+            layout.lane_count, 1,
+            "first-parent history must collapse into a single lane"
+        );
+        assert!(
+            layout.nodes.iter().all(|n| n.lane == 0),
+            "every mainline commit should sit on lane 0"
+        );
+        assert!(
+            layout.merge_curves.is_empty(),
+            "no cross-lane curves in first-parent mode"
+        );
+        assert!(
+            !layout.nodes.iter().any(|n| n.oid == "b2"),
+            "merged-branch commit must not appear"
+        );
+        // The merge commit keeps its marker.
+        let m = layout.nodes.iter().find(|n| n.oid == "m").unwrap();
+        assert!(m.is_merge);
+    }
+
+    #[test]
     fn test_merge_curves_have_valid_coordinates() {
         let commits = vec![
             commit("m", &["b1", "b2"]),

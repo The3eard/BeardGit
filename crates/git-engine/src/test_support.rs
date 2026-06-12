@@ -341,6 +341,50 @@ pub fn create_repo_with_branches(branches: &[&str]) -> (TempDir, PathBuf) {
     (dir, repo_path)
 }
 
+/// Build a repository whose `HEAD` history contains a merge commit whose
+/// second parent (the merged "feature branch") is no longer referenced by
+/// any ref:
+///
+/// ```text
+/// m   "merge feature"  (HEAD)  parents = [c2, f1]
+/// ├── c2  "Commit 2"
+/// │    └── c1  "Commit 1" (root)
+/// └── f1  "feature work"  parent = c2  (no branch ref — reachable only via m)
+/// ```
+///
+/// Ideal for first-parent walk tests (a first-parent walk must skip `f1`)
+/// and layout tests (the default layout needs 2 lanes, the first-parent
+/// layout collapses to 1).
+pub fn create_repo_with_merged_branch() -> (TempDir, PathBuf) {
+    let (dir, path) = create_repo_with_n_commits(2);
+    {
+        let repo = git2::Repository::open(&path).expect("open");
+        let sig = git2::Signature::now("Test User", "test@example.com").expect("sig");
+
+        let head_oid = repo.head().expect("head").target().expect("head oid");
+        let c2 = repo.find_commit(head_oid).expect("find c2");
+        let tree = c2.tree().expect("tree");
+
+        // Feature commit off c2, intentionally not referenced by any branch.
+        let f1_oid = repo
+            .commit(None, &sig, &sig, "feature work", &tree, &[&c2])
+            .expect("commit f1");
+        let f1 = repo.find_commit(f1_oid).expect("find f1");
+
+        // Merge commit on HEAD: c2 is the first parent, f1 the second.
+        repo.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            "merge feature",
+            &tree,
+            &[&c2, &f1],
+        )
+        .expect("commit merge");
+    }
+    (dir, path)
+}
+
 /// Helper: shell out to `git` in `repo_path` and panic on failure.
 fn run_git(repo_path: &Path, args: &[&str]) {
     let status = std::process::Command::new("git")

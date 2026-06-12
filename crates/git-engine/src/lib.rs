@@ -53,7 +53,7 @@ pub use bisect::BisectState;
 pub use blame::{BlameLine, FileHistoryEntry};
 pub use clean::CleanItem;
 pub use cli::{CommitStats, GitCliResult, StashEntry, TagInfo};
-pub use commits::CommitInfo;
+pub use commits::{CommitInfo, CommitWalkOptions};
 pub use config::{ConfigEntry, ConfigScope};
 pub use conflict::{ConflictFileContents, ConflictState, ConflictStatus};
 pub use diff::{CommitFileChange, DiffHunkInfo, DiffLineInfo, FileDiff};
