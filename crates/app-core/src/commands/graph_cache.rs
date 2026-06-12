@@ -7,7 +7,10 @@
 //!
 //! Cache semantics mirror the spec in
 //! `docs/superpowers/specs/2026-04-20-persistent-graph-layout-cache.md`:
-//! - Identity = `(repo_path, HEAD oid, sorted refs)` hashed to SHA-256.
+//! - Identity = `(repo_path, HEAD oid, sorted refs, layout variant,
+//!   state fingerprint)` hashed to SHA-256, where the fingerprint is the
+//!   capped reachable-commit count plus the HEAD tree OID (guards against
+//!   reachability changes that move no ref — shallow deepening, grafts).
 //! - A mismatch, a corrupt file, a schema-version bump, or any load error is
 //!   treated as a silent miss — never a user-visible failure.
 //! - On a miss the live layout is always written back so the next open hits.
@@ -62,9 +65,20 @@ impl GraphLayoutOptions {
     }
 }
 
-/// Gather the cache-key material (HEAD OID + sorted `(ref_name, oid)` pairs)
-/// for the currently-open repo.
-fn cache_material(repo: &Repository) -> Result<(String, Vec<(String, String)>), String> {
+/// Material identifying the repo state for cache-key purposes.
+struct CacheMaterial {
+    /// HEAD OID (empty string for a bare/empty repo).
+    head_oid: String,
+    /// `(ref_name, oid)` pairs for every resolvable ref (sorted inside
+    /// `compute_cache_key`).
+    refs: Vec<(String, String)>,
+    /// State fingerprint — see [`state_fingerprint`].
+    fingerprint: String,
+}
+
+/// Gather the cache-key material (HEAD OID + sorted `(ref_name, oid)` pairs
+/// + repo-state fingerprint) for the currently-open repo.
+fn cache_material(repo: &Repository) -> Result<CacheMaterial, String> {
     let inner = repo.inner();
     // HEAD OID — falls back to an empty string for a bare/empty repo so the
     // key still changes when the first commit is made.
@@ -94,7 +108,52 @@ fn cache_material(repo: &Repository) -> Result<(String, Vec<(String, String)>), 
         };
         pairs.push((name, target_oid.to_string()));
     }
-    Ok((head_oid, pairs))
+    let fingerprint = state_fingerprint(inner);
+    Ok(CacheMaterial {
+        head_oid,
+        refs: pairs,
+        fingerprint,
+    })
+}
+
+/// Cheap fingerprint of repo state that `(HEAD oid, refs)` alone can miss.
+///
+/// Two components:
+/// - `count` — number of commits reachable from all refs, capped at
+///   [`MAX_INITIAL_LAYOUT_COMMITS`] + 1 (states differing only beyond the
+///   layout cap produce identical layouts, so counting further would cost
+///   time without adding discrimination). This catches reachability changes
+///   that leave every ref OID untouched — e.g. a shallow clone being
+///   deepened, grafts, or odb surgery — which previously produced a false
+///   cache hit.
+/// - `tree` — the HEAD commit's tree OID, a belt-and-braces guard for
+///   exotic flows (e.g. `reset --soft` round-trips combined with object
+///   replacement) where HEAD's OID survives but its content identity must
+///   be re-checked.
+///
+/// Best-effort: any walk error degrades to `count=0`, which still yields a
+/// stable (if conservative) key.
+fn state_fingerprint(inner: &git2::Repository) -> String {
+    let count = (|| -> Result<usize, git2::Error> {
+        let mut revwalk = inner.revwalk()?;
+        for reference in inner.references()?.flatten() {
+            if let Some(oid) = reference.target() {
+                let _ = revwalk.push(oid);
+            }
+        }
+        Ok(revwalk.take(MAX_INITIAL_LAYOUT_COMMITS + 1).count())
+    })()
+    .unwrap_or(0);
+
+    let tree_oid = inner
+        .head()
+        .ok()
+        .and_then(|h| h.target())
+        .and_then(|oid| inner.find_commit(oid).ok())
+        .map(|c| c.tree_id().to_string())
+        .unwrap_or_default();
+
+    format!("count={count};tree={tree_oid}")
 }
 
 /// Maximum number of commits walked when building the in-memory layout
@@ -162,9 +221,22 @@ pub(crate) fn load_or_build_layout(
     config_dir: &Path,
     options: &GraphLayoutOptions,
 ) -> Result<(GraphLayout, bool), String> {
-    let (head_oid, refs) = cache_material(repo)?;
+    let CacheMaterial {
+        head_oid,
+        refs,
+        fingerprint,
+    } = cache_material(repo)?;
     let variant = options.variant();
-    let fresh_key = compute_cache_key(repo_path, &head_oid, &refs, &variant);
+    // The key mixes in the state fingerprint (commit count + HEAD tree) so
+    // reachability changes that don't move any ref still miss. The file
+    // path, however, uses only the mode `variant` — the fingerprint changes
+    // with every repo state and must not multiply cache files.
+    let key_variant = if variant.is_empty() {
+        fingerprint
+    } else {
+        format!("{variant};{fingerprint}")
+    };
+    let fresh_key = compute_cache_key(repo_path, &head_oid, &refs, &key_variant);
 
     // Try the on-disk cache. Any error is treated as a miss.
     if let Ok(Some(entry)) = load_layout_cache(config_dir, repo_path, &variant)
@@ -329,6 +401,84 @@ mod tests {
             load_or_build_layout(&repo, path_str, tmp_cfg.path(), &fp_opts).unwrap();
         assert!(hit_full2);
         assert!(hit_fp2);
+    }
+
+    #[test]
+    fn cache_material_includes_commit_count_and_head_tree() {
+        let (_tmp_repo, repo_path) = create_repo_with_n_commits(5);
+        let repo = Repository::open(&repo_path).unwrap();
+
+        let material = cache_material(&repo).unwrap();
+
+        let git_repo = git2::Repository::open(&repo_path).unwrap();
+        let head_commit = git_repo
+            .find_commit(git_repo.head().unwrap().target().unwrap())
+            .unwrap();
+        assert_eq!(material.head_oid, head_commit.id().to_string());
+        assert_eq!(
+            material.fingerprint,
+            format!("count=5;tree={}", head_commit.tree_id()),
+            "fingerprint must carry the reachable count and HEAD tree OID"
+        );
+    }
+
+    #[test]
+    fn cache_misses_when_reachability_changes_without_ref_moves() {
+        // A shallow boundary changes which commits are reachable while every
+        // ref OID (and HEAD) stays identical — exactly the false-hit class
+        // the fingerprint guards against. Simulate it by writing
+        // `.git/shallow` by hand, the same on-disk state a shallow fetch
+        // leaves behind.
+        let (_tmp_repo, repo_path) = create_repo_with_n_commits(5);
+        let tmp_cfg = tempfile::tempdir().unwrap();
+        let path_str = repo_path.to_str().unwrap();
+        let opts = GraphLayoutOptions::default();
+
+        // Warm the cache with the full 5-commit state.
+        {
+            let repo = Repository::open(&repo_path).unwrap();
+            let (_l, hit) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &opts).unwrap();
+            assert!(!hit);
+            let (_l, hit2) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &opts).unwrap();
+            assert!(hit2, "sanity: unchanged repo must hit");
+        }
+
+        // Mark the 3rd commit as a shallow boundary. Refs and HEAD are
+        // untouched.
+        let boundary = {
+            let git_repo = git2::Repository::open(&repo_path).unwrap();
+            let mut revwalk = git_repo.revwalk().unwrap();
+            revwalk.push_head().unwrap();
+            revwalk.nth(2).unwrap().unwrap()
+        };
+        std::fs::write(repo_path.join(".git/shallow"), format!("{boundary}\n")).unwrap();
+
+        let repo = Repository::open(&repo_path).unwrap();
+        let material_after = cache_material(&repo).unwrap();
+        let (_l, hit) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &opts).unwrap();
+
+        // If libgit2 honors the shallow file the reachable count shrinks; the
+        // key must change and the cache must miss. (HEAD itself is untouched
+        // either way — assert that to prove refs alone wouldn't have caught
+        // this.)
+        let git_repo = git2::Repository::open(&repo_path).unwrap();
+        assert_eq!(
+            material_after.head_oid,
+            git_repo.head().unwrap().target().unwrap().to_string(),
+            "HEAD must be unchanged by the shallow boundary"
+        );
+        let head_tree = git_repo
+            .find_commit(git_repo.head().unwrap().target().unwrap())
+            .unwrap()
+            .tree_id();
+        assert_eq!(
+            material_after.fingerprint,
+            format!("count=3;tree={head_tree}")
+        );
+        assert!(
+            !hit,
+            "reachability change without ref movement must invalidate the cache"
+        );
     }
 
     #[test]
