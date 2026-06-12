@@ -1,9 +1,15 @@
 /**
  * CodeMirror 6 theme bridge.
  *
- * Converts a `ThemeEditorData` payload (from the Rust TOML theme system) into
- * a CodeMirror `Extension` that styles the editor chrome, diff highlights,
- * and syntax tokens.  Falls back to CSS variable values when `editor` is `null`.
+ * Emits an Extension whose every color is a CSS custom property
+ * (`var(--…)`) — the same tokens `theme.ts::applyTheme()` keeps in sync
+ * with the active theme's `[editor]` palette. CodeMirror themes are
+ * CSS-in-JS, so var() references are valid values; this makes every
+ * editor/diff surface follow the app theme live, with no rebuilds and
+ * no per-instance theme plumbing.
+ *
+ * The `_editor` parameter is kept for call-site compatibility (it also
+ * serves as a rebuild dependency in the wrappers) but is no longer read.
  */
 
 import { EditorView } from '@codemirror/view';
@@ -18,37 +24,28 @@ import type { ThemeEditorData } from '$lib/types';
  * Returns an array containing the base chrome theme AND syntax highlighting.
  */
 export function createCodemirrorTheme(
-  editor: ThemeEditorData | null,
+  _editor: ThemeEditorData | null,
   isDark: boolean,
 ): Extension {
-  return [
-    buildChromeTheme(editor, isDark),
-    buildSyntaxHighlighting(editor, isDark),
-  ];
+  return [buildChromeTheme(isDark), buildSyntaxHighlighting()];
 }
 
 // ---------------------------------------------------------------------------
 // Chrome theme (editor background, gutters, diff colors, etc.)
 // ---------------------------------------------------------------------------
 
-/* beardgit:allow-hex: CodeMirror requires concrete color strings (not CSS vars).
- * The hex literals below are JS-level fallbacks for getCssVar() calls; they are
- * equivalent to the pre-theme-load fallbacks in status.ts and are never exposed
- * as raw CSS. applyTheme() writes the actual values before editors mount. */
-function buildChromeTheme(editor: ThemeEditorData | null, isDark: boolean): Extension {
-  const bg = editor?.background ?? getCssVar('--bg-primary', '#0d1117');
-  const bgSecondary = getCssVar('--bg-secondary', '#161b22');
-  const fg = editor?.foreground ?? getCssVar('--text-primary', '#e6edf3');
-  const cursor = editor?.cursor ?? getCssVar('--accent-blue', '#58a6ff');
-  const selection = editor?.selection ?? getCssVar('--selection', '#1f6feb44');
-  const lineHighlight = editor?.line_highlight ?? 'transparent';
-  const gutterBg = editor?.gutter_bg ?? bg;
-  const gutterFg = editor?.gutter_fg ?? getCssVar('--text-secondary', '#8b949e');
-  const border = getCssVar('--border', '#30363d');
-  const addedBg = editor?.added_bg ?? (isDark ? '#1b3829' : '#d4f8db');
-  const removedBg = editor?.removed_bg ?? (isDark ? '#3c1e22' : '#fdd8d8');
-  const addedText = editor?.added_text ?? '#3fb950';
-  const removedText = editor?.removed_text ?? '#f85149';
+function buildChromeTheme(isDark: boolean): Extension {
+  const bg = 'var(--bg-primary)';
+  const bgSecondary = 'var(--bg-secondary)';
+  const fg = 'var(--text-primary)';
+  const cursor = 'var(--editor-cursor)';
+  const selection = 'var(--editor-selection)';
+  const lineHighlight = 'var(--editor-line-highlight)';
+  const gutterBg = 'var(--editor-gutter-bg)';
+  const gutterFg = 'var(--editor-gutter-fg)';
+  const border = 'var(--border)';
+  const addedBg = 'var(--diff-added-bg)';
+  const removedBg = 'var(--diff-removed-bg)';
 
   return EditorView.theme(
     {
@@ -182,17 +179,17 @@ function buildChromeTheme(editor: ThemeEditorData | null, isDark: boolean): Exte
 // Syntax highlighting
 // ---------------------------------------------------------------------------
 
-function buildSyntaxHighlighting(editor: ThemeEditorData | null, isDark: boolean): Extension {
-  // Derive syntax colors from editor data or sensible defaults per mode
-  const keyword = editor?.syntax_keyword ?? (isDark ? '#ff7b72' : '#cf222e');
-  const string = editor?.syntax_string ?? (isDark ? '#a5d6ff' : '#0a3069');
-  const comment = editor?.syntax_comment ?? (isDark ? '#8b949e' : '#6e7781');
-  const fn = editor?.syntax_function ?? (isDark ? '#d2a8ff' : '#8250df');
-  const type = editor?.syntax_type ?? (isDark ? '#79c0ff' : '#0550ae');
-  const number = editor?.syntax_number ?? (isDark ? '#79c0ff' : '#0550ae');
-  const operator = editor?.syntax_operator ?? (isDark ? '#ff7b72' : '#cf222e');
-  const property = editor?.syntax_property ?? (isDark ? '#7ee787' : '#116329');
-  const fg = editor?.foreground ?? (isDark ? '#e6edf3' : '#1f2328');
+function buildSyntaxHighlighting(): Extension {
+  // Same tokens the line-level highlighter consumes (lib/styles/syntax.css).
+  const keyword = 'var(--syntax-keyword)';
+  const string = 'var(--syntax-string)';
+  const comment = 'var(--syntax-comment)';
+  const fn = 'var(--syntax-function)';
+  const type = 'var(--syntax-type)';
+  const number = 'var(--syntax-number)';
+  const operator = 'var(--syntax-operator)';
+  const property = 'var(--syntax-property)';
+  const fg = 'var(--text-primary)';
 
   const highlightStyle = HighlightStyle.define([
     // Keywords: if, else, fn, let, const, return, import, export, etc.
@@ -278,11 +275,3 @@ function buildSyntaxHighlighting(editor: ThemeEditorData | null, isDark: boolean
   return syntaxHighlighting(highlightStyle);
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function getCssVar(name: string, fallback: string): string {
-  if (typeof document === 'undefined') return fallback;
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
-}
