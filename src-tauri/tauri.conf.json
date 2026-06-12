@@ -19,7 +19,9 @@
         "minHeight": 600,
         "decorations": true,
         "resizable": true,
-        "dragDropEnabled": true
+        "dragDropEnabled": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
       }
     ],
     "security": {
@@ -28,7 +30,12 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg", "appimage", "nsis"],
+    "targets": [
+      "app",
+      "dmg",
+      "appimage",
+      "nsis"
+    ],
     "createUpdaterArtifacts": true,
     "externalBin": [
       "binaries/gh",
