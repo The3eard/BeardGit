@@ -1,20 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="BeardGit">
   <defs>
     <linearGradient id="frame" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2C2830"/>
-      <stop offset="1" stop-color="#171419"/>
+      <stop offset="0" stop-color="#342b22"/>
+      <stop offset="1" stop-color="#16110a"/>
     </linearGradient>
     <linearGradient id="beard" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8A4520"/>
-      <stop offset="1" stop-color="#4B1D0D"/>
+      <stop offset="0" stop-color="#b06a30"/>
+      <stop offset="1" stop-color="#5f2d12"/>
     </linearGradient>
     <linearGradient id="beardDark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#562210"/>
-      <stop offset="1" stop-color="#2E1008"/>
+      <stop offset="0" stop-color="#7c3e18"/>
+      <stop offset="1" stop-color="#38170a"/>
     </linearGradient>
     <linearGradient id="git" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#F58A35"/>
-      <stop offset="1" stop-color="#FF6A16"/>
+      <stop offset="0" stop-color="#f0bd72"/>
+      <stop offset="1" stop-color="#d9924f"/>
     </linearGradient>
   </defs>
   <path d="M 296 348 C 286 410 280 480 290 560 C 295 615 285 670 274 720 C 290 698 308 682 326 670 C 322 720 334 770 362 818 C 414 890 472 922 512 932 C 552 922 610 890 662 818 C 690 770 702 720 698 670 C 716 682 734 698 750 720 C 739 670 729 615 734 560 C 744 480 738 410 728 348 C 696 408 654 446 608 470 C 590 478 562 472 540 442 C 528 426 518 416 512 416 C 506 416 496 426 484 442 C 462 472 434 478 416 470 C 370 446 328 408 296 348 Z" fill="url(#beard)"/>
@@ -27,12 +27,12 @@
   <path d="M 504 432 Q 512 422 520 432 L 516 460 Q 512 464 508 460 Z" fill="url(#beardDark)" opacity="0.6"/>
   <g transform="translate(512 720) scale(0.72)">
     <rect x="-112" y="-112" width="224" height="224" rx="24" transform="rotate(45)" fill="url(#git)"/>
-    <g fill="#231F27">
+    <g fill="#241a10">
       <circle cx="-8" cy="-46" r="20"/>
       <circle cx="-8" cy="60" r="20"/>
       <circle cx="76" cy="-4" r="20"/>
     </g>
-    <g fill="none" stroke="#231F27" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <g fill="none" stroke="#241a10" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
       <path d="M-8 -46 V60"/>
       <path d="M-8 -46 L76 -4"/>
     </g>
