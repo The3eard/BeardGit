@@ -172,12 +172,14 @@
           <AssigneeStack assignees={item.assignees} max={3} />
         {/if}
         {#if item.milestone}
-          <span class="milestone-chip nf" aria-label={m.issues_milestone_icon_aria()}>
-            {""} {item.milestone.title}
+          <span class="milestone-chip" aria-label={m.issues_milestone_icon_aria()}>
+            <span class="nf" aria-hidden="true">{""}</span>{item.milestone.title}
           </span>
         {/if}
         {#if item.comments_count > 0}
-          <span class="comment-count nf">{""} {item.comments_count}</span>
+          <span class="comment-count">
+            <span class="nf" aria-hidden="true">{""}</span>{item.comments_count}
+          </span>
         {/if}
       {/snippet}
     </TwoLineRow>
@@ -189,12 +191,19 @@
 {/if}
 
 <style>
+  /* The Nerd Font glyph lives in its own inner .nf span — putting `nf`
+     on the chip itself inherits the global `width: 1.2em`, squeezing the
+     milestone title into a 1-character column that wraps vertically. */
   .milestone-chip {
     font-size: 10px;
     color: var(--text-secondary);
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .state-icon { font-size: 14px; font-family: var(--font-icons); }
   .state-icon--open { color: var(--accent-green); }
@@ -202,7 +211,14 @@
   .issue-number { font-family: var(--font-mono); color: var(--text-secondary); font-size: 11px; }
   .issue-author { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .label-pill { padding: 1px 6px; border-radius: 10px; font-size: 10px; }
-  .comment-count { font-size: 10px; color: var(--text-secondary); }
+  .comment-count {
+    font-size: 10px;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
   .row-time { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
   .issue-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

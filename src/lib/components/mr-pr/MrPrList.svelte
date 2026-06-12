@@ -306,5 +306,8 @@
     white-space: nowrap;
     flex-shrink: 0;
     margin-top: 2px;
+    /* .list-row has no gap; without this the date sits flush against
+       the (truncated) title text. */
+    margin-left: 8px;
   }
 </style>
