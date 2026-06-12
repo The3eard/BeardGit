@@ -1,0 +1,33 @@
+[meta]
+id = "beardgit-light"
+name = "BeardGit Light"
+mode = "light"
+complementary = "beardgit-dark"
+
+# Light variant of the signature theme — warm paper surfaces with a
+# deepened copper accent for contrast on light backgrounds.
+
+[colors]
+background = "#faf5ee"
+foreground = "#3b332a"
+black = "#56473c"
+red = "#bf4a36"
+green = "#5f7d3a"
+yellow = "#aa7430"
+blue = "#37749a"
+magenta = "#96587f"
+cyan = "#3a8579"
+white = "#a39782"
+bright-black = "#6f6453"
+bright-red = "#a23a28"
+bright-green = "#4c682c"
+bright-yellow = "#8f5f1f"
+bright-blue = "#2a607f"
+bright-magenta = "#7d4668"
+bright-cyan = "#2c6f64"
+bright-white = "#fffdf8"
+
+[accents]
+primary = "#b3702a"
+secondary = "cyan"
+tertiary = "green"
