@@ -248,16 +248,25 @@ impl GraphLayout {
 
         /// Allocate a lane for a new branch.
         ///
+        /// `hint` is the lane of the commit that triggered the allocation
+        /// (the child's lane when allocating a merge parent). When several
+        /// candidate lanes are available, the one **nearest to the hint**
+        /// is chosen so merge curves stay short and cross fewer lanes.
+        /// `hint = None` (placing a brand-new tip with no child context)
+        /// reproduces the historical behaviour: lowest free slot first,
+        /// highest stale lane reclaimed at the cap.
+        ///
         /// Priority:
-        /// 1. Reuse a free (None) slot.
+        /// 1. Reuse a free (None) slot — the one nearest to `hint`
+        ///    (ties prefer the lower index; deterministic).
         /// 2. Append a new lane if under MAX_LANES.
         /// 3. At the cap, reclaim a **stale** lane — one whose OID is also
         ///    tracked by another lane (a duplicate that will never get its
-        ///    own commit node). Prefer the highest-index stale lane so that
-        ///    lower lanes stay visually stable.
+        ///    own commit node) — again nearest to `hint`.
         /// 4. Last resort: overwrite the highest lane (original behavior).
         ///
         /// Returns `(lane_index, was_recycled)`.
+        #[allow(clippy::too_many_arguments)]
         fn alloc_lane(
             lanes: &mut Vec<Option<Arc<str>>>,
             lane_start_row: &mut Vec<Option<usize>>,
@@ -266,9 +275,15 @@ impl GraphLayout {
             next_group_id: &mut usize,
             oid: Arc<str>,
             current_row: usize,
+            hint: Option<usize>,
         ) -> (usize, bool) {
-            // 1. Reuse a free slot
-            if let Some(idx) = lanes.iter().position(|slot| slot.is_none()) {
+            // 1. Reuse the free slot nearest to the hint. With no hint the
+            //    distance to lane 0 is the index itself, i.e. lowest-first.
+            let target = hint.unwrap_or(0);
+            let free_idx = (0..lanes.len())
+                .filter(|&i| lanes[i].is_none())
+                .min_by_key(|&i| (i.abs_diff(target), i));
+            if let Some(idx) = free_idx {
                 lanes[idx] = Some(oid);
                 while lane_start_row.len() <= idx {
                     lane_start_row.push(None);
@@ -291,24 +306,29 @@ impl GraphLayout {
             }
             // 3. At the cap — try to reclaim a stale (duplicate-OID) lane.
             //    A lane is stale if its OID appears in at least one other lane.
-            //    Search from highest index so lower lanes stay stable.
+            //    With a hint, pick the stale lane nearest to it; without one,
+            //    keep the historical highest-index choice so lower lanes stay
+            //    visually stable.
             //
-            //    Previously this used a nested `lanes.iter().any(...)` per
-            //    candidate, comparing string contents on each pair — O(MAX_LANES²)
-            //    per call with full-string equality. We now build a
-            //    one-shot occurrence table over the active lanes (O(MAX_LANES))
-            //    and then look up `count > 1` in O(1) per candidate.
+            //    The occurrence table is built once over the active lanes
+            //    (O(MAX_LANES)) so each candidate check is O(1).
             let mut occ: std::collections::HashMap<&str, u8> =
                 std::collections::HashMap::with_capacity(lanes.len());
             for o in lanes.iter().flatten() {
                 *occ.entry(o.as_ref()).or_insert(0) += 1;
             }
-            let stale_idx: Option<usize> = (0..lanes.len()).rev().find(|&i| {
+            let is_stale = |i: usize| {
                 lanes[i]
                     .as_ref()
                     .map(|o| occ.get(o.as_ref()).copied().unwrap_or(0) > 1)
                     .unwrap_or(false)
-            });
+            };
+            let stale_idx: Option<usize> = match hint {
+                Some(h) => (0..lanes.len())
+                    .filter(|&i| is_stale(i))
+                    .min_by_key(|&i| (i.abs_diff(h), i)),
+                None => (0..lanes.len()).rev().find(|&i| is_stale(i)),
+            };
             let reclaim_idx = stale_idx.unwrap_or(lanes.len() - 1);
             // Close the existing segment before overwriting — mark as recycled
             // so the renderer draws a continuation arrow. Guard `start <
@@ -341,6 +361,7 @@ impl GraphLayout {
             let lane = if let Some(idx) = find_lane(&active_lanes, &dag_node.oid) {
                 idx
             } else {
+                // A brand-new tip has no child context — no affinity hint.
                 let (idx, _) = alloc_lane(
                     &mut active_lanes,
                     &mut lane_start_row,
@@ -349,6 +370,7 @@ impl GraphLayout {
                     &mut next_group_id,
                     Arc::clone(&dag_node.oid),
                     row,
+                    None,
                 );
                 idx
             };
@@ -390,6 +412,9 @@ impl GraphLayout {
                     } else {
                         let already_assigned = find_lane(&active_lanes, parent_oid).is_some();
                         if !already_assigned {
+                            // Hint with the merge commit's own lane so the
+                            // parent lands as close as possible and the
+                            // resulting curve stays short.
                             alloc_lane(
                                 &mut active_lanes,
                                 &mut lane_start_row,
@@ -398,6 +423,7 @@ impl GraphLayout {
                                 &mut next_group_id,
                                 Arc::clone(parent_oid),
                                 row,
+                                Some(lane),
                             );
                         }
                     }
@@ -797,6 +823,91 @@ mod tests {
             layout.lane_count <= 3,
             "Expected <= 3 lanes, got {}",
             layout.lane_count
+        );
+    }
+
+    #[test]
+    fn test_merge_parent_prefers_nearest_free_lane() {
+        // Build a state where, when merge commit `c` (lane 2) needs a lane
+        // for its second parent `f`, both lane 0 and lane 3 are free.
+        // Nearest-lane affinity must pick lane 3 (distance 1) instead of the
+        // historical first-free choice, lane 0 (distance 2).
+        //
+        //   row 0  t0 (tip, lane 0)  → a
+        //   row 1  t1 (tip, lane 1)  → b
+        //   row 2  t2 (tip, lane 2)  → c
+        //   row 3  t3 (tip, lane 3)  → d
+        //   row 4  a  (root, frees lane 0)
+        //   row 5  d  (root, frees lane 3)
+        //   row 6  c  (merge of e, f — second parent f allocates here)
+        //   row 7  f  → e
+        //   row 8  b  → e
+        //   row 9  e  (root)
+        let commits = vec![
+            commit("t0", &["a"]),
+            commit("t1", &["b"]),
+            commit("t2", &["c"]),
+            commit("t3", &["d"]),
+            commit("a", &[]),
+            commit("d", &[]),
+            commit("c", &["e", "f"]),
+            commit("f", &["e"]),
+            commit("b", &["e"]),
+            commit("e", &[]),
+        ];
+        let dag = Dag::build(commits);
+        let layout = GraphLayout::compute(dag);
+
+        let c = layout.nodes.iter().find(|n| n.oid == "c").unwrap();
+        assert_eq!(c.lane, 2, "merge child sits on lane 2");
+        let f = layout.nodes.iter().find(|n| n.oid == "f").unwrap();
+        assert_eq!(
+            f.lane, 3,
+            "second parent must take the free lane nearest to the child \
+             (lane 3, distance 1) instead of the first free slot (lane 0)"
+        );
+
+        // The resulting merge curve spans a single lane.
+        let curve = layout
+            .merge_curves
+            .iter()
+            .find(|mc| mc.from_row == c.row && mc.to_row == f.row)
+            .expect("curve from c to f");
+        assert_eq!(curve.from_lane.abs_diff(curve.to_lane), 1);
+    }
+
+    #[test]
+    fn test_merge_parent_nearest_lane_tie_prefers_lower_index() {
+        // Same shape as above but the merge child sits on lane 2 with free
+        // lanes 1 and 3 — both at distance 1. The lower index must win so
+        // the layout stays deterministic and compact.
+        //
+        //   row 0  t0 (lane 0) → a
+        //   row 1  t1 (lane 1) → b
+        //   row 2  t2 (lane 2) → c
+        //   row 3  t3 (lane 3) → d
+        //   row 4  b  (root, frees lane 1)
+        //   row 5  d  (root, frees lane 3)
+        //   row 6  c  (merge of e, f)
+        let commits = vec![
+            commit("t0", &["a"]),
+            commit("t1", &["b"]),
+            commit("t2", &["c"]),
+            commit("t3", &["d"]),
+            commit("b", &[]),
+            commit("d", &[]),
+            commit("c", &["e", "f"]),
+            commit("f", &["e"]),
+            commit("a", &["e"]),
+            commit("e", &[]),
+        ];
+        let dag = Dag::build(commits);
+        let layout = GraphLayout::compute(dag);
+
+        let f = layout.nodes.iter().find(|n| n.oid == "f").unwrap();
+        assert_eq!(
+            f.lane, 1,
+            "equidistant free lanes resolve to the lower index"
         );
     }
 
