@@ -422,10 +422,6 @@
     border: 1px solid var(--border);
     padding: 4px 8px;
   }
-  .description-body :global(input[type="checkbox"]) {
-    margin-right: 4px;
-    pointer-events: none;
-  }
   .description-body :global(a) {
     color: var(--accent-primary);
     text-decoration: none;
@@ -511,10 +507,6 @@
   .comment-body :global(td) {
     border: 1px solid var(--border);
     padding: 4px 8px;
-  }
-  .comment-body :global(input[type="checkbox"]) {
-    margin-right: 4px;
-    pointer-events: none;
   }
   .comment-body :global(a) {
     color: var(--accent-primary);

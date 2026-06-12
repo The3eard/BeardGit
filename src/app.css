@@ -3,6 +3,7 @@
 @import "./lib/styles/detail.css";
 @import "./lib/styles/dialog.css";
 @import "./lib/styles/empty-state.css";
+@import "./lib/styles/markdown.css";
 
 /* Monospace — Fira Code with ligatures */
 @font-face {

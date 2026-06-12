@@ -875,11 +875,6 @@
     border: 1px solid var(--border);
     padding: 4px 8px;
   }
-  .description-body :global(input[type="checkbox"]) {
-    margin-right: 4px;
-    /* Task-list checkboxes are display-only. */
-    pointer-events: none;
-  }
 
   .file-list {
     font-size: var(--font-size-sm);

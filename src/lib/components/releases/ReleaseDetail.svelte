@@ -358,12 +358,6 @@
     border: 1px solid var(--border);
     padding: 4px 8px;
   }
-  .body :global(input[type="checkbox"]) {
-    margin-right: 4px;
-    /* Task-list items are display-only — clicking doesn't update the
-     * authored markdown source. */
-    pointer-events: none;
-  }
   .body :global(a) {
     color: var(--accent-primary);
     text-decoration: none;
