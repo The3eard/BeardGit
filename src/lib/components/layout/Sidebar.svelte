@@ -27,7 +27,7 @@
 
   /** All registered Navigation items. */
   const navItems: SidebarNavItem[] = [
-    { label: m.sidebar_graph(), icon: "", id: "graph" },
+    { label: m.sidebar_graph(), icon: "", id: "graph" },
     { label: m.sidebar_changes(), icon: "", id: "changes" },
     { label: m.sidebar_editor(), icon: "", id: "editor" },
     { label: m.sidebar_branches(), icon: "", id: "branches" },
