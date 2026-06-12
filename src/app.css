@@ -1,6 +1,5 @@
 @import "@xterm/xterm/css/xterm.css";
 @import "./lib/styles/list.css";
-@import "./lib/styles/detail.css";
 @import "./lib/styles/dialog.css";
 @import "./lib/styles/empty-state.css";
 @import "./lib/styles/markdown.css";

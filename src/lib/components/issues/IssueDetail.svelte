@@ -27,7 +27,7 @@
   import MilestonePicker from "./MilestonePicker.svelte";
   import Xrefs from "../common/Xrefs.svelte";
   import { renderMarkdown } from "../../utils/markdown";
-  import { Button, IconButton } from "$lib/components/ui";
+  import { Button, IconButton, Skeleton } from "$lib/components/ui";
 
   let showCloseConfirm = $state(false);
   let actionError = $state("");
@@ -130,7 +130,7 @@
 </script>
 
 {#if $issueDetailLoading}
-  <div class="detail-empty">{m.issues_loading()}</div>
+  <Skeleton variant="detail" rows={6} />
 {:else if !$issueDetail}
   <EmptyState fill icon={"\uF188"} title={m.issues_select()} />
 {:else}
@@ -301,14 +301,6 @@
 {/if}
 
 <style>
-  .detail-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-secondary);
-    font-size: var(--font-size-md);
-  }
   .issue-detail {
     padding: 16px;
     overflow-y: auto;

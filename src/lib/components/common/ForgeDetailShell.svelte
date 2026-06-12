@@ -28,6 +28,7 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
   import Button from "$lib/components/ui/Button.svelte";
+  import Skeleton from "$lib/components/ui/Skeleton.svelte";
   import EmptyState from "./EmptyState.svelte";
 
   interface Props {
@@ -61,8 +62,8 @@
 </script>
 
 {#if loading}
-  <div class="shell shell-loading" data-testid="forge-detail-loading">
-    <div class="spinner" aria-hidden="true"></div>
+  <div class="shell-loading" data-testid="forge-detail-loading">
+    <Skeleton variant="detail" rows={6} />
     <span class="sr-only">{m.forge_detail_loading()}</span>
   </div>
 {:else if error}
@@ -94,8 +95,11 @@
     padding: 24px;
     gap: 8px;
   }
-  .shell-empty,
   .shell-loading {
+    height: 100%;
+    overflow: hidden;
+  }
+  .shell-empty {
     color: var(--text-secondary);
     font-size: var(--font-size-md);
   }
@@ -114,19 +118,6 @@
     margin: 0;
     color: var(--text-secondary);
     font-size: var(--font-size-sm);
-  }
-  .spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent-primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
   .sr-only {
     position: absolute;

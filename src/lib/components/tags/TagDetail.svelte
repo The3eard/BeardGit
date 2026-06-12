@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import { Button } from "$lib/components/ui";
+  import { Button, Skeleton } from "$lib/components/ui";
   import FileChangeList from "../common/FileChangeList.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import EmptyState from "../common/EmptyState.svelte";
@@ -71,10 +71,7 @@
 
 <div class="tag-detail">
   {#if $loadingDetail}
-    <div class="detail-loading">
-      <div class="spinner"></div>
-      <span>{m.tags_loading_detail()}</span>
-    </div>
+    <Skeleton variant="detail" rows={6} />
   {:else if $selectedTagInfo && $selectedCommitInfo}
     <!-- Header -->
     <div class="detail-header">
