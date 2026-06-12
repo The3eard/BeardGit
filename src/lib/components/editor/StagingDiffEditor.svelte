@@ -12,6 +12,8 @@
   import EmptyState from "$lib/components/common/EmptyState.svelte";
   import { Button, Checkbox, IconButton } from "$lib/components/ui";
   import { diffLineWrapping } from "$lib/stores/diffSettings";
+  import { loadLineParser, highlightLineHtml } from "./line-highlight";
+  import type { Parser } from "@lezer/common";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -22,6 +24,19 @@
   }
 
   let { diff, isStaged, filename, onClose }: Props = $props();
+
+  /** Lezer parser for per-line syntax highlighting (null = plain text). */
+  let lineParser = $state<Parser | null>(null);
+  $effect(() => {
+    const file = filename;
+    let cancelled = false;
+    loadLineParser(file).then((p) => {
+      if (!cancelled) lineParser = p;
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
 
   /** Track which lines are selected per hunk: Map<hunkIndex, Set<lineIndex>> */
   let selectedLines = $state(new Map<number, Set<number>>());
@@ -338,7 +353,8 @@
                 class:origin-add={line.origin === "+"}
                 class:origin-remove={line.origin === "-"}
               >{line.origin}</span>
-              <span class="line-content">{line.content}</span>
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- highlightLineHtml escapes all source text -->
+              <span class="line-content">{@html highlightLineHtml(lineParser, line.content)}</span>
             </div>
           {/each}
         </div>
@@ -511,12 +527,14 @@
     transition: border-color 0.1s ease;
   }
 
+  /* Same added/removed backgrounds as the CodeMirror diff views — both
+     renderers read the theme's [editor] palette via these tokens. */
   .line-added {
-    background: var(--overlay-accent-green);
+    background: var(--diff-added-bg);
   }
 
   .line-removed {
-    background: var(--overlay-accent-red);
+    background: var(--diff-removed-bg);
   }
 
   .line-context {
@@ -583,8 +601,10 @@
     white-space: pre;
     padding: 0 8px 0 4px;
     color: var(--text-primary);
-    display: flex;
-    align-items: center;
+    /* Block, NOT flex: highlighted lines are a list of inline spans and
+       a flex container would swallow the whitespace text nodes between
+       them. Vertical centring comes from the parent .line row. */
+    display: block;
     min-width: 0;
   }
 
