@@ -1210,5 +1210,6 @@
   "window_controls_minimize": "Minimize",
   "window_controls_maximize": "Maximize",
   "window_controls_restore": "Restore",
-  "window_controls_close": "Close window"
+  "window_controls_close": "Close window",
+  "statusbar_repo_open_changes": "Open Changes"
 }

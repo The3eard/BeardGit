@@ -23,6 +23,7 @@
     - **Network** is non-interactive and hides itself while online.
 -->
 <script lang="ts">
+  import RepoSlot from "./statusbar/RepoSlot.svelte";
   import TasksSlot from "./statusbar/TasksSlot.svelte";
   import ForgeSlot from "./statusbar/ForgeSlot.svelte";
   import AiSlot from "./statusbar/AiSlot.svelte";
@@ -60,6 +61,7 @@
 
 <footer class="status-bar" data-testid="statusbar">
   <div class="status-left">
+    <RepoSlot onOpenView={(view) => activeViewStore.set(view)} />
     <TasksSlot onOpen={toggleTasksPopover} />
     <span class="divider" aria-hidden="true"></span>
     <ForgeSlot {onNavigate} />
