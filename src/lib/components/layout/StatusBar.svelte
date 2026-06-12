@@ -8,7 +8,7 @@
 
   Slot order (left → right):
 
-      [ Tasks ] | [ Forge ] | [ AI ] | [ Network ]   (spacer)   [ Version ]
+      [ Tasks ] | [ AI ] | [ Repo ] | [ Forge ] | [ Network ]   (spacer)   [ Help ] | [ Version ]
 
   Heights: 22 px total. 1 px 40%-opacity dividers between slots.
 
@@ -61,12 +61,14 @@
 
 <footer class="status-bar" data-testid="statusbar">
   <div class="status-left">
-    <RepoSlot onOpenView={(view) => activeViewStore.set(view)} />
     <TasksSlot onOpen={toggleTasksPopover} />
     <span class="divider" aria-hidden="true"></span>
-    <ForgeSlot {onNavigate} />
-    <span class="divider" aria-hidden="true"></span>
     <AiSlot {onNavigate} />
+    <span class="divider" aria-hidden="true"></span>
+    <!-- RepoSlot carries its own trailing divider so it collapses
+         cleanly on terminal/welcome tabs. -->
+    <RepoSlot onOpenView={(view) => activeViewStore.set(view)} />
+    <ForgeSlot {onNavigate} />
     <span class="divider" aria-hidden="true"></span>
     <NetworkSlot />
   </div>
