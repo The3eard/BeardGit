@@ -106,11 +106,16 @@ impl Repository {
     /// Callers that need rename status use `file_status_all` instead.
     pub fn diff_workdir(&self) -> Result<Vec<FileDiff>, GitError> {
         let repo = self.inner();
+        // `recurse_untracked_dirs` matters: without it libgit2 collapses an
+        // untracked directory into a single content-less `dir/` delta, so a
+        // brand-new file inside a brand-new folder rendered as an empty diff
+        // while `file_status_all` (which does recurse) still listed the file.
         let diff = repo.diff_index_to_workdir(
             None,
             Some(
                 DiffOptions::new()
                     .include_untracked(true)
+                    .recurse_untracked_dirs(true)
                     .show_untracked_content(true),
             ),
         )?;
@@ -660,6 +665,24 @@ mod tests {
         assert!(
             !new.hunks.is_empty(),
             "untracked files must have diff content"
+        );
+        assert!(new.additions > 0);
+    }
+
+    #[test]
+    fn test_diff_workdir_untracked_file_in_new_dir_has_content() {
+        let (dir, repo) = create_repo_with_file();
+        fs::create_dir(dir.path().join("newdir")).unwrap();
+        fs::write(dir.path().join("newdir/inner.txt"), "inner content\n").unwrap();
+        let diffs = repo.diff_workdir().unwrap();
+        let new = diffs
+            .iter()
+            .find(|d| d.path == "newdir/inner.txt")
+            .expect("untracked file inside an untracked dir must appear as its own entry");
+        assert_eq!(new.status, "untracked");
+        assert!(
+            !new.hunks.is_empty(),
+            "untracked files in new dirs must have diff content"
         );
         assert!(new.additions > 0);
     }
