@@ -23,3 +23,15 @@ bright-blue = "#218bff"
 bright-magenta = "#a475f9"
 bright-cyan = "#3192aa"
 bright-white = "#8c959f"
+
+# Pin the authentic GitHub Light editor scheme — see github_dark.toml.
+[editor]
+added-bg = "#d4f8db"
+removed-bg = "#fdd8d8"
+syntax-keyword = "#cf222e"
+syntax-string = "#0a3069"
+syntax-function = "#8250df"
+syntax-type = "#0550ae"
+syntax-number = "#0550ae"
+syntax-operator = "#cf222e"
+syntax-property = "#116329"
