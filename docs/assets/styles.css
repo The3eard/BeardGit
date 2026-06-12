@@ -6,7 +6,7 @@
 /* ---------- Theme tokens ---------- */
 :root {
   /* Brand constants (unchanged across themes) */
-  --brand-orange: #FF6A16;
+  --brand-orange: #d9924f;
   --brand-orange-deep: #BC4C00;
   --brand-beard: #7A3E18;
   --brand-beard-dark: #4B1D0D;
@@ -26,7 +26,7 @@
   --fg-muted: #8B949E;
   --rule: #21262D;
   --rule-strong: #30363D;
-  --accent: #FF6A16;
+  --accent: #d9924f;
   --accent-ink: #0D1117;
   --grid-dot: rgba(201, 209, 217, 0.05);
 

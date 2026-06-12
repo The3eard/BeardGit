@@ -1,108 +1,75 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
-  <title>BeardGit logo</title>
-  <desc>SVG logo for BeardGit: stylized bearded figure with Wayfarer-style glasses and a Git emblem as chest medallion.</desc>
+  <title>BeardGit app icon</title>
+  <desc>Stylized bearded figure with sunglasses and a copper Git diamond medallion, on a dark warm rounded tile.</desc>
+
+  <!-- Single vector source of truth for all generated icons:
+       - App bundles (icns/ico/png/android/ios): rasterize at 1024 and run `npm run tauri icon <png>`.
+       - Web favicons + landing logo: docs/assets/logo.svg + static/logo.svg carry the same
+         artwork without the tile; `npm run build:favicons` renders them.
+       Palette mirrors the BeardGit theme pair (copper #d9924f family). -->
 
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ECECEC"/>
-      <stop offset="1" stop-color="#E6E6E6"/>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b241d"/>
+      <stop offset="1" stop-color="#120e0a"/>
     </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#d9924f" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#d9924f" stop-opacity="0"/>
+    </radialGradient>
     <linearGradient id="frame" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2C2830"/>
-      <stop offset="1" stop-color="#171419"/>
+      <stop offset="0" stop-color="#342b22"/>
+      <stop offset="1" stop-color="#16110a"/>
     </linearGradient>
     <linearGradient id="beard" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8A4520"/>
-      <stop offset="1" stop-color="#4B1D0D"/>
+      <stop offset="0" stop-color="#b06a30"/>
+      <stop offset="1" stop-color="#5f2d12"/>
     </linearGradient>
     <linearGradient id="beardDark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#562210"/>
-      <stop offset="1" stop-color="#2E1008"/>
+      <stop offset="0" stop-color="#7c3e18"/>
+      <stop offset="1" stop-color="#38170a"/>
     </linearGradient>
     <linearGradient id="git" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#F58A35"/>
-      <stop offset="1" stop-color="#FF6A16"/>
+      <stop offset="0" stop-color="#f0bd72"/>
+      <stop offset="1" stop-color="#d9924f"/>
     </linearGradient>
   </defs>
 
-  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- Rounded tile with a faint copper rim + top glow -->
+  <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#tile)"/>
+  <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#glow)"/>
+  <rect x="67" y="67" width="890" height="890" rx="205" fill="none" stroke="#d9924f" stroke-opacity="0.3" stroke-width="6"/>
 
-  <!-- Beard: top-inner edge raised over upper lip (no separate mustache) -->
-  <path d="M 296 348
-           C 286 410 280 480 290 560
-           C 295 615 285 670 274 720
-           C 290 698 308 682 326 670
-           C 322 720 334 770 362 818
-           C 414 890 472 922 512 932
-           C 552 922 610 890 662 818
-           C 690 770 702 720 698 670
-           C 716 682 734 698 750 720
-           C 739 670 729 615 734 560
-           C 744 480 738 410 728 348
-           C 696 408 654 446 608 470
-           C 590 478 562 472 540 442
-           C 528 426 518 416 512 416
-           C 506 416 496 426 484 442
-           C 462 472 434 478 416 470
-           C 370 446 328 408 296 348 Z"
-        fill="url(#beard)"/>
-
-  <!-- Beard side shadows -->
-  <g fill="url(#beardDark)">
-    <path d="M 336 450 C 318 490 308 540 318 620 C 332 590 354 568 376 548 C 360 518 348 484 336 450 Z"/>
-    <path d="M 688 450 C 706 490 716 540 706 620 C 692 590 670 568 648 548 C 664 518 676 484 688 450 Z"/>
-    <path d="M 412 488 C 384 552 388 660 452 754 C 436 686 438 600 460 524 Z"/>
-    <path d="M 612 488 C 640 552 636 660 572 754 C 588 686 586 600 564 524 Z"/>
-  </g>
-
-  <!-- Philtrum hint (small dark V under nose) -->
-  <path d="M 504 432 Q 512 422 520 432 L 516 460 Q 512 464 508 460 Z"
-        fill="url(#beardDark)" opacity="0.6"/>
-
-  <!-- Git emblem: scale 0.72, positioned as chest medallion -->
-  <g transform="translate(512 720) scale(0.72)">
-    <rect x="-112" y="-112" width="224" height="224" rx="24" transform="rotate(45)" fill="url(#git)"/>
-    <g fill="#231F27">
-      <circle cx="-8" cy="-46" r="20"/>
-      <circle cx="-8" cy="60" r="20"/>
-      <circle cx="76" cy="-4" r="20"/>
+  <!-- Artwork (original bbox 168..856 × 244..932, center 512,588) recentred on the tile -->
+  <g transform="translate(512 512) scale(0.92) translate(-512 -588)">
+    <path d="M 296 348 C 286 410 280 480 290 560 C 295 615 285 670 274 720 C 290 698 308 682 326 670 C 322 720 334 770 362 818 C 414 890 472 922 512 932 C 552 922 610 890 662 818 C 690 770 702 720 698 670 C 716 682 734 698 750 720 C 739 670 729 615 734 560 C 744 480 738 410 728 348 C 696 408 654 446 608 470 C 590 478 562 472 540 442 C 528 426 518 416 512 416 C 506 416 496 426 484 442 C 462 472 434 478 416 470 C 370 446 328 408 296 348 Z" fill="url(#beard)"/>
+    <g fill="url(#beardDark)">
+      <path d="M 336 450 C 318 490 308 540 318 620 C 332 590 354 568 376 548 C 360 518 348 484 336 450 Z"/>
+      <path d="M 688 450 C 706 490 716 540 706 620 C 692 590 670 568 648 548 C 664 518 676 484 688 450 Z"/>
+      <path d="M 412 488 C 384 552 388 660 452 754 C 436 686 438 600 460 524 Z"/>
+      <path d="M 612 488 C 640 552 636 660 572 754 C 588 686 586 600 564 524 Z"/>
     </g>
-    <g fill="none" stroke="#231F27" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M-8 -46 V60"/>
-      <path d="M-8 -46 L76 -4"/>
+    <path d="M 504 432 Q 512 422 520 432 L 516 460 Q 512 464 508 460 Z" fill="url(#beardDark)" opacity="0.6"/>
+    <g transform="translate(512 720) scale(0.72)">
+      <rect x="-112" y="-112" width="224" height="224" rx="24" transform="rotate(45)" fill="url(#git)"/>
+      <g fill="#241a10">
+        <circle cx="-8" cy="-46" r="20"/>
+        <circle cx="-8" cy="60" r="20"/>
+        <circle cx="76" cy="-4" r="20"/>
+      </g>
+      <g fill="none" stroke="#241a10" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M-8 -46 V60"/>
+        <path d="M-8 -46 L76 -4"/>
+      </g>
     </g>
-  </g>
-
-  <!-- Glasses (refined Wayfarer, no rivets) -->
-  <g fill="url(#frame)">
-    <path d="M 240 290
-             C 240 262 264 244 296 244
-             H 422
-             C 462 244 488 264 494 298
-             C 500 322 498 348 484 366
-             C 468 390 438 404 392 404
-             H 350
-             C 280 404 244 372 240 314 Z"/>
-    <path d="M 784 290
-             C 784 262 760 244 728 244
-             H 602
-             C 562 244 536 264 530 298
-             C 524 322 526 348 540 366
-             C 556 390 586 404 632 404
-             H 674
-             C 744 404 780 372 784 314 Z"/>
-    <path d="M 466 280
-             C 476 274 490 270 512 270
-             C 534 270 548 274 558 280
-             L 558 304
-             C 558 312 552 318 542 318
-             H 482
-             C 472 318 466 312 466 304 Z"/>
-  </g>
-
-  <!-- Lens reflections: single curved sweep -->
-  <g fill="#FFFFFF" opacity="0.16">
-    <path d="M 270 318 C 290 286 326 270 358 274 C 376 278 376 290 368 304 C 350 332 318 354 290 358 C 276 354 268 338 270 318 Z"/>
-    <path d="M 754 318 C 734 286 698 270 666 274 C 648 278 648 290 656 304 C 674 332 706 354 734 358 C 748 354 756 338 754 318 Z"/>
+    <g fill="url(#frame)">
+      <path d="M 240 290 C 240 262 264 244 296 244 H 422 C 462 244 488 264 494 298 C 500 322 498 348 484 366 C 468 390 438 404 392 404 H 350 C 280 404 244 372 240 314 Z"/>
+      <path d="M 784 290 C 784 262 760 244 728 244 H 602 C 562 244 536 264 530 298 C 524 322 526 348 540 366 C 556 390 586 404 632 404 H 674 C 744 404 780 372 784 314 Z"/>
+      <path d="M 466 280 C 476 274 490 270 512 270 C 534 270 548 274 558 280 L 558 304 C 558 312 552 318 542 318 H 482 C 472 318 466 312 466 304 Z"/>
+    </g>
+    <g fill="#FFFFFF" opacity="0.14">
+      <path d="M 270 318 C 290 286 326 270 358 274 C 376 278 376 290 368 304 C 350 332 318 354 290 358 C 276 354 268 338 270 318 Z"/>
+      <path d="M 754 318 C 734 286 698 270 666 274 C 648 278 648 290 656 304 C 674 332 706 354 734 358 C 748 354 756 338 754 318 Z"/>
+    </g>
   </g>
 </svg>
