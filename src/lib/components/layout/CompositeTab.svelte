@@ -127,7 +127,11 @@
   >
     <span class="status-dot" style="background: {statusColor}"></span>
     <span class="segment-name">{project.name}</span>
-    {#if !(isActiveTab && activeSegmentIndex === -1)}
+    <!-- Status chips are for monitoring OTHER repos at a glance. The
+         active tab never shows them — even while a terminal/worktree
+         segment has focus, the user is already "in" this repo (its
+         live status lives in the status bar). -->
+    {#if !isActiveTab}
       <TabStatusStrip snapshot={stripSnapshot} />
     {/if}
     <IconButton tone="danger" size="xs" icon={""} description={m.tab_close()} onclick={handleCloseProject} />
