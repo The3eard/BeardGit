@@ -42,6 +42,10 @@
   --accent-tertiary: #3fb950;
   --selection: rgba(88, 166, 255, 0.15);
   --theme-mode: dark;
+  /* Render native controls (checkbox, select, scrollbar) in the theme's
+   * mode. Without this WebKit paints them light-mode regardless of the
+   * dark background — kept in sync at runtime by `theme.ts::applyTheme`. */
+  color-scheme: dark;
   --overlay-hover: rgba(255, 255, 255, 0.06);
   --overlay-active: rgba(255, 255, 255, 0.1);
   --overlay-shadow: rgba(0, 0, 0, 0.3);
