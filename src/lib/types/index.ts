@@ -57,6 +57,9 @@ export interface GraphViewOptions {
    *  remote `origin/main`) instead of all refs. Composes with `firstParent`
    *  for a clean single-branch mainline view. */
   branch?: string;
+  /** Lane ceiling override, clamped server-side to 4..=16 (default 8).
+   *  Wide windows can request more parallel lanes before lanes recycle. */
+  maxLanes?: number;
 }
 
 export interface GraphViewport {

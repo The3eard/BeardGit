@@ -39,7 +39,18 @@ pub struct GraphLayoutOptions {
     /// remote `origin/main`) instead of from every ref. Composes with
     /// `first_parent` for a clean single-branch mainline view.
     pub branch: Option<String>,
+    /// Lane ceiling override, already normalized via
+    /// [`GraphLayoutOptions::normalize_max_lanes`]: clamped to
+    /// `MIN_LANE_CEILING..=MAX_LANE_CEILING` and `None` when equal to
+    /// [`graph_builder::DEFAULT_MAX_LANES`] (so an explicit default shares
+    /// the default cache slot).
+    pub max_lanes: Option<u8>,
 }
+
+/// Lowest lane ceiling the frontend may request.
+pub const MIN_LANE_CEILING: u8 = 4;
+/// Highest lane ceiling the frontend may request.
+pub const MAX_LANE_CEILING: u8 = 16;
 
 impl GraphLayoutOptions {
     /// Stable discriminator string used in the persistent cache key and the
@@ -53,7 +64,25 @@ impl GraphLayoutOptions {
         if let Some(branch) = &self.branch {
             parts.push(format!("branch={branch}"));
         }
+        if let Some(lanes) = self.max_lanes {
+            parts.push(format!("lanes={lanes}"));
+        }
         parts.join(";")
+    }
+
+    /// Clamp a raw frontend-supplied lane ceiling into
+    /// `MIN_LANE_CEILING..=MAX_LANE_CEILING` and collapse the default value
+    /// to `None` so it can't create a duplicate cache slot.
+    pub fn normalize_max_lanes(raw: Option<u8>) -> Option<u8> {
+        raw.map(|n| n.clamp(MIN_LANE_CEILING, MAX_LANE_CEILING))
+            .filter(|&n| usize::from(n) != graph_builder::DEFAULT_MAX_LANES)
+    }
+
+    /// Effective lane ceiling for the layout computation.
+    pub(crate) fn lane_ceiling(&self) -> usize {
+        self.max_lanes
+            .map(usize::from)
+            .unwrap_or(graph_builder::DEFAULT_MAX_LANES)
     }
 
     /// View of these options as git-engine walk options.
@@ -201,7 +230,10 @@ fn build_fresh_layout(
     } else {
         Dag::build(graph_commits)
     };
-    Ok(GraphLayout::compute(dag))
+    Ok(GraphLayout::compute_with_max_lanes(
+        dag,
+        options.lane_ceiling(),
+    ))
 }
 
 /// Build the graph layout for a repo, consulting the persistent cache first.
@@ -404,6 +436,45 @@ mod tests {
     }
 
     #[test]
+    fn normalize_max_lanes_clamps_and_collapses_default() {
+        assert_eq!(GraphLayoutOptions::normalize_max_lanes(None), None);
+        // The default ceiling collapses to None — no duplicate cache slot.
+        assert_eq!(GraphLayoutOptions::normalize_max_lanes(Some(8)), None);
+        // In-range values pass through.
+        assert_eq!(GraphLayoutOptions::normalize_max_lanes(Some(12)), Some(12));
+        assert_eq!(GraphLayoutOptions::normalize_max_lanes(Some(4)), Some(4));
+        assert_eq!(GraphLayoutOptions::normalize_max_lanes(Some(16)), Some(16));
+        // Out-of-range values clamp to 4..=16.
+        assert_eq!(GraphLayoutOptions::normalize_max_lanes(Some(1)), Some(4));
+        assert_eq!(GraphLayoutOptions::normalize_max_lanes(Some(99)), Some(16));
+    }
+
+    #[test]
+    fn max_lanes_variant_gets_own_cache_slot() {
+        let (_tmp_repo, repo_path) = create_repo_with_n_commits(5);
+        let repo = Repository::open(&repo_path).unwrap();
+        let tmp_cfg = tempfile::tempdir().unwrap();
+        let path_str = repo_path.to_str().unwrap();
+
+        let wide_opts = GraphLayoutOptions {
+            max_lanes: Some(16),
+            ..Default::default()
+        };
+        let (_l, hit1) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &wide_opts).unwrap();
+        assert!(!hit1);
+        let (_l, hit2) = load_or_build_layout(
+            &repo,
+            path_str,
+            tmp_cfg.path(),
+            &GraphLayoutOptions::default(),
+        )
+        .unwrap();
+        assert!(!hit2, "default options must not hit the lanes=16 entry");
+        let (_l, hit3) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &wide_opts).unwrap();
+        assert!(hit3);
+    }
+
+    #[test]
     fn cache_material_includes_commit_count_and_head_tree() {
         let (_tmp_repo, repo_path) = create_repo_with_n_commits(5);
         let repo = Repository::open(&repo_path).unwrap();
@@ -499,6 +570,7 @@ mod tests {
         let clean_opts = GraphLayoutOptions {
             first_parent: true,
             branch: Some(head_branch),
+            ..Default::default()
         };
 
         let (scoped, hit1) =

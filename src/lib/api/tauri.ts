@@ -40,6 +40,7 @@ export async function getGraphViewport(
     offset, limit,
     firstParent: options?.firstParent ?? null,
     branch: options?.branch ?? null,
+    maxLanes: options?.maxLanes ?? null,
   });
 }
 
@@ -57,6 +58,7 @@ export async function loadGraphChunk(
     offset, limit,
     firstParent: options?.firstParent ?? null,
     branch: options?.branch ?? null,
+    maxLanes: options?.maxLanes ?? null,
   });
 }
 
