@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry } from "../types";
+import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
@@ -33,8 +33,29 @@ export async function getRepoInfo(): Promise<RepoInfo> {
   return invoke<RepoInfo>("get_repo_info");
 }
 
-export async function getGraphViewport(offset: number, limit: number): Promise<GraphViewport> {
-  return invoke<GraphViewport>("get_graph_viewport", { offset, limit });
+export async function getGraphViewport(
+  offset: number, limit: number, options?: GraphViewOptions
+): Promise<GraphViewport> {
+  return invoke<GraphViewport>("get_graph_viewport", {
+    offset, limit,
+    firstParent: options?.firstParent ?? null,
+  });
+}
+
+/**
+ * Stream a fixed-size window of commits as a standalone per-chunk layout.
+ * Unlike `getGraphViewport` (which slices the cached full layout), this walks
+ * the repo on demand — used when scrolling past the cached range. `has_more`
+ * is `true` while commits exist beyond the window. `options` must match the
+ * mode of the viewport the chunk extends.
+ */
+export async function loadGraphChunk(
+  offset: number, limit: number, options?: GraphViewOptions
+): Promise<GraphViewport> {
+  return invoke<GraphViewport>("load_graph_chunk", {
+    offset, limit,
+    firstParent: options?.firstParent ?? null,
+  });
 }
 
 /**

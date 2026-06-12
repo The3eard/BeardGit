@@ -46,6 +46,15 @@ export interface MergeCurve {
   group_id: number;
 }
 
+/** Options accepted by `getGraphViewport` / `loadGraphChunk`.
+ *  All fields are optional; omitting them yields the classic full graph.
+ *  (Not a Rust struct mirror — these map to individual IPC command params.) */
+export interface GraphViewOptions {
+  /** Follow only the first parent of each commit — merges collapse onto the
+   *  mainline and commits reachable solely through second parents disappear. */
+  firstParent?: boolean;
+}
+
 export interface GraphViewport {
   nodes: LayoutNode[];
   lane_segments: LaneSegment[];

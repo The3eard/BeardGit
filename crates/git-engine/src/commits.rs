@@ -120,6 +120,21 @@ fn refs_for_oid(repo: &git2::Repository, target: git2::Oid) -> Vec<String> {
     hits
 }
 
+/// Options controlling how [`Repository::walk_commits_with_options`] traverses
+/// history.
+///
+/// `Default` reproduces the behaviour of [`Repository::walk_commits`]: all
+/// refs are pushed as starting points and every parent edge is followed.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CommitWalkOptions {
+    /// Follow only the first parent of each commit (like
+    /// `git log --first-parent`). Commits reachable solely through second
+    /// parents of merges are excluded from the walk. Note that the returned
+    /// [`CommitInfo::parents`] still lists *all* parents of a merge — edge
+    /// simplification for graph rendering happens in `graph-builder`.
+    pub first_parent: bool,
+}
+
 impl Repository {
     /// Walk all commits reachable from any ref, skipping `offset` and returning at most `max_count`.
     ///
@@ -132,11 +147,25 @@ impl Repository {
         offset: usize,
         max_count: usize,
     ) -> Result<Vec<CommitInfo>, GitError> {
+        self.walk_commits_with_options(offset, max_count, CommitWalkOptions::default())
+    }
+
+    /// Like [`Repository::walk_commits`] but parameterised by
+    /// [`CommitWalkOptions`] (e.g. first-parent simplification).
+    pub fn walk_commits_with_options(
+        &self,
+        offset: usize,
+        max_count: usize,
+        options: CommitWalkOptions,
+    ) -> Result<Vec<CommitInfo>, GitError> {
         let repo = self.inner();
         let ref_map = build_ref_map(repo);
 
         let mut revwalk = repo.revwalk()?;
         revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?;
+        if options.first_parent {
+            revwalk.simplify_first_parent()?;
+        }
 
         // Push all heads, remotes, and tags as starting points.
         if let Ok(refs) = repo.references() {
@@ -391,6 +420,50 @@ mod tests {
         assert_eq!(fetched.summary, target.summary);
         assert_eq!(fetched.author, target.author);
         assert_eq!(fetched.parents, target.parents);
+    }
+
+    #[test]
+    fn test_walk_commits_first_parent_skips_merged_branch_commits() {
+        let (_dir, path) = crate::test_support::create_repo_with_merged_branch();
+        let repo = Repository::open(&path).unwrap();
+
+        // Default walk sees the whole graph: merge + feature + 2 mainline.
+        let all = repo.walk_commits(0, 100).unwrap();
+        assert_eq!(all.len(), 4);
+        assert!(all.iter().any(|c| c.summary == "feature work"));
+
+        // First-parent walk follows only the mainline: merge, c2, c1.
+        let fp = repo
+            .walk_commits_with_options(0, 100, CommitWalkOptions { first_parent: true })
+            .unwrap();
+        assert_eq!(
+            fp.len(),
+            3,
+            "first-parent walk must skip the feature commit"
+        );
+        assert!(
+            !fp.iter().any(|c| c.summary == "feature work"),
+            "commit reachable only via a second parent must be excluded"
+        );
+        // The merge commit itself stays on the mainline and keeps both parents
+        // in its metadata.
+        let merge = fp.iter().find(|c| c.summary == "merge feature").unwrap();
+        assert_eq!(merge.parents.len(), 2);
+    }
+
+    #[test]
+    fn test_walk_commits_first_parent_default_options_match_walk_commits() {
+        let (_dir, path) = create_repo_with_n_commits(5);
+        let repo = Repository::open(&path).unwrap();
+
+        let a = repo.walk_commits(0, 100).unwrap();
+        let b = repo
+            .walk_commits_with_options(0, 100, CommitWalkOptions::default())
+            .unwrap();
+        assert_eq!(
+            a.iter().map(|c| &c.oid).collect::<Vec<_>>(),
+            b.iter().map(|c| &c.oid).collect::<Vec<_>>(),
+        );
     }
 
     #[test]

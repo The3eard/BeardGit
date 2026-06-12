@@ -14,12 +14,38 @@
 
 use std::path::Path;
 
-use git_engine::Repository;
+use git_engine::{CommitWalkOptions, Repository};
 use graph_builder::{Dag, GraphCommit, GraphLayout};
 use storage::layout_cache::{
     LayoutCacheEntry, SCHEMA_VERSION, compute_cache_key, load_layout_cache, save_layout_cache,
 };
 use tracing::warn;
+
+/// Options that shape how a repo's [`GraphLayout`] is computed.
+///
+/// Carried alongside the layout in [`crate::state::ProjectSlot`] so viewport
+/// commands can tell whether the cached layout matches the mode the frontend
+/// is asking for. `Default` is the classic full-graph view.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct GraphLayoutOptions {
+    /// Follow only the first parent of each commit: merges collapse onto the
+    /// mainline and commits reachable solely through second parents are
+    /// excluded from the walk.
+    pub first_parent: bool,
+}
+
+impl GraphLayoutOptions {
+    /// Stable discriminator string used in the persistent cache key and the
+    /// per-variant cache file name. Empty for the default option set so
+    /// pre-existing cache entries stay valid.
+    pub fn variant(&self) -> String {
+        let mut parts: Vec<String> = Vec::new();
+        if self.first_parent {
+            parts.push("fp=1".to_string());
+        }
+        parts.join(";")
+    }
+}
 
 /// Gather the cache-key material (HEAD OID + sorted `(ref_name, oid)` pairs)
 /// for the currently-open repo.
@@ -77,9 +103,18 @@ fn cache_material(repo: &Repository) -> Result<(String, Vec<(String, String)>), 
 const MAX_INITIAL_LAYOUT_COMMITS: usize = 20_000;
 
 /// Walk the repo and build a fresh [`GraphLayout`] with no cache interaction.
-fn build_fresh_layout(repo: &Repository) -> Result<GraphLayout, String> {
+fn build_fresh_layout(
+    repo: &Repository,
+    options: &GraphLayoutOptions,
+) -> Result<GraphLayout, String> {
     let commits = repo
-        .walk_commits(0, MAX_INITIAL_LAYOUT_COMMITS)
+        .walk_commits_with_options(
+            0,
+            MAX_INITIAL_LAYOUT_COMMITS,
+            CommitWalkOptions {
+                first_parent: options.first_parent,
+            },
+        )
         .map_err(|e| e.to_string())?;
     let graph_commits: Vec<GraphCommit> = commits
         .iter()
@@ -93,7 +128,11 @@ fn build_fresh_layout(repo: &Repository) -> Result<GraphLayout, String> {
             email: c.email.clone(),
         })
         .collect();
-    let dag = Dag::build(graph_commits);
+    let dag = if options.first_parent {
+        Dag::build_first_parent(graph_commits)
+    } else {
+        Dag::build(graph_commits)
+    };
     Ok(GraphLayout::compute(dag))
 }
 
@@ -112,24 +151,27 @@ pub(crate) fn load_or_build_layout(
     repo: &Repository,
     repo_path: &str,
     config_dir: &Path,
+    options: &GraphLayoutOptions,
 ) -> Result<(GraphLayout, bool), String> {
     let (head_oid, refs) = cache_material(repo)?;
-    let fresh_key = compute_cache_key(repo_path, &head_oid, &refs);
+    let variant = options.variant();
+    let fresh_key = compute_cache_key(repo_path, &head_oid, &refs, &variant);
 
     // Try the on-disk cache. Any error is treated as a miss.
-    if let Ok(Some(entry)) = load_layout_cache(config_dir, repo_path)
+    if let Ok(Some(entry)) = load_layout_cache(config_dir, repo_path, &variant)
         && entry.cache_key == fresh_key
     {
         return Ok((entry.layout, true));
     }
 
     // Miss (or stale): compute and persist a fresh entry.
-    let layout = build_fresh_layout(repo)?;
+    let layout = build_fresh_layout(repo, options)?;
 
     let entry = LayoutCacheEntry {
         schema_version: SCHEMA_VERSION,
         cache_key: fresh_key,
         repo_path: repo_path.to_string(),
+        variant,
         head_oid,
         generated_at: chrono::Utc::now().to_rfc3339(),
         layout: layout.clone(),
@@ -184,8 +226,9 @@ mod tests {
         let tmp_cfg = tempfile::tempdir().unwrap();
         let path_str = repo_path.to_str().unwrap();
 
-        let (l1, hit1) = load_or_build_layout(&repo, path_str, tmp_cfg.path()).unwrap();
-        let (l2, hit2) = load_or_build_layout(&repo, path_str, tmp_cfg.path()).unwrap();
+        let opts = GraphLayoutOptions::default();
+        let (l1, hit1) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &opts).unwrap();
+        let (l2, hit2) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &opts).unwrap();
 
         assert!(!hit1, "first call should be a miss");
         assert!(hit2, "second call should be a hit");
@@ -202,7 +245,13 @@ mod tests {
         // Initial miss → cache gets written.
         {
             let repo = Repository::open(&repo_path).unwrap();
-            let (_l, hit) = load_or_build_layout(&repo, path_str, tmp_cfg.path()).unwrap();
+            let (_l, hit) = load_or_build_layout(
+                &repo,
+                path_str,
+                tmp_cfg.path(),
+                &GraphLayoutOptions::default(),
+            )
+            .unwrap();
             assert!(!hit);
         }
 
@@ -223,9 +272,51 @@ mod tests {
 
         // Reopening the repo now sees the new HEAD; cache must miss.
         let repo = Repository::open(&repo_path).unwrap();
-        let (layout, hit) = load_or_build_layout(&repo, path_str, tmp_cfg.path()).unwrap();
+        let (layout, hit) = load_or_build_layout(
+            &repo,
+            path_str,
+            tmp_cfg.path(),
+            &GraphLayoutOptions::default(),
+        )
+        .unwrap();
         assert!(!hit, "adding a commit should invalidate the cache");
         assert_eq!(layout.nodes.len(), 6);
+    }
+
+    #[test]
+    fn first_parent_mode_builds_and_caches_separately() {
+        let (_tmp_repo, repo_path) = git_engine::test_support::create_repo_with_merged_branch();
+        let repo = Repository::open(&repo_path).unwrap();
+        let tmp_cfg = tempfile::tempdir().unwrap();
+        let path_str = repo_path.to_str().unwrap();
+
+        let default_opts = GraphLayoutOptions::default();
+        let fp_opts = GraphLayoutOptions { first_parent: true };
+
+        // Warm both variants.
+        let (full, hit_full) =
+            load_or_build_layout(&repo, path_str, tmp_cfg.path(), &default_opts).unwrap();
+        let (fp, hit_fp) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &fp_opts).unwrap();
+        assert!(!hit_full);
+        assert!(!hit_fp, "fp variant must not hit the default-variant entry");
+
+        // Full graph: 4 commits across 2 lanes. First-parent: 3 commits, 1 lane.
+        assert_eq!(full.nodes.len(), 4);
+        assert_eq!(full.lane_count, 2);
+        assert_eq!(fp.nodes.len(), 3);
+        assert_eq!(fp.lane_count, 1);
+        assert!(
+            !fp.nodes.iter().any(|n| n.summary == "feature work"),
+            "merged-branch commit must be absent in first-parent mode"
+        );
+
+        // Both variants now hit independently.
+        let (_l, hit_full2) =
+            load_or_build_layout(&repo, path_str, tmp_cfg.path(), &default_opts).unwrap();
+        let (_l, hit_fp2) =
+            load_or_build_layout(&repo, path_str, tmp_cfg.path(), &fp_opts).unwrap();
+        assert!(hit_full2);
+        assert!(hit_fp2);
     }
 
     #[test]
@@ -235,17 +326,19 @@ mod tests {
         let path_str = repo_path.to_str().unwrap();
 
         // Plant garbage at the exact cache path.
-        let cache_path = layout_cache_path(tmp_cfg.path(), path_str);
+        let cache_path = layout_cache_path(tmp_cfg.path(), path_str, "");
         std::fs::create_dir_all(cache_path.parent().unwrap()).unwrap();
         std::fs::write(&cache_path, b"not-json-at-all").unwrap();
 
+        let opts = GraphLayoutOptions::default();
         let repo = Repository::open(&repo_path).unwrap();
-        let (layout, hit) = load_or_build_layout(&repo, path_str, tmp_cfg.path()).unwrap();
+        let (layout, hit) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &opts).unwrap();
         assert!(!hit, "corrupt file should be a silent miss");
         assert_eq!(layout.nodes.len(), 3);
 
         // And the miss path should have overwritten the garbage with a fresh entry.
-        let (_layout2, hit2) = load_or_build_layout(&repo, path_str, tmp_cfg.path()).unwrap();
+        let (_layout2, hit2) =
+            load_or_build_layout(&repo, path_str, tmp_cfg.path(), &opts).unwrap();
         assert!(hit2, "third call should hit the freshly-written cache");
     }
 }

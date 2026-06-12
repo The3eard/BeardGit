@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use tauri::{AppHandle, State};
 use tracing::instrument;
 
-use super::graph_cache::load_or_build_layout;
+use super::graph_cache::{GraphLayoutOptions, load_or_build_layout};
 use super::helpers::*;
 use crate::state::{AppState, ProjectSlot};
 
@@ -108,6 +108,7 @@ pub fn open_project(
         name: name.clone(),
         repo: None,
         layout: None,
+        layout_options: GraphLayoutOptions::default(),
         watcher: None,
         head_branch: status.head_branch.clone(),
         change_count,
@@ -259,7 +260,12 @@ pub async fn switch_project(
     let (repo, layout, status) = tokio::task::spawn_blocking(move || {
         let repo =
             git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(|e| e.to_string())?;
-        let (layout, _was_cached) = load_or_build_layout(&repo, &path_clone, &config_dir)?;
+        let (layout, _was_cached) = load_or_build_layout(
+            &repo,
+            &path_clone,
+            &config_dir,
+            &GraphLayoutOptions::default(),
+        )?;
         let status = repo.status().map_err(|e| e.to_string())?;
         Ok::<_, String>((repo, layout, status))
     })
@@ -298,6 +304,7 @@ pub async fn switch_project(
         if let Some(slot) = projects.get_mut(index) {
             slot.repo = Some(repo);
             slot.layout = Some(layout);
+            slot.layout_options = GraphLayoutOptions::default();
             slot.watcher = new_watcher;
             slot.head_branch = status.head_branch.clone();
             slot.change_count = change_count;
@@ -405,6 +412,7 @@ pub fn restore_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, 
                 name: name.clone(),
                 repo: None,
                 layout: None,
+                layout_options: GraphLayoutOptions::default(),
                 watcher: None,
                 head_branch: head_branch.clone(),
                 change_count,
