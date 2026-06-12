@@ -86,7 +86,9 @@
     display: flex;
     align-items: stretch;
     justify-content: space-between;
-    padding: 0;
+    /* Lateral breathing room — slots otherwise sit flush against the
+       window edges. */
+    padding: 0 10px;
     font-size: var(--font-size-xs);
     color: var(--text-secondary);
     user-select: none;
