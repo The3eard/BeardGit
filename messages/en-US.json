@@ -455,7 +455,6 @@
   "changes_menu_delete_file": "Delete Untracked File",
   "changes_menu_delete_confirm_title": "Delete File",
   "changes_menu_delete_confirm_message": "This will permanently delete \"{path}\". This cannot be undone.",
-  "changes_menu_discard": "Discard Changes",
   "changes_menu_discard_confirm_title": "Discard Changes",
   "changes_menu_discard_confirm_message": "Discard unstaged changes in \"{path}\"? This cannot be undone.",
   "clean_dialog_title": "Clean Untracked Files",
@@ -1207,5 +1206,9 @@
   "editor_dialog_new_folder_title": "New folder",
   "editor_close_tab": "Close tab",
   "editor_dirty_indicator": "Unsaved changes",
-  "editor_external_indicator": "Changed on disk"
+  "editor_external_indicator": "Changed on disk",
+  "window_controls_minimize": "Minimize",
+  "window_controls_maximize": "Maximize",
+  "window_controls_restore": "Restore",
+  "window_controls_close": "Close window"
 }

@@ -455,7 +455,6 @@
   "changes_menu_delete_file": "Eliminar archivo sin seguimiento",
   "changes_menu_delete_confirm_title": "Eliminar archivo",
   "changes_menu_delete_confirm_message": "Se eliminará permanentemente \"{path}\". Esta acción no se puede deshacer.",
-  "changes_menu_discard": "Descartar cambios",
   "changes_menu_discard_confirm_title": "Descartar cambios",
   "changes_menu_discard_confirm_message": "¿Descartar los cambios sin stage de \"{path}\"? Esta acción no se puede deshacer.",
   "clean_dialog_title": "Limpiar archivos sin seguimiento",
@@ -1207,5 +1206,9 @@
   "editor_dialog_new_folder_title": "Carpeta nueva",
   "editor_close_tab": "Cerrar pestaña",
   "editor_dirty_indicator": "Cambios sin guardar",
-  "editor_external_indicator": "Cambiado en disco"
+  "editor_external_indicator": "Cambiado en disco",
+  "window_controls_minimize": "Minimizar",
+  "window_controls_maximize": "Maximizar",
+  "window_controls_restore": "Restaurar",
+  "window_controls_close": "Cerrar ventana"
 }
