@@ -395,7 +395,7 @@ export const projectProvider = derived(
       (
         $project as { remotes?: Array<{ name: string; url: string }> }
       ).remotes?.find((r) => r.name === "origin")?.url ??
-      $remotes.find((r) => r.name === "origin")?.url;
+      ($remotes ?? []).find((r) => r.name === "origin")?.url;
     if (origin) {
       if (/github\.com[:/]/.test(origin)) return pickByKind("github");
       if (/gitlab\.(com|[\w.-]+)[:/]/.test(origin)) return pickByKind("gitlab");

@@ -29,7 +29,10 @@ export const remoteNames = derived(remotes, ($r) => $r.map((r) => r.name));
 export async function refreshRemotes(): Promise<void> {
   try {
     const list = await getRemotes();
-    remotes.set(list);
+    // Defensive: a misbehaving backend (or a test harness without a
+    // get_remotes mock) must not poison the store — a non-array here
+    // would crash every derived that does `$remotes.find(...)`.
+    remotes.set(Array.isArray(list) ? list : []);
   } catch {
     // Leave the previous value in place; UI will render with stale data.
   }
