@@ -1,5 +1,6 @@
 <script lang="ts">
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import EmptyState from "../common/EmptyState.svelte";
   import { Button } from "$lib/components/ui";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
@@ -104,9 +105,7 @@
       </div>
     {/if}
   {:else if !$selectedBranchName}
-    <div class="detail-empty">
-      <span>Select a branch to view details</span>
-    </div>
+    <EmptyState fill icon={"\uE725"} title="Select a branch to view details" />
   {/if}
 
   {#if confirmDelete && $selectedBranchInfo}

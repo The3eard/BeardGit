@@ -21,6 +21,7 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as m from "$lib/paraglide/messages";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import EmptyState from "../common/EmptyState.svelte";
   import LabelPicker from "../common/LabelPicker.svelte";
   import AssigneePicker from "./AssigneePicker.svelte";
   import MilestonePicker from "./MilestonePicker.svelte";
@@ -131,7 +132,7 @@
 {#if $issueDetailLoading}
   <div class="detail-empty">{m.issues_loading()}</div>
 {:else if !$issueDetail}
-  <div class="detail-empty">{m.issues_select()}</div>
+  <EmptyState fill icon={"\uF188"} title={m.issues_select()} />
 {:else}
   {@const detail = $issueDetail}
   <div class="issue-detail">
@@ -142,7 +143,7 @@
       </h3>
       <IconButton
         tone="default"
-        icon={""}
+        icon={"\uF08E"}
         description={m.issues_open_browser()}
         onclick={() => openUrl(detail.summary.url)}
       />
@@ -178,7 +179,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_labels()}</h4>
-        <IconButton tone="default" icon={""} description={m.issues_edit()} onclick={openLabelPicker} />
+        <IconButton tone="default" icon={"\uF044"} description={m.issues_edit()} onclick={openLabelPicker} />
       </div>
       <div class="label-list">
         {#each detail.summary.labels as label}
@@ -197,7 +198,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_assignees()}</h4>
-        <IconButton tone="default" icon={""} description={m.issues_edit()} onclick={() => showAssigneePicker = true} />
+        <IconButton tone="default" icon={"\uF044"} description={m.issues_edit()} onclick={() => showAssigneePicker = true} />
       </div>
       <div class="assignee-list">
         {#each detail.summary.assignees as a}
@@ -212,7 +213,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_milestone()}</h4>
-        <IconButton tone="default" icon={""} description={m.issues_edit()} onclick={() => showMilestonePicker = true} />
+        <IconButton tone="default" icon={"\uF044"} description={m.issues_edit()} onclick={() => showMilestonePicker = true} />
       </div>
       <div class="milestone-display">
         {detail.summary.milestone?.title ?? m.issues_no_milestone()}

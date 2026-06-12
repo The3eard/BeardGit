@@ -19,7 +19,8 @@
   import type { EnrichedWorktree } from "$lib/types";
   import type { AiProviderKind } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
-  import { IconButton } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
+  import EmptyState from "../common/EmptyState.svelte";
 
   interface Props {
     onNavigateToGraph?: (oid: string) => void;
@@ -166,7 +167,6 @@
   title={m.sidebar_worktrees().toUpperCase()}
   selectedKey={null}
   {getKey}
-  emptyMessage={m.worktree_list_empty()}
   onRefresh={refreshWorktrees}
   onContextMenu={handleContextMenu}
 >
@@ -182,6 +182,16 @@
       loading={$worktreeLoading}
       onclick={() => refreshWorktrees()}
     />
+  {/snippet}
+
+  {#snippet emptyState()}
+    <EmptyState icon={"\uE728"} title={m.worktree_list_empty()}>
+      {#snippet action()}
+        <Button variant="primary" size="sm" onclick={() => (showCreateDialog = true)}>
+          {m.worktree_create()}
+        </Button>
+      {/snippet}
+    </EmptyState>
   {/snippet}
 
   {#snippet row({ item })}

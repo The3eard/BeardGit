@@ -9,6 +9,7 @@
   import { stageHunks, unstageHunks, discardHunks } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
   import ConfirmDialog from "$lib/components/common/ConfirmDialog.svelte";
+  import EmptyState from "$lib/components/common/EmptyState.svelte";
   import { Button, Checkbox, IconButton } from "$lib/components/ui";
   import { diffLineWrapping } from "$lib/stores/diffSettings";
   import * as m from "$lib/paraglide/messages";
@@ -345,9 +346,7 @@
     {/each}
 
     {#if diff.hunks.length === 0}
-      <div class="empty-diff">
-        <p>{m.diff_empty()}</p>
-      </div>
+      <EmptyState fill icon={"\uF440"} title={m.diff_empty()} />
     {/if}
   </div>
 </div>
@@ -616,12 +615,4 @@
     padding-top: 2px;
   }
 
-  .empty-diff {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 32px;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
 </style>

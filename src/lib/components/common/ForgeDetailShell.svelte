@@ -19,6 +19,7 @@
     isEmpty      — true renders `emptyMessage` (only when not
                    loading and no error).
     emptyMessage — user-facing empty-state copy (localised).
+    emptyIcon    — optional Nerd Font glyph for the empty state.
     onRetry      — optional click handler for the error state's
                    Retry button.
     content      — default snippet rendered when not loading, no
@@ -27,12 +28,14 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
   import Button from "$lib/components/ui/Button.svelte";
+  import EmptyState from "./EmptyState.svelte";
 
   interface Props {
     loading: boolean;
     error: string | null;
     isEmpty: boolean;
     emptyMessage: string;
+    emptyIcon?: string;
     onRetry?: () => void;
     content?: import("svelte").Snippet;
   }
@@ -42,6 +45,7 @@
     error,
     isEmpty,
     emptyMessage,
+    emptyIcon,
     onRetry,
     content,
   }: Props = $props();
@@ -74,7 +78,7 @@
   </div>
 {:else if isEmpty}
   <div class="shell shell-empty" data-testid="forge-detail-empty">
-    {emptyMessage}
+    <EmptyState title={emptyMessage} icon={emptyIcon} />
   </div>
 {:else}
   {@render content?.()}

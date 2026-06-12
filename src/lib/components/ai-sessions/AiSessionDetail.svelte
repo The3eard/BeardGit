@@ -42,6 +42,7 @@
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
   import BackgroundRunTranscript from "../ai/BackgroundRunTranscript.svelte";
   import ProviderIcon from "./ProviderIcon.svelte";
+  import EmptyState from "../common/EmptyState.svelte";
   import { Button } from "$lib/components/ui";
   import {
     selectedActiveTerminal,
@@ -519,7 +520,12 @@
   </div>
 {:else}
   <div class="empty" data-testid="ai-session-detail-empty">
-    {m.ai_sessions_empty()}
+    <EmptyState
+      fill
+      icon={"\uF489"}
+      title={m.ai_sessions_empty()}
+      description={m.ai_sessions_empty_hint()}
+    />
   </div>
 {/if}
 
@@ -648,10 +654,10 @@
   }
 
   .empty {
-    padding: 24px;
-    color: var(--text-secondary);
-    text-align: center;
-    font-size: 12px;
+    /* Flex wrapper kept only for the test id — the EmptyState inside
+       does the actual centering via `fill`. */
+    display: flex;
+    height: 100%;
   }
 
   /* ─── Prompt + transcript split ─────────────────────────────────── */

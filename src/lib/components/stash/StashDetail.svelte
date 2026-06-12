@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import EmptyState from "../common/EmptyState.svelte";
   import DiffEditor from "../editor/DiffEditor.svelte";
   import { stashes, selectedStashIndex, selectedStashDiff, doStashApplyFile } from "../../stores/stashes";
   import { activeTheme } from "../../stores/theme";
@@ -56,9 +57,7 @@
     </div>
   </div>
 {:else}
-  <div class="detail-empty">
-    <p>{m.stash_select_preview()}</p>
-  </div>
+  <EmptyState fill icon={"\uF187"} title={m.stash_select_preview()} />
 {/if}
 
 <style>
