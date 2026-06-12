@@ -71,7 +71,7 @@
 
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import { Card, SettingSection, FormRow } from "$lib/components/ui";
+  import { Card, FormRow } from "$lib/components/ui";
   import LookAndFeelSection from "./LookAndFeelSection.svelte";
   import {
     diffShowWhitespace,
@@ -112,7 +112,7 @@
   title={m.settings_general_diff_section_title()}
   description={m.settings_general_diff_section_description()}
 >
-  <SettingSection title={m.settings_general_diff_section_title()}>
+  <div class="diff-settings-body">
     <div data-setting-anchor="diff-show-whitespace">
       <FormRow
         label={m.settings_general_diff_show_whitespace_label()}
@@ -145,10 +145,19 @@
         />
       </FormRow>
     </div>
-  </SettingSection>
+  </div>
 </Card>
 
 <style>
+  /* The parent <Card> owns the single visible "Diff display" heading;
+     this wrapper only keeps the vertical rhythm of the removed inner
+     SettingSection. */
+  .diff-settings-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .bg-checkbox {
     accent-color: var(--accent-primary);
     width: 16px;

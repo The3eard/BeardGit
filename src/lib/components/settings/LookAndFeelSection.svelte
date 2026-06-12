@@ -32,7 +32,7 @@
   import { activeTheme, applyUiScale } from "$lib/stores/theme";
   import type { ThemeMeta } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
-  import { SettingSection, FormRow } from "$lib/components/ui";
+  import { FormRow } from "$lib/components/ui";
 
   const languages = [
     { tag: "en-US", label: "English (US)" },
@@ -84,8 +84,7 @@
   }
 </script>
 
-<div data-testid="look-and-feel-heading">
-  <SettingSection title={m.settings_general_theme_section_title()}>
+<div data-testid="look-and-feel-heading" class="look-and-feel-body">
   <div data-setting-anchor="language">
     <FormRow label={m.settings_language()} for="language-select">
       <select
@@ -142,10 +141,18 @@
       </select>
     </FormRow>
   </div>
-  </SettingSection>
 </div>
 
 <style>
+  /* The parent <Card> owns the single visible "Look & feel" heading;
+     this wrapper only keeps the vertical rhythm the removed inner
+     SettingSection used to provide. */
+  .look-and-feel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .bg-select {
     padding: 5px 10px;
     background: var(--bg-primary);
