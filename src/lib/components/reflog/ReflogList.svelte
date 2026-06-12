@@ -106,7 +106,7 @@
   }
 
   .state-icon {
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-family: var(--font-icons);
   }
 
@@ -126,7 +126,7 @@
   }
 
   .entry-action {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -135,7 +135,7 @@
   }
 
   .entry-summary {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     flex: 1;
     overflow: hidden;
@@ -147,7 +147,7 @@
     display: flex;
     align-items: center;
     gap: 3px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     font-family: var(--font-mono);
     overflow: hidden;
@@ -158,7 +158,7 @@
   }
 
   .row-time {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     white-space: nowrap;
     flex-shrink: 0;

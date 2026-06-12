@@ -185,7 +185,7 @@
 
   .file-path {
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--accent-primary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -193,7 +193,7 @@
   }
 
   .at-commit {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     background: var(--bg-secondary);
     padding: 2px 6px;
@@ -218,7 +218,7 @@
 
   .tab-btn {
     padding: 4px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     border: none;
     background: var(--bg-secondary);
@@ -254,7 +254,7 @@
     justify-content: center;
     gap: 8px;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .error-text {

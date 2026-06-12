@@ -437,7 +437,7 @@
      glyph — shorter, locale-aware, and self-explanatory. */
   .ai-bg-label {
     font-weight: 700;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     letter-spacing: 0.5px;
   }
 
@@ -479,7 +479,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     white-space: nowrap;
   }
@@ -509,7 +509,7 @@
   }
 
   .menu-item-meta {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
   }
 </style>

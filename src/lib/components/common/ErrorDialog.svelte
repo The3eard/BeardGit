@@ -131,7 +131,7 @@
 
   .dialog-message {
     margin: 0 0 16px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
     line-height: 1.5;
     word-break: break-word;
@@ -145,7 +145,7 @@
     border: none;
     padding: 0;
     margin-bottom: 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-tertiary);
     cursor: pointer;
   }
@@ -156,7 +156,7 @@
 
   .chevron {
     font-family: var(--font-icons);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     transition: transform 0.15s;
     transform: rotate(0deg);
   }
@@ -171,7 +171,7 @@
     background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     border-radius: 6px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-family: var(--font-mono);
     color: var(--text-secondary);
     line-height: 1.5;

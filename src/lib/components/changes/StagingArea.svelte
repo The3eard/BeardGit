@@ -497,7 +497,7 @@
     border-radius: 6px;
     padding: 8px 10px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: inherit;
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -515,7 +515,7 @@
 
   .nf {
     font-family: var(--font-icons);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     line-height: 1;
   }
 
@@ -559,7 +559,7 @@
     border: none;
     border-radius: 5px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     transition: background 0.1s ease;
   }
@@ -569,7 +569,7 @@
   }
 
   .overflow-menu-item .nf {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
     width: 16px;
     text-align: center;
@@ -586,7 +586,7 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     cursor: pointer;
     transition: color 0.15s ease;
@@ -613,7 +613,7 @@
     align-items: center;
     gap: 6px;
     padding: 4px 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
   }

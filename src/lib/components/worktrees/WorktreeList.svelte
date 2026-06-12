@@ -315,7 +315,7 @@
 
   .wt-branch {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-primary);
     white-space: nowrap;
     overflow: hidden;
@@ -369,7 +369,7 @@
 
   .wt-path {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     margin-top: 2px;
     white-space: nowrap;
@@ -393,7 +393,7 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     padding: 2px 4px;
     border-radius: 4px;
     cursor: pointer;

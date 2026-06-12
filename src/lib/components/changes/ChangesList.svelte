@@ -398,7 +398,7 @@
   }
 
   .list-title {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -406,7 +406,7 @@
   }
 
   .file-count {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     background: var(--overlay-hover);
     padding: 1px 6px;
@@ -451,7 +451,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     text-align: left;
     padding: 2px 0;
@@ -459,7 +459,7 @@
 
   .status-badge {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 700;
     width: 18px;
     height: 18px;
@@ -500,7 +500,7 @@
 
   .item-action {
     opacity: 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     background: var(--overlay-hover);
     border: none;

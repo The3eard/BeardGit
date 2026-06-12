@@ -181,7 +181,7 @@
   }
 
   .env-switcher__label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -262,7 +262,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-mono);
     cursor: pointer;
     white-space: nowrap;

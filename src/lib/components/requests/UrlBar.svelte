@@ -259,7 +259,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     box-sizing: border-box;
     appearance: none;
@@ -303,7 +303,7 @@
     padding: 0 8px;
     border-radius: 11px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--accent-primary);
     background: var(--overlay-accent-blue);

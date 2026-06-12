@@ -52,7 +52,7 @@
   .pill {
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     font-family: var(--font-mono);
     letter-spacing: 0.2px;
@@ -83,12 +83,12 @@
 
   .meta,
   .msg {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
   }
 
   .warn {
     color: var(--accent-orange);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 </style>

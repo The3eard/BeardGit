@@ -191,19 +191,19 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .conflict-icon {
     font-family: var(--font-icons);
     color: var(--accent-orange);
-    font-size: 14px;
+    font-size: var(--font-size-lg);
   }
 
   .conflict-state {
     font-weight: 700;
     color: var(--accent-orange);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     letter-spacing: 0.5px;
   }
 
@@ -218,7 +218,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     padding: 0;
   }
@@ -261,7 +261,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     text-align: left;
   }
@@ -273,14 +273,14 @@
 
   .file-icon {
     font-family: var(--font-icons);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-orange);
     flex-shrink: 0;
   }
 
   .file-path {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

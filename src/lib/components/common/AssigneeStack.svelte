@@ -67,7 +67,7 @@
   }
   .assignee-avatar:first-child { margin-left: 0; }
   .assignee-overflow {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     margin-left: 4px;
     flex-shrink: 0;

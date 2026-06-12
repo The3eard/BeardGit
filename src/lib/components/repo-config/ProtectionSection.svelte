@@ -246,13 +246,13 @@
   }
 
   .hint {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin: 0;
   }
 
   .error {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-red);
     margin: 0;
   }
@@ -264,7 +264,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     min-width: 200px;
   }
 
@@ -276,7 +276,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .actions {

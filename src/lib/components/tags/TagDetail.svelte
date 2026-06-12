@@ -288,7 +288,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -308,7 +308,7 @@
   }
 
   .section-label {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -324,21 +324,21 @@
   }
 
   .message-card {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     line-height: 1.5;
     white-space: pre-wrap;
   }
 
   .commit-summary {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 4px;
   }
 
   .commit-body {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     line-height: 1.5;
     white-space: pre-wrap;
@@ -349,7 +349,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     padding-top: 8px;
     border-top: 1px solid var(--border);
@@ -374,7 +374,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .stat-item {
@@ -423,7 +423,7 @@
   }
 
   .parent-oid {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-family: var(--font-mono);
     color: var(--accent-primary);
     background: var(--overlay-accent-blue);

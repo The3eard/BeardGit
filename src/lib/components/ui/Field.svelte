@@ -57,14 +57,14 @@
   }
 
   .bg-field__label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     font-weight: 500;
   }
 
   .bg-field__description {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     line-height: 1.45;
   }
@@ -77,7 +77,7 @@
 
   .bg-field__error {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-red);
     line-height: 1.45;
   }

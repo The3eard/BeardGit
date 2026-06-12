@@ -258,7 +258,7 @@
   }
   .dialog-title {
     margin: 0 0 16px;
-    font-size: 16px;
+    font-size: var(--font-size-xl);
   }
   .form-field {
     margin-bottom: 12px;
@@ -266,7 +266,7 @@
   .form-field label,
   .form-field .label {
     display: block;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
     margin-bottom: 4px;
@@ -280,7 +280,7 @@
   }
   .form-field.inline label {
     display: inline;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     text-transform: none;
     color: var(--text-primary);
     cursor: pointer;
@@ -297,7 +297,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-family: inherit;
     box-sizing: border-box;
   }
@@ -318,7 +318,7 @@
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .tab.active {
     background: var(--accent-primary);
@@ -330,7 +330,7 @@
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     margin-bottom: 12px;
   }
   .dialog-actions {

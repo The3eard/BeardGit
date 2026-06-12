@@ -151,7 +151,7 @@
 
   .worktree-icon {
     font-family: var(--font-icons);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--accent-primary);
     line-height: 1;
     flex-shrink: 0;
@@ -160,7 +160,7 @@
   .tab-name {
     flex: 1;
     min-width: 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--text-primary);
     overflow: hidden;

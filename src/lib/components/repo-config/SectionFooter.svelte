@@ -56,7 +56,7 @@
     border-top: 1px solid var(--border);
   }
   .label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
   }
   .actions {

@@ -157,7 +157,7 @@
     padding: 4px 8px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .diff-filename {
@@ -181,7 +181,7 @@
   .diff-editor :global(.cm-scroller) {
     overflow: auto;
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
   }
 
@@ -195,7 +195,7 @@
     align-items: center;
     justify-content: center;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     padding: 24px;
     text-align: center;
   }

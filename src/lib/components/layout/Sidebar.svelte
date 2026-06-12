@@ -437,7 +437,7 @@
 
   .section-label {
     padding: 4px 16px 6px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -462,7 +462,7 @@
     background: none;
     border: 1px solid var(--border);
     color: var(--text-primary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 2px 6px;
     border-radius: 3px;
     cursor: pointer;
@@ -488,7 +488,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     cursor: pointer;
     text-align: left;
     transition: background 0.15s;
@@ -518,7 +518,7 @@
     width: 16px;
     text-align: center;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-family: var(--font-icons);
     flex-shrink: 0;
   }
@@ -530,7 +530,7 @@
   }
 
   .nav-badge {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     background: var(--accent-primary);
     color: var(--text-primary);
     border-radius: 8px;
@@ -559,7 +559,7 @@
   }
 
   .collapse-btn .nav-icon {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   /* Edit-mode row layout: [drag][icon][label][eye] */
@@ -581,7 +581,7 @@
     color: var(--text-secondary);
     cursor: grab;
     padding: 0 2px;
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     line-height: 1;
   }
 
@@ -595,7 +595,7 @@
     border: none;
     color: var(--text-secondary);
     font-family: var(--font-icons);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     cursor: pointer;
     padding: 0 4px;
   }
@@ -624,7 +624,7 @@
   }
 
   .nav-item.show-more .nav-icon {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   /* Hidden items revealed inline below the visible list — dimmer than a

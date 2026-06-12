@@ -73,7 +73,7 @@
   }
 
   .branch-name {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 8px;
@@ -88,12 +88,12 @@
   .branch-icon {
     font-family: var(--font-icons);
     color: var(--accent-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     flex-shrink: 0;
   }
 
   .clean-status {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-green);
     display: flex;
     align-items: center;
@@ -104,7 +104,7 @@
     display: flex;
     flex-direction: column;
     gap: 5px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .row {
@@ -127,7 +127,7 @@
     padding: 1px 8px;
     border-radius: 10px;
     font-weight: 500;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     background: var(--overlay-accent-muted);
     color: var(--text-secondary);
   }

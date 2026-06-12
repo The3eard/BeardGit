@@ -187,7 +187,7 @@
   .code-editor :global(.cm-scroller) {
     overflow: auto;
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
   }
 </style>

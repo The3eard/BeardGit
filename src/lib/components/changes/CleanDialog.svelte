@@ -208,7 +208,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     cursor: pointer;
   }
@@ -240,7 +240,7 @@
     align-items: center;
     gap: 8px;
     padding: 4px 4px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
     border-radius: 4px;
@@ -252,7 +252,7 @@
 
   .file-icon {
     font-family: var(--font-icons);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
     width: 16px;
     text-align: center;
@@ -261,7 +261,7 @@
   .file-path {
     flex: 1;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -284,13 +284,13 @@
     justify-content: center;
     height: 100px;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .dialog-error {
     padding: 6px 10px;
     margin-bottom: 4px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     background: var(--overlay-accent-red);
     border-radius: 4px;
@@ -299,7 +299,7 @@
 
   .dialog-warning {
     padding: 8px 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     line-height: 1.4;
   }

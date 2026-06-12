@@ -637,7 +637,7 @@
 
   .detail-title {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--font-size-xl);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -653,7 +653,7 @@
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin-bottom: 12px;
     padding-bottom: 12px;
@@ -662,13 +662,13 @@
 
   .branch-info {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .merge-status {
     padding: 1px 6px;
     border-radius: 3px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
   }
 
@@ -684,7 +684,7 @@
   .review-badge {
     padding: 1px 6px;
     border-radius: 3px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     color: var(--text-secondary);
@@ -741,7 +741,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     text-align: left;
     border-radius: 4px;
@@ -763,7 +763,7 @@
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .section {
@@ -772,7 +772,7 @@
 
   .section-title {
     margin: 0 0 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -780,7 +780,7 @@
   }
 
   .description-body {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-primary);
     line-height: 1.5;
     word-wrap: break-word;
@@ -794,16 +794,16 @@
     font-weight: 600;
     color: var(--text-primary);
   }
-  .description-body :global(h1) { font-size: 16px; }
-  .description-body :global(h2) { font-size: 14px; }
-  .description-body :global(h3) { font-size: 13px; }
+  .description-body :global(h1) { font-size: var(--font-size-xl); }
+  .description-body :global(h2) { font-size: var(--font-size-lg); }
+  .description-body :global(h3) { font-size: var(--font-size-md); }
 
   .description-body :global(code) {
     padding: 1px 4px;
     background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .description-body :global(pre) {
@@ -813,7 +813,7 @@
     border-radius: 6px;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
     margin: 8px 0;
   }
@@ -882,13 +882,13 @@
   }
 
   .file-list {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .empty-section {
     margin: 0;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-style: italic;
   }
 
@@ -897,7 +897,7 @@
     padding: 6px 10px;
     background: var(--overlay-accent-red);
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     border-radius: 4px;
   }
 
@@ -912,7 +912,7 @@
     text-align: left;
     cursor: pointer;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     border-radius: 3px;
   }
@@ -923,7 +923,7 @@
     width: 14px;
     text-align: center;
     font-weight: 700;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
   }
   .file-status.added {
     color: var(--accent-green);
@@ -956,7 +956,7 @@
     display: flex;
     gap: 8px;
     margin-bottom: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     flex-wrap: wrap;
   }
   .comment-author {
@@ -969,10 +969,10 @@
   .comment-file {
     font-family: var(--font-mono);
     color: var(--accent-primary);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
   }
   .comment-body {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -984,7 +984,7 @@
     background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .comment-body :global(a) {
@@ -1002,7 +1002,7 @@
     border-radius: 4px;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     line-height: 1.4;
     margin: 6px 0;
   }
@@ -1041,7 +1041,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-family: inherit;
     resize: vertical;
     min-height: 50px;
@@ -1061,7 +1061,7 @@
     color: var(--text-primary);
     border: 1px solid var(--accent-primary);
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
   }
 
@@ -1074,7 +1074,7 @@
     color: var(--accent-red);
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
   }
 
@@ -1092,7 +1092,7 @@
     color: var(--accent-green);
     border: 1px solid var(--border);
     border-radius: 10px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     cursor: pointer;
   }
   .resolve-btn.is-resolved { color: var(--text-secondary); }
@@ -1107,9 +1107,9 @@
     border: 1px solid var(--accent-green);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     box-shadow: var(--shadow-overlay);
     z-index: 100;
   }
-  .toast-sub { color: var(--text-secondary); font-size: 11px; }
+  .toast-sub { color: var(--text-secondary); font-size: var(--font-size-xs); }
 </style>

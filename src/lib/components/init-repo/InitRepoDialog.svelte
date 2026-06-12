@@ -400,7 +400,7 @@
 <style>
   .dialog-intro {
     margin: 0 0 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
   }
   .section {
@@ -417,7 +417,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .mode-group {
     display: flex;
@@ -430,17 +430,17 @@
     gap: 4px;
   }
   .field-label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
   .hint {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
   .banner {
     padding: 8px 12px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     margin-top: 8px;
   }
   .banner-error {
@@ -458,6 +458,6 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 </style>

@@ -398,7 +398,7 @@
   }
 
   .filename {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-primary);
     white-space: nowrap;
@@ -409,7 +409,7 @@
   .stats {
     display: flex;
     gap: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-family: 'Fira Code', var(--font-mono), monospace;
   }
 
@@ -428,7 +428,7 @@
   }
 
   .selection-info {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-primary);
     background: var(--overlay-accent-blue);
     padding: 2px 8px;
@@ -488,7 +488,7 @@
 
   .hunk-header-text {
     cursor: pointer;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-family: 'Fira Code', var(--font-mono), monospace;
     color: var(--text-secondary);
     white-space: nowrap;
@@ -549,7 +549,7 @@
 
   .line-number {
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-family: 'Fira Code', var(--font-mono), monospace;
     min-width: 40px;
     text-align: right;
@@ -565,7 +565,7 @@
     width: 16px;
     text-align: center;
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -579,7 +579,7 @@
 
   .line-content {
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     white-space: pre;
     padding: 0 8px 0 4px;
     color: var(--text-primary);

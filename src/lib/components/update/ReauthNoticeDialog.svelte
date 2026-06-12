@@ -145,14 +145,14 @@
 
   .reauth-body {
     margin: 0 0 12px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     line-height: 1.5;
     color: var(--text-primary);
   }
 
   .reauth-sorry {
     margin: 0 0 16px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.45;
     color: var(--text-secondary);
     font-style: italic;
@@ -163,7 +163,7 @@
     align-items: center;
     gap: 8px;
     margin: 0 0 16px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     user-select: none;
   }

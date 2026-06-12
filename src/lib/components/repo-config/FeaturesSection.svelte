@@ -112,7 +112,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     min-width: 200px;
   }
 

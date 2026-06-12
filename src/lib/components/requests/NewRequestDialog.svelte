@@ -296,7 +296,7 @@
   .select {
     width: 100%;
     padding: 6px 10px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -312,7 +312,7 @@
 
   .error {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
   }
 </style>

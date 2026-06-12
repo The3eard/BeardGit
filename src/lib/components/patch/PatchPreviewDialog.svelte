@@ -78,7 +78,7 @@
 
   .patch-file-name {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin-bottom: 8px;
     word-break: break-all;
@@ -88,7 +88,7 @@
     display: inline-block;
     padding: 2px 8px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     margin-bottom: 12px;
   }
@@ -106,7 +106,7 @@
   .summary-row {
     display: flex;
     gap: 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin-bottom: 8px;
     padding-bottom: 8px;
@@ -123,7 +123,7 @@
     display: flex;
     gap: 8px;
     padding: 3px 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .file-path {

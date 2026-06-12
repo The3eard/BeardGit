@@ -74,7 +74,7 @@
   }
 
   .field-label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -86,7 +86,7 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     font-family: var(--font-mono, "Fira Code", monospace);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     outline: none;
   }
 
@@ -96,7 +96,7 @@
 
   .field-hint {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     opacity: 0.7;
   }

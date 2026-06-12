@@ -85,7 +85,7 @@
     align-items: stretch;
     justify-content: space-between;
     padding: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     user-select: none;
   }

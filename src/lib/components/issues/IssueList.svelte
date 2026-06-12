@@ -195,7 +195,7 @@
      on the chip itself inherits the global `width: 1.2em`, squeezing the
      milestone title into a 1-character column that wraps vertically. */
   .milestone-chip {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     display: inline-flex;
     align-items: center;
@@ -205,20 +205,20 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .state-icon { font-size: 14px; font-family: var(--font-icons); }
+  .state-icon { font-size: var(--font-size-lg); font-family: var(--font-icons); }
   .state-icon--open { color: var(--accent-green); }
   .state-icon--closed { color: var(--accent-purple); }
-  .issue-number { font-family: var(--font-mono); color: var(--text-secondary); font-size: 11px; }
+  .issue-number { font-family: var(--font-mono); color: var(--text-secondary); font-size: var(--font-size-xs); }
   .issue-author { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .label-pill { padding: 1px 6px; border-radius: 10px; font-size: 10px; }
+  .label-pill { padding: 1px 6px; border-radius: 10px; font-size: var(--font-size-2xs); }
   .comment-count {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     display: inline-flex;
     align-items: center;
     gap: 4px;
     white-space: nowrap;
   }
-  .row-time { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+  .row-time { font-size: var(--font-size-xs); color: var(--text-secondary); white-space: nowrap; }
   .issue-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

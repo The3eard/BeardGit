@@ -112,7 +112,7 @@
 
   .terminal-icon {
     font-family: var(--font-icons);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--accent-purple);
     flex-shrink: 0;
   }
@@ -126,7 +126,7 @@
   .tab-name {
     flex: 1;
     min-width: 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--text-primary);
     overflow: hidden;

@@ -136,7 +136,7 @@
 
   .field-label {
     display: block;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -151,7 +151,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-mono);
     outline: none;
     box-sizing: border-box;
@@ -165,7 +165,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     margin-bottom: 16px;
   }
@@ -175,7 +175,7 @@
   }
 
   .error-text {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     margin: 0 0 12px;
     padding: 6px 10px;

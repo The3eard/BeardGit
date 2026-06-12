@@ -136,7 +136,7 @@
     background: transparent;
     color: var(--text-secondary);
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     text-align: left;
     transition:
@@ -162,7 +162,7 @@
 
   .bg-cat-nav__icon {
     font-family: var(--font-icons);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     width: 16px;
     text-align: center;
     flex-shrink: 0;

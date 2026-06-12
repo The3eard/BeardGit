@@ -72,7 +72,7 @@
   .two-line-row__key {
     flex-shrink: 0;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
   .two-line-row__title {
@@ -81,12 +81,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
   }
   .two-line-row__date {
     flex-shrink: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     white-space: nowrap;
   }
@@ -99,7 +99,7 @@
     /* Align meta under the title: lead (16) + gap (8) + key typical (~32) + gap (8) ≈ 64.
        We pick 28 (lead + one gap) so short keyLabels don't leave a visual gutter. */
     padding-left: 28px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     min-width: 0;
   }

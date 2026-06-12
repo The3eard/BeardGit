@@ -1252,7 +1252,7 @@
   }
 
   .welcome-subtitle {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
   }
 
@@ -1268,7 +1268,7 @@
     color: var(--text-primary);
     border: 1px solid var(--border);
     border-radius: 6px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
@@ -1297,7 +1297,7 @@
   }
 
   .welcome-recent-title {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-secondary);
@@ -1305,7 +1305,7 @@
   }
 
   .welcome-recent-empty {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     opacity: 0.7;
   }
@@ -1340,12 +1340,12 @@
   }
 
   .welcome-recent-name {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
   }
 
   .welcome-recent-path {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     font-family: var(--font-mono);
     overflow: hidden;
@@ -1355,18 +1355,18 @@
 
   .welcome-hint {
     margin-top: 24px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     opacity: 0.7;
   }
 
   .loading-text {
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     color: var(--text-secondary);
   }
 
   .error-text {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--accent-orange);
     max-width: 400px;
     text-align: center;
@@ -1441,18 +1441,18 @@
 
   .nav-btn {
     background: none; border: none; color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 2px 6px; cursor: pointer;
   }
   .nav-btn:hover { color: var(--text-primary); }
   .diff-position {
-    color: var(--text-secondary); font-size: 11px; margin-left: auto;
+    color: var(--text-secondary); font-size: var(--font-size-xs); margin-left: auto;
     padding-right: 8px;
   }
   .diff-error {
     padding: 12px 16px;
     color: var(--text-error, #f85149);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
 </style>

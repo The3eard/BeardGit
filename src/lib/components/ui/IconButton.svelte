@@ -136,19 +136,19 @@
   /* Sizes — purely about padding + glyph size. */
   .ic-btn--xs {
     padding: 1px 3px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
   }
   .ic-btn--sm {
     padding: 2px 4px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .ic-btn--md {
     padding: 4px 6px;
-    font-size: 14px;
+    font-size: var(--font-size-lg);
   }
   .ic-btn--lg {
     padding: 6px 8px;
-    font-size: 16px;
+    font-size: var(--font-size-xl);
   }
 
   /* Tones — the only colour change happens on the glyph. The button

@@ -117,7 +117,7 @@
 
   .file-status {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 700;
     flex-shrink: 0;
     width: 12px;
@@ -132,7 +132,7 @@
 
   .file-path {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -132,7 +132,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
   .picker-list {
     flex: 1;
@@ -149,7 +149,7 @@
     border: none;
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     text-align: left;
   }
@@ -170,14 +170,14 @@
   }
   .picker-desc {
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     margin-left: 4px;
   }
   .picker-empty {
     text-align: center;
     padding: 16px;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .picker-actions {
     display: flex;

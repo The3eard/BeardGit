@@ -126,7 +126,7 @@
     background: var(--overlay-accent-orange);
     color: var(--text-primary);
     border-bottom: 1px solid var(--border);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .banner-msg {
     flex: 1;
