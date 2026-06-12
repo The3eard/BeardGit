@@ -4,8 +4,9 @@
 //! and assigns each node a **row** (its position in the list) and a **lane**
 //! (its horizontal column in the graph). Lanes are recycled when a branch merges
 //! back into another, keeping the graph compact. The maximum number of concurrent
-//! lanes is capped at [`MAX_LANES`] to prevent the graph from spreading too wide
-//! on repositories with many parallel branches.
+//! lanes is capped at [`DEFAULT_MAX_LANES`] (overridable per layout via
+//! [`GraphLayout::compute_with_max_lanes`]) to prevent the graph from spreading
+//! too wide on repositories with many parallel branches.
 
 // Lane layout
 
@@ -26,9 +27,11 @@ pub enum SyncState {
     Unknown,
 }
 
-/// Maximum number of lanes before collapsing into the rightmost lane.
-/// This prevents the graph from spreading infinitely to the right in large repos.
-const MAX_LANES: usize = 8;
+/// Default maximum number of lanes before collapsing into the rightmost lane.
+/// This prevents the graph from spreading infinitely to the right in large
+/// repos. Callers with wider canvases can raise the ceiling per layout via
+/// [`GraphLayout::compute_with_max_lanes`].
+pub const DEFAULT_MAX_LANES: usize = 8;
 
 /// A continuous vertical line segment in a lane.
 ///
@@ -116,7 +119,8 @@ pub struct LayoutNode {
 pub struct GraphLayout {
     /// All layout nodes in insertion order (newest-first).
     pub nodes: Vec<LayoutNode>,
-    /// Number of lanes used across the whole graph (capped at [`MAX_LANES`]).
+    /// Number of lanes used across the whole graph (capped at the layout's
+    /// lane ceiling, [`DEFAULT_MAX_LANES`] unless overridden).
     pub lane_count: usize,
     /// Continuous vertical lane segments, one per uninterrupted branch line.
     /// Sorted by `(lane, start_row)`. Used by the canvas renderer for efficient
@@ -218,10 +222,20 @@ fn tag_sync_states(nodes: &[LayoutNode], segments: &mut [LaneSegment]) {
 impl GraphLayout {
     /// Assign a row and lane to each node in the DAG.
     ///
-    /// Lane allocation is capped at MAX_LANES. When all lanes are full and
-    /// a new one is needed, the last lane is shared (edges may overlap but
-    /// the graph stays compact and readable).
+    /// Lane allocation is capped at [`DEFAULT_MAX_LANES`]. When all lanes are
+    /// full and a new one is needed, a stale lane is reclaimed (edges may
+    /// overlap but the graph stays compact and readable).
     pub fn compute(dag: Dag) -> Self {
+        Self::compute_with_max_lanes(dag, DEFAULT_MAX_LANES)
+    }
+
+    /// Like [`GraphLayout::compute`] with an explicit lane ceiling.
+    ///
+    /// `max_lanes` is clamped to at least 1. Wider windows can afford more
+    /// parallel lanes before the layout starts recycling; narrow ones can
+    /// lower the ceiling to keep the graph column compact.
+    pub fn compute_with_max_lanes(dag: Dag, max_lanes_cap: usize) -> Self {
+        let max_lanes_cap = max_lanes_cap.max(1);
         // Pre-extract the parents map so the second pass (merge curves) can
         // still answer "who are the parents of this oid?" after we have
         // moved every node's owned fields (`refs`, `summary`, `author`,
@@ -259,7 +273,7 @@ impl GraphLayout {
         /// Priority:
         /// 1. Reuse a free (None) slot — the one nearest to `hint`
         ///    (ties prefer the lower index; deterministic).
-        /// 2. Append a new lane if under MAX_LANES.
+        /// 2. Append a new lane if under `max_lanes_cap`.
         /// 3. At the cap, reclaim a **stale** lane — one whose OID is also
         ///    tracked by another lane (a duplicate that will never get its
         ///    own commit node) — again nearest to `hint`.
@@ -276,6 +290,7 @@ impl GraphLayout {
             oid: Arc<str>,
             current_row: usize,
             hint: Option<usize>,
+            max_lanes_cap: usize,
         ) -> (usize, bool) {
             // 1. Reuse the free slot nearest to the hint. With no hint the
             //    distance to lane 0 is the index itself, i.e. lowest-first.
@@ -297,7 +312,7 @@ impl GraphLayout {
                 return (idx, false);
             }
             // 2. Under the cap — append new lane
-            if lanes.len() < MAX_LANES {
+            if lanes.len() < max_lanes_cap {
                 lanes.push(Some(oid));
                 lane_start_row.push(Some(current_row));
                 lane_group.push(*next_group_id);
@@ -311,7 +326,7 @@ impl GraphLayout {
             //    visually stable.
             //
             //    The occurrence table is built once over the active lanes
-            //    (O(MAX_LANES)) so each candidate check is O(1).
+            //    (O(lane cap)) so each candidate check is O(1).
             let mut occ: std::collections::HashMap<&str, u8> =
                 std::collections::HashMap::with_capacity(lanes.len());
             for o in lanes.iter().flatten() {
@@ -332,9 +347,9 @@ impl GraphLayout {
             let reclaim_idx = stale_idx.unwrap_or(lanes.len() - 1);
             // Close the existing segment before overwriting — mark as recycled
             // so the renderer draws a continuation arrow. Guard `start <
-            // current_row`: an octopus merge with >MAX_LANES parents can
-            // reclaim a lane allocated at THIS same row, which would emit an
-            // inverted segment (end_row = current_row - 1 < start_row).
+            // current_row`: an octopus merge with more parents than the lane
+            // cap can reclaim a lane allocated at THIS same row, which would
+            // emit an inverted segment (end_row = current_row - 1 < start_row).
             if let Some(start) = lane_start_row[reclaim_idx]
                 && start < current_row
             {
@@ -371,6 +386,7 @@ impl GraphLayout {
                     Arc::clone(&dag_node.oid),
                     row,
                     None,
+                    max_lanes_cap,
                 );
                 idx
             };
@@ -424,6 +440,7 @@ impl GraphLayout {
                                 Arc::clone(parent_oid),
                                 row,
                                 Some(lane),
+                                max_lanes_cap,
                             );
                         }
                     }
@@ -505,7 +522,7 @@ impl GraphLayout {
 
         GraphLayout {
             nodes: layout_nodes,
-            lane_count: max_lanes.min(MAX_LANES),
+            lane_count: max_lanes.min(max_lanes_cap),
             lane_segments,
             merge_curves,
             head_lane,
@@ -909,6 +926,77 @@ mod tests {
             f.lane, 1,
             "equidistant free lanes resolve to the lower index"
         );
+    }
+
+    /// 12 parallel tips: tip i → root r_i, all roots last. Forces 12
+    /// concurrent lanes if the ceiling allows them.
+    fn wide_commits() -> Vec<GraphCommit> {
+        let mut commits = Vec::new();
+        for i in 0..12 {
+            let tip = format!("t{i}");
+            let root = format!("r{i}");
+            commits.push(GraphCommit {
+                oid: tip.clone(),
+                parents: vec![root],
+                timestamp: 0,
+                refs: Vec::new(),
+                summary: format!("commit {tip}"),
+                author: String::new(),
+                email: String::new(),
+            });
+        }
+        for i in 0..12 {
+            let root = format!("r{i}");
+            commits.push(GraphCommit {
+                oid: root.clone(),
+                parents: Vec::new(),
+                timestamp: 0,
+                refs: Vec::new(),
+                summary: format!("commit {root}"),
+                author: String::new(),
+                email: String::new(),
+            });
+        }
+        commits
+    }
+
+    #[test]
+    fn test_default_ceiling_caps_lanes_at_eight() {
+        let dag = Dag::build(wide_commits());
+        let layout = GraphLayout::compute(dag);
+        assert_eq!(layout.lane_count, DEFAULT_MAX_LANES);
+        assert!(layout.nodes.iter().all(|n| n.lane < DEFAULT_MAX_LANES));
+    }
+
+    #[test]
+    fn test_raised_ceiling_allows_more_lanes() {
+        let dag = Dag::build(wide_commits());
+        let layout = GraphLayout::compute_with_max_lanes(dag, 16);
+        assert_eq!(
+            layout.lane_count, 12,
+            "12 parallel branches fit without recycling under a 16-lane cap"
+        );
+        // No segment should have been force-recycled.
+        assert!(layout.lane_segments.iter().all(|s| !s.recycled));
+    }
+
+    #[test]
+    fn test_lowered_ceiling_compacts_lanes() {
+        let dag = Dag::build(wide_commits());
+        let layout = GraphLayout::compute_with_max_lanes(dag, 4);
+        assert_eq!(layout.lane_count, 4);
+        assert!(layout.nodes.iter().all(|n| n.lane < 4));
+    }
+
+    #[test]
+    fn test_ceiling_of_default_matches_compute() {
+        let layout_a = GraphLayout::compute(Dag::build(wide_commits()));
+        let layout_b =
+            GraphLayout::compute_with_max_lanes(Dag::build(wide_commits()), DEFAULT_MAX_LANES);
+        assert_eq!(layout_a.lane_count, layout_b.lane_count);
+        let lanes_a: Vec<usize> = layout_a.nodes.iter().map(|n| n.lane).collect();
+        let lanes_b: Vec<usize> = layout_b.nodes.iter().map(|n| n.lane).collect();
+        assert_eq!(lanes_a, lanes_b, "compute must equal explicit default cap");
     }
 
     #[test]

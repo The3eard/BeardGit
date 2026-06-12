@@ -27,6 +27,9 @@ enum SlotProbe {
 /// - `branch`       – When set, show only the history reachable from this
 ///   branch tip (local `main` or remote `origin/main`) instead of all refs.
 ///   Composes with `first_parent`.
+/// - `max_lanes`    – Lane ceiling override, clamped to 4..=16. Defaults to
+///   8. Wide windows can request more parallel lanes before the layout
+///   starts recycling.
 ///
 /// The active [`crate::state::ProjectSlot`] caches one layout at a time,
 /// tagged with the options it was built with. When the requested options
@@ -43,11 +46,13 @@ pub async fn get_graph_viewport(
     limit: usize,
     first_parent: Option<bool>,
     branch: Option<String>,
+    max_lanes: Option<u8>,
     state: State<'_, AppState>,
 ) -> Result<GraphViewport, String> {
     let options = GraphLayoutOptions {
         first_parent: first_parent.unwrap_or(false),
         branch,
+        max_lanes: GraphLayoutOptions::normalize_max_lanes(max_lanes),
     };
 
     // Fast path: slice the slot's cached layout while holding the lock
@@ -292,7 +297,7 @@ fn build_graph_chunk(
     } else {
         Dag::build(graph_commits)
     };
-    let layout = GraphLayout::compute(dag);
+    let layout = GraphLayout::compute_with_max_lanes(dag, options.lane_ceiling());
     let vp = layout.viewport(0, total_commits);
 
     Ok(GraphViewport {
@@ -325,6 +330,8 @@ fn build_graph_chunk(
 ///   to `false`. Must match the mode of the layout the chunk extends.
 /// - `branch` – Restrict the walk to history reachable from this branch tip.
 ///   Must match the mode of the layout the chunk extends.
+/// - `max_lanes` – Lane ceiling override, clamped to 4..=16 (default 8).
+///   Must match the mode of the layout the chunk extends.
 ///
 /// # Returns
 /// A [`GraphViewport`] whose `has_more` is `true` when additional commits
@@ -336,12 +343,14 @@ pub async fn load_graph_chunk(
     limit: usize,
     first_parent: Option<bool>,
     branch: Option<String>,
+    max_lanes: Option<u8>,
     state: State<'_, AppState>,
 ) -> Result<GraphViewport, String> {
     let repo_path = get_active_project_path(&state)?;
     let options = GraphLayoutOptions {
         first_parent: first_parent.unwrap_or(false),
         branch,
+        max_lanes: GraphLayoutOptions::normalize_max_lanes(max_lanes),
     };
 
     tokio::task::spawn_blocking(move || {
@@ -542,11 +551,33 @@ mod tests {
         let clean_opts = GraphLayoutOptions {
             first_parent: true,
             branch: Some(head_branch),
+            ..Default::default()
         };
         let clean = build_graph_chunk(&repo, 0, 100, &clean_opts).expect("clean");
         assert_eq!(clean.nodes.len(), 3);
         assert_eq!(clean.total_lane_count, 1);
         assert!(!clean.nodes.iter().any(|n| n.summary == "feature work"));
+    }
+
+    #[test]
+    fn build_graph_chunk_respects_lane_ceiling() {
+        // 6 branches diverging from one base → 6 concurrent lanes when the
+        // ceiling allows, 4 when capped.
+        let (_dir, path) = git_engine::test_support::create_repo_with_branches(&[
+            "b0", "b1", "b2", "b3", "b4", "b5",
+        ]);
+        let repo = git_engine::Repository::open(&path).unwrap();
+
+        let full = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions::default()).expect("full");
+        assert_eq!(full.total_lane_count, 6);
+
+        let capped_opts = GraphLayoutOptions {
+            max_lanes: Some(4),
+            ..Default::default()
+        };
+        let capped = build_graph_chunk(&repo, 0, 100, &capped_opts).expect("capped");
+        assert_eq!(capped.total_lane_count, 4);
+        assert!(capped.nodes.iter().all(|n| n.lane < 4));
     }
 
     #[test]

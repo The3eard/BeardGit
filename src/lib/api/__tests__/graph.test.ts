@@ -26,17 +26,19 @@ describe("graph wrappers", () => {
       limit: 50,
       firstParent: null,
       branch: null,
+      maxLanes: null,
     });
   });
 
-  it("getGraphViewport forwards firstParent and branch", async () => {
+  it("getGraphViewport forwards firstParent, branch and maxLanes", async () => {
     mocks.invoke.mockResolvedValue({ nodes: [] });
-    await getGraphViewport(10, 20, { firstParent: true, branch: "main" });
+    await getGraphViewport(10, 20, { firstParent: true, branch: "main", maxLanes: 12 });
     expect(mocks.invoke).toHaveBeenCalledWith("get_graph_viewport", {
       offset: 10,
       limit: 20,
       firstParent: true,
       branch: "main",
+      maxLanes: 12,
     });
   });
 
@@ -48,6 +50,7 @@ describe("graph wrappers", () => {
       limit: 50,
       firstParent: true,
       branch: "origin/dev",
+      maxLanes: null,
     });
     expect(out).toEqual({ nodes: [], has_more: true });
   });
