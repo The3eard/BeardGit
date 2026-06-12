@@ -84,8 +84,10 @@ UI colors are derived automatically:
 
 - **Graph:** lane colors = 5 accents + lighter variants; refs = green (branch),
   blue (remote), yellow (tag), magenta (HEAD); selection/tints from blue
-- **Editor:** syntax highlighting derived from ANSI colors; diff backgrounds
-  computed for dark/light mode; cursor and selection from blue
+- **Editor:** syntax highlighting derived from ANSI colors (keyword red,
+  string green, function magenta, type blue, number yellow, property cyan);
+  diff backgrounds blended from the theme's green/red over its background;
+  cursor and selection from blue
 - **All other UI elements** are styled via CSS custom properties from derived colors
 
 ## Optional Overrides
@@ -413,6 +415,17 @@ fn lighten_hex(hex: &str, amount: f64) -> String {
     format!("#{:02x}{:02x}{:02x}", lr as u8, lg as u8, lb as u8)
 }
 
+/// Blend `base` toward `tint`, both `#RRGGBB`. `amount` is 0.0–1.0.
+/// Non-hex inputs return `base` unchanged.
+fn mix_hex(base: &str, tint: &str, amount: f64) -> String {
+    if !base.starts_with('#') || base.len() < 7 || !tint.starts_with('#') || tint.len() < 7 {
+        return base.to_string();
+    }
+    let ch = |s: &str, i: usize| u8::from_str_radix(&s[i..i + 2], 16).unwrap_or(128) as f64;
+    let blend = |i: usize| (ch(base, i) + (ch(tint, i) - ch(base, i)) * amount) as u8;
+    format!("#{:02x}{:02x}{:02x}", blend(1), blend(3), blend(5))
+}
+
 /// Darken a `#RRGGBB` color by blending toward black. `amount` is 0.0–1.0.
 fn darken_hex(hex: &str, amount: f64) -> String {
     if !hex.starts_with('#') || hex.len() < 7 {
@@ -591,25 +604,28 @@ fn derive_graph(_colors: &ThemeColors, derived: &DerivedColors) -> ThemeGraph {
 }
 
 /// Derive the full `[editor]` section from base colors, derived semantics, and mode.
-fn derive_editor(_colors: &ThemeColors, derived: &DerivedColors, is_dark: bool) -> ThemeEditor {
-    let (added_bg, removed_bg) = if is_dark {
-        ("#1b3829".to_string(), "#3c1e22".to_string())
-    } else {
-        ("#d4f8db".to_string(), "#fdd8d8".to_string())
-    };
+fn derive_editor(colors: &ThemeColors, derived: &DerivedColors, is_dark: bool) -> ThemeEditor {
+    // Diff backgrounds follow the THEME's green/red over its own
+    // background — fixed GitHub constants here made every non-GitHub
+    // theme's diffs clash with their surfaces (most visible on warm
+    // palettes). Brand themes that need exact values pin them via a
+    // partial `[editor]` override.
+    let blend = if is_dark { 0.18 } else { 0.16 };
+    let added_bg = mix_hex(&derived.bg_primary, &derived.accent_green, blend);
+    let removed_bg = mix_hex(&derived.bg_primary, &derived.accent_red, blend);
 
-    // Derive syntax colors from the theme's own accent palette.
-    // keyword/operator → red, string → blue (lightened for dark), function → purple,
-    // type/number → blue, property → green, comment → text-secondary.
+    // Derive syntax colors spreading the theme's own ANSI palette:
+    // keyword/operator → red, string → green, function → purple,
+    // type → blue, number → yellow/orange, property → cyan,
+    // comment → text-secondary. The old mapping leaned everything on
+    // blue (strings were lightened blue, numbers blue, property green),
+    // which gave non-blue themes a dissonant cool cast in code views.
     let kw = &derived.accent_red;
-    let str_c = if is_dark {
-        lighten_hex(&derived.accent_blue, 0.35)
-    } else {
-        shift_hue_hex(&derived.accent_blue, 15)
-    };
+    let str_c = derived.accent_green.clone();
     let func = &derived.accent_purple;
     let typ = &derived.accent_blue;
-    let prop = &derived.accent_green;
+    let num = &derived.accent_orange;
+    let prop = &colors.cyan;
 
     let sel_base = strip_alpha(&derived.selection);
 
@@ -630,7 +646,7 @@ fn derive_editor(_colors: &ThemeColors, derived: &DerivedColors, is_dark: bool) 
         syntax_comment: None, // None → frontend uses text-secondary
         syntax_function: Some(func.clone()),
         syntax_type: Some(typ.clone()),
-        syntax_number: Some(typ.clone()), // numbers same color as types
+        syntax_number: Some(num.clone()),
         syntax_operator: Some(kw.clone()), // operators same color as keywords
         syntax_property: Some(prop.clone()),
     }
@@ -1442,8 +1458,9 @@ lane-colors = ["#0000ff"]
         let toml = MINIMAL_THEME.replace("mode = \"dark\"", "mode = \"light\"");
         let theme = parse_theme(&toml).unwrap();
         let ed = theme.editor.unwrap();
-        assert_eq!(ed.added_bg, "#d4f8db");
-        assert_eq!(ed.removed_bg, "#fdd8d8");
+        // Lighter blend factor than dark mode over the same palette.
+        assert_eq!(ed.added_bg, "#0e370e");
+        assert_eq!(ed.removed_bg, "#370e0e");
     }
 
     #[test]
@@ -1619,19 +1636,21 @@ lane-colors = ["#0000ff"]
 
     #[test]
     fn test_derive_editor_dark_diff_colors() {
+        // Blended from the theme's own bg (#111111) toward green/red at 18%.
         let theme = parse_theme(MINIMAL_THEME).unwrap();
         let ed = theme.editor.unwrap();
-        assert_eq!(ed.added_bg, "#1b3829");
-        assert_eq!(ed.removed_bg, "#3c1e22");
+        assert_eq!(ed.added_bg, "#0d3b0d");
+        assert_eq!(ed.removed_bg, "#3b0d0d");
     }
 
     #[test]
     fn test_derive_editor_light_diff_colors() {
+        // Light mode blends at 16% over the same base palette.
         let toml = MINIMAL_THEME.replace("mode = \"dark\"", "mode = \"light\"");
         let theme = parse_theme(&toml).unwrap();
         let ed = theme.editor.unwrap();
-        assert_eq!(ed.added_bg, "#d4f8db");
-        assert_eq!(ed.removed_bg, "#fdd8d8");
+        assert_eq!(ed.added_bg, "#0e370e");
+        assert_eq!(ed.removed_bg, "#370e0e");
     }
 
     #[test]
@@ -1649,10 +1668,12 @@ lane-colors = ["#0000ff"]
         );
         // type = derived.accent_blue
         assert_eq!(ed.syntax_type, Some(theme.derived.accent_blue.clone()));
-        // number = derived.accent_blue (same as type)
-        assert_eq!(ed.syntax_number, Some(theme.derived.accent_blue.clone()));
-        // property = derived.accent_green
-        assert_eq!(ed.syntax_property, Some(theme.derived.accent_green.clone()));
+        // string = derived.accent_green
+        assert_eq!(ed.syntax_string, Some(theme.derived.accent_green.clone()));
+        // number = derived.accent_orange (theme yellow)
+        assert_eq!(ed.syntax_number, Some(theme.derived.accent_orange.clone()));
+        // property = base cyan
+        assert_eq!(ed.syntax_property, Some(theme.colors.cyan.clone()));
         // comment = None (frontend uses text-secondary)
         assert_eq!(ed.syntax_comment, None);
     }
@@ -1715,8 +1736,8 @@ removed-bg = "#ff000033"
         let theme = parse_theme(&toml).unwrap();
         let ed = theme.editor.unwrap();
         assert_eq!(ed.removed_bg, "#ff000033");
-        // Dark-mode added-bg still derived
-        assert_eq!(ed.added_bg, "#1b3829");
+        // Dark-mode added-bg still derived (bg blended toward green)
+        assert_eq!(ed.added_bg, "#0d3b0d");
         // Other fields still derived
         assert_eq!(ed.cursor, theme.derived.accent_blue);
     }
