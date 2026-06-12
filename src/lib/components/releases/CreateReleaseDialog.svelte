@@ -8,6 +8,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
   import { activeProvider } from "../../stores/provider";
   import {
     doCreateRelease,
@@ -183,22 +184,34 @@
 
   {#if isGitHub}
     <div class="form-field inline">
-      <label>
-        <input type="checkbox" bind:checked={draft} />
-        {m.release_draft_label()}
-      </label>
+      <span class="inline-toggle">
+        <Checkbox
+          id="release-draft"
+          checked={draft}
+          onchange={(e) => { draft = (e.target as HTMLInputElement).checked; }}
+        />
+        <label for="release-draft">{m.release_draft_label()}</label>
+      </span>
     </div>
     <div class="form-field inline">
-      <label>
-        <input type="checkbox" bind:checked={prerelease} />
-        {m.release_prerelease_label()}
-      </label>
+      <span class="inline-toggle">
+        <Checkbox
+          id="release-prerelease"
+          checked={prerelease}
+          onchange={(e) => { prerelease = (e.target as HTMLInputElement).checked; }}
+        />
+        <label for="release-prerelease">{m.release_prerelease_label()}</label>
+      </span>
     </div>
     <div class="form-field inline">
-      <label>
-        <input type="checkbox" bind:checked={generateNotes} />
-        {m.release_generate_notes_label()}
-      </label>
+      <span class="inline-toggle">
+        <Checkbox
+          id="release-generate-notes"
+          checked={generateNotes}
+          onchange={(e) => { generateNotes = (e.target as HTMLInputElement).checked; }}
+        />
+        <label for="release-generate-notes">{m.release_generate_notes_label()}</label>
+      </span>
     </div>
   {/if}
 
@@ -260,15 +273,20 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-  .form-field.inline label {
+  .form-field.inline .inline-toggle {
     display: flex;
+    align-items: center;
     gap: 6px;
+  }
+  .form-field.inline label {
+    display: inline;
     font-size: 12px;
     text-transform: none;
     color: var(--text-primary);
     cursor: pointer;
     font-weight: normal;
     letter-spacing: 0;
+    margin-bottom: 0;
   }
   .form-field input[type="text"],
   .form-field select,

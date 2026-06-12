@@ -7,6 +7,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
   import { activeProvider } from "../../stores/provider";
   import { createMrPr } from "../../stores/mr-pr";
   import { getBranches } from "../../api/tauri";
@@ -111,10 +112,14 @@
   </div>
 
   <div class="form-field inline">
-    <label>
-      <input type="checkbox" bind:checked={isDraft} />
-      {m.mrpr_draft_label()}
-    </label>
+    <span class="inline-toggle">
+      <Checkbox
+        id="mrpr-draft"
+        checked={isDraft}
+        onchange={(e) => { isDraft = (e.target as HTMLInputElement).checked; }}
+      />
+      <label for="mrpr-draft">{m.mrpr_draft_label()}</label>
+    </span>
   </div>
 
   <div class="form-field">
@@ -167,14 +172,21 @@
     letter-spacing: 0.5px;
   }
 
-  .form-field.inline label {
+  .form-field.inline .inline-toggle {
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+
+  .form-field.inline label {
+    display: inline;
     text-transform: none;
     font-size: 12px;
     color: var(--text-primary);
     cursor: pointer;
+    font-weight: normal;
+    letter-spacing: 0;
+    margin-bottom: 0;
   }
 
   .form-field input[type="text"],

@@ -71,7 +71,7 @@
 
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import { Card, FormRow } from "$lib/components/ui";
+  import { Card, FormRow, Switch } from "$lib/components/ui";
   import LookAndFeelSection from "./LookAndFeelSection.svelte";
   import {
     diffShowWhitespace,
@@ -119,11 +119,9 @@
         for="diff-show-whitespace-toggle"
         helperText={m.settings_general_diff_show_whitespace_hint()}
       >
-        <input
+        <Switch
           id="diff-show-whitespace-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="diff-show-whitespace-toggle"
+          testid="diff-show-whitespace-toggle"
           checked={$diffShowWhitespace}
           onchange={handleToggleDiffWhitespace}
         />
@@ -135,11 +133,9 @@
         for="diff-line-wrapping-toggle"
         helperText={m.settings_general_diff_line_wrapping_hint()}
       >
-        <input
+        <Switch
           id="diff-line-wrapping-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="diff-line-wrapping-toggle"
+          testid="diff-line-wrapping-toggle"
           checked={$diffLineWrapping}
           onchange={handleToggleDiffLineWrapping}
         />
@@ -156,12 +152,5 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-
-  .bg-checkbox {
-    accent-color: var(--accent-primary);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
   }
 </style>

@@ -9,7 +9,7 @@
   import { stageHunks, unstageHunks, discardHunks } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
   import ConfirmDialog from "$lib/components/common/ConfirmDialog.svelte";
-  import { Button, IconButton } from "$lib/components/ui";
+  import { Button, Checkbox, IconButton } from "$lib/components/ui";
   import { diffLineWrapping } from "$lib/stores/diffSettings";
   import * as m from "$lib/paraglide/messages";
 
@@ -297,15 +297,18 @@
       {@const checkState = hunkCheckState(hunkIdx)}
       <div class="hunk">
         <div class="hunk-header">
-          <label class="hunk-checkbox-label">
-            <input
-              type="checkbox"
+          <span class="hunk-checkbox-label">
+            <Checkbox
+              id="hunk-toggle-{isStaged ? 'staged' : 'unstaged'}-{hunkIdx}"
               checked={checkState === true}
               indeterminate={checkState === "indeterminate"}
               onchange={() => toggleHunk(hunkIdx)}
             />
-            <span class="hunk-header-text">{hunk.header}</span>
-          </label>
+            <label
+              class="hunk-header-text"
+              for="hunk-toggle-{isStaged ? 'staged' : 'unstaged'}-{hunkIdx}"
+            >{hunk.header}</label>
+          </span>
         </div>
         <div class="hunk-lines">
           {#each hunk.lines as line, lineIdx}
@@ -320,9 +323,9 @@
             >
               <div class="line-checkbox-cell">
                 {#if isChanged}
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={isSelected}
+                    ariaLabel={line.content}
                     onchange={() => toggleLine(hunkIdx, lineIdx)}
                   />
                 {/if}
@@ -484,13 +487,8 @@
     min-width: 0;
   }
 
-  .hunk-checkbox-label input[type="checkbox"] {
-    margin: 0;
-    accent-color: var(--accent-primary);
-    flex-shrink: 0;
-  }
-
   .hunk-header-text {
+    cursor: pointer;
     font-size: 11px;
     font-family: 'Fira Code', var(--font-mono), monospace;
     color: var(--text-secondary);
@@ -548,11 +546,6 @@
     justify-content: center;
     width: 24px;
     flex-shrink: 0;
-  }
-
-  .line-checkbox-cell input[type="checkbox"] {
-    margin: 0;
-    accent-color: var(--accent-primary);
   }
 
   .line-number {

@@ -3,6 +3,7 @@
   import * as m from "$lib/paraglide/messages";
   import { doCreateTag } from "../../stores/tags";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -82,10 +83,14 @@
       </div>
 
       <div class="field-row">
-        <label class="toggle-label">
-          <input type="checkbox" bind:checked={annotated} />
-          <span>{m.tags_create_annotated_label()}</span>
-        </label>
+        <span class="toggle-label">
+          <Checkbox
+            id="tag-annotated"
+            checked={annotated}
+            onchange={(e) => { annotated = (e.target as HTMLInputElement).checked; }}
+          />
+          <label for="tag-annotated">{m.tags_create_annotated_label()}</label>
+        </span>
       </div>
 
       {#if annotated}
@@ -226,14 +231,10 @@
     gap: 8px;
     font-size: 12px;
     color: var(--text-primary);
-    cursor: pointer;
     user-select: none;
   }
 
-  .toggle-label input[type="checkbox"] {
-    accent-color: var(--accent-primary);
-    width: 14px;
-    height: 14px;
+  .toggle-label label {
     cursor: pointer;
   }
 

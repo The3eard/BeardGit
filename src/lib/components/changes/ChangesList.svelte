@@ -8,7 +8,7 @@
   import { cleanPaths, discardFiles } from "$lib/api/tauri";
   import { addGitignorePattern } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
-  import { Button } from "$lib/components/ui";
+  import { Button, Checkbox } from "$lib/components/ui";
   import { activeViewStore } from "$lib/stores/navigation";
   import { openTab as openEditorTab } from "$lib/stores/fileEditor";
 
@@ -278,12 +278,11 @@
 <div class="changes-list" data-testid={isStaged ? "changes-list-staged" : "changes-list-unstaged"}>
   <div class="list-header">
     <div class="header-left">
-      <input
-        type="checkbox"
-        class="select-all-checkbox"
+      <Checkbox
         checked={allSelected}
         indeterminate={someSelected}
         disabled={files.length === 0}
+        ariaLabel={m.changes_select_all()}
         onclick={toggleAll}
       />
       <span class="list-title">{title}</span>
@@ -321,10 +320,9 @@
         data-testid="file-row-{file.path.replace(/\//g, '-')}"
         oncontextmenu={(e) => openContextMenu(e, file.path)}
       >
-        <input
-          type="checkbox"
-          class="file-checkbox"
+        <Checkbox
           checked={selected.has(file.path)}
+          ariaLabel={file.path}
           onclick={(e) => { e.stopPropagation(); toggleFile(file.path); }}
         />
         <button
@@ -399,12 +397,6 @@
     gap: 8px;
   }
 
-  .select-all-checkbox {
-    margin: 0;
-    accent-color: var(--accent-primary);
-    cursor: pointer;
-  }
-
   .list-title {
     font-size: 11px;
     color: var(--text-secondary);
@@ -448,13 +440,6 @@
   .file-item.selected {
     background: var(--overlay-accent-blue);
     border-left-color: var(--accent-primary);
-  }
-
-  .file-checkbox {
-    margin: 0;
-    flex-shrink: 0;
-    accent-color: var(--accent-primary);
-    cursor: pointer;
   }
 
   .file-btn {
