@@ -356,13 +356,13 @@
   }
 
   .name {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
     color: var(--text-primary);
   }
 
   .status {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -398,7 +398,7 @@
   }
 
   .existing-label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     display: flex;
     gap: 8px;
@@ -408,7 +408,7 @@
 
   .existing-url {
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .pat-form {
@@ -420,7 +420,7 @@
 
   .field-input {
     padding: 4px 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -434,7 +434,7 @@
 
   .error {
     grid-column: 1 / -1;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-red);
   }
 </style>

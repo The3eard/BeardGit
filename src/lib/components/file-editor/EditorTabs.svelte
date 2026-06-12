@@ -159,7 +159,7 @@
     cursor: pointer;
     color: inherit;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 4px 0;
     display: flex;
     align-items: center;
@@ -174,7 +174,7 @@
     white-space: nowrap;
   }
   .indicator {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1;
     flex-shrink: 0;
   }
@@ -183,6 +183,6 @@
   }
   .indicator.external {
     color: var(--accent-orange);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 </style>

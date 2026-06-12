@@ -33,7 +33,7 @@
     border: none;
     color: var(--text-secondary);
     font: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     cursor: pointer;
     user-select: none;

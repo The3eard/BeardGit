@@ -58,7 +58,7 @@
     border: none;
     color: var(--text-secondary);
     font: inherit;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
     user-select: none;
     transition: color 0.15s;
@@ -75,7 +75,7 @@
 
   .update-dot {
     color: var(--accent-primary);
-    font-size: 16px;
+    font-size: var(--font-size-xl);
     line-height: 0;
     margin-left: 1px;
   }

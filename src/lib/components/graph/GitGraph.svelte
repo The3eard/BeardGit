@@ -1025,7 +1025,7 @@
     align-items: center;
     gap: 6px;
     padding: 4px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
   }
@@ -1103,7 +1103,7 @@
     padding: 4px 8px;
     border-top: 1px solid var(--border);
     background: var(--bg-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     text-align: center;
   }

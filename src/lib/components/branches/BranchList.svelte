@@ -521,7 +521,7 @@
   .filter-input {
     width: 100%;
     padding: 4px 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -565,7 +565,7 @@
   }
 
   .section-label {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -574,7 +574,7 @@
   }
 
   .section-count {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     padding: 1px 6px;

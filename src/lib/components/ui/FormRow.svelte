@@ -56,7 +56,7 @@
   }
 
   .bg-form-row__label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     flex: 0 0 auto;
     min-width: 0;
@@ -71,7 +71,7 @@
 
   .bg-form-row__helper {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     line-height: 1.45;
   }

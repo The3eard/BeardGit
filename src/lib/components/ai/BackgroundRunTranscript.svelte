@@ -139,7 +139,7 @@
     overflow-y: auto;
     padding: 8px 10px;
     font-family: var(--font-mono, monospace);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
     color: var(--text-primary);
     white-space: pre-wrap;

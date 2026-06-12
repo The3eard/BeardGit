@@ -326,7 +326,7 @@ glab auth status</code></pre>
   .chevron {
     display: inline-block;
     transition: transform 0.15s ease;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     width: 12px;
   }
@@ -337,19 +337,19 @@ glab auth status</code></pre>
 
   .toggle-label {
     font-weight: 600;
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .mode-label {
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     margin-left: 8px;
   }
 
   .mode-select {
     min-width: 220px;
     padding: 4px 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     border-radius: 4px;
     background: var(--bg-primary);
     border: 1px solid var(--border);
@@ -366,7 +366,7 @@ glab auth status</code></pre>
     border: 1px solid var(--border);
     border-radius: 6px;
     background: var(--bg-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     line-height: 1.55;
     color: var(--text-primary);
   }
@@ -378,7 +378,7 @@ glab auth status</code></pre>
 
   .path-title {
     margin: 18px 0 6px 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--accent-primary);
@@ -414,7 +414,7 @@ glab auth status</code></pre>
     border: 1px solid var(--border);
     border-radius: 4px;
     font-family: var(--font-mono, monospace);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     overflow-x: auto;
     color: var(--text-primary);
   }
@@ -433,7 +433,7 @@ glab auth status</code></pre>
   }
 
   .small {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin: 4px 0 0 0;
   }

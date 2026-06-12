@@ -148,7 +148,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
     resize: vertical;
   }
@@ -180,7 +180,7 @@
     background: var(--overlay-accent-blue);
     color: var(--text-primary);
     border-radius: 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     line-height: 18px;
   }
 
@@ -209,7 +209,7 @@
     background: transparent;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 2px 4px;
   }
 

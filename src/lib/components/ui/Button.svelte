@@ -165,20 +165,20 @@
   /* Sizes */
   .bg-btn--xs {
     padding: 1px 6px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     gap: 4px;
   }
   .bg-btn--sm {
     padding: 3px 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .bg-btn--md {
     padding: 6px 14px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .bg-btn--lg {
     padding: 8px 18px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   /* Variants

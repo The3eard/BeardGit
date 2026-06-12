@@ -280,7 +280,7 @@
 
   .toolbar-filename {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-primary);
     overflow: hidden;
@@ -297,7 +297,7 @@
   }
 
   .badge {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     padding: 1px 6px;
     border-radius: 4px;
     flex-shrink: 0;
@@ -322,7 +322,7 @@
 
   .save-kbd {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     opacity: 0.7;
     background: none;
     border: none;
@@ -338,7 +338,7 @@
     padding: 4px 8px;
     background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-orange);
   }
 
@@ -367,7 +367,7 @@
   }
 
   .empty-text {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-style: italic;
     opacity: 0.5;
   }

@@ -45,7 +45,7 @@
     align-items: center;
     gap: 3px;
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 500;
     line-height: 1;
   }

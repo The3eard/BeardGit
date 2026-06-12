@@ -307,7 +307,7 @@
     justify-content: center;
     height: 100%;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
   .issue-detail {
     padding: 16px;
@@ -323,7 +323,7 @@
   }
   .detail-title {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--font-size-xl);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -335,7 +335,7 @@
     display: flex;
     gap: 8px;
     align-items: center;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin-bottom: 12px;
     padding-bottom: 12px;
@@ -344,7 +344,7 @@
   .state-badge {
     padding: 2px 8px;
     border-radius: 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
@@ -367,7 +367,7 @@
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .section { margin-bottom: 16px; }
   .section-head {
@@ -377,14 +377,14 @@
   }
   .section-title {
     margin: 0 0 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
   .description-body {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-primary);
     line-height: 1.5;
     word-wrap: break-word;
@@ -404,14 +404,14 @@
     padding: 8px 10px;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .description-body :global(code:not(pre code)) {
     padding: 1px 4px;
     background: var(--bg-secondary);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .description-body :global(table) {
     border-collapse: collapse;
@@ -445,22 +445,22 @@
   .label-tag {
     padding: 2px 8px;
     border-radius: 12px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .assignee-tag {
     padding: 2px 8px;
     border-radius: 12px;
     background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
     color: var(--accent-primary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .empty-inline {
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-style: italic;
   }
   .milestone-display {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-primary);
   }
   .comment {
@@ -473,7 +473,7 @@
     display: flex;
     gap: 8px;
     margin-bottom: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .comment-author {
     font-weight: 600;
@@ -481,7 +481,7 @@
   }
   .comment-date { color: var(--text-secondary); }
   .comment-body {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     line-height: 1.4;
     word-wrap: break-word;
@@ -494,14 +494,14 @@
     padding: 8px 10px;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .comment-body :global(code:not(pre code)) {
     padding: 1px 4px;
     background: var(--bg-secondary);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .comment-body :global(table) {
     border-collapse: collapse;
@@ -538,7 +538,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-family: inherit;
     resize: vertical;
     min-height: 50px;
@@ -556,7 +556,7 @@
     color: var(--text-primary);
     border: 1px solid var(--accent-primary);
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
   }
   .btn-comment:disabled { opacity: 0.5; cursor: not-allowed; }

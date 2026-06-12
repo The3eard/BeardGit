@@ -288,7 +288,7 @@
     align-items: center;
     justify-content: center;
     background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     color: var(--accent-primary);
     pointer-events: none;
@@ -303,26 +303,26 @@
   }
   .title {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--font-size-xl);
   }
   .tag {
     font-family: var(--font-mono);
     padding: 1px 6px;
     border-radius: 3px;
     background: var(--bg-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .author {
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .date {
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .body {
     padding: 12px 0;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     line-height: 1.5;
   }
   /*
@@ -340,7 +340,7 @@
     padding: 8px 10px;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .body :global(code:not(pre code)) {
     background: var(--bg-secondary);
@@ -377,12 +377,12 @@
   }
   .muted {
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .empty-body {
     margin: 0;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-style: italic;
   }
   .assets-header {
@@ -393,20 +393,20 @@
   }
   .assets-header h3 {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
   }
   .empty-assets {
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 8px 0;
   }
   .assets-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .assets-table th,
   .assets-table td {
@@ -415,7 +415,7 @@
     text-align: left;
   }
   .assets-table th {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -441,7 +441,7 @@
    * so the rules were removed to avoid dead CSS.
    */
   .badge {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     padding: 1px 6px;
     border-radius: 3px;
     font-weight: 600;
@@ -465,7 +465,7 @@
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     margin-bottom: 8px;
   }
 </style>

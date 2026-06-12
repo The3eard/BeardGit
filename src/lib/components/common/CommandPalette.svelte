@@ -209,7 +209,7 @@
   .cp-title {
     margin: 0;
     padding: 12px 16px 6px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -224,7 +224,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font: inherit;
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     outline: none;
   }
   .cp-input:focus {
@@ -235,7 +235,7 @@
     padding: 16px;
     text-align: center;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .cp-list {
@@ -270,7 +270,7 @@
   }
 
   .cp-item__kind {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-secondary);
@@ -280,7 +280,7 @@
 
   .cp-item__label {
     flex: 1;
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .cp-item__shortcut {
@@ -289,7 +289,7 @@
     border: 1px solid var(--border);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
   }
 </style>

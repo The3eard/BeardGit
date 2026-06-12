@@ -283,7 +283,7 @@
   }
 
   .rebase-count {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     padding: 2px 8px;
@@ -303,7 +303,7 @@
     align-items: center;
     justify-content: center;
     padding: 40px 20px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
   }
 
@@ -351,7 +351,7 @@
   }
 
   .drag-handle {
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     color: var(--text-secondary);
     cursor: grab;
     user-select: none;
@@ -365,7 +365,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 2px 4px;
     cursor: pointer;
     flex-shrink: 0;
@@ -374,7 +374,7 @@
 
   .commit-oid {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-purple);
     flex-shrink: 0;
     width: 56px;
@@ -382,7 +382,7 @@
 
   .commit-message {
     flex: 1;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -396,7 +396,7 @@
   }
 
   .commit-meta {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     flex-shrink: 0;
     white-space: nowrap;
@@ -411,7 +411,7 @@
     gap: 12px;
     padding: 8px 20px;
     border-top: 1px solid var(--border);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 

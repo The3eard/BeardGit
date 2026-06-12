@@ -335,28 +335,28 @@
   /* Scaffolding styles (.pipeline-list, .list-header, .list-loading-bar, .empty-state)
      now live in List.svelte / app.css. Keep only what's specific to the pipeline row. */
 
-  .list-error { padding: 8px 12px; font-size: 12px; color: var(--accent-red); background: var(--overlay-accent-red); margin: 8px; border-radius: 4px; word-break: break-word; }
+  .list-error { padding: 8px 12px; font-size: var(--font-size-sm); color: var(--accent-red); background: var(--overlay-accent-red); margin: 8px; border-radius: 4px; word-break: break-word; }
 
   .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
   .status-dot--active { animation: pulse 2s ease-in-out infinite; }
-  .status-label { font-size: 11px; font-weight: 600; text-transform: capitalize; white-space: nowrap; }
+  .status-label { font-size: var(--font-size-xs); font-weight: 600; text-transform: capitalize; white-space: nowrap; }
 
-  .pipeline-title { font-size: 12px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pipeline-title { font-size: var(--font-size-sm); font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .pipeline-id { font-family: var(--font-mono); font-size: 10px; flex-shrink: 0; }
+  .pipeline-id { font-family: var(--font-mono); font-size: var(--font-size-2xs); flex-shrink: 0; }
   .pipeline-ref {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 220px; /* decided in plan §"Resolved open questions" */
   }
-  .pipeline-sha { font-family: var(--font-mono); font-size: 10px; flex-shrink: 0; }
-  .pipeline-actor { font-size: 10px; color: var(--text-secondary); flex-shrink: 0; }
-  .status-duration { font-size: 10px; color: var(--text-secondary); font-family: var(--font-mono); flex-shrink: 0; }
+  .pipeline-sha { font-family: var(--font-mono); font-size: var(--font-size-2xs); flex-shrink: 0; }
+  .pipeline-actor { font-size: var(--font-size-2xs); color: var(--text-secondary); flex-shrink: 0; }
+  .status-duration { font-size: var(--font-size-2xs); color: var(--text-secondary); font-family: var(--font-mono); flex-shrink: 0; }
 
-  .row-time { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+  .row-time { font-size: var(--font-size-xs); color: var(--text-secondary); white-space: nowrap; }
 
   .source-badge { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; flex-shrink: 0; }
   .source-badge--branch { background: var(--overlay-accent-blue); color: var(--accent-primary); }
@@ -367,6 +367,6 @@
 
   .ctx-overlay { position: fixed; inset: 0; z-index: 900; }
   .ctx-menu { position: fixed; z-index: 901; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 4px 0; min-width: 180px; box-shadow: var(--shadow-overlay); }
-  .ctx-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 12px; cursor: pointer; }
+  .ctx-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: var(--font-size-sm); cursor: pointer; }
   .ctx-menu button:hover { background: color-mix(in srgb, var(--text-primary) 6%, transparent); }
 </style>

@@ -101,7 +101,7 @@
     background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     border-radius: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-mono);
     color: var(--text-primary);
     line-height: 1.5;
@@ -110,7 +110,7 @@
 
   .dialog-message {
     margin: 0 0 20px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
     line-height: 1.4;
   }
@@ -120,7 +120,7 @@
     align-items: center;
     gap: 8px;
     margin: -8px 0 16px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     user-select: none;
   }

@@ -227,7 +227,7 @@
   }
   .tree-state {
     padding: 10px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .muted {
     color: var(--text-secondary);
@@ -235,7 +235,7 @@
   .tree-footer {
     padding: 6px 10px;
     border-top: 1px solid var(--border);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     background: var(--bg-toolbar);
   }

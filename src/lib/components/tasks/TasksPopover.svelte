@@ -335,7 +335,7 @@
 
   .header-title {
     font-weight: 600;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
   }
 
@@ -352,7 +352,7 @@
     color: var(--text-secondary);
     padding: 0 6px;
     border-radius: 8px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     min-width: 16px;
     text-align: center;
   }
@@ -378,7 +378,7 @@
   .empty {
     text-align: center;
     margin: 16px 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
   }
 
@@ -410,7 +410,7 @@
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     opacity: 0;
     transition: opacity 0.12s;
     pointer-events: none;

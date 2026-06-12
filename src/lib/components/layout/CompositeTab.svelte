@@ -245,13 +245,13 @@
 
   .terminal-icon {
     font-family: var(--font-icons);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-purple);
     flex-shrink: 0;
   }
 
   .worktree-icon {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-cyan, var(--accent-primary));
     flex-shrink: 0;
   }
@@ -265,7 +265,7 @@
   .segment-name {
     flex: 1;
     min-width: 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--text-primary);
     overflow: hidden;

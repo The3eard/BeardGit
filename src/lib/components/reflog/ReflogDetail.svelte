@@ -184,7 +184,7 @@
     background: none;
     border: none;
     padding: 6px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
     transition: background 0.1s;
@@ -202,7 +202,7 @@
     padding: 24px;
     text-align: center;
     color: var(--accent-orange);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .detail-loading {

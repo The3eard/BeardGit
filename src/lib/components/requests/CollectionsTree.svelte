@@ -611,7 +611,7 @@
   }
 
   .section-label {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -620,7 +620,7 @@
   }
 
   .section-count {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     padding: 1px 6px;
@@ -642,7 +642,7 @@
 
   .list-empty {
     padding: 8px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
   }
 
@@ -660,7 +660,7 @@
     cursor: pointer;
     user-select: none;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     border-bottom: 1px solid transparent;
   }
 
@@ -680,14 +680,14 @@
   }
 
   .folder-icon {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     flex-shrink: 0;
     color: var(--accent-primary);
     opacity: 0.7;
   }
 
   .folder-name {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -702,7 +702,7 @@
     padding-right: 12px;
     cursor: pointer;
     border-bottom: 1px solid var(--border);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
   }
 
@@ -729,7 +729,7 @@
   .rename-input {
     width: 100%;
     padding: 3px 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     background: var(--bg-primary);
     border: 1px solid var(--accent-primary);
     border-radius: 3px;
@@ -742,7 +742,7 @@
   }
 
   .leaf-icon {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     flex-shrink: 0;
     color: var(--text-secondary);
   }

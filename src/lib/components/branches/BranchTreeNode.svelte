@@ -88,7 +88,7 @@
     cursor: pointer;
     user-select: none;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     border-bottom: 1px solid transparent;
   }
 
@@ -108,14 +108,14 @@
   }
 
   .folder-icon {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     flex-shrink: 0;
     color: var(--accent-primary);
     opacity: 0.7;
   }
 
   .folder-name {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -130,7 +130,7 @@
     padding-right: 12px;
     cursor: pointer;
     border-bottom: 1px solid var(--border);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
   }
 
@@ -147,7 +147,7 @@
   }
 
   .branch-icon {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     flex-shrink: 0;
     color: var(--text-secondary);
   }
@@ -179,7 +179,7 @@
   }
 
   .branch-oid {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-family: var(--font-mono);
     color: var(--text-secondary);
     flex-shrink: 0;
@@ -187,7 +187,7 @@
   }
 
   .track-pip {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 500;
     flex-shrink: 0;
     padding: 1px 5px;

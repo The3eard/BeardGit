@@ -100,6 +100,14 @@ export function defaultGraphTheme(): GraphTheme {
   };
 }
 
+// ── Canvas fonts ────────────────────────────────────────────────────────
+// Deliberate typography: identifiers (SHA, dates, branch/tag badges) use
+// the app's mono stack (Fira Code first — same as --font-mono) so the
+// graph reads like a git tool; prose (commit summaries, authors) stays
+// on the system sans stack.
+const CANVAS_FONT_SANS = "-apple-system, BlinkMacSystemFont, sans-serif";
+const CANVAS_FONT_MONO = "'Fira Code', 'SF Mono', 'Consolas', monospace";
+
 // ── Column configuration ────────────────────────────────────────────────
 
 export interface GraphColumn {
@@ -173,7 +181,7 @@ function drawMrPrBadge(
 ): number {
   const text = isGitHub ? `PR #${number}` : `MR !${number}`;
   const padding = 4;
-  ctx.font = "10px 'SF Mono', 'Fira Code', 'Consolas', monospace";
+  ctx.font = `10px ${CANVAS_FONT_MONO}`;
   const width = ctx.measureText(text).width + padding * 2;
   const height = 14;
 
@@ -614,7 +622,7 @@ export function renderGraph(
       ctx.rect(textX, rowTop, messageEndX - textX, ROW_HEIGHT);
       ctx.clip();
 
-      ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = `11px ${CANVAS_FONT_MONO}`;
       ctx.textBaseline = "middle";
 
       for (const ref of node.refs) {
@@ -672,8 +680,8 @@ export function renderGraph(
       const isMyCommit = userEmails.length > 0 &&
         (userEmails.includes(node.email.toLowerCase()) || userEmails.includes(node.author.toLowerCase()));
       ctx.font = isMyCommit
-        ? `bold 13px -apple-system, BlinkMacSystemFont, sans-serif`
-        : `13px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ? `bold 13px ${CANVAS_FONT_SANS}`
+        : `13px ${CANVAS_FONT_SANS}`;
       ctx.fillStyle = isSelected ? "#ffffff" : theme.textPrimary; /* beardgit:allow-hex: canvas requires concrete color; selected row inverts text */
       ctx.textBaseline = "middle";
       ctx.textAlign = "left";
@@ -692,12 +700,12 @@ export function renderGraph(
 
       let text = "";
       let style = isSelected ? theme.textPrimary : theme.textSecondary;
-      let font = "12px -apple-system, BlinkMacSystemFont, sans-serif";
+      let font = `12px ${CANVAS_FONT_SANS}`;
 
       switch (col.id) {
         case "sha":
           text = shortOid(node.oid);
-          font = "12px 'SF Mono', 'Fira Code', 'Consolas', monospace";
+          font = `12px ${CANVAS_FONT_MONO}`;
           style = isSelected ? theme.textPrimary : theme.textSha;
           break;
         case "author":
@@ -705,6 +713,7 @@ export function renderGraph(
           break;
         case "date":
           text = node.timestamp ? formatRelativeTimeUnix(node.timestamp) : "";
+          font = `11px ${CANVAS_FONT_MONO}`;
           break;
         case "email":
           text = node.email || "";

@@ -88,7 +88,7 @@
     border-radius: 12px;
     background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
     color: var(--accent-primary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .pill-label {
     line-height: 1.2;
@@ -113,7 +113,7 @@
   .pill-remove:disabled { opacity: 0.3; cursor: not-allowed; }
   .pill-empty {
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-style: italic;
   }
   .pill-add {

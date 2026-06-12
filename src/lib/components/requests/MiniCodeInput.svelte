@@ -247,7 +247,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 28px; /* 30px - 2px borders */
   }
 
@@ -279,7 +279,7 @@
   }
   .mini-host :global(.cm-scroller) {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 28px; /* 30px - 2px borders */
   }
   .mini-host :global(.cm-content) {

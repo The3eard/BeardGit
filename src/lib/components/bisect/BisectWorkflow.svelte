@@ -237,7 +237,7 @@
   }
 
   .view-title {
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     margin: 0;
     color: var(--text-primary);
@@ -269,13 +269,13 @@
 
   .inactive-text {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
   }
 
   .inactive-hint {
     margin: 4px 0 24px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     opacity: 0.7;
   }
@@ -295,7 +295,7 @@
   }
 
   .form-label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -308,7 +308,7 @@
     border-radius: 6px;
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-family: var(--font-mono, "Fira Code", monospace);
     outline: none;
   }
@@ -336,7 +336,7 @@
   }
 
   .card-label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -346,7 +346,7 @@
 
   .card-oid {
     font-family: var(--font-mono, "Fira Code", monospace);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-primary);
   }
 
@@ -362,7 +362,7 @@
   }
 
   .mark-badge {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 2px 8px;
     border-radius: 10px;
   }
@@ -412,7 +412,7 @@
   .result-text {
     margin: 0;
     font-family: var(--font-mono, "Fira Code", monospace);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-word;
@@ -427,7 +427,7 @@
   }
 
   .log-header {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -442,7 +442,7 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     font-family: var(--font-mono, "Fira Code", monospace);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     max-height: 240px;
     overflow-y: auto;

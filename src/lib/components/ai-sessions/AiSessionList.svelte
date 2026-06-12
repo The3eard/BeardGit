@@ -189,7 +189,7 @@
   }
 
   .panel-title {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -208,7 +208,7 @@
     color: var(--accent-primary);
     border-radius: 5px;
     padding: 2px 8px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     cursor: pointer;
     text-transform: uppercase;
@@ -246,7 +246,7 @@
   }
 
   .section-title {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -254,7 +254,7 @@
   }
 
   .section-count {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     background: var(--accent-primary);
     color: var(--text-primary);
     border-radius: 8px;
@@ -267,7 +267,7 @@
 
   .section-empty {
     padding: 16px 12px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     opacity: 0.6;
     text-align: center;

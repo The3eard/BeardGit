@@ -63,7 +63,7 @@
     padding: 0;
     color: var(--text-secondary);
     font: inherit;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
     user-select: none;
     transition: color 0.15s;

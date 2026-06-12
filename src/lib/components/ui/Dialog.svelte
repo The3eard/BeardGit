@@ -202,7 +202,7 @@
 
   .bg-dialog__title {
     margin: 0;
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -212,7 +212,7 @@
     overflow-y: auto;
     flex: 1;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     line-height: 1.5;
   }
 

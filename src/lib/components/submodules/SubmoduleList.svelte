@@ -339,7 +339,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: 6px 10px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     font-family: var(--font-mono);
   }
@@ -359,7 +359,7 @@
   }
 
   .add-error {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-red);
   }
 
@@ -372,7 +372,7 @@
   }
 
   .sub-path {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
     font-family: var(--font-mono);
     overflow: hidden;
@@ -381,7 +381,7 @@
   }
 
   .sub-url {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -398,12 +398,12 @@
 
   .sub-sha {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
   .status-badge {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 700;
     letter-spacing: 0.5px;
   }

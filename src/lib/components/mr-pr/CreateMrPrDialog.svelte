@@ -164,7 +164,7 @@
 
   .form-field label {
     display: block;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
     margin-bottom: 4px;
@@ -181,7 +181,7 @@
   .form-field.inline label {
     display: inline;
     text-transform: none;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
     font-weight: normal;
@@ -198,7 +198,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-family: inherit;
     box-sizing: border-box;
   }
@@ -220,7 +220,7 @@
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .dialog-actions {

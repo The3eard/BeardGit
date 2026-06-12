@@ -83,7 +83,7 @@
     padding: 4px 8px;
     background: var(--bg-toolbar);
     color: var(--text-primary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     line-height: 1.4;
     white-space: nowrap;
     border: 1px solid var(--border);
@@ -107,7 +107,7 @@
     border: 1px solid var(--border);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
   }
 </style>

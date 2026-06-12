@@ -193,7 +193,7 @@
   }
   .dialog-title {
     margin: 0 0 4px;
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -203,7 +203,7 @@
     gap: 4px;
   }
   .form-field > label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -216,7 +216,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-family: inherit;
     box-sizing: border-box;
   }
@@ -234,7 +234,7 @@
     border-radius: 10px;
     background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
     color: var(--accent-primary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -247,7 +247,7 @@
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .dialog-actions {
     display: flex;

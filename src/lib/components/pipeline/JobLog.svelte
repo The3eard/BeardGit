@@ -185,7 +185,7 @@
     justify-content: center;
     gap: 12px;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-style: italic;
     background: var(--bg-primary);
   }

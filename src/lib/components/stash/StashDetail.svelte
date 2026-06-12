@@ -75,7 +75,7 @@
   }
 
   .stash-detail-title {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 4px;
@@ -84,7 +84,7 @@
   .stash-detail-meta {
     display: flex;
     gap: 12px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -112,7 +112,7 @@
   }
 
   .stash-diff-path {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     font-family: var(--font-mono);
     color: var(--text-primary);
@@ -130,7 +130,7 @@
     border: 1px solid var(--border);
     color: var(--text-primary);
     border-radius: 4px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     cursor: pointer;
     transition: background 0.15s;
   }
@@ -142,7 +142,7 @@
   }
 
   .stash-diff-stats {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .stat-add {

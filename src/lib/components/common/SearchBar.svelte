@@ -127,7 +127,7 @@
     gap: 2px;
     padding: 1px 4px;
     border-radius: 3px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     line-height: 1.4;
     background: var(--overlay-accent-muted);
     color: var(--text-secondary);
@@ -142,7 +142,7 @@
 
   .tag-type {
     font-weight: 600;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     text-transform: uppercase;
     letter-spacing: 0.3px;
     opacity: 0.85;
@@ -164,7 +164,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
   }
 
@@ -179,14 +179,14 @@
     gap: 6px;
     padding: 4px 6px;
     margin-top: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .hint {
     color: var(--hint-color, var(--text-secondary));
     opacity: 0.7;
     font-family: "SF Mono", Menlo, monospace;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
   }
 
   .hint-separator {

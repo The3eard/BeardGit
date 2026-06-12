@@ -186,7 +186,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -207,7 +207,7 @@
   }
 
   .section-label {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -243,7 +243,7 @@
   }
 
   .commit-summary {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     margin-bottom: 4px;
     overflow: hidden;
@@ -255,7 +255,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -276,7 +276,7 @@
 
   .commit-oid {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--accent-primary);
     margin-left: auto;
     flex-shrink: 0;
@@ -285,7 +285,7 @@
   .no-commits {
     padding: 24px;
     text-align: center;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     font-style: italic;
   }

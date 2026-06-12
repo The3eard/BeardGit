@@ -172,7 +172,7 @@
   }
 
   .field-label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--text-secondary);
   }
@@ -183,7 +183,7 @@
     border: 1px solid var(--border);
     border-radius: 5px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     transition: border-color 0.15s;
   }
@@ -197,7 +197,7 @@
   }
 
   .field-hint {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     opacity: 0.7;
   }
@@ -208,7 +208,7 @@
     border: 1px solid var(--border);
     border-radius: 5px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     resize: vertical;
     font-family: inherit;
@@ -229,7 +229,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     user-select: none;
   }
@@ -239,7 +239,7 @@
   }
 
   .error-msg {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     padding: 6px 10px;
     background: var(--overlay-accent-red);

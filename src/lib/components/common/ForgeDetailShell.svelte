@@ -97,11 +97,11 @@
   .shell-empty,
   .shell-loading {
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
   .shell-error {
     color: var(--accent-red);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     max-width: 360px;
     text-align: center;
     margin: 0 auto;
@@ -113,7 +113,7 @@
   .error-reason {
     margin: 0;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .spinner {
     width: 18px;

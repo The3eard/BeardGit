@@ -114,7 +114,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -127,7 +127,7 @@
 
   .menu-icon {
     font-family: var(--font-icons);
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     width: 16px;
     text-align: center;
     flex-shrink: 0;
@@ -142,7 +142,7 @@
 
   .menu-section-label {
     padding: 4px 12px 2px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     font-weight: 600;
     text-transform: uppercase;
@@ -151,7 +151,7 @@
 
   .menu-empty {
     padding: 6px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     font-style: italic;
   }

@@ -84,7 +84,7 @@
     min-width: 220px;
     overflow-y: hidden;
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
     user-select: none;
     border-right: 1px solid var(--border);

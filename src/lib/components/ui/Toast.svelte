@@ -100,7 +100,7 @@
     background: var(--bg-toolbar);
     border: 1px solid var(--border);
     border-radius: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     box-shadow: var(--shadow-overlay);
     transform: translateX(120%);
