@@ -16,7 +16,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { get } from "svelte/store";
-  import { Button, Card, CategoryNav } from "$lib/components/ui";
+  import { Button, Card, CategoryNav, Skeleton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
   import { activeProject } from "$lib/stores/projects";
   import { activeProvider } from "$lib/stores/provider";
@@ -282,9 +282,9 @@
           {/snippet}
         </Card>
       {:else if $repoConfigStore.loading}
-        <p class="hint" data-testid="repo-config-loading">
-          {m.repo_config_loading()}
-        </p>
+        <div data-testid="repo-config-loading" aria-label={m.repo_config_loading()}>
+          <Skeleton rows={6} />
+        </div>
       {:else if $repoConfigStore.error}
         <Card title="Failed to load" description={$repoConfigStore.error}>
           {#snippet actions()}
@@ -354,10 +354,5 @@
   .section-slot {
     flex: 1;
     min-height: 0;
-  }
-  .hint {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    margin: 0;
   }
 </style>
