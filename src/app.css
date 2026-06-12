@@ -49,6 +49,11 @@
   --overlay-hover: rgba(255, 255, 255, 0.06);
   --overlay-active: rgba(255, 255, 255, 0.1);
   --overlay-shadow: rgba(0, 0, 0, 0.3);
+  /* Elevation scale — overridden per mode by `theme.ts::applyTheme()`.
+   * `--shadow-overlay` floats menus / popovers / tooltips above their
+   * panel; `--shadow-modal` lifts dialogs / palettes above everything. */
+  --shadow-overlay: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.45);
   --overlay-accent-blue: rgba(88, 166, 255, 0.12);
   --overlay-accent-green: rgba(63, 185, 80, 0.12);
   --overlay-accent-orange: rgba(240, 136, 62, 0.15);

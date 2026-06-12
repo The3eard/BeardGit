@@ -176,7 +176,7 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     z-index: 1000;
-    box-shadow: 0 8px 32px var(--overlay-shadow);
+    box-shadow: var(--shadow-modal);
     display: flex;
     flex-direction: column;
     max-height: 85vh;

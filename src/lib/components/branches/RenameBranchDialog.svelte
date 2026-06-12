@@ -132,7 +132,7 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-modal);
   }
 
   .dialog-title {

@@ -467,6 +467,9 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    /* Same surface step as List.svelte's .list-panel — the staging
+       pane is the "list side" of the Changes split. */
+    background: var(--bg-secondary);
   }
 
   .file-lists {
@@ -543,7 +546,7 @@
     border-radius: 8px;
     padding: 4px;
     z-index: 10;
-    box-shadow: 0 4px 12px var(--overlay-shadow);
+    box-shadow: var(--shadow-overlay);
   }
 
   .overflow-menu-item {

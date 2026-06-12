@@ -731,7 +731,7 @@
     padding: 4px;
     min-width: 160px;
     z-index: 10;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: drop shadow neutral */
+    box-shadow: var(--shadow-overlay);
   }
 
   .merge-dropdown-menu button {
@@ -1108,7 +1108,7 @@
     border-radius: 6px;
     color: var(--text-primary);
     font-size: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: drop shadow neutral */
+    box-shadow: var(--shadow-overlay);
     z-index: 100;
   }
   .toast-sub { color: var(--text-secondary); font-size: 11px; }

@@ -144,7 +144,7 @@
     border-radius: 8px;
     width: 100%;
     max-width: 420px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-modal);
     z-index: 1000;
     overflow: hidden;
   }

@@ -88,7 +88,7 @@
     white-space: nowrap;
     border: 1px solid var(--border);
     border-radius: 4px;
-    box-shadow: 0 2px 8px var(--overlay-shadow);
+    box-shadow: var(--shadow-overlay);
     pointer-events: none;
     user-select: none;
   }

@@ -79,12 +79,16 @@ function computeOverlays(mode: string): Record<string, string> {
       "--overlay-hover": "rgba(0,0,0,0.04)",
       "--overlay-active": "rgba(0,0,0,0.08)",
       "--overlay-shadow": "rgba(0,0,0,0.15)",
+      "--shadow-overlay": "0 4px 12px rgba(0,0,0,0.14)",
+      "--shadow-modal": "0 12px 32px rgba(0,0,0,0.22)",
     };
   }
   return {
     "--overlay-hover": "rgba(255,255,255,0.06)",
     "--overlay-active": "rgba(255,255,255,0.1)",
     "--overlay-shadow": "rgba(0,0,0,0.3)",
+    "--shadow-overlay": "0 4px 12px rgba(0,0,0,0.35)",
+    "--shadow-modal": "0 12px 32px rgba(0,0,0,0.45)",
   };
 }
 
