@@ -442,6 +442,14 @@ impl From<RunnerCliError> for RepoConfigError {
                     || lower.contains("not logged in")
                     || lower.contains("authentication required")
                     || lower.contains("auth token")
+                    // `glab` reports auth failures as raw HTTP errors
+                    // ("GET …/api/v4/projects/…: 401 {message: 401
+                    // Unauthorized}") — e.g. an expired GITLAB_TOKEN env
+                    // var shadowing a valid keyring login. Without this
+                    // the user gets a cryptic "exit 1" instead of the
+                    // authenticate CTA.
+                    || lower.contains("401")
+                    || lower.contains("unauthorized")
                 {
                     RepoConfigError::NotAuthenticated(stderr)
                 } else {
@@ -1335,7 +1343,13 @@ pub async fn load_remote_repo_config(
         let forge = detect_forge(&repo)
             .ok_or_else(|| "Repository is not hosted on GitHub or GitLab".to_string())?;
         let runner = SystemRunner::new();
-        load_remote_repo_config_with(&runner, forge, &path).map_err(|e| e.to_string())
+        load_remote_repo_config_with(&runner, forge, &path).map_err(|e| {
+            // Surface CLI failures in the log file — these were previously
+            // invisible outside the UI, which made "repo settings doesn't
+            // load" reports impossible to diagnose after the fact.
+            tracing::warn!(forge = ?forge, error = %e, "repo config load failed");
+            e.to_string()
+        })
     })
     .await
     .map_err(|e| e.to_string())?
@@ -2145,6 +2159,27 @@ mod tests {
             }),
         );
         let err = load_remote_repo_config_github(&runner, Path::new(".")).unwrap_err();
+        assert!(matches!(err, RepoConfigError::NotAuthenticated(_)));
+    }
+
+    #[test]
+    fn glab_http_401_maps_to_not_authenticated() {
+        // glab reports auth failures as raw HTTP errors (e.g. an expired
+        // GITLAB_TOKEN env var shadowing a valid keyring login) — these
+        // must surface the authenticate CTA, not a cryptic exit-1 error.
+        let runner = MockRunner::new();
+        runner.expect(
+            "glab",
+            &["repo", "view", "-F", "json"],
+            Err(super::super::command_runner::CliError::NonZeroExit {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: "ERROR Get https://gitlab.com/api/v4/projects/x%2Fy: \
+                         401 {message: 401 Unauthorized}."
+                    .into(),
+            }),
+        );
+        let err = load_remote_repo_config_gitlab(&runner, Path::new(".")).unwrap_err();
         assert!(matches!(err, RepoConfigError::NotAuthenticated(_)));
     }
 
