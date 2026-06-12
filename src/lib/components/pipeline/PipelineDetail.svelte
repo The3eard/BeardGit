@@ -4,6 +4,7 @@
   import * as m from "$lib/paraglide/messages";
   import { ciStatusColor } from "../../utils/status";
   import { Button } from "$lib/components/ui";
+  import EmptyState from "../common/EmptyState.svelte";
 
   let { onSelectJob }: { onSelectJob?: (jobId: number) => void } = $props();
 
@@ -186,7 +187,7 @@
       {/each}
     </div>
   {:else}
-    <div class="detail-empty">{m.pipeline_select_run()}</div>
+    <EmptyState fill icon={"\uF144"} title={m.pipeline_select_run()} />
   {/if}
 </div>
 
@@ -350,10 +351,6 @@
     color: var(--text-secondary);
     white-space: nowrap;
     flex-shrink: 0;
-  }
-
-  .detail-empty {
-    gap: 8px;
   }
 
   .detail-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }

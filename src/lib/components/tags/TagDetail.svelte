@@ -3,6 +3,7 @@
   import { Button } from "$lib/components/ui";
   import FileChangeList from "../common/FileChangeList.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import EmptyState from "../common/EmptyState.svelte";
   import DiffEditor from "../editor/DiffEditor.svelte";
   import CommitDetail from "../detail/CommitDetail.svelte";
   import { formatRelativeTime, formatDate } from "../../utils/time";
@@ -217,9 +218,7 @@
       </Button>
     </div>
   {:else if !$selectedTagName}
-    <div class="detail-empty">
-      <span>{m.tags_select_preview()}</span>
-    </div>
+    <EmptyState fill icon={"\uF02B"} title={m.tags_select_preview()} />
   {/if}
 
   {#if confirmDelete && $selectedTagInfo}

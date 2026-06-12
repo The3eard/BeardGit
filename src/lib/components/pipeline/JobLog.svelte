@@ -8,6 +8,7 @@
   import { WebglAddon } from "@xterm/addon-webgl";
   import JobSteps from "./JobSteps.svelte";
   import * as m from "$lib/paraglide/messages";
+  import EmptyState from "../common/EmptyState.svelte";
   import { IconButton } from "$lib/components/ui";
 
   let terminalContainer: HTMLDivElement | undefined = $state();
@@ -133,8 +134,8 @@
         <span>{m.joblog_unavailable()}</span>
       </div>
     {:else if overlayState === "empty"}
-      <div class="log-overlay">
-        <span>{m.joblog_empty()}</span>
+      <div class="log-overlay log-overlay--empty">
+        <EmptyState fill icon={"\uF120"} title={m.joblog_empty()} />
       </div>
     {/if}
   </div>
@@ -187,6 +188,10 @@
     font-size: 13px;
     font-style: italic;
     background: var(--bg-primary);
+  }
+
+  .log-overlay--empty {
+    font-style: normal;
   }
 
   .log-overlay-fill {

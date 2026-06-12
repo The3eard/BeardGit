@@ -36,7 +36,7 @@
         {onFileClick}
       />
     {:else}
-      <EmptyState title={m.reflog_select_entry()} />
+      <EmptyState fill icon={"\uF1DA"} title={m.reflog_select_entry()} />
     {/if}
   {/snippet}
 </SplitView>

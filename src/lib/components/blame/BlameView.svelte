@@ -22,6 +22,7 @@
     loadFileHistory,
   } from '$lib/stores/blame';
   import { activeTheme } from '$lib/stores/theme';
+  import EmptyState from '$lib/components/common/EmptyState.svelte';
   import { IconButton } from '$lib/components/ui';
   import { shortOid } from '$lib/utils/git';
   import * as m from '$lib/paraglide/messages';
@@ -123,14 +124,8 @@
         <div class="blame-placeholder">
           <span class="error-text">{$blameError}</span>
         </div>
-      {:else if !$blamePath}
-        <div class="blame-placeholder">
-          <span>{m.blame_no_file()}</span>
-        </div>
-      {:else if $blameLines.length === 0}
-        <div class="blame-placeholder">
-          <span>{m.blame_no_file()}</span>
-        </div>
+      {:else if !$blamePath || $blameLines.length === 0}
+        <EmptyState fill icon={"\uF15C"} title={m.blame_no_file()} />
       {:else}
         <div class="blame-split">
           <div class="gutter-scroll" bind:this={gutterEl}>

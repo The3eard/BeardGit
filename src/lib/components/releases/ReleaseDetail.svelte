@@ -152,6 +152,7 @@
   error={$releaseDetailError}
   isEmpty={!detail && !$releaseDetailLoading && !$releaseDetailError}
   emptyMessage={m.release_detail_empty()}
+  emptyIcon={"\uF135"}
   onRetry={() => {
     const tag = $selectedReleaseTag;
     if (tag) selectRelease(tag);

@@ -288,6 +288,7 @@
   error={$mrPrDetailError}
   isEmpty={!$mrPrDetail && !$mrPrDetailLoading && !$mrPrDetailError}
   emptyMessage={selectMessage}
+  emptyIcon={"\uF407"}
   onRetry={() => {
     const n = $selectedMrPrNumber;
     if (n !== null) void loadMrPrDetail(n);
@@ -304,7 +305,7 @@
       </h3>
       <IconButton
         tone="default"
-        icon={""}
+        icon={"\uF08E"}
         description={m.mrpr_open_browser()}
         onclick={() => openUrl(detail.summary.url)}
       />
