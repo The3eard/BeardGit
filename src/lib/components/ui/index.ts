@@ -17,5 +17,6 @@ export { default as Dialog } from "./Dialog.svelte";
 export { default as FormRow } from "./FormRow.svelte";
 export { default as Field } from "./Field.svelte";
 export { default as SearchInput } from "./SearchInput.svelte";
+export { default as Skeleton } from "./Skeleton.svelte";
 export { default as CategoryNav } from "./CategoryNav.svelte";
 export { default as SettingSection } from "./SettingSection.svelte";
