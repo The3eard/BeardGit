@@ -1130,4 +1130,39 @@ mod tests {
         assert_eq!(restored.lane_segments[0].sync_state, SyncState::LocalOnly);
         assert_eq!(restored.merge_curves[0].from_lane, 1);
     }
+
+    #[test]
+    fn test_node_segment_group_matches_covering_segment() {
+        // Invariant: every node's `segment_group` equals the `group_id`
+        // of the lane segment that covers its (lane, row). If a recycled
+        // lane ever bumped the group out of step between the node and its
+        // segment, hit-testing would select a different branch when you
+        // click the line vs. the dot. Exercise the recycling-heavy shape
+        // from `test_lanes_are_recycled` plus the affinity fixtures.
+        let commits = vec![
+            make_commit("m2", &["m1", "f2"], &["main"], "merge f2"),
+            make_commit("f2", &["base"], &["feature2"], "f2 work"),
+            make_commit("m1", &["base", "f1"], &[], "merge f1"),
+            make_commit("f1", &["base"], &["feature1"], "f1 work"),
+            make_commit("base", &[], &[], "initial"),
+        ];
+        let dag = Dag::build(commits);
+        let layout = GraphLayout::compute(dag);
+
+        for node in &layout.nodes {
+            // The segment on the node's lane whose row span covers it.
+            let covering = layout
+                .lane_segments
+                .iter()
+                .find(|s| s.lane == node.lane && node.row >= s.start_row && node.row <= s.end_row);
+            if let Some(seg) = covering {
+                assert_eq!(
+                    node.segment_group, seg.group_id,
+                    "node {} (lane {}, row {}) has segment_group {} but its \
+                     covering segment has group_id {}",
+                    node.oid, node.lane, node.row, node.segment_group, seg.group_id,
+                );
+            }
+        }
+    }
 }

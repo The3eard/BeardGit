@@ -209,6 +209,12 @@ export function reconcileViewport(fresh: GraphViewport): void {
     const idx = fresh.nodes.findIndex((n) => n.oid === cachedTopOid);
     if (idx > 0) {
       graphOffset.update((o) => o + idx);
+    } else if (idx < 0) {
+      // The old anchor fell outside the fresh window entirely (e.g. a
+      // pull rewrote history above it, or it was squashed away). Keeping
+      // the stale offset would scroll to an unrelated row — snap to the
+      // top so the user lands on the newest commits instead.
+      graphOffset.set(0);
     }
   }
   viewport.set(fresh);
