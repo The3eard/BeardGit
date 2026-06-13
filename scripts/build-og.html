@@ -9,13 +9,13 @@
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #0D1117;
-      --bg-elev: #161B22;
-      --fg: #E6EDF3;
-      --fg-dim: #C9D1D9;
-      --fg-muted: #8B949E;
+      --bg: #151312;
+      --bg-elev: #1d1a18;
+      --fg: #e8e4de;
+      --fg-dim: #c6c0b8;
+      --fg-muted: #948e86;
       --accent: #d9924f;
-      --accent-soft: rgba(255, 106, 22, 0.16);
+      --accent-soft: rgba(217, 146, 79, 0.16);
     }
     * { box-sizing: border-box; }
     html, body {
@@ -35,7 +35,7 @@
       overflow: hidden;
       background:
         radial-gradient(80% 100% at 100% 0%, var(--accent-soft) 0%, transparent 55%),
-        radial-gradient(70% 90% at 0% 100%, rgba(255, 106, 22, 0.05) 0%, transparent 50%),
+        radial-gradient(70% 90% at 0% 100%, rgba(124, 199, 184, 0.06) 0%, transparent 50%),
         var(--bg);
     }
 
@@ -44,7 +44,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      background-image: radial-gradient(rgba(230, 237, 243, 0.05) 1px, transparent 1px);
+      background-image: radial-gradient(rgba(232, 228, 222, 0.05) 1px, transparent 1px);
       background-size: 22px 22px;
       pointer-events: none;
     }
@@ -56,14 +56,14 @@
       top: 50%;
       transform: translateY(-50%);
       width: 65%;
-      aspect-ratio: 2784 / 1824;
-      background-image: url("../docs/assets/screenshots/main-dark.png");
+      aspect-ratio: 2880 / 1800;
+      background-image: url("../docs/assets/screenshots/graph-dark.png");
       background-size: cover;
       background-position: left center;
       border-radius: 14px;
       box-shadow:
         0 30px 80px rgba(0, 0, 0, 0.55),
-        0 0 0 1px rgba(230, 237, 243, 0.08) inset;
+        0 0 0 1px rgba(232, 228, 222, 0.10) inset;
     }
 
     /* Fade-out gradient on the screenshot's left edge so it merges into the bg */
@@ -75,8 +75,8 @@
       background: linear-gradient(
         90deg,
         var(--bg) 0%,
-        rgba(13, 17, 23, 0.85) 8%,
-        rgba(13, 17, 23, 0.0) 28%
+        rgba(21, 19, 18, 0.85) 8%,
+        rgba(21, 19, 18, 0.0) 28%
       );
     }
 
@@ -154,15 +154,15 @@
     }
     .footer .pill {
       padding: 6px 12px;
-      border: 1px solid rgba(230, 237, 243, 0.14);
+      border: 1px solid rgba(232, 228, 222, 0.16);
       border-radius: 999px;
       color: var(--fg-dim);
-      background: rgba(22, 27, 34, 0.6);
+      background: rgba(29, 26, 24, 0.6);
     }
     .footer .accent {
       color: var(--accent);
-      border-color: rgba(255, 106, 22, 0.35);
-      background: rgba(255, 106, 22, 0.08);
+      border-color: rgba(217, 146, 79, 0.40);
+      background: rgba(217, 146, 79, 0.10);
     }
 
     /* Decorative graph nodes bleeding from the bottom-left, just for character */
