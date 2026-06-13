@@ -488,24 +488,34 @@ export function renderGraph(
     ctx.globalAlpha = 0.85 * curveAlpha;
     ctx.beginPath();
 
-    const clampedY1 = Math.max(y1, -ROW_HEIGHT * 2);
-    const clampedY2 = Math.min(y2, canvasHeight + ROW_HEIGHT * 2);
-
-    const distance = Math.abs(clampedY2 - clampedY1);
-    const curveHeight = Math.min(ROW_HEIGHT * 2.5, distance * 0.6);
-    const curveStartY = clampedY1 + ROW_HEIGHT * 0.3;
-    const curveEndY = curveStartY + curveHeight;
-
-    ctx.moveTo(x1, clampedY1);
-    ctx.lineTo(x1, curveStartY);
-    ctx.bezierCurveTo(
-      x1, curveStartY + curveHeight * 0.5,
-      x2, curveEndY - curveHeight * 0.5,
-      x2, curveEndY
+    // Geometry from the TRUE endpoints, clamped only for the moveTo/lineTo
+    // tails so off-canvas curves don't paint giant control arms. The bend
+    // sits at the bottom (toward to_row) and its height scales with the
+    // horizontal lane distance — a 1-lane hop turns tightly, a wide
+    // octopus jump eases over more rows — capped by the available
+    // vertical span so short merges don't overshoot.
+    const laneSpan = Math.abs(x2 - x1);
+    const rowSpan = Math.abs(y2 - y1);
+    const bend = Math.min(
+      Math.max(ROW_HEIGHT, laneSpan * 0.9),
+      Math.max(ROW_HEIGHT, rowSpan - ROW_HEIGHT * 0.3),
     );
-    if (clampedY2 > curveEndY) {
-      ctx.lineTo(x2, clampedY2);
-    }
+    const bendStartY = y2 - bend; // straight run ends here, curve begins
+    const tailTopY = Math.max(y1, -ROW_HEIGHT * 2);
+    const tailBotY = Math.min(y2, canvasHeight + ROW_HEIGHT * 2);
+
+    // Vertical run down lane `from` until the bend starts (clamped to the
+    // visible tail), then a symmetric cubic whose control points are
+    // vertical tangents at both ends → smooth S with no kinks.
+    ctx.moveTo(x1, tailTopY);
+    if (bendStartY > tailTopY) ctx.lineTo(x1, bendStartY);
+    const cpStartY = Math.min(bendStartY, tailBotY);
+    ctx.bezierCurveTo(
+      x1, (cpStartY + y2) / 2,
+      x2, (cpStartY + y2) / 2,
+      x2, Math.min(y2, tailBotY),
+    );
+    if (tailBotY > y2) ctx.lineTo(x2, tailBotY);
 
     ctx.stroke();
     resetOpacity();
