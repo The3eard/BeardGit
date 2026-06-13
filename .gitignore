@@ -52,6 +52,9 @@ AGENTS.md
 # docs/ is published as the project website; only exclude assistant artifacts inside it
 docs/superpowers/
 docs/.superpowers/
+# Staging area for regenerated marketing screenshots (promoted into
+# assets/screenshots/ once approved — see scripts/build-screenshots.mjs)
+docs/assets/screenshots/_new/
 
 # Editor config
 .zed/
