@@ -235,7 +235,7 @@
   }
 
   .detail-title {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -256,7 +256,7 @@
   }
 
   .commit-summary {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1.4;
@@ -265,7 +265,7 @@
 
   .commit-body {
     margin-top: 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     line-height: 1.5;
     white-space: pre-wrap;
@@ -284,7 +284,7 @@
   }
 
   .detail-label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -294,7 +294,7 @@
   }
 
   .detail-value {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     word-break: break-all;
   }
@@ -305,14 +305,14 @@
 
   .detail-value.sha {
     font-family: "SF Mono", "Fira Code", "Consolas", monospace;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-orange);
     word-break: break-all;
   }
 
   .parent-oid {
     font-family: "SF Mono", "Fira Code", "Consolas", monospace;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-primary);
     margin-top: 4px;
     cursor: default;
@@ -323,7 +323,7 @@
     border: none;
     padding: 0;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-primary);
     cursor: pointer;
   }
@@ -343,7 +343,7 @@
     display: inline-block;
     padding: 2px 8px;
     border-radius: 3px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 500;
     background: none;
     cursor: default;

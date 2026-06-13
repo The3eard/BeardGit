@@ -1,13 +1,15 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import { Button } from "$lib/components/ui";
+  import { Button, Skeleton } from "$lib/components/ui";
   import FileChangeList from "../common/FileChangeList.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import EmptyState from "../common/EmptyState.svelte";
   import DiffEditor from "../editor/DiffEditor.svelte";
   import CommitDetail from "../detail/CommitDetail.svelte";
   import { formatRelativeTime, formatDate } from "../../utils/time";
   import { getCommitDetail, getCommitFiles } from "../../api/tauri";
   import { navigateToCommit, fetchDiffSides } from "../../stores/graph";
+  import { activeViewStore } from "../../stores/navigation";
   import type { RawDiffContent } from "../../stores/graph";
   import type { CommitInfo, CommitFileChange } from "../../types";
   import { activeTheme } from "../../stores/theme";
@@ -66,14 +68,23 @@
     parentCommit = commit;
     parentFiles = files;
   }
+
+  /**
+   * "Show in Graph" from the embedded parent CommitDetail. Every other
+   * CommitDetail host pairs `navigateToCommit` with a view switch (see
+   * `+page.svelte`'s branches/reflog/worktrees wirings) — without it the
+   * commit is selected in the graph store but the user stays on the
+   * Tags view and nothing visibly happens.
+   */
+  function handleNavigateToGraph(oid: string) {
+    void navigateToCommit(oid);
+    activeViewStore.set("graph");
+  }
 </script>
 
 <div class="tag-detail">
   {#if $loadingDetail}
-    <div class="detail-loading">
-      <div class="spinner"></div>
-      <span>{m.tags_loading_detail()}</span>
-    </div>
+    <Skeleton variant="detail" rows={6} />
   {:else if $selectedTagInfo && $selectedCommitInfo}
     <!-- Header -->
     <div class="detail-header">
@@ -200,7 +211,7 @@
             commit={parentCommit}
             files={parentFiles}
             showNavigateToGraph={true}
-            onNavigateToGraph={navigateToCommit}
+            onNavigateToGraph={handleNavigateToGraph}
             onClose={() => { parentCommit = null; parentFiles = []; }}
           />
         </div>
@@ -217,9 +228,7 @@
       </Button>
     </div>
   {:else if !$selectedTagName}
-    <div class="detail-empty">
-      <span>{m.tags_select_preview()}</span>
-    </div>
+    <EmptyState fill icon={"\uF02B"} title={m.tags_select_preview()} />
   {/if}
 
   {#if confirmDelete && $selectedTagInfo}
@@ -289,7 +298,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -309,7 +318,7 @@
   }
 
   .section-label {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -325,21 +334,21 @@
   }
 
   .message-card {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     line-height: 1.5;
     white-space: pre-wrap;
   }
 
   .commit-summary {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 4px;
   }
 
   .commit-body {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     line-height: 1.5;
     white-space: pre-wrap;
@@ -350,7 +359,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     padding-top: 8px;
     border-top: 1px solid var(--border);
@@ -375,7 +384,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .stat-item {
@@ -424,7 +433,7 @@
   }
 
   .parent-oid {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-family: var(--font-mono);
     color: var(--accent-primary);
     background: var(--overlay-accent-blue);
@@ -449,10 +458,23 @@
     margin-bottom: 20px;
   }
 
+  /*
+   * The embedded CommitDetail is the graph view's sidebar <aside>
+   * (border-left, full-bleed section dividers). Dropped raw into this
+   * card-based body it read as a misplaced sidebar fragment, so frame
+   * it like every other `.section-card` and strip the sidebar border.
+   */
   .parent-detail-panel {
-    border-top: 1px solid var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg-secondary);
     margin-top: 8px;
     margin-bottom: 20px;
+  }
+
+  .parent-detail-panel :global(.commit-detail) {
+    border-left: none;
   }
 
   .files-card {

@@ -79,7 +79,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-modal);
     width: min(720px, 90vw);
     max-height: min(600px, 80vh);
     display: flex;
@@ -115,7 +115,7 @@
   }
 
   .category-title {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -134,13 +134,13 @@
   }
 
   .shortcut-label {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-primary);
   }
 
   .shortcut-keys {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     background: var(--bg-primary);
     border: 1px solid var(--border);

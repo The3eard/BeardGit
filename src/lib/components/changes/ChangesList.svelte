@@ -8,7 +8,7 @@
   import { cleanPaths, discardFiles } from "$lib/api/tauri";
   import { addGitignorePattern } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
-  import { Button } from "$lib/components/ui";
+  import { Button, Checkbox } from "$lib/components/ui";
   import { activeViewStore } from "$lib/stores/navigation";
   import { openTab as openEditorTab } from "$lib/stores/fileEditor";
 
@@ -278,12 +278,11 @@
 <div class="changes-list" data-testid={isStaged ? "changes-list-staged" : "changes-list-unstaged"}>
   <div class="list-header">
     <div class="header-left">
-      <input
-        type="checkbox"
-        class="select-all-checkbox"
+      <Checkbox
         checked={allSelected}
         indeterminate={someSelected}
         disabled={files.length === 0}
+        ariaLabel={m.changes_select_all()}
         onclick={toggleAll}
       />
       <span class="list-title">{title}</span>
@@ -321,10 +320,9 @@
         data-testid="file-row-{file.path.replace(/\//g, '-')}"
         oncontextmenu={(e) => openContextMenu(e, file.path)}
       >
-        <input
-          type="checkbox"
-          class="file-checkbox"
+        <Checkbox
           checked={selected.has(file.path)}
+          ariaLabel={file.path}
           onclick={(e) => { e.stopPropagation(); toggleFile(file.path); }}
         />
         <button
@@ -399,14 +397,8 @@
     gap: 8px;
   }
 
-  .select-all-checkbox {
-    margin: 0;
-    accent-color: var(--accent-primary);
-    cursor: pointer;
-  }
-
   .list-title {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -414,7 +406,7 @@
   }
 
   .file-count {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     background: var(--overlay-hover);
     padding: 1px 6px;
@@ -450,13 +442,6 @@
     border-left-color: var(--accent-primary);
   }
 
-  .file-checkbox {
-    margin: 0;
-    flex-shrink: 0;
-    accent-color: var(--accent-primary);
-    cursor: pointer;
-  }
-
   .file-btn {
     display: flex;
     align-items: center;
@@ -466,7 +451,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     text-align: left;
     padding: 2px 0;
@@ -474,7 +459,7 @@
 
   .status-badge {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 700;
     width: 18px;
     height: 18px;
@@ -515,7 +500,7 @@
 
   .item-action {
     opacity: 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     background: var(--overlay-hover);
     border: none;

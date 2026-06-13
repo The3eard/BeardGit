@@ -1,0 +1,33 @@
+[meta]
+id = "fjord-dark"
+name = "Fjord Dark"
+mode = "dark"
+complementary = "fjord-light"
+
+# Cold northern palette — deep blue-slate surfaces with an ice-cyan
+# primary accent.
+
+[colors]
+background = "#0e141b"
+foreground = "#dbe5ee"
+black = "#37434f"
+red = "#e26b6b"
+green = "#69bd8d"
+yellow = "#d9b066"
+blue = "#5f9ed6"
+magenta = "#a48ec7"
+cyan = "#54bdc9"
+white = "#b9c6d2"
+bright-black = "#7c8da0"
+bright-red = "#ef8a8a"
+bright-green = "#8ad2a9"
+bright-yellow = "#e8c585"
+bright-blue = "#83b8e6"
+bright-magenta = "#bda7da"
+bright-cyan = "#7dd2dc"
+bright-white = "#eef4f9"
+
+[accents]
+primary = "cyan"
+secondary = "blue"
+tertiary = "green"

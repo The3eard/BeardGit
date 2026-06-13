@@ -32,7 +32,7 @@
   import { activeTheme, applyUiScale } from "$lib/stores/theme";
   import type { ThemeMeta } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
-  import { SettingSection, FormRow } from "$lib/components/ui";
+  import { FormRow, Switch } from "$lib/components/ui";
 
   const languages = [
     { tag: "en-US", label: "English (US)" },
@@ -84,8 +84,7 @@
   }
 </script>
 
-<div data-testid="look-and-feel-heading">
-  <SettingSection title={m.settings_general_theme_section_title()}>
+<div data-testid="look-and-feel-heading" class="look-and-feel-body">
   <div data-setting-anchor="language">
     <FormRow label={m.settings_language()} for="language-select">
       <select
@@ -103,13 +102,7 @@
 
   <div data-setting-anchor="theme-auto">
     <FormRow label={m.settings_theme_auto()} for="theme-auto">
-      <input
-        id="theme-auto"
-        type="checkbox"
-        class="bg-checkbox"
-        checked={themeAuto}
-        onchange={handleAutoToggle}
-      />
+      <Switch id="theme-auto" checked={themeAuto} onchange={handleAutoToggle} />
     </FormRow>
   </div>
 
@@ -142,17 +135,25 @@
       </select>
     </FormRow>
   </div>
-  </SettingSection>
 </div>
 
 <style>
+  /* The parent <Card> owns the single visible "Look & feel" heading;
+     this wrapper only keeps the vertical rhythm the removed inner
+     SettingSection used to provide. */
+  .look-and-feel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .bg-select {
     padding: 5px 10px;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     cursor: pointer;
     min-width: 160px;
@@ -163,10 +164,4 @@
     border-color: var(--accent-primary);
   }
 
-  .bg-checkbox {
-    accent-color: var(--accent-primary);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-  }
 </style>

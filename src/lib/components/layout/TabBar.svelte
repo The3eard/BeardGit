@@ -22,6 +22,7 @@
   import TerminalTab from "./TerminalTab.svelte";
   import CompositeTab from "./CompositeTab.svelte";
   import AddProjectMenu from "./AddProjectMenu.svelte";
+  import WindowControls from "./WindowControls.svelte";
   import {
     activeProject,
     switchToTab,
@@ -140,6 +141,21 @@
     items[next]?.focus();
   }
 
+  /* True when running inside the macOS app: the window uses
+     `titleBarStyle: Overlay` (tauri.conf.json), so the native traffic
+     lights float over this bar and the tabs need a left inset to clear
+     them. Browser/test contexts (and other OSes) keep the flush edge. */
+  let trafficLightInset = $state(false);
+
+  onMount(async () => {
+    try {
+      const { type } = await import("@tauri-apps/plugin-os");
+      trafficLightInset = type() === "macos";
+    } catch {
+      // Not running under Tauri (vite dev in browser, Playwright).
+    }
+  });
+
   onMount(() => {
     /* Capture phase, NOT bubble. Several embedded surfaces (xterm.js
        terminals, the CodeMirror editor) call `stopPropagation()` on
@@ -250,7 +266,7 @@
   }
 </script>
 
-<div class="tab-bar" data-tauri-drag-region>
+<div class="tab-bar" class:tab-bar--traffic-lights={trafficLightInset} data-tauri-drag-region>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="tabs-scroll" bind:this={tabsRef} onwheel={handleWheel}>
     {#each $openTabs as tab, i}
@@ -388,6 +404,7 @@
         onclick={handlePush}
       >{m.toolbar_push()}</Button>
     {/if}
+    <WindowControls />
   </div>
 </div>
 
@@ -402,6 +419,12 @@
     user-select: none;
     padding: 0 8px;
     gap: 4px;
+  }
+
+  /* macOS overlay title bar: clear the native traffic lights, which
+     float over the bar's left edge (≈ 70 px including margins). */
+  .tab-bar--traffic-lights {
+    padding-left: 84px;
   }
 
   .tabs-scroll {
@@ -437,7 +460,7 @@
      glyph — shorter, locale-aware, and self-explanatory. */
   .ai-bg-label {
     font-weight: 700;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     letter-spacing: 0.5px;
   }
 
@@ -464,7 +487,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-overlay);
     padding: 4px 0;
     margin-top: 2px;
   }
@@ -479,7 +502,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     white-space: nowrap;
   }
@@ -509,7 +532,7 @@
   }
 
   .menu-item-meta {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
   }
 </style>

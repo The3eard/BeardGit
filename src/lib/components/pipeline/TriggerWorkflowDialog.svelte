@@ -191,25 +191,25 @@
     padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
     border-bottom: 1px solid var(--border);
   }
-  .dialog-header h2 { margin: 0; font-size: 14px; color: var(--text-primary); }
+  .dialog-header h2 { margin: 0; font-size: var(--font-size-lg); color: var(--text-primary); }
   .dialog-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
-  .dialog-body label { display: flex; flex-direction: column; font-size: 12px; color: var(--text-secondary); gap: 4px; }
+  .dialog-body label { display: flex; flex-direction: column; font-size: var(--font-size-sm); color: var(--text-secondary); gap: 4px; }
   .dialog-body input, .dialog-body select {
     background: var(--bg-secondary); color: var(--text-primary);
-    border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: var(--font-size-sm);
   }
   fieldset {
     border: 1px solid var(--border); border-radius: 4px; padding: 8px; margin: 0;
     display: flex; flex-direction: column; gap: 6px;
   }
-  legend { font-size: 11px; color: var(--text-secondary); padding: 0 4px; }
+  legend { font-size: var(--font-size-xs); color: var(--text-secondary); padding: 0 4px; }
   .pair-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; }
   .dialog-footer {
     padding: 12px 16px; border-top: 1px solid var(--border);
     display: flex; justify-content: flex-end; gap: 8px;
   }
-  .dialog-error { color: var(--accent-red); font-size: 12px; background: var(--overlay-accent-red); padding: 6px 8px; border-radius: 4px; }
-  .empty { color: var(--text-secondary); font-size: 12px; }
+  .dialog-error { color: var(--accent-red); font-size: var(--font-size-sm); background: var(--overlay-accent-red); padding: 6px 8px; border-radius: 4px; }
+  .empty { color: var(--text-secondary); font-size: var(--font-size-sm); }
   .spinner { border: 2px solid var(--border); border-top-color: var(--accent-primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; align-self: center; }
   .spinner--sm { width: 10px; height: 10px; border-width: 1.5px; }
   @keyframes spin { to { transform: rotate(360deg); } }

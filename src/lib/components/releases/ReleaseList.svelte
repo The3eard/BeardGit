@@ -152,12 +152,12 @@
   }
   .tag {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     flex-shrink: 0;
   }
   .name {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -167,7 +167,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
   .author {
@@ -179,13 +179,13 @@
     display: inline-flex;
     gap: 3px;
     align-items: center;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .asset-count .nf {
     font-family: var(--font-icons);
   }
   .date {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     white-space: nowrap;
     flex-shrink: 0;

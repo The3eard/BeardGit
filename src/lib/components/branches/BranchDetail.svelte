@@ -1,6 +1,7 @@
 <script lang="ts">
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
-  import { Button } from "$lib/components/ui";
+  import EmptyState from "../common/EmptyState.svelte";
+  import { Button, Skeleton } from "$lib/components/ui";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
   import {
@@ -27,10 +28,7 @@
 
 <div class="branch-detail">
   {#if $loadingDetail}
-    <div class="detail-loading">
-      <div class="spinner"></div>
-      <span>Loading commits…</span>
-    </div>
+    <Skeleton variant="detail" rows={6} />
   {:else if $selectedBranchInfo}
     <!-- Header -->
     <div class="detail-header">
@@ -104,9 +102,7 @@
       </div>
     {/if}
   {:else if !$selectedBranchName}
-    <div class="detail-empty">
-      <span>Select a branch to view details</span>
-    </div>
+    <EmptyState fill icon={"\uE725"} title="Select a branch to view details" />
   {/if}
 
   {#if confirmDelete && $selectedBranchInfo}
@@ -187,7 +183,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -208,7 +204,7 @@
   }
 
   .section-label {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -244,7 +240,7 @@
   }
 
   .commit-summary {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     margin-bottom: 4px;
     overflow: hidden;
@@ -256,7 +252,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -277,7 +273,7 @@
 
   .commit-oid {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--accent-primary);
     margin-left: auto;
     flex-shrink: 0;
@@ -286,7 +282,7 @@
   .no-commits {
     padding: 24px;
     text-align: center;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     font-style: italic;
   }

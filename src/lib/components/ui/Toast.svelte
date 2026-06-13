@@ -100,9 +100,9 @@
     background: var(--bg-toolbar);
     border: 1px solid var(--border);
     border-radius: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: drop shadow neutral */
+    box-shadow: var(--shadow-overlay);
     transform: translateX(120%);
     opacity: 0;
     transition: transform 0.2s ease, opacity 0.2s ease;

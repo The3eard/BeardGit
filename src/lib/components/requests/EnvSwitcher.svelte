@@ -181,7 +181,7 @@
   }
 
   .env-switcher__label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -247,7 +247,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     /* beardgit:allow-hex: shadow neutral always-dark */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-overlay);
     padding: 4px 0;
     margin-top: 2px;
   }
@@ -262,7 +262,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-mono);
     cursor: pointer;
     white-space: nowrap;

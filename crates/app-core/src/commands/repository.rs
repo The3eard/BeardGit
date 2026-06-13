@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use tauri::{AppHandle, State};
 
-use super::graph_cache::load_or_build_layout;
+use super::graph_cache::{GraphLayoutOptions, load_or_build_layout};
 use super::helpers::*;
 use crate::state::{AppState, ProjectSlot};
 
@@ -38,7 +38,12 @@ pub async fn open_repo(
         let repo =
             git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(|e| e.to_string())?;
 
-        let (layout, _was_cached) = load_or_build_layout(&repo, &path_clone, &config_dir)?;
+        let (layout, _was_cached) = load_or_build_layout(
+            &repo,
+            &path_clone,
+            &config_dir,
+            &GraphLayoutOptions::default(),
+        )?;
         let status = repo.status().map_err(|e| e.to_string())?;
 
         Ok::<_, String>((repo, layout, status))
@@ -67,6 +72,7 @@ pub async fn open_repo(
         name,
         repo: Some(repo),
         layout: Some(layout),
+        layout_options: GraphLayoutOptions::default(),
         watcher: new_watcher,
         head_branch,
         change_count,

@@ -87,6 +87,24 @@ impl Dag {
     /// 2. Iterate nodes and, for each parent reference, push the current node's
     ///    oid into the parent's `children` list.
     pub fn build(commits: Vec<GraphCommit>) -> Self {
+        Self::build_inner(commits, false)
+    }
+
+    /// Build a DAG that follows only the **first parent** of each commit.
+    ///
+    /// Non-first parents are dropped from the edge set: they create no
+    /// parent/child links, open no lanes in the layout, and emit no merge
+    /// curves. `is_merge` is still derived from the *original* parent count
+    /// so merge commits keep their visual marker on the mainline.
+    ///
+    /// Callers are expected to feed a commit list produced by a
+    /// first-parent walk (e.g. `git log --first-parent`) so commits
+    /// reachable only through second parents are absent from the list.
+    pub fn build_first_parent(commits: Vec<GraphCommit>) -> Self {
+        Self::build_inner(commits, true)
+    }
+
+    fn build_inner(commits: Vec<GraphCommit>, first_parent: bool) -> Self {
         let mut dag = Dag::default();
         dag.order.reserve(commits.len());
         dag.nodes.reserve(commits.len());
@@ -94,12 +112,15 @@ impl Dag {
         // Pass 1 — create nodes
         for (index, commit) in commits.into_iter().enumerate() {
             let oid: Arc<str> = commit.oid.as_str().into();
-            let parents: Vec<Arc<str>> = commit
+            let mut parents: Vec<Arc<str>> = commit
                 .parents
                 .into_iter()
                 .map(|s| Arc::from(s.as_str()))
                 .collect();
             let is_merge = parents.len() > 1;
+            if first_parent {
+                parents.truncate(1);
+            }
             let is_root = parents.is_empty();
             let node = DagNode {
                 oid: Arc::clone(&oid),
@@ -255,6 +276,31 @@ mod tests {
         let m = dag.get("m").unwrap();
         assert!(m.is_merge);
         assert_eq!(m.parents.len(), 2);
+    }
+
+    #[test]
+    fn test_build_first_parent_drops_second_parent_edges() {
+        // Commit list as a first-parent walk would deliver it: the feature
+        // commit b2 (reachable only via m's second parent) is absent.
+        let commits = vec![
+            commit("m", &["b1", "b2"], &[]),
+            commit("b1", &["base"], &[]),
+            commit("base", &[], &[]),
+        ];
+        let dag = Dag::build_first_parent(commits);
+
+        let m = dag.get("m").unwrap();
+        assert!(m.is_merge, "merge marker must survive edge simplification");
+        assert_eq!(
+            arc_strs(&m.parents),
+            vec!["b1"],
+            "only the first parent edge should remain"
+        );
+
+        // b1 keeps its child link; nothing references the absent b2.
+        let b1 = dag.get("b1").unwrap();
+        assert_eq!(arc_strs(&b1.children), vec!["m"]);
+        assert!(dag.get("b2").is_none());
     }
 
     #[test]

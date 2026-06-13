@@ -10,6 +10,7 @@
   import { get } from "svelte/store";
   import { createBranch, createBranchAt, checkoutBranch } from "../../api/tauri";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
   import { runMutation } from "../../api/runMutation";
   import { remoteNames } from "../../stores/remotes";
   import { branches, localBranches, remoteBranches } from "../../stores/branches";
@@ -177,14 +178,15 @@
       </div>
     </div>
 
-    <label class="checkbox-row">
-      <input
-        data-testid="create-branch-checkout"
-        type="checkbox"
-        bind:checked={checkout}
+    <span class="checkbox-row">
+      <Checkbox
+        id="create-branch-checkout"
+        testid="create-branch-checkout"
+        checked={checkout}
+        onchange={(e) => { checkout = (e.target as HTMLInputElement).checked; }}
       />
-      <span>Check out new branch</span>
-    </label>
+      <label for="create-branch-checkout">Check out new branch</label>
+    </span>
 
     <div class="dialog-actions">
       <Button variant="neutral" onclick={onClose}>Cancel</Button>
@@ -223,12 +225,12 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-modal);
   }
 
   .dialog-title {
     margin: 0 0 16px;
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -241,7 +243,7 @@
   }
 
   .label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.4px;
     color: var(--text-secondary);
@@ -250,7 +252,7 @@
   .input {
     width: 100%;
     padding: 6px 10px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -278,7 +280,7 @@
     border-radius: 4px;
     color: var(--text-primary);
     cursor: pointer;
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .chevron {
@@ -302,7 +304,7 @@
 
   .source-group-label {
     padding: 6px 10px 2px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     text-transform: uppercase;
     color: var(--text-secondary);
   }
@@ -312,7 +314,7 @@
     width: 100%;
     text-align: left;
     padding: 4px 10px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     background: none;
     border: none;
     color: var(--text-primary);
@@ -325,7 +327,7 @@
 
   .source-empty {
     padding: 8px 10px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
   }
 
@@ -334,7 +336,10 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 16px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
+  }
+
+  .checkbox-row label {
     cursor: pointer;
   }
 

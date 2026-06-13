@@ -25,6 +25,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_os::init())
         .manage(app_core::state::AppState::new())
         .setup(|app| {
             // Initialize structured file logging (best-effort — don't crash if it fails)

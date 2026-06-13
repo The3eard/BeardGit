@@ -38,7 +38,7 @@ import {
 } from "./provider";
 import { refreshStatuses, clearChangesState } from "./changes";
 import { loadProjectSnapshot, saveCurrentSnapshot, restorePersistedViewport } from "./project-cache";
-import { refreshUserEmails, clearGraphState, cacheViewport, restoreCachedViewport } from "./graph";
+import { refreshUserEmails, clearGraphState, resetGraphViewScope, cacheViewport, restoreCachedViewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
 import { clearBranchState, cacheBranchesForProject, restoreCachedBranches } from "./branches";
 import { clearTagState } from "./tags";
@@ -71,6 +71,7 @@ import {
   getCompositeTerminals,
 } from "./tabs";
 import { writable } from "svelte/store";
+import { refreshRemotes } from "./remotes";
 
 // Re-export for backward compatibility with components that read these.
 export { openTabs, activeTabIndex };
@@ -99,6 +100,26 @@ export const activeProjectIndex = derived(
 export const activeProject = activeProjectFromTab;
 
 export const addMenuOpen = writable(false);
+
+/** Live git summary for the ACTIVE project, shown in the status bar. */
+export interface ActiveRepoStatus {
+  branch: string;
+  ahead: number;
+  behind: number;
+  staged: number;
+  unstaged: number;
+  untracked: number;
+  stash_count: number;
+}
+
+/**
+ * Status-bar mirror of the (now hidden) native window title's git
+ * segment. Written by the same paths that keep the OS title fresh —
+ * `updateTitleBar` (mutation-driven) and the cached-snapshot preview on
+ * tab switch — and cleared when a terminal tab or the welcome screen
+ * is active.
+ */
+export const activeRepoStatus = writable<ActiveRepoStatus | null>(null);
 
 /**
  * Callback invoked whenever we switch to a different project tab.
@@ -132,6 +153,15 @@ export async function refreshActiveTitleBar() {
 async function updateTitleBar(projName: string, branch: string) {
   try {
     const s = await apiGetStatusSummary();
+    activeRepoStatus.set({
+      branch,
+      ahead: s.ahead,
+      behind: s.behind,
+      staged: s.staged,
+      unstaged: s.unstaged,
+      untracked: s.untracked,
+      stash_count: s.stash_count,
+    });
     const parts: string[] = [];
     if (s.ahead > 0) parts.push(`↑${s.ahead}`);
     if (s.behind > 0) parts.push(`↓${s.behind}`);
@@ -142,6 +172,15 @@ async function updateTitleBar(projName: string, branch: string) {
     const status = parts.length > 0 ? ` [${parts.join(" ")}]` : "";
     getCurrentWindow().setTitle(`${projName} - ${branch}${status}`);
   } catch {
+    activeRepoStatus.set({
+      branch,
+      ahead: 0,
+      behind: 0,
+      staged: 0,
+      unstaged: 0,
+      untracked: 0,
+      stash_count: 0,
+    });
     getCurrentWindow().setTitle(`${projName} - ${branch}`);
   }
 }
@@ -207,7 +246,8 @@ export async function switchToTab(tabIndex: number) {
     }
     await activateProjectTab(tabIndex);
   } else if (tab.kind === "terminal") {
-    // Terminal tab — update title bar
+    // Terminal tab — update title bar; no repo context in the status bar.
+    activeRepoStatus.set(null);
     getCurrentWindow().setTitle(`${tab.terminal.title} — BeardGit`);
   }
 }
@@ -219,6 +259,7 @@ async function activateProjectTab(tabIndex: number) {
 
   stopAllPolling();
   clearGraphState();
+    resetGraphViewScope();
   clearBranchState();
   clearTagState();
   clearStashState();
@@ -259,6 +300,7 @@ async function activateProjectTab(tabIndex: number) {
   const projName = (targetTab?.kind === "project" || targetTab?.kind === "composite")
     ? targetTab.project.name
     : "";
+  activeRepoStatus.set(null);
   getCurrentWindow().setTitle(`${projName} — BeardGit`);
 
   // Load cached snapshot for instant titlebar with real data
@@ -266,6 +308,15 @@ async function activateProjectTab(tabIndex: number) {
     loadProjectSnapshot(targetPath).then((snapshot) => {
       if (snapshot) {
         const branch = snapshot.head_branch ?? "detached";
+        activeRepoStatus.set({
+          branch,
+          ahead: snapshot.ahead,
+          behind: snapshot.behind,
+          staged: snapshot.staged,
+          unstaged: snapshot.unstaged,
+          untracked: snapshot.untracked,
+          stash_count: snapshot.stash_count,
+        });
         const parts: string[] = [];
         if (snapshot.ahead > 0) parts.push(`↑${snapshot.ahead}`);
         if (snapshot.behind > 0) parts.push(`↓${snapshot.behind}`);
@@ -286,6 +337,11 @@ async function activateProjectTab(tabIndex: number) {
   try {
     const info = await apiSwitchProject(projectIdx);
     repoInfo.set(info);
+
+    // Remotes feed `projectProvider` (status-bar forge pill, provider
+    // heuristics) — refresh on activation, since the mutation pipeline
+    // only updates them on `remotes_changed`.
+    void refreshRemotes();
 
     // Replay any mutation-event flags buffered for this project while
     // it was in the background. Must run AFTER repoInfo.set so the
@@ -374,6 +430,7 @@ export async function closeTab(tabIndex: number) {
     activeTabIndex.set(-1);
     stopAllPolling();
     clearGraphState();
+    resetGraphViewScope();
     clearBranchState();
     clearTagState();
     clearStashState();
@@ -386,6 +443,7 @@ export async function closeTab(tabIndex: number) {
     clearChangesState();
     repoInfo.set(null);
     branches.set([]);
+    activeRepoStatus.set(null);
     getCurrentWindow().setTitle("BeardGit");
     return;
   }

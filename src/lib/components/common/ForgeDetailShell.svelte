@@ -19,6 +19,7 @@
     isEmpty      — true renders `emptyMessage` (only when not
                    loading and no error).
     emptyMessage — user-facing empty-state copy (localised).
+    emptyIcon    — optional Nerd Font glyph for the empty state.
     onRetry      — optional click handler for the error state's
                    Retry button.
     content      — default snippet rendered when not loading, no
@@ -27,12 +28,15 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
   import Button from "$lib/components/ui/Button.svelte";
+  import Skeleton from "$lib/components/ui/Skeleton.svelte";
+  import EmptyState from "./EmptyState.svelte";
 
   interface Props {
     loading: boolean;
     error: string | null;
     isEmpty: boolean;
     emptyMessage: string;
+    emptyIcon?: string;
     onRetry?: () => void;
     content?: import("svelte").Snippet;
   }
@@ -42,6 +46,7 @@
     error,
     isEmpty,
     emptyMessage,
+    emptyIcon,
     onRetry,
     content,
   }: Props = $props();
@@ -57,8 +62,8 @@
 </script>
 
 {#if loading}
-  <div class="shell shell-loading" data-testid="forge-detail-loading">
-    <div class="spinner" aria-hidden="true"></div>
+  <div class="shell-loading" data-testid="forge-detail-loading">
+    <Skeleton variant="detail" rows={6} />
     <span class="sr-only">{m.forge_detail_loading()}</span>
   </div>
 {:else if error}
@@ -74,7 +79,7 @@
   </div>
 {:else if isEmpty}
   <div class="shell shell-empty" data-testid="forge-detail-empty">
-    {emptyMessage}
+    <EmptyState title={emptyMessage} icon={emptyIcon} />
   </div>
 {:else}
   {@render content?.()}
@@ -90,14 +95,17 @@
     padding: 24px;
     gap: 8px;
   }
-  .shell-empty,
   .shell-loading {
+    height: 100%;
+    overflow: hidden;
+  }
+  .shell-empty {
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
   .shell-error {
     color: var(--accent-red);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     max-width: 360px;
     text-align: center;
     margin: 0 auto;
@@ -109,20 +117,7 @@
   .error-reason {
     margin: 0;
     color: var(--text-secondary);
-    font-size: 12px;
-  }
-  .spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent-primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+    font-size: var(--font-size-sm);
   }
   .sr-only {
     position: absolute;

@@ -10,7 +10,12 @@ vi.mock("../changes", () => ({ refreshStatuses: vi.fn(), refreshDiffs: vi.fn() }
 vi.mock("../stashes", () => ({ refreshStashes: vi.fn() }));
 vi.mock("../worktrees", () => ({ refreshWorktrees: vi.fn() }));
 vi.mock("../repoConfig", () => ({ refreshRepoConfig: vi.fn(), repoConfig: { subscribe: vi.fn() } }));
-vi.mock("../remotes", () => ({ refreshRemotes: vi.fn() }));
+vi.mock("../remotes", async () => {
+  const { writable } = await import("svelte/store");
+  // `provider.ts` (pulled in transitively) also reads the `remotes`
+  // store from this module — the mock must export it too.
+  return { refreshRemotes: vi.fn(), remotes: writable([]) };
+});
 
 import { dispatchRefresh } from "../mutations";
 import { refreshRemotes } from "../remotes";

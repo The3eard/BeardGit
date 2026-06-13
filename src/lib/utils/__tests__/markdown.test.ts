@@ -26,12 +26,16 @@ describe("renderMarkdown — GFM", () => {
     expect(html).toMatch(/<td>\s*1\s*<\/td>/);
   });
 
-  it("renders task lists with <input type=\"checkbox\"> elements preserved", () => {
+  it("renders task lists as styled display-only checkbox spans", () => {
     const html = renderMarkdown("- [ ] todo\n- [x] done\n");
-    const matches = html.match(/<input[^>]*type=["']?checkbox["']?[^>]*>/gi) ?? [];
+    const matches = html.match(/<span class="md-task-checkbox[^>]*role="checkbox"[^>]*>/gi) ?? [];
     expect(matches.length).toBe(2);
     // One of the two should be pre-checked.
-    expect(html).toMatch(/<input[^>]*checked[^>]*>/i);
+    expect(html).toMatch(/md-task-checkbox--checked/);
+    expect(html).toMatch(/aria-checked="true"/);
+    expect(html).toMatch(/aria-checked="false"/);
+    // No raw inputs survive.
+    expect(html).not.toMatch(/<input/i);
   });
 
   it("rewrites <a> links with target=\"_blank\" + rel=\"noopener noreferrer\"", () => {
@@ -108,9 +112,10 @@ describe("renderMarkdown — sanitiser / XSS", () => {
     expect(html).not.toMatch(/<input/i);
   });
 
-  it("keeps <input type=\"checkbox\"> when authored directly", () => {
+  it("re-skins directly-authored <input type=\"checkbox\"> as a span", () => {
     const html = renderMarkdown('<input type="checkbox" disabled>');
-    expect(html).toMatch(/<input[^>]*type=["']?checkbox["']?[^>]*>/i);
+    expect(html).toMatch(/<span class="md-task-checkbox"[^>]*role="checkbox"/i);
+    expect(html).not.toMatch(/<input/i);
   });
 });
 

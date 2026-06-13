@@ -186,7 +186,7 @@
     padding: 32px 16px;
     text-align: center;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .empty-state--error {
@@ -200,7 +200,7 @@
   .error-title {
     color: var(--accent-red);
     font-weight: 600;
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .error-message {
@@ -227,7 +227,7 @@
   }
 
   .state-icon {
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-family: var(--font-icons);
   }
 
@@ -251,14 +251,14 @@
   }
 
   .mrpr-number {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     font-family: var(--font-mono);
     flex-shrink: 0;
   }
 
   .mrpr-title-text {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     flex: 1;
     overflow: hidden;
@@ -279,14 +279,14 @@
   .row-meta {
     display: flex;
     gap: 8px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     overflow: hidden;
   }
 
   .mrpr-branch {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -301,10 +301,13 @@
   }
 
   .row-time {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     white-space: nowrap;
     flex-shrink: 0;
     margin-top: 2px;
+    /* .list-row has no gap; without this the date sits flush against
+       the (truncated) title text. */
+    margin-left: 8px;
   }
 </style>

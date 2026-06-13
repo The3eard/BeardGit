@@ -171,7 +171,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-overlay);
     padding: 4px 0;
   }
 
@@ -186,7 +186,7 @@
     border: none;
     color: var(--text-primary);
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -199,7 +199,7 @@
 
   .copy-as__icon {
     font-family: var(--font-icons);
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     width: 16px;
     text-align: center;
     flex-shrink: 0;

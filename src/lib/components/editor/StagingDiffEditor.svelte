@@ -9,8 +9,11 @@
   import { stageHunks, unstageHunks, discardHunks } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
   import ConfirmDialog from "$lib/components/common/ConfirmDialog.svelte";
-  import { Button, IconButton } from "$lib/components/ui";
+  import EmptyState from "$lib/components/common/EmptyState.svelte";
+  import { Button, Checkbox, IconButton } from "$lib/components/ui";
   import { diffLineWrapping } from "$lib/stores/diffSettings";
+  import { loadLineParser, highlightLineHtml } from "./line-highlight";
+  import type { Parser } from "@lezer/common";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -21,6 +24,19 @@
   }
 
   let { diff, isStaged, filename, onClose }: Props = $props();
+
+  /** Lezer parser for per-line syntax highlighting (null = plain text). */
+  let lineParser = $state<Parser | null>(null);
+  $effect(() => {
+    const file = filename;
+    let cancelled = false;
+    loadLineParser(file).then((p) => {
+      if (!cancelled) lineParser = p;
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
 
   /** Track which lines are selected per hunk: Map<hunkIndex, Set<lineIndex>> */
   let selectedLines = $state(new Map<number, Set<number>>());
@@ -297,15 +313,18 @@
       {@const checkState = hunkCheckState(hunkIdx)}
       <div class="hunk">
         <div class="hunk-header">
-          <label class="hunk-checkbox-label">
-            <input
-              type="checkbox"
+          <span class="hunk-checkbox-label">
+            <Checkbox
+              id="hunk-toggle-{isStaged ? 'staged' : 'unstaged'}-{hunkIdx}"
               checked={checkState === true}
               indeterminate={checkState === "indeterminate"}
               onchange={() => toggleHunk(hunkIdx)}
             />
-            <span class="hunk-header-text">{hunk.header}</span>
-          </label>
+            <label
+              class="hunk-header-text"
+              for="hunk-toggle-{isStaged ? 'staged' : 'unstaged'}-{hunkIdx}"
+            >{hunk.header}</label>
+          </span>
         </div>
         <div class="hunk-lines">
           {#each hunk.lines as line, lineIdx}
@@ -320,9 +339,9 @@
             >
               <div class="line-checkbox-cell">
                 {#if isChanged}
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={isSelected}
+                    ariaLabel={line.content}
                     onchange={() => toggleLine(hunkIdx, lineIdx)}
                   />
                 {/if}
@@ -334,7 +353,8 @@
                 class:origin-add={line.origin === "+"}
                 class:origin-remove={line.origin === "-"}
               >{line.origin}</span>
-              <span class="line-content">{line.content}</span>
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- highlightLineHtml escapes all source text -->
+              <span class="line-content">{@html highlightLineHtml(lineParser, line.content)}</span>
             </div>
           {/each}
         </div>
@@ -342,9 +362,7 @@
     {/each}
 
     {#if diff.hunks.length === 0}
-      <div class="empty-diff">
-        <p>{m.diff_empty()}</p>
-      </div>
+      <EmptyState fill icon={"\uF440"} title={m.diff_empty()} />
     {/if}
   </div>
 </div>
@@ -396,7 +414,7 @@
   }
 
   .filename {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-primary);
     white-space: nowrap;
@@ -407,7 +425,7 @@
   .stats {
     display: flex;
     gap: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-family: 'Fira Code', var(--font-mono), monospace;
   }
 
@@ -426,7 +444,7 @@
   }
 
   .selection-info {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-primary);
     background: var(--overlay-accent-blue);
     padding: 2px 8px;
@@ -484,14 +502,9 @@
     min-width: 0;
   }
 
-  .hunk-checkbox-label input[type="checkbox"] {
-    margin: 0;
-    accent-color: var(--accent-primary);
-    flex-shrink: 0;
-  }
-
   .hunk-header-text {
-    font-size: 11px;
+    cursor: pointer;
+    font-size: var(--font-size-xs);
     font-family: 'Fira Code', var(--font-mono), monospace;
     color: var(--text-secondary);
     white-space: nowrap;
@@ -514,12 +527,14 @@
     transition: border-color 0.1s ease;
   }
 
+  /* Same added/removed backgrounds as the CodeMirror diff views — both
+     renderers read the theme's [editor] palette via these tokens. */
   .line-added {
-    background: var(--overlay-accent-green);
+    background: var(--diff-added-bg);
   }
 
   .line-removed {
-    background: var(--overlay-accent-red);
+    background: var(--diff-removed-bg);
   }
 
   .line-context {
@@ -550,14 +565,9 @@
     flex-shrink: 0;
   }
 
-  .line-checkbox-cell input[type="checkbox"] {
-    margin: 0;
-    accent-color: var(--accent-primary);
-  }
-
   .line-number {
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-family: 'Fira Code', var(--font-mono), monospace;
     min-width: 40px;
     text-align: right;
@@ -573,7 +583,7 @@
     width: 16px;
     text-align: center;
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -587,12 +597,14 @@
 
   .line-content {
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     white-space: pre;
     padding: 0 8px 0 4px;
     color: var(--text-primary);
-    display: flex;
-    align-items: center;
+    /* Block, NOT flex: highlighted lines are a list of inline spans and
+       a flex container would swallow the whitespace text nodes between
+       them. Vertical centring comes from the parent .line row. */
+    display: block;
     min-width: 0;
   }
 
@@ -623,12 +635,4 @@
     padding-top: 2px;
   }
 
-  .empty-diff {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 32px;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
 </style>

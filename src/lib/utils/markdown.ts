@@ -111,6 +111,18 @@ function sanitize(html: string): string {
   );
   // 4. Force external links to open in the system browser.
   clean = clean.replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ');
+  // 5. Re-skin task-list checkboxes. After step 2 every surviving
+  //    `<input>` is a GFM task-list checkbox; native inputs can't be
+  //    styled with pseudo-elements, so swap them for a token-themed
+  //    display-only span (styles in `lib/styles/markdown.css`) that
+  //    mirrors the ui/Checkbox primitive. ARIA keeps the semantics.
+  clean = clean.replace(/<input\b([^>]*?)\/?>/gi, (_match, attrs: string) => {
+    const checked = /\bchecked\b/i.test(attrs);
+    return (
+      `<span class="md-task-checkbox${checked ? " md-task-checkbox--checked" : ""}"` +
+      ` role="checkbox" aria-checked="${checked}" aria-disabled="true"></span>`
+    );
+  });
   return clean;
 }
 

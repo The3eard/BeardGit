@@ -455,7 +455,6 @@
   "changes_menu_delete_file": "Eliminar archivo sin seguimiento",
   "changes_menu_delete_confirm_title": "Eliminar archivo",
   "changes_menu_delete_confirm_message": "Se eliminará permanentemente \"{path}\". Esta acción no se puede deshacer.",
-  "changes_menu_discard": "Descartar cambios",
   "changes_menu_discard_confirm_title": "Descartar cambios",
   "changes_menu_discard_confirm_message": "¿Descartar los cambios sin stage de \"{path}\"? Esta acción no se puede deshacer.",
   "clean_dialog_title": "Limpiar archivos sin seguimiento",
@@ -1073,6 +1072,8 @@
   "sidebar_show_aria": "Mostrar {label}",
   "theme_load_failed": "No se pudo cargar el tema. Se usarán los valores predeterminados.",
   "diff_binary_file": "Archivo binario — sin vista previa",
+  "pr_diff_error_title": "No se pudo cargar este diff",
+  "pr_diff_missing_shas": "Esta pull request no tiene la información de commits base/head — prueba a refrescar la lista.",
   "tooltip_close": "Cerrar",
   "tooltip_close_log": "Cerrar registro",
   "tooltip_remove": "Eliminar",
@@ -1207,5 +1208,13 @@
   "editor_dialog_new_folder_title": "Carpeta nueva",
   "editor_close_tab": "Cerrar pestaña",
   "editor_dirty_indicator": "Cambios sin guardar",
-  "editor_external_indicator": "Cambiado en disco"
+  "editor_external_indicator": "Cambiado en disco",
+  "window_controls_minimize": "Minimizar",
+  "window_controls_maximize": "Maximizar",
+  "window_controls_restore": "Restaurar",
+  "window_controls_close": "Cerrar ventana",
+  "statusbar_repo_open_changes": "Abrir Cambios",
+  "graph_first_parent": "First parent",
+  "graph_first_parent_tooltip": "Seguir solo el primer padre de cada commit — vista simplificada de la línea principal",
+  "graph_all_branches": "Todas las ramas"
 }

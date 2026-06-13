@@ -71,7 +71,7 @@
 
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import { Card, SettingSection, FormRow } from "$lib/components/ui";
+  import { Card, FormRow, Switch } from "$lib/components/ui";
   import LookAndFeelSection from "./LookAndFeelSection.svelte";
   import {
     diffShowWhitespace,
@@ -112,18 +112,16 @@
   title={m.settings_general_diff_section_title()}
   description={m.settings_general_diff_section_description()}
 >
-  <SettingSection title={m.settings_general_diff_section_title()}>
+  <div class="diff-settings-body">
     <div data-setting-anchor="diff-show-whitespace">
       <FormRow
         label={m.settings_general_diff_show_whitespace_label()}
         for="diff-show-whitespace-toggle"
         helperText={m.settings_general_diff_show_whitespace_hint()}
       >
-        <input
+        <Switch
           id="diff-show-whitespace-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="diff-show-whitespace-toggle"
+          testid="diff-show-whitespace-toggle"
           checked={$diffShowWhitespace}
           onchange={handleToggleDiffWhitespace}
         />
@@ -135,24 +133,24 @@
         for="diff-line-wrapping-toggle"
         helperText={m.settings_general_diff_line_wrapping_hint()}
       >
-        <input
+        <Switch
           id="diff-line-wrapping-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="diff-line-wrapping-toggle"
+          testid="diff-line-wrapping-toggle"
           checked={$diffLineWrapping}
           onchange={handleToggleDiffLineWrapping}
         />
       </FormRow>
     </div>
-  </SettingSection>
+  </div>
 </Card>
 
 <style>
-  .bg-checkbox {
-    accent-color: var(--accent-primary);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
+  /* The parent <Card> owns the single visible "Diff display" heading;
+     this wrapper only keeps the vertical rhythm of the removed inner
+     SettingSection. */
+  .diff-settings-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 </style>

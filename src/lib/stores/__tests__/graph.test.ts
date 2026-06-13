@@ -68,13 +68,21 @@ describe("reloadGraph", () => {
   it("re-fetches the viewport at the current offset", async () => {
     graphOffset.set(300);
     await reloadGraph();
-    expect(getGraphViewport).toHaveBeenCalledWith(300, expect.any(Number));
+    expect(getGraphViewport).toHaveBeenCalledWith(
+      300,
+      expect.any(Number),
+      expect.any(Object),
+    );
   });
 
   it("defaults to offset 0 when none has been set", async () => {
     graphOffset.set(0);
     await reloadGraph();
-    expect(getGraphViewport).toHaveBeenCalledWith(0, expect.any(Number));
+    expect(getGraphViewport).toHaveBeenCalledWith(
+      0,
+      expect.any(Number),
+      expect.any(Object),
+    );
   });
 });
 
@@ -109,13 +117,16 @@ describe("reconcileViewport", () => {
     expect(get(graphOffset)).toBe(12);
   });
 
-  it("leaves the offset untouched when the old top_oid is not in the fresh window", () => {
+  it("snaps to the top when the old top_oid is not in the fresh window", () => {
+    // The anchor fell outside the fresh window entirely (e.g. a pull
+    // rewrote history above it). Keeping the stale offset would scroll
+    // to an unrelated row, so reconcile snaps back to the newest commits.
     viewport.set(makeViewport([makeNode("gone")]));
     graphOffset.set(5);
     const fresh = makeViewport([makeNode("new-1"), makeNode("new-2")]);
     reconcileViewport(fresh);
     expect(get(viewport)).toBe(fresh);
-    expect(get(graphOffset)).toBe(5);
+    expect(get(graphOffset)).toBe(0);
   });
 
   it("atomic swaps when no cached viewport exists (cold start)", () => {
@@ -140,7 +151,11 @@ describe("refreshAndReloadGraph", () => {
     vi.mocked(getGraphViewport).mockResolvedValueOnce(fresh);
     await refreshAndReloadGraph();
     expect(refreshGraphLayout).toHaveBeenCalledTimes(1);
-    expect(getGraphViewport).toHaveBeenCalledWith(0, expect.any(Number));
+    expect(getGraphViewport).toHaveBeenCalledWith(
+      0,
+      expect.any(Number),
+      expect.any(Object),
+    );
     expect(get(viewport)).toBe(fresh);
   });
 

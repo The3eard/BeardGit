@@ -115,7 +115,7 @@
 
   .seed-prompt__error {
     margin: 12px 0 0 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     line-height: 1.45;
   }

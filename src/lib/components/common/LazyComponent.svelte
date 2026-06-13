@@ -66,6 +66,6 @@
     justify-content: center;
     height: 100%;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 </style>

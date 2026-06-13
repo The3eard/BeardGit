@@ -1,0 +1,31 @@
+/* Markdown task-list checkboxes — emitted by `utils/markdown.ts`
+   (sanitize step 5) as display-only spans. Mirrors the visual of the
+   ui/Checkbox primitive so rendered issue / PR / release bodies match
+   the rest of the app. */
+
+.md-task-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 60%, transparent);
+  background: var(--bg-primary);
+  vertical-align: text-bottom;
+  margin-right: 6px;
+}
+
+.md-task-checkbox--checked {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.md-task-checkbox--checked::after {
+  /* Nerd Font check glyph, same as ui/Checkbox. */
+  content: "\f00c";
+  font-family: var(--font-icons);
+  font-size: 9px;
+  line-height: 1;
+  color: var(--bg-primary);
+}

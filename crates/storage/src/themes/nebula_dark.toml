@@ -1,0 +1,33 @@
+[meta]
+id = "nebula-dark"
+name = "Nebula Dark"
+mode = "dark"
+complementary = "nebula-light"
+
+# Deep-space palette — indigo-tinted surfaces with a soft violet
+# primary accent.
+
+[colors]
+background = "#13111f"
+foreground = "#e6e2f4"
+black = "#3a3554"
+red = "#ef7088"
+green = "#74d2a1"
+yellow = "#e3b86d"
+blue = "#7c9ff5"
+magenta = "#a78bfa"
+cyan = "#7fd0f0"
+white = "#bfb8da"
+bright-black = "#8079a8"
+bright-red = "#f78da0"
+bright-green = "#93e0b8"
+bright-yellow = "#efca8a"
+bright-blue = "#9cb6f8"
+bright-magenta = "#bda4fb"
+bright-cyan = "#a0ddf5"
+bright-white = "#f3f1fb"
+
+[accents]
+primary = "magenta"
+secondary = "cyan"
+tertiary = "green"

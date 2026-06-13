@@ -152,7 +152,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
   }
 
@@ -168,7 +168,7 @@
   }
 
   .stash-message {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -177,7 +177,7 @@
   }
 
   .stash-time {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     flex-shrink: 0;
   }
@@ -208,12 +208,12 @@
   }
 
   .stash-branch {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
   .stash-oid {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-family: var(--font-mono);
     color: var(--text-secondary);
     flex-shrink: 0;

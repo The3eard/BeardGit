@@ -60,7 +60,7 @@
     gap: 4px;
     height: 100%;
     padding: 0 8px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     user-select: none;
   }
 

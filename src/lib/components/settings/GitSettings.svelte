@@ -445,7 +445,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     font-family: inherit;
   }
@@ -456,7 +456,7 @@
 
   .config-error {
     padding: 6px 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     background: var(--overlay-accent-red);
     border-radius: 4px;
@@ -477,7 +477,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     font-family: inherit;
   }
@@ -496,7 +496,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .config-table {
@@ -509,7 +509,7 @@
     align-items: center;
     padding: 8px 0;
     border-bottom: 1px solid var(--border);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -554,7 +554,7 @@
 
   .cell-key {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
   }
 
@@ -562,7 +562,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .edit-input,
@@ -573,7 +573,7 @@
     border: 1px solid var(--accent-primary);
     border-radius: 3px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-mono);
     outline: none;
   }
@@ -600,7 +600,7 @@
     border: none;
     border-top: 1px solid var(--border);
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     text-align: left;
     font-family: inherit;
@@ -618,7 +618,7 @@
     display: flex;
     align-items: center;
     padding: 3px 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .system-value {
@@ -635,6 +635,6 @@
     justify-content: center;
     height: 120px;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 </style>

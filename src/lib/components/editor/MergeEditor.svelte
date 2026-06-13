@@ -936,7 +936,7 @@
     padding: 4px 8px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     gap: 8px;
     flex-shrink: 0;
   }
@@ -958,7 +958,7 @@
 
   .conflict-counter {
     color: var(--accent-orange);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     padding: 0 4px;
   }
@@ -980,7 +980,7 @@
     flex: 1;
     padding: 4px 10px;
     background: var(--bg-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -1037,7 +1037,7 @@
   .panel-editor :global(.cm-scroller) {
     overflow: auto;
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
   }
 </style>

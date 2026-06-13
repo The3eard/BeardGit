@@ -1,0 +1,33 @@
+[meta]
+id = "fjord-light"
+name = "Fjord Light"
+mode = "light"
+complementary = "fjord-dark"
+
+# Light variant of Fjord — misty blue-grey paper with a deepened
+# teal primary accent.
+
+[colors]
+background = "#f2f6f9"
+foreground = "#27323c"
+black = "#41505c"
+red = "#b54545"
+green = "#2f7d54"
+yellow = "#9a7026"
+blue = "#2e6ca0"
+magenta = "#71569b"
+cyan = "#187f8b"
+white = "#7d8d9a"
+bright-black = "#5b6c7a"
+bright-red = "#9c3737"
+bright-green = "#266a46"
+bright-yellow = "#825d1d"
+bright-blue = "#255a87"
+bright-magenta = "#5f4684"
+bright-cyan = "#136d77"
+bright-white = "#ffffff"
+
+[accents]
+primary = "cyan"
+secondary = "blue"
+tertiary = "green"

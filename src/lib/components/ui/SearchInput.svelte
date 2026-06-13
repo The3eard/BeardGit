@@ -127,7 +127,7 @@
   .bg-search__icon {
     color: var(--text-secondary);
     font-family: var(--font-icons);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     flex-shrink: 0;
   }
 
@@ -137,7 +137,7 @@
     border: none;
     outline: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: inherit;
     padding: 0;
     min-width: 0;
@@ -153,7 +153,7 @@
     background: transparent;
     border: none;
     color: var(--text-secondary);
-    font-size: 16px;
+    font-size: var(--font-size-xl);
     cursor: pointer;
     padding: 0 2px;
     line-height: 1;

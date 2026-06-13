@@ -8,7 +8,7 @@
 <script lang="ts" generics="T">
   import type { Snippet } from "svelte";
   import { debounce } from "../../utils/debounce";
-  import { IconButton } from "$lib/components/ui";
+  import { IconButton, Skeleton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -266,9 +266,7 @@
     {#if customContent}
       {@render customContent()}
     {:else if loading && items.length === 0}
-      <div class="list-loading">
-        <div class="spinner"></div>
-      </div>
+      <Skeleton rows={8} />
     {:else if filteredItems.length === 0}
       {#if emptyState}
         {@render emptyState()}
@@ -352,6 +350,10 @@
     height: 100%;
     overflow: hidden;
     outline: none;
+    /* Surface hierarchy: master list panes sit one step above the
+       detail pane (bg-primary) so the split reads as two surfaces
+       instead of one flat sheet. Matches BranchList / Sidebar. */
+    background: var(--bg-secondary);
   }
 
   .list-loading-bar {

@@ -3,7 +3,8 @@
   import type { CiJob } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import { ciStatusColor } from "../../utils/status";
-  import { Button } from "$lib/components/ui";
+  import { Button, Skeleton } from "$lib/components/ui";
+  import EmptyState from "../common/EmptyState.svelte";
 
   let { onSelectJob }: { onSelectJob?: (jobId: number) => void } = $props();
 
@@ -95,10 +96,7 @@
 
 <div class="pipeline-detail">
   {#if $loadingDetail}
-    <div class="detail-loading">
-      <div class="spinner"></div>
-      <span>{m.pipeline_loading_detail()}</span>
-    </div>
+    <Skeleton variant="detail" rows={6} />
   {:else if $selectedCiRun}
     <div class="detail-header">
       <div class="detail-title">
@@ -186,7 +184,7 @@
       {/each}
     </div>
   {:else}
-    <div class="detail-empty">{m.pipeline_select_run()}</div>
+    <EmptyState fill icon={"\uF144"} title={m.pipeline_select_run()} />
   {/if}
 </div>
 
@@ -216,7 +214,7 @@
   }
 
   .detail-status {
-    font-size: 16px;
+    font-size: var(--font-size-xl);
     font-family: var(--font-icons);
   }
 
@@ -224,7 +222,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
   }
 
@@ -242,7 +240,7 @@
   }
 
   .auto-refresh-label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-primary);
     opacity: 0.7;
     font-style: italic;
@@ -270,7 +268,7 @@
 
   .stage-name {
     padding: 8px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -304,7 +302,7 @@
     border: none;
     border-bottom: 1px solid var(--border);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     text-align: left;
     width: 100%;
@@ -324,7 +322,7 @@
   }
 
   .job-status-icon {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-icons);
     width: 14px;
     text-align: center;
@@ -346,25 +344,21 @@
   }
 
   .job-duration {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     white-space: nowrap;
     flex-shrink: 0;
-  }
-
-  .detail-empty {
-    gap: 8px;
   }
 
   .detail-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
   .detail-actions button {
     background: var(--bg-secondary); color: var(--text-primary);
     border: 1px solid var(--border); border-radius: 4px;
-    padding: 4px 10px; font-size: 11px; cursor: pointer;
+    padding: 4px 10px; font-size: var(--font-size-xs); cursor: pointer;
   }
   .detail-actions button:hover:not(:disabled) { border-color: var(--accent-primary); color: var(--accent-primary); }
   .detail-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .action-error { color: var(--accent-red); font-size: 11px; margin-top: 6px; }
+  .action-error { color: var(--accent-red); font-size: var(--font-size-xs); margin-top: 6px; }
 
   .job-row-wrapper { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); }
   .job-row-wrapper:last-child { border-bottom: none; }

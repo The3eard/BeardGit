@@ -311,13 +311,13 @@
   }
 
   .label-name {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--text-primary);
   }
 
   .label-desc {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -330,7 +330,7 @@
   }
 
   .empty {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin: 0;
     padding: 8px 0;
@@ -356,7 +356,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .bg-input:focus {
@@ -365,7 +365,7 @@
   }
 
   .error {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-red);
     margin: 0;
   }

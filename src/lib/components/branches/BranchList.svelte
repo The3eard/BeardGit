@@ -7,7 +7,7 @@
   import List from "../common/List.svelte";
   import BranchTreeNode from "./BranchTreeNode.svelte";
   import RenameBranchDialog from "./RenameBranchDialog.svelte";
-  import { IconButton } from "$lib/components/ui";
+  import { IconButton, Skeleton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import type { BranchTreeNode as TreeNode } from "./branch-tree";
@@ -354,9 +354,7 @@
 
     {#if !localCollapsed}
       {#if $branchesLoading && $branches.length === 0}
-        <div class="list-loading">
-          <div class="spinner"></div>
-        </div>
+        <Skeleton rows={6} />
       {:else if localTree.length === 0}
         <EmptyState title={m.branches_no_local()} />
       {:else}
@@ -521,7 +519,7 @@
   .filter-input {
     width: 100%;
     padding: 4px 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -565,7 +563,7 @@
   }
 
   .section-label {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -574,30 +572,11 @@
   }
 
   .section-count {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     padding: 1px 6px;
     border-radius: 10px;
-  }
-
-  .list-loading {
-    display: flex;
-    justify-content: center;
-    padding: 16px;
-  }
-
-  .spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent-primary);
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
   }
 
 </style>

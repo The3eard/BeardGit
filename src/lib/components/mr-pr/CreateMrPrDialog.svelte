@@ -7,6 +7,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
   import { activeProvider } from "../../stores/provider";
   import { createMrPr } from "../../stores/mr-pr";
   import { getBranches } from "../../api/tauri";
@@ -111,10 +112,14 @@
   </div>
 
   <div class="form-field inline">
-    <label>
-      <input type="checkbox" bind:checked={isDraft} />
-      {m.mrpr_draft_label()}
-    </label>
+    <span class="inline-toggle">
+      <Checkbox
+        id="mrpr-draft"
+        checked={isDraft}
+        onchange={(e) => { isDraft = (e.target as HTMLInputElement).checked; }}
+      />
+      <label for="mrpr-draft">{m.mrpr_draft_label()}</label>
+    </span>
   </div>
 
   <div class="form-field">
@@ -159,7 +164,7 @@
 
   .form-field label {
     display: block;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
     margin-bottom: 4px;
@@ -167,14 +172,21 @@
     letter-spacing: 0.5px;
   }
 
-  .form-field.inline label {
+  .form-field.inline .inline-toggle {
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+
+  .form-field.inline label {
+    display: inline;
     text-transform: none;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
+    font-weight: normal;
+    letter-spacing: 0;
+    margin-bottom: 0;
   }
 
   .form-field input[type="text"],
@@ -186,7 +198,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-family: inherit;
     box-sizing: border-box;
   }
@@ -208,7 +220,7 @@
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .dialog-actions {

@@ -18,7 +18,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { save } from "@tauri-apps/plugin-dialog";
   import type { TaskInfo } from "$lib/types";
-  import { Button, IconButton } from "$lib/components/ui";
+  import { Button, Checkbox, IconButton } from "$lib/components/ui";
 
   let {
     onFileClick,
@@ -350,10 +350,18 @@
   <div class="commit-box">
     <!-- Toolbar row: Amend + icon buttons + overflow -->
     <div class="commit-toolbar">
-      <label class="amend-toggle">
-        <input type="checkbox" bind:checked={isAmend} onchange={handleAmendToggle} data-testid="amend-toggle" />
-        <span>{m.staging_amend_toggle()}</span>
-      </label>
+      <span class="amend-toggle">
+        <Checkbox
+          id="amend-toggle"
+          checked={isAmend}
+          testid="amend-toggle"
+          onchange={(e) => {
+            isAmend = (e.target as HTMLInputElement).checked;
+            handleAmendToggle();
+          }}
+        />
+        <label for="amend-toggle">{m.staging_amend_toggle()}</label>
+      </span>
       <div class="toolbar-actions">
         {#if $hasAiProvider}
           <IconButton
@@ -459,6 +467,9 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    /* Same surface step as List.svelte's .list-panel — the staging
+       pane is the "list side" of the Changes split. */
+    background: var(--bg-secondary);
   }
 
   .file-lists {
@@ -486,7 +497,7 @@
     border-radius: 6px;
     padding: 8px 10px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: inherit;
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -504,7 +515,7 @@
 
   .nf {
     font-family: var(--font-icons);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     line-height: 1;
   }
 
@@ -535,7 +546,7 @@
     border-radius: 8px;
     padding: 4px;
     z-index: 10;
-    box-shadow: 0 4px 12px var(--overlay-shadow);
+    box-shadow: var(--shadow-overlay);
   }
 
   .overflow-menu-item {
@@ -548,7 +559,7 @@
     border: none;
     border-radius: 5px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     transition: background 0.1s ease;
   }
@@ -558,7 +569,7 @@
   }
 
   .overflow-menu-item .nf {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
     width: 16px;
     text-align: center;
@@ -575,19 +586,18 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     cursor: pointer;
     transition: color 0.15s ease;
   }
 
-  .amend-toggle:hover {
-    color: var(--text-primary);
+  .amend-toggle label {
+    cursor: pointer;
   }
 
-  .amend-toggle input[type="checkbox"] {
-    margin: 0;
-    accent-color: var(--accent-primary);
+  .amend-toggle:hover {
+    color: var(--text-primary);
   }
 
   .patch-source-dialog {
@@ -603,7 +613,7 @@
     align-items: center;
     gap: 6px;
     padding: 4px 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
   }

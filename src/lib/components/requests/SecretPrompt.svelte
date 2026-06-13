@@ -84,14 +84,14 @@
 <style>
   .prompt {
     margin: 0 0 12px 0;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-primary);
     line-height: 1.5;
   }
 
   .prompt code {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 1px 4px;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -108,7 +108,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     box-sizing: border-box;
   }
@@ -119,7 +119,7 @@
 
   .error {
     margin: 8px 0 0 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     line-height: 1.45;
   }

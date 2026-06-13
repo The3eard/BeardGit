@@ -60,7 +60,7 @@
     gap: 4px;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;

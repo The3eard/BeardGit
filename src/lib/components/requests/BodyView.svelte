@@ -239,7 +239,7 @@
     margin: 0;
     padding: 12px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
     color: var(--text-primary);
     background: var(--bg-secondary);

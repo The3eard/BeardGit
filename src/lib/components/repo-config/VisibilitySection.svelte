@@ -165,13 +165,13 @@
   }
 
   .visibility-label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--text-primary);
   }
 
   .visibility-description {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     line-height: 1.45;
   }

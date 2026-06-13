@@ -230,7 +230,7 @@
 
   .task-row__icon-glyph {
     font-family: var(--font-icons);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
     line-height: 1;
   }
@@ -244,7 +244,7 @@
 
   .task-row__title {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     font-weight: 500;
     white-space: nowrap;
@@ -254,7 +254,7 @@
 
   .task-row__subtitle {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
@@ -300,13 +300,13 @@
     position: absolute;
     right: 6px;
     top: -14px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
   }
 
   .task-row__error {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-red);
   }
 

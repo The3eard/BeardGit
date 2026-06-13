@@ -75,7 +75,7 @@
   }
   .picker-label {
     display: block;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin-bottom: 6px;
   }
@@ -86,11 +86,11 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     box-sizing: border-box;
   }
   .picker-hint {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     margin: 8px 0 12px;
   }

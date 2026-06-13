@@ -7,7 +7,7 @@
   import { shortOid } from "../../utils/git";
   import { loadReflog } from "../../stores/reflog";
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
-  import { Button } from "$lib/components/ui";
+  import { Button, Skeleton } from "$lib/components/ui";
 
   let {
     entry,
@@ -136,9 +136,7 @@
       {onFileClick}
     />
   {:else}
-    <div class="detail-loading">
-      <div class="spinner"></div>
-    </div>
+    <Skeleton variant="detail" rows={6} />
   {/if}
 </div>
 
@@ -174,7 +172,7 @@
     padding: 4px 0;
     z-index: 10;
     min-width: 200px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-overlay);
   }
 
   .reset-option {
@@ -184,7 +182,7 @@
     background: none;
     border: none;
     padding: 6px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
     transition: background 0.1s;
@@ -202,13 +200,7 @@
     padding: 24px;
     text-align: center;
     color: var(--accent-orange);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
-  .detail-loading {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
 </style>

@@ -23,45 +23,90 @@ export const TEXT_PADDING = 14;
 export const REF_BADGE_HEIGHT = 16;
 export const REF_BADGE_PADDING = 6;
 
-/* beardgit:allow-hex: DEFAULT_GRAPH_THEME is a canvas-API fallback (GraphTheme interface
- * uses string colors passed to ctx.fillStyle/strokeStyle, not CSS custom properties).
- * The runtime theme overwrites these via GitGraph.svelte's applyTheme / graphTheme store. */
-export const DEFAULT_GRAPH_THEME: GraphTheme = {
-  background: "#0d1117",
-  currentLine: "#161b22",
-  selection: "#1c2333",
-  foreground: "#c9d1d9",
-  comment: "#6272A4",
-  red: "#ff7b72",
-  orange: "#f0883e",
-  yellow: "#f1fa8c",
-  green: "#3fb950",
-  cyan: "#58a6ff",
-  purple: "#bb80ff",
-  pink: "#f778ba",
-  laneColors: [
-    "#58a6ff", "#3fb950", "#f0883e", "#bb80ff", "#f778ba",
-    "#79c0ff", "#d2a8ff", "#ffa657", "#7ee787", "#ff7b72",
-  ],
-  headLaneTint: "rgba(88, 166, 255, 0.04)",
-  dimOpacity: 0.3,
-  selectionHighlight: "rgba(88, 166, 255, 0.08)",
-  nodeRadius: 5,
-  mergeRadius: 6,
-  refBadge: {
-    branch: "#58a6ff",
-    remote: "#bb80ff",
-    tag: "#f0883e",
-    head: "#f778ba",
-  },
-  textPrimary: "#c9d1d9",
-  textSecondary: "#8b949e",
-  textSha: "#f0883e",
-  bisectGoodColor: "rgba(63, 185, 80, 0.15)",
-  bisectBadColor: "rgba(248, 81, 73, 0.15)",
-  bisectSkipColor: "rgba(139, 148, 158, 0.15)",
-  bisectCurrentColor: "rgba(227, 179, 65, 0.15)",
-};
+/* beardgit:allow-hex: the canvas API needs concrete color strings, so the
+ * pre-theme fallback reads the CSS custom properties from `:root` (which
+ * mirror the default theme) and only falls back to these literals when the
+ * tokens are unavailable (unit tests / detached documents). The runtime
+ * theme overwrites all of this via GitGraph.svelte's graphTheme store. */
+function cssToken(name: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return value || fallback;
+}
+
+/** `rgba()` string from a `#RRGGBB` token value at the given alpha. */
+function tokenAlpha(name: string, fallback: string, alpha: number): string {
+  const hex = cssToken(name, fallback);
+  if (!hex.startsWith("#") || hex.length < 7) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * Pre-theme canvas fallback, built from the `:root` design tokens so the
+ * first rendered frame matches the default theme's statics instead of
+ * flashing a hardcoded palette until `applyTheme()` lands.
+ */
+export function defaultGraphTheme(): GraphTheme {
+  const blue = cssToken("--accent-blue", "#58a6ff");
+  const green = cssToken("--accent-green", "#3fb950");
+  const orange = cssToken("--accent-orange", "#f0883e");
+  const purple = cssToken("--accent-purple", "#bc8cff");
+  const red = cssToken("--accent-red", "#f85149");
+  const secondary = cssToken("--accent-secondary", "#bc8cff");
+  return {
+    background: cssToken("--bg-primary", "#0d1117"),
+    currentLine: cssToken("--bg-secondary", "#161b22"),
+    selection: cssToken("--selection", "#1c2333"),
+    foreground: cssToken("--text-primary", "#c9d1d9"),
+    comment: cssToken("--text-secondary", "#8b949e"),
+    red,
+    orange,
+    yellow: orange,
+    green,
+    cyan: blue,
+    purple,
+    pink: secondary,
+    laneColors: [
+      cssToken("--graph-color-0", "#58a6ff"),
+      cssToken("--graph-color-1", "#3fb950"),
+      cssToken("--graph-color-2", "#f0883e"),
+      cssToken("--graph-color-3", "#bb80ff"),
+      cssToken("--graph-color-4", "#f778ba"),
+      cssToken("--graph-color-5", "#79c0ff"),
+    ],
+    headLaneTint: tokenAlpha("--accent-primary", "#58a6ff", 0.04),
+    dimOpacity: 0.3,
+    selectionHighlight: tokenAlpha("--accent-blue", "#58a6ff", 0.08),
+    nodeRadius: 5,
+    mergeRadius: 6,
+    refBadge: {
+      branch: blue,
+      remote: purple,
+      tag: orange,
+      head: secondary,
+    },
+    textPrimary: cssToken("--text-primary", "#c9d1d9"),
+    textSecondary: cssToken("--text-secondary", "#8b949e"),
+    textSha: orange,
+    bisectGoodColor: tokenAlpha("--accent-green", "#3fb950", 0.15),
+    bisectBadColor: tokenAlpha("--accent-red", "#f85149", 0.15),
+    bisectSkipColor: tokenAlpha("--text-secondary", "#8b949e", 0.15),
+    bisectCurrentColor: tokenAlpha("--accent-orange", "#e3b341", 0.15),
+  };
+}
+
+// ── Canvas fonts ────────────────────────────────────────────────────────
+// Deliberate typography: identifiers (SHA, dates, branch/tag badges) use
+// the app's mono stack (Fira Code first — same as --font-mono) so the
+// graph reads like a git tool; prose (commit summaries, authors) stays
+// on the system sans stack.
+const CANVAS_FONT_SANS = "-apple-system, BlinkMacSystemFont, sans-serif";
+const CANVAS_FONT_MONO = "'Fira Code', 'SF Mono', 'Consolas', monospace";
 
 // ── Column configuration ────────────────────────────────────────────────
 
@@ -136,7 +181,7 @@ function drawMrPrBadge(
 ): number {
   const text = isGitHub ? `PR #${number}` : `MR !${number}`;
   const padding = 4;
-  ctx.font = "10px 'SF Mono', 'Fira Code', 'Consolas', monospace";
+  ctx.font = `10px ${CANVAS_FONT_MONO}`;
   const width = ctx.measureText(text).width + padding * 2;
   const height = 14;
 
@@ -180,7 +225,7 @@ export function renderGraph(
   columns: GraphColumn[] = DEFAULT_COLUMNS,
   laneSegments: LaneSegment[] = [],
   mergeCurves: MergeCurve[] = [],
-  theme: GraphTheme = DEFAULT_GRAPH_THEME,
+  theme: GraphTheme = defaultGraphTheme(),
   headLane: number | null = null,
   userEmails: string[] = [],
   selectedGroup: number | null = null,
@@ -208,9 +253,11 @@ export function renderGraph(
     ctx.globalAlpha = 1.0;
   }
 
-  // HEAD lane background tint
+  // HEAD lane background tint — dimmed along with the other lanes when a
+  // branch group is selected, so the highlighted branch stands out
+  // instead of competing with a full-strength background wash.
   if (headLane !== null) {
-    ctx.globalAlpha = selectedGroup === null ? 1.0 : 1.0; // HEAD tint always visible
+    ctx.globalAlpha = selectedGroup === null ? 1.0 : theme.dimOpacity;
     ctx.fillStyle = theme.headLaneTint;
     ctx.fillRect(
       laneX(headLane) - LANE_WIDTH / 2,
@@ -443,24 +490,34 @@ export function renderGraph(
     ctx.globalAlpha = 0.85 * curveAlpha;
     ctx.beginPath();
 
-    const clampedY1 = Math.max(y1, -ROW_HEIGHT * 2);
-    const clampedY2 = Math.min(y2, canvasHeight + ROW_HEIGHT * 2);
-
-    const distance = Math.abs(clampedY2 - clampedY1);
-    const curveHeight = Math.min(ROW_HEIGHT * 2.5, distance * 0.6);
-    const curveStartY = clampedY1 + ROW_HEIGHT * 0.3;
-    const curveEndY = curveStartY + curveHeight;
-
-    ctx.moveTo(x1, clampedY1);
-    ctx.lineTo(x1, curveStartY);
-    ctx.bezierCurveTo(
-      x1, curveStartY + curveHeight * 0.5,
-      x2, curveEndY - curveHeight * 0.5,
-      x2, curveEndY
+    // Geometry from the TRUE endpoints, clamped only for the moveTo/lineTo
+    // tails so off-canvas curves don't paint giant control arms. The bend
+    // sits at the bottom (toward to_row) and its height scales with the
+    // horizontal lane distance — a 1-lane hop turns tightly, a wide
+    // octopus jump eases over more rows — capped by the available
+    // vertical span so short merges don't overshoot.
+    const laneSpan = Math.abs(x2 - x1);
+    const rowSpan = Math.abs(y2 - y1);
+    const bend = Math.min(
+      Math.max(ROW_HEIGHT, laneSpan * 0.9),
+      Math.max(ROW_HEIGHT, rowSpan - ROW_HEIGHT * 0.3),
     );
-    if (clampedY2 > curveEndY) {
-      ctx.lineTo(x2, clampedY2);
-    }
+    const bendStartY = y2 - bend; // straight run ends here, curve begins
+    const tailTopY = Math.max(y1, -ROW_HEIGHT * 2);
+    const tailBotY = Math.min(y2, canvasHeight + ROW_HEIGHT * 2);
+
+    // Vertical run down lane `from` until the bend starts (clamped to the
+    // visible tail), then a symmetric cubic whose control points are
+    // vertical tangents at both ends → smooth S with no kinks.
+    ctx.moveTo(x1, tailTopY);
+    if (bendStartY > tailTopY) ctx.lineTo(x1, bendStartY);
+    const cpStartY = Math.min(bendStartY, tailBotY);
+    ctx.bezierCurveTo(
+      x1, (cpStartY + y2) / 2,
+      x2, (cpStartY + y2) / 2,
+      x2, Math.min(y2, tailBotY),
+    );
+    if (tailBotY > y2) ctx.lineTo(x2, tailBotY);
 
     ctx.stroke();
     resetOpacity();
@@ -577,7 +634,7 @@ export function renderGraph(
       ctx.rect(textX, rowTop, messageEndX - textX, ROW_HEIGHT);
       ctx.clip();
 
-      ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = `11px ${CANVAS_FONT_MONO}`;
       ctx.textBaseline = "middle";
 
       for (const ref of node.refs) {
@@ -635,8 +692,8 @@ export function renderGraph(
       const isMyCommit = userEmails.length > 0 &&
         (userEmails.includes(node.email.toLowerCase()) || userEmails.includes(node.author.toLowerCase()));
       ctx.font = isMyCommit
-        ? `bold 13px -apple-system, BlinkMacSystemFont, sans-serif`
-        : `13px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ? `bold 13px ${CANVAS_FONT_SANS}`
+        : `13px ${CANVAS_FONT_SANS}`;
       ctx.fillStyle = isSelected ? "#ffffff" : theme.textPrimary; /* beardgit:allow-hex: canvas requires concrete color; selected row inverts text */
       ctx.textBaseline = "middle";
       ctx.textAlign = "left";
@@ -655,12 +712,12 @@ export function renderGraph(
 
       let text = "";
       let style = isSelected ? theme.textPrimary : theme.textSecondary;
-      let font = "12px -apple-system, BlinkMacSystemFont, sans-serif";
+      let font = `12px ${CANVAS_FONT_SANS}`;
 
       switch (col.id) {
         case "sha":
           text = shortOid(node.oid);
-          font = "12px 'SF Mono', 'Fira Code', 'Consolas', monospace";
+          font = `12px ${CANVAS_FONT_MONO}`;
           style = isSelected ? theme.textPrimary : theme.textSha;
           break;
         case "author":
@@ -668,6 +725,7 @@ export function renderGraph(
           break;
         case "date":
           text = node.timestamp ? formatRelativeTimeUnix(node.timestamp) : "";
+          font = `11px ${CANVAS_FONT_MONO}`;
           break;
         case "email":
           text = node.email || "";
@@ -767,6 +825,24 @@ export interface GraphHitResult {
 }
 
 /**
+ * Row→node index memoised by the `nodes` array reference. `graphHitTest`
+ * runs on every mousemove; the array reference is stable between
+ * repaints, so the O(n) `find` becomes an O(1) lookup that only rebuilds
+ * when the viewport slice changes. A WeakMap keeps it leak-free.
+ */
+const rowIndexCache = new WeakMap<LayoutNode[], Map<number, LayoutNode>>();
+
+function rowIndex(nodes: LayoutNode[]): Map<number, LayoutNode> {
+  let idx = rowIndexCache.get(nodes);
+  if (!idx) {
+    idx = new Map();
+    for (const n of nodes) idx.set(n.row, n);
+    rowIndexCache.set(nodes, idx);
+  }
+  return idx;
+}
+
+/**
  * Determines what the user clicked: a commit node, a lane segment, or empty space.
  * Node clicks take priority over segment clicks when the click is near a node's lane.
  * Segment hits use `group_id` so recycled lanes highlight only the correct branch.
@@ -780,7 +856,7 @@ export function graphHitTest(
   laneSegments: LaneSegment[] = [],
 ): GraphHitResult {
   const row = Math.floor(y / ROW_HEIGHT) + offset;
-  const node = nodes.find((n) => n.row === row);
+  const node = rowIndex(nodes).get(row);
 
   // Check if click is near a node's lane column
   if (node) {

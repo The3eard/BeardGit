@@ -14,16 +14,15 @@
   justify-content: center;
   gap: 8px;
   padding: 24px 12px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
 
 .list-empty {
-  padding: 24px 12px;
+  padding: 32px 16px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  font-style: italic;
 }
 
 .list-items {
@@ -34,7 +33,7 @@
 /* ─── Title ─── */
 
 .list-title {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -63,7 +62,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   outline: none;
   box-sizing: border-box;
 }

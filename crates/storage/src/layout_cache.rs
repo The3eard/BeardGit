@@ -20,11 +20,16 @@ pub const SCHEMA_VERSION: u32 = 1;
 pub struct LayoutCacheEntry {
     /// Revision of the on-disk format; see [`SCHEMA_VERSION`].
     pub schema_version: u32,
-    /// SHA-256 hex of `(repo_path, head_oid, sorted refs)` — the identity of
-    /// the repo state that produced the embedded [`GraphLayout`].
+    /// SHA-256 hex of `(repo_path, head_oid, sorted refs, variant)` — the
+    /// identity of the repo state that produced the embedded [`GraphLayout`].
     pub cache_key: String,
     /// Absolute path to the repo whose layout is cached.
     pub repo_path: String,
+    /// Layout-mode discriminator (e.g. `"fp=1"` for first-parent mode).
+    /// Empty string for the default full-graph layout. Each variant gets its
+    /// own cache file so toggling modes doesn't thrash a single entry.
+    #[serde(default)]
+    pub variant: String,
     /// HEAD OID at the time the layout was computed.
     pub head_oid: String,
     /// ISO-8601 timestamp of when the entry was written (informational only).
@@ -35,10 +40,19 @@ pub struct LayoutCacheEntry {
 
 /// Compute the identity key for a repository's current state.
 ///
-/// Combines the repo path, HEAD OID, and the sorted list of `(ref_name, oid)`
-/// pairs into a single SHA-256 hex string. Any change to HEAD, any ref
-/// create/delete, or any ref movement produces a different key.
-pub fn compute_cache_key(repo_path: &str, head_oid: &str, refs: &[(String, String)]) -> String {
+/// Combines the repo path, HEAD OID, the sorted list of `(ref_name, oid)`
+/// pairs, and a layout-mode `variant` string into a single SHA-256 hex
+/// string. Any change to HEAD, any ref create/delete, any ref movement, or
+/// a different layout mode produces a different key.
+///
+/// An empty `variant` reproduces the pre-variant key material so existing
+/// default-mode cache entries stay valid across upgrades.
+pub fn compute_cache_key(
+    repo_path: &str,
+    head_oid: &str,
+    refs: &[(String, String)],
+    variant: &str,
+) -> String {
     let mut sorted: Vec<&(String, String)> = refs.iter().collect();
     sorted.sort_by(|a, b| a.0.cmp(&b.0));
     let joined: String = sorted
@@ -46,31 +60,42 @@ pub fn compute_cache_key(repo_path: &str, head_oid: &str, refs: &[(String, Strin
         .map(|(n, o)| format!("{n}={o}"))
         .collect::<Vec<_>>()
         .join(",");
-    let material = format!("{repo_path}:{head_oid}:{joined}");
+    let mut material = format!("{repo_path}:{head_oid}:{joined}");
+    if !variant.is_empty() {
+        material.push(':');
+        material.push_str(variant);
+    }
     let mut hasher = Sha256::new();
     hasher.update(material.as_bytes());
     format!("{:x}", hasher.finalize())
 }
 
-/// Resolve the on-disk cache file path for a given repo under a config dir.
+/// Resolve the on-disk cache file path for a given repo + layout variant
+/// under a config dir.
 ///
 /// Mirrors the convention used by [`crate::project_cache`]: the caller passes
 /// the BeardGit-specific config directory (usually `<os_config_dir>/beardgit`)
 /// and this module appends its own `layouts/` subdirectory. Files live at
-/// `<config_dir>/layouts/<sha256(repo_path)>.json`.
-pub fn layout_cache_path(config_dir: &Path, repo_path: &str) -> PathBuf {
+/// `<config_dir>/layouts/<sha256(repo_path[\n variant])>.json`. The default
+/// (empty) variant hashes the repo path alone, matching the pre-variant
+/// layout so existing cache files keep working.
+pub fn layout_cache_path(config_dir: &Path, repo_path: &str, variant: &str) -> PathBuf {
     let mut hasher = Sha256::new();
     hasher.update(repo_path.as_bytes());
+    if !variant.is_empty() {
+        hasher.update(b"\n");
+        hasher.update(variant.as_bytes());
+    }
     let name = format!("{:x}.json", hasher.finalize());
     config_dir.join("layouts").join(name)
 }
 
 /// Persist a [`LayoutCacheEntry`] to disk, creating parent directories as needed.
 ///
-/// Overwrites any existing file for the same `repo_path`. Returns IO errors
-/// verbatim; callers typically log at `warn!` and discard on failure.
+/// Overwrites any existing file for the same `(repo_path, variant)`. Returns
+/// IO errors verbatim; callers typically log at `warn!` and discard on failure.
 pub fn save_layout_cache(config_dir: &Path, entry: &LayoutCacheEntry) -> std::io::Result<()> {
-    let path = layout_cache_path(config_dir, &entry.repo_path);
+    let path = layout_cache_path(config_dir, &entry.repo_path, &entry.variant);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -86,8 +111,9 @@ pub fn save_layout_cache(config_dir: &Path, entry: &LayoutCacheEntry) -> std::io
 pub fn load_layout_cache(
     config_dir: &Path,
     repo_path: &str,
+    variant: &str,
 ) -> std::io::Result<Option<LayoutCacheEntry>> {
-    let path = layout_cache_path(config_dir, repo_path);
+    let path = layout_cache_path(config_dir, repo_path, variant);
     if !path.exists() {
         return Ok(None);
     }
@@ -121,6 +147,7 @@ mod tests {
             schema_version: SCHEMA_VERSION,
             cache_key: cache_key.to_string(),
             repo_path: repo_path.to_string(),
+            variant: String::new(),
             head_oid: "aaaa".to_string(),
             generated_at: "2026-04-20T00:00:00Z".to_string(),
             layout: sample_layout(),
@@ -133,8 +160,8 @@ mod tests {
             ("refs/heads/main".to_string(), "aaaa".to_string()),
             ("refs/heads/dev".to_string(), "bbbb".to_string()),
         ];
-        let k1 = compute_cache_key("/repo", "aaaa", &refs);
-        let k2 = compute_cache_key("/repo", "aaaa", &refs);
+        let k1 = compute_cache_key("/repo", "aaaa", &refs, "");
+        let k2 = compute_cache_key("/repo", "aaaa", &refs, "");
         assert_eq!(k1, k2);
         assert_eq!(k1.len(), 64, "sha256 hex is 64 chars");
     }
@@ -143,8 +170,8 @@ mod tests {
     fn compute_cache_key_changes_with_head() {
         let refs = vec![("refs/heads/main".to_string(), "aaaa".to_string())];
         assert_ne!(
-            compute_cache_key("/repo", "aaaa", &refs),
-            compute_cache_key("/repo", "bbbb", &refs),
+            compute_cache_key("/repo", "aaaa", &refs, ""),
+            compute_cache_key("/repo", "bbbb", &refs, ""),
         );
     }
 
@@ -156,8 +183,32 @@ mod tests {
             ("refs/heads/dev".to_string(), "bbbb".to_string()),
         ];
         assert_ne!(
-            compute_cache_key("/repo", "aaaa", &r1),
-            compute_cache_key("/repo", "aaaa", &r2),
+            compute_cache_key("/repo", "aaaa", &r1, ""),
+            compute_cache_key("/repo", "aaaa", &r2, ""),
+        );
+    }
+
+    #[test]
+    fn compute_cache_key_changes_with_variant() {
+        let refs = vec![("refs/heads/main".to_string(), "aaaa".to_string())];
+        assert_ne!(
+            compute_cache_key("/repo", "aaaa", &refs, ""),
+            compute_cache_key("/repo", "aaaa", &refs, "fp=1"),
+        );
+        assert_ne!(
+            compute_cache_key("/repo", "aaaa", &refs, "fp=1"),
+            compute_cache_key("/repo", "aaaa", &refs, "fp=0"),
+        );
+    }
+
+    #[test]
+    fn layout_cache_path_separates_variants() {
+        let tmp = tempfile::tempdir().unwrap();
+        let default_path = layout_cache_path(tmp.path(), "/repo", "");
+        let fp_path = layout_cache_path(tmp.path(), "/repo", "fp=1");
+        assert_ne!(
+            default_path, fp_path,
+            "each variant must get its own cache file"
         );
     }
 
@@ -166,7 +217,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let entry = sample_entry("/some/repo", "key-1");
         save_layout_cache(tmp.path(), &entry).unwrap();
-        let loaded = load_layout_cache(tmp.path(), "/some/repo")
+        let loaded = load_layout_cache(tmp.path(), "/some/repo", "")
             .unwrap()
             .unwrap();
         assert_eq!(loaded.cache_key, entry.cache_key);
@@ -175,9 +226,30 @@ mod tests {
     }
 
     #[test]
+    fn save_and_load_round_trip_with_variant() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut entry = sample_entry("/some/repo", "key-fp");
+        entry.variant = "fp=1".to_string();
+        save_layout_cache(tmp.path(), &entry).unwrap();
+
+        // The default-variant slot stays empty…
+        assert!(
+            load_layout_cache(tmp.path(), "/some/repo", "")
+                .unwrap()
+                .is_none()
+        );
+        // …while the variant slot round-trips.
+        let loaded = load_layout_cache(tmp.path(), "/some/repo", "fp=1")
+            .unwrap()
+            .unwrap();
+        assert_eq!(loaded.cache_key, "key-fp");
+        assert_eq!(loaded.variant, "fp=1");
+    }
+
+    #[test]
     fn load_returns_none_when_missing() {
         let tmp = tempfile::tempdir().unwrap();
-        let got = load_layout_cache(tmp.path(), "/none").unwrap();
+        let got = load_layout_cache(tmp.path(), "/none", "").unwrap();
         assert!(got.is_none());
     }
 
@@ -185,10 +257,10 @@ mod tests {
     fn load_returns_none_when_corrupt() {
         let tmp = tempfile::tempdir().unwrap();
         let repo_path = "/repo";
-        let path = layout_cache_path(tmp.path(), repo_path);
+        let path = layout_cache_path(tmp.path(), repo_path, "");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, b"{not json").unwrap();
-        let got = load_layout_cache(tmp.path(), repo_path).unwrap();
+        let got = load_layout_cache(tmp.path(), repo_path, "").unwrap();
         assert!(
             got.is_none(),
             "corrupt file should be treated as miss, not panic/error"
@@ -199,7 +271,7 @@ mod tests {
     fn load_returns_none_when_schema_version_mismatch() {
         let tmp = tempfile::tempdir().unwrap();
         let repo_path = "/repo";
-        let path = layout_cache_path(tmp.path(), repo_path);
+        let path = layout_cache_path(tmp.path(), repo_path, "");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         let bad = serde_json::json!({
             "schema_version": 99,
@@ -216,7 +288,7 @@ mod tests {
             },
         });
         std::fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
-        let got = load_layout_cache(tmp.path(), repo_path).unwrap();
+        let got = load_layout_cache(tmp.path(), repo_path, "").unwrap();
         assert!(got.is_none());
     }
 }
