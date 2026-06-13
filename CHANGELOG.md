@@ -2,7 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [0.3.0] — Design identity overhaul: own themes, merged title bar, coherent diffs — 2026-06-13
+## [2026.6.0] — Design identity overhaul: own themes, merged title bar, coherent diffs — 2026-06-13
 
 A full design pass over the app, driven by a visual review of every view (the repo's 32 Playwright baselines, dark + light) plus live iteration. The goal: stop reading as a GitHub Desktop fork and become a product with its own identity — without breaking a single workflow. Every change landed as its own commit with before/after captures, and the full CI gate (`cargo fmt`/`clippy`/`test`, `svelte-check`, `vitest`, `stylelint`+`eslint`, 92 Playwright tests) is green throughout.
 
