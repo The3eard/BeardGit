@@ -823,6 +823,24 @@ export interface GraphHitResult {
 }
 
 /**
+ * Row→node index memoised by the `nodes` array reference. `graphHitTest`
+ * runs on every mousemove; the array reference is stable between
+ * repaints, so the O(n) `find` becomes an O(1) lookup that only rebuilds
+ * when the viewport slice changes. A WeakMap keeps it leak-free.
+ */
+const rowIndexCache = new WeakMap<LayoutNode[], Map<number, LayoutNode>>();
+
+function rowIndex(nodes: LayoutNode[]): Map<number, LayoutNode> {
+  let idx = rowIndexCache.get(nodes);
+  if (!idx) {
+    idx = new Map();
+    for (const n of nodes) idx.set(n.row, n);
+    rowIndexCache.set(nodes, idx);
+  }
+  return idx;
+}
+
+/**
  * Determines what the user clicked: a commit node, a lane segment, or empty space.
  * Node clicks take priority over segment clicks when the click is near a node's lane.
  * Segment hits use `group_id` so recycled lanes highlight only the correct branch.
@@ -836,7 +854,7 @@ export function graphHitTest(
   laneSegments: LaneSegment[] = [],
 ): GraphHitResult {
   const row = Math.floor(y / ROW_HEIGHT) + offset;
-  const node = nodes.find((n) => n.row === row);
+  const node = rowIndex(nodes).get(row);
 
   // Check if click is near a node's lane column
   if (node) {
