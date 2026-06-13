@@ -10,9 +10,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { get } from "svelte/store";
-  import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails, reloadGraph } from "../../stores/graph";
+  import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails, reloadGraph, graphViewOptions, setGraphViewOptions } from "../../stores/graph";
   import { repoInfo } from "../../stores/repo";
-  import { renderGraph, hitTest, graphHitTest, getResizeTarget, ROW_HEIGHT, DEFAULT_COLUMNS, DEFAULT_GRAPH_THEME, type GraphColumn } from "./graph-renderer";
+  import { renderGraph, hitTest, graphHitTest, getResizeTarget, ROW_HEIGHT, DEFAULT_COLUMNS, defaultGraphTheme, type GraphColumn } from "./graph-renderer";
   import { getLastMetrics, getRollingFps } from "./graph-perf";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
@@ -25,6 +25,7 @@
   import RebaseEditor from "../rebase/RebaseEditor.svelte";
   import { debounce } from "../../utils/debounce";
   import SearchBar from "../common/SearchBar.svelte";
+  import { branches as branchesStore } from "../../stores/branches";
   import { activeTheme, buildGraphTheme } from "../../stores/theme";
   import type { SearchTag } from "../../search/types";
   import type { GraphViewport as GraphViewportType } from "../../types";
@@ -34,13 +35,25 @@
   import { shortOid } from "../../utils/git";
   import { bisectState, markGood, markBad, skipCommit } from "../../stores/bisect";
   import * as m from "$lib/paraglide/messages";
-  import { Button } from "$lib/components/ui";
+  import { Button, Checkbox } from "$lib/components/ui";
 
   // Column visibility state
   let columns = $state<GraphColumn[]>(DEFAULT_COLUMNS.map(c => ({ ...c })));
   // Stored DPR used for current canvas backing store — keeps draw() consistent with resizeCanvas()
   let canvasDpr = $state(window.devicePixelRatio || 1);
   let showColumnMenu = $state(false);
+  let showBranchMenu = $state(false);
+  let branchToggleEl = $state<HTMLDivElement | undefined>(undefined);
+  /** Local branch names for the scope dropdown (current first). */
+  let scopeBranches = $derived(
+    [...$branchesStore]
+      .filter((b) => !b.is_remote)
+      .sort((a, b) => Number(b.is_head) - Number(a.is_head) || a.name.localeCompare(b.name)),
+  );
+  async function pickBranchScope(name: string | undefined) {
+    showBranchMenu = false;
+    await setGraphViewOptions({ branch: name });
+  }
   let columnToggleEl: HTMLDivElement | undefined = $state();
 
   // Row hover state
@@ -219,6 +232,39 @@
     ctx2.textBaseline = 'alphabetic';
   }
 
+  /**
+   * Fingerprint of the last painted frame. `draw()` bails when nothing
+   * pixel-affecting changed — `reconcileViewport` hands us a fresh
+   * viewport reference with identical content on every mutation, and
+   * the ResizeObserver fires with unchanged dimensions, both of which
+   * otherwise trigger a full repaint. Reference identity for the
+   * viewport/theme is enough: a real change always swaps the reference
+   * (new viewport from the store, new theme object), so we never skip
+   * a paint that matters but we drop the no-op ones.
+   */
+  let lastDrawKey: string | null = null;
+
+  function forceRedraw() {
+    lastDrawKey = null;
+    scheduleDraw();
+  }
+
+  // Stable per-reference ids so the draw key treats "same object" as
+  // "same content" without serialising the whole viewport/map.
+  let objIdCounter = 0;
+  const objIds = new WeakMap<object, number>();
+  function refId(o: object | null | undefined): string {
+    if (!o) return "_";
+    let id = objIds.get(o);
+    if (id === undefined) {
+      id = ++objIdCounter;
+      objIds.set(o, id);
+    }
+    return String(id);
+  }
+  const vpId = (vp: GraphViewportType | null | undefined) => refId(vp ?? undefined);
+  const mrPrId = (m: object | null | undefined) => refId(m ?? undefined);
+
   function draw() {
     if (!ctx || !canvas) return;
 
@@ -244,7 +290,35 @@
     const canvasW = canvas.width / canvasDpr;
     const canvasH = canvas.height / canvasDpr;
 
-    const graphTheme = $activeTheme ? buildGraphTheme($activeTheme) : DEFAULT_GRAPH_THEME;
+    const graphTheme = $activeTheme ? buildGraphTheme($activeTheme) : defaultGraphTheme();
+
+    // Skip the repaint when every pixel-affecting input is unchanged.
+    // Viewport/theme/mrPr identity stand in for their content — the
+    // store always swaps the reference on a real change. `vpId` tags
+    // each distinct viewport object so an equal-content reconcile still
+    // counts as "changed" only when the reference differs.
+    const drawKey = JSON.stringify({
+      vp: vpId(activeVp),
+      th: $activeTheme?.meta.id ?? "_",
+      off: filteredViewport ? filteredOffset : $graphOffset,
+      filt: isFiltering,
+      sel: $selectedOid,
+      grp: $selectedGroup,
+      hr: hoveredRow,
+      hg: hoveredGroup,
+      w: canvasW,
+      h: canvasH,
+      cols: columns.map((c) => `${c.id}:${c.visible ? c.width : 0}`).join(","),
+      mr: mrPrId($mrPrByBranch),
+      gh: $activeProvider?.kind === "github",
+      ue: $userEmails.length,
+      bg: bisectGoodSet.size,
+      bb: bisectBadSet.size,
+      bs: bisectSkipSet.size,
+      bc: bisectCurrentOid,
+    });
+    if (drawKey === lastDrawKey) return;
+    lastDrawKey = drawKey;
 
     if (filteredViewport) {
       // Slice filtered nodes for offset-based scrolling within filtered results
@@ -314,11 +388,27 @@
     });
   }
 
+  /** Last applied lane-budget bucket — only reload when it changes. */
+  let laneBucket = 0;
+
+  /**
+   * Pick a lane budget from the available width in coarse buckets so a
+   * 1px resize never reloads — narrow windows keep the default 8 lanes,
+   * wide ones get 12 (the backend clamps to 4..=16).
+   */
+  function syncLaneBudget(widthPx: number) {
+    const bucket = widthPx > 900 ? 12 : 8;
+    if (bucket === laneBucket) return;
+    laneBucket = bucket;
+    void setGraphViewOptions({ maxLanes: bucket });
+  }
+
   function resizeCanvas() {
     if (!canvas || !container) return;
     const dpr = window.devicePixelRatio || 1;
     canvasDpr = dpr;
     const rect = container.getBoundingClientRect();
+    syncLaneBudget(rect.width);
     // Round to integer physical pixels to avoid subpixel blurriness
     const pxWidth = Math.round(rect.width * dpr);
     const pxHeight = Math.round(rect.height * dpr);
@@ -330,7 +420,10 @@
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    draw();
+    // Force a repaint: a DPR-only change keeps the CSS dimensions (and
+    // thus the draw key) identical while the backing store differs, so
+    // the dedup guard would otherwise skip the needed re-render.
+    forceRedraw();
   }
 
   function handleWheel(e: WheelEvent) {
@@ -881,15 +974,55 @@
       onSearch={handleGraphSearch}
       testId="graph-search"
     />
+    <div class="view-controls">
+      <Button
+        variant="neutral"
+        size="sm"
+        active={$graphViewOptions.firstParent ?? false}
+        description={m.graph_first_parent_tooltip()}
+        onclick={() =>
+          void setGraphViewOptions({
+            firstParent: !($graphViewOptions.firstParent ?? false),
+          })}
+      >{m.graph_first_parent()}</Button>
+      <div class="column-toggle" bind:this={branchToggleEl}>
+        <Button
+          variant="neutral"
+          size="sm"
+          active={showBranchMenu || Boolean($graphViewOptions.branch)}
+          ariaHaspopup="menu"
+          ariaExpanded={showBranchMenu}
+          onclick={() => (showBranchMenu = !showBranchMenu)}
+        >{$graphViewOptions.branch ?? m.graph_all_branches()}</Button>
+        {#if showBranchMenu}
+          <div class="column-dropdown branch-dropdown" role="menu">
+            <button
+              type="button"
+              class="branch-option"
+              class:selected={!$graphViewOptions.branch}
+              onclick={() => void pickBranchScope(undefined)}
+            >{m.graph_all_branches()}</button>
+            {#each scopeBranches as b (b.name)}
+              <button
+                type="button"
+                class="branch-option"
+                class:selected={$graphViewOptions.branch === b.name}
+                onclick={() => void pickBranchScope(b.name)}
+              >{b.name}</button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </div>
     <div class="column-toggle" bind:this={columnToggleEl}>
       <Button variant="neutral" size="sm" active={showColumnMenu} onclick={() => showColumnMenu = !showColumnMenu}>{m.graph_columns()}</Button>
       {#if showColumnMenu}
         <div class="column-dropdown">
           {#each columns as col}
-            <label class="column-option">
-              <input type="checkbox" checked={col.visible} onchange={() => toggleColumn(col.id)} />
-              {col.label}
-            </label>
+            <span class="column-option">
+              <Checkbox id="graph-col-{col.id}" checked={col.visible} onchange={() => toggleColumn(col.id)} />
+              <label for="graph-col-{col.id}">{col.label}</label>
+            </span>
           {/each}
         </div>
       {/if}
@@ -1006,6 +1139,44 @@
     position: relative;
   }
 
+  .view-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .branch-dropdown {
+    max-height: 320px;
+    overflow-y: auto;
+    min-width: 180px;
+  }
+
+  .branch-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 5px 10px;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .branch-option:hover {
+    background: var(--overlay-hover);
+  }
+
+  .branch-option.selected {
+    color: var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  }
+
   .column-dropdown {
     position: absolute;
     top: 100%;
@@ -1017,7 +1188,7 @@
     padding: 6px 0;
     min-width: 140px;
     z-index: 100;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-overlay);
   }
 
   .column-option {
@@ -1025,7 +1196,7 @@
     align-items: center;
     gap: 6px;
     padding: 4px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
   }
@@ -1034,8 +1205,8 @@
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
-  .column-option input[type="checkbox"] {
-    accent-color: var(--accent-primary);
+  .column-option label {
+    cursor: pointer;
   }
 
 
@@ -1103,7 +1274,7 @@
     padding: 4px 8px;
     border-top: 1px solid var(--border);
     background: var(--bg-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     text-align: center;
   }

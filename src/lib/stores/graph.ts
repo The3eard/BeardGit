@@ -7,7 +7,7 @@
  */
 
 import { writable, get } from "svelte/store";
-import type { GraphViewport, CommitInfo, CommitFileChange } from "../types";
+import type { GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange } from "../types";
 import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow, getFileAtCommit, refreshGraphLayout as apiRefreshGraphLayout } from "../api/tauri";
 
 /** Holds raw file content for the DiffEditor panel. */
@@ -109,6 +109,44 @@ export const loadingFileDiff = writable(false);
 const VIEWPORT_SIZE = 300;
 
 /**
+ * Active graph view mode — first-parent simplification and/or a
+ * branch-scoped walk. Session-only (not persisted); every viewport
+ * and refresh call sends it, and the backend keys its layout cache
+ * by it. `maxLanes` is wired separately by the canvas component
+ * based on the available width.
+ */
+export const graphViewOptions = writable<GraphViewOptions>({});
+
+/**
+ * Update the view mode and reload. A structural change (first-parent
+ * toggle or branch scope) invalidates the per-project viewport cache,
+ * drops the selection — the selected commit may not exist in the new
+ * view (e.g. a merged-branch commit under first-parent) — and reloads
+ * from the top. A lane-budget change (`maxLanes`) is cosmetic: the
+ * same commits remain, so the scroll offset and selection are kept.
+ */
+export async function setGraphViewOptions(
+  patch: Partial<GraphViewOptions>,
+): Promise<void> {
+  const current = get(graphViewOptions);
+  const next = { ...current, ...patch };
+  const structuralChange =
+    (next.firstParent ?? false) !== (current.firstParent ?? false) ||
+    (next.branch ?? null) !== (current.branch ?? null);
+  const laneChange = (next.maxLanes ?? null) !== (current.maxLanes ?? null);
+  if (!structuralChange && !laneChange) return;
+
+  graphViewOptions.set(next);
+  viewportCache.clear();
+  if (structuralChange) {
+    clearGraphState();
+    await loadViewport(0);
+  } else {
+    await loadViewport(get(graphOffset));
+  }
+}
+
+/**
  * Per-project viewport cache for instant graph rendering on tab switch.
  * Keyed by project path. Stores the last viewport + scroll offset.
  */
@@ -135,7 +173,7 @@ export function restoreCachedViewport(projectPath: string): boolean {
 
 export async function loadViewport(offset: number) {
   graphOffset.set(offset);
-  const vp = await apiGetGraphViewport(offset, VIEWPORT_SIZE);
+  const vp = await apiGetGraphViewport(offset, VIEWPORT_SIZE, get(graphViewOptions));
   viewport.set(vp);
 }
 
@@ -171,6 +209,12 @@ export function reconcileViewport(fresh: GraphViewport): void {
     const idx = fresh.nodes.findIndex((n) => n.oid === cachedTopOid);
     if (idx > 0) {
       graphOffset.update((o) => o + idx);
+    } else if (idx < 0) {
+      // The old anchor fell outside the fresh window entirely (e.g. a
+      // pull rewrote history above it, or it was squashed away). Keeping
+      // the stale offset would scroll to an unrelated row — snap to the
+      // top so the user lands on the newest commits instead.
+      graphOffset.set(0);
     }
   }
   viewport.set(fresh);
@@ -208,7 +252,7 @@ export async function refreshAndReloadGraph(): Promise<void> {
     // Best-effort — fall through to the viewport fetch below.
   }
   const offset = get(graphOffset);
-  const fresh = await apiGetGraphViewport(offset, VIEWPORT_SIZE);
+  const fresh = await apiGetGraphViewport(offset, VIEWPORT_SIZE, get(graphViewOptions));
   reconcileViewport(fresh);
 }
 
@@ -364,6 +408,15 @@ export function clearGraphState() {
   fileDiffPanel.set(null);
   loadingFileDiff.set(false);
   selectedGroup.set(null);
+}
+
+/**
+ * Drop the project-specific part of the view mode. Called on project
+ * switch: branch names don't carry across repos, while the
+ * first-parent toggle is generic and survives.
+ */
+export function resetGraphViewScope() {
+  graphViewOptions.update((o) => (o.branch ? { ...o, branch: undefined } : o));
 }
 
 /** Full reset including viewport (used when no cache is available). */

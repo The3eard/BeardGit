@@ -8,7 +8,7 @@
 
   Slot order (left → right):
 
-      [ Tasks ] | [ Forge ] | [ AI ] | [ Network ]   (spacer)   [ Version ]
+      [ Tasks ] | [ AI ] | [ Repo ] | [ Forge ] | [ Network ]   (spacer)   [ Help ] | [ Version ]
 
   Heights: 22 px total. 1 px 40%-opacity dividers between slots.
 
@@ -23,6 +23,7 @@
     - **Network** is non-interactive and hides itself while online.
 -->
 <script lang="ts">
+  import RepoSlot from "./statusbar/RepoSlot.svelte";
   import TasksSlot from "./statusbar/TasksSlot.svelte";
   import ForgeSlot from "./statusbar/ForgeSlot.svelte";
   import AiSlot from "./statusbar/AiSlot.svelte";
@@ -62,9 +63,12 @@
   <div class="status-left">
     <TasksSlot onOpen={toggleTasksPopover} />
     <span class="divider" aria-hidden="true"></span>
-    <ForgeSlot {onNavigate} />
-    <span class="divider" aria-hidden="true"></span>
     <AiSlot {onNavigate} />
+    <span class="divider" aria-hidden="true"></span>
+    <!-- RepoSlot carries its own trailing divider so it collapses
+         cleanly on terminal/welcome tabs. -->
+    <RepoSlot onOpenView={(view) => activeViewStore.set(view)} />
+    <ForgeSlot {onNavigate} />
     <span class="divider" aria-hidden="true"></span>
     <NetworkSlot />
   </div>
@@ -84,8 +88,10 @@
     display: flex;
     align-items: stretch;
     justify-content: space-between;
-    padding: 0;
-    font-size: 11px;
+    /* Lateral breathing room — slots otherwise sit flush against the
+       window edges. */
+    padding: 0 10px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     user-select: none;
   }

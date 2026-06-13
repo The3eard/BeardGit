@@ -42,6 +42,7 @@
   import BackgroundRunStatusBadge from "../ai/BackgroundRunStatusBadge.svelte";
   import BackgroundRunTranscript from "../ai/BackgroundRunTranscript.svelte";
   import ProviderIcon from "./ProviderIcon.svelte";
+  import EmptyState from "../common/EmptyState.svelte";
   import { Button } from "$lib/components/ui";
   import {
     selectedActiveTerminal,
@@ -519,7 +520,12 @@
   </div>
 {:else}
   <div class="empty" data-testid="ai-session-detail-empty">
-    {m.ai_sessions_empty()}
+    <EmptyState
+      fill
+      icon={"\uF489"}
+      title={m.ai_sessions_empty()}
+      description={m.ai_sessions_empty_hint()}
+    />
   </div>
 {/if}
 
@@ -554,21 +560,21 @@
   }
 
   .provider {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 600;
     color: var(--text-primary);
     text-transform: capitalize;
   }
 
   .run-name {
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     color: var(--text-primary);
     word-break: break-all;
   }
 
   .provider-tag {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.4px;
@@ -577,7 +583,7 @@
   }
 
   .title-line {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
     color: var(--text-primary);
     line-height: 1.4;
@@ -585,7 +591,7 @@
   }
 
   .external-badge {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -601,13 +607,13 @@
     align-items: baseline;
     flex-wrap: wrap;
     gap: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
   .wt-path {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-primary);
     word-break: break-all;
   }
@@ -616,7 +622,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -628,7 +634,7 @@
   }
 
   .meta-row {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -648,10 +654,10 @@
   }
 
   .empty {
-    padding: 24px;
-    color: var(--text-secondary);
-    text-align: center;
-    font-size: 12px;
+    /* Flex wrapper kept only for the test id — the EmptyState inside
+       does the actual centering via `fill`. */
+    display: flex;
+    height: 100%;
   }
 
   /* ─── Prompt + transcript split ─────────────────────────────────── */
@@ -686,7 +692,7 @@
   }
 
   .split-title {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -706,7 +712,7 @@
     background: transparent;
     border: none;
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     text-transform: uppercase;
     letter-spacing: 0.4px;
     font-weight: 600;
@@ -733,7 +739,7 @@
     padding: 12px 14px;
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.55;
   }
 
@@ -744,8 +750,8 @@
     color: var(--text-primary);
   }
   .report-body :global(h1) { font-size: 15px; }
-  .report-body :global(h2) { font-size: 13px; }
-  .report-body :global(h3) { font-size: 12px; }
+  .report-body :global(h2) { font-size: var(--font-size-md); }
+  .report-body :global(h3) { font-size: var(--font-size-sm); }
   .report-body :global(p) { margin: 6px 0; }
   .report-body :global(ul),
   .report-body :global(ol) {
@@ -755,7 +761,7 @@
   .report-body :global(li) { margin: 2px 0; }
   .report-body :global(code) {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 1px 4px;
     background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     border-radius: 3px;
@@ -765,7 +771,7 @@
     padding: 8px 10px;
     border-radius: 4px;
     overflow: auto;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .report-body :global(pre code) {
     background: transparent;
@@ -799,14 +805,14 @@
 
   .output-empty-title {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     font-weight: 500;
   }
 
   .output-empty-hint {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     font-style: italic;
     max-width: 360px;
@@ -819,7 +825,7 @@
     overflow: auto;
     padding: 8px 10px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
     color: var(--text-primary);
     white-space: pre-wrap;
@@ -834,7 +840,7 @@
     align-items: center;
     justify-content: center;
     padding: 8px 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     font-style: italic;
     background: var(--bg-primary);

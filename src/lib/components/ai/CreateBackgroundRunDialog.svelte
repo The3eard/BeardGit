@@ -309,7 +309,7 @@
 
   .dialog-title {
     margin: 0 0 4px;
-    font-size: 14px;
+    font-size: var(--font-size-lg);
   }
 
   .row {
@@ -325,7 +325,7 @@
   }
 
   .field-label {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -334,7 +334,7 @@
 
   .field-hint {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -346,7 +346,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-mono);
     line-height: 1.2;
     outline: none;
@@ -388,7 +388,7 @@
     border: none;
     color: var(--text-secondary);
     padding: 6px 12px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
@@ -416,7 +416,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-mono);
     outline: none;
     resize: vertical;
@@ -432,7 +432,7 @@
   }
 
   .empty {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     font-style: italic;
     margin: 0;
@@ -440,7 +440,7 @@
   }
 
   .error-text {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     background: var(--overlay-accent-red);
     padding: 6px 10px;
@@ -450,7 +450,7 @@
   }
 
   .validation-text {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin: 0;
   }
@@ -464,7 +464,7 @@
   }
 
   .hint {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     margin-right: auto;
   }

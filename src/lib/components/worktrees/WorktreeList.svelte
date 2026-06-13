@@ -19,7 +19,8 @@
   import type { EnrichedWorktree } from "$lib/types";
   import type { AiProviderKind } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
-  import { IconButton } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
+  import EmptyState from "../common/EmptyState.svelte";
 
   interface Props {
     onNavigateToGraph?: (oid: string) => void;
@@ -166,7 +167,6 @@
   title={m.sidebar_worktrees().toUpperCase()}
   selectedKey={null}
   {getKey}
-  emptyMessage={m.worktree_list_empty()}
   onRefresh={refreshWorktrees}
   onContextMenu={handleContextMenu}
 >
@@ -182,6 +182,16 @@
       loading={$worktreeLoading}
       onclick={() => refreshWorktrees()}
     />
+  {/snippet}
+
+  {#snippet emptyState()}
+    <EmptyState icon={"\uE728"} title={m.worktree_list_empty()}>
+      {#snippet action()}
+        <Button variant="primary" size="sm" onclick={() => (showCreateDialog = true)}>
+          {m.worktree_create()}
+        </Button>
+      {/snippet}
+    </EmptyState>
   {/snippet}
 
   {#snippet row({ item })}
@@ -305,7 +315,7 @@
 
   .wt-branch {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-primary);
     white-space: nowrap;
     overflow: hidden;
@@ -359,7 +369,7 @@
 
   .wt-path {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     margin-top: 2px;
     white-space: nowrap;
@@ -383,7 +393,7 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     padding: 2px 4px;
     border-radius: 4px;
     cursor: pointer;

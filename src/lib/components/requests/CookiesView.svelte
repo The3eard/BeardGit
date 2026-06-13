@@ -30,7 +30,7 @@
   .empty {
     margin: 0;
     padding: 16px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     font-style: italic;
   }
@@ -53,7 +53,7 @@
 
   .cookies code {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     word-break: break-all;
   }

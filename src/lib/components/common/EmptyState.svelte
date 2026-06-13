@@ -28,12 +28,18 @@
     icon?: string;
     /** Optional primary CTA. Pass a snippet so callers control the button. */
     action?: Snippet;
+    /**
+     * Fill-and-center inside a flex parent. Use for detail panes
+     * ("select an item" placeholders) so the block sits at the pane's
+     * optical center instead of hugging the top.
+     */
+    fill?: boolean;
   }
 
-  const { title, description, icon, action }: Props = $props();
+  const { title, description, icon, action, fill = false }: Props = $props();
 </script>
 
-<div class="empty-state">
+<div class="empty-state" class:empty-state--fill={fill}>
   {#if icon}
     <span class="empty-state-icon" aria-hidden="true">{icon}</span>
   {/if}
@@ -47,6 +53,18 @@
 </div>
 
 <style>
+  .empty-state--fill {
+    flex: 1;
+    justify-content: center;
+    align-self: stretch;
+    min-height: 0;
+    /* Also center inside block parents (e.g. SplitView's `.split-main`
+       pane is not a flex container) — in flex parents `flex: 1` wins
+       and the explicit height is ignored for the main axis. */
+    height: 100%;
+    box-sizing: border-box;
+  }
+
   .empty-state-icon {
     font-family: var(--font-icons);
     font-size: 32px;

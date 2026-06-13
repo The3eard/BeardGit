@@ -22,6 +22,7 @@
     loadFileHistory,
   } from '$lib/stores/blame';
   import { activeTheme } from '$lib/stores/theme';
+  import EmptyState from '$lib/components/common/EmptyState.svelte';
   import { IconButton } from '$lib/components/ui';
   import { shortOid } from '$lib/utils/git';
   import * as m from '$lib/paraglide/messages';
@@ -123,14 +124,8 @@
         <div class="blame-placeholder">
           <span class="error-text">{$blameError}</span>
         </div>
-      {:else if !$blamePath}
-        <div class="blame-placeholder">
-          <span>{m.blame_no_file()}</span>
-        </div>
-      {:else if $blameLines.length === 0}
-        <div class="blame-placeholder">
-          <span>{m.blame_no_file()}</span>
-        </div>
+      {:else if !$blamePath || $blameLines.length === 0}
+        <EmptyState fill icon={"\uF15C"} title={m.blame_no_file()} />
       {:else}
         <div class="blame-split">
           <div class="gutter-scroll" bind:this={gutterEl}>
@@ -190,7 +185,7 @@
 
   .file-path {
     font-family: 'Fira Code', var(--font-mono), monospace;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--accent-primary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -198,7 +193,7 @@
   }
 
   .at-commit {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     background: var(--bg-secondary);
     padding: 2px 6px;
@@ -223,7 +218,7 @@
 
   .tab-btn {
     padding: 4px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     border: none;
     background: var(--bg-secondary);
@@ -259,7 +254,7 @@
     justify-content: center;
     gap: 8px;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .error-text {

@@ -261,13 +261,13 @@
 
   .detail__meta-row dt {
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     margin: 0;
   }
 
   .detail__meta-row dd {
     color: var(--text-primary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -287,7 +287,7 @@
     padding: 8px 10px;
     margin: 0;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     line-height: 1.45;
     color: var(--text-primary);
     white-space: pre;

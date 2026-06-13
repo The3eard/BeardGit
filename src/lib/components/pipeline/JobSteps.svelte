@@ -59,7 +59,7 @@
 
   .steps-header {
     padding: 8px 12px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -78,7 +78,7 @@
     align-items: center;
     gap: 8px;
     padding: 5px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
   }
 
@@ -87,7 +87,7 @@
   }
 
   .step-icon {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     width: 14px;
     text-align: center;
     flex-shrink: 0;
@@ -110,7 +110,7 @@
   }
 
   .step-duration {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     white-space: nowrap;
     flex-shrink: 0;

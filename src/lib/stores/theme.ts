@@ -3,7 +3,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { ThemeData, GraphTheme } from "../types";
 import { getTheme, getUiScale } from "../api/tauri";
-import { DEFAULT_GRAPH_THEME } from "../components/graph/graph-renderer";
+import { defaultGraphTheme } from "../components/graph/graph-renderer";
 
 export const activeTheme = writable<ThemeData | null>(null);
 
@@ -79,12 +79,16 @@ function computeOverlays(mode: string): Record<string, string> {
       "--overlay-hover": "rgba(0,0,0,0.04)",
       "--overlay-active": "rgba(0,0,0,0.08)",
       "--overlay-shadow": "rgba(0,0,0,0.15)",
+      "--shadow-overlay": "0 4px 12px rgba(0,0,0,0.14)",
+      "--shadow-modal": "0 12px 32px rgba(0,0,0,0.22)",
     };
   }
   return {
     "--overlay-hover": "rgba(255,255,255,0.06)",
     "--overlay-active": "rgba(255,255,255,0.1)",
     "--overlay-shadow": "rgba(0,0,0,0.3)",
+    "--shadow-overlay": "0 4px 12px rgba(0,0,0,0.35)",
+    "--shadow-modal": "0 12px 32px rgba(0,0,0,0.45)",
   };
 }
 
@@ -112,6 +116,10 @@ export function applyTheme(theme: ThemeData): void {
   el.setProperty("--border", d.border);
   el.setProperty("--selection", d.selection);
   el.setProperty("--theme-mode", theme.meta.mode);
+  // Native controls (checkbox, select, scrollbar) follow the theme's
+  // mode instead of always rendering light. Mirrors the static default
+  // in app.css `:root`.
+  el.setProperty("color-scheme", theme.meta.mode);
 
   const overlays = computeOverlays(theme.meta.mode);
   for (const [key, value] of Object.entries(overlays)) {
@@ -122,6 +130,28 @@ export function applyTheme(theme: ThemeData): void {
   for (const [key, value] of Object.entries(accentOverlays)) {
     el.setProperty(key, value);
   }
+
+  // Syntax + diff tokens for line-level highlighting outside CodeMirror
+  // (lib/styles/syntax.css). Falls back to the derived accents when a
+  // theme ships no explicit [editor] overrides.
+  const ed = theme.editor;
+  el.setProperty("--syntax-keyword", ed?.syntax_keyword ?? d.accent_red);
+  el.setProperty("--syntax-string", ed?.syntax_string ?? d.accent_green);
+  el.setProperty("--syntax-comment", ed?.syntax_comment ?? d.text_secondary);
+  el.setProperty("--syntax-function", ed?.syntax_function ?? d.accent_purple);
+  el.setProperty("--syntax-type", ed?.syntax_type ?? d.accent_blue);
+  el.setProperty("--syntax-number", ed?.syntax_number ?? d.accent_orange);
+  el.setProperty("--syntax-operator", ed?.syntax_operator ?? d.accent_red);
+  el.setProperty("--syntax-property", ed?.syntax_property ?? d.accent_blue);
+  if (ed?.added_bg) el.setProperty("--diff-added-bg", ed.added_bg);
+  if (ed?.removed_bg) el.setProperty("--diff-removed-bg", ed.removed_bg);
+  el.setProperty("--diff-added-text", ed?.added_text ?? d.accent_green);
+  el.setProperty("--diff-removed-text", ed?.removed_text ?? d.accent_red);
+  el.setProperty("--editor-cursor", ed?.cursor ?? d.accent_blue);
+  el.setProperty("--editor-selection", ed?.selection ?? d.selection);
+  el.setProperty("--editor-line-highlight", ed?.line_highlight ?? "transparent");
+  el.setProperty("--editor-gutter-bg", ed?.gutter_bg ?? d.bg_primary);
+  el.setProperty("--editor-gutter-fg", ed?.gutter_fg ?? d.text_secondary);
 
   updateCachedStatusColors();
 }
@@ -149,7 +179,7 @@ export function getThemedStatusColor(status: string): string {
 
 export function currentGraphTheme(): GraphTheme {
   const theme = get(activeTheme);
-  return theme ? buildGraphTheme(theme) : DEFAULT_GRAPH_THEME;
+  return theme ? buildGraphTheme(theme) : defaultGraphTheme();
 }
 
 export async function initTheme(themeName: string): Promise<void> {

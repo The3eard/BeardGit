@@ -176,7 +176,7 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     z-index: 1000;
-    box-shadow: 0 8px 32px var(--overlay-shadow);
+    box-shadow: var(--shadow-modal);
     display: flex;
     flex-direction: column;
     max-height: 85vh;
@@ -202,7 +202,7 @@
 
   .bg-dialog__title {
     margin: 0;
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -212,7 +212,7 @@
     overflow-y: auto;
     flex: 1;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     line-height: 1.5;
   }
 

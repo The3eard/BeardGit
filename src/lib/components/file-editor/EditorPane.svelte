@@ -228,7 +228,7 @@
     margin: auto;
     padding: 16px;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     text-align: center;
   }
   .placeholder.error {

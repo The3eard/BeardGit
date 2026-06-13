@@ -3,6 +3,7 @@
   import * as m from "$lib/paraglide/messages";
   import { doCreateTag } from "../../stores/tags";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -82,10 +83,14 @@
       </div>
 
       <div class="field-row">
-        <label class="toggle-label">
-          <input type="checkbox" bind:checked={annotated} />
-          <span>{m.tags_create_annotated_label()}</span>
-        </label>
+        <span class="toggle-label">
+          <Checkbox
+            id="tag-annotated"
+            checked={annotated}
+            onchange={(e) => { annotated = (e.target as HTMLInputElement).checked; }}
+          />
+          <label for="tag-annotated">{m.tags_create_annotated_label()}</label>
+        </span>
       </div>
 
       {#if annotated}
@@ -139,7 +144,7 @@
     border-radius: 8px;
     width: 100%;
     max-width: 420px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-modal);
     z-index: 1000;
     overflow: hidden;
   }
@@ -167,7 +172,7 @@
   }
 
   .field-label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--text-secondary);
   }
@@ -178,7 +183,7 @@
     border: 1px solid var(--border);
     border-radius: 5px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     transition: border-color 0.15s;
   }
@@ -192,7 +197,7 @@
   }
 
   .field-hint {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     opacity: 0.7;
   }
@@ -203,7 +208,7 @@
     border: 1px solid var(--border);
     border-radius: 5px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     resize: vertical;
     font-family: inherit;
@@ -224,21 +229,17 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
-    cursor: pointer;
     user-select: none;
   }
 
-  .toggle-label input[type="checkbox"] {
-    accent-color: var(--accent-primary);
-    width: 14px;
-    height: 14px;
+  .toggle-label label {
     cursor: pointer;
   }
 
   .error-msg {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     padding: 6px 10px;
     background: var(--overlay-accent-red);

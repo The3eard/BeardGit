@@ -15,7 +15,7 @@
   "Apply protection" button inside this card.
 -->
 <script lang="ts">
-  import { Button, Card, Field, FormRow } from "$lib/components/ui";
+  import { Button, Card, Field, FormRow, Switch } from "$lib/components/ui";
   import type { BranchProtection } from "$lib/types/repoConfig";
 
   /** Local alias — keeps this file independent of the provider store. */
@@ -125,16 +125,15 @@
           label="Require pull request before merging"
           for="protect-require-pr"
         >
-          <input
+          <Switch
             id="protect-require-pr"
-            type="checkbox"
             checked={rules.require_pull_request}
             onchange={(e) =>
               setRule(
                 "require_pull_request",
                 (e.target as HTMLInputElement).checked,
               )}
-            data-testid="protect-require-pr"
+            testid="protect-require-pr"
           />
         </FormRow>
 
@@ -161,16 +160,15 @@
           label="Require status checks to pass"
           for="protect-require-status"
         >
-          <input
+          <Switch
             id="protect-require-status"
-            type="checkbox"
             checked={rules.require_status_checks}
             onchange={(e) =>
               setRule(
                 "require_status_checks",
                 (e.target as HTMLInputElement).checked,
               )}
-            data-testid="protect-require-status"
+            testid="protect-require-status"
           />
         </FormRow>
 
@@ -178,16 +176,15 @@
           label="Require branches to be up-to-date before merging"
           for="protect-up-to-date"
         >
-          <input
+          <Switch
             id="protect-up-to-date"
-            type="checkbox"
             checked={rules.require_up_to_date}
             onchange={(e) =>
               setRule(
                 "require_up_to_date",
                 (e.target as HTMLInputElement).checked,
               )}
-            data-testid="protect-up-to-date"
+            testid="protect-up-to-date"
           />
         </FormRow>
 
@@ -195,30 +192,28 @@
           label="Require conversation resolution before merging"
           for="protect-resolve-conversations"
         >
-          <input
+          <Switch
             id="protect-resolve-conversations"
-            type="checkbox"
             checked={rules.require_conversation_resolution}
             onchange={(e) =>
               setRule(
                 "require_conversation_resolution",
                 (e.target as HTMLInputElement).checked,
               )}
-            data-testid="protect-resolve-conversations"
+            testid="protect-resolve-conversations"
           />
         </FormRow>
 
         <FormRow label="Include administrators" for="protect-enforce-admins">
-          <input
+          <Switch
             id="protect-enforce-admins"
-            type="checkbox"
             checked={rules.enforce_admins}
             onchange={(e) =>
               setRule(
                 "enforce_admins",
                 (e.target as HTMLInputElement).checked,
               )}
-            data-testid="protect-enforce-admins"
+            testid="protect-enforce-admins"
           />
         </FormRow>
 
@@ -251,13 +246,13 @@
   }
 
   .hint {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin: 0;
   }
 
   .error {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--accent-red);
     margin: 0;
   }
@@ -269,7 +264,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     min-width: 200px;
   }
 
@@ -281,7 +276,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .actions {

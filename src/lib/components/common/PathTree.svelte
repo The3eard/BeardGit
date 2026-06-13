@@ -172,15 +172,15 @@
     display: flex; align-items: center; gap: 6px;
     width: 100%; background: none; border: none;
     text-align: left; cursor: pointer;
-    font-family: var(--font-mono); font-size: 12px;
+    font-family: var(--font-mono); font-size: var(--font-size-sm);
     color: var(--text-primary); padding: 3px 10px;
     line-height: 1.4;
   }
   .folder:hover, .leaf:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
   .leaf.selected { background: var(--overlay-accent-blue); }
-  .ftype { font-family: var(--font-icons); font-size: 14px; width: 16px; flex-shrink: 0; text-align: center; line-height: 1; }
+  .ftype { font-family: var(--font-icons); font-size: var(--font-size-lg); width: 16px; flex-shrink: 0; text-align: center; line-height: 1; }
   .folder-icon { color: var(--accent-primary); }
   .file-icon { color: var(--text-secondary); }
   .folder-name, .leaf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .agg { margin-left: auto; font-size: 11px; color: var(--text-secondary); }
+  .agg { margin-left: auto; font-size: var(--font-size-xs); color: var(--text-secondary); }
 </style>

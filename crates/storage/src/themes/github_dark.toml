@@ -23,3 +23,17 @@ bright-blue = "#79c0ff"
 bright-magenta = "#d2a8ff"
 bright-cyan = "#56d4dd"
 bright-white = "#f0f6fc"
+
+# Pin the authentic GitHub Dark editor scheme — the generic derivation
+# (string→green, number→yellow, blended diff backgrounds) would drift
+# this brand theme away from the look GitHub users expect.
+[editor]
+added-bg = "#1b3829"
+removed-bg = "#3c1e22"
+syntax-keyword = "#ff7b72"
+syntax-string = "#a5d6ff"
+syntax-function = "#d2a8ff"
+syntax-type = "#79c0ff"
+syntax-number = "#79c0ff"
+syntax-operator = "#ff7b72"
+syntax-property = "#7ee787"

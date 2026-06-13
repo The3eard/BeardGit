@@ -137,7 +137,7 @@
     border-radius: 6px;
     padding: 4px 0;
     min-width: 180px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-overlay);
   }
 
   .menu-item-wrap {
@@ -152,7 +152,7 @@
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     text-align: left;
     cursor: pointer;
   }

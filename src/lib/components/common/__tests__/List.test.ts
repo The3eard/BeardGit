@@ -68,11 +68,11 @@ describe("List.refreshing", () => {
     expect(getByTestId("list-loading-bar")).toBeTruthy();
   });
 
-  it("renders the centred spinner when loading=true and items is empty", () => {
+  it("renders skeleton rows when loading=true and items is empty", () => {
     const { container } = render(List, {
       props: { ...baseProps, items: [], loading: true },
     });
-    expect(container.querySelector(".list-loading .spinner")).not.toBeNull();
+    expect(container.querySelector('[data-testid="skeleton"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="list-loading-bar"]')).toBeNull();
   });
 });

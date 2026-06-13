@@ -145,15 +145,25 @@
   });
 
 
+  /** Max width for the changes sidebar: 80% of the changes layout,
+   *  measured from the resize handle's container so the diff pane
+   *  always keeps ~20%. Falls back to the window when unmounted. */
+  function changesSidebarMaxWidth(handle: HTMLElement | null): number {
+    const containerWidth =
+      handle?.parentElement?.clientWidth ?? window.innerWidth;
+    return containerWidth * 0.8;
+  }
+
   function startChangesSidebarResize(e: MouseEvent) {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = changesSidebarWidth;
+    const maxW = changesSidebarMaxWidth(e.currentTarget as HTMLElement);
     isDraggingChanges = true;
 
     function onMouseMove(e: MouseEvent) {
       const delta = e.clientX - startX;
-      changesSidebarWidth = Math.max(240, Math.min(600, startWidth + delta));
+      changesSidebarWidth = Math.max(240, Math.min(maxW, startWidth + delta));
     }
 
     function onMouseUp() {
@@ -176,7 +186,8 @@
       changesSidebarWidth = Math.max(240, changesSidebarWidth - 20);
     } else if (e.key === "ArrowRight") {
       e.preventDefault();
-      changesSidebarWidth = Math.min(600, changesSidebarWidth + 20);
+      const maxW = changesSidebarMaxWidth(e.currentTarget as HTMLElement);
+      changesSidebarWidth = Math.min(maxW, changesSidebarWidth + 20);
     } else if (e.key === "Home") {
       e.preventDefault();
       resetChangesSidebarWidth();
@@ -191,7 +202,7 @@
       applyTheme(theme);
     } catch (e) {
       try {
-        await initTheme("github-dark");
+        await initTheme("beardgit-dark");
       } catch {
         addToast({ message: m.theme_load_failed(), type: "error" });
       }
@@ -972,7 +983,14 @@
               {#if $loadingPrFileDiff}
                 <div class="spinner"></div>
               {:else if $prFileDiffError}
-                <div class="diff-error" role="alert">{$prFileDiffError}</div>
+                <div class="diff-error-state" role="alert">
+                  <EmptyState
+                    fill
+                    icon={"\uF071"}
+                    title={m.pr_diff_error_title()}
+                    description={$prFileDiffError}
+                  />
+                </div>
               {:else if $prFileDiff}
                 <DiffEditor
                   oldContent={$prFileDiff.oldContent}
@@ -1252,7 +1270,7 @@
   }
 
   .welcome-subtitle {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
   }
 
@@ -1268,7 +1286,7 @@
     color: var(--text-primary);
     border: 1px solid var(--border);
     border-radius: 6px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
@@ -1297,7 +1315,7 @@
   }
 
   .welcome-recent-title {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-secondary);
@@ -1305,7 +1323,7 @@
   }
 
   .welcome-recent-empty {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     opacity: 0.7;
   }
@@ -1340,12 +1358,12 @@
   }
 
   .welcome-recent-name {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
   }
 
   .welcome-recent-path {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     font-family: var(--font-mono);
     overflow: hidden;
@@ -1355,18 +1373,18 @@
 
   .welcome-hint {
     margin-top: 24px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     opacity: 0.7;
   }
 
   .loading-text {
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     color: var(--text-secondary);
   }
 
   .error-text {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--accent-orange);
     max-width: 400px;
     text-align: center;
@@ -1441,18 +1459,18 @@
 
   .nav-btn {
     background: none; border: none; color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 2px 6px; cursor: pointer;
   }
   .nav-btn:hover { color: var(--text-primary); }
   .diff-position {
-    color: var(--text-secondary); font-size: 11px; margin-left: auto;
+    color: var(--text-secondary); font-size: var(--font-size-xs); margin-left: auto;
     padding-right: 8px;
   }
-  .diff-error {
-    padding: 12px 16px;
-    color: var(--text-error, #f85149);
-    font-size: 13px;
+  .diff-error-state {
+    display: flex;
+    height: 100%;
+    overflow-y: auto;
   }
 
 </style>

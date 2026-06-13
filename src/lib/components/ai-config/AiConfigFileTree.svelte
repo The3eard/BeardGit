@@ -316,7 +316,7 @@
   }
 
   .section-label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -325,7 +325,7 @@
   }
 
   .section-count {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     padding: 1px 6px;
@@ -333,7 +333,7 @@
   }
 
   .section-add {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     background: none;
     border: none;
@@ -362,14 +362,14 @@
   }
 
   .banner-icon {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--accent-primary);
     flex-shrink: 0;
     margin-top: 1px;
   }
 
   .banner-text {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     line-height: 1.4;
   }
@@ -378,7 +378,7 @@
 
   .list-empty {
     padding: 12px 16px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     font-style: italic;
   }
@@ -395,7 +395,7 @@
     cursor: pointer;
     user-select: none;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .tree-folder:hover {
@@ -414,14 +414,14 @@
   }
 
   .folder-icon {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     flex-shrink: 0;
     color: var(--accent-yellow);
     opacity: 0.7;
   }
 
   .folder-name {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -437,7 +437,7 @@
     padding-bottom: 5px;
     padding-right: 12px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
   }
 
@@ -450,7 +450,7 @@
   }
 
   .file-icon {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     flex-shrink: 0;
     color: var(--text-secondary);
   }
@@ -467,7 +467,7 @@
     white-space: nowrap;
     min-width: 0;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .dirty-dot {

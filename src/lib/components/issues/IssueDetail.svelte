@@ -21,12 +21,13 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as m from "$lib/paraglide/messages";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import EmptyState from "../common/EmptyState.svelte";
   import LabelPicker from "../common/LabelPicker.svelte";
   import AssigneePicker from "./AssigneePicker.svelte";
   import MilestonePicker from "./MilestonePicker.svelte";
   import Xrefs from "../common/Xrefs.svelte";
   import { renderMarkdown } from "../../utils/markdown";
-  import { Button, IconButton } from "$lib/components/ui";
+  import { Button, IconButton, Skeleton } from "$lib/components/ui";
 
   let showCloseConfirm = $state(false);
   let actionError = $state("");
@@ -129,9 +130,9 @@
 </script>
 
 {#if $issueDetailLoading}
-  <div class="detail-empty">{m.issues_loading()}</div>
+  <Skeleton variant="detail" rows={6} />
 {:else if !$issueDetail}
-  <div class="detail-empty">{m.issues_select()}</div>
+  <EmptyState fill icon={"\uF188"} title={m.issues_select()} />
 {:else}
   {@const detail = $issueDetail}
   <div class="issue-detail">
@@ -142,7 +143,7 @@
       </h3>
       <IconButton
         tone="default"
-        icon={""}
+        icon={"\uF08E"}
         description={m.issues_open_browser()}
         onclick={() => openUrl(detail.summary.url)}
       />
@@ -178,7 +179,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_labels()}</h4>
-        <IconButton tone="default" icon={""} description={m.issues_edit()} onclick={openLabelPicker} />
+        <IconButton tone="default" icon={"\uF044"} description={m.issues_edit()} onclick={openLabelPicker} />
       </div>
       <div class="label-list">
         {#each detail.summary.labels as label}
@@ -197,7 +198,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_assignees()}</h4>
-        <IconButton tone="default" icon={""} description={m.issues_edit()} onclick={() => showAssigneePicker = true} />
+        <IconButton tone="default" icon={"\uF044"} description={m.issues_edit()} onclick={() => showAssigneePicker = true} />
       </div>
       <div class="assignee-list">
         {#each detail.summary.assignees as a}
@@ -212,7 +213,7 @@
     <div class="section">
       <div class="section-head">
         <h4 class="section-title">{m.issues_milestone()}</h4>
-        <IconButton tone="default" icon={""} description={m.issues_edit()} onclick={() => showMilestonePicker = true} />
+        <IconButton tone="default" icon={"\uF044"} description={m.issues_edit()} onclick={() => showMilestonePicker = true} />
       </div>
       <div class="milestone-display">
         {detail.summary.milestone?.title ?? m.issues_no_milestone()}
@@ -300,14 +301,6 @@
 {/if}
 
 <style>
-  .detail-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
   .issue-detail {
     padding: 16px;
     overflow-y: auto;
@@ -322,7 +315,7 @@
   }
   .detail-title {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--font-size-xl);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -334,7 +327,7 @@
     display: flex;
     gap: 8px;
     align-items: center;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin-bottom: 12px;
     padding-bottom: 12px;
@@ -343,7 +336,7 @@
   .state-badge {
     padding: 2px 8px;
     border-radius: 10px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     background: color-mix(in srgb, var(--accent-green) 15%, transparent);
     color: var(--accent-green);
@@ -366,7 +359,7 @@
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 4px;
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .section { margin-bottom: 16px; }
   .section-head {
@@ -376,14 +369,14 @@
   }
   .section-title {
     margin: 0 0 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
   .description-body {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-primary);
     line-height: 1.5;
     word-wrap: break-word;
@@ -403,14 +396,14 @@
     padding: 8px 10px;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .description-body :global(code:not(pre code)) {
     padding: 1px 4px;
     background: var(--bg-secondary);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .description-body :global(table) {
     border-collapse: collapse;
@@ -420,10 +413,6 @@
   .description-body :global(td) {
     border: 1px solid var(--border);
     padding: 4px 8px;
-  }
-  .description-body :global(input[type="checkbox"]) {
-    margin-right: 4px;
-    pointer-events: none;
   }
   .description-body :global(a) {
     color: var(--accent-primary);
@@ -444,22 +433,22 @@
   .label-tag {
     padding: 2px 8px;
     border-radius: 12px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .assignee-tag {
     padding: 2px 8px;
     border-radius: 12px;
     background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
     color: var(--accent-primary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .empty-inline {
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-style: italic;
   }
   .milestone-display {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-primary);
   }
   .comment {
@@ -472,7 +461,7 @@
     display: flex;
     gap: 8px;
     margin-bottom: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .comment-author {
     font-weight: 600;
@@ -480,7 +469,7 @@
   }
   .comment-date { color: var(--text-secondary); }
   .comment-body {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     line-height: 1.4;
     word-wrap: break-word;
@@ -493,14 +482,14 @@
     padding: 8px 10px;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .comment-body :global(code:not(pre code)) {
     padding: 1px 4px;
     background: var(--bg-secondary);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
   .comment-body :global(table) {
     border-collapse: collapse;
@@ -510,10 +499,6 @@
   .comment-body :global(td) {
     border: 1px solid var(--border);
     padding: 4px 8px;
-  }
-  .comment-body :global(input[type="checkbox"]) {
-    margin-right: 4px;
-    pointer-events: none;
   }
   .comment-body :global(a) {
     color: var(--accent-primary);
@@ -537,7 +522,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-family: inherit;
     resize: vertical;
     min-height: 50px;
@@ -555,7 +540,7 @@
     color: var(--text-primary);
     border: 1px solid var(--accent-primary);
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
   }
   .btn-comment:disabled { opacity: 0.5; cursor: not-allowed; }

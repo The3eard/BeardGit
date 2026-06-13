@@ -132,12 +132,12 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: shadow neutral always-dark */
+    box-shadow: var(--shadow-modal);
   }
 
   .dialog-title {
     margin: 0 0 16px;
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -150,7 +150,7 @@
   }
 
   .label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.4px;
     color: var(--text-secondary);
@@ -159,7 +159,7 @@
   .input {
     width: 100%;
     padding: 6px 10px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 4px;

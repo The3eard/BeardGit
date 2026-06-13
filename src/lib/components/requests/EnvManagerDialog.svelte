@@ -421,7 +421,7 @@
     padding: 6px 10px;
     border-radius: 4px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     cursor: pointer;
   }
@@ -447,7 +447,7 @@
   }
 
   .env-manager__label {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--text-primary);
   }
@@ -456,19 +456,19 @@
     display: flex;
     align-items: baseline;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
   }
 
   .env-manager__heading code {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
   }
 
   .env-manager__section-title {
     margin: 12px 0 0 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -477,14 +477,14 @@
 
   .env-manager__hint {
     margin: 0 0 4px 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     line-height: 1.45;
   }
 
   .env-manager__hint code {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 0 3px;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -494,7 +494,7 @@
   .env-manager__error {
     margin: 8px 0 0 0;
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .kv {
@@ -528,7 +528,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     box-sizing: border-box;
   }

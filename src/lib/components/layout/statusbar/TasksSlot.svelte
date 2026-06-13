@@ -4,10 +4,10 @@
   Renders a Nerd-font checklist glyph that mirrors the state of the most
   recent background task. Four signals layer on top:
 
-    - **Spin animation** — fires while any task is `running`
-      (`anyRunning`). Replaces the old pulse-on-count-increase bump with
-      a continuous rotation so long-running work is obvious without
-      watching the count.
+    - **Spinner ring** — replaces the glyph while any task is `running`
+      (`anyRunning`), so in-flight work is obvious without watching the
+      count. At rest the checklist glyph returns (the old rotating sync
+      glyph read as a "refresh" button).
     - **State colour** — the glyph takes on the accent/green/red/muted
       colour for the latest task's status. Running wins over terminal
       states so a freshly-started task doesn't inherit the previous
@@ -84,9 +84,13 @@
   type="button"
 >
   <span class="icon-wrap">
-    <span class="nf glyph" class:spin={spinning} aria-hidden="true"
-      >{"\uF46A"}</span
-    >
+    {#if spinning}
+      <!-- A real spinner ring while work is in flight \u2014 the old
+           rotating sync glyph read as a "refresh" button. -->
+      <span class="slot-spinner" aria-hidden="true"></span>
+    {:else}
+      <span class="nf glyph" aria-hidden="true">{"\uF0AE"}</span>
+    {/if}
     {#if unseenError}
       <span class="error-dot" data-testid="statusbar-tasks-error-dot"></span>
     {/if}
@@ -107,7 +111,7 @@
     border: none;
     color: var(--text-secondary);
     font: inherit;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
     user-select: none;
     transition: color 0.15s;
@@ -151,8 +155,13 @@
     display: inline-block;
   }
 
-  .glyph.spin {
-    animation: tasks-spin 1.1s linear infinite;
+  .slot-spinner {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor;
+    animation: tasks-spin 0.8s linear infinite;
   }
 
   .error-dot {
@@ -182,7 +191,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .glyph.spin {
+    .slot-spinner {
       animation: none;
     }
   }

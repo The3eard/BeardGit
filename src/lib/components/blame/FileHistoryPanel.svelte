@@ -83,7 +83,7 @@
     justify-content: center;
     gap: 8px;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .history-empty {
@@ -92,7 +92,7 @@
     align-items: center;
     justify-content: center;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
   }
 
   .history-list {
@@ -113,7 +113,7 @@
     cursor: pointer;
     text-align: left;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     transition: background 0.1s;
   }
 
@@ -131,7 +131,7 @@
     font-family: 'Fira Code', var(--font-mono), monospace;
     color: var(--accent-primary);
     flex-shrink: 0;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .message {
@@ -139,14 +139,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .row-bottom {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -174,7 +174,7 @@
   }
 
   .rename-badge {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--accent-orange);
     font-style: italic;
     padding-top: 2px;
@@ -184,7 +184,7 @@
     padding: 8px 12px;
     border-top: 1px solid var(--border);
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     opacity: 0.7;
     text-align: center;
     flex-shrink: 0;

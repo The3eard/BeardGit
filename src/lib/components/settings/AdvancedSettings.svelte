@@ -72,7 +72,7 @@
     clearLayoutCache,
   } from "$lib/api/tauri";
   import { addToast } from "$lib/stores/toast";
-  import { Card, SettingSection, FormRow, Button } from "$lib/components/ui";
+  import { Card, SettingSection, FormRow, Button, Switch } from "$lib/components/ui";
   import { formatRelativeTimeMs } from "$lib/utils/time";
 
   /* Hardcoded copy of the updater endpoint configured in
@@ -277,11 +277,9 @@
         for="update-auto-toggle"
         helperText={m.update_settings_auto_check_hint()}
       >
-        <input
+        <Switch
           id="update-auto-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="update-auto-toggle"
+          testid="update-auto-toggle"
           checked={autoCheck}
           onchange={handleToggleAutoCheck}
         />
@@ -336,15 +334,8 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
-  }
-
-  .bg-checkbox {
-    accent-color: var(--accent-primary);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
   }
 
   .update-diagnostics {
@@ -356,7 +347,7 @@
   }
 
   .diag-line {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     line-height: 1.4;
   }

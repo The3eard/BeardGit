@@ -3,7 +3,7 @@
  *
  * The list scenarios drive `list_mr_prs`; the detail scenario also
  * drives `get_mr_pr_detail` (requested when a row is clicked) and
- * `list_mr_pr_diff_files` for the file list.
+ * `get_mr_pr_diff` for the file list.
  */
 
 import { expect, test } from "@playwright/test";
@@ -72,7 +72,7 @@ for (const mode of THEME_MODES) {
           get_mr_pr_detail: makeMrPrDetail({
             summary: makeMrPr({ number: targetNumber, title: list[0].title }),
           }),
-          list_mr_pr_diff_files: [
+          get_mr_pr_diff: [
             makeMrPrDiffFile({
               path: "tests/visual/helpers/mock-ipc.ts",
               status: "A",

@@ -149,7 +149,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     box-sizing: border-box;
   }

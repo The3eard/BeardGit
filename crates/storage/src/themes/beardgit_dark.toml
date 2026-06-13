@@ -1,0 +1,34 @@
+[meta]
+id = "beardgit-dark"
+name = "BeardGit Dark"
+mode = "dark"
+complementary = "beardgit-light"
+
+# BeardGit's signature theme — near-neutral charcoal surfaces with a copper
+# primary accent. Deliberately warmer than the GitHub palette so the
+# app reads as its own product, not a fork.
+
+[colors]
+background = "#151312"
+foreground = "#e8e4de"
+black = "#45403a"
+red = "#e0604c"
+green = "#8fbc62"
+yellow = "#e0a458"
+blue = "#6fb1cc"
+magenta = "#c78bb0"
+cyan = "#7cc7b8"
+white = "#c6c0b8"
+bright-black = "#948e86"
+bright-red = "#f08573"
+bright-green = "#abd084"
+bright-yellow = "#f0bd72"
+bright-blue = "#92c9e0"
+bright-magenta = "#dcabc9"
+bright-cyan = "#9cd9cc"
+bright-white = "#f3f0ea"
+
+[accents]
+primary = "#d9924f"
+secondary = "cyan"
+tertiary = "green"

@@ -19,6 +19,7 @@ use storage::database::Database;
 use watcher::RepoWatcher;
 
 use crate::ai_background::AiBackgroundCoordinator;
+use crate::commands::GraphLayoutOptions;
 
 /// A cached `Arc<dyn ForgeProvider>` tagged with the state it was built for.
 pub struct ForgeProviderCacheEntry {
@@ -64,6 +65,10 @@ pub struct ProjectSlot {
     pub repo: Option<Repository>,
     /// Pre-computed graph layout. `None` if not loaded.
     pub layout: Option<GraphLayout>,
+    /// The options `layout` was computed with. Viewport commands compare this
+    /// against the frontend-requested options and rebuild on mismatch, so the
+    /// slot always carries the layout for the mode currently on screen.
+    pub layout_options: GraphLayoutOptions,
     /// Filesystem watcher. `None` if not loaded.
     pub watcher: Option<RepoWatcher>,
     /// Current HEAD branch name. Always populated (cheap to read).

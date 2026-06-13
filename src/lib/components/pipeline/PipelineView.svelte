@@ -29,12 +29,17 @@
     e.preventDefault();
     const startY = e.clientY;
     const startHeight = detailHeight;
+    // Measure the right pane at drag start: the detail may grow up to
+    // 80% of it, so the job log always keeps ~20%.
+    const containerHeight =
+      (e.currentTarget as HTMLElement).parentElement?.clientHeight ??
+      window.innerHeight;
 
     function onMouseMove(e: MouseEvent) {
       const delta = e.clientY - startY;
-      // Min: 80px (enough for first row of jobs), max: 70% of viewport
+      // Min: 80px (enough for first row of jobs), max: 80% of the pane
       const minH = 80;
-      const maxH = Math.min(window.innerHeight * 0.7, window.innerHeight - 120);
+      const maxH = containerHeight * 0.8;
       detailHeight = Math.max(minH, Math.min(maxH, startHeight + delta));
     }
 

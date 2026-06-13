@@ -55,7 +55,7 @@
     gap: 8px;
     align-items: center;
     padding: 4px 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     border-bottom: 1px solid var(--border);
   }
   .file {
@@ -80,7 +80,7 @@
   }
   .icon {
     font-family: var(--font-icons);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .ok {
     color: var(--accent-green);
@@ -90,6 +90,6 @@
   }
   .err-msg {
     color: var(--accent-red);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 </style>

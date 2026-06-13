@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import EmptyState from "../common/EmptyState.svelte";
   import DiffEditor from "../editor/DiffEditor.svelte";
   import { stashes, selectedStashIndex, selectedStashDiff, doStashApplyFile } from "../../stores/stashes";
   import { activeTheme } from "../../stores/theme";
@@ -56,9 +57,7 @@
     </div>
   </div>
 {:else}
-  <div class="detail-empty">
-    <p>{m.stash_select_preview()}</p>
-  </div>
+  <EmptyState fill icon={"\uF187"} title={m.stash_select_preview()} />
 {/if}
 
 <style>
@@ -76,7 +75,7 @@
   }
 
   .stash-detail-title {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 4px;
@@ -85,7 +84,7 @@
   .stash-detail-meta {
     display: flex;
     gap: 12px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 
@@ -113,7 +112,7 @@
   }
 
   .stash-diff-path {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     font-family: var(--font-mono);
     color: var(--text-primary);
@@ -131,7 +130,7 @@
     border: 1px solid var(--border);
     color: var(--text-primary);
     border-radius: 4px;
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     cursor: pointer;
     transition: background 0.15s;
   }
@@ -143,7 +142,7 @@
   }
 
   .stash-diff-stats {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
   }
 
   .stat-add {

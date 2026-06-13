@@ -132,7 +132,7 @@
 
   .field-label {
     display: block;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -147,7 +147,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-family: var(--font-mono);
     outline: none;
     box-sizing: border-box;
@@ -170,7 +170,7 @@
     background: color-mix(in srgb, var(--text-primary) 3%, transparent);
     border: 1px solid var(--border);
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-family: var(--font-mono);
     color: var(--text-secondary);
     margin-bottom: 12px;
@@ -182,7 +182,7 @@
     background: var(--overlay-accent-red);
     border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
     border-radius: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--accent-red);
     margin-bottom: 12px;
     word-break: break-word;

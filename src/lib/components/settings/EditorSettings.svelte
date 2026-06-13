@@ -95,7 +95,7 @@
 
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import { Card, SettingSection, FormRow } from "$lib/components/ui";
+  import { Card, SettingSection, FormRow, Switch } from "$lib/components/ui";
   import { editorPrefs, updateEditorPrefs } from "$lib/stores/editorPrefs";
   import type { EditorPreferences } from "$lib/types";
 
@@ -171,11 +171,9 @@
         label={m.settings_editor_autocomplete()}
         for="editor-autocomplete-toggle"
       >
-        <input
+        <Switch
           id="editor-autocomplete-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="editor-autocomplete-toggle"
+          testid="editor-autocomplete-toggle"
           checked={$editorPrefs?.autocomplete ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("autocomplete", e)}
@@ -186,11 +184,9 @@
         label={m.settings_editor_close_brackets()}
         for="editor-close-brackets-toggle"
       >
-        <input
+        <Switch
           id="editor-close-brackets-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="editor-close-brackets-toggle"
+          testid="editor-close-brackets-toggle"
           checked={$editorPrefs?.close_brackets ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("close_brackets", e)}
@@ -201,10 +197,8 @@
         label={m.settings_editor_bracket_matching()}
         for="editor-bracket-matching-toggle"
       >
-        <input
+        <Switch
           id="editor-bracket-matching-toggle"
-          type="checkbox"
-          class="bg-checkbox"
           checked={$editorPrefs?.bracket_matching ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("bracket_matching", e)}
@@ -215,10 +209,8 @@
         label={m.settings_editor_highlight_active_line()}
         for="editor-highlight-active-line-toggle"
       >
-        <input
+        <Switch
           id="editor-highlight-active-line-toggle"
-          type="checkbox"
-          class="bg-checkbox"
           checked={$editorPrefs?.highlight_active_line ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("highlight_active_line", e)}
@@ -229,10 +221,8 @@
         label={m.settings_editor_highlight_selection_matches()}
         for="editor-highlight-selection-matches-toggle"
       >
-        <input
+        <Switch
           id="editor-highlight-selection-matches-toggle"
-          type="checkbox"
-          class="bg-checkbox"
           checked={$editorPrefs?.highlight_selection_matches ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("highlight_selection_matches", e)}
@@ -243,10 +233,8 @@
         label={m.settings_editor_fold_gutter()}
         for="editor-fold-gutter-toggle"
       >
-        <input
+        <Switch
           id="editor-fold-gutter-toggle"
-          type="checkbox"
-          class="bg-checkbox"
           checked={$editorPrefs?.fold_gutter ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("fold_gutter", e)}
@@ -257,10 +245,8 @@
         label={m.settings_editor_indent_on_input()}
         for="editor-indent-on-input-toggle"
       >
-        <input
+        <Switch
           id="editor-indent-on-input-toggle"
-          type="checkbox"
-          class="bg-checkbox"
           checked={$editorPrefs?.indent_on_input ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("indent_on_input", e)}
@@ -271,10 +257,8 @@
         label={m.settings_editor_line_wrapping()}
         for="editor-line-wrapping-toggle"
       >
-        <input
+        <Switch
           id="editor-line-wrapping-toggle"
-          type="checkbox"
-          class="bg-checkbox"
           checked={$editorPrefs?.line_wrapping ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("line_wrapping", e)}
@@ -285,10 +269,8 @@
         label={m.settings_editor_rectangular_selection()}
         for="editor-rectangular-selection-toggle"
       >
-        <input
+        <Switch
           id="editor-rectangular-selection-toggle"
-          type="checkbox"
-          class="bg-checkbox"
           checked={$editorPrefs?.rectangular_selection ?? false}
           disabled={loading}
           onchange={(e) => handleToggle("rectangular_selection", e)}
@@ -299,10 +281,8 @@
         label={m.settings_editor_crosshair_cursor()}
         for="editor-crosshair-cursor-toggle"
       >
-        <input
+        <Switch
           id="editor-crosshair-cursor-toggle"
-          type="checkbox"
-          class="bg-checkbox"
           checked={$editorPrefs?.crosshair_cursor ?? false}
           disabled={loading}
           onchange={(e) => handleToggle("crosshair_cursor", e)}
@@ -314,11 +294,9 @@
         for="editor-indent-guides-toggle"
         helperText={m.settings_editor_indent_guides_description()}
       >
-        <input
+        <Switch
           id="editor-indent-guides-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="editor-indent-guides-toggle"
+          testid="editor-indent-guides-toggle"
           checked={$editorPrefs?.indent_guides ?? false}
           disabled={loading}
           onchange={(e) => handleToggle("indent_guides", e)}
@@ -337,11 +315,9 @@
         for="editor-snippets-toggle"
         helperText={m.settings_editor_snippets_description()}
       >
-        <input
+        <Switch
           id="editor-snippets-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="editor-snippets-toggle"
+          testid="editor-snippets-toggle"
           checked={$editorPrefs?.snippets ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("snippets", e)}
@@ -353,11 +329,9 @@
         for="editor-keyword-completion-toggle"
         helperText={m.settings_editor_keyword_completion_description()}
       >
-        <input
+        <Switch
           id="editor-keyword-completion-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="editor-keyword-completion-toggle"
+          testid="editor-keyword-completion-toggle"
           checked={$editorPrefs?.keyword_completion ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("keyword_completion", e)}
@@ -369,11 +343,9 @@
         for="editor-json-lint-toggle"
         helperText={m.settings_editor_json_lint_description()}
       >
-        <input
+        <Switch
           id="editor-json-lint-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="editor-json-lint-toggle"
+          testid="editor-json-lint-toggle"
           checked={$editorPrefs?.json_lint ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("json_lint", e)}
@@ -385,11 +357,9 @@
         for="editor-color-picker-toggle"
         helperText={m.settings_editor_color_picker_description()}
       >
-        <input
+        <Switch
           id="editor-color-picker-toggle"
-          type="checkbox"
-          class="bg-checkbox"
-          data-testid="editor-color-picker-toggle"
+          testid="editor-color-picker-toggle"
           checked={$editorPrefs?.color_picker ?? true}
           disabled={loading}
           onchange={(e) => handleToggle("color_picker", e)}
@@ -429,10 +399,8 @@
           for="editor-indent-with-tabs-toggle"
           helperText={m.settings_editor_indent_with_tabs_description()}
         >
-          <input
+          <Switch
             id="editor-indent-with-tabs-toggle"
-            type="checkbox"
-            class="bg-checkbox"
             checked={$editorPrefs?.indent_with_tabs ?? false}
             disabled={loading}
             onchange={(e) => handleToggle("indent_with_tabs", e)}
@@ -446,10 +414,8 @@
           for="editor-respect-gitignore-toggle"
           helperText={m.settings_editor_respect_gitignore_description()}
         >
-          <input
+          <Switch
             id="editor-respect-gitignore-toggle"
-            type="checkbox"
-            class="bg-checkbox"
             checked={$editorPrefs?.respect_gitignore_in_tree ?? false}
             disabled={loading}
             onchange={(e) => handleToggle("respect_gitignore_in_tree", e)}
@@ -486,20 +452,13 @@
 </Card>
 
 <style>
-  .bg-checkbox {
-    accent-color: var(--accent-primary);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-  }
-
   .bg-select {
     padding: 5px 10px;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     outline: none;
     cursor: pointer;
     min-width: 96px;
@@ -523,7 +482,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: inherit;
     outline: none;
   }
@@ -533,7 +492,7 @@
   }
 
   .bg-numeric-unit {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
 </style>

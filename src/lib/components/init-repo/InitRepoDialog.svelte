@@ -27,7 +27,7 @@
   import { openProjectTab } from "$lib/stores/projects";
   import { MULTI_PURPOSE_GITIGNORE } from "$lib/data/gitignore-template";
   import { addToast } from "$lib/stores/toast";
-  import { Button, Dialog } from "$lib/components/ui";
+  import { Button, Checkbox, Dialog } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
 
   // ── Local reactive state ─────────────────────────────────────────────
@@ -245,10 +245,14 @@
   <p class="dialog-intro">{m.init_repo_intro({ path: path ?? "" })}</p>
 
   <fieldset class="section" disabled={inFlight}>
-    <label class="checkbox" title={m.tooltip_add_remote()}>
-      <input type="checkbox" bind:checked={createRemote} />
-      <span>{m.init_repo_add_remote()}</span>
-    </label>
+    <span class="checkbox" title={m.tooltip_add_remote()}>
+      <Checkbox
+        id="init-add-remote"
+        checked={createRemote}
+        onchange={(e) => { createRemote = (e.target as HTMLInputElement).checked; }}
+      />
+      <label for="init-add-remote">{m.init_repo_add_remote()}</label>
+    </span>
 
     {#if createRemote}
       <div class="mode-group" role="radiogroup">
@@ -346,14 +350,18 @@
   </fieldset>
 
   <fieldset class="section" disabled={inFlight}>
-    <label class="checkbox" title={m.tooltip_commit_files()}>
-      <input type="checkbox" bind:checked={initialCommit} />
-      <span>
+    <span class="checkbox" title={m.tooltip_commit_files()}>
+      <Checkbox
+        id="init-initial-commit"
+        checked={initialCommit}
+        onchange={(e) => { initialCommit = (e.target as HTMLInputElement).checked; }}
+      />
+      <label for="init-initial-commit">
         {createRemote
           ? m.init_repo_commit_files_and_push()
           : m.init_repo_commit_files()}
-      </span>
-    </label>
+      </label>
+    </span>
     {#if initialCommit && count}
       <div class="hint">
         {count.truncated
@@ -392,7 +400,7 @@
 <style>
   .dialog-intro {
     margin: 0 0 8px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
   }
   .section {
@@ -409,7 +417,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
   .mode-group {
     display: flex;
@@ -422,17 +430,17 @@
     gap: 4px;
   }
   .field-label {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
   .hint {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
   .banner {
     padding: 8px 12px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     margin-top: 8px;
   }
   .banner-error {
@@ -450,6 +458,6 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 </style>

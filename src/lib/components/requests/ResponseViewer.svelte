@@ -76,7 +76,7 @@
     background: transparent;
     color: var(--text-secondary);
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     transition:
       background 0.12s ease,

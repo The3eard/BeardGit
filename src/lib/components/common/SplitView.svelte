@@ -19,7 +19,8 @@
     refreshFn: () => void | Promise<void>;
     left: Snippet;
     right: Snippet;
-    /** Initial width of the left panel in px. Clamped to 220..600 on resize. */
+    /** Initial width of the left panel in px. On resize the width is
+     *  clamped between 220px and 80% of the split container. */
     defaultWidth?: number;
   } = $props();
 
@@ -32,11 +33,16 @@
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = sidebarWidth;
+    // Measure the split container at drag start: the left pane may grow
+    // up to 80% of it, so the right pane always keeps ~20%.
+    const containerWidth =
+      (e.currentTarget as HTMLElement).parentElement?.clientWidth ??
+      window.innerWidth;
 
     function onMouseMove(e: MouseEvent) {
       const delta = e.clientX - startX;
       const minW = Math.max(220, window.innerWidth * 0.15);
-      const maxW = Math.min(600, window.innerWidth * 0.5);
+      const maxW = containerWidth * 0.8;
       sidebarWidth = Math.max(minW, Math.min(maxW, startWidth + delta));
     }
 

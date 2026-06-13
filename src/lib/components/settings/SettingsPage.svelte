@@ -386,7 +386,7 @@
   }
 
   .settings-topbar__title {
-    font-size: 14px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     color: var(--text-primary);
     flex-shrink: 0;
@@ -406,7 +406,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 6px;
-    box-shadow: 0 8px 24px var(--overlay-shadow);
+    box-shadow: var(--shadow-overlay);
     z-index: 10;
     max-height: 280px;
     overflow-y: auto;
@@ -423,7 +423,7 @@
     background: transparent;
     border: none;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: inherit;
     cursor: pointer;
     text-align: left;
@@ -439,14 +439,14 @@
   }
 
   .settings-search-result__meta {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     flex-shrink: 0;
   }
 
   .settings-search-empty {
     padding: 10px 12px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     text-align: center;
     font-style: italic;
@@ -484,14 +484,14 @@
 
   .settings-content__title {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--font-size-xl);
     font-weight: 600;
     color: var(--text-primary);
   }
 
   .settings-content__description {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
     line-height: 1.5;
   }

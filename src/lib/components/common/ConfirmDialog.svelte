@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import Button from "$lib/components/ui/Button.svelte";
+  import { Checkbox } from "$lib/components/ui";
 
   let {
     title,
@@ -60,14 +61,15 @@
   {/if}
   <p class="dialog-message">{message}</p>
   {#if checkboxLabel}
-    <label class="dialog-checkbox">
-      <input
-        type="checkbox"
-        bind:checked={checkboxChecked}
-        data-testid="dialog-checkbox"
+    <span class="dialog-checkbox">
+      <Checkbox
+        id="dialog-checkbox"
+        testid="dialog-checkbox"
+        checked={checkboxChecked}
+        onchange={(e) => { checkboxChecked = (e.target as HTMLInputElement).checked; }}
       />
-      <span>{checkboxLabel}</span>
-    </label>
+      <label for="dialog-checkbox">{checkboxLabel}</label>
+    </span>
   {/if}
   <div class="dialog-actions">
     <Button variant="neutral" testid="dialog-cancel-btn" onclick={onCancel}>{cancelLabel}</Button>
@@ -99,7 +101,7 @@
     background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     border: 1px solid var(--border);
     border-radius: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-mono);
     color: var(--text-primary);
     line-height: 1.5;
@@ -108,7 +110,7 @@
 
   .dialog-message {
     margin: 0 0 20px;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: var(--text-secondary);
     line-height: 1.4;
   }
@@ -118,14 +120,12 @@
     align-items: center;
     gap: 8px;
     margin: -8px 0 16px;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
-    cursor: pointer;
     user-select: none;
   }
 
-  .dialog-checkbox input {
-    margin: 0;
+  .dialog-checkbox label {
     cursor: pointer;
   }
 </style>

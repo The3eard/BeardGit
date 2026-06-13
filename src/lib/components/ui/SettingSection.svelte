@@ -115,7 +115,7 @@
 
   .bg-setting-section__chevron {
     font-family: var(--font-icons);
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--text-secondary);
     width: 12px;
     display: inline-flex;
@@ -131,14 +131,14 @@
   }
 
   .bg-setting-section__title {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-primary);
     margin: 0;
   }
 
   .bg-setting-section__description {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     margin: 0;
     line-height: 1.45;

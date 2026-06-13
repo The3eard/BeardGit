@@ -71,6 +71,7 @@
     SettingSection,
     FormRow,
     Field,
+    Switch,
   } from "$lib/components/ui";
   // ProviderIcon is shared with AiSessions + Spec 4's generic-icon fix.
   import ProviderIcon from "$lib/components/ai-sessions/ProviderIcon.svelte";
@@ -248,12 +249,13 @@
         for="bg-auto-accept"
         helperText={m.settings_ai_auto_accept_hint()}
       >
-        <input
+        <Switch
           id="bg-auto-accept"
-          type="checkbox"
-          class="bg-checkbox"
-          bind:checked={bgSettings.auto_accept_permissions}
-          onchange={saveBgSettings}
+          checked={bgSettings.auto_accept_permissions}
+          onchange={(e) => {
+            bgSettings.auto_accept_permissions = (e.target as HTMLInputElement).checked;
+            saveBgSettings();
+          }}
         />
       </FormRow>
     </div>
@@ -311,21 +313,21 @@
     min-width: 0;
   }
   .provider-name {
-    font-size: 13px;
+    font-size: var(--font-size-md);
     font-weight: 500;
     color: var(--text-primary);
   }
   .provider-version {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
   }
   .provider-status.not-found {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     font-style: italic;
   }
   .provider-status.detecting {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
     display: inline-flex;
     align-items: center;
@@ -348,7 +350,7 @@
   }
 
   .preferred-badge {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     color: var(--accent-primary);
     background: var(--overlay-accent-blue);
@@ -358,7 +360,7 @@
   }
 
   .detected-badge {
-    font-size: 10px;
+    font-size: var(--font-size-2xs);
     color: var(--accent-green);
     background: var(--overlay-accent-green);
     padding: 2px 8px;
@@ -368,7 +370,7 @@
 
   .empty-state {
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-style: italic;
   }
 
@@ -378,7 +380,7 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-family: var(--font-mono);
     outline: none;
     box-sizing: border-box;
@@ -394,20 +396,13 @@
     border-color: var(--accent-primary);
   }
 
-  .bg-checkbox {
-    accent-color: var(--accent-primary);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-  }
-
   .error-text {
     color: var(--accent-red);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 
   .saving-text {
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
   }
 </style>
