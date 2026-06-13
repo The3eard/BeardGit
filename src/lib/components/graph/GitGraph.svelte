@@ -232,6 +232,39 @@
     ctx2.textBaseline = 'alphabetic';
   }
 
+  /**
+   * Fingerprint of the last painted frame. `draw()` bails when nothing
+   * pixel-affecting changed — `reconcileViewport` hands us a fresh
+   * viewport reference with identical content on every mutation, and
+   * the ResizeObserver fires with unchanged dimensions, both of which
+   * otherwise trigger a full repaint. Reference identity for the
+   * viewport/theme is enough: a real change always swaps the reference
+   * (new viewport from the store, new theme object), so we never skip
+   * a paint that matters but we drop the no-op ones.
+   */
+  let lastDrawKey: string | null = null;
+
+  function forceRedraw() {
+    lastDrawKey = null;
+    scheduleDraw();
+  }
+
+  // Stable per-reference ids so the draw key treats "same object" as
+  // "same content" without serialising the whole viewport/map.
+  let objIdCounter = 0;
+  const objIds = new WeakMap<object, number>();
+  function refId(o: object | null | undefined): string {
+    if (!o) return "_";
+    let id = objIds.get(o);
+    if (id === undefined) {
+      id = ++objIdCounter;
+      objIds.set(o, id);
+    }
+    return String(id);
+  }
+  const vpId = (vp: GraphViewportType | null | undefined) => refId(vp ?? undefined);
+  const mrPrId = (m: object | null | undefined) => refId(m ?? undefined);
+
   function draw() {
     if (!ctx || !canvas) return;
 
@@ -258,6 +291,34 @@
     const canvasH = canvas.height / canvasDpr;
 
     const graphTheme = $activeTheme ? buildGraphTheme($activeTheme) : defaultGraphTheme();
+
+    // Skip the repaint when every pixel-affecting input is unchanged.
+    // Viewport/theme/mrPr identity stand in for their content — the
+    // store always swaps the reference on a real change. `vpId` tags
+    // each distinct viewport object so an equal-content reconcile still
+    // counts as "changed" only when the reference differs.
+    const drawKey = JSON.stringify({
+      vp: vpId(activeVp),
+      th: $activeTheme?.meta.id ?? "_",
+      off: filteredViewport ? filteredOffset : $graphOffset,
+      filt: isFiltering,
+      sel: $selectedOid,
+      grp: $selectedGroup,
+      hr: hoveredRow,
+      hg: hoveredGroup,
+      w: canvasW,
+      h: canvasH,
+      cols: columns.map((c) => `${c.id}:${c.visible ? c.width : 0}`).join(","),
+      mr: mrPrId($mrPrByBranch),
+      gh: $activeProvider?.kind === "github",
+      ue: $userEmails.length,
+      bg: bisectGoodSet.size,
+      bb: bisectBadSet.size,
+      bs: bisectSkipSet.size,
+      bc: bisectCurrentOid,
+    });
+    if (drawKey === lastDrawKey) return;
+    lastDrawKey = drawKey;
 
     if (filteredViewport) {
       // Slice filtered nodes for offset-based scrolling within filtered results
@@ -359,7 +420,10 @@
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    draw();
+    // Force a repaint: a DPR-only change keeps the CSS dimensions (and
+    // thus the draw key) identical while the backing store differs, so
+    // the dedup guard would otherwise skip the needed re-render.
+    forceRedraw();
   }
 
   function handleWheel(e: WheelEvent) {
