@@ -1213,5 +1213,8 @@
   "window_controls_maximize": "Maximize",
   "window_controls_restore": "Restore",
   "window_controls_close": "Close window",
-  "statusbar_repo_open_changes": "Open Changes"
+  "statusbar_repo_open_changes": "Open Changes",
+  "graph_first_parent": "First parent",
+  "graph_first_parent_tooltip": "Follow only each commit’s first parent — a simplified mainline view",
+  "graph_all_branches": "All branches"
 }

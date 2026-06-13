@@ -38,7 +38,7 @@ import {
 } from "./provider";
 import { refreshStatuses, clearChangesState } from "./changes";
 import { loadProjectSnapshot, saveCurrentSnapshot, restorePersistedViewport } from "./project-cache";
-import { refreshUserEmails, clearGraphState, cacheViewport, restoreCachedViewport } from "./graph";
+import { refreshUserEmails, clearGraphState, resetGraphViewScope, cacheViewport, restoreCachedViewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
 import { clearBranchState, cacheBranchesForProject, restoreCachedBranches } from "./branches";
 import { clearTagState } from "./tags";
@@ -259,6 +259,7 @@ async function activateProjectTab(tabIndex: number) {
 
   stopAllPolling();
   clearGraphState();
+    resetGraphViewScope();
   clearBranchState();
   clearTagState();
   clearStashState();
@@ -429,6 +430,7 @@ export async function closeTab(tabIndex: number) {
     activeTabIndex.set(-1);
     stopAllPolling();
     clearGraphState();
+    resetGraphViewScope();
     clearBranchState();
     clearTagState();
     clearStashState();
