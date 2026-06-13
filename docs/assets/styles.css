@@ -487,7 +487,13 @@ section + section { border-top: 1px solid var(--rule); }
   border: 1px solid var(--rule-strong);
   border-radius: 12px;
   background: var(--bg-elev);
+  font: inherit; color: var(--fg); text-align: left;
+  transition: border-color .2s, background .2s, transform .1s;
 }
+button.theme-chip { cursor: pointer; }
+button.theme-chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+button.theme-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-chip.active { border-color: var(--accent); background: var(--mock-active); }
 .theme-swatch {
   width: 34px; height: 34px;
   border-radius: 8px;

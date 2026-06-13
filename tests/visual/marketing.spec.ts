@@ -57,6 +57,7 @@ import {
   makeFileDiff,
   makeStatusSummary,
 } from "../../src/test/fixtures";
+import { SHOWCASE_THEMES } from "./fixtures/theme-data";
 
 const COMMIT_OID = "5e8ec3ea4b29f07c3d8e6021f9a4c7b8d0e1f234";
 const GOOD_OID = "80beb31c7a14e9d2f6b305a8c1e0742b9d63f5a0";
@@ -145,6 +146,32 @@ function commonFixtures(host: "github" | "gitlab"): IpcResponses {
     // Editor
     list_workdir_tree: workdirTree(),
     read_workdir_file: readFileResult(),
+
+    // Requests (.http) workspace
+    requests_list_project: [
+      { kind: "file", name: "create-task.http", rel_path: "create-task.http", children: [] },
+      { kind: "file", name: "list-tasks.http", rel_path: "list-tasks.http", children: [] },
+      { kind: "file", name: "complete-task.http", rel_path: "complete-task.http", children: [] },
+      { kind: "file", name: "health.http", rel_path: "health.http", children: [] },
+    ],
+    requests_list_global: [],
+    requests_get_envs: [
+      { name: "local", active: true, var_count: 3 },
+      { name: "prod", active: false, var_count: 3 },
+    ],
+    requests_history: [],
+    requests_load: [
+      {
+        name: "Create task",
+        method: "POST",
+        url: "{{base_url}}/api/tasks",
+        headers: [
+          ["Content-Type", "application/json"],
+          ["Authorization", "Bearer {{token}}"],
+        ],
+        body: '{\n  "title": "Ship the recurring-tasks feature",\n  "tag": "work",\n  "repeat": "weekly",\n  "due": "2026-05-04"\n}',
+      },
+    ],
   };
 }
 
@@ -176,6 +203,7 @@ const GH_VIEWS: ViewSpec[] = [
   { label: "Pull Requests", slug: "pull-requests", select: "feat(recurrence)" },
   { label: "Releases", slug: "releases" },
   { label: "AI Sessions", slug: "ai-sessions" },
+  { label: "Requests", slug: "requests", select: "create-task.http" },
   { label: "Settings", slug: "themes" },
 ];
 
@@ -237,3 +265,34 @@ test.beforeAll(async () => {
 
 runViews("github", GH_PROJECT, GH_VIEWS);
 runViews("gitlab", GL_PROJECT, GL_VIEWS);
+
+/**
+ * Theme previews — the in-app editor rendered under each native theme
+ * family, light + dark, using the real derived ThemeData. These back
+ * the clickable theme chips in the landing's Themes section. The editor
+ * view is chosen because its syntax palette varies most across themes.
+ */
+const THEME_BASES = ["beardgit", "fjord", "nebula"];
+for (const mode of THEME_MODES) {
+  test.describe(`marketing — theme previews — ${mode}`, () => {
+    for (const base of THEME_BASES) {
+      test(`theme-${base}-${mode}`, async ({ page }) => {
+        const data = SHOWCASE_THEMES[`${base}-${mode}`];
+        await installBootstrapMocks(page, {
+          mode,
+          forge: "github",
+          activeProject: GH_PROJECT,
+          recentRepos: [{ path: GH_PROJECT.path, name: GH_PROJECT.name }],
+          extra: { ...commonFixtures("github"), resolve_startup_theme: data, get_theme: data },
+        });
+        await page.goto("/");
+        await waitForAppReady(page);
+        await applyTheme(page, mode);
+        await clickNav(page, "Editor");
+        await settle(page);
+        await trySelect(page, ["src", "store.rs"]);
+        await page.screenshot({ path: `${OUT_DIR}/theme-${base}-${mode}.png` });
+      });
+    }
+  });
+}
