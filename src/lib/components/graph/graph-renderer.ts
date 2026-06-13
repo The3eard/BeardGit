@@ -253,9 +253,11 @@ export function renderGraph(
     ctx.globalAlpha = 1.0;
   }
 
-  // HEAD lane background tint
+  // HEAD lane background tint — dimmed along with the other lanes when a
+  // branch group is selected, so the highlighted branch stands out
+  // instead of competing with a full-strength background wash.
   if (headLane !== null) {
-    ctx.globalAlpha = selectedGroup === null ? 1.0 : 1.0; // HEAD tint always visible
+    ctx.globalAlpha = selectedGroup === null ? 1.0 : theme.dimOpacity;
     ctx.fillStyle = theme.headLaneTint;
     ctx.fillRect(
       laneX(headLane) - LANE_WIDTH / 2,
