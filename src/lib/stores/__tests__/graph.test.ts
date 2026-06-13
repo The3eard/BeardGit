@@ -68,13 +68,21 @@ describe("reloadGraph", () => {
   it("re-fetches the viewport at the current offset", async () => {
     graphOffset.set(300);
     await reloadGraph();
-    expect(getGraphViewport).toHaveBeenCalledWith(300, expect.any(Number));
+    expect(getGraphViewport).toHaveBeenCalledWith(
+      300,
+      expect.any(Number),
+      expect.any(Object),
+    );
   });
 
   it("defaults to offset 0 when none has been set", async () => {
     graphOffset.set(0);
     await reloadGraph();
-    expect(getGraphViewport).toHaveBeenCalledWith(0, expect.any(Number));
+    expect(getGraphViewport).toHaveBeenCalledWith(
+      0,
+      expect.any(Number),
+      expect.any(Object),
+    );
   });
 });
 
@@ -140,7 +148,11 @@ describe("refreshAndReloadGraph", () => {
     vi.mocked(getGraphViewport).mockResolvedValueOnce(fresh);
     await refreshAndReloadGraph();
     expect(refreshGraphLayout).toHaveBeenCalledTimes(1);
-    expect(getGraphViewport).toHaveBeenCalledWith(0, expect.any(Number));
+    expect(getGraphViewport).toHaveBeenCalledWith(
+      0,
+      expect.any(Number),
+      expect.any(Object),
+    );
     expect(get(viewport)).toBe(fresh);
   });
 

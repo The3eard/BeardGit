@@ -10,7 +10,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { get } from "svelte/store";
-  import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails, reloadGraph } from "../../stores/graph";
+  import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails, reloadGraph, graphViewOptions, setGraphViewOptions } from "../../stores/graph";
   import { repoInfo } from "../../stores/repo";
   import { renderGraph, hitTest, graphHitTest, getResizeTarget, ROW_HEIGHT, DEFAULT_COLUMNS, defaultGraphTheme, type GraphColumn } from "./graph-renderer";
   import { getLastMetrics, getRollingFps } from "./graph-perf";
@@ -25,6 +25,7 @@
   import RebaseEditor from "../rebase/RebaseEditor.svelte";
   import { debounce } from "../../utils/debounce";
   import SearchBar from "../common/SearchBar.svelte";
+  import { branches as branchesStore } from "../../stores/branches";
   import { activeTheme, buildGraphTheme } from "../../stores/theme";
   import type { SearchTag } from "../../search/types";
   import type { GraphViewport as GraphViewportType } from "../../types";
@@ -41,6 +42,18 @@
   // Stored DPR used for current canvas backing store — keeps draw() consistent with resizeCanvas()
   let canvasDpr = $state(window.devicePixelRatio || 1);
   let showColumnMenu = $state(false);
+  let showBranchMenu = $state(false);
+  let branchToggleEl = $state<HTMLDivElement | undefined>(undefined);
+  /** Local branch names for the scope dropdown (current first). */
+  let scopeBranches = $derived(
+    [...$branchesStore]
+      .filter((b) => !b.is_remote)
+      .sort((a, b) => Number(b.is_head) - Number(a.is_head) || a.name.localeCompare(b.name)),
+  );
+  async function pickBranchScope(name: string | undefined) {
+    showBranchMenu = false;
+    await setGraphViewOptions({ branch: name });
+  }
   let columnToggleEl: HTMLDivElement | undefined = $state();
 
   // Row hover state
@@ -881,6 +894,46 @@
       onSearch={handleGraphSearch}
       testId="graph-search"
     />
+    <div class="view-controls">
+      <Button
+        variant="neutral"
+        size="sm"
+        active={$graphViewOptions.firstParent ?? false}
+        description={m.graph_first_parent_tooltip()}
+        onclick={() =>
+          void setGraphViewOptions({
+            firstParent: !($graphViewOptions.firstParent ?? false),
+          })}
+      >{m.graph_first_parent()}</Button>
+      <div class="column-toggle" bind:this={branchToggleEl}>
+        <Button
+          variant="neutral"
+          size="sm"
+          active={showBranchMenu || Boolean($graphViewOptions.branch)}
+          ariaHaspopup="menu"
+          ariaExpanded={showBranchMenu}
+          onclick={() => (showBranchMenu = !showBranchMenu)}
+        >{$graphViewOptions.branch ?? m.graph_all_branches()}</Button>
+        {#if showBranchMenu}
+          <div class="column-dropdown branch-dropdown" role="menu">
+            <button
+              type="button"
+              class="branch-option"
+              class:selected={!$graphViewOptions.branch}
+              onclick={() => void pickBranchScope(undefined)}
+            >{m.graph_all_branches()}</button>
+            {#each scopeBranches as b (b.name)}
+              <button
+                type="button"
+                class="branch-option"
+                class:selected={$graphViewOptions.branch === b.name}
+                onclick={() => void pickBranchScope(b.name)}
+              >{b.name}</button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </div>
     <div class="column-toggle" bind:this={columnToggleEl}>
       <Button variant="neutral" size="sm" active={showColumnMenu} onclick={() => showColumnMenu = !showColumnMenu}>{m.graph_columns()}</Button>
       {#if showColumnMenu}
@@ -1004,6 +1057,44 @@
 
   .column-toggle {
     position: relative;
+  }
+
+  .view-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .branch-dropdown {
+    max-height: 320px;
+    overflow-y: auto;
+    min-width: 180px;
+  }
+
+  .branch-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 5px 10px;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .branch-option:hover {
+    background: var(--overlay-hover);
+  }
+
+  .branch-option.selected {
+    color: var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   }
 
   .column-dropdown {
