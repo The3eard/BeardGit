@@ -327,11 +327,27 @@
     });
   }
 
+  /** Last applied lane-budget bucket — only reload when it changes. */
+  let laneBucket = 0;
+
+  /**
+   * Pick a lane budget from the available width in coarse buckets so a
+   * 1px resize never reloads — narrow windows keep the default 8 lanes,
+   * wide ones get 12 (the backend clamps to 4..=16).
+   */
+  function syncLaneBudget(widthPx: number) {
+    const bucket = widthPx > 900 ? 12 : 8;
+    if (bucket === laneBucket) return;
+    laneBucket = bucket;
+    void setGraphViewOptions({ maxLanes: bucket });
+  }
+
   function resizeCanvas() {
     if (!canvas || !container) return;
     const dpr = window.devicePixelRatio || 1;
     canvasDpr = dpr;
     const rect = container.getBoundingClientRect();
+    syncLaneBudget(rect.width);
     // Round to integer physical pixels to avoid subpixel blurriness
     const pxWidth = Math.round(rect.width * dpr);
     const pxHeight = Math.round(rect.height * dpr);
