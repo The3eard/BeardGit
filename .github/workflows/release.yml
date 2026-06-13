@@ -3,6 +3,9 @@ name: Release
 on:
   push:
     tags:
+      # CalVer scheme YYYY.MM.MICRO (e.g. 2026.6.0) — no `v` prefix.
+      - '[0-9]*'
+      # Legacy semver tags (v0.2.1, …) stay buildable for hotfixes.
       - 'v*'
 
 permissions:
