@@ -118,28 +118,32 @@ const VIEWPORT_SIZE = 300;
 export const graphViewOptions = writable<GraphViewOptions>({});
 
 /**
- * Update the view mode and reload from the top. Changing mode
- * invalidates the per-project viewport cache (its slices were built
- * for the previous mode) and drops the selection — the selected
- * commit may not exist in the new view (e.g. a merged-branch commit
- * under first-parent).
+ * Update the view mode and reload. A structural change (first-parent
+ * toggle or branch scope) invalidates the per-project viewport cache,
+ * drops the selection — the selected commit may not exist in the new
+ * view (e.g. a merged-branch commit under first-parent) — and reloads
+ * from the top. A lane-budget change (`maxLanes`) is cosmetic: the
+ * same commits remain, so the scroll offset and selection are kept.
  */
 export async function setGraphViewOptions(
   patch: Partial<GraphViewOptions>,
 ): Promise<void> {
   const current = get(graphViewOptions);
   const next = { ...current, ...patch };
-  if (
-    (next.firstParent ?? false) === (current.firstParent ?? false) &&
-    (next.branch ?? null) === (current.branch ?? null) &&
-    (next.maxLanes ?? null) === (current.maxLanes ?? null)
-  ) {
-    return;
-  }
+  const structuralChange =
+    (next.firstParent ?? false) !== (current.firstParent ?? false) ||
+    (next.branch ?? null) !== (current.branch ?? null);
+  const laneChange = (next.maxLanes ?? null) !== (current.maxLanes ?? null);
+  if (!structuralChange && !laneChange) return;
+
   graphViewOptions.set(next);
   viewportCache.clear();
-  clearGraphState();
-  await loadViewport(0);
+  if (structuralChange) {
+    clearGraphState();
+    await loadViewport(0);
+  } else {
+    await loadViewport(get(graphOffset));
+  }
 }
 
 /**
