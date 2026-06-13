@@ -64,6 +64,26 @@
     applyTheme(next);
   });
 
+  /* ---------- Themes section: click a chip to preview that theme ----------
+     Each chip carries data-light/data-dark URLs for the editor rendered in
+     that theme; we swap them onto the preview <img> and reuse the existing
+     light/dark variant logic so the page's theme toggle still applies. */
+  const themeChips = document.querySelectorAll(".theme-chip[data-light]");
+  const themePreviewImg = document.querySelector("#theme-preview .shot-img");
+  const themeLabel = document.querySelector("[data-theme-label]");
+  themeChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      themeChips.forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      if (themePreviewImg) {
+        themePreviewImg.dataset.srcLight = chip.dataset.light;
+        themePreviewImg.dataset.srcDark = chip.dataset.dark;
+        syncScreenshotVariants();
+      }
+      if (themeLabel) themeLabel.textContent = chip.dataset.themeName || "";
+    });
+  });
+
   /* ---------- Reveal on scroll ---------- */
   root.classList.add("js-reveal");
   const io = new IntersectionObserver(
