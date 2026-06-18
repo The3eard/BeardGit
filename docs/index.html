@@ -6,8 +6,8 @@
   <title>BeardGit — your whole repo, in one window</title>
   <meta name="description" content="Your whole repo in one window — graph, PRs/MRs, issues, CI/CD, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor. Native desktop. No Electron. macOS · Linux · Windows." />
   <meta name="color-scheme" content="light dark" />
-  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#151312" media="(prefers-color-scheme: dark)" />
 
   <link rel="canonical" href="https://the3eard.github.io/BeardGit/" />
 
@@ -15,7 +15,7 @@
   <meta property="og:description" content="Stop juggling six tabs to ship a commit. Graph, PRs/MRs, issues, CI/CD, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor — in a single native desktop app. No Electron. No telemetry." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://the3eard.github.io/BeardGit/" />
-  <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png" />
+  <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260613d" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="BeardGit — your whole repo, in one window" />
@@ -23,13 +23,13 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="BeardGit — your whole repo, in one window" />
   <meta name="twitter:description" content="Stop juggling six tabs to ship a commit. Graph, PRs/MRs, issues, CI/CD, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor — in a single native desktop app." />
-  <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png" />
+  <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260613d" />
   <meta name="twitter:image:alt" content="BeardGit — your whole repo, in one window" />
 
-  <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg?v=20260613d" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260613d" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png?v=20260613d" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20260613d" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -37,7 +37,7 @@
   <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,301,400,401,500,501,700,701,900,901&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="stylesheet" href="assets/styles.css?v=20260613d" />
 
   <script type="application/ld+json">
   {
@@ -51,7 +51,7 @@
     "downloadUrl": "https://github.com/The3eard/BeardGit/releases/latest",
     "softwareRequirements": "macOS (Apple Silicon), Linux x64 (libwebkit2gtk-4.1), Windows x64 (WebView2)",
     "license": "https://github.com/The3eard/BeardGit/blob/main/LICENSE.md",
-    "image": "https://the3eard.github.io/BeardGit/assets/og-image.png",
+    "image": "https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260613d",
     "author": {
       "@type": "Person",
       "name": "Adolfo Fuentes",
@@ -73,13 +73,14 @@
   <nav class="nav">
     <div class="wrap nav-inner">
       <a href="#top" class="brand" style="border:none">
-        <img src="assets/logo.svg" alt="" class="brand-mark" />
+        <img src="assets/logo.svg?v=20260613d" alt="" class="brand-mark" />
         <span class="brand-name">BeardGit</span>
       </a>
       <div class="nav-links">
         <a href="#manifesto">Manifesto</a>
-        <a href="#features">Features</a>
         <a href="#showcase">Showcase</a>
+        <a href="#themes">Themes</a>
+        <a href="#features">Features</a>
         <a href="#audience">For you?</a>
         <a href="#shortcuts">Keys</a>
         <a href="#install">Install</a>
@@ -117,7 +118,8 @@
             Graph, <strong style="color:var(--fg)">PRs &amp; MRs</strong>, CI/CD, issues, releases, terminals,
             <strong style="color:var(--fg)">AI agents</strong>, an in-repo
             <strong style="color:var(--fg)">.http workspace</strong>, and an
-            <strong style="color:var(--fg)">in-app editor</strong> — in one native app.
+            <strong style="color:var(--fg)">in-app editor</strong> — in one native app,
+            <strong style="color:var(--fg)">themed end to end</strong>.
           </p>
 
           <div class="cta-row reveal">
@@ -237,141 +239,352 @@
         <div class="section-head-meta">§ 02 — Interface</div>
       </div>
 
-      <figure class="shot-figure reveal">
-        <div class="screenshot-slot" data-slot="main-window">
-          <picture>
-            <source class="shot-src" type="image/avif"
-                    data-srcset-light="assets/screenshots/main-light.avif"
-                    data-srcset-dark="assets/screenshots/main-dark.avif"
-                    srcset="assets/screenshots/main-dark.avif" />
-            <source class="shot-src" type="image/webp"
-                    data-srcset-light="assets/screenshots/main-light.webp"
-                    data-srcset-dark="assets/screenshots/main-dark.webp"
-                    srcset="assets/screenshots/main-dark.webp" />
-            <img class="shot-img"
-                 data-src-light="assets/screenshots/main-light.png"
-                 data-src-dark="assets/screenshots/main-dark.png"
-                 src="assets/screenshots/main-dark.png"
-                 width="2784" height="1824"
-                 fetchpriority="high" decoding="async"
-                 alt="BeardGit main window — commit graph, branches, and diff in a single tab" />
-          </picture>
+            <div class="carousel" id="shot-carousel">
+        <button class="carousel-arrow prev" type="button" aria-label="Previous screenshot" data-dir="-1">‹</button>
+        <div class="carousel-track">
+    <figure class="shot-figure carousel-slide">
+            <div class="screenshot-slot" data-slot="graph">
+              <picture>
+                <source class="shot-src" type="image/avif"
+                        data-srcset-light="assets/screenshots/graph-light.avif?v=20260613d"
+                        data-srcset-dark="assets/screenshots/graph-dark.avif?v=20260613d"
+                        srcset="assets/screenshots/graph-dark.avif?v=20260613d" />
+                <source class="shot-src" type="image/webp"
+                        data-srcset-light="assets/screenshots/graph-light.webp?v=20260613d"
+                        data-srcset-dark="assets/screenshots/graph-dark.webp?v=20260613d"
+                        srcset="assets/screenshots/graph-dark.webp?v=20260613d" />
+                <img class="shot-img"
+                     data-src-light="assets/screenshots/graph-light.png?v=20260613d"
+                     data-src-dark="assets/screenshots/graph-dark.png?v=20260613d"
+                     src="assets/screenshots/graph-dark.png?v=20260613d"
+                     width="2880" height="1800"
+                     fetchpriority="high" decoding="async"
+                     alt="BeardGit main window — the canvas commit graph with branch lanes, merge curves, ref badges and version tags in a single tab" />
+              </picture>
+            </div>
+            <figcaption class="shot-caption mono">fig. 01 — commit graph</figcaption>
+          </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="editor">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/editor-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/editor-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/editor-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/editor-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/editor-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/editor-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/editor-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/editor-dark.png?v=20260613d"
+                       src="assets/screenshots/editor-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="In-app code editor — gitignore-aware file tree and a tabbed CodeMirror buffer with theme-matched Rust syntax highlighting" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 02 — in-app editor</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="pull-requests">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/pull-requests-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/pull-requests-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/pull-requests-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/pull-requests-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/pull-requests-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/pull-requests-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/pull-requests-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/pull-requests-dark.png?v=20260613d"
+                       src="assets/screenshots/pull-requests-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="Pull request detail — rendered description, labels, reviewers, changed files and an inline review thread" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 03 — pull request detail</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="pipelines">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/pipelines-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/pipelines-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/pipelines-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/pipelines-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/pipelines-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/pipelines-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/pipelines-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/pipelines-dark.png?v=20260613d"
+                       src="assets/screenshots/pipelines-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="CI pipelines list with per-run status badges, plus the stages and jobs of the selected run" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 04 — CI pipelines</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="command-palette">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/command-palette-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/command-palette-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/command-palette-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/command-palette-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/command-palette-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/command-palette-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/command-palette-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/command-palette-dark.png?v=20260613d"
+                       src="assets/screenshots/command-palette-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="Command palette overlay — fuzzy-matched navigation views and keyboard shortcuts, opened with Cmd-Shift-P" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 05 — command palette</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="requests">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/requests-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/requests-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/requests-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/requests-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/requests-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/requests-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/requests-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/requests-dark.png?v=20260613d"
+                       src="assets/screenshots/requests-dark.png?v=20260613d"
+                       width="2784" height="1824"
+                       loading="lazy" decoding="async"
+                       alt="Requests panel — .http file editor with JSON body, env switcher, and a syntax-highlighted response" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 06 — requests panel</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="issues">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/issues-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/issues-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/issues-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/issues-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/issues-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/issues-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/issues-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/issues-dark.png?v=20260613d"
+                       src="assets/screenshots/issues-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="Issue list with labels and state, plus the selected issue body and comment thread" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 07 — issues</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="releases">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/releases-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/releases-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/releases-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/releases-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/releases-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/releases-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/releases-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/releases-dark.png?v=20260613d"
+                       src="assets/screenshots/releases-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="Releases list with semver tags, publish dates and asset counts" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 08 — releases</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="branches">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/branches-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/branches-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/branches-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/branches-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/branches-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/branches-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/branches-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/branches-dark.png?v=20260613d"
+                       src="assets/screenshots/branches-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="Branch list with upstream tracking and ahead/behind counts" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 09 — branches</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="worktrees">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/worktrees-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/worktrees-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/worktrees-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/worktrees-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/worktrees-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/worktrees-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/worktrees-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/worktrees-dark.png?v=20260613d"
+                       src="assets/screenshots/worktrees-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="Worktrees — the main checkout plus AI and feature worktrees on their own branches" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 10 — worktrees</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="bisect">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/bisect-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/bisect-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/bisect-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/bisect-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/bisect-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/bisect-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/bisect-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/bisect-dark.png?v=20260613d"
+                       src="assets/screenshots/bisect-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="Visual bisect mid-session — good/bad/skip controls, counters and the bisect log" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 11 — visual bisect</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="ai-sessions">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/ai-sessions-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/ai-sessions-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/ai-sessions-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/ai-sessions-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/ai-sessions-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/ai-sessions-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/ai-sessions-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/ai-sessions-dark.png?v=20260613d"
+                       src="assets/screenshots/ai-sessions-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="AI session transcripts from Claude Code and Codex, scoped to the repo" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 12 — AI sessions</figcaption>
+            </figure>
+    <figure class="shot-figure carousel-slide">
+              <div class="screenshot-slot" data-slot="merge-requests">
+                <picture>
+                  <source class="shot-src" type="image/avif"
+                          data-srcset-light="assets/screenshots/merge-requests-light.avif?v=20260613d"
+                          data-srcset-dark="assets/screenshots/merge-requests-dark.avif?v=20260613d"
+                          srcset="assets/screenshots/merge-requests-dark.avif?v=20260613d" />
+                  <source class="shot-src" type="image/webp"
+                          data-srcset-light="assets/screenshots/merge-requests-light.webp?v=20260613d"
+                          data-srcset-dark="assets/screenshots/merge-requests-dark.webp?v=20260613d"
+                          srcset="assets/screenshots/merge-requests-dark.webp?v=20260613d" />
+                  <img class="shot-img"
+                       data-src-light="assets/screenshots/merge-requests-light.png?v=20260613d"
+                       data-src-dark="assets/screenshots/merge-requests-dark.png?v=20260613d"
+                       src="assets/screenshots/merge-requests-dark.png?v=20260613d"
+                       width="2880" height="1800"
+                       loading="lazy" decoding="async"
+                       alt="The same merge-request workflow on GitLab — detail, files and review thread" />
+                </picture>
+              </div>
+              <figcaption class="shot-caption mono">fig. 13 — GitLab merge request</figcaption>
+            </figure>
         </div>
-        <figcaption class="shot-caption mono">fig. 01 — main window</figcaption>
-      </figure>
-
-      <div class="screenshot-strip">
-        <figure class="shot-figure reveal">
-          <div class="screenshot-slot small" data-slot="graph">
-            <picture>
-              <source class="shot-src" type="image/avif"
-                      data-srcset-light="assets/screenshots/graph-light.avif"
-                      data-srcset-dark="assets/screenshots/graph-dark.avif"
-                      srcset="assets/screenshots/graph-dark.avif" />
-              <source class="shot-src" type="image/webp"
-                      data-srcset-light="assets/screenshots/graph-light.webp"
-                      data-srcset-dark="assets/screenshots/graph-dark.webp"
-                      srcset="assets/screenshots/graph-dark.webp" />
-              <img class="shot-img"
-                   data-src-light="assets/screenshots/graph-light.png"
-                   data-src-dark="assets/screenshots/graph-dark.png"
-                   src="assets/screenshots/graph-dark.png"
-                   width="2784" height="1824"
-                   loading="lazy" decoding="async"
-                   alt="Canvas commit graph showing branch lanes, merge curves, and author highlighting" />
-            </picture>
-          </div>
-          <figcaption class="shot-caption mono">fig. 02 — commit graph</figcaption>
-        </figure>
-        <figure class="shot-figure reveal">
-          <div class="screenshot-slot small" data-slot="ai">
-            <picture>
-              <source class="shot-src" type="image/avif"
-                      data-srcset-light="assets/screenshots/ai-light.avif"
-                      data-srcset-dark="assets/screenshots/ai-dark.avif"
-                      srcset="assets/screenshots/ai-dark.avif" />
-              <source class="shot-src" type="image/webp"
-                      data-srcset-light="assets/screenshots/ai-light.webp"
-                      data-srcset-dark="assets/screenshots/ai-dark.webp"
-                      srcset="assets/screenshots/ai-dark.webp" />
-              <img class="shot-img"
-                   data-src-light="assets/screenshots/ai-light.png"
-                   data-src-dark="assets/screenshots/ai-dark.png"
-                   src="assets/screenshots/ai-dark.png"
-                   width="2784" height="1824"
-                   loading="lazy" decoding="async"
-                   alt="AI background run transcript inside a worktree, with provider and prompt selection" />
-            </picture>
-          </div>
-          <figcaption class="shot-caption mono">fig. 03 — AI background run</figcaption>
-        </figure>
-        <figure class="shot-figure reveal">
-          <div class="screenshot-slot small" data-slot="forge">
-            <picture>
-              <source class="shot-src" type="image/avif"
-                      data-srcset-light="assets/screenshots/forge-light.avif"
-                      data-srcset-dark="assets/screenshots/forge-dark.avif"
-                      srcset="assets/screenshots/forge-dark.avif" />
-              <source class="shot-src" type="image/webp"
-                      data-srcset-light="assets/screenshots/forge-light.webp"
-                      data-srcset-dark="assets/screenshots/forge-dark.webp"
-                      srcset="assets/screenshots/forge-dark.webp" />
-              <img class="shot-img"
-                   data-src-light="assets/screenshots/forge-light.png"
-                   data-src-dark="assets/screenshots/forge-dark.png"
-                   src="assets/screenshots/forge-dark.png"
-                   width="2784" height="1824"
-                   loading="lazy" decoding="async"
-                   alt="Pull request detail with CI pipeline status and inline review comments" />
-            </picture>
-          </div>
-          <figcaption class="shot-caption mono">fig. 04 — PR / pipeline</figcaption>
-        </figure>
-        <figure class="shot-figure reveal">
-          <div class="screenshot-slot small" data-slot="requests">
-            <picture>
-              <source class="shot-src" type="image/avif"
-                      data-srcset-light="assets/screenshots/requests-light.avif"
-                      data-srcset-dark="assets/screenshots/requests-dark.avif"
-                      srcset="assets/screenshots/requests-dark.avif" />
-              <source class="shot-src" type="image/webp"
-                      data-srcset-light="assets/screenshots/requests-light.webp"
-                      data-srcset-dark="assets/screenshots/requests-dark.webp"
-                      srcset="assets/screenshots/requests-dark.webp" />
-              <img class="shot-img"
-                   data-src-light="assets/screenshots/requests-light.png"
-                   data-src-dark="assets/screenshots/requests-dark.png"
-                   src="assets/screenshots/requests-dark.png"
-                   width="2784" height="1824"
-                   loading="lazy" decoding="async"
-                   alt="Requests panel — .http file editor with JSON body, env switcher, and a syntax-highlighted response" />
-            </picture>
-          </div>
-          <figcaption class="shot-caption mono">fig. 05 — requests panel</figcaption>
-        </figure>
-        <figure class="shot-figure reveal">
-          <div class="screenshot-slot small" data-slot="editor">
-            <picture>
-              <source class="shot-src" type="image/avif"
-                      data-srcset-light="assets/screenshots/editor-light.avif"
-                      data-srcset-dark="assets/screenshots/editor-dark.avif"
-                      srcset="assets/screenshots/editor-dark.avif" />
-              <source class="shot-src" type="image/webp"
-                      data-srcset-light="assets/screenshots/editor-light.webp"
-                      data-srcset-dark="assets/screenshots/editor-dark.webp"
-                      srcset="assets/screenshots/editor-dark.webp" />
-              <img class="shot-img"
-                   data-src-light="assets/screenshots/editor-light.png"
-                   data-src-dark="assets/screenshots/editor-dark.png"
-                   src="assets/screenshots/editor-dark.png"
-                   width="2784" height="1824"
-                   loading="lazy" decoding="async"
-                   alt="In-app code editor — file tree with per-extension icons, tabbed CodeMirror buffer, and the Save / Save+Stage toolbar" />
-            </picture>
-          </div>
-          <figcaption class="shot-caption mono">fig. 06 — in-app editor</figcaption>
-        </figure>
+        <button class="carousel-arrow next" type="button" aria-label="Next screenshot" data-dir="1">›</button>
+        <div class="carousel-dots" aria-hidden="true"></div>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ THEMES ============ -->
+  <section id="themes">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Pick a theme. The whole app <span class="italic">follows</span>.</h2>
+        <div class="section-head-meta">§ 03 — Themes</div>
+      </div>
+
+      <p class="themes-lede mono reveal">
+        BeardGit ships its <strong>own</strong> theme families — not a reskinned GitHub. The default
+        <strong>copper</strong> identity, plus <strong>Fjord</strong> and <strong>Nebula</strong>, each with a
+        dark and a light variant wired for OS auto-switching. And it isn't just chrome:
+        <strong>editors and diffs follow the active theme too</strong> — syntax palette, diff backgrounds, and
+        graph lanes all recolour together. <span class="italic">This page does the same — flip the toggle up top.</span>
+      </p>
+
+      <div class="themes-chips reveal" id="theme-chips">
+        <button class="theme-chip active" type="button" data-theme-name="BeardGit"
+                data-light="assets/screenshots/theme-beardgit-light.png?v=20260613d"
+                data-dark="assets/screenshots/theme-beardgit-dark.png?v=20260613d">
+          <span class="theme-swatch" style="background:#151312"><span class="theme-dot" style="background:#d9924f"></span></span>
+          <span class="theme-chip-name">BeardGit <span class="mono">copper</span></span>
+        </button>
+        <button class="theme-chip" type="button" data-theme-name="Fjord"
+                data-light="assets/screenshots/theme-fjord-light.png?v=20260613d"
+                data-dark="assets/screenshots/theme-fjord-dark.png?v=20260613d">
+          <span class="theme-swatch" style="background:#0e141b"><span class="theme-dot" style="background:#54bdc9"></span></span>
+          <span class="theme-chip-name">Fjord <span class="mono">ice cyan</span></span>
+        </button>
+        <button class="theme-chip" type="button" data-theme-name="Nebula"
+                data-light="assets/screenshots/theme-nebula-light.png?v=20260613d"
+                data-dark="assets/screenshots/theme-nebula-dark.png?v=20260613d">
+          <span class="theme-swatch" style="background:#13111f"><span class="theme-dot" style="background:#a78bfa"></span></span>
+          <span class="theme-chip-name">Nebula <span class="mono">violet</span></span>
+        </button>
+        <span class="theme-chip theme-chip-more mono">+ Dracula · Gruvbox · Nord · Tokyo Night · Catppuccin · Solarized …</span>
+      </div>
+
+      <figure class="shot-figure reveal" id="theme-preview">
+        <div class="screenshot-slot" data-slot="theme-preview">
+          <img class="shot-img"
+               data-src-light="assets/screenshots/theme-beardgit-light.png?v=20260613d"
+               data-src-dark="assets/screenshots/theme-beardgit-dark.png?v=20260613d"
+               src="assets/screenshots/theme-beardgit-dark.png?v=20260613d"
+               width="2880" height="1800"
+               loading="lazy" decoding="async"
+               alt="The in-app editor rendered in the selected theme" />
+        </div>
+        <figcaption class="shot-caption mono">fig. 14 — the editor in <span data-theme-label>BeardGit</span> · <span class="italic">click a theme, flip the toggle for dark/light</span></figcaption>
+      </figure>
     </div>
   </section>
 
@@ -380,7 +593,7 @@
     <div class="wrap">
       <div class="section-head reveal">
         <h2>Everything you do, in <span class="italic">one place</span>.</h2>
-        <div class="section-head-meta">§ 03 — Capabilities</div>
+        <div class="section-head-meta">§ 04 — Capabilities</div>
       </div>
 
       <div class="features-grid">
@@ -395,7 +608,7 @@
               <path d="M7 18h6a4 4 0 0 0 4-4v0"/>
             </svg>
           </div>
-          <div class="feature-num">01 / 08</div>
+          <div class="feature-num">01 / 09</div>
           <h3 class="feature-title">A <span class="italic">canvas graph</span> that scales.</h3>
           <p class="feature-body">100K+ commits render smoothly. Branch lanes, merge curves, sync-state lines, and author highlighting — all on HTML canvas, not DOM. <code class="mono">⌘F</code> filters by author, message, or ref.</p>
         </div>
@@ -408,7 +621,7 @@
               <path d="M3 16l9 4 9-4"/>
             </svg>
           </div>
-          <div class="feature-num">02 / 08</div>
+          <div class="feature-num">02 / 09</div>
           <h3 class="feature-title">Multi-repo <span class="italic">tabs</span>.</h3>
           <p class="feature-body">Every repo is a tab. Heavy state loads only for the active one — a dozen open repos cost the same as one. <code class="mono">⌘1…⌘9</code> jumps between them.</p>
         </div>
@@ -424,7 +637,7 @@
               <path d="M11 3l3 3-3 3"/>
             </svg>
           </div>
-          <div class="feature-num">03 / 08</div>
+          <div class="feature-num">03 / 09</div>
           <h3 class="feature-title">Forge-native for <span class="italic">GitHub + GitLab</span>.</h3>
           <p class="feature-body">Full PR/MR lifecycle with inline review threads. Issues, pipelines, releases, repo settings — without leaving the app. Self-hosted GitHub Enterprise and on-prem GitLab too. <code class="mono">gh</code> and <code class="mono">glab</code> bundled.</p>
         </div>
@@ -437,7 +650,7 @@
               <path d="M5 15l.75 1.75L7.5 17.5l-1.75.75L5 20l-.75-1.75L2.5 17.5l1.75-.75L5 15z"/>
             </svg>
           </div>
-          <div class="feature-num">04 / 08</div>
+          <div class="feature-num">04 / 09</div>
           <h3 class="feature-title">Your own AI CLI, in a <span class="italic">worktree</span>.</h3>
           <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh worktree. Each run lands on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch — review, merge, or discard.</p>
         </div>
@@ -450,7 +663,7 @@
               <path d="M16.5 16.5L21 21"/>
             </svg>
           </div>
-          <div class="feature-num">05 / 08</div>
+          <div class="feature-num">05 / 09</div>
           <h3 class="feature-title">Visual <span class="italic">bisect</span>.</h3>
           <p class="feature-body">Pick the good commit, pick the bad commit, step through with buttons. Auto-mode runs your test command at every step and resolves it without you watching.</p>
         </div>
@@ -463,7 +676,7 @@
               <path d="M13 15h4"/>
             </svg>
           </div>
-          <div class="feature-num">06 / 08</div>
+          <div class="feature-num">06 / 09</div>
           <h3 class="feature-title">Bundled <span class="italic">CLIs</span>.</h3>
           <p class="feature-body"><code class="mono">gh</code> and <code class="mono">glab</code> ship inside every installer. No PATH setup. Run them in a real PTY terminal — or let BeardGit call them for you.</p>
         </div>
@@ -476,7 +689,7 @@
               <path d="M14 4l-4 16"/>
             </svg>
           </div>
-          <div class="feature-num">07 / 08</div>
+          <div class="feature-num">07 / 09</div>
           <h3 class="feature-title">An in-app <span class="italic">code editor</span>.</h3>
           <p class="feature-body">CodeMirror 6 with per-language snippets, keyword completion, JSON lint, inline color pickers, and a gitignore-aware tree. Save writes to disk; <code class="mono">⇧ Save</code> also stages for the next commit.</p>
         </div>
@@ -491,9 +704,22 @@
               <path d="M21 14h-5v5"/>
             </svg>
           </div>
-          <div class="feature-num">08 / 08</div>
+          <div class="feature-num">08 / 09</div>
           <h3 class="feature-title">An <span class="italic">.http</span> workspace, in your repo.</h3>
           <p class="feature-body">Plain <code class="mono">.http</code> files in your repo, committed with the project. Envs in JSON, secrets encrypted locally. Response diff between any two runs.</p>
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="18" height="14" rx="2"/>
+              <path d="M7 10l2.5 2L7 14"/>
+              <path d="M12 14h5"/>
+            </svg>
+          </div>
+          <div class="feature-num">09 / 09</div>
+          <h3 class="feature-title">A <span class="italic">command palette</span> for everything.</h3>
+          <p class="feature-body"><code class="mono">⌘⇧P</code> fuzzy-matches every view and every keyboard action — type <code class="mono">stash</code>, hit Enter, you're there. No menu hunting.</p>
         </div>
       </div>
     </div>
@@ -504,7 +730,7 @@
     <div class="wrap">
       <div class="section-head reveal">
         <h2>Made for the dev with <span class="italic">six tabs open</span>.</h2>
-        <div class="section-head-meta">§ 04 — Who it's for</div>
+        <div class="section-head-meta">§ 05 — Who it's for</div>
       </div>
 
       <p class="audience-lede mono reveal">
@@ -550,7 +776,7 @@
     <div class="wrap">
       <div class="section-head reveal">
         <h2>Twelve keys, <span class="italic">no menus</span>.</h2>
-        <div class="section-head-meta">§ 05 — Keyboard</div>
+        <div class="section-head-meta">§ 06 — Keyboard</div>
       </div>
 
       <p class="shortcuts-lede mono reveal">
@@ -562,7 +788,7 @@
           <h3 class="shortcut-group-title">Git</h3>
           <ul class="shortcut-list">
             <li><span>Stage all changes</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">S</kbd></span></li>
-            <li><span>Push</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">P</kbd></span></li>
+            <li><span>Push</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">K</kbd></span></li>
             <li><span>Pull</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">L</kbd></span></li>
             <li><span>Fetch</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">F</kbd></span></li>
             <li><span>New branch</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">B</kbd></span></li>
@@ -584,6 +810,7 @@
             <li><span>Close tab</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">W</kbd></span></li>
             <li><span>New terminal tab</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">T</kbd></span></li>
             <li><span>Toggle sidebar</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">B</kbd></span></li>
+            <li><span>Command palette</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">P</kbd></span></li>
             <li><span>Show all shortcuts</span><span class="kbd-row"><kbd class="kbd">?</kbd></span></li>
           </ul>
         </div>
@@ -596,7 +823,7 @@
     <div class="wrap">
       <div class="section-head reveal">
         <h2>Download, <span class="italic">approve</span>, launch.</h2>
-        <div class="section-head-meta">§ 06 — Getting started</div>
+        <div class="section-head-meta">§ 07 — Getting started</div>
       </div>
 
       <p class="install-lede mono reveal">
@@ -661,7 +888,7 @@
 
       <div class="callout reveal">
         <div>
-          <div class="eyebrow" style="margin-bottom:0.8rem">§ 06.1 — From source</div>
+          <div class="eyebrow" style="margin-bottom:0.8rem">§ 07.1 — From source</div>
           <h2>Rather <span class="italic">build it</span> yourself?</h2>
           <p class="callout-body">Rust + Node + Tauri 2. Full setup and platform prerequisites live in the <a href="https://github.com/The3eard/BeardGit#building-from-source" target="_blank" rel="noopener">README</a>. Licensed <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
         </div>
@@ -680,7 +907,7 @@
     <div class="wrap">
       <div class="section-head reveal">
         <h2>Frequently <span class="italic">asked</span>.</h2>
-        <div class="section-head-meta">§ 07 — FAQ</div>
+        <div class="section-head-meta">§ 08 — FAQ</div>
       </div>
 
       <div class="faq-list">
@@ -702,6 +929,13 @@
           <summary>Why no Electron?</summary>
           <div class="faq-body">
             Electron ships a Chromium runtime per app — ~150 MB before you do anything. BeardGit is built on Tauri 2 and uses the OS's native webview. Small installer, fast cold start.
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Can I theme it? Does it match my editor?</summary>
+          <div class="faq-body">
+            Yes. BeardGit ships three original theme families — <strong>BeardGit</strong> (copper, the default), <strong>Fjord</strong> and <strong>Nebula</strong> — each with dark and light variants that follow your OS automatically, alongside the usual Dracula / Gruvbox / Nord / Tokyo Night / Catppuccin / Solarized pairs. Crucially the theme drives the <em>whole</em> app: the in-app editor's syntax palette, diff backgrounds and the graph lanes all recolour with it, so nothing reads as a bolted-on GitHub skin.
           </div>
         </details>
 
@@ -749,7 +983,7 @@
       <div class="footer-grid">
         <div class="footer-col">
           <div class="brand" style="margin-bottom:1rem">
-            <img src="assets/logo.svg" alt="" class="brand-mark" />
+            <img src="assets/logo.svg?v=20260613d" alt="" class="brand-mark" />
             <span class="brand-name">BeardGit</span>
           </div>
           <p class="footer-tagline mono">
@@ -761,6 +995,7 @@
           <ul>
             <li><a href="#features">Features</a></li>
             <li><a href="#showcase">Showcase</a></li>
+            <li><a href="#themes">Themes</a></li>
             <li><a href="#shortcuts">Keyboard</a></li>
             <li><a href="#install">Install</a></li>
             <li><a href="#faq">FAQ</a></li>
@@ -799,6 +1034,6 @@
     <div class="lightbox-caption mono" id="lightboxCaption"></div>
   </div>
 
-  <script src="assets/app.js"></script>
+  <script src="assets/app.js?v=20260613d"></script>
 </body>
 </html>
