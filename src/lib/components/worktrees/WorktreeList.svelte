@@ -231,26 +231,25 @@
       </div>
       <div class="wt-actions">
         {#if !item.is_main}
-          <button
-            class="wt-action-btn"
+          <IconButton
+            icon={"\uF08E"}
+            size="sm"
+            description={m.worktree_open_tab()}
             onclick={(e: MouseEvent) => {
               e.stopPropagation();
               handleOpenInTab(item.path);
             }}
-            title={m.worktree_open_tab()}
-          >
-            <span class="nf">{"\uF08E"}</span>
-          </button>
-          <button
-            class="wt-action-btn destructive"
+          />
+          <IconButton
+            icon={"\uF1F8"}
+            size="sm"
+            tone="danger"
+            description={m.worktree_remove()}
             onclick={(e: MouseEvent) => {
               e.stopPropagation();
               handleRemove(item.path);
             }}
-            title={m.worktree_remove()}
-          >
-            <span class="nf">{"\uF1F8"}</span>
-          </button>
+          />
         {/if}
       </div>
     </div>
@@ -389,23 +388,4 @@
     opacity: 1;
   }
 
-  .wt-action-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: var(--font-size-lg);
-    padding: 2px 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-  }
-
-  .wt-action-btn:hover {
-    color: var(--text-primary);
-  }
-
-  .wt-action-btn.destructive:hover {
-    color: var(--accent-red);
-  }
 </style>

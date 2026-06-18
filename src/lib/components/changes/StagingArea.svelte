@@ -31,9 +31,32 @@
     selectedFile?: { filename: string; isStaged: boolean } | null;
   } = $props();
 
-  let message = $state("");
+  // Commit message is split into a one-line summary and an optional body
+  // so the composer guides toward conventional commit shape. They are
+  // joined (summary + blank line + body) only at commit time.
+  let summary = $state("");
+  let description = $state("");
   let isAmend = $state(false);
-  let savedMessage = $state("");
+  let savedSummary = $state("");
+  let savedDescription = $state("");
+
+  /** Join summary + body into a git commit message (body optional). */
+  function composedMessage(): string {
+    const s = summary.trim();
+    const d = description.trim();
+    return d ? `${s}\n\n${d}` : s;
+  }
+
+  /** Split a full commit message back into summary + body (first blank
+   *  line separates them, falling back to the first newline). */
+  function splitMessage(msg: string): { summary: string; description: string } {
+    const nl = msg.indexOf("\n");
+    if (nl === -1) return { summary: msg, description: "" };
+    return {
+      summary: msg.slice(0, nl),
+      description: msg.slice(nl + 1).replace(/^\n+/, ""),
+    };
+  }
   let showPatchDialog = $state(false);
   let showOverflowMenu = $state(false);
   let patchStagedOnly = $state(true);
@@ -81,15 +104,21 @@
 
   async function handleAmendToggle() {
     if (isAmend) {
-      savedMessage = message;
+      savedSummary = summary;
+      savedDescription = description;
       try {
-        message = await getHeadMessage();
+        const parts = splitMessage(await getHeadMessage());
+        summary = parts.summary;
+        description = parts.description;
       } catch {
-        message = '';
+        summary = '';
+        description = '';
       }
     } else {
-      message = savedMessage;
-      savedMessage = '';
+      summary = savedSummary;
+      description = savedDescription;
+      savedSummary = '';
+      savedDescription = '';
     }
   }
 
@@ -155,7 +184,9 @@
       const raw = output.map((l) => l.text).join("\n").trim();
       const cleaned = stripAnsi(raw);
       if (cleaned) {
-        message = cleaned;
+        const parts = splitMessage(cleaned);
+        summary = parts.summary;
+        description = parts.description;
       }
     }
   }
@@ -313,15 +344,30 @@
   }
 
   async function handleCommit() {
-    if (!message.trim()) return;
+    const msg = composedMessage();
+    if (!msg) return;
     if (isAmend) {
-      await amendCommit(message);
+      await amendCommit(msg);
     } else {
-      await commit(message);
+      await commit(msg);
     }
-    message = "";
+    summary = "";
+    description = "";
     isAmend = false;
   }
+
+  // Commit is allowed once there's a summary and (unless amending) at least
+  // one staged file. The reason surfaces below the button so the disabled
+  // state is explained rather than just greyed out.
+  let canCommit = $derived(summary.trim().length > 0 && (isAmend || staged.length > 0));
+  let commitDisabledReason = $derived(
+    summary.trim().length === 0
+      ? m.staging_hint_need_summary()
+      : (!isAmend && staged.length === 0)
+        ? m.staging_hint_nothing_staged()
+        : "",
+  );
+  let headBranch = $derived($repoInfo?.head_branch ?? "");
 </script>
 
 <div class="staging-area" data-testid="staging-area">
@@ -411,28 +457,45 @@
       </div>
     </div>
 
-    <!-- Commit message textarea -->
-    <textarea
-      class="commit-input"
-      placeholder={m.staging_commit_placeholder()}
-      bind:value={message}
+    <!-- Commit message: one-line summary + optional body -->
+    <input
+      class="commit-summary"
+      type="text"
+      placeholder={m.staging_summary_placeholder()}
+      bind:value={summary}
       onkeydown={(e) => { if (e.key === 'Enter' && e.metaKey) handleCommit(); }}
       data-testid="commit-message"
+    />
+    <textarea
+      class="commit-input"
+      placeholder={m.staging_description_placeholder()}
+      bind:value={description}
+      onkeydown={(e) => { if (e.key === 'Enter' && e.metaKey) handleCommit(); }}
+      data-testid="commit-description"
     ></textarea>
 
-    <!-- Single commit button -->
+    <!-- Single commit button + reason hint when disabled -->
     <Button
       variant="primary"
-      disabled={!message.trim() || (!isAmend && staged.length === 0)}
+      disabled={!canCommit}
       onclick={handleCommit}
       testid="commit-btn"
     >
-      {isAmend
-        ? m.staging_amend_button()
-        : staged.length === 1
+      {#if isAmend}
+        {m.staging_amend_button()}
+      {:else if headBranch}
+        {staged.length === 1
+          ? m.staging_commit_to_button_one({ count: String(staged.length), branch: headBranch })
+          : m.staging_commit_to_button({ count: String(staged.length), branch: headBranch })}
+      {:else}
+        {staged.length === 1
           ? m.staging_commit_button_one({ count: String(staged.length) })
           : m.staging_commit_button({ count: String(staged.length) })}
+      {/if}
     </Button>
+    {#if commitDisabledReason}
+      <p class="commit-hint" data-testid="commit-hint">{commitDisabledReason}</p>
+    {/if}
 
     {#if showPatchDialog}
       <div class="patch-source-dialog">
@@ -488,10 +551,9 @@
     flex-shrink: 0;
   }
 
+  .commit-summary,
   .commit-input {
     width: 100%;
-    min-height: 68px;
-    resize: vertical;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -503,14 +565,32 @@
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
+  .commit-summary {
+    margin-bottom: 6px;
+  }
+
+  .commit-input {
+    min-height: 56px;
+    resize: vertical;
+  }
+
+  .commit-summary::placeholder,
   .commit-input::placeholder {
     color: var(--text-secondary);
     opacity: 0.5;
   }
 
+  .commit-summary:focus,
   .commit-input:focus {
     border-color: var(--accent-primary);
     box-shadow: 0 0 0 2px var(--overlay-accent-blue);
+  }
+
+  .commit-hint {
+    margin: 6px 0 0;
+    font-size: var(--font-size-2xs);
+    color: var(--text-muted);
+    text-align: center;
   }
 
   .nf {

@@ -8,6 +8,7 @@
 -->
 <script lang="ts">
   import type { CommitFileChange } from "../../types";
+  import FileStatusBadge from "./FileStatusBadge.svelte";
 
   let {
     files,
@@ -35,26 +36,6 @@
     selectedPath = selectedPath === path ? null : path;
   }
 
-  function fileStatusIcon(status: string): string {
-    switch (status) {
-      case "added":    return "+";
-      case "deleted":  return "-";
-      case "renamed":  return "R";
-      case "copied":   return "C";
-      default:         return "~";
-    }
-  }
-
-  function fileStatusClass(status: string): string {
-    switch (status) {
-      case "added":    return "status-added";
-      case "deleted":  return "status-deleted";
-      case "renamed":  return "status-renamed";
-      case "copied":   return "status-copied";
-      default:         return "status-modified";
-    }
-  }
-
   function splitPath(path: string): { dir: string; name: string } {
     const idx = path.lastIndexOf("/");
     if (idx === -1) return { dir: "", name: path };
@@ -73,7 +54,7 @@
           onclick={() => handleClick(file.path)}
           oncontextmenu={onContextMenu ? (e) => onContextMenu!(e, file.path) : undefined}
         >
-          <span class="file-status {fileStatusClass(file.status)}">{fileStatusIcon(file.status)}</span>
+          <FileStatusBadge status={file.status} />
           <span class="file-path">
             {#if parts.dir}<span class="file-dir">{parts.dir}</span>{/if}<span class="file-name">{parts.name}</span>
           </span>
@@ -94,7 +75,7 @@
 
   .file-item {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 6px;
     padding: 4px 12px;
     min-width: 0;
@@ -114,21 +95,6 @@
   .file-item.selected {
     background: var(--overlay-accent-blue);
   }
-
-  .file-status {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    font-weight: 700;
-    flex-shrink: 0;
-    width: 12px;
-    text-align: center;
-  }
-
-  .status-added    { color: var(--accent-green); }
-  .status-deleted  { color: var(--accent-red); }
-  .status-modified { color: var(--accent-orange); }
-  .status-renamed  { color: var(--accent-purple); }
-  .status-copied   { color: var(--accent-primary); }
 
   .file-path {
     font-family: var(--font-mono);
