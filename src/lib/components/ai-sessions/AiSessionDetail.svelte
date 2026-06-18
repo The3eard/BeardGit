@@ -44,6 +44,7 @@
   import ProviderIcon from "./ProviderIcon.svelte";
   import EmptyState from "../common/EmptyState.svelte";
   import { Button } from "$lib/components/ui";
+  import { requestOpenCreateBackgroundRunDialog } from "$lib/stores/aiBackground";
   import {
     selectedActiveTerminal,
     type ActiveTerminal,
@@ -525,7 +526,17 @@
       icon={"\uF489"}
       title={m.ai_sessions_empty()}
       description={m.ai_sessions_empty_hint()}
-    />
+    >
+      {#snippet action()}
+        <Button
+          variant="primary"
+          icon={"\uF067"}
+          onclick={() => requestOpenCreateBackgroundRunDialog()}
+        >
+          {m.ai_background_new_run_button()}
+        </Button>
+      {/snippet}
+    </EmptyState>
   </div>
 {/if}
 

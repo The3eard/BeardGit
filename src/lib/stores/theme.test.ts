@@ -91,6 +91,7 @@ const MOCK_THEME: ThemeData = {
     bg_toolbar: "#191a21",
     text_primary: "#f8f8f2",
     text_secondary: "#6272a4",
+    text_muted: "#4a5478",
     accent_blue: "#8be9fd",
     accent_green: "#50fa7b",
     accent_orange: "#ffb86c",

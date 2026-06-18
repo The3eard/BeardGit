@@ -3,12 +3,7 @@
   import { fileStatuses } from "../../stores/changes";
   import { hasActiveProvider, activeProvider } from "../../stores/provider";
   import { sidebarLayout, updateLayout } from "../../stores/sidebarLayout";
-  import {
-    applyLayout,
-    DEFAULT_ORDER,
-    type SidebarNavItem,
-  } from "../../utils/applyLayout";
-  import { startPointerReorder } from "../../utils/pointerReorder";
+  import { type SidebarNavItem } from "../../utils/applyLayout";
   import { addToast } from "../../stores/toast";
   import { IconButton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
@@ -44,29 +39,49 @@
 
   // Edit-mode state.
   let editMode = $state(false);
-  let dragIndex = $state<number | null>(null);
-  let dragOverIndex = $state<number | null>(null);
-  /** Reveal hidden items inline below the visible list (normal-mode only). */
-  let showHidden = $state(false);
   let sidebarEl: HTMLElement | undefined = $state();
 
-  /** Normal-mode list: respects order + hidden. */
-  let visibleNavItems = $derived(
-    applyLayout(navItems, $sidebarLayout.order, $sidebarLayout.hidden),
-  );
+  const itemById = new Map(navItems.map((i) => [i.id, i]));
 
-  /** Hidden items in saved order (normal-mode "Show more…" expansion). */
-  let hiddenNavItems = $derived.by(() => {
-    const all = applyLayout(navItems, $sidebarLayout.order, []);
+  /**
+   * Fixed task groups. Items are grouped by job rather than presented as
+   * one 13-item wall. The order is intentionally not user-customisable —
+   * customisation is hiding items (and whole groups collapse away when all
+   * their items are hidden), which keeps the grouping meaningful.
+   *
+   * The forge group (Pipelines/Issues/PRs/Releases) is rendered separately
+   * below from `providerItems` since it only exists when a provider is
+   * connected.
+   */
+  interface NavGroup {
+    key: string;
+    label: string;
+    ids: readonly string[];
+  }
+  const navGroups: NavGroup[] = [
+    { key: "workspace", label: m.sidebar_group_workspace(), ids: ["graph", "changes", "editor", "requests"] },
+    { key: "history", label: m.sidebar_group_history(), ids: ["branches", "tags", "stashes", "reflog"] },
+    { key: "advanced", label: m.sidebar_group_advanced(), ids: ["worktrees", "submodules", "bisect"] },
+    { key: "ai", label: m.sidebar_group_ai(), ids: ["ai-config", "ai-sessions"] },
+  ];
+
+  function groupItems(ids: readonly string[]): SidebarNavItem[] {
+    return ids.map((id) => itemById.get(id)).filter((x): x is SidebarNavItem => !!x);
+  }
+
+  /** Normal-mode groups: only visible items, and groups with none drop out. */
+  let visibleGroups = $derived.by(() => {
     const hiddenSet = new Set($sidebarLayout.hidden);
-    return all.filter((i) => hiddenSet.has(i.id));
+    return navGroups
+      .map((g) => ({ ...g, items: groupItems(g.ids).filter((i) => !hiddenSet.has(i.id)) }))
+      .filter((g) => g.items.length > 0);
   });
 
-  /** Edit-mode list: full set in saved order, hidden items included
-   *  (rendered with `.nav-item--hidden` styling). */
-  let editModeItems = $derived(
-    applyLayout(navItems, $sidebarLayout.order, []),
-  );
+  /** Flat visible list for collapsed mode (icons only, no group headers). */
+  let visibleFlat = $derived(visibleGroups.flatMap((g) => g.items));
+
+  /** Edit-mode groups: every item, hidden ones included (greyed). */
+  let editGroups = $derived(navGroups.map((g) => ({ ...g, items: groupItems(g.ids) })));
 
   /** Force-exit edit mode if the sidebar collapses. */
   $effect(() => {
@@ -142,82 +157,9 @@
     updateLayout({ hidden: [...nextHidden] });
   }
 
-  /** Compute the current saved-order array, filling any gaps with DEFAULT_ORDER. */
-  function currentOrder(): string[] {
-    const saved = $sidebarLayout.order;
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const id of saved) {
-      if (!seen.has(id) && navItems.some((n) => n.id === id)) {
-        out.push(id);
-        seen.add(id);
-      }
-    }
-    for (const id of DEFAULT_ORDER) {
-      if (!seen.has(id)) {
-        out.push(id);
-        seen.add(id);
-      }
-    }
-    return out;
-  }
-
-  function moveItem(id: string, delta: number) {
-    const order = currentOrder();
-    const from = order.indexOf(id);
-    const to = from + delta;
-    if (from < 0 || to < 0 || to >= order.length) return;
-    const next = [...order];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    updateLayout({ order: next });
-  }
-
-  function handleKeydownHandle(e: KeyboardEvent, id: string) {
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      moveItem(id, -1);
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      moveItem(id, 1);
-    }
-  }
-
-  /**
-   * Mouse-based reorder (see `$lib/utils/pointerReorder`): HTML5 drag &
-   * drop is swallowed by Tauri's native drag handler (`dragDropEnabled`)
-   * on Windows and on recent macOS WebKit builds, so the rows track
-   * plain mousemove instead. The drop lands the moved item AT the
-   * hovered index, matching the full-row `.drag-over` tint.
-   */
-  function handleRowMouseDown(e: MouseEvent, index: number) {
-    const target = e.target as HTMLElement;
-    // The eye-toggle keeps its click; the handle and the rest of the
-    // row start a drag.
-    if (target.closest("button") && !target.closest(".drag-handle")) return;
-    if (!sidebarEl) return;
-    dragIndex = index;
-    startPointerReorder({
-      event: e,
-      index,
-      container: sidebarEl,
-      rowSelector: ".edit-row",
-      onDragOver: (i) => (dragOverIndex = i),
-      onDrop: (from, to) => {
-        const next = [...currentOrder()];
-        const [moved] = next.splice(from, 1);
-        next.splice(to, 0, moved);
-        updateLayout({ order: next });
-      },
-      onEnd: () => {
-        dragIndex = null;
-        dragOverIndex = null;
-      },
-    });
-  }
-
+  /** Reset customisation: groups are fixed, so this just unhides everything. */
   function resetLayout() {
-    updateLayout({ order: [...DEFAULT_ORDER], hidden: [] });
+    updateLayout({ hidden: [] });
   }
 
   let changeCount = $derived($fileStatuses.length);
@@ -300,44 +242,36 @@
       <div class="sr-only" role="status" aria-live="polite">
         {m.sidebar_customize()}. Press Escape to finish.
       </div>
-      {#each editModeItems as item, i (item.id)}
-        {@const isHidden = $sidebarLayout.hidden.includes(item.id)}
-        {@const visibleCount = navItems.length - $sidebarLayout.hidden.length}
-        {@const isLastVisible = !isHidden && visibleCount <= 1}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="nav-item edit-row"
-          class:nav-item--hidden={isHidden}
-          class:dragging={dragIndex === i}
-          class:drag-over={dragOverIndex === i}
-          data-testid="nav-{item.id}"
-          onmousedown={(e) => handleRowMouseDown(e, i)}
-        >
-          <button
-            type="button"
-            class="drag-handle"
-            data-testid="sidebar-reorder-{item.id}"
-            aria-label={m.sidebar_reorder_aria({ label: item.label })}
-            onkeydown={(e) => handleKeydownHandle(e, item.id)}
-          >{"☰"}</button>
-          <span class="nav-icon">{item.icon}</span>
-          <span class="nav-label">{item.label}</span>
-          <button
-            type="button"
-            class="eye-toggle"
-            data-testid="sidebar-hide-{item.id}"
-            aria-pressed={!isHidden}
-            aria-disabled={isLastVisible}
-            disabled={isLastVisible}
-            aria-label={isHidden
-              ? m.sidebar_show_aria({ label: item.label })
-              : m.sidebar_hide_aria({ label: item.label })}
-            onclick={() => toggleHidden(item.id)}
-          >{isHidden ? "" : ""}</button>
-        </div>
+      {#each editGroups as group (group.key)}
+        <div class="group-label">{group.label}</div>
+        {#each group.items as item (item.id)}
+          {@const isHidden = $sidebarLayout.hidden.includes(item.id)}
+          {@const visibleCount = navItems.length - $sidebarLayout.hidden.length}
+          {@const isLastVisible = !isHidden && visibleCount <= 1}
+          <div
+            class="nav-item edit-row"
+            class:nav-item--hidden={isHidden}
+            data-testid="nav-{item.id}"
+          >
+            <span class="nav-icon">{item.icon}</span>
+            <span class="nav-label">{item.label}</span>
+            <button
+              type="button"
+              class="eye-toggle"
+              data-testid="sidebar-hide-{item.id}"
+              aria-pressed={!isHidden}
+              aria-disabled={isLastVisible}
+              disabled={isLastVisible}
+              aria-label={isHidden
+                ? m.sidebar_show_aria({ label: item.label })
+                : m.sidebar_hide_aria({ label: item.label })}
+              onclick={() => toggleHidden(item.id)}
+            >{isHidden ? "" : ""}</button>
+          </div>
+        {/each}
       {/each}
-    {:else}
-      {#each visibleNavItems as item}
+    {:else if collapsed}
+      {#each visibleFlat as item (item.id)}
         <button
           class="nav-item"
           class:active={activeView === item.id}
@@ -346,47 +280,30 @@
           onmouseleave={hideTip}
           onfocusin={(e) => showTip(e, item.label)}
           onfocusout={hideTip}
-          aria-label={collapsed ? item.label : undefined}
+          aria-label={item.label}
           data-testid="nav-{item.id}"
         >
           <span class="nav-icon">{item.icon}</span>
-          {#if !collapsed}
+        </button>
+      {/each}
+    {:else}
+      {#each visibleGroups as group (group.key)}
+        <div class="group-label">{group.label}</div>
+        {#each group.items as item (item.id)}
+          <button
+            class="nav-item"
+            class:active={activeView === item.id}
+            onclick={() => { hideTip(); handleNav(item.id); }}
+            data-testid="nav-{item.id}"
+          >
+            <span class="nav-icon">{item.icon}</span>
             <span class="nav-label">{item.label}</span>
             {#if item.id === "changes" && changeCount > 0}
               <span class="nav-badge">{changeCount}</span>
             {/if}
-          {/if}
-        </button>
+          </button>
+        {/each}
       {/each}
-
-      {#if !collapsed && hiddenNavItems.length > 0}
-        <button
-          type="button"
-          class="nav-item show-more"
-          data-testid="sidebar-show-hidden"
-          onclick={() => (showHidden = !showHidden)}
-        >
-          <span class="nav-icon">{showHidden ? "" : ""}</span>
-          <span class="nav-label">
-            {showHidden ? m.sidebar_hide_hidden() : m.sidebar_show_hidden()}
-          </span>
-          <span class="nav-badge nav-badge--muted">{hiddenNavItems.length}</span>
-        </button>
-
-        {#if showHidden}
-          {#each hiddenNavItems as item (item.id)}
-            <button
-              class="nav-item nav-item--hidden-row"
-              class:active={activeView === item.id}
-              onclick={() => handleNav(item.id)}
-              data-testid="nav-{item.id}"
-            >
-              <span class="nav-icon">{item.icon}</span>
-              <span class="nav-label">{item.label}</span>
-            </button>
-          {/each}
-        {/if}
-      {/if}
     {/if}
   </nav>
 
@@ -513,6 +430,24 @@
     gap: 6px;
   }
 
+  /* Task-group sub-header (Workspace / History / Advanced / AI). Dimmer
+     and tighter than the top section label so it reads as a grouping, and
+     the first group sits flush under the Navigation header. */
+  .group-label {
+    padding: 10px 16px 4px;
+    font-size: var(--font-size-2xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .nav-section > .group-label:first-of-type {
+    padding-top: 2px;
+  }
+
   .edit-actions {
     display: inline-flex;
     gap: 6px;
@@ -566,8 +501,9 @@
   }
 
   .sidebar:not(.edit-mode) .nav-item.active {
-    background: var(--overlay-accent-blue);
+    background: var(--overlay-selected);
     color: var(--accent-primary);
+    box-shadow: inset 2px 0 0 var(--accent-primary);
   }
 
   .sidebar:not(.edit-mode) .nav-item.active .nav-icon {
@@ -591,7 +527,9 @@
 
   .nav-badge {
     font-size: var(--font-size-2xs);
-    background: var(--accent-primary);
+    /* Neutral gray pill — count badges no longer borrow the copper accent,
+       so copper stays reserved for the active view + primary actions. */
+    background: color-mix(in srgb, var(--text-secondary) 20%, transparent);
     color: var(--text-primary);
     border-radius: 8px;
     padding: 0 5px;
@@ -622,32 +560,10 @@
     font-size: var(--font-size-sm);
   }
 
-  /* Edit-mode row layout: [drag][icon][label][eye] */
+  /* Edit-mode row layout: [icon][label][eye] */
   .edit-row {
-    cursor: grab;
-  }
-
-  .edit-row.dragging {
-    opacity: 0.5;
-  }
-
-  .edit-row.drag-over {
-    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-  }
-
-  .drag-handle {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: grab;
-    padding: 0 2px;
-    font-size: var(--font-size-lg);
-    line-height: 1;
-  }
-
-  .drag-handle:focus {
-    outline: 1px solid var(--accent-primary);
-    border-radius: 2px;
+    display: flex;
+    align-items: center;
   }
 
   .eye-toggle {
@@ -675,32 +591,6 @@
 
   .nav-item--hidden .nav-label {
     text-decoration: line-through;
-  }
-
-  /* "Show more…" expander row in normal mode */
-  .nav-item.show-more {
-    color: var(--text-secondary);
-    font-style: italic;
-  }
-
-  .nav-item.show-more .nav-icon {
-    font-size: var(--font-size-xs);
-  }
-
-  /* Hidden items revealed inline below the visible list — dimmer than a
-     normal nav row so they read as "you've chosen not to show these by
-     default", but still clickable + active-state aware. */
-  .nav-item--hidden-row {
-    opacity: 0.55;
-  }
-
-  .nav-item--hidden-row:hover {
-    opacity: 1;
-  }
-
-  .nav-badge--muted {
-    background: color-mix(in srgb, var(--text-secondary) 30%, transparent);
-    color: var(--text-secondary);
   }
 
   /* Collapsed-mode tooltip: fixed-positioned so it escapes the
