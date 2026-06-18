@@ -64,6 +64,71 @@
     applyTheme(next);
   });
 
+  /* ---------- Themes section: click a chip to preview that theme ----------
+     Each chip carries data-light/data-dark URLs for the editor rendered in
+     that theme; we swap them onto the preview <img> and reuse the existing
+     light/dark variant logic so the page's theme toggle still applies. */
+  const themeChips = document.querySelectorAll(".theme-chip[data-light]");
+  const themePreviewImg = document.querySelector("#theme-preview .shot-img");
+  const themeLabel = document.querySelector("[data-theme-label]");
+  themeChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      themeChips.forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      if (themePreviewImg) {
+        themePreviewImg.dataset.srcLight = chip.dataset.light;
+        themePreviewImg.dataset.srcDark = chip.dataset.dark;
+        syncScreenshotVariants();
+      }
+      if (themeLabel) themeLabel.textContent = chip.dataset.themeName || "";
+    });
+  });
+
+  /* ---------- Showcase carousel ---------- */
+  const carousel = document.getElementById("shot-carousel");
+  if (carousel) {
+    const track = carousel.querySelector(".carousel-track");
+    const slides = Array.from(track.querySelectorAll(".carousel-slide"));
+    const dotsWrap = carousel.querySelector(".carousel-dots");
+    const prev = carousel.querySelector(".carousel-arrow.prev");
+    const next = carousel.querySelector(".carousel-arrow.next");
+
+    slides.forEach((slide, i) => {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "carousel-dot" + (i === 0 ? " active" : "");
+      dot.setAttribute("aria-label", "Go to screenshot " + (i + 1));
+      dot.addEventListener("click", () =>
+        track.scrollTo({ left: slide.offsetLeft, behavior: "smooth" }),
+      );
+      dotsWrap?.appendChild(dot);
+    });
+    const dots = dotsWrap ? Array.from(dotsWrap.children) : [];
+
+    prev?.addEventListener("click", () =>
+      track.scrollBy({ left: -track.clientWidth, behavior: "smooth" }),
+    );
+    next?.addEventListener("click", () =>
+      track.scrollBy({ left: track.clientWidth, behavior: "smooth" }),
+    );
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          const i = slides.indexOf(e.target);
+          if (i < 0) return;
+          dots.forEach((d, j) => d.classList.toggle("active", j === i));
+          if (prev) prev.disabled = i === 0;
+          if (next) next.disabled = i === slides.length - 1;
+        });
+      },
+      { root: track, threshold: 0.6 },
+    );
+    slides.forEach((s) => io.observe(s));
+    if (prev) prev.disabled = true;
+  }
+
   /* ---------- Reveal on scroll ---------- */
   root.classList.add("js-reveal");
   const io = new IntersectionObserver(
