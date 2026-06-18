@@ -30,6 +30,10 @@ The navigation is organised into groups — Workspace, History, Advanced, AI, an
 
 Opening BeardGit without a repository now leads with what it's for and a quick tour of its features, a clear drop-a-folder area, shortcuts to set up a new repo or open the command palette, and your recent repositories as cards. The AI Sessions screen now has a button to start a run instead of just pointing you elsewhere.
 
+### Up-to-date dependencies
+
+Refreshed the bundled build dependencies to clear two newly-reported security advisories, so a fresh install ships free of known vulnerabilities. Nothing changes in how the app behaves.
+
 ## [2026.6.0] — Design identity overhaul: own themes, merged title bar, coherent diffs — 2026-06-13
 
 A full design pass over the app, driven by a visual review of every view (the repo's 32 Playwright baselines, dark + light) plus live iteration. The goal: stop reading as a GitHub Desktop fork and become a product with its own identity — without breaking a single workflow. Every change landed as its own commit with before/after captures, and the full CI gate (`cargo fmt`/`clippy`/`test`, `svelte-check`, `vitest`, `stylelint`+`eslint`, 92 Playwright tests) is green throughout.
