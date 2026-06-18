@@ -250,13 +250,15 @@
           rows="3"
         ></textarea>
         <div class="comment-actions">
-          <button
-            class="btn-comment"
+          <Button
+            variant="primary"
+            size="sm"
+            loading={commentSubmitting}
             disabled={!commentBody.trim() || commentSubmitting}
             onclick={handleAddComment}
           >
             {m.issues_add_comment()}
-          </button>
+          </Button>
         </div>
       </div>
     {/if}
@@ -534,14 +536,4 @@
     gap: 8px;
     justify-content: flex-end;
   }
-  .btn-comment {
-    padding: 5px 12px;
-    background: var(--accent-primary);
-    color: var(--text-primary);
-    border: 1px solid var(--accent-primary);
-    border-radius: 4px;
-    font-size: var(--font-size-xs);
-    cursor: pointer;
-  }
-  .btn-comment:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

@@ -60,6 +60,7 @@
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
   import { openCommandPalette } from "$lib/stores/commandPalette";
   import CommandPalette from "$lib/components/common/CommandPalette.svelte";
+  import { Button } from "$lib/components/ui";
   import { addToast } from "$lib/stores/toast";
   import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
   import { get } from "svelte/store";
@@ -1094,15 +1095,32 @@
         <div class="welcome-screen" class:welcome-screen--drop-target={isDraggingOverWelcome}>
           <img class="welcome-logo" src="/logo.svg" alt="BeardGit" />
           <h2 class="welcome-title">{m.app_title()}</h2>
+          <p class="welcome-tagline">{m.welcome_tagline()}</p>
           <p class="welcome-subtitle">{m.app_welcome_subtitle()}</p>
-          <div class="welcome-actions">
-            <button class="welcome-action-btn welcome-action-btn--primary" onclick={openFolderAsProject}>
-              {m.welcome_open()}
-            </button>
-            <button class="welcome-action-btn" onclick={openCloneDialog}>
-              {m.welcome_clone()}
-            </button>
+
+          <div class="welcome-chips">
+            <span class="welcome-chip">{m.welcome_chip_graph()}</span>
+            <span class="welcome-chip">{m.welcome_chip_reviews()}</span>
+            <span class="welcome-chip">{m.welcome_chip_pipelines()}</span>
+            <span class="welcome-chip">{m.welcome_chip_terminals()}</span>
+            <span class="welcome-chip">{m.welcome_chip_ai()}</span>
+            <span class="welcome-chip">{m.welcome_chip_http()}</span>
           </div>
+
+          <div class="welcome-actions">
+            <Button variant="primary" size="lg" icon={"\uF07C"} onclick={openFolderAsProject}>
+              {m.welcome_open()}
+            </Button>
+            <Button variant="neutral" size="lg" icon={"\uF019"} onclick={openCloneDialog}>
+              {m.welcome_clone()}
+            </Button>
+          </div>
+
+          <div class="welcome-links">
+            <button class="welcome-link" onclick={openFolderAsProject}>{m.welcome_init_action()} →</button>
+            <button class="welcome-link" onclick={openCommandPalette}>{m.welcome_palette_hint()}</button>
+          </div>
+
           <div class="welcome-recent">
             <h3 class="welcome-recent-title">{m.welcome_recent_title()}</h3>
             {#if recentRepos.length === 0}
@@ -1120,7 +1138,12 @@
               </ul>
             {/if}
           </div>
-          <p class="welcome-hint">{m.welcome_shortcut_hint()}</p>
+
+          <div class="welcome-dropzone" aria-hidden="true">
+            <span class="welcome-dropzone-icon nf">{"\uF07B"}</span>
+            <span class="welcome-dropzone-main">{m.welcome_dropzone()}</span>
+            <span class="welcome-dropzone-hint">{m.welcome_dropzone_hint()}</span>
+          </div>
         </div>
       {/if}
       </div><!-- /content-wrapper -->
@@ -1269,43 +1292,62 @@
     color: var(--text-primary);
   }
 
+  .welcome-tagline {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 2px;
+  }
+
   .welcome-subtitle {
     font-size: var(--font-size-md);
     color: var(--text-secondary);
   }
 
+  /* Capability chips — sell what BeardGit does at a glance. */
+  .welcome-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    max-width: min(440px, 80%);
+    margin-top: 4px;
+  }
+
+  .welcome-chip {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 10px;
+  }
+
   .welcome-actions {
     display: flex;
     gap: 8px;
-    margin-top: 8px;
+    margin-top: 12px;
   }
 
-  .welcome-action-btn {
-    padding: 8px 20px;
-    background: transparent;
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: var(--font-size-md);
-    font-weight: 500;
+  /* Tertiary text links: init flow + command-palette affordance. */
+  .welcome-links {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .welcome-link {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    font-size: var(--font-size-sm);
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    padding: 2px 4px;
+    border-radius: 4px;
   }
 
-  .welcome-action-btn:hover {
-    background: var(--overlay-hover);
-    border-color: var(--text-secondary);
-  }
-
-  .welcome-action-btn--primary {
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
-  }
-
-  .welcome-action-btn--primary:hover {
-    opacity: 0.9;
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
+  .welcome-link:hover {
+    text-decoration: underline;
   }
 
   .welcome-recent {
@@ -1371,11 +1413,41 @@
     white-space: nowrap;
   }
 
-  .welcome-hint {
-    margin-top: 24px;
-    font-size: var(--font-size-xs);
-    color: var(--text-secondary);
-    opacity: 0.7;
+  /* Persistent drop target — always visible (not just mid-drag) so the
+     drag-to-open affordance is discoverable. Brightens when the whole
+     screen enters --drop-target state. */
+  .welcome-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin-top: 28px;
+    padding: 16px 28px;
+    width: min(420px, 80%);
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .welcome-screen--drop-target .welcome-dropzone {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+
+  .welcome-dropzone-icon {
+    font-family: var(--font-icons);
+    font-size: var(--font-size-lg);
+    margin-bottom: 2px;
+  }
+
+  .welcome-dropzone-main {
+    font-size: var(--font-size-sm);
+  }
+
+  .welcome-dropzone-hint {
+    font-size: var(--font-size-2xs);
+    opacity: 0.8;
   }
 
   .loading-text {

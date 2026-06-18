@@ -524,6 +524,8 @@ export interface DerivedColors {
   bg_toolbar: string;
   text_primary: string;
   text_secondary: string;
+  /** Third, dimmer text step for de-emphasised metadata (paths, timestamps). */
+  text_muted: string;
   accent_blue: string;
   accent_green: string;
   accent_orange: string;

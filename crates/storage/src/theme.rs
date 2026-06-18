@@ -252,6 +252,11 @@ pub struct DerivedColors {
     pub bg_toolbar: String,
     pub text_primary: String,
     pub text_secondary: String,
+    /// A third, dimmer text step for de-emphasised metadata (timestamps,
+    /// paths, counts). Sits between `text_secondary` and the surface so
+    /// the type hierarchy has three rungs instead of two. Derived per
+    /// mode and kept above the large-text contrast floor.
+    pub text_muted: String,
     pub accent_blue: String,
     pub accent_green: String,
     pub accent_orange: String,
@@ -442,17 +447,27 @@ fn darken_hex(hex: &str, amount: f64) -> String {
 
 /// Derive semantic UI colors from the 18 base colors.
 fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors {
+    // Elevation ramp. The previous steps (dark +5/+8 %, light −3/−5 %) sat
+    // within ~12 luminance points of the page, so panels melted into one
+    // field. Widen the ramp so page / panel / toolbar read as distinct
+    // surfaces in both modes; borders and shadows then only refine the
+    // separation luminance already provides.
     let bg_secondary = if is_dark {
-        lighten_hex(&colors.background, 0.05)
-    } else {
-        darken_hex(&colors.background, 0.03)
-    };
-
-    let bg_toolbar = if is_dark {
         lighten_hex(&colors.background, 0.08)
     } else {
         darken_hex(&colors.background, 0.05)
     };
+
+    let bg_toolbar = if is_dark {
+        lighten_hex(&colors.background, 0.14)
+    } else {
+        darken_hex(&colors.background, 0.10)
+    };
+
+    // Third text rung — blend the secondary toward the page so de-emphasised
+    // metadata reads dimmer than secondary without dropping below the
+    // large-text contrast floor (verified per theme by the contrast check).
+    let text_muted = mix_hex(&colors.bright_black, &colors.background, 0.22);
 
     DerivedColors {
         bg_primary: colors.background.clone(),
@@ -460,6 +475,7 @@ fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors 
         bg_toolbar,
         text_primary: colors.foreground.clone(),
         text_secondary: colors.bright_black.clone(),
+        text_muted,
         accent_blue: colors.blue.clone(),
         accent_green: colors.green.clone(),
         accent_orange: colors.yellow.clone(),
@@ -469,7 +485,7 @@ fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors 
         accent_secondary: colors.magenta.clone(),
         accent_tertiary: colors.green.clone(),
         border: with_alpha(&colors.bright_black, "80"),
-        selection: with_alpha(&colors.blue, "33"),
+        selection: with_alpha(&colors.blue, "40"),
     }
 }
 

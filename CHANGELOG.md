@@ -2,6 +2,34 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [2026.6.1] — Clearer hierarchy, a grouped sidebar, and a friendlier first run — 2026-06-18
+
+A polish pass from a UX review of the whole app in both dark and light themes. Nothing changes how you work — the screens just read more clearly and a few rough edges are gone.
+
+### More depth between panels
+
+Panels, lists and toolbars now sit at visibly different levels instead of blending into one flat surface. This was most noticeable on the light themes, where the selected row and the current view were hard to pick out — both now stand out clearly in every theme.
+
+### Consistent, colour-coded file status
+
+Modified, added, deleted, renamed and untracked files show the same colour-coded badge everywhere — in Changes, in commit and stash details, and in pull/merge-request diffs. The plain "?" that used to show up for some files is gone.
+
+### One consistent set of buttons
+
+Actions across the app now share one look: one style for the main action, green for things like merge and approve, red for destructive actions, and a quiet style for everything else. The copper accent is reserved for the current view and the single main action, so it reads as meaningful rather than decorative.
+
+### A clearer commit box
+
+The commit message now has separate fields for a short summary and an optional longer description. The button tells you exactly what it will do — "Commit 3 files to main" — and, when it isn't ready, says why ("Enter a summary to commit") instead of just being greyed out.
+
+### A grouped sidebar
+
+The navigation is organised into groups — Workspace, History, Advanced, AI, and your connected forge — with the tools you use daily on top. You can still tidy the rail by hiding items you don't use; hide every item in a group and the group disappears.
+
+### A welcome screen that shows what BeardGit does
+
+Opening BeardGit without a repository now leads with what it's for and a quick tour of its features, a clear drop-a-folder area, shortcuts to set up a new repo or open the command palette, and your recent repositories as cards. The AI Sessions screen now has a button to start a run instead of just pointing you elsewhere.
+
 ## [2026.6.0] — Design identity overhaul: own themes, merged title bar, coherent diffs — 2026-06-13
 
 A full design pass over the app, driven by a visual review of every view (the repo's 32 Playwright baselines, dark + light) plus live iteration. The goal: stop reading as a GitHub Desktop fork and become a product with its own identity — without breaking a single workflow. Every change landed as its own commit with before/after captures, and the full CI gate (`cargo fmt`/`clippy`/`test`, `svelte-check`, `vitest`, `stylelint`+`eslint`, 92 Playwright tests) is green throughout.

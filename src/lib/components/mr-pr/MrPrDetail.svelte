@@ -43,6 +43,7 @@
   import * as m from "$lib/paraglide/messages";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import Xrefs from "../common/Xrefs.svelte";
+  import FileStatusBadge from "../common/FileStatusBadge.svelte";
   import { renderMarkdown } from "../../utils/markdown";
   import PillRow from "./PillRow.svelte";
   import LabelPicker from "../common/LabelPicker.svelte";
@@ -458,19 +459,7 @@
                 onclick={() => onFileClick?.(file.path)}
                 aria-label={file.path}
               >
-                <span
-                  class="file-status"
-                  class:added={file.status === "added"}
-                  class:deleted={file.status === "deleted"}
-                >
-                  {file.status === "added"
-                    ? "A"
-                    : file.status === "deleted"
-                      ? "D"
-                      : file.status === "renamed"
-                        ? "R"
-                        : "M"}
-                </span>
+                <FileStatusBadge status={file.status} />
                 <span class="file-path">{file.path}</span>
                 <span class="file-adds">+{file.additions}</span>
                 <span class="file-dels">-{file.deletions}</span>
@@ -496,13 +485,15 @@
                   <span class="comment-file">{comment.path}{comment.line ? `:${comment.line}` : ""}</span>
                 {/if}
                 {#if isGitLab && comment.resolvable && comment.discussion_id}
-                  <button
-                    class="resolve-btn"
-                    class:is-resolved={comment.resolved === true}
-                    onclick={() => handleToggleResolve(comment.discussion_id!, comment.resolved === true)}
-                  >
-                    {comment.resolved ? m.mrpr_unresolve() : m.mrpr_resolve()}
-                  </button>
+                  <span class="resolve-pos">
+                    <Button
+                      variant={comment.resolved === true ? "neutral" : "success"}
+                      size="xs"
+                      onclick={() => handleToggleResolve(comment.discussion_id!, comment.resolved === true)}
+                    >
+                      {comment.resolved ? m.mrpr_unresolve() : m.mrpr_resolve()}
+                    </Button>
+                  </span>
                 {/if}
               </div>
               <div class="comment-body">
@@ -524,20 +515,23 @@
           rows="3"
         ></textarea>
         <div class="comment-actions">
-          <button
-            class="btn-comment"
+          <Button
+            variant="primary"
+            size="sm"
+            loading={commentSubmitting}
             disabled={!commentBody.trim() || commentSubmitting}
             onclick={handleAddComment}
           >
             {m.mrpr_add_comment()}
-          </button>
-          <button
-            class="btn-request-changes"
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
             disabled={!commentBody.trim()}
             onclick={handleRequestChanges}
           >
             {m.mrpr_request_changes()}
-          </button>
+          </Button>
         </div>
       </div>
     {/if}
@@ -914,18 +908,6 @@
   .file-row:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
   .file-row.selected { background: var(--overlay-accent-blue); }
 
-  .file-status {
-    width: 14px;
-    text-align: center;
-    font-weight: 700;
-    font-size: var(--font-size-2xs);
-  }
-  .file-status.added {
-    color: var(--accent-green);
-  }
-  .file-status.deleted {
-    color: var(--accent-red);
-  }
   .file-path {
     flex: 1;
     font-family: var(--font-mono);
@@ -1050,48 +1032,13 @@
     justify-content: flex-end;
   }
 
-  .btn-comment {
-    padding: 5px 12px;
-    background: var(--accent-primary);
-    color: var(--text-primary);
-    border: 1px solid var(--accent-primary);
-    border-radius: 4px;
-    font-size: var(--font-size-xs);
-    cursor: pointer;
-  }
-
-  .btn-comment:hover { opacity: 0.9; }
-  .btn-comment:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .btn-request-changes {
-    padding: 5px 12px;
-    background: var(--overlay-accent-red);
-    color: var(--accent-red);
-    border: 1px solid color-mix(in srgb, var(--accent-red) 30%, transparent);
-    border-radius: 4px;
-    font-size: var(--font-size-xs);
-    cursor: pointer;
-  }
-
-  .btn-request-changes:hover { background: color-mix(in srgb, var(--accent-red) 20%, transparent); }
-  .btn-request-changes:disabled { opacity: 0.5; cursor: not-allowed; }
-
-
-
   .comment.resolved { opacity: 0.6; }
 
-  .resolve-btn {
+  /* Push the resolve toggle to the right edge of the comment header.
+     The button itself is the shared Button primitive. */
+  .resolve-pos {
     margin-left: auto;
-    padding: 2px 8px;
-    background: none;
-    color: var(--accent-green);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: var(--font-size-2xs);
-    cursor: pointer;
   }
-  .resolve-btn.is-resolved { color: var(--text-secondary); }
-  .resolve-btn:hover { border-color: var(--accent-green); }
 
   .checkout-toast {
     position: fixed;
