@@ -64,21 +64,26 @@ describe("Sidebar — nav layout integration", () => {
     expect(queryByTestId("nav-graph")).toBeTruthy();
   });
 
-  it("respects sidebarLayout.order in normal mode", async () => {
+  it("renders items in fixed task-group order (workspace before history)", async () => {
     const { sidebarLayout } = await import("$lib/stores/sidebarLayout");
-    sidebarLayout.set({
-      order: ["ai-sessions", "graph"],
-      hidden: [],
-    });
+    // The saved order is intentionally ignored now — groups are fixed.
+    sidebarLayout.set({ order: ["ai-sessions", "graph"], hidden: [] });
     const { container } = render(Sidebar, { props: { activeView: "graph" } });
     const items = container.querySelectorAll("[data-testid^='nav-']");
-    // The Navigation section is the first nav; find the first two
-    // buttons and confirm the order.
     const testIds = Array.from(items).map((el) => el.getAttribute("data-testid"));
-    const aiIdx = testIds.indexOf("nav-ai-sessions");
-    const graphIdx = testIds.indexOf("nav-graph");
-    expect(aiIdx).toBeGreaterThan(-1);
+    const graphIdx = testIds.indexOf("nav-graph"); // Workspace group
+    const branchesIdx = testIds.indexOf("nav-branches"); // History group
     expect(graphIdx).toBeGreaterThan(-1);
-    expect(aiIdx).toBeLessThan(graphIdx);
+    expect(branchesIdx).toBeGreaterThan(-1);
+    expect(graphIdx).toBeLessThan(branchesIdx);
+  });
+
+  it("drops a group header when all its items are hidden", async () => {
+    const { sidebarLayout } = await import("$lib/stores/sidebarLayout");
+    // Hide the whole Advanced group (worktrees/submodules/bisect).
+    sidebarLayout.set({ order: [], hidden: ["worktrees", "submodules", "bisect"] });
+    const { queryByText } = render(Sidebar, { props: { activeView: "graph" } });
+    expect(queryByText("Advanced")).toBeNull();
+    expect(queryByText("Workspace")).toBeTruthy();
   });
 });

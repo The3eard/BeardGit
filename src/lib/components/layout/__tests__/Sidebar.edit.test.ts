@@ -94,26 +94,15 @@ describe("Sidebar — edit mode", () => {
     );
   });
 
-  it("ArrowDown on the drag handle moves the item down one slot", async () => {
-    const { getByTestId } = render(Sidebar, { props: { activeView: "graph" } });
-    await clickPencil(getByTestId);
-    const handle = getByTestId("sidebar-reorder-graph");
-    await fireEvent.keyDown(handle, { key: "ArrowDown" });
-    expect(get(sidebarLayout).order[0]).toBe("changes");
-    expect(get(sidebarLayout).order[1]).toBe("graph");
-  });
-
-  it("Reset restores defaults", async () => {
+  it("Reset unhides everything", async () => {
     sidebarLayout.set({
-      order: ["ai-sessions", "graph"],
-      hidden: ["bisect"],
+      order: [],
+      hidden: ["bisect", "reflog"],
     });
     const { getByTestId } = render(Sidebar, { props: { activeView: "graph" } });
     await clickPencil(getByTestId);
     await fireEvent.click(getByTestId("sidebar-edit-reset"));
     expect(get(sidebarLayout).hidden).toEqual([]);
-    expect(get(sidebarLayout).order.length).toBe(13);
-    expect(get(sidebarLayout).order[0]).toBe("graph");
   });
 
   it("forces edit mode off when the sidebar collapses", async () => {

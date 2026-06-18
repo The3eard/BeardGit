@@ -23,9 +23,10 @@
     /**
      * Visual variant — picks colour/border tokens. Default `'neutral'`.
      *
-     * - `primary`: loud, accent-blue fill. Tonal-at-rest, solid-on-hover.
-     *   Use for the main affirmative action (Save, Confirm, Create, Open,
-     *   Submit, Connect, Checkout, Continue, Publish, Reopen).
+     * - `primary`: loud, signature-accent (`--accent-primary`, copper in the
+     *   default theme) fill. Tonal-at-rest, solid-on-hover. Use for the main
+     *   affirmative action (Save, Confirm, Create, Open, Submit, Connect,
+     *   Checkout, Continue, Publish, Reopen). One primary per context.
      * - `success`: loud, accent-green fill. Tonal-at-rest, solid-on-hover.
      *   Use for git-state-changing affirmatives (Merge, Apply stash,
      *   Pop stash, Approve PR, Resolve conflict).

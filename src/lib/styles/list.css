@@ -92,5 +92,8 @@
 }
 
 .list-row.selected {
-  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  background: var(--overlay-selected);
+  /* Inset bar (not a real border) so selection reads on light surfaces
+   * without shifting row content by the bar width. */
+  box-shadow: inset 2px 0 0 var(--accent-primary);
 }

@@ -101,6 +101,7 @@ export function applyTheme(theme: ThemeData): void {
   el.setProperty("--bg-toolbar", d.bg_toolbar);
   el.setProperty("--text-primary", d.text_primary);
   el.setProperty("--text-secondary", d.text_secondary);
+  el.setProperty("--text-muted", d.text_muted);
   el.setProperty("--accent-blue", d.accent_blue);
   el.setProperty("--accent-green", d.accent_green);
   el.setProperty("--accent-orange", d.accent_orange);
@@ -130,6 +131,17 @@ export function applyTheme(theme: ThemeData): void {
   for (const [key, value] of Object.entries(accentOverlays)) {
     el.setProperty(key, value);
   }
+
+  // Selected-row / active-nav fill. The 10 % accent overlays are too faint
+  // on light backgrounds (selection reads as "nothing"), so this dedicated
+  // token runs a touch stronger and, on light, leans on the signature accent
+  // rather than blue. Paired with a 2px accent left-bar in list.css / Sidebar.
+  el.setProperty(
+    "--overlay-selected",
+    theme.meta.mode === "light"
+      ? `rgba(${hexToRgb(d.accent_primary)}, 0.16)`
+      : `rgba(${hexToRgb(d.accent_primary)}, 0.13)`,
+  );
 
   // Syntax + diff tokens for line-level highlighting outside CodeMirror
   // (lib/styles/syntax.css). Falls back to the derived accents when a

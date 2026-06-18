@@ -40,7 +40,7 @@
   } from "$lib/stores/aiBackground";
   import { repoInfo } from "$lib/stores/repo";
   import * as m from "$lib/paraglide/messages";
-  import { IconButton } from "$lib/components/ui";
+  import { Button, IconButton } from "$lib/components/ui";
   import ActiveRow from "./ActiveRow.svelte";
   import ConversationRow from "./ConversationRow.svelte";
   import RecentRunRow from "./RecentRunRow.svelte";
@@ -67,14 +67,16 @@
   <div class="panel-header">
     <span class="panel-title">{m.sidebar_ai_sessions()}</span>
     <div class="panel-actions">
-      <button
-        class="new-run-btn"
+      <Button
+        variant="primary"
+        size="xs"
+        icon={"\uF067"}
         onclick={openNewRunDialog}
-        title={m.ai_background_tab_button_tooltip()}
-        data-testid="ai-session-list-new-run"
+        description={m.ai_background_tab_button_tooltip()}
+        testid="ai-session-list-new-run"
       >
-        + {m.ai_background_new_run_button()}
-      </button>
+        {m.ai_background_new_run_button()}
+      </Button>
       <IconButton
         icon={"\uF021"}
         description={m.tooltip_refresh()}
@@ -200,23 +202,6 @@
     display: flex;
     align-items: center;
     gap: 6px;
-  }
-
-  .new-run-btn {
-    background: transparent;
-    border: 1px solid var(--accent-primary);
-    color: var(--accent-primary);
-    border-radius: 5px;
-    padding: 2px 8px;
-    font-size: var(--font-size-2xs);
-    font-weight: 600;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
-
-  .new-run-btn:hover {
-    background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
   }
 
   .sections {

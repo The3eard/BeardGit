@@ -4,6 +4,7 @@
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import FileStatusBadge from "../common/FileStatusBadge.svelte";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
   import { cleanPaths, discardFiles } from "$lib/api/tauri";
   import { addGitignorePattern } from "$lib/api/tauri";
@@ -81,16 +82,6 @@
     files;
     selected = new Set();
   });
-
-  function statusIcon(status: string): string {
-    switch (status) {
-      case "new": return "+";
-      case "modified": return "~";
-      case "deleted": return "-";
-      case "renamed": return "R";
-      default: return "?";
-    }
-  }
 
   /** Generate smart gitignore pattern suggestions from a file path. */
   function buildGitignorePatterns(filePath: string): { label: string; pattern: string }[] {
@@ -329,9 +320,7 @@
           class="file-btn"
           onclick={() => onFileClick?.(file.path)}
         >
-          <span class="status-badge status-{file.status}">
-            {statusIcon(file.status)}
-          </span>
+          <FileStatusBadge status={file.status} />
           <span class="file-path">{file.path}</span>
         </button>
         {#if isStaged && onUnstage}
@@ -455,40 +444,6 @@
     cursor: pointer;
     text-align: left;
     padding: 2px 0;
-  }
-
-  .status-badge {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-2xs);
-    font-weight: 700;
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    line-height: 1;
-  }
-
-  .status-new {
-    color: var(--accent-green);
-    background: var(--overlay-accent-green);
-  }
-
-  .status-modified {
-    color: var(--accent-orange);
-    background: var(--overlay-accent-orange);
-  }
-
-  .status-deleted {
-    color: var(--accent-red);
-    background: var(--overlay-accent-red);
-  }
-
-  .status-renamed {
-    color: var(--accent-purple);
-    background: var(--overlay-accent-purple);
   }
 
   .file-path {
