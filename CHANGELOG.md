@@ -2,6 +2,12 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [26.6.3] — Fix phantom rebase toolbar — 2026-06-30
+
+### Fixed
+
+- **A finished rebase showed a phantom Abort/Continue toolbar.** After a rebase completed, git removes its `rebase-merge/` / `rebase-apply/` state directories but leaves the `.git/REBASE_HEAD` ref behind. Conflict detection treated that leftover ref as an in-progress rebase, so the toolbar appeared and clicking Abort/Continue ran `git rebase --abort/--continue`, which failed with "fatal: no rebase in progress". Detection now keys only off the rebase state directories (what git itself uses), matching git's actual state. (Surfaced once interactive rebases started completing instead of hanging, in 26.6.2.)
+
 ## [26.6.2] — Rebase recovery, live change detection, and a Windows-safe version scheme — 2026-06-30
 
 ### Changed
