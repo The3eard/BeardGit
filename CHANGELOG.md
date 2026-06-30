@@ -2,6 +2,19 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [26.6.2] — Rebase recovery, live change detection, and a Windows-safe version scheme — 2026-06-30
+
+### Changed
+
+- **Version scheme migrated to 2-digit-year CalVer (`YY.M.patch`, e.g. `26.6.2`)** instead of 4-digit (`2026.6.x`). Windows installer version fields cap the major component at 255, so a `2026` major silently broke the Windows NSIS auto-updater: the new build downloaded but the install never "took", leaving the client re-detecting and re-downloading in a loop (other platforms were unaffected). The release workflow now hard-fails any tag whose version is not strict semver with major ≤ 255, minor ≤ 255, patch ≤ 65535, so an un-updatable Windows artifact can never ship again, and it force-marks the published release as GitHub "latest" (GitHub resolves "latest" by semver, and this tag is numerically lower than the stranded `2026.6.x` tags).
+  - **One-time manual update required.** Because no Windows-legal version can ever be numerically greater than `2026.x`, existing users on **any** prior build (`0.x` or `2026.6.x`) are asked to download `26.6.2` manually once. Auto-update resumes normally from `26.x` onward.
+
+### Fixed
+
+- **Interactive rebase could hang with no way to abort.** A rebase plan containing `squash`, `fixup`, or `reword` made `git rebase -i` open the commit-message editor; with no controlling terminal it blocked forever, so the command never returned, no refresh event fired, and the Abort/Continue toolbar never appeared. The rebase now runs with a non-interactive `GIT_EDITOR`, so it always completes (or surfaces its conflict) and stays recoverable.
+- **Conflict state and submodules no longer refreshed in real time.** After the filesystem watcher migrated to the `project-mutated` event, conflict status (which drives the Abort/Continue toolbar) and the submodule list were still wired only to the legacy `repo-changed` event and stopped updating live. Both are now driven by the mutation dispatcher, so an in-progress rebase/merge surfaces its toolbar immediately and submodules track external changes.
+- **Silent filesystem-watcher start failures are now logged.** If a repo's watcher fails to start (e.g. an OS watch-descriptor limit on a large tree), real-time refresh was disabled for that repo with no diagnostic. The failure is now logged so "changes don't appear live" reports are traceable.
+
 ## [2026.6.1] — Clearer hierarchy, a grouped sidebar, and a friendlier first run — 2026-06-18
 
 A polish pass from a UX review of the whole app in both dark and light themes. Nothing changes how you work — the screens just read more clearly and a few rough edges are gone.
