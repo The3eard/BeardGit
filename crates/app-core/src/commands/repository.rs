@@ -56,7 +56,15 @@ pub async fn open_repo(
     // `project-mutated` with `MutationKind::External` directly via the
     // mutation-events pipeline, so no manual `repo-changed` shim is needed.
     let repo_path = PathBuf::from(&path);
-    let new_watcher = watcher::RepoWatcher::start(app_handle.clone(), repo_path).ok();
+    let new_watcher = watcher::RepoWatcher::start(app_handle.clone(), repo_path)
+        .inspect_err(|err| {
+            // A swallowed start failure (e.g. the OS watch limit on a large
+            // tree) silently disables real-time refresh for this repo with no
+            // user-visible signal. Log it so a "changes don't appear live"
+            // report is diagnosable from the log file.
+            tracing::warn!(?err, path = %path, "repo watcher failed to start — real-time refresh disabled for this repo");
+        })
+        .ok();
 
     // Derive lightweight metadata
     let name = PathBuf::from(&path)

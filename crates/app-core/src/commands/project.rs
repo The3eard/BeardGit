@@ -276,7 +276,13 @@ pub async fn switch_project(
     // 4. Start filesystem watcher. The watcher emits `project-mutated`
     //    with `MutationKind::External` directly — no manual shim needed.
     let repo_path = PathBuf::from(&path);
-    let new_watcher = watcher::RepoWatcher::start(app_handle.clone(), repo_path).ok();
+    let new_watcher = watcher::RepoWatcher::start(app_handle.clone(), repo_path)
+        .inspect_err(|err| {
+            // See repository.rs: don't swallow watcher-start failures silently
+            // or "changes don't appear live" becomes undiagnosable.
+            tracing::warn!(?err, path = %path, "repo watcher failed to start — real-time refresh disabled for this repo");
+        })
+        .ok();
 
     let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
 
