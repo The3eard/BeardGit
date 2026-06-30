@@ -105,7 +105,21 @@ impl Repository {
 
         let result = self.git_cmd_with_env(
             &["rebase", "-i", base_oid],
-            &[("GIT_SEQUENCE_EDITOR", &editor_cmd)],
+            &[
+                ("GIT_SEQUENCE_EDITOR", &editor_cmd),
+                // `GIT_SEQUENCE_EDITOR` only drives the todo list. A plan
+                // containing `squash`/`fixup`/`reword` makes `git rebase -i`
+                // additionally open the *commit-message* editor via
+                // `GIT_EDITOR`/`core.editor`. Launched from the GUI there is
+                // no controlling TTY, so that editor blocks forever and the
+                // synchronous `cmd.output()` (see `git_cmd_with_env`) never
+                // returns — the command hangs, no `project-mutated` event
+                // fires, and the conflict toolbar (the only place Abort
+                // lives) never appears, leaving the rebase unrecoverable.
+                // `true` accepts git's prepared message non-interactively.
+                // Mirrors the `GIT_EDITOR=true` the conflict tests rely on.
+                ("GIT_EDITOR", "true"),
+            ],
         )?;
 
         if result.success {
