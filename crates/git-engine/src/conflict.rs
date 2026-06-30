@@ -53,17 +53,21 @@ pub struct ConflictStatus {
 impl Repository {
     /// Detect the current conflict state by checking sentinel files in `.git/`.
     ///
-    /// Checks for `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, and
-    /// rebase indicators (`rebase-merge/`, `rebase-apply/`, `REBASE_HEAD`)
-    /// in the git directory.
+    /// Checks for `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, and the
+    /// rebase state directories (`rebase-merge/`, `rebase-apply/`).
+    ///
+    /// `REBASE_HEAD` is deliberately NOT checked: git leaves that ref behind
+    /// after a rebase *completes*, so keying off it reported a phantom
+    /// "rebase in progress" — the Abort/Continue toolbar appeared but
+    /// `git rebase --abort/--continue` failed with "no rebase in progress".
+    /// The `rebase-merge/` / `rebase-apply/` directories are the authoritative
+    /// in-progress markers and are exactly what those CLI commands operate on.
     pub fn detect_conflict_state(&self) -> ConflictState {
         let git_dir = self.inner().path();
 
-        // Rebase takes priority — check multiple indicators
-        if git_dir.join("rebase-merge").exists()
-            || git_dir.join("rebase-apply").exists()
-            || git_dir.join("REBASE_HEAD").exists()
-        {
+        // Rebase takes priority. Check only the state directories git creates
+        // for an in-progress rebase and removes on completion/abort.
+        if git_dir.join("rebase-merge").exists() || git_dir.join("rebase-apply").exists() {
             return ConflictState::Rebasing;
         }
 
@@ -422,6 +426,21 @@ mod tests {
         fs::create_dir(git_dir.join("rebase-merge")).unwrap();
 
         assert_eq!(repo.detect_conflict_state(), ConflictState::Rebasing);
+    }
+
+    #[test]
+    fn test_lingering_rebase_head_is_not_in_progress() {
+        // Regression: git leaves `.git/REBASE_HEAD` behind after a rebase
+        // *completes*, while removing the rebase-merge/ rebase-apply/ dirs.
+        // A leftover REBASE_HEAD must NOT be reported as an in-progress
+        // rebase, or the UI shows a phantom Abort/Continue toolbar and
+        // `git rebase --abort` fails with "fatal: no rebase in progress".
+        let (_dir, repo) = create_test_repo();
+        let git_dir = repo.inner().path().to_path_buf();
+
+        fs::write(git_dir.join("REBASE_HEAD"), "abc123").unwrap();
+
+        assert_eq!(repo.detect_conflict_state(), ConflictState::None);
     }
 
     #[test]
