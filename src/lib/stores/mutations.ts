@@ -21,6 +21,8 @@ import { refreshBranches } from "./branches";
 import { refreshTags } from "./tags";
 import { loadReflog } from "./reflog";
 import { refreshRepoInfo } from "./repo";
+import { refreshConflictStatus } from "./conflict";
+import { refreshSubmodules } from "./submodules";
 import { saveCurrentSnapshot } from "./project-cache";
 
 /** Shape emitted by `mutation_events::emit_mutation`. */
@@ -100,6 +102,17 @@ export function dispatchRefresh(flags: MutationFlags, path?: string): void {
     // `repo-changed` listener), so any stage/unstage/commit/external
     // edit left them stale and clicking a file found no diff.
     void refreshDiffs();
+  }
+  if (flags.head_changed || flags.refs_changed || flags.status_changed) {
+    // Conflict state (in-progress rebase/merge → the ConflictToolbar, the
+    // only home of Abort/Continue) and the submodule list were previously
+    // refreshed ONLY by the legacy `repo-changed` listener in repo.ts.
+    // The watcher now emits `project-mutated`, not `repo-changed`, so those
+    // two views stopped updating live — a conflicting rebase wouldn't surface
+    // its Abort button until the user reopened/switched tabs. Drive them from
+    // the mutation dispatcher so they track real-time state.
+    void refreshConflictStatus();
+    void refreshSubmodules();
   }
   if (flags.stashes_changed) void refreshStashes();
   if (flags.worktrees_changed) void refreshWorktrees();

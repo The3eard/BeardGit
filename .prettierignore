@@ -1,0 +1,14 @@
+# Build output & generated code
+node_modules/
+.svelte-kit/
+build/
+dist/
+src/lib/paraglide/
+src-tauri/target/
+target/
+
+# Lockfiles & generated data
+package-lock.json
+
+# Rust is formatted by cargo fmt, not Prettier
+*.rs

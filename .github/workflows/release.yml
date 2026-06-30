@@ -85,6 +85,25 @@ jobs:
           VERSION=$(echo "$RAW_VERSION" | sed 's/-[^0-9].*//')
           echo "Tag version: $RAW_VERSION → Build version: $VERSION"
 
+          # --- Windows-safe version guard ------------------------------------
+          # Windows installer version fields are bounded (major/minor ≤ 255,
+          # patch ≤ 65535). A 4-digit-year CalVer major (e.g. 2026) silently
+          # breaks the Windows NSIS updater — the install never "takes", so the
+          # client re-detects and re-downloads forever — even though the bundle
+          # builds fine. Use a 2-digit-year CalVer instead: 26.6.1, NOT
+          # 2026.6.1. Fail the release here rather than ship an un-updatable
+          # Windows artifact. See CHANGELOG (version-scheme migration).
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Build version '$VERSION' is not strict X.Y.Z semver." >&2
+            exit 1
+          fi
+          IFS='.' read -r V_MAJOR V_MINOR V_PATCH <<< "$VERSION"
+          if [ "$V_MAJOR" -gt 255 ] || [ "$V_MINOR" -gt 255 ] || [ "$V_PATCH" -gt 65535 ]; then
+            echo "::error::Version '$VERSION' is not Windows-representable (need major≤255, minor≤255, patch≤65535). Use 2-digit-year CalVer like 26.6.1, not 2026.6.1." >&2
+            exit 1
+          fi
+          # -------------------------------------------------------------------
+
           # Update src-tauri/tauri.conf.json and package.json using node (cross-platform)
           node -e "
             const fs = require('fs');
@@ -158,4 +177,13 @@ jobs:
       - name: Undraft release so updater can consume latest.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "${{ github.ref_name }}" --draft=false --repo "${{ github.repository }}"
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        # `--latest` is REQUIRED, not cosmetic: the updater polls
+        # `/releases/latest/download/latest.json`, and GitHub resolves
+        # "latest" by SEMVER, not by date. During the 2026.x → 26.x version
+        # migration the new tag (e.g. 26.6.2) is numerically LOWER than the
+        # stranded 2026.6.x releases, so without forcing `make_latest` GitHub
+        # would keep serving the old 2026.6.x manifest and every client would
+        # see a phantom downgrade. Pin latest to the tag we just published.
+        run: gh release edit "$TAG" --draft=false --latest --repo "$REPO"

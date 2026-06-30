@@ -1,6 +1,6 @@
 {
   "name": "beardgit",
-  "version": "2026.6.1",
+  "version": "26.6.2",
   "description": "",
   "type": "module",
   "scripts": {
@@ -19,7 +19,9 @@
     "tauri": "tauri",
     "lint:style": "stylelint \"src/**/*.{css,svelte}\"",
     "lint:js": "eslint \"src/**/*.{ts,svelte}\"",
-    "lint": "npm run lint:style && npm run lint:js"
+    "lint": "npm run lint:style && npm run lint:js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "license": "CC-BY-NC-SA-4.0",
   "dependencies": {
@@ -82,6 +84,8 @@
     "eslint-plugin-svelte": "^3.17.1",
     "jsdom": "^29.0.2",
     "postcss-html": "^1.8.1",
+    "prettier": "^3.9.4",
+    "prettier-plugin-svelte": "^4.1.1",
     "stylelint": "^17.9.0",
     "stylelint-config-html": "^1.1.0",
     "stylelint-config-standard": "^40.0.0",
