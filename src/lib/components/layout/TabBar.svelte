@@ -38,7 +38,10 @@
     switchSegment,
     closeSegment,
     closeProjectSegment,
+    reorderTab,
+    tabReordering,
   } from "$lib/stores/tabs";
+  import type { Tab } from "$lib/types";
   import { repoInfo } from "$lib/stores/repo";
   import { aiProviders } from "$lib/stores/ai";
   import { requestOpenCreateBackgroundRunDialog } from "$lib/stores/aiBackground";
@@ -49,10 +52,155 @@
   import { Button, IconButton } from "$lib/components/ui";
 
   import { onMount, tick } from "svelte";
+  import { flip } from "svelte/animate";
   import ProviderIcon from "../ai-sessions/ProviderIcon.svelte";
   import { providerName } from "$lib/data/ai-providers";
 
   let tabsRef = $state<HTMLDivElement | null>(null);
+
+  // ── Tab drag-to-reorder ────────────────────────────────────────────────
+  // Pointer-based (NOT HTML5 drag-and-drop): native DnD is unreliable inside
+  // the macOS WKWebView, so drops silently never fire. Any tab can be dragged
+  // to a new position; a composite pill moves as a whole unit (its internal
+  // segments are never reordered here). When a project/composite tab changes
+  // order, `reorderTab` syncs the backend.
+  let draggingIndex = $state<number | null>(null);
+  let dropIndicator = $state<number | null>(null);
+  let dropSide = $state<"before" | "after">("before");
+  // Horizontal offset of the dragged pill so it follows the cursor.
+  let dragDx = $state(0);
+  // Width (incl. inter-tab gap) of the dragged pill — how far the other
+  // tabs slide to open a gap for it.
+  let dragWidth = $state(0);
+
+  // Final index the dragged pill would land at, given the current pointer.
+  let currentTo = $derived.by(() => {
+    if (draggingIndex === null || dropIndicator === null) return null;
+    const insertion = dropSide === "after" ? dropIndicator + 1 : dropIndicator;
+    return insertion > draggingIndex ? insertion - 1 : insertion;
+  });
+
+  /** How far tab `i` slides to open the gap for the dragged pill. */
+  function slideOffset(i: number): number {
+    if (draggingIndex === null || currentTo === null || i === draggingIndex) return 0;
+    const from = draggingIndex;
+    if (currentTo > from && i > from && i <= currentTo) return -dragWidth;
+    if (currentTo < from && i >= currentTo && i < from) return dragWidth;
+    return 0;
+  }
+
+  // Non-reactive gesture bookkeeping.
+  let pointerDownIndex: number | null = null;
+  let pointerStartX = 0;
+  let activePointerId: number | null = null;
+  let dragSlotEl: HTMLElement | null = null;
+  let dragActive = false;
+  // A drag ends with a synthetic click on the tab; swallow it so the drop
+  // doesn't also switch tabs.
+  let suppressNextClick = false;
+
+  /** Stable per-tab key so Svelte moves DOM nodes on reorder instead of
+   *  rebuilding them (keeps hover state from jumping between pills). */
+  function tabKey(tab: Tab): string {
+    return tab.kind === "terminal"
+      ? `t-${tab.terminal.sessionId}`
+      : `p-${tab.project.path}`;
+  }
+
+  /** Which tab, and which side of it, the pointer is over — ignoring the
+   *  dragged pill itself (it's translated out of place). */
+  function dropTargetAt(clientX: number): { index: number; side: "before" | "after" } | null {
+    if (!tabsRef) return null;
+    const slots = Array.from(tabsRef.querySelectorAll<HTMLElement>(".tab-slot"));
+    let last = -1;
+    for (let i = 0; i < slots.length; i++) {
+      if (i === draggingIndex) continue; // skip the pill being dragged
+      last = i;
+      const r = slots[i].getBoundingClientRect();
+      if (clientX < r.left + r.width / 2) {
+        return { index: i, side: "before" };
+      }
+    }
+    return last >= 0 ? { index: last, side: "after" } : null;
+  }
+
+  function onTabPointerDown(e: PointerEvent, i: number) {
+    if (e.button !== 0) return; // left button only
+    pointerDownIndex = i;
+    pointerStartX = e.clientX;
+    activePointerId = e.pointerId;
+    dragSlotEl = e.currentTarget as HTMLElement;
+    dragActive = false;
+    suppressNextClick = false;
+  }
+
+  function onTabPointerMove(e: PointerEvent) {
+    if (pointerDownIndex === null) return;
+    if (!dragActive) {
+      if (Math.abs(e.clientX - pointerStartX) < 5) return; // movement threshold
+      dragActive = true;
+      draggingIndex = pointerDownIndex;
+      dragWidth = (dragSlotEl?.offsetWidth ?? 0) + 4; // pill + inter-tab gap
+      tabReordering.set(true); // suppress hover tooltips while dragging
+      // Capture only once a drag actually begins — capturing on pointerdown
+      // would redirect the follow-up `click` away from the child button and
+      // break click-to-switch. Capture guarantees we still get pointerup even
+      // if the release lands outside the tab strip.
+      if (activePointerId !== null) {
+        try { dragSlotEl?.setPointerCapture(activePointerId); } catch { /* ignore */ }
+      }
+    }
+    dragDx = e.clientX - pointerStartX; // the pill follows the cursor
+    const target = dropTargetAt(e.clientX);
+    if (target) {
+      dropIndicator = target.index;
+      dropSide = target.side;
+    }
+    e.preventDefault();
+  }
+
+  function onTabPointerUp() {
+    if (activePointerId !== null && dragSlotEl) {
+      try { dragSlotEl.releasePointerCapture(activePointerId); } catch { /* not captured */ }
+    }
+    if (dragActive && draggingIndex !== null && dropIndicator !== null) {
+      const from = draggingIndex;
+      const insertion = dropSide === "after" ? dropIndicator + 1 : dropIndicator;
+      // Removing the dragged item shifts later targets left by one.
+      const to = insertion > from ? insertion - 1 : insertion;
+      reorderTab(from, to);
+      suppressNextClick = true; // eat the click that follows this drag
+    }
+    resetDragState();
+  }
+
+  function onTabPointerCancel() {
+    if (activePointerId !== null && dragSlotEl) {
+      try { dragSlotEl.releasePointerCapture(activePointerId); } catch { /* not captured */ }
+    }
+    resetDragState();
+  }
+
+  function resetDragState() {
+    pointerDownIndex = null;
+    activePointerId = null;
+    dragSlotEl = null;
+    dragActive = false;
+    draggingIndex = null;
+    dropIndicator = null;
+    dragDx = 0;
+    dragWidth = 0;
+    tabReordering.set(false);
+  }
+
+  function onTabClickCapture(e: MouseEvent) {
+    if (suppressNextClick) {
+      e.stopPropagation();
+      e.preventDefault();
+      suppressNextClick = false;
+    }
+  }
+
   let fetchInProgress = $state(false);
   let pullInProgress = $state(false);
   let pushInProgress = $state(false);
@@ -268,44 +416,61 @@
 
 <div class="tab-bar" class:tab-bar--traffic-lights={trafficLightInset} data-tauri-drag-region>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="tabs-scroll" bind:this={tabsRef} onwheel={handleWheel}>
-    {#each $openTabs as tab, i}
-      {#if tab.kind === "project"}
-        <ProjectTab
-          project={tab.project}
-          isActive={i === $activeTabIndex}
-          index={i}
-          onSwitch={(idx) => switchToTab(idx)}
-          onClose={(idx) => closeTab(idx)}
-        />
-      {:else if tab.kind === "terminal"}
-        <TerminalTab
-          terminal={tab.terminal}
-          isActive={i === $activeTabIndex}
-          onSwitch={() => switchToTab(i)}
-          onClose={() => closeTab(i)}
-        />
-      {:else if tab.kind === "composite"}
-        <CompositeTab
-          project={tab.project}
-          segments={tab.segments}
-          activeSegmentIndex={tab.activeSegmentIndex}
-          isActiveTab={i === $activeTabIndex}
-          onSwitchSegment={(segmentIndex) => {
-            switchSegment(i, segmentIndex);
-            if (i !== $activeTabIndex) switchToTab(i);
-          }}
-          onCloseProject={async () => {
-            const projectIdx = (await import("$lib/stores/tabs")).tabIndexToProjectIndex(i);
-            closeProjectSegment(i);
-            if (projectIdx >= 0) {
-              const { closeProject } = await import("$lib/api/tauri");
-              await closeProject(projectIdx);
-            }
-          }}
-          onCloseSegment={(segmentIndex) => closeSegment(i, segmentIndex)}
-        />
-      {/if}
+  <div class="tabs-scroll" class:reordering={draggingIndex !== null} bind:this={tabsRef} onwheel={handleWheel}>
+    {#each $openTabs as tab, i (tabKey(tab))}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="tab-slot"
+        class:dragging={draggingIndex === i}
+        style:transform={draggingIndex === i
+          ? `translateX(${dragDx}px)`
+          : slideOffset(i) !== 0
+            ? `translateX(${slideOffset(i)}px)`
+            : null}
+        animate:flip={{ duration: 160 }}
+        onpointerdown={(e) => onTabPointerDown(e, i)}
+        onpointermove={onTabPointerMove}
+        onpointerup={onTabPointerUp}
+        onpointercancel={onTabPointerCancel}
+        onclickcapture={onTabClickCapture}
+      >
+        {#if tab.kind === "project"}
+          <ProjectTab
+            project={tab.project}
+            isActive={i === $activeTabIndex}
+            index={i}
+            onSwitch={(idx) => switchToTab(idx)}
+            onClose={(idx) => closeTab(idx)}
+          />
+        {:else if tab.kind === "terminal"}
+          <TerminalTab
+            terminal={tab.terminal}
+            isActive={i === $activeTabIndex}
+            onSwitch={() => switchToTab(i)}
+            onClose={() => closeTab(i)}
+          />
+        {:else if tab.kind === "composite"}
+          <CompositeTab
+            project={tab.project}
+            segments={tab.segments}
+            activeSegmentIndex={tab.activeSegmentIndex}
+            isActiveTab={i === $activeTabIndex}
+            onSwitchSegment={(segmentIndex) => {
+              switchSegment(i, segmentIndex);
+              if (i !== $activeTabIndex) switchToTab(i);
+            }}
+            onCloseProject={async () => {
+              const projectIdx = (await import("$lib/stores/tabs")).tabIndexToProjectIndex(i);
+              closeProjectSegment(i);
+              if (projectIdx >= 0) {
+                const { closeProject } = await import("$lib/api/tauri");
+                await closeProject(projectIdx);
+              }
+            }}
+            onCloseSegment={(segmentIndex) => closeSegment(i, segmentIndex)}
+          />
+        {/if}
+      </div>
     {/each}
   </div>
 
@@ -438,6 +603,35 @@
 
   .tabs-scroll::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Each tab lives in a draggable slot so the whole pill reorders as a
+     unit. The drop indicator sits in the 4px gap between slots. */
+  .tab-slot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    /* Keep the pointer gesture as a drag rather than letting the scroller
+       or the OS interpret it. */
+    touch-action: none;
+  }
+
+  /* Only animate while a drag is in progress. Off-drag the transition is
+     absent, so when the drop reorders the DOM the transforms clear
+     instantly and the pills don't jump. */
+  .tabs-scroll.reordering .tab-slot {
+    transition: transform 0.15s ease;
+  }
+
+  /* The dragged pill must track the cursor 1:1 — no easing lag. */
+  .tabs-scroll.reordering .tab-slot.dragging {
+    opacity: 0.85;
+    cursor: grabbing;
+    z-index: 5;
+    box-shadow: var(--shadow-overlay);
+    border-radius: 14px;
+    transition: none;
   }
 
   .add-button-wrapper {

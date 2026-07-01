@@ -7,10 +7,13 @@ use tracing::instrument;
 use super::helpers::*;
 use crate::state::AppState;
 
-/// Push the current working-tree changes onto the stash stack.
+/// Push working-tree changes onto the stash stack.
 ///
 /// # Parameters
 /// - `message` – Optional stash description (equivalent to `git stash push -m <msg>`).
+/// - `paths` – Optional list of paths to stash. When present and non-empty,
+///   only those paths are stashed (`git stash push --include-untracked -- <paths>`);
+///   otherwise the whole working tree is stashed.
 ///
 /// # Returns
 /// The stdout of `git stash push` on success, or stderr as an error.
@@ -18,6 +21,7 @@ use crate::state::AppState;
 #[instrument(skip(state, app), name = "cmd::stash::push")]
 pub async fn stash_push(
     message: Option<String>,
+    paths: Option<Vec<String>>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, String> {
@@ -25,9 +29,11 @@ pub async fn stash_push(
     with_mutation_guard_async(&state, &app, MutationKind::Stash, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            let result = repo
-                .stash_push(message.as_deref())
-                .map_err(|e| e.to_string())?;
+            let result = match paths {
+                Some(ref p) if !p.is_empty() => repo.stash_push_paths(message.as_deref(), p),
+                _ => repo.stash_push(message.as_deref()),
+            }
+            .map_err(|e| e.to_string())?;
             if result.success {
                 Ok(result.stdout)
             } else {

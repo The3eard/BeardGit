@@ -392,6 +392,7 @@
   "worktree_cleanup": "Cleanup worktree + branch",
   "changes_menu_stage": "Stage",
   "changes_menu_unstage": "Unstage",
+  "changes_menu_stash_selected": "Stash Selected ({count})",
   "changes_menu_discard": "Discard Changes",
   "changes_menu_copy_path": "Copy Path",
   "settings_language": "Language",

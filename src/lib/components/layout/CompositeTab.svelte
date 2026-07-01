@@ -9,6 +9,7 @@
     refreshProjectSnapshot,
     projectSnapshots,
   } from "$lib/stores/project-cache";
+  import { tabReordering } from "$lib/stores/tabs";
   import IconButton from "$lib/components/ui/IconButton.svelte";
 
   interface Props {
@@ -82,6 +83,7 @@
   let tooltipY = $state(0);
 
   function handleMouseEnter(e: MouseEvent) {
+    if ($tabReordering) return; // no hover tooltips mid-drag
     const target = e.currentTarget as HTMLElement;
     hoverTimer = setTimeout(async () => {
       const rect = target.getBoundingClientRect();
@@ -102,6 +104,18 @@
     }
     hoverSnapshot = null;
   }
+
+  // A drag can begin while a tooltip is showing (or its timer pending) —
+  // tear it down the moment reordering starts.
+  $effect(() => {
+    if ($tabReordering) {
+      if (hoverTimer) {
+        clearTimeout(hoverTimer);
+        hoverTimer = null;
+      }
+      hoverSnapshot = null;
+    }
+  });
 
   // Mirror of ProjectTab.svelte: force a fresh snapshot from a temp
   // repo handle so the strip is correct regardless of what the cache
