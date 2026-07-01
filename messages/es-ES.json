@@ -392,6 +392,7 @@
   "worktree_cleanup": "Limpiar worktree y rama",
   "changes_menu_stage": "Añadir al stage",
   "changes_menu_unstage": "Quitar del stage",
+  "changes_menu_stash_selected": "Guardar en stash seleccionados ({count})",
   "changes_menu_discard": "Descartar cambios",
   "changes_menu_copy_path": "Copiar ruta",
   "settings_language": "Idioma",

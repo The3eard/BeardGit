@@ -2,6 +2,18 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased]
+
+### Added
+
+- **Reorder tabs by dragging.** Drag any tab to a new spot in the tab strip: the neighbouring tabs slide aside to open a gap and the dragged tab eases into place on drop. A composite tab (a repo plus its linked terminals/worktrees) moves as one whole pill — the sections inside it keep their order. The new order is persisted across restarts. (Implemented with pointer dragging rather than HTML5 drag-and-drop, which drops silently in the desktop webview.)
+- **Keyboard navigation and range selection in the Changes lists.** Arrow keys move a focus cursor within a list, Space toggles the focused file's checkbox, and Shift+Arrow or Shift+click select a range of files. Focus and ranges stay within a single list (Staged / Unstaged).
+- **Stash selected files from the right-click menu.** Right-click in Changes → **Stash Selected (N)** stashes just the checked files (or the file under the cursor), untracked files included, leaving the rest of the working tree untouched.
+
+### Changed
+
+- **Changes keeps your checkbox selection but clears the open file on exit.** Leaving and re-entering Changes now preserves which files you had checked, while resetting the diff panel so you come back to a clean view instead of the last file you had open. The selection resets when you switch repositories.
+
 ## [26.6.3] — Fix phantom rebase toolbar — 2026-06-30
 
 ### Fixed

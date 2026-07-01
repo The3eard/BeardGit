@@ -230,8 +230,11 @@ export async function getHeadMessage(): Promise<string> {
   return invoke<string>("get_head_message");
 }
 
-export async function stashPush(message: string | null): Promise<string> {
-  return invoke<string>("stash_push", { message });
+export async function stashPush(
+  message: string | null,
+  paths: string[] | null = null,
+): Promise<string> {
+  return invoke<string>("stash_push", { message, paths });
 }
 
 export async function stashPop(index: number | null): Promise<string> {
@@ -518,6 +521,10 @@ export async function closeProject(index: number): Promise<void> {
 
 export async function switchProject(index: number): Promise<RepoInfo> {
   return invoke<RepoInfo>("switch_project", { index });
+}
+
+export async function reorderProject(from: number, to: number): Promise<void> {
+  return invoke<void>("reorder_project", { from, to });
 }
 
 export async function getOpenProjects(): Promise<ProjectInfo[]> {
