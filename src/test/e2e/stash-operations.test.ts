@@ -184,7 +184,7 @@ describe("stash operations workflow", () => {
 
     const call = invokeMock.mock.calls.find((c) => c[0] === "stash_push");
     expect(call).toBeDefined();
-    expect(call?.[1]).toEqual({ message: "WIP: new work" });
+    expect(call?.[1]).toEqual({ message: "WIP: new work", paths: null });
   });
 
   it("doStashPush accepts null message", async () => {
@@ -193,7 +193,16 @@ describe("stash operations workflow", () => {
     await doStashPush(null);
 
     const call = invokeMock.mock.calls.find((c) => c[0] === "stash_push");
-    expect(call?.[1]).toEqual({ message: null });
+    expect(call?.[1]).toEqual({ message: null, paths: null });
+  });
+
+  it("doStashPush forwards selected paths to the IPC", async () => {
+    mockInvokeResponse("stash_push", "stash{0}");
+
+    await doStashPush(null, ["a.ts", "b.ts"]);
+
+    const call = invokeMock.mock.calls.find((c) => c[0] === "stash_push");
+    expect(call?.[1]).toEqual({ message: null, paths: ["a.ts", "b.ts"] });
   });
 
   // ── doStashPop ───────────────────────────────────────────────────────

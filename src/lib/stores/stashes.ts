@@ -55,11 +55,17 @@ export async function selectStash(index: number) {
   selectedStashDiff.set(diffs);
 }
 
-export async function doStashPush(message: string | null) {
+export async function doStashPush(message: string | null, paths: string[] | null = null) {
+  const count = paths?.length ?? 0;
   await runMutation({
     kind: "stash_push",
-    invoke: () => apiStashPush(message),
-    successToast: () => (message ? `Stashed — ${message}` : "Stashed changes"),
+    invoke: () => apiStashPush(message, paths),
+    successToast: () =>
+      message
+        ? `Stashed — ${message}`
+        : count > 0
+          ? `Stashed ${count} file${count === 1 ? "" : "s"}`
+          : "Stashed changes",
     failureToastPrefix: "Stash failed",
   });
   // Stashes refresh is driven by the project-mutated event.
