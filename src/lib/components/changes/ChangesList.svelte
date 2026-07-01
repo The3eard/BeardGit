@@ -6,6 +6,8 @@
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import FileStatusBadge from "../common/FileStatusBadge.svelte";
   import { openBlame, blameActiveTab } from "$lib/stores/blame";
+  import { doStashPush } from "$lib/stores/stashes";
+  import { unstagedSelection, stagedSelection } from "$lib/stores/changesSelection";
   import { cleanPaths, discardFiles } from "$lib/api/tauri";
   import { addGitignorePattern } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
@@ -44,43 +46,128 @@
   let discardTargetPath = $state<string | null>(null);
   let discardTargetIsUntracked = $state(false);
 
-  let selected = $state(new Set<string>());
+  // Checkbox selection is backed by a store so it PERSISTS across leaving
+  // and re-entering the Changes view (see changesSelection.ts). `isStaged`
+  // is fixed per instance — it just picks which list's store to read/write.
+  let selected = $derived(isStaged ? $stagedSelection : $unstagedSelection);
+
+  function setSelection(next: Set<string>) {
+    (isStaged ? stagedSelection : unstagedSelection).set(next);
+  }
 
   let selectedCount = $derived(selected.size);
   let allSelected = $derived(files.length > 0 && selected.size === files.length);
   let someSelected = $derived(selected.size > 0 && selected.size < files.length);
 
-  function toggleFile(path: string) {
+  // Keyboard navigation: `focusIndex` is the arrow-key cursor and
+  // `anchorIndex` the fixed end of a Shift range. Both are component-local
+  // so the cursor starts fresh each visit (unlike the persisted selection).
+  let focusIndex = $state(-1);
+  let anchorIndex = $state(-1);
+  let listEl = $state<HTMLDivElement | null>(null);
+
+  function toggleFile(path: string, index = -1) {
     const next = new Set(selected);
     if (next.has(path)) next.delete(path);
     else next.add(path);
-    selected = next;
+    setSelection(next);
+    if (index >= 0) {
+      anchorIndex = index;
+      focusIndex = index;
+    }
   }
 
   function toggleAll() {
-    if (allSelected) {
-      selected = new Set();
-    } else {
-      selected = new Set(files.map(f => f.path));
-    }
+    setSelection(allSelected ? new Set() : new Set(files.map((f) => f.path)));
   }
 
   function stageSelected() {
     const paths = [...selected];
-    selected = new Set();
+    setSelection(new Set());
     onStage?.(paths);
   }
 
   function unstageSelected() {
     const paths = [...selected];
-    selected = new Set();
+    setSelection(new Set());
     onUnstage?.(paths);
   }
 
-  // Clear selection when file list changes (after stage/unstage refresh)
+  /** Add every file between two row indices (inclusive) to the selection. */
+  function selectRange(a: number, b: number) {
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const next = new Set(selected);
+    for (let i = lo; i <= hi; i++) {
+      const f = files[i];
+      if (f) next.add(f.path);
+    }
+    setSelection(next);
+  }
+
+  function setFocus(index: number) {
+    focusIndex = Math.max(0, Math.min(index, files.length - 1));
+    const row = listEl?.querySelector<HTMLElement>(`[data-row-index="${focusIndex}"]`);
+    row?.scrollIntoView({ block: "nearest" });
+  }
+
+  function handleRowClick(e: MouseEvent, index: number) {
+    // Shift-click selects the range from the anchor to the clicked row
+    // instead of opening the diff.
+    if (e.shiftKey && anchorIndex >= 0) {
+      e.preventDefault();
+      selectRange(anchorIndex, index);
+      focusIndex = index;
+      listEl?.focus();
+      return;
+    }
+    anchorIndex = index;
+    focusIndex = index;
+    listEl?.focus();
+    onFileClick?.(files[index].path);
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (files.length === 0) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const delta = e.key === "ArrowDown" ? 1 : -1;
+      const from = focusIndex < 0 ? (delta > 0 ? -1 : files.length) : focusIndex;
+      const next = Math.max(0, Math.min(from + delta, files.length - 1));
+      if (e.shiftKey) {
+        if (anchorIndex < 0) anchorIndex = focusIndex < 0 ? next : focusIndex;
+        selectRange(anchorIndex, next);
+      } else {
+        anchorIndex = next;
+      }
+      setFocus(next);
+    } else if (e.key === " ") {
+      e.preventDefault();
+      if (focusIndex >= 0 && focusIndex < files.length) {
+        toggleFile(files[focusIndex].path, focusIndex);
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (focusIndex >= 0 && focusIndex < files.length) {
+        onFileClick?.(files[focusIndex].path);
+      }
+    }
+  }
+
+  // Prune selection to paths that still exist (after stage/unstage/refresh)
+  // rather than clearing it, so the selection survives refreshes and
+  // view switches. A stale keyboard cursor self-heals on the next arrow.
   $effect(() => {
-    files;
-    selected = new Set();
+    const present = new Set(files.map((f) => f.path));
+    (isStaged ? stagedSelection : unstagedSelection).update((sel) => {
+      let changed = false;
+      const nextSel = new Set<string>();
+      for (const p of sel) {
+        if (present.has(p)) nextSel.add(p);
+        else changed = true;
+      }
+      return changed ? nextSel : sel;
+    });
   });
 
   /** Generate smart gitignore pattern suggestions from a file path. */
@@ -141,6 +228,17 @@
         action: () => onUnstage!([filePath]),
       });
     }
+
+    // Stash the checkbox selection, falling back to the right-clicked file
+    // when nothing is checked.
+    const stashPaths = selected.size > 0 ? [...selected] : [filePath];
+    items.push({
+      label: m.changes_menu_stash_selected({ count: String(stashPaths.length) }),
+      action: () => {
+        setSelection(new Set());
+        void doStashPush(null, stashPaths);
+      },
+    });
 
     items.push({
       label: m.changes_menu_copy_path(),
@@ -302,23 +400,27 @@
       {/if}
     {/if}
   </div>
-  <div class="file-list" role="list">
-    {#each files as file}
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div class="file-list" role="list" tabindex="0" bind:this={listEl} onkeydown={handleKeydown}>
+    {#each files as file, i}
       <div
         class="file-item"
         class:selected={file.path === selectedPath}
+        class:focused={i === focusIndex}
         role="listitem"
+        data-row-index={i}
         data-testid="file-row-{file.path.replace(/\//g, '-')}"
         oncontextmenu={(e) => openContextMenu(e, file.path)}
       >
         <Checkbox
           checked={selected.has(file.path)}
           ariaLabel={file.path}
-          onclick={(e) => { e.stopPropagation(); toggleFile(file.path); }}
+          onclick={(e) => { e.stopPropagation(); listEl?.focus(); toggleFile(file.path, i); }}
         />
         <button
           class="file-btn"
-          onclick={() => onFileClick?.(file.path)}
+          onclick={(e) => handleRowClick(e, i)}
         >
           <FileStatusBadge status={file.status} />
           <span class="file-path">{file.path}</span>
@@ -429,6 +531,18 @@
   .file-item.selected {
     background: var(--overlay-accent-blue);
     border-left-color: var(--accent-primary);
+  }
+
+  /* Keyboard-navigation cursor (arrow keys) — a thin ring, distinct from
+     `.selected` (the open file's filled background). */
+  .file-item.focused {
+    outline: 1px solid var(--accent-primary);
+    outline-offset: -1px;
+    border-radius: 2px;
+  }
+
+  .file-list:focus {
+    outline: none;
   }
 
   .file-btn {

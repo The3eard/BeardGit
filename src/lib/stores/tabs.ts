@@ -12,11 +12,16 @@
 
 import { writable, derived, get } from "svelte/store";
 import type { Tab, ProjectInfo, TerminalTabInfo, LinkedSegment, AiProviderKind } from "../types";
-import { terminalSpawn, terminalKill, aiLaunchInteractive, aiResumeConversation } from "../api/tauri";
+import { terminalSpawn, terminalKill, aiLaunchInteractive, aiResumeConversation, reorderProject } from "../api/tauri";
 import { onTerminalOutput, offTerminalOutput } from "./terminal";
 
 export const openTabs = writable<Tab[]>([]);
 export const activeTabIndex = writable<number>(-1);
+
+/** True while a tab is being dragged to reorder. Tab components read this
+ *  to suppress their hover tooltips (which otherwise pop up and jank the
+ *  drag as the pointer crosses tabs). */
+export const tabReordering = writable(false);
 
 /** The currently active tab (project, terminal, or composite), or null. */
 export const activeTab = derived(
@@ -128,6 +133,56 @@ export function removeTab(tabIndex: number): number {
   if (tabIndex < currentActive) return currentActive - 1;
   if (tabIndex === currentActive) return Math.min(tabIndex, newTabs.length - 1);
   return currentActive;
+}
+
+/**
+ * Reorder a tab from `fromIndex` to `toIndex` (remove-then-insert).
+ *
+ * The whole tab moves as a unit — for a composite pill that means the pill
+ * relocates without disturbing its internal segment order. The active tab
+ * keeps its highlight (tracked by identity). When the move changes the
+ * relative order of project/composite tabs, the backend project order is
+ * synced and persisted via `reorder_project`; terminal-only moves never
+ * touch the backend.
+ */
+export function reorderTab(fromIndex: number, toIndex: number): void {
+  const tabs = get(openTabs);
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= tabs.length ||
+    toIndex >= tabs.length
+  ) {
+    return;
+  }
+
+  const moved = tabs[fromIndex];
+  const activeIdx = get(activeTabIndex);
+  const activeTabRef = activeIdx >= 0 ? tabs[activeIdx] : null;
+
+  // Project index of the moved tab BEFORE the move (−1 if not a project tab).
+  const fromProjectIdx = tabIndexToProjectIndex(fromIndex);
+
+  const newTabs = [...tabs];
+  newTabs.splice(fromIndex, 1);
+  newTabs.splice(toIndex, 0, moved);
+  openTabs.set(newTabs);
+
+  // Keep the active highlight on the same tab by identity.
+  if (activeTabRef) {
+    const newActive = newTabs.indexOf(activeTabRef);
+    if (newActive >= 0) activeTabIndex.set(newActive);
+  }
+
+  // Sync the backend project order only when a project/composite tab changed
+  // its position relative to the OTHER project tabs. Reads the new openTabs.
+  if (fromProjectIdx >= 0) {
+    const toProjectIdx = tabIndexToProjectIndex(toIndex);
+    if (toProjectIdx >= 0 && toProjectIdx !== fromProjectIdx) {
+      void reorderProject(fromProjectIdx, toProjectIdx);
+    }
+  }
 }
 
 /** Update the project info for all matching project tabs (after refresh). */

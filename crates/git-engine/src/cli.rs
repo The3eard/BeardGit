@@ -266,6 +266,30 @@ impl Repository {
         }
     }
 
+    /// Push the changes for specific `paths` onto the stash stack.
+    ///
+    /// Equivalent to `git stash push --include-untracked [-m <msg>] -- <paths>`.
+    /// `--include-untracked` is passed so newly-added (untracked) files in the
+    /// selection are stashed too; the trailing pathspec keeps it scoped to
+    /// exactly those paths.
+    #[instrument(skip(self))]
+    pub fn stash_push_paths(
+        &self,
+        message: Option<&str>,
+        paths: &[String],
+    ) -> Result<GitCliResult, GitError> {
+        let mut args: Vec<&str> = vec!["stash", "push", "--include-untracked"];
+        if let Some(msg) = message {
+            args.push("-m");
+            args.push(msg);
+        }
+        args.push("--");
+        for p in paths {
+            args.push(p.as_str());
+        }
+        self.git_cmd(&args)
+    }
+
     /// Apply and remove the stash entry at `index` (defaults to the latest stash).
     #[instrument(skip(self))]
     pub fn stash_pop(&self, index: Option<usize>) -> Result<GitCliResult, GitError> {
@@ -680,6 +704,31 @@ mod tests {
         assert_eq!(stashes.len(), 1);
         let result = repo.stash_pop(None).unwrap();
         assert!(result.success);
+    }
+
+    #[test]
+    fn test_stash_push_paths_scopes_to_selection() {
+        let (dir, repo) = create_test_repo();
+        // Two pending changes: a tracked modification and an untracked file.
+        fs::write(dir.path().join("file.txt"), "modified\n").unwrap();
+        fs::write(dir.path().join("untracked.txt"), "brand new\n").unwrap();
+
+        // Stash only the untracked file — file.txt must stay dirty.
+        let result = repo
+            .stash_push_paths(Some("only untracked"), &["untracked.txt".to_string()])
+            .unwrap();
+        assert!(result.success, "stderr: {}", result.stderr);
+
+        let stashes = repo.stash_list().unwrap();
+        assert_eq!(stashes.len(), 1);
+
+        // untracked.txt was stashed away (--include-untracked)…
+        assert!(!dir.path().join("untracked.txt").exists());
+        // …but the tracked modification to file.txt is untouched (path-scoped).
+        assert_eq!(
+            fs::read_to_string(dir.path().join("file.txt")).unwrap(),
+            "modified\n"
+        );
     }
 
     #[test]

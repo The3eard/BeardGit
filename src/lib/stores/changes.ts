@@ -25,6 +25,7 @@ import {
   getDiffIndex as apiDiffIndex,
 } from "../api/tauri";
 import { runMutation } from "../api/runMutation";
+import { clearChangesSelection } from "./changesSelection";
 
 /** Per-file status list (staged and unstaged combined). */
 export const fileStatuses = writable<FileStatus[]>([]);
@@ -40,6 +41,8 @@ export function clearChangesState(): void {
   fileStatuses.set([]);
   unstagedDiffs.set([]);
   stagedDiffs.set([]);
+  // Checkbox selection is per-project — reset it when the repo changes.
+  clearChangesSelection();
 }
 
 export async function refreshStatuses() {
