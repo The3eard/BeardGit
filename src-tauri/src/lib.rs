@@ -194,6 +194,7 @@ pub fn run() {
             app_core::commands::clone_repo,
             app_core::commands::close_project,
             app_core::commands::switch_project,
+            app_core::commands::reorder_project,
             app_core::commands::get_open_projects,
             app_core::commands::get_active_project_index,
             app_core::commands::restore_projects,
