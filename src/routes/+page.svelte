@@ -601,12 +601,17 @@
    * assignment runs straight through.
    */
   function tryChangeView(nextView: string): void {
-    if (activeView === "repo-config" && repoConfigPageRef) {
-      repoConfigPageRef.requestGuardedNavigation(() => {
-        activeView = nextView;
-      });
-    } else {
+    const apply = () => {
       activeView = nextView;
+      // Leaving the Changes view resets the open file/diff so re-entering
+      // lands on the empty diff panel. The checkbox selection persists via
+      // the changesSelection store.
+      if (nextView !== "changes") selectedStagingFile = null;
+    };
+    if (activeView === "repo-config" && repoConfigPageRef) {
+      repoConfigPageRef.requestGuardedNavigation(apply);
+    } else {
+      apply();
     }
   }
 

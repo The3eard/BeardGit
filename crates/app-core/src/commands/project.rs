@@ -169,6 +169,82 @@ pub(super) fn adjust_active_after_close(
     }
 }
 
+/// Pure helper: adjust the active-project index after moving a project
+/// from `from` to `to` (remove-then-insert semantics), keeping the active
+/// index pointed at the same project.
+///
+/// Mirrors the core logic of [`reorder_project`] without touching any
+/// state, so it can be unit-tested in isolation.
+pub(super) fn adjust_active_after_move(
+    active: Option<usize>,
+    from: usize,
+    to: usize,
+) -> Option<usize> {
+    match active {
+        None => None,
+        Some(current) if current == from => Some(to),
+        Some(current) => {
+            let after_remove = if current > from { current - 1 } else { current };
+            let final_idx = if after_remove >= to {
+                after_remove + 1
+            } else {
+                after_remove
+            };
+            Some(final_idx)
+        }
+    }
+}
+
+/// Reorder an open project tab, moving it from one index to another.
+///
+/// Moves the project within both the in-memory list and the persisted
+/// `open_projects` order (remove at `from`, insert at `to`), keeping the
+/// active index pointed at the same project, then persists the new order.
+///
+/// Tab order is presentation state, so this does NOT go through a
+/// [`mutation_events::MutationGuard`] — no repo state changes.
+///
+/// # Parameters
+/// - `from` – Current zero-based index of the project to move.
+/// - `to` – Destination zero-based index.
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::project::reorder")]
+pub fn reorder_project(from: usize, to: usize, state: State<'_, AppState>) -> Result<(), String> {
+    if from == to {
+        return Ok(());
+    }
+
+    // 1. Reorder the in-memory project list.
+    {
+        let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
+        if from >= projects.len() || to >= projects.len() {
+            return Err("Project index out of bounds".to_string());
+        }
+        let slot = projects.remove(from);
+        projects.insert(to, slot);
+    }
+
+    // 2. Track the active project through the move.
+    let new_active = {
+        let mut active = state.active_index.lock().map_err(|e| e.to_string())?;
+        *active = adjust_active_after_move(*active, from, to);
+        *active
+    };
+
+    // 3. Persist the new order + active index.
+    {
+        let mut config = state.config.lock().map_err(|e| e.to_string())?;
+        if from < config.open_projects.len() && to < config.open_projects.len() {
+            let path = config.open_projects.remove(from);
+            config.open_projects.insert(to, path);
+        }
+        config.active_project_index = new_active;
+        config.save(&state.config_path).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 /// Close a tab and remove it from the persisted list.
 ///
 /// Adds the closed path to `recent_repos` (front, capped at 20). Adjusts the
@@ -527,6 +603,7 @@ mod tests {
     }
 
     use super::adjust_active_after_close;
+    use super::adjust_active_after_move;
 
     #[test]
     fn adjust_active_after_close_shifts_when_active_follows_closed() {
@@ -554,6 +631,26 @@ mod tests {
     fn adjust_active_after_close_leaves_earlier_active_untouched() {
         // [A(active), B, C] → close C → active stays 0.
         assert_eq!(adjust_active_after_close(Some(0), 2, 3), Some(0));
+    }
+
+    #[test]
+    fn adjust_active_after_move_follows_the_moved_project() {
+        // [A(active), B, C] → move A to index 2 → active follows to 2.
+        assert_eq!(adjust_active_after_move(Some(0), 0, 2), Some(2));
+        // [A, B, C(active)] → move C to index 0 → active follows to 0.
+        assert_eq!(adjust_active_after_move(Some(2), 2, 0), Some(0));
+    }
+
+    #[test]
+    fn adjust_active_after_move_shifts_bystander_projects() {
+        // [A, B(active), C, D] → move A (from 0) to index 3.
+        // Result [B, C, D, A] → B is now at index 0.
+        assert_eq!(adjust_active_after_move(Some(1), 0, 3), Some(0));
+        // [A, B, C, D(active)] → move D (from 3) to index 0.
+        // Result [D, A, B, C] → the was-C active shifts 2 → 3.
+        assert_eq!(adjust_active_after_move(Some(2), 3, 0), Some(3));
+        // No active project stays None.
+        assert_eq!(adjust_active_after_move(None, 0, 2), None);
     }
 }
 
