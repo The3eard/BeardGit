@@ -1659,9 +1659,9 @@ export async function bisectGetLog(): Promise<string> {
   return invoke<string>("bisect_get_log");
 }
 
-/** Run an automated bisect with a test command. */
-export async function bisectRunAuto(testCommand: string): Promise<string> {
-  return invoke<string>("bisect_run_auto", { testCommand });
+/** Run an automated bisect with a test command (background task, returns TaskId). */
+export async function bisectRunAuto(testCommand: string): Promise<TaskId> {
+  return invoke<TaskId>("bisect_run_auto", { testCommand });
 }
 
 // ─── Debug / Logging ────────────────────────────────────────────────
