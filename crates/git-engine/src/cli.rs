@@ -673,6 +673,13 @@ mod tests {
             .unwrap()
             .set_str("user.email", "test@test.com")
             .unwrap();
+        // Windows CI sets core.autocrlf=true globally; CLI-backed checkout
+        // (stash apply, discard) would rewrite \n to \r\n and break asserts.
+        git_repo
+            .config()
+            .unwrap()
+            .set_str("core.autocrlf", "false")
+            .unwrap();
         let sig = git2::Signature::now("Test", "test@test.com").unwrap();
         fs::write(dir.path().join("file.txt"), "content\n").unwrap();
         let mut index = git_repo.index().unwrap();
