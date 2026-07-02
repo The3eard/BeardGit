@@ -2,6 +2,7 @@
   import BranchTreeNode from "./BranchTreeNode.svelte";
   import type { BranchTreeNode as TreeNode } from "./branch-tree";
   import { shortOid } from "../../utils/git";
+  import * as m from "$lib/paraglide/messages";
 
   let {
     node,
@@ -72,6 +73,9 @@
     {/if}
     {#if node.behind > 0}
       <span class="track-pip behind" title="Behind {node.behind}">↓{node.behind}</span>
+    {/if}
+    {#if node.upstreamGone}
+      <span class="track-pip gone" title={m.branch_gone_tooltip()}>{m.branch_gone_chip()}</span>
     {/if}
     <span class="branch-oid">{shortOid(node.oid)}</span>
   </div>
@@ -203,5 +207,12 @@
   .track-pip.behind {
     background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
     color: var(--accent-orange);
+  }
+
+  .track-pip.gone {
+    background: color-mix(in srgb, var(--accent-red) 15%, transparent);
+    color: var(--accent-red);
+    text-transform: lowercase;
+    letter-spacing: 0.3px;
   }
 </style>

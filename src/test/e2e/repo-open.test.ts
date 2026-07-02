@@ -32,9 +32,9 @@ const MOCK_REPO_INFO: RepoInfo = {
 };
 
 const MOCK_BRANCHES: BranchInfo[] = [
-  { name: "main", is_head: true, is_remote: false, oid: "abc123def456abc123def456abc123def456abc1", upstream: null, ahead: 0, behind: 0 },
-  { name: "feature/cool", is_head: false, is_remote: false, oid: "def456abc123def456abc123def456abc123def4", upstream: null, ahead: 0, behind: 0 },
-  { name: "origin/main", is_head: false, is_remote: true, oid: "abc123def456abc123def456abc123def456abc1", upstream: null, ahead: 0, behind: 0 },
+  { name: "main", is_head: true, is_remote: false, oid: "abc123def456abc123def456abc123def456abc1", upstream: null, ahead: 0, behind: 0, upstream_gone: false },
+  { name: "feature/cool", is_head: false, is_remote: false, oid: "def456abc123def456abc123def456abc123def4", upstream: null, ahead: 0, behind: 0, upstream_gone: false },
+  { name: "origin/main", is_head: false, is_remote: true, oid: "abc123def456abc123def456abc123def456abc1", upstream: null, ahead: 0, behind: 0, upstream_gone: false },
 ];
 
 const MOCK_FILE_STATUSES: FileStatus[] = [

@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
+import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, BranchCleanupList, BatchDeleteResult, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 import type { RequestTreeNode, ParsedRequest, RequestEnvFile, RequestEnvSummary, RunRequestArgs, RunResult, CopyAsArgs, RequestHistoryRow, RequestDiffPayload } from "../types/requests";
 
@@ -212,6 +212,30 @@ export async function checkoutDetached(oid: string): Promise<void> {
 
 export async function deleteBranch(name: string, force = false): Promise<void> {
   return invoke("delete_branch", { name, force });
+}
+
+/**
+ * List local branches that are candidates for cleanup, grouped into "gone"
+ * (upstream deleted) and "merged into <target>". `into` defaults to the
+ * repository's default branch when omitted. Read-only.
+ */
+export async function listBranchCleanupCandidates(
+  into?: string | null,
+): Promise<BranchCleanupList> {
+  return invoke<BranchCleanupList>("list_branch_cleanup_candidates", { into: into ?? null });
+}
+
+/**
+ * Delete a batch of local branches in one shot. Names in `force` use
+ * `git branch -D` (unmerged); the rest use the safe `-d`. The whole batch
+ * emits a single `project-mutated` event; per-branch failures are returned in
+ * the result rather than aborting the batch.
+ */
+export async function deleteBranches(
+  names: string[],
+  force: string[],
+): Promise<BatchDeleteResult> {
+  return invoke<BatchDeleteResult>("delete_branches", { names, force });
 }
 
 export async function checkoutBranch(name: string): Promise<void> {
