@@ -1,0 +1,43 @@
+name: Perf
+
+# Criterion benchmarks over a synthetic repo (no external fixture). Runs
+# weekly for trend visibility and on demand via the Actions UI. Start with
+# artifact upload only — add a hard regression gate once baselines are stable
+# so runner noise doesn't block work.
+on:
+  schedule:
+    # Mondays at 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  bench:
+    name: Criterion benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # git-engine + graph-builder don't pull in the Tauri (`beardgit`) crate,
+      # so no node_modules / CLI sidecars / webkit deps are needed here. git2
+      # builds vendored (perl + cc + cmake are preinstalled on ubuntu-latest).
+
+      - name: Benchmark commit walk (git-engine)
+        run: cargo bench -p git-engine
+
+      - name: Benchmark graph layout + viewport (graph-builder)
+        run: cargo bench -p graph-builder
+
+      - name: Upload Criterion results
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-results
+          path: target/criterion/**
+          retention-days: 30
+          if-no-files-found: warn
