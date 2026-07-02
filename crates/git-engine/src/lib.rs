@@ -43,6 +43,7 @@ pub mod remote;
 pub mod rename_branch;
 pub mod repository;
 pub mod reset;
+pub mod signing;
 pub mod staging;
 pub mod submodule;
 pub mod workdir_tree;
@@ -71,6 +72,10 @@ pub use interactive_rebase::{RebaseAction, RebaseCommit};
 pub use patch::{PatchPreview, PatchStat};
 pub use reflog::ReflogEntry;
 pub use repository::{BranchInfo, RepoStatus, Repository, StatusSummary};
+pub use signing::{
+    CommitSignature, SignatureVerification, SigningConfig, SigningFormat, SigningStatus,
+    SigningTestResult,
+};
 pub use staging::FileStatus;
 pub use submodule::{SubmoduleInfo, SubmoduleStatus};
 pub use workdir_tree::WorkdirTreeEntry;

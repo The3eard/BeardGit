@@ -555,6 +555,40 @@ export interface CleanItem {
   is_ignored: boolean;
 }
 
+// Commit signing
+// ---------------------------------------------------------------------------
+
+/** Signature backend (`gpg.format`). Matches Rust `SigningFormat`. */
+export type SigningFormat = "gpg" | "ssh" | "x509";
+
+/** Effective signing status for the commit box + settings. Matches Rust
+ *  `SigningStatus`. `key_present` is diagnostic only — it never blocks. */
+export interface SigningStatus {
+  enabled: boolean;
+  format: SigningFormat;
+  key_present: boolean;
+}
+
+/** Presence (not validity) of a commit's signature. Matches Rust
+ *  `CommitSignature`. */
+export interface CommitSignature {
+  present: boolean;
+  /** Format hint ("gpg" | "ssh" | "x509") when present, else null. */
+  format: string | null;
+}
+
+/** Result of a lazy `git verify-commit`. Matches Rust `SignatureVerification`. */
+export interface SignatureVerification {
+  status: "verified" | "unverified" | "unsigned";
+  detail: string;
+}
+
+/** Result of the "Test signing" diagnostic. Matches Rust `SigningTestResult`. */
+export interface SigningTestResult {
+  success: boolean;
+  message: string;
+}
+
 // Git config
 // ---------------------------------------------------------------------------
 

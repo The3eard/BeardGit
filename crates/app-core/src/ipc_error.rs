@@ -65,6 +65,7 @@ impl From<git_engine::GitError> for IpcError {
             },
             G::RepoNotFound(_) => "repo_not_found",
             G::CliError(_) => "cli_error",
+            G::SigningFailed(_) => "signing_failed",
             G::Io(_) => "io_error",
             G::Binary => "binary_file",
             G::FileTooLarge { .. } => "file_too_large",
