@@ -51,15 +51,22 @@ export async function getGraphViewport(
  * the repo on demand — used when scrolling past the cached range. `has_more`
  * is `true` while commits exist beyond the window. `options` must match the
  * mode of the viewport the chunk extends.
+ *
+ * `anchor` is the OID of the last commit of the previously-loaded chunk. Pass
+ * it for a sequential forward scroll: the backend then starts the walk at the
+ * anchor (O(limit)) instead of skipping `offset` commits, where the walk mode
+ * supports it. Leave it out for a random scrollbar jump — the offset walk is
+ * used and the result is identical.
  */
 export async function loadGraphChunk(
-  offset: number, limit: number, options?: GraphViewOptions
+  offset: number, limit: number, options?: GraphViewOptions, anchor?: string
 ): Promise<GraphViewport> {
   return invoke<GraphViewport>("load_graph_chunk", {
     offset, limit,
     firstParent: options?.firstParent ?? null,
     branch: options?.branch ?? null,
     maxLanes: options?.maxLanes ?? null,
+    anchor: anchor ?? null,
   });
 }
 
