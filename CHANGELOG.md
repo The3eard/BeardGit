@@ -14,6 +14,11 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 - **Changes keeps your checkbox selection but clears the open file on exit.** Leaving and re-entering Changes now preserves which files you had checked, while resetting the diff panel so you come back to a clean view instead of the last file you had open. The selection resets when you switch repositories.
 
+### Fixed
+
+- **The UI no longer freezes during bisect.** Every bisect action (start, good/bad/skip, reset, state/log queries) shells out to git off the app's async runtime, so the window stays responsive — you can scroll the graph and use other commands while bisect works, even on large repos.
+- **Automated bisect is now cancellable.** `git bisect run` executes as a managed background task that streams its output and can be stopped from the UI, so a slow or runaway test command no longer locks up the app until it finishes.
+
 ## [26.6.3] — Fix phantom rebase toolbar — 2026-06-30
 
 ### Fixed

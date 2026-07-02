@@ -259,7 +259,7 @@ impl AiBackgroundCoordinator {
     ///
     /// Errors from worktree creation, command building, or task spawning are
     /// propagated back as [`AiError`].
-    pub fn start(
+    pub async fn start(
         self: &Arc<Self>,
         args: StartArgs,
         provider: &dyn AiProvider,
@@ -442,7 +442,7 @@ impl AiBackgroundCoordinator {
         self.event_sink.on_status(&session);
 
         if should_dispatch {
-            let task_id = self.dispatch(&session_id, provider, &input)?;
+            let task_id = self.dispatch(&session_id, provider, &input).await?;
             session.task_id = Some(task_id);
             session.background_status = Some(AiBackgroundRunStatus::Running);
             self.update_session(&session_id, |s| {
@@ -589,7 +589,7 @@ impl AiBackgroundCoordinator {
 
     // ── Internal dispatch & sink callbacks ───────────────────────────────────
 
-    fn dispatch(
+    async fn dispatch(
         self: &Arc<Self>,
         session_id: &str,
         provider: &dyn AiProvider,
@@ -613,7 +613,6 @@ impl AiBackgroundCoordinator {
 
         let cwd = input.worktree_path.clone();
         let label = format!("AI background: {}", session_id);
-        let manager = Arc::clone(&self.task_manager);
 
         // Capture a baseline snapshot of the worktree *right before* we
         // spawn the subprocess. Stored on the coordinator so
@@ -636,24 +635,21 @@ impl AiBackgroundCoordinator {
             }
         }
 
-        // task-runner is async only, so we wrap the spawn call in a blocking
-        // call — this function is sync and invoked from a Tauri command that
-        // itself runs in a tokio worker, so we re-enter the runtime.
-        let task_id = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async move {
-                manager
-                    .spawn_with_options(SpawnOptions {
-                        label,
-                        command: &program,
-                        args: &args_refs,
-                        cwd: cwd.as_path(),
-                        cancellable: true,
-                        kind,
-                        stdin,
-                    })
-                    .await
+        // Spawn the subprocess via the task-runner. `dispatch` is now async
+        // end-to-end, so we await the spawn directly instead of blocking on
+        // and re-entering the runtime.
+        let task_id = self
+            .task_manager
+            .spawn_with_options(SpawnOptions {
+                label,
+                command: &program,
+                args: &args_refs,
+                cwd: cwd.as_path(),
+                cancellable: true,
+                kind,
+                stdin,
             })
-        });
+            .await;
 
         // Register the task_id → session_id mapping immediately, then
         // drain any output that already arrived (the reader task spawned
@@ -744,7 +740,7 @@ impl AiBackgroundCoordinator {
     }
 
     /// Called by the Tauri-side sink when a task finishes (any status).
-    pub fn on_task_finished(
+    pub async fn on_task_finished(
         self: &Arc<Self>,
         task_id: TaskId,
         exit_code: Option<i32>,
@@ -821,10 +817,10 @@ impl AiBackgroundCoordinator {
         }
 
         // Try to drain the queue.
-        self.try_dispatch_next();
+        self.try_dispatch_next().await;
     }
 
-    fn try_dispatch_next(self: &Arc<Self>) {
+    async fn try_dispatch_next(self: &Arc<Self>) {
         let next_id = {
             let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
             let running_count = guard
@@ -857,7 +853,10 @@ impl AiBackgroundCoordinator {
 
         let provider: Box<dyn AiProvider> = (self.provider_factory)(pending.provider_kind);
 
-        match self.dispatch(&session_id, provider.as_ref(), &pending.input) {
+        match self
+            .dispatch(&session_id, provider.as_ref(), &pending.input)
+            .await
+        {
             Ok(task_id) => {
                 self.update_session(&session_id, |s| {
                     s.task_id = Some(task_id);
@@ -1157,22 +1156,33 @@ mod tests {
             }
         }
         async fn on_task_completed(&self, info: task_runner::TaskInfo) {
-            if let Some(ref coord) = *self.coord.lock().unwrap() {
-                coord.on_task_finished(info.id, info.exit_code, false, None);
+            // Clone the Arc out and drop the std Mutex guard before awaiting —
+            // holding it across `.await` would make this future non-Send.
+            let coord = self.coord.lock().unwrap().clone();
+            if let Some(coord) = coord {
+                coord
+                    .on_task_finished(info.id, info.exit_code, false, None)
+                    .await;
             }
         }
         async fn on_task_failed(&self, info: task_runner::TaskInfo) {
-            if let Some(ref coord) = *self.coord.lock().unwrap() {
+            let coord = self.coord.lock().unwrap().clone();
+            if let Some(coord) = coord {
                 let err_text = match &info.status {
                     task_runner::TaskStatus::Failed { error } => Some(error.clone()),
                     _ => None,
                 };
-                coord.on_task_finished(info.id, info.exit_code, false, err_text);
+                coord
+                    .on_task_finished(info.id, info.exit_code, false, err_text)
+                    .await;
             }
         }
         async fn on_task_cancelled(&self, info: task_runner::TaskInfo) {
-            if let Some(ref coord) = *self.coord.lock().unwrap() {
-                coord.on_task_finished(info.id, info.exit_code, true, None);
+            let coord = self.coord.lock().unwrap().clone();
+            if let Some(coord) = coord {
+                coord
+                    .on_task_finished(info.id, info.exit_code, true, None)
+                    .await;
             }
         }
     }
@@ -1255,7 +1265,10 @@ mod tests {
             concurrency_cap: 3,
             watcher_cached_snapshot: None,
         };
-        let out = coord.start(args, &provider).expect("start must succeed");
+        let out = coord
+            .start(args, &provider)
+            .await
+            .expect("start must succeed");
         assert!(out.worktree_path.exists(), "worktree should be on disk");
         assert!(matches!(
             out.status,
@@ -1327,8 +1340,8 @@ mod tests {
             watcher_cached_snapshot: None,
         };
 
-        let first = coord.start(args_for("r1", "first"), slow).unwrap();
-        let second = coord.start(args_for("r2", "second"), slow).unwrap();
+        let first = coord.start(args_for("r1", "first"), slow).await.unwrap();
+        let second = coord.start(args_for("r2", "second"), slow).await.unwrap();
 
         assert!(matches!(first.status, AiBackgroundRunStatus::Running));
         assert!(matches!(second.status, AiBackgroundRunStatus::Queued));
@@ -1385,6 +1398,7 @@ mod tests {
                 },
                 &provider,
             )
+            .await
             .unwrap();
         let queued = coord
             .start(
@@ -1404,6 +1418,7 @@ mod tests {
                 },
                 &provider,
             )
+            .await
             .unwrap();
         assert!(matches!(queued.status, AiBackgroundRunStatus::Queued));
 
@@ -1549,15 +1564,31 @@ mod tests {
             concurrency_cap: 3,
             watcher_cached_snapshot: None,
         };
-        let out = coord.start(args, &provider).expect("start must succeed");
+        let out = coord
+            .start(args, &provider)
+            .await
+            .expect("start must succeed");
         wait_terminal(&coord, &out.session_id).await;
 
-        let mutations = recorder.mutations.lock().unwrap().clone();
-        let hit = mutations
-            .iter()
-            .find(|(p, _, _)| p == &out.worktree_path)
-            .cloned()
-            .expect("expected on_repo_mutated for the worktree path");
+        // `on_repo_mutated` fires from `on_task_finished` just *after* the
+        // terminal status `wait_terminal` keys on is set (the intervening git
+        // `Snapshot::capture` can outlast one poll tick under parallel test
+        // load), so poll for the emit instead of reading once and racing it.
+        let mut hit = None;
+        for _ in 0..300 {
+            hit = recorder
+                .mutations
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|(p, _, _)| p == &out.worktree_path)
+                .cloned();
+            if hit.is_some() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        let hit = hit.expect("expected on_repo_mutated for the worktree path");
         let (_, source, flags) = hit;
         assert_eq!(source, AiSource::Codex, "source should track provider kind");
         assert!(
@@ -1608,7 +1639,10 @@ mod tests {
             concurrency_cap: 3,
             watcher_cached_snapshot: None,
         };
-        let out = coord.start(args, &provider).expect("start must succeed");
+        let out = coord
+            .start(args, &provider)
+            .await
+            .expect("start must succeed");
         wait_terminal(&coord, &out.session_id).await;
 
         let mutations = recorder.mutations.lock().unwrap().clone();
@@ -1666,7 +1700,10 @@ mod tests {
             concurrency_cap: 3,
             watcher_cached_snapshot: Some(Arc::clone(&cache)),
         };
-        let out = coord.start(args, &provider).expect("start must succeed");
+        let out = coord
+            .start(args, &provider)
+            .await
+            .expect("start must succeed");
 
         // The cache the coordinator stored must now match the post-creation
         // state — same refs (with the new ai/claude-code/resync entry), same
@@ -1802,7 +1839,10 @@ mod tests {
             concurrency_cap: 3,
             watcher_cached_snapshot: None,
         };
-        let out = coord.start(args, &provider).expect("start must succeed");
+        let out = coord
+            .start(args, &provider)
+            .await
+            .expect("start must succeed");
 
         let prompt = captured
             .lock()
