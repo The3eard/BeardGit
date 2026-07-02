@@ -8,6 +8,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Fetch all updates from a remote as a background task.
@@ -21,7 +22,7 @@ pub async fn fetch_remote(
     remote: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     let label = format!("Fetch {}", remote);
@@ -50,7 +51,7 @@ pub async fn pull_remote(
     branch: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     let label = format!("Pull {}/{}", remote, branch);
@@ -83,7 +84,7 @@ pub async fn push_remote(
     force: bool,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     let mut args: Vec<&str> = vec!["push", "-u"];

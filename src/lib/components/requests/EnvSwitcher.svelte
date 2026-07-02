@@ -25,14 +25,15 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { requestsGetEnvs, requestsSetEnv } from "$lib/api/tauri";
+  import type { RequestEnvSummary } from "$lib/types/requests";
   import { get } from "svelte/store";
   import { Button, IconButton } from "$lib/components/ui";
   import { currentEnv, treeReloadSignal } from "./stores";
   import { activeProject } from "$lib/stores/projects";
   import EnvManagerDialog from "./EnvManagerDialog.svelte";
 
-  type Summary = { name: string; vars_count: number; secrets: string[] };
+  type Summary = RequestEnvSummary;
 
   let envs: Summary[] = [];
   let showManager = false;
@@ -50,7 +51,7 @@
       envs = [];
       return;
     }
-    envs = await invoke<Summary[]>("requests_get_envs", { projectPath });
+    envs = await requestsGetEnvs(projectPath);
     ensureActiveEnv();
   }
 
@@ -75,7 +76,7 @@
    */
   async function pick(name: string) {
     currentEnv.set(name);
-    await invoke("requests_set_env", { projectPath, envName: name });
+    await requestsSetEnv(projectPath, name);
   }
 
   function toggleMenu() {

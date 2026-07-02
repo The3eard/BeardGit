@@ -23,6 +23,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
+import type { RequestTreeNode, ParsedRequest, RequestEnvFile, RequestEnvSummary, RunRequestArgs, RunResult, CopyAsArgs, RequestHistoryRow, RequestDiffPayload } from "../types/requests";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -1956,4 +1957,143 @@ export async function cloneRepo(
     parent_dir: options.parentDir,
   };
   return invoke<CloneRepoSuccess>("clone_repo", { options: payload });
+}
+
+// ─── Requests panel ──────────────────────────────────────────────────────
+// 1:1 wrappers over the `requests_*` commands in
+// crates/app-core/src/commands/requests.rs. Mutating calls (save / rename /
+// delete / duplicate / env CRUD / secret set / seed) are wrapped by their
+// call sites in `runMutation` for toasts; these functions are the raw typed
+// IPC and do not themselves toast.
+
+/** List the project-scoped requests tree under `<project>/.beardgit/requests/`. */
+export async function requestsListProject(projectPath: string): Promise<RequestTreeNode[]> {
+  return invoke<RequestTreeNode[]>("requests_list_project", { projectPath });
+}
+
+/** List the global requests tree backed by `requests.db`. */
+export async function requestsListGlobal(): Promise<RequestTreeNode[]> {
+  return invoke<RequestTreeNode[]>("requests_list_global");
+}
+
+/** Load and parse a `.http` source (project file or global item) for the editor. */
+export async function requestsLoad(
+  sourceKind: string, sourcePath: string, projectPath: string | null
+): Promise<ParsedRequest[]> {
+  return invoke<ParsedRequest[]>("requests_load", { sourceKind, sourcePath, projectPath });
+}
+
+/** Persist raw `.http` content for a project file or global item. */
+export async function requestsSave(
+  sourceKind: string, sourcePath: string, projectPath: string | null, content: string
+): Promise<void> {
+  return invoke<void>("requests_save", { sourceKind, sourcePath, projectPath, content });
+}
+
+/** Create a new loose or collection-scoped global item; returns its row id. */
+export async function requestsCreateGlobalItem(
+  name: string, collectionId: number | null, httpContent: string
+): Promise<number> {
+  return invoke<number>("requests_create_global_item", { name, collectionId, httpContent });
+}
+
+/** Delete a request from the project tree or the global library (idempotent). */
+export async function requestsDelete(
+  sourceKind: string, sourcePath: string, projectPath: string | null
+): Promise<void> {
+  return invoke<void>("requests_delete", { sourceKind, sourcePath, projectPath });
+}
+
+/** Rename a request in place (project file move, or global name update). */
+export async function requestsRename(
+  sourceKind: string, fromPath: string, toPath: string, projectPath: string | null
+): Promise<void> {
+  return invoke<void>("requests_rename", { sourceKind, fromPath, toPath, projectPath });
+}
+
+/** Duplicate a request in place; returns the new source path. */
+export async function requestsDuplicate(
+  sourceKind: string, sourcePath: string, projectPath: string | null
+): Promise<string> {
+  return invoke<string>("requests_duplicate", { sourceKind, sourcePath, projectPath });
+}
+
+/** List env files for the project along with var counts + secret names. */
+export async function requestsGetEnvs(projectPath: string): Promise<RequestEnvSummary[]> {
+  return invoke<RequestEnvSummary[]>("requests_get_envs", { projectPath });
+}
+
+/** Load a single environment file for editing. */
+export async function requestsLoadEnv(projectPath: string, envName: string): Promise<RequestEnvFile> {
+  return invoke<RequestEnvFile>("requests_load_env", { projectPath, envName });
+}
+
+/** Save (or create) an environment file. */
+export async function requestsSaveEnv(
+  projectPath: string, envName: string, env: RequestEnvFile
+): Promise<void> {
+  return invoke<void>("requests_save_env", { projectPath, envName, env });
+}
+
+/** Delete an environment file (idempotent). */
+export async function requestsDeleteEnv(projectPath: string, envName: string): Promise<void> {
+  return invoke<void>("requests_delete_env", { projectPath, envName });
+}
+
+/** Persist the active-environment selection for a project (`null` clears it). */
+export async function requestsSetEnv(projectPath: string, envName: string | null): Promise<void> {
+  return invoke<void>("requests_set_env", { projectPath, envName });
+}
+
+/** Store a Requests-panel secret value in the encrypted credential store. */
+export async function requestsSetSecret(
+  envName: string, secretName: string, value: string
+): Promise<void> {
+  return invoke<void>("requests_set_secret", { envName, secretName, value });
+}
+
+/** Resolve, send, and record a single request from a `.http` source. */
+export async function requestsRun(args: RunRequestArgs): Promise<RunResult> {
+  return invoke<RunResult>("requests_run", { args });
+}
+
+/** Cancel an in-flight `requestsRun` by ticket id (unknown ids are a no-op). */
+export async function requestsCancel(ticketId: string): Promise<void> {
+  return invoke<void>("requests_cancel", { ticketId });
+}
+
+/** List recent execution-history rows for one source, newest first. */
+export async function requestsHistory(
+  sourceKind: string, sourcePath: string, limit: number
+): Promise<RequestHistoryRow[]> {
+  return invoke<RequestHistoryRow[]>("requests_history", { sourceKind, sourcePath, limit });
+}
+
+/** Fetch two history rows by id and return their decoded bodies for diffing. */
+export async function requestsDiffResponses(
+  historyIdA: number, historyIdB: number
+): Promise<RequestDiffPayload> {
+  return invoke<RequestDiffPayload>("requests_diff_responses", { historyIdA, historyIdB });
+}
+
+/** Seed the Quickstart starter pack; returns the written relative paths. */
+export async function requestsSeedQuickstart(projectPath: string): Promise<string[]> {
+  return invoke<string[]>("requests_seed_quickstart", { projectPath });
+}
+
+/** Parse a `curl` command string into a `ParsedRequest` (Paste cURL flow). */
+export async function requestsPasteCurl(curlString: string): Promise<ParsedRequest> {
+  return invoke<ParsedRequest>("requests_paste_curl", { curlString });
+}
+
+/** Open a project-scoped request file in the OS' default `.http` editor. */
+export async function requestsOpenInEditor(
+  sourceKind: string, sourcePath: string, projectPath: string | null
+): Promise<void> {
+  return invoke<void>("requests_open_in_editor", { sourceKind, sourcePath, projectPath });
+}
+
+/** Emit a shell/JS-ready snippet for the request without executing it. */
+export async function requestsCopyAs(args: CopyAsArgs): Promise<string> {
+  return invoke<string>("requests_copy_as", { args });
 }

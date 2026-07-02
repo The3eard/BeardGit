@@ -9,6 +9,7 @@ use tracing::instrument;
 
 use super::graph_cache::{GraphLayoutOptions, load_or_build_layout, ref_snapshot};
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::{AppState, ProjectSlot};
 
 /// Tagged error returned by [`open_project`] so the frontend can branch
@@ -64,15 +65,14 @@ impl OpenProjectError {
 /// - `path` – Absolute filesystem path to the repository root.
 ///
 /// # Returns
-/// [`ProjectInfo`] with lightweight metadata on success, or an [`OpenProjectError`]
-/// distinguishing "not a git repository" (so the frontend can offer to init one)
-/// from any other failure.
+/// [`ProjectInfo`] with lightweight metadata on success, or an [`IpcError`].
+/// The internal [`OpenProjectError`] is folded into the shared envelope via
+/// its `From` impl, so "not a git repository" surfaces as the stable
+/// `code = "not_a_repo"` (with the attempted path in `message`) — the frontend
+/// branches on that to offer the init dialog.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::project::open")]
-pub fn open_project(
-    path: String,
-    state: State<'_, AppState>,
-) -> Result<ProjectInfo, OpenProjectError> {
+pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectInfo, IpcError> {
     let mut projects = state.projects.lock().map_err(|e| OpenProjectError::Other {
         message: e.to_string(),
     })?;

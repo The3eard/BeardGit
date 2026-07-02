@@ -9,6 +9,7 @@ pub mod ai_background;
 pub mod ai_commands;
 pub mod commands;
 pub mod event_sink;
+pub mod ipc_error;
 pub mod state;
 pub mod task_commands;
 pub mod task_events;
