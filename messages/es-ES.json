@@ -1272,6 +1272,7 @@
   "editor_copy_path_done": "Ruta copiada",
   "editor_dialog_name_label": "Nombre",
   "editor_dialog_parent_label": "Carpeta padre",
+  "editor_dialog_parent_placeholder": "p. ej. src/utils (vacío para la raíz del repo)",
   "editor_dialog_create": "Crear",
   "editor_dialog_cancel": "Cancelar",
   "editor_dialog_rename_title": "Renombrar {name}",

@@ -4,6 +4,10 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased]
 
+### Fixed
+
+- **The "Parent folder" field in the New File / New Folder dialogs is now editable.** It previously looked like a text field but was read-only, so you were stuck creating files under whatever folder the tree selection implied. You can now type a relative directory (e.g. `src/utils`), with autocomplete against the repo's existing folders, and leave it blank for the repo root. Typing a directory that doesn't exist yet creates the intermediate folders on the way. Input is validated inline — `..` segments, absolute paths, and illegal characters are rejected before submit — with the backend still enforcing the same rules. The Rename dialog is unchanged.
+
 ### Added
 
 - **Push and Pull buttons show what's out of sync.** The top-bar Push and Pull buttons now carry a small count badge (↑N on Push, ↓N on Pull) in the corner and pick up the accent tint whenever the current branch is ahead of / behind its upstream — so you can see at a glance that there's something to push or pull without opening the status bar. Counts come from the same branch-vs-upstream data the status bar already tracks (refreshed through the mutation pipeline, no polling), the badge caps at "99+", and it's an absolutely-positioned overlay so the buttons never resize or shift. When there's no upstream, HEAD is detached, or you're in sync, the badge and tint stay off. The tooltip spells the count out ("Push — 3 commits ahead").
