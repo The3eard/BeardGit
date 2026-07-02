@@ -273,6 +273,7 @@ mod tests {
             additions: 1,
             deletions: 1,
             truncated: false,
+            binary: false,
         }
     }
 
@@ -493,6 +494,7 @@ mod tests {
             additions: 1,
             deletions: 1,
             truncated: false,
+            binary: false,
         };
         let selections = vec![HunkSelection {
             hunk_index: 0,

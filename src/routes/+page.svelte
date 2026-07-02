@@ -50,19 +50,16 @@
     selectedReflogEntry as selectedReflogEntryStore,
   } from "$lib/stores/reflog";
   import type { ReflogEntry } from "$lib/types";
-  import { getFileIndex, getFileWorkdir } from "$lib/api/tauri";
   import { shortOid } from "$lib/utils/git";
   import * as api from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
-  import { unstagedDiffs, stagedDiffs } from "$lib/stores/changes";
-  import type { FileDiff } from "$lib/types";
+  import { openStagingFile, openStagingDiff, loadStagingDiff, closeStagingDiff } from "$lib/stores/changes";
   import { activeTheme, applyTheme, listenThemeChanges, initTheme } from "$lib/stores/theme";
   import { registerShortcuts, unregisterShortcuts, toggleCheatSheet } from "$lib/stores/shortcuts";
   import { openCommandPalette } from "$lib/stores/commandPalette";
   import CommandPalette from "$lib/components/common/CommandPalette.svelte";
   import { Button } from "$lib/components/ui";
   import { addToast } from "$lib/stores/toast";
-  import { refreshStatuses, refreshDiffs } from "$lib/stores/changes";
   import { get } from "svelte/store";
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
   import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
@@ -115,14 +112,18 @@
     }
   });
   let selectedDiff = $state<RawDiffContent | null>(null);
-  let selectedStagingFile = $state<{ filename: string; isStaged: boolean } | null>(null);
 
-  /** Look up the FileDiff for the currently selected staging file from stores. */
-  let selectedStagingDiff = $derived.by<FileDiff | null>(() => {
-    if (!selectedStagingFile) return null;
-    const diffs = selectedStagingFile.isStaged ? $stagedDiffs : $unstagedDiffs;
-    return diffs.find(d => d.path === selectedStagingFile!.filename) ?? null;
-  });
+  /**
+   * The staging file open in the diff pane, mapped from the changes store
+   * for the ChangesList highlight. The store is the source of truth so the
+   * mutation dispatcher's `refreshDiffs()` can re-fetch the open file's
+   * hunks without this component wiring up its own listener.
+   */
+  let selectedStagingFile = $derived(
+    $openStagingFile
+      ? { filename: $openStagingFile.path, isStaged: $openStagingFile.isStaged }
+      : null,
+  );
   let registeredShortcutIds: string[] = [];
   const CHANGES_SIDEBAR_DEFAULT_WIDTH = 320;
   let changesSidebarWidth = $state(CHANGES_SIDEBAR_DEFAULT_WIDTH);
@@ -283,7 +284,7 @@
 
       tryChangeView("graph");
       selectedDiff = null;
-      selectedStagingFile = null;
+      closeStagingDiff();
       // Point the AI session listeners at the freshly active project.
       refreshAiSessionListeners();
     });
@@ -606,7 +607,7 @@
       // Leaving the Changes view resets the open file/diff so re-entering
       // lands on the empty diff panel. The checkbox selection persists via
       // the changesSelection store.
-      if (nextView !== "changes") selectedStagingFile = null;
+      if (nextView !== "changes") closeStagingDiff();
     };
     if (activeView === "repo-config" && repoConfigPageRef) {
       repoConfigPageRef.requestGuardedNavigation(apply);
@@ -624,7 +625,7 @@
         await switchToTab(projIdx);
         tryChangeView(view);
         selectedDiff = null;
-        selectedStagingFile = null;
+        closeStagingDiff();
       }
       return;
     }
@@ -635,7 +636,7 @@
       switchSegment(idx, -1);
       tryChangeView(view);
       selectedDiff = null;
-      selectedStagingFile = null;
+      closeStagingDiff();
       return;
     }
 
@@ -644,7 +645,7 @@
     }
     tryChangeView(view);
     selectedDiff = null;
-    selectedStagingFile = null;
+    closeStagingDiff();
   }
 
   function handleToggleSidebar() {
@@ -653,15 +654,10 @@
   }
 
   async function handleFileClick(path: string, staged: boolean) {
-    selectedStagingFile = { filename: path, isStaged: staged };
-    // Ensure the clicked file's diff is actually loaded. Checking for the
-    // path (not just a non-empty store) covers stale stores: after a
-    // mutation the dispatcher refreshes them, but a click can race that
-    // refresh, and an empty-store-only check left the panel blank.
-    const diffs = staged ? get(stagedDiffs) : get(unstagedDiffs);
-    if (!diffs.some((d) => d.path === path)) {
-      await refreshDiffs();
-    }
+    // Fetch the clicked file's full hunks/lines on demand — the Changes
+    // list renders from lightweight stats, so hunks are pulled only for
+    // the file the user actually opens.
+    await loadStagingDiff(path, staged);
   }
 
   async function handleBranchFileClick(path: string) {
@@ -1052,12 +1048,12 @@
             <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
             <div class="changes-resize-handle" class:is-dragging={isDraggingChanges} role="separator" aria-orientation="vertical" aria-label={m.resize_changes_sidebar()} tabindex="0" onmousedown={startChangesSidebarResize} ondblclick={resetChangesSidebarWidth} onkeydown={handleChangesResizeKeys}></div>
             <div class="changes-diff">
-              {#if selectedStagingDiff && selectedStagingFile}
+              {#if $openStagingDiff && $openStagingFile}
                 <StagingDiffEditor
-                  diff={selectedStagingDiff}
-                  isStaged={selectedStagingFile.isStaged}
-                  filename={selectedStagingFile.filename}
-                  onClose={() => { selectedStagingFile = null; }}
+                  diff={$openStagingDiff}
+                  isStaged={$openStagingFile.isStaged}
+                  filename={$openStagingFile.path}
+                  onClose={closeStagingDiff}
                 />
               {:else}
                 <EmptyState title={m.diff_empty()} />

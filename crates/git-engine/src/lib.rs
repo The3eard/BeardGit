@@ -56,7 +56,10 @@ pub use cli::{CommitStats, GitCliResult, StashEntry, TagInfo};
 pub use commits::{CommitInfo, CommitWalkOptions};
 pub use config::{ConfigEntry, ConfigScope};
 pub use conflict::{ConflictFileContents, ConflictState, ConflictStatus};
-pub use diff::{CommitFileChange, DiffHunkInfo, DiffLineInfo, FileDiff};
+pub use diff::{
+    CommitFileChange, DiffHunkInfo, DiffLineInfo, FileDiff, FileDiffStat, MAX_DIFF_RESPONSE_BYTES,
+    enforce_response_budget,
+};
 pub use error::GitError;
 pub use hunk_staging::HunkSelection;
 pub use interactive_rebase::{RebaseAction, RebaseCommit};
