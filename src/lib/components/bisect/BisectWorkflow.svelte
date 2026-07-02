@@ -11,6 +11,7 @@
     skipCommit,
     resetBisect,
     runAutoBisect,
+    cancelAutoBisect,
     clearBisectState,
   } from "../../stores/bisect";
   import { addToast } from "../../stores/toast";
@@ -80,8 +81,17 @@
 
   async function handleAutoRun(testCommand: string) {
     showAutoDialog = false;
+    lastResult = "";
     try {
-      lastResult = await runAutoBisect(testCommand);
+      await runAutoBisect(testCommand);
+    } catch (e) {
+      addToast({ message: String(e), type: "error" });
+    }
+  }
+
+  async function handleCancelAuto() {
+    try {
+      await cancelAutoBisect();
     } catch (e) {
       addToast({ message: String(e), type: "error" });
     }
@@ -198,6 +208,9 @@
             <span class="loading-indicator">
               <span class="spinner"></span>
             </span>
+            <Button variant="neutral" onclick={handleCancelAuto}>
+              {m.confirm_cancel()}
+            </Button>
           {/if}
         </div>
 

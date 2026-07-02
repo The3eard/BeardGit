@@ -74,7 +74,9 @@ impl TaskEventSink for TauriEventSink {
         if let Some(coord) = self.ai_coord()
             && Self::is_ai_background(&info)
         {
-            coord.on_task_finished(info.id, info.exit_code, false, None);
+            coord
+                .on_task_finished(info.id, info.exit_code, false, None)
+                .await;
         }
         let _ = self.app_handle.emit("task-completed", &info);
     }
@@ -87,7 +89,9 @@ impl TaskEventSink for TauriEventSink {
                 task_runner::TaskStatus::Failed { error } => Some(error.clone()),
                 _ => None,
             };
-            coord.on_task_finished(info.id, info.exit_code, false, err_text);
+            coord
+                .on_task_finished(info.id, info.exit_code, false, err_text)
+                .await;
         }
         let _ = self.app_handle.emit("task-failed", &info);
     }
@@ -96,7 +100,9 @@ impl TaskEventSink for TauriEventSink {
         if let Some(coord) = self.ai_coord()
             && Self::is_ai_background(&info)
         {
-            coord.on_task_finished(info.id, info.exit_code, true, None);
+            coord
+                .on_task_finished(info.id, info.exit_code, true, None)
+                .await;
         }
         let _ = self.app_handle.emit("task-cancelled", &info);
     }
