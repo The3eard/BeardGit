@@ -21,6 +21,7 @@
   import { ciStatusColor, ciStatusLabel } from "../../utils/status";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import TriggerWorkflowDialog from "./TriggerWorkflowDialog.svelte";
+  import { clampMenuPosition } from "$lib/utils/menu-position";
 
   let loading = $state(false);
   let loadingMore = $state(false);
@@ -30,6 +31,30 @@
   let triggerDialogOpen = $state(false);
   let ctxMenu = $state<{ x: number; y: number; run: CiRun } | null>(null);
   let ctxError = $state<string | null>(null);
+
+  // Menu positioning: measure the mounted menu and clamp it into the viewport
+  // so rows near the window edge don't clip the menu (mirrors ContextMenu).
+  let ctxMenuEl: HTMLDivElement | undefined = $state();
+  let ctxLeft = $state(0);
+  let ctxTop = $state(0);
+  let ctxMeasured = $state(false);
+
+  $effect(() => {
+    if (!ctxMenu || !ctxMenuEl) {
+      ctxMeasured = false;
+      return;
+    }
+    const { left, top } = clampMenuPosition(
+      ctxMenu.x,
+      ctxMenu.y,
+      ctxMenuEl.offsetWidth,
+      ctxMenuEl.offsetHeight,
+      { viewportWidth: window.innerWidth, viewportHeight: window.innerHeight },
+    );
+    ctxLeft = left;
+    ctxTop = top;
+    ctxMeasured = true;
+  });
 
   function onRowContextMenu(e: MouseEvent, run: CiRun) {
     e.preventDefault();
@@ -311,7 +336,12 @@
     onclick={closeCtxMenu}
     onkeydown={(e) => e.key === "Escape" && closeCtxMenu()}
   ></div>
-  <div class="ctx-menu" style="top: {ctxMenu.y}px; left: {ctxMenu.x}px" role="menu">
+  <div
+    bind:this={ctxMenuEl}
+    class="ctx-menu"
+    style="top: {ctxTop}px; left: {ctxLeft}px; visibility: {ctxMeasured ? 'visible' : 'hidden'}"
+    role="menu"
+  >
     {#if ctxMenu.run.status === "failed" || ctxMenu.run.status === "canceled" || ctxMenu.run.status === "timed_out"}
       <button role="menuitem" onclick={() => retryFromMenu(ctxMenu!.run)}>
         {m.pipeline_action_retry()}
