@@ -211,14 +211,18 @@ impl Repository {
     /// Uses `diff_tree_to_tree` to compare `from_oid` and `to_oid` directly,
     /// without assuming any parent–child relationship. This is used, for example,
     /// to show what a merged branch contributed relative to the merge base.
+    ///
+    /// Both endpoints are resolved with `revparse_single`, so branch names,
+    /// tags, `HEAD`, and abbreviated/full SHAs are all accepted — not just raw
+    /// OIDs (the compare view passes ref names and a merge-base OID here).
     pub fn diff_commits(
         &self,
         from_oid: &str,
         to_oid: &str,
     ) -> Result<Vec<CommitFileChange>, GitError> {
         let repo = self.inner();
-        let from_commit = repo.find_commit(git2::Oid::from_str(from_oid)?)?;
-        let to_commit = repo.find_commit(git2::Oid::from_str(to_oid)?)?;
+        let from_commit = repo.revparse_single(from_oid)?.peel_to_commit()?;
+        let to_commit = repo.revparse_single(to_oid)?.peel_to_commit()?;
         let from_tree = from_commit.tree()?;
         let to_tree = to_commit.tree()?;
 
