@@ -52,18 +52,63 @@ pub struct FileDiff {
     /// Total number of deleted lines across all hunks.
     pub deletions: usize,
     /// `true` when the diff was truncated for performance (e.g. a single
-    /// commit touched a 50 MB minified blob). The frontend renders a
+    /// commit touched a 50 MB minified blob, or the file blew the per-file
+    /// byte/line budget in [`collect_file_diffs`]). The frontend renders a
     /// "diff too large to display" placeholder. Defaults to `false` so
     /// existing call sites and JSON payloads stay untouched.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub truncated: bool,
+    /// `true` when the file is binary (libgit2 flagged the delta binary, or
+    /// a NUL byte appeared in the first content chunk). Hunks are left empty
+    /// and the frontend renders a "binary file — no preview" placeholder.
+    /// Skipped from JSON when `false` so existing payloads stay untouched.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub binary: bool,
 }
 
 /// Maximum size, in bytes, of the raw `git diff` output rendered in
-/// `commit_file_diff`. Beyond this, parsing is skipped and a synthetic
-/// truncated `FileDiff` is returned. 5 MB is enough for any honest
-/// commit while keeping IPC + frontend rendering responsive.
+/// `commit_file_diff`. Also the per-file byte budget in
+/// [`collect_file_diffs`]. Beyond this, hunk collection stops and the
+/// file is marked `truncated`. 5 MB is enough for any honest commit while
+/// keeping IPC + frontend rendering responsive.
 pub const MAX_COMMIT_DIFF_BYTES: usize = 5 * 1024 * 1024;
+
+/// Maximum number of diff lines collected for a single file in
+/// [`collect_file_diffs`]. A generated file can stay under the byte cap
+/// while still emitting hundreds of thousands of short lines (each one a
+/// `String` + IPC row), so the line count is capped independently. Beyond
+/// this, hunk collection stops and the file is marked `truncated`.
+pub const MAX_FILE_DIFF_LINES: usize = 10_000;
+
+/// Whole-response byte budget for the `FileDiff[]` list endpoints
+/// (`get_diff_workdir` / `get_diff_index`). Once the accumulated line
+/// content across files exceeds this, the remaining files come back with
+/// empty hunks and `truncated: true` — see [`enforce_response_budget`].
+/// 20 MB keeps a pathological working tree (many large changed files)
+/// from ballooning a single IPC payload.
+pub const MAX_DIFF_RESPONSE_BYTES: usize = 20 * 1024 * 1024;
+
+/// Lightweight per-file change summary: name/status + line counts, no
+/// hunks. Powers the Changes list without paying the cost of collecting
+/// (and serializing) every hunk of every changed file on each mutation.
+#[derive(Debug, Clone, Serialize)]
+pub struct FileDiffStat {
+    /// Repo-relative path of the file (new path for renames).
+    pub path: String,
+    /// Previous path of the file when it was renamed, otherwise `None`.
+    pub old_path: Option<String>,
+    /// Change type, as in [`FileDiff::status`].
+    pub status: String,
+    /// Number of added lines (0 for binary files).
+    pub additions: usize,
+    /// Number of deleted lines (0 for binary files).
+    pub deletions: usize,
+    /// `true` when the file is binary — line counts are 0 and the diff
+    /// pane renders a placeholder when opened. Skipped from JSON when
+    /// `false`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub binary: bool,
+}
 
 /// A single contiguous diff hunk within a file.
 #[derive(Debug, Clone, Serialize)]
@@ -239,6 +284,7 @@ impl Repository {
                 additions: 0,
                 deletions: 0,
                 truncated: true,
+                binary: false,
             }]);
         }
 
@@ -286,6 +332,62 @@ impl Repository {
             .find(|d| d.path == path)
             .ok_or_else(|| GitError::Git(git2::Error::from_str(&format!("No changes for {path}"))))
     }
+
+    /// Full hunks/lines diff for a single file, on demand.
+    ///
+    /// `staged == false` diffs the working directory against the index
+    /// (including untracked content, matching [`Repository::diff_workdir`]);
+    /// `staged == true` diffs the index against HEAD. Returns `None` when the
+    /// path has no change on that side. This is the lazy per-file path the
+    /// Changes view calls when the user opens a file, so the whole
+    /// `FileDiff[]` set is never materialized on every mutation. The
+    /// returned diff carries the same per-file byte/line/binary caps as
+    /// [`collect_file_diffs`].
+    pub fn diff_single_file(&self, path: &str, staged: bool) -> Result<Option<FileDiff>, GitError> {
+        let repo = self.inner();
+        let mut opts = DiffOptions::new();
+        opts.pathspec(path);
+        let diff = if staged {
+            let head_tree = repo.head()?.peel_to_tree()?;
+            repo.diff_tree_to_index(Some(&head_tree), None, Some(&mut opts))?
+        } else {
+            opts.include_untracked(true)
+                .recurse_untracked_dirs(true)
+                .show_untracked_content(true);
+            repo.diff_index_to_workdir(None, Some(&mut opts))?
+        };
+        let diffs = collect_file_diffs(&diff)?;
+        Ok(diffs.into_iter().find(|d| d.path == path))
+    }
+
+    /// Cheap per-file change stats (name/status + add/del counts) for the
+    /// working directory, without materializing hunks or line content.
+    ///
+    /// Feeds the Changes list so a mutation refresh no longer streams every
+    /// hunk of every changed file over IPC. Uses libgit2's per-delta line
+    /// stats and only allocates the path strings.
+    pub fn diff_stats_workdir(&self) -> Result<Vec<FileDiffStat>, GitError> {
+        let repo = self.inner();
+        let diff = repo.diff_index_to_workdir(
+            None,
+            Some(
+                DiffOptions::new()
+                    .include_untracked(true)
+                    .recurse_untracked_dirs(true)
+                    .show_untracked_content(true),
+            ),
+        )?;
+        collect_file_stats(&diff)
+    }
+
+    /// Cheap per-file change stats for the index (staged changes) vs HEAD.
+    /// See [`Repository::diff_stats_workdir`].
+    pub fn diff_stats_index(&self) -> Result<Vec<FileDiffStat>, GitError> {
+        let repo = self.inner();
+        let head_tree = repo.head()?.peel_to_tree()?;
+        let diff = repo.diff_tree_to_index(Some(&head_tree), None, None)?;
+        collect_file_stats(&diff)
+    }
 }
 
 fn collect_file_diffs(diff: &Diff) -> Result<Vec<FileDiff>, GitError> {
@@ -314,6 +416,7 @@ fn collect_file_diffs(diff: &Diff) -> Result<Vec<FileDiff>, GitError> {
             additions: 0,
             deletions: 0,
             truncated: false,
+            binary: false,
         });
     }
 
@@ -323,6 +426,12 @@ fn collect_file_diffs(diff: &Diff) -> Result<Vec<FileDiff>, GitError> {
         .enumerate()
         .map(|(i, f)| (f.path.clone(), i))
         .collect();
+
+    // Per-file running budgets, indexed parallel to `files`. Content lines
+    // increment both; once either cap is breached the file is marked
+    // `truncated` and no further lines are collected for it (see below).
+    let mut file_bytes = vec![0usize; files.len()];
+    let mut file_lines = vec![0usize; files.len()];
 
     // Second pass: collect hunks and lines using print callback.
     //
@@ -352,6 +461,29 @@ fn collect_file_diffs(diff: &Diff) -> Result<Vec<FileDiff>, GitError> {
             }
         };
         if let Some(idx) = file_idx {
+            // Binary short-circuit: once flagged, ignore the rest of the
+            // callbacks for this file — no content is collected.
+            if files[idx].binary {
+                return true;
+            }
+            // libgit2 flags binary deltas (and emits a `Binary` line marker
+            // instead of content). Detect either and drop the file's hunks.
+            if delta.flags().contains(git2::DiffFlags::BINARY)
+                || matches!(line.origin_value(), git2::DiffLineType::Binary)
+            {
+                let file = &mut files[idx];
+                file.binary = true;
+                file.hunks.clear();
+                file.additions = 0;
+                file.deletions = 0;
+                return true;
+            }
+            // Once the per-file budget is breached, stop collecting content
+            // but keep the truncated flag so the UI shows a placeholder.
+            if files[idx].truncated {
+                return true;
+            }
+
             if let Some(h) = hunk {
                 let header = String::from_utf8_lossy(h.header()).trim().to_string();
 
@@ -374,30 +506,144 @@ fn collect_file_diffs(diff: &Diff) -> Result<Vec<FileDiff>, GitError> {
             }
 
             let origin = line.origin();
-            let content = String::from_utf8_lossy(line.content()).to_string();
-            let file = &mut files[idx];
+            let content_bytes = line.content();
 
-            match origin {
-                '+' => file.additions += 1,
-                '-' => file.deletions += 1,
-                _ => {}
+            // NUL-check the first content chunk of the file (mirrors the
+            // sniff in `file_content.rs`) as a fallback for content libgit2
+            // did not itself flag binary.
+            if file_lines[idx] == 0 && matches!(origin, '+' | '-' | ' ') {
+                let sniff = &content_bytes[..content_bytes.len().min(8192)];
+                if sniff.contains(&0u8) {
+                    let file = &mut files[idx];
+                    file.binary = true;
+                    file.hunks.clear();
+                    file.additions = 0;
+                    file.deletions = 0;
+                    return true;
+                }
             }
 
-            if matches!(origin, '+' | '-' | ' ')
-                && let Some(hunk) = file.hunks.last_mut()
-            {
-                hunk.lines.push(DiffLineInfo {
-                    origin,
-                    content,
-                    old_lineno: line.old_lineno(),
-                    new_lineno: line.new_lineno(),
-                });
+            if matches!(origin, '+' | '-' | ' ') {
+                // Enforce the per-file byte + line budget before pushing.
+                if file_bytes[idx].saturating_add(content_bytes.len()) > MAX_COMMIT_DIFF_BYTES
+                    || file_lines[idx] >= MAX_FILE_DIFF_LINES
+                {
+                    files[idx].truncated = true;
+                    return true;
+                }
+
+                let content = String::from_utf8_lossy(content_bytes).to_string();
+                let file = &mut files[idx];
+                match origin {
+                    '+' => file.additions += 1,
+                    '-' => file.deletions += 1,
+                    _ => {}
+                }
+                if let Some(hunk) = file.hunks.last_mut() {
+                    hunk.lines.push(DiffLineInfo {
+                        origin,
+                        content,
+                        old_lineno: line.old_lineno(),
+                        new_lineno: line.new_lineno(),
+                    });
+                    file_bytes[idx] += content_bytes.len();
+                    file_lines[idx] += 1;
+                }
             }
         }
         true
     })?;
 
     Ok(files)
+}
+
+/// Enforce a whole-response byte budget across a list of file diffs.
+///
+/// Walks `files` in order accumulating the byte size of collected line
+/// content. Once the running total exceeds `max_bytes`, every remaining
+/// file (including the one that tipped the budget) has its hunks cleared
+/// and `truncated` set — the frontend already renders a per-file
+/// placeholder for truncated entries. Files already marked binary or
+/// truncated contribute ~nothing and are left as-is.
+///
+/// Applied only at the `FileDiff[]` list endpoints
+/// (`get_diff_workdir` / `get_diff_index`); the per-file caps in
+/// [`collect_file_diffs`] already bound each individual file, so the
+/// hunk-staging path (which re-derives a single file's diff) is
+/// unaffected.
+pub fn enforce_response_budget(files: &mut [FileDiff], max_bytes: usize) {
+    let mut total = 0usize;
+    let mut exceeded = false;
+    for f in files.iter_mut() {
+        if exceeded {
+            f.hunks.clear();
+            f.truncated = true;
+            continue;
+        }
+        let file_bytes: usize = f
+            .hunks
+            .iter()
+            .flat_map(|h| &h.lines)
+            .map(|l| l.content.len())
+            .sum();
+        total = total.saturating_add(file_bytes);
+        if total > max_bytes {
+            exceeded = true;
+            f.hunks.clear();
+            f.truncated = true;
+        }
+    }
+}
+
+/// Build lightweight per-file stats from a libgit2 diff without collecting
+/// hunks or line content. Uses `Patch::line_stats` for add/del counts and
+/// the (post-generation) binary flag; binary files report 0/0.
+fn collect_file_stats(diff: &Diff) -> Result<Vec<FileDiffStat>, GitError> {
+    let num_deltas = diff.deltas().len();
+    let mut stats = Vec::with_capacity(num_deltas);
+    for idx in 0..num_deltas {
+        // `Patch::from_diff` loads the file content (populating the binary
+        // flag) and lets us read line stats without retaining any hunk or
+        // per-line strings — the whole point of the stats path.
+        let patch = git2::Patch::from_diff(diff, idx)?;
+        let delta = diff.get_delta(idx).unwrap();
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path())
+            .unwrap_or(Path::new(""))
+            .to_string_lossy()
+            .to_string();
+        let old_path = delta
+            .old_file()
+            .path()
+            .map(|p| p.to_string_lossy().to_string());
+        let status = delta_status_str(delta.status()).to_string();
+
+        let (binary, additions, deletions) = match patch {
+            Some(p) => {
+                if p.delta().flags().contains(git2::DiffFlags::BINARY) {
+                    (true, 0, 0)
+                } else {
+                    let (_ctx, add, del) = p.line_stats()?;
+                    (false, add, del)
+                }
+            }
+            // No textual patch (e.g. a pure mode change) — fall back to the
+            // delta flag with zero counts.
+            None => (delta.flags().contains(git2::DiffFlags::BINARY), 0, 0),
+        };
+
+        stats.push(FileDiffStat {
+            path,
+            old_path,
+            status,
+            additions,
+            deletions,
+            binary,
+        });
+    }
+    Ok(stats)
 }
 
 /// Parse a unified diff text (like `git diff` output) into structured [`FileDiff`] objects.
@@ -424,6 +670,7 @@ pub fn parse_unified_diff(diff_text: &str) -> Vec<FileDiff> {
                 additions: 0,
                 deletions: 0,
                 truncated: false,
+                binary: false,
             });
             current_hunk = None;
         } else if line.starts_with("--- ") {
@@ -879,5 +1126,170 @@ diff --git a/b.txt b/b.txt
             result.is_err(),
             "a non-existent oid must error, not return an empty diff"
         );
+    }
+
+    /// An oversized file (more lines than `MAX_FILE_DIFF_LINES`) must be
+    /// flagged `truncated` with line collection stopped at the cap, so a
+    /// generated blob can't stream hundreds of thousands of rows over IPC.
+    #[test]
+    fn test_diff_workdir_truncates_oversized_file() {
+        let (dir, repo) = create_repo_with_file();
+        // A fresh untracked file with well over the line cap. `show_untracked_
+        // content` means every line would otherwise become a `DiffLineInfo`.
+        let big = "x\n".repeat(MAX_FILE_DIFF_LINES + 5_000);
+        fs::write(dir.path().join("big.txt"), big).unwrap();
+
+        let diffs = repo.diff_workdir().unwrap();
+        let big = diffs
+            .iter()
+            .find(|d| d.path == "big.txt")
+            .expect("oversized file must still appear in the diff list");
+        assert!(big.truncated, "oversized file must be marked truncated");
+        let collected: usize = big.hunks.iter().map(|h| h.lines.len()).sum();
+        assert!(
+            collected <= MAX_FILE_DIFF_LINES,
+            "line collection must stop at the cap, got {collected}"
+        );
+    }
+
+    /// A binary file (NUL bytes) must short-circuit before line collection:
+    /// `binary` is set, hunks stay empty, and no add/del counts accrue.
+    #[test]
+    fn test_diff_workdir_binary_short_circuit() {
+        let (dir, repo) = create_repo_with_file();
+        // Bytes with an embedded NUL — libgit2 flags this binary (and our
+        // NUL sniff is the belt-and-braces fallback).
+        fs::write(
+            dir.path().join("blob.bin"),
+            [0x89, b'P', b'N', b'G', 0x00, 0x01, 0x02, 0x03],
+        )
+        .unwrap();
+
+        let diffs = repo.diff_workdir().unwrap();
+        let blob = diffs
+            .iter()
+            .find(|d| d.path == "blob.bin")
+            .expect("binary file must still appear in the diff list");
+        assert!(blob.binary, "binary file must be flagged");
+        assert!(blob.hunks.is_empty(), "binary file must collect no hunks");
+        assert_eq!(blob.additions, 0);
+        assert_eq!(blob.deletions, 0);
+    }
+
+    /// The whole-response budget marks every file past the byte limit as
+    /// `truncated` with hunks cleared, leaving earlier files intact.
+    #[test]
+    fn test_enforce_response_budget_truncates_after_limit() {
+        fn one(path: &str, content: &str) -> FileDiff {
+            FileDiff {
+                path: path.to_string(),
+                old_path: None,
+                status: "modified".to_string(),
+                hunks: vec![DiffHunkInfo {
+                    header: "@@ -1 +1 @@".to_string(),
+                    old_start: 1,
+                    old_lines: 1,
+                    new_start: 1,
+                    new_lines: 1,
+                    lines: vec![DiffLineInfo {
+                        origin: '+',
+                        content: content.to_string(),
+                        old_lineno: None,
+                        new_lineno: Some(1),
+                    }],
+                }],
+                additions: 1,
+                deletions: 0,
+                truncated: false,
+                binary: false,
+            }
+        }
+
+        let mut files = vec![
+            one("a", &"a".repeat(100)),
+            one("b", &"b".repeat(100)),
+            one("c", &"c".repeat(100)),
+        ];
+        // Budget of 150 bytes: "a" (100) fits, "b" tips the total over the
+        // limit and is truncated along with everything after it.
+        enforce_response_budget(&mut files, 150);
+        assert!(!files[0].truncated, "first file stays within budget");
+        assert!(!files[0].hunks.is_empty());
+        assert!(files[1].truncated && files[1].hunks.is_empty());
+        assert!(files[2].truncated && files[2].hunks.is_empty());
+    }
+
+    /// Stats report per-file add/del counts and status without materializing
+    /// hunks (the `FileDiffStat` shape has no hunks by construction).
+    #[test]
+    fn test_diff_stats_workdir_counts() {
+        let (dir, repo) = create_repo_with_file();
+        // test.txt starts as "line 1\nline 2\nline 3\n". Change line 2 and
+        // append a new line: 2 additions, 1 deletion.
+        fs::write(
+            dir.path().join("test.txt"),
+            "line 1\nCHANGED\nline 3\nline 4\n",
+        )
+        .unwrap();
+
+        let stats = repo.diff_stats_workdir().unwrap();
+        let s = stats
+            .iter()
+            .find(|s| s.path == "test.txt")
+            .expect("modified file must appear in stats");
+        assert_eq!(s.status, "modified");
+        assert_eq!(s.additions, 2);
+        assert_eq!(s.deletions, 1);
+        assert!(!s.binary);
+    }
+
+    /// Stats flag binary files (0/0 counts) so the list can mark them and the
+    /// lazy per-file fetch renders a placeholder.
+    #[test]
+    fn test_diff_stats_flags_binary() {
+        let (dir, repo) = create_repo_with_file();
+        fs::write(dir.path().join("b.bin"), [0u8, 1, 2, 3, 0, 5]).unwrap();
+        let stats = repo.diff_stats_workdir().unwrap();
+        let s = stats
+            .iter()
+            .find(|s| s.path == "b.bin")
+            .expect("binary file must appear in stats");
+        assert!(s.binary, "binary file must be flagged in stats");
+        assert_eq!(s.additions, 0);
+        assert_eq!(s.deletions, 0);
+    }
+
+    /// The lazy single-file diff returns the file's hunks for both the
+    /// workdir side and `None` for a path with no change.
+    #[test]
+    fn test_diff_single_file_workdir() {
+        let (dir, repo) = create_repo_with_file();
+        fs::write(dir.path().join("test.txt"), "line 1\nchanged\nline 3\n").unwrap();
+        let d = repo
+            .diff_single_file("test.txt", false)
+            .unwrap()
+            .expect("changed file must have a diff");
+        assert_eq!(d.path, "test.txt");
+        assert!(!d.hunks.is_empty());
+        assert!(
+            repo.diff_single_file("does-not-exist.txt", false)
+                .unwrap()
+                .is_none(),
+            "a path with no change must return None"
+        );
+    }
+
+    /// An untracked file is fetchable via the lazy single-file path (its
+    /// content is included, matching `diff_workdir`).
+    #[test]
+    fn test_diff_single_file_untracked() {
+        let (dir, repo) = create_repo_with_file();
+        fs::write(dir.path().join("new.txt"), "hello\nworld\n").unwrap();
+        let d = repo
+            .diff_single_file("new.txt", false)
+            .unwrap()
+            .expect("untracked file must have a diff");
+        assert_eq!(d.status, "untracked");
+        assert!(d.additions > 0);
     }
 }

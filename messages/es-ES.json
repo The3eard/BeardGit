@@ -98,6 +98,8 @@
   "search_placeholder": "Buscar...",
   "search_hint": "usa ; para añadir múltiples filtros",
   "diff_empty": "Selecciona un archivo para ver el diff",
+  "diff_too_large": "Diff demasiado grande para mostrar",
+  "diff_binary_short": "bin",
   "commit_detail_title": "Detalle del commit",
   "commit_detail_author": "Autor",
   "commit_detail_email": "Email",
