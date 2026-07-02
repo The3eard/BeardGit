@@ -29,9 +29,11 @@
 pub mod error;
 #[cfg(any(test, feature = "mock"))]
 pub mod mock;
+pub mod repo_config;
 pub mod types;
 
 pub use error::ForgeError;
+pub use repo_config::*;
 pub use types::*;
 
 /// Trait implemented by every forge backend (GitHub, GitLab, future forges).

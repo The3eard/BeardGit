@@ -25,6 +25,7 @@ mod labels;
 mod lifecycle;
 mod mr_pr;
 mod releases;
+pub mod repo_config;
 mod repo_create;
 mod reviewers;
 

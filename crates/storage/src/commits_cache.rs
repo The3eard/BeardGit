@@ -9,6 +9,15 @@ use crate::{database::Database, error::StorageError};
 /// this byte, so split/join round-trip losslessly.
 const VEC_SEP: char = '\u{1f}';
 
+/// Current encoding revision for cached commit rows. Mirrors
+/// [`crate::layout_cache::SCHEMA_VERSION`]: rows are tagged with the version
+/// that wrote them, and reads ignore rows whose tag doesn't match (treated as
+/// a miss so the caller rebuilds). Bump this whenever the row encoding changes
+/// — e.g. the `VEC_SEP` packing of `parents`/`refs` — so stale rows are
+/// invalidated instead of deserialised under the wrong format. Pre-tag rows
+/// (migrated in with version 0) never match and are rebuilt once.
+pub const SCHEMA_VERSION: i64 = 1;
+
 fn pack_strings(items: &[String]) -> String {
     items.join(&VEC_SEP.to_string())
 }
@@ -58,8 +67,8 @@ impl Database {
         {
             let mut stmt = tx.prepare(
                 "INSERT OR REPLACE INTO commits_cache
-                    (repo_path, oid, summary, body, author, email, timestamp, parents, refs)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    (repo_path, oid, summary, body, author, email, timestamp, parents, refs, schema_version)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             )?;
 
             for commit in commits {
@@ -75,6 +84,7 @@ impl Database {
                     commit.timestamp,
                     parents_packed,
                     refs_packed,
+                    SCHEMA_VERSION,
                 ])?;
             }
         }
@@ -92,23 +102,26 @@ impl Database {
         let mut stmt = self.conn.prepare(
             "SELECT oid, summary, body, author, email, timestamp, parents, refs
              FROM commits_cache
-             WHERE repo_path = ?1
+             WHERE repo_path = ?1 AND schema_version = ?4
              ORDER BY timestamp DESC
              LIMIT ?2 OFFSET ?3",
         )?;
 
-        let rows = stmt.query_map(rusqlite::params![repo_path, limit, offset], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, String>(4)?,
-                row.get::<_, i64>(5)?,
-                row.get::<_, String>(6)?,
-                row.get::<_, String>(7)?,
-            ))
-        })?;
+        let rows = stmt.query_map(
+            rusqlite::params![repo_path, limit, offset, SCHEMA_VERSION],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, String>(7)?,
+                ))
+            },
+        )?;
 
         let mut commits = Vec::new();
         for row in rows {
@@ -131,8 +144,8 @@ impl Database {
     /// Return the total number of cached commits for a repository.
     pub fn get_commit_count(&self, repo_path: &str) -> Result<i64, StorageError> {
         let count = self.conn.query_row(
-            "SELECT COUNT(*) FROM commits_cache WHERE repo_path = ?1",
-            rusqlite::params![repo_path],
+            "SELECT COUNT(*) FROM commits_cache WHERE repo_path = ?1 AND schema_version = ?2",
+            rusqlite::params![repo_path, SCHEMA_VERSION],
             |row| row.get(0),
         )?;
         Ok(count)
@@ -257,6 +270,51 @@ mod tests {
         let got = db.get_commits("/r", 0, 1).unwrap();
         assert_eq!(got[0].parents, vec!["bbb".to_string(), "ccc".to_string()]);
         assert_eq!(got[0].refs, vec!["refs/heads/main".to_string()]);
+    }
+
+    /// Rows tagged with a stale schema version are invisible to reads
+    /// (treated as a miss so the caller rebuilds), mirroring the
+    /// layout_cache schema-version guard.
+    #[test]
+    fn test_stale_schema_version_rows_are_a_miss() {
+        let db = Database::open_in_memory().unwrap();
+        let repo = "/repos/stale";
+
+        // Simulate rows written under a previous encoding (version 0, the
+        // migration default) by inserting with the old tag directly.
+        db.conn
+            .execute(
+                "INSERT OR REPLACE INTO commits_cache
+                    (repo_path, oid, summary, body, author, email, timestamp, parents, refs, schema_version)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                rusqlite::params![
+                    repo,
+                    "old",
+                    "stale summary",
+                    "",
+                    "A",
+                    "a@example.com",
+                    100_i64,
+                    "",
+                    "",
+                    0_i64, // pre-tag version
+                ],
+            )
+            .unwrap();
+
+        // Stale rows are invisible.
+        assert_eq!(db.get_commit_count(repo).unwrap(), 0);
+        assert!(db.get_commits(repo, 0, 10).unwrap().is_empty());
+
+        // Re-inserting through the normal path tags rows with the current
+        // version and makes them visible again.
+        db.insert_commits(repo, &[make_commit("old", "fresh summary", 100)])
+            .unwrap();
+        assert_eq!(db.get_commit_count(repo).unwrap(), 1);
+        assert_eq!(
+            db.get_commits(repo, 0, 10).unwrap()[0].summary,
+            "fresh summary"
+        );
     }
 
     #[test]
