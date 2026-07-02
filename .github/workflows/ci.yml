@@ -74,6 +74,12 @@ jobs:
         # so it must be compiled before the test run resolves those imports.
         run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
 
+      - name: Sync SvelteKit
+        # Vite resolves tsconfig through .svelte-kit/tsconfig.json; on a fresh
+        # runner it doesn't exist yet and vitest startup fails with
+        # "Tsconfig not found".
+        run: npx svelte-kit sync
+
       - name: Run tests
         run: npm test
 
