@@ -15,7 +15,6 @@ mod ci;
 mod clean;
 mod cli_auth;
 mod clone;
-mod command_runner;
 mod commit;
 mod config;
 mod conflict;
@@ -55,9 +54,6 @@ pub use ci::*;
 pub use clean::*;
 pub use cli_auth::*;
 pub use clone::*;
-pub use command_runner::{
-    CliError as RunnerCliError, CliOutput, CommandRunner, MockRunner, RecordedCall, SystemRunner,
-};
 pub use commit::*;
 pub use config::*;
 pub use conflict::*;

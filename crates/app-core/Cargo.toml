@@ -15,6 +15,7 @@ task-runner = { path = "../task-runner" }
 cli-provider = { path = "../cli-provider" }
 forge-provider = { path = "../forge-provider" }
 ai-provider = { path = "../ai-provider" }
+ai-runner = { path = "../ai-runner" }
 claude-code = { path = "../claude-code" }
 codex = { path = "../codex" }
 opencode = { path = "../opencode" }
