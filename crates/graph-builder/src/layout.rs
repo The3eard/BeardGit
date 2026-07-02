@@ -12,7 +12,100 @@
 
 use crate::dag::{Dag, GraphCommit};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+
+/// Rows per [`ViewportIndex`] bucket. Sized so a default ~300-row viewport
+/// touches only one or two buckets, while a whole-graph-spanning lane is listed
+/// in just `ceil(rows / 512)` buckets.
+const VIEWPORT_INDEX_BUCKET_ROWS: usize = 512;
+
+/// Row-bucketed overlap index over a layout's `lane_segments` and
+/// `merge_curves`, turning [`GraphLayout::viewport`]'s per-query full-array scan
+/// into O(window buckets + overlap).
+///
+/// Bucket `b` covers rows `[b * bucket_rows, (b + 1) * bucket_rows)` and lists
+/// the indices of every segment / curve whose row span overlaps it. A query
+/// touches only the buckets its window covers.
+///
+/// Chosen over "sort by `start_row` + a max-span back-scan": the mainline lane
+/// segment spans the entire graph, so a single max-span bound collapses the
+/// back-scan to O(n) for windows near the bottom. Buckets bound the work by the
+/// window size regardless of how long-lived a lane is — a long span is simply
+/// listed in each bucket it crosses, and at most `lane_count` segments (plus a
+/// handful of curves) cross any given row.
+///
+/// Derived data: held behind a `#[serde(skip)]` [`OnceLock`] on [`GraphLayout`]
+/// and built lazily on the first `viewport` call, so the on-disk cache format is
+/// unchanged and deserialized layouts rebuild it transparently.
+#[derive(Debug, Clone, Default)]
+pub struct ViewportIndex {
+    pub(crate) bucket_rows: usize,
+    /// `segment_buckets[b]` = indices into `lane_segments` overlapping bucket `b`.
+    pub(crate) segment_buckets: Vec<Vec<u32>>,
+    /// `curve_buckets[b]` = indices into `merge_curves` overlapping bucket `b`.
+    pub(crate) curve_buckets: Vec<Vec<u32>>,
+}
+
+impl ViewportIndex {
+    /// Build the index from a layout's node count, segments, and curves.
+    pub(crate) fn build(
+        node_count: usize,
+        segments: &[LaneSegment],
+        curves: &[MergeCurve],
+    ) -> Self {
+        let bucket_rows = VIEWPORT_INDEX_BUCKET_ROWS;
+        let bucket_count = node_count.div_ceil(bucket_rows).max(1);
+        let mut segment_buckets = vec![Vec::new(); bucket_count];
+        let mut curve_buckets = vec![Vec::new(); bucket_count];
+
+        for (i, seg) in segments.iter().enumerate() {
+            let first = (seg.start_row / bucket_rows).min(bucket_count - 1);
+            let last = (seg.end_row / bucket_rows).min(bucket_count - 1);
+            for bucket in &mut segment_buckets[first..=last] {
+                bucket.push(i as u32);
+            }
+        }
+        for (i, c) in curves.iter().enumerate() {
+            let min_row = c.from_row.min(c.to_row);
+            let max_row = c.from_row.max(c.to_row);
+            let first = (min_row / bucket_rows).min(bucket_count - 1);
+            let last = (max_row / bucket_rows).min(bucket_count - 1);
+            for bucket in &mut curve_buckets[first..=last] {
+                bucket.push(i as u32);
+            }
+        }
+
+        Self {
+            bucket_rows,
+            segment_buckets,
+            curve_buckets,
+        }
+    }
+
+    /// Indices (ascending, de-duplicated) whose bucket range intersects the
+    /// touched buckets for window `[start, end)`. Callers still apply the exact
+    /// overlap predicate — a bucket covers `bucket_rows` rows, wider than the
+    /// window, so its list can contain non-overlapping entries.
+    pub(crate) fn candidates(
+        buckets: &[Vec<u32>],
+        bucket_rows: usize,
+        start: usize,
+        end: usize,
+    ) -> Vec<u32> {
+        if start >= end || buckets.is_empty() {
+            return Vec::new();
+        }
+        let b0 = start / bucket_rows;
+        let b1 = ((end - 1) / bucket_rows).min(buckets.len() - 1);
+        if b0 >= buckets.len() {
+            return Vec::new();
+        }
+        let mut out: Vec<u32> = buckets[b0..=b1].iter().flatten().copied().collect();
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+}
 
 /// Synchronization state of a lane segment relative to its remote tracking branch.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -131,6 +224,12 @@ pub struct GraphLayout {
     pub merge_curves: Vec<MergeCurve>,
     /// Lane index of the HEAD commit, if present in the graph.
     pub head_lane: Option<usize>,
+    /// Lazily-built row-bucket index over `lane_segments` / `merge_curves` used
+    /// by [`GraphLayout::viewport`]. Derived, not persisted: `#[serde(skip)]`
+    /// keeps the on-disk cache format unchanged, and a deserialized layout
+    /// rebuilds it on the first viewport query.
+    #[serde(skip)]
+    pub viewport_index: OnceLock<ViewportIndex>,
 }
 
 /// Tag each lane segment with its sync state by comparing local and remote ref positions.
@@ -526,6 +625,7 @@ impl GraphLayout {
             lane_segments,
             merge_curves,
             head_lane,
+            viewport_index: OnceLock::new(),
         }
     }
 
@@ -667,6 +767,7 @@ impl GraphLayout {
             lane_segments,
             merge_curves,
             head_lane,
+            viewport_index: OnceLock::new(),
         })
     }
 }
@@ -1315,6 +1416,7 @@ mod tests {
                 group_id: 2,
             }],
             head_lane: Some(0),
+            viewport_index: OnceLock::new(),
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: GraphLayout = serde_json::from_str(&json).unwrap();

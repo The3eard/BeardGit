@@ -222,6 +222,132 @@ impl Repository {
         Ok(commits)
     }
 
+    /// Walk commits that follow `anchor` in the full history walk, without
+    /// re-enumerating the commits before it — the basis for O(limit) deep-scroll
+    /// pagination.
+    ///
+    /// `options.branch` is ignored (the anchor defines the tip); only
+    /// `options.first_parent` selects the strategy:
+    ///
+    /// - **first-parent (the anchored fast path's only eligible mode):** a
+    ///   first-parent walk is a linear chain, so this simply follows `parent(0)`
+    ///   from the anchor for `max_count` commits. That is **O(max_count)** at any
+    ///   depth — it never materialises the anchor's ancestry.
+    /// - **non-first-parent:** falls back to a `TOPOLOGICAL | TIME` revwalk that
+    ///   pushes only the anchor. Correct results, but a `TOPOLOGICAL` revwalk
+    ///   buffers the anchor's whole reachable set before yielding, so it costs
+    ///   O(commits below the anchor), not O(max_count). This branch exists only
+    ///   to keep the method well-defined for every option shape; production never
+    ///   reaches it (see `supports_anchored_pagination`, which requires
+    ///   first-parent).
+    ///
+    /// # Correctness
+    /// The result equals `walk_commits_with_options(pos_of(anchor) + 1,
+    /// max_count, options)` **only when every commit the full walk emits after
+    /// `anchor` is reachable from `anchor`** — guaranteed for a first-parent
+    /// single-tip walk (a linear chain), and *not* in general (a multi-head or
+    /// merge walk can interleave commits unreachable from the anchor into the
+    /// tail). Callers must gate on [`Repository::supports_anchored_pagination`];
+    /// the `anchored_*` tests below pin down both the equal and the divergent
+    /// shapes.
+    pub fn walk_commits_after_with_options(
+        &self,
+        anchor: &str,
+        max_count: usize,
+        options: CommitWalkOptions<'_>,
+    ) -> Result<Vec<CommitInfo>, GitError> {
+        let repo = self.inner();
+        let ref_map = build_ref_map(repo);
+        let anchor_oid = git2::Oid::from_str(anchor)?;
+
+        if options.first_parent {
+            // Linear chain: follow first parents from the anchor. O(max_count).
+            let mut commits = Vec::with_capacity(max_count);
+            let mut current = repo.find_commit(anchor_oid)?;
+            while commits.len() < max_count {
+                let Ok(parent) = current.parent(0) else {
+                    break; // reached a root
+                };
+                let parent_oid = parent.id();
+                commits.push(commit_to_info(&parent, parent_oid, &ref_map));
+                current = parent;
+            }
+            return Ok(commits);
+        }
+
+        // Non-first-parent fallback: reproduce the sorted walk from the anchor.
+        let mut revwalk = repo.revwalk()?;
+        revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?;
+        revwalk.push(anchor_oid)?;
+
+        let mut commits = Vec::with_capacity(max_count);
+        for oid_result in revwalk {
+            if commits.len() >= max_count {
+                break;
+            }
+            let oid = oid_result?;
+            // The anchor is always the first commit the walk yields; drop it so
+            // enumeration begins with the commit that follows it.
+            if oid == anchor_oid {
+                continue;
+            }
+            let commit = repo.find_commit(oid)?;
+            commits.push(commit_to_info(&commit, oid, &ref_map));
+        }
+
+        Ok(commits)
+    }
+
+    /// Whether the anchored walk ([`Repository::walk_commits_after_with_options`])
+    /// is provably equal to the offset walk for these `options` on this repo.
+    ///
+    /// Equality holds only when the full walk is a **strictly linear chain**, so
+    /// that every commit after any anchor is reachable from it. Two independent
+    /// facts force that:
+    /// - **`first_parent` must be set.** Under `TOPOLOGICAL | TIME`, libgit2
+    ///   *intermixes* the two sides of a merge (e.g. a merge of branches A and B
+    ///   emits `[m, b2, a2, b1, a1, base]`). An anchor that lands on the A side
+    ///   leaves B's commits pending in the tail — and they are not reachable from
+    ///   the anchor, so a non-first-parent walk diverges even on a single-head
+    ///   repo. First-parent simplification collapses the graph to one line, where
+    ///   the tail is always the anchor's ancestry.
+    /// - **The walk must push a single tip.** A branch-scoped walk always pushes
+    ///   exactly one ref; an all-refs walk is single-tip only when every ref
+    ///   resolves to the same commit. With several tips, each contributes its own
+    ///   first-parent chain and sibling tips interleave into the tail.
+    ///
+    /// Returns `Ok(false)` (→ use the offset walk) for every other shape. This is
+    /// conservative: some non-linear histories happen to match, but only the
+    /// linear case is *guaranteed*, and correctness must never depend on the fast
+    /// path succeeding.
+    pub fn supports_anchored_pagination(
+        &self,
+        options: CommitWalkOptions<'_>,
+    ) -> Result<bool, GitError> {
+        if !options.first_parent {
+            return Ok(false);
+        }
+        if options.branch.is_some() {
+            return Ok(true); // branch-scoped: exactly one tip is pushed
+        }
+        // All-refs walk: single-tip only when every pushed ref target is the
+        // same commit. Mirrors the push set of `walk_commits_with_options`
+        // (every `reference.target()` that is `Some`; symbolic refs are skipped).
+        let repo = self.inner();
+        let mut tip: Option<git2::Oid> = None;
+        for reference in repo.references()? {
+            let reference = reference?;
+            if let Some(oid) = reference.target() {
+                match tip {
+                    None => tip = Some(oid),
+                    Some(t) if t == oid => {}
+                    Some(_) => return Ok(false),
+                }
+            }
+        }
+        Ok(tip.is_some())
+    }
+
     /// Walk commits filtered by criteria, skipping `offset` raw revwalk entries.
     ///
     /// Returns commits matching ALL filters in topological + time order
@@ -837,6 +963,245 @@ mod tests {
             repo.simple_advance_commits(&all[2].oid, &all[0].oid, 1)
                 .unwrap()
                 .is_none()
+        );
+    }
+
+    // ── Anchored-walk equality.
+    //
+    // The anchored chunk must reproduce the offset chunk at the same position
+    // for every eligible walk (see `supports_anchored_pagination`: first-parent
+    // + single tip = a strictly linear chain). The eligibility gate itself is
+    // covered by `supports_anchored_pagination_*` below; the divergence tests
+    // pin down the excluded shapes so the gate can't silently loosen.
+
+    /// Build a single-head repo whose head is a merge of two independent
+    /// branches with interleaved commit times, forcing libgit2 to intermix the
+    /// two sides under `TOPOLOGICAL | TIME`. Returns the temp dir (keep alive)
+    /// and path. Full-history order is `[m, b2, a2, b1, a1, base]`.
+    fn interleaved_merge_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_path_buf();
+        let repo = git2::Repository::init(&path).unwrap();
+        let tree = {
+            let mut idx = repo.index().unwrap();
+            let tid = idx.write_tree().unwrap();
+            repo.find_tree(tid).unwrap()
+        };
+        let sig = |secs: i64| git2::Signature::new("T", "t@e", &git2::Time::new(secs, 0)).unwrap();
+        let base = repo
+            .commit(None, &sig(100), &sig(100), "base", &tree, &[])
+            .unwrap();
+        let bc = repo.find_commit(base).unwrap();
+        let a1 = repo
+            .commit(None, &sig(110), &sig(110), "a1", &tree, &[&bc])
+            .unwrap();
+        let b1 = repo
+            .commit(None, &sig(120), &sig(120), "b1", &tree, &[&bc])
+            .unwrap();
+        let a1c = repo.find_commit(a1).unwrap();
+        let b1c = repo.find_commit(b1).unwrap();
+        let a2 = repo
+            .commit(None, &sig(130), &sig(130), "a2", &tree, &[&a1c])
+            .unwrap();
+        let b2 = repo
+            .commit(None, &sig(140), &sig(140), "b2", &tree, &[&b1c])
+            .unwrap();
+        let a2c = repo.find_commit(a2).unwrap();
+        let b2c = repo.find_commit(b2).unwrap();
+        repo.commit(
+            Some("HEAD"),
+            &sig(150),
+            &sig(150),
+            "m",
+            &tree,
+            &[&a2c, &b2c],
+        )
+        .unwrap();
+        (dir, path)
+    }
+
+    /// Assert `walk_commits_after_with_options(anchor, limit)` equals
+    /// `walk_commits_with_options(offset, limit)` for *every* sequential anchor
+    /// position in the given walk.
+    fn assert_anchored_matches_offset_everywhere(
+        repo: &Repository,
+        options: CommitWalkOptions<'_>,
+        limit: usize,
+    ) {
+        let all = repo
+            .walk_commits_with_options(0, 1_000_000, options)
+            .unwrap();
+        assert!(all.len() >= 2, "fixture too small to exercise anchors");
+        for offset in 1..all.len() {
+            let anchor = &all[offset - 1].oid;
+            let expected: Vec<&String> = all[offset..(offset + limit).min(all.len())]
+                .iter()
+                .map(|c| &c.oid)
+                .collect();
+            let anchored = repo
+                .walk_commits_after_with_options(anchor, limit, options)
+                .unwrap();
+            let got: Vec<&String> = anchored.iter().map(|c| &c.oid).collect();
+            assert_eq!(
+                got, expected,
+                "anchored chunk at offset {offset} (anchor {anchor}) diverged from offset walk"
+            );
+        }
+    }
+
+    /// Report the first anchor position where the *non*-first-parent anchored
+    /// walk diverges from the offset walk, or `None` if it never does.
+    fn first_default_divergence(repo: &Repository, limit: usize) -> Option<usize> {
+        let all = repo.walk_commits(0, 1_000_000).unwrap();
+        (1..all.len()).find(|&offset| {
+            let anchor = &all[offset - 1].oid;
+            let expected: Vec<&String> = all[offset..(offset + limit).min(all.len())]
+                .iter()
+                .map(|c| &c.oid)
+                .collect();
+            let anchored = repo
+                .walk_commits_after_with_options(anchor, limit, CommitWalkOptions::default())
+                .unwrap();
+            let got: Vec<&String> = anchored.iter().map(|c| &c.oid).collect();
+            got != expected
+        })
+    }
+
+    #[test]
+    fn anchored_first_parent_linear_matches_offset() {
+        let (_dir, path) = create_repo_with_n_commits(40);
+        let repo = Repository::open(&path).unwrap();
+        assert_anchored_matches_offset_everywhere(
+            &repo,
+            CommitWalkOptions {
+                first_parent: true,
+                ..Default::default()
+            },
+            7,
+        );
+    }
+
+    #[test]
+    fn anchored_first_parent_merge_heavy_matches_offset() {
+        // Single-head merge fixture; first-parent collapses it to a line.
+        let (_dir, path) = crate::test_support::create_repo_with_merged_branch();
+        let repo = Repository::open(&path).unwrap();
+        assert_anchored_matches_offset_everywhere(
+            &repo,
+            CommitWalkOptions {
+                first_parent: true,
+                ..Default::default()
+            },
+            3,
+        );
+    }
+
+    #[test]
+    fn anchored_first_parent_branch_scoped_matches_offset() {
+        // Mainline with feature branches merged back — many refs, but scoping to
+        // one branch and following first parents yields a single linear chain.
+        let (_dir, path) = crate::test_support::create_synthetic_repo(300, 20);
+        let head_branch = {
+            let git_repo = git2::Repository::open(&path).unwrap();
+            git_repo.head().unwrap().shorthand().unwrap().to_string()
+        };
+        let repo = Repository::open(&path).unwrap();
+        assert_anchored_matches_offset_everywhere(
+            &repo,
+            CommitWalkOptions {
+                first_parent: true,
+                branch: Some(&head_branch),
+            },
+            50,
+        );
+    }
+
+    #[test]
+    fn anchored_first_parent_rescues_interleaved_merge() {
+        // The non-first-parent walk of this fixture intermixes the two merge
+        // sides and diverges (see below); first-parent flattens it to a line, so
+        // the anchored walk matches the offset walk at every anchor.
+        let (_dir, path) = interleaved_merge_repo();
+        let repo = Repository::open(&path).unwrap();
+        assert_anchored_matches_offset_everywhere(
+            &repo,
+            CommitWalkOptions {
+                first_parent: true,
+                ..Default::default()
+            },
+            2,
+        );
+    }
+
+    #[test]
+    fn anchored_single_head_merge_non_first_parent_diverges() {
+        // A single-head merge of two independent branches: libgit2 emits
+        // [m, b2, a2, b1, a1, base], so an anchor on the A side leaves B's
+        // commits unreachable in the tail. This is why the fast path requires
+        // first-parent even for single-head repos.
+        let (_dir, path) = interleaved_merge_repo();
+        let repo = Repository::open(&path).unwrap();
+        assert_eq!(
+            first_default_divergence(&repo, 100),
+            Some(2),
+            "single-head merge must diverge on the non-first-parent walk"
+        );
+    }
+
+    #[test]
+    fn anchored_multi_head_default_walk_diverges() {
+        // Multiple sibling branch tips → the default all-refs walk interleaves
+        // commits unreachable from a given anchor into the tail, so the fast
+        // path must exclude this case.
+        let (_dir, path) =
+            crate::test_support::create_repo_with_branches(&["b0", "b1", "b2", "b3", "b4", "b5"]);
+        let repo = Repository::open(&path).unwrap();
+        assert!(
+            first_default_divergence(&repo, 10).is_some(),
+            "expected a multi-head divergence justifying the offset fallback"
+        );
+    }
+
+    #[test]
+    fn supports_anchored_pagination_requires_first_parent() {
+        let (_dir, path) = create_repo_with_n_commits(3);
+        let repo = Repository::open(&path).unwrap();
+        // Single-head linear repo, but a non-first-parent walk is never eligible.
+        assert!(
+            !repo
+                .supports_anchored_pagination(CommitWalkOptions::default())
+                .unwrap()
+        );
+        // First-parent on the same single-tip repo is eligible.
+        assert!(
+            repo.supports_anchored_pagination(CommitWalkOptions {
+                first_parent: true,
+                ..Default::default()
+            })
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn supports_anchored_pagination_branch_scoped_is_single_tip() {
+        let (_dir, path) = crate::test_support::create_repo_with_branches(&["b0", "b1", "b2"]);
+        let repo = Repository::open(&path).unwrap();
+        // Multi-head repo: the default first-parent walk pushes several tips.
+        assert!(
+            !repo
+                .supports_anchored_pagination(CommitWalkOptions {
+                    first_parent: true,
+                    ..Default::default()
+                })
+                .unwrap()
+        );
+        // Scoping to one branch pushes exactly one tip → eligible.
+        assert!(
+            repo.supports_anchored_pagination(CommitWalkOptions {
+                first_parent: true,
+                branch: Some("b0"),
+            })
+            .unwrap()
         );
     }
 

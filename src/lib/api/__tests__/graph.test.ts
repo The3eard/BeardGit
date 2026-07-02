@@ -51,7 +51,21 @@ describe("graph wrappers", () => {
       firstParent: true,
       branch: "origin/dev",
       maxLanes: null,
+      anchor: null,
     });
     expect(out).toEqual({ nodes: [], has_more: true });
+  });
+
+  it("loadGraphChunk forwards the anchor OID for sequential scrolls", async () => {
+    mocks.invoke.mockResolvedValue({ nodes: [], has_more: true });
+    await loadGraphChunk(300, 50, { firstParent: true }, "deadbeef");
+    expect(mocks.invoke).toHaveBeenCalledWith("load_graph_chunk", {
+      offset: 300,
+      limit: 50,
+      firstParent: true,
+      branch: null,
+      maxLanes: null,
+      anchor: "deadbeef",
+    });
   });
 });

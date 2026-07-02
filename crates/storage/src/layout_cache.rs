@@ -200,6 +200,7 @@ mod tests {
             lane_segments: Vec::new(),
             merge_curves: Vec::new(),
             head_lane: None,
+            viewport_index: Default::default(),
         }
     }
 

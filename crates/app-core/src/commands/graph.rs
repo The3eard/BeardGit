@@ -259,27 +259,51 @@ pub async fn get_commit_stats(
 /// Core chunk-building logic, separated from Tauri state/async so it can be
 /// exercised in unit tests against a `git_engine::Repository` fixture.
 ///
-/// Walks `limit + 1` commits starting at `offset` to probe whether more
-/// commits exist beyond the window (used to populate
-/// [`GraphViewport::has_more`]), then builds a per-chunk DAG and layout over
-/// exactly `limit` truncated commits.
+/// Walks `limit + 1` commits to probe whether more commits exist beyond the
+/// window (used to populate [`GraphViewport::has_more`]), then builds a
+/// per-chunk DAG and layout over exactly `limit` truncated commits.
+///
+/// # Deep-scroll fast path
+/// When `anchor` is the OID of the last commit of the previously-loaded chunk
+/// (a sequential scroll) *and* the walk supports anchored pagination
+/// ([`git_engine::Repository::supports_anchored_pagination`] — first-parent over
+/// a single tip), the walk starts *at* the anchor instead of enumerating and
+/// discarding the first `offset` commits. That makes a chunk at offset 80K cost
+/// the same as one at offset 0. In every other case — a random scrollbar jump
+/// (`anchor` is `None`) or a walk shape where anchored pagination isn't provably
+/// equal to the offset walk — it falls back to the O(offset) walk, so results
+/// are byte-identical to before.
 ///
 /// # Parameters
 /// - `repo`    – Repository to walk.
-/// - `offset`  – Zero-based index of the first commit to return.
+/// - `offset`  – Zero-based index of the first commit to return. Always used for
+///   the reported [`GraphViewport::offset`] and for the offset fallback.
 /// - `limit`   – Maximum number of commits to include in the chunk.
+/// - `anchor`  – When `Some`, the OID preceding this chunk; enables the anchored
+///   fast path where eligible.
 /// - `options` – Layout mode (first-parent simplification, branch scope).
 fn build_graph_chunk(
     repo: &git_engine::Repository,
     offset: usize,
     limit: usize,
+    anchor: Option<&str>,
     options: &GraphLayoutOptions,
 ) -> Result<GraphViewport, String> {
     // Walk one extra so we can detect whether more commits exist without
     // paying for a second round-trip.
-    let commits = repo
-        .walk_commits_with_options(offset, limit + 1, options.walk_options())
-        .map_err(|e| e.to_string())?;
+    let use_anchor = match anchor {
+        Some(_) => repo
+            .supports_anchored_pagination(options.walk_options())
+            .map_err(|e| e.to_string())?,
+        None => false,
+    };
+    let commits = if let (true, Some(anchor)) = (use_anchor, anchor) {
+        repo.walk_commits_after_with_options(anchor, limit + 1, options.walk_options())
+            .map_err(|e| e.to_string())?
+    } else {
+        repo.walk_commits_with_options(offset, limit + 1, options.walk_options())
+            .map_err(|e| e.to_string())?
+    };
 
     let has_more = commits.len() > limit;
     let truncated: Vec<_> = commits.into_iter().take(limit).collect();
@@ -338,6 +362,11 @@ fn build_graph_chunk(
 ///   Must match the mode of the layout the chunk extends.
 /// - `max_lanes` – Lane ceiling override, clamped to 4..=16 (default 8).
 ///   Must match the mode of the layout the chunk extends.
+/// - `anchor` – OID of the last commit in the previously-loaded chunk. Pass it
+///   only for a sequential forward scroll; the walk then starts at the anchor
+///   (O(limit)) instead of skipping `offset` commits, where the walk mode
+///   supports it. Leave `None` for random scrollbar jumps — the offset walk is
+///   used and the result is identical.
 ///
 /// # Returns
 /// A [`GraphViewport`] whose `has_more` is `true` when additional commits
@@ -350,6 +379,7 @@ pub async fn load_graph_chunk(
     first_parent: Option<bool>,
     branch: Option<String>,
     max_lanes: Option<u8>,
+    anchor: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<GraphViewport, String> {
     let repo_path = get_active_project_path(&state)?;
@@ -361,7 +391,7 @@ pub async fn load_graph_chunk(
 
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        build_graph_chunk(&repo, offset, limit, &options)
+        build_graph_chunk(&repo, offset, limit, anchor.as_deref(), &options)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -667,8 +697,8 @@ mod tests {
         let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let chunk =
-            build_graph_chunk(&repo, 10, 20, &GraphLayoutOptions::default()).expect("chunk ok");
+        let chunk = build_graph_chunk(&repo, 10, 20, None, &GraphLayoutOptions::default())
+            .expect("chunk ok");
         assert_eq!(chunk.nodes.len(), 20);
         assert_eq!(chunk.offset, 10);
         assert!(
@@ -682,8 +712,8 @@ mod tests {
         let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let chunk =
-            build_graph_chunk(&repo, 40, 20, &GraphLayoutOptions::default()).expect("chunk ok");
+        let chunk = build_graph_chunk(&repo, 40, 20, None, &GraphLayoutOptions::default())
+            .expect("chunk ok");
         assert_eq!(chunk.nodes.len(), 10);
         assert!(
             !chunk.has_more,
@@ -696,10 +726,73 @@ mod tests {
         let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let chunk =
-            build_graph_chunk(&repo, 100, 20, &GraphLayoutOptions::default()).expect("chunk ok");
+        let chunk = build_graph_chunk(&repo, 100, 20, None, &GraphLayoutOptions::default())
+            .expect("chunk ok");
         assert!(chunk.nodes.is_empty());
         assert!(!chunk.has_more);
+    }
+
+    /// Assert two viewports are byte-identical in everything the renderer uses.
+    fn assert_viewports_equal(a: &GraphViewport, b: &GraphViewport) {
+        let a_oids: Vec<&String> = a.nodes.iter().map(|n| &n.oid).collect();
+        let b_oids: Vec<&String> = b.nodes.iter().map(|n| &n.oid).collect();
+        assert_eq!(a_oids, b_oids, "node OIDs differ");
+        assert_eq!(a.offset, b.offset, "offset differs");
+        assert_eq!(a.has_more, b.has_more, "has_more differs");
+        assert_eq!(a.lane_segments, b.lane_segments, "lane_segments differ");
+        assert_eq!(a.merge_curves, b.merge_curves, "merge_curves differ");
+        assert_eq!(
+            a.total_lane_count, b.total_lane_count,
+            "total_lane_count differs"
+        );
+    }
+
+    #[test]
+    fn build_graph_chunk_anchored_equals_offset_when_eligible() {
+        // First-parent single-tip walk is anchored-pagination eligible. A chunk
+        // built from the anchor (last OID of the previous chunk) must be
+        // byte-identical to the offset-built chunk at the same position.
+        let (_dir, path) = create_repo_with_n_commits(60);
+        let repo = git_engine::Repository::open(&path).unwrap();
+        let opts = GraphLayoutOptions {
+            first_parent: true,
+            ..Default::default()
+        };
+        let all = repo
+            .walk_commits_with_options(0, 1_000, opts.walk_options())
+            .unwrap();
+
+        let (offset, limit) = (20usize, 15usize);
+        let anchor = &all[offset - 1].oid;
+        let anchored =
+            build_graph_chunk(&repo, offset, limit, Some(anchor), &opts).expect("anchored");
+        let by_offset = build_graph_chunk(&repo, offset, limit, None, &opts).expect("offset");
+        assert_eq!(anchored.nodes.len(), limit);
+        assert_eq!(&anchored.nodes[0].oid, &all[offset].oid);
+        assert_viewports_equal(&anchored, &by_offset);
+    }
+
+    #[test]
+    fn build_graph_chunk_ignores_anchor_when_not_eligible() {
+        // The default (non-first-parent) walk is NOT anchored-eligible, so a
+        // supplied anchor must be ignored and the offset walk used — the result
+        // is identical to passing no anchor. This guards against the fast path
+        // silently applying to a mode where it isn't provably equal.
+        let (_dir, path) = git_engine::test_support::create_synthetic_repo(300, 20);
+        let repo = git_engine::Repository::open(&path).unwrap();
+        let opts = GraphLayoutOptions::default();
+        let all = repo
+            .walk_commits_with_options(0, 10_000, opts.walk_options())
+            .unwrap();
+
+        let (offset, limit) = (120usize, 40usize);
+        let anchor = &all[offset - 1].oid;
+        let with_anchor =
+            build_graph_chunk(&repo, offset, limit, Some(anchor), &opts).expect("with anchor");
+        let without = build_graph_chunk(&repo, offset, limit, None, &opts).expect("without");
+        assert_viewports_equal(&with_anchor, &without);
+        // Sanity: the offset walk actually landed on the expected commit.
+        assert_eq!(&without.nodes[0].oid, &all[offset].oid);
     }
 
     #[test]
@@ -708,7 +801,8 @@ mod tests {
         let repo = git_engine::Repository::open(&path).unwrap();
 
         // Default mode: 4 commits (merge + feature + 2 mainline), 2 lanes.
-        let full = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions::default()).expect("full");
+        let full =
+            build_graph_chunk(&repo, 0, 100, None, &GraphLayoutOptions::default()).expect("full");
         assert_eq!(full.nodes.len(), 4);
         assert_eq!(full.total_lane_count, 2);
 
@@ -718,7 +812,7 @@ mod tests {
             first_parent: true,
             ..Default::default()
         };
-        let fp = build_graph_chunk(&repo, 0, 100, &fp_opts).expect("fp");
+        let fp = build_graph_chunk(&repo, 0, 100, None, &fp_opts).expect("fp");
         assert_eq!(fp.nodes.len(), 3);
         assert_eq!(fp.total_lane_count, 1);
         assert!(fp.nodes.iter().all(|n| n.lane == 0));
@@ -748,14 +842,15 @@ mod tests {
         let repo = git_engine::Repository::open(&path).unwrap();
 
         // All refs: 5 commits. Scoped to the head branch: 4, no side work.
-        let full = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions::default()).expect("full");
+        let full =
+            build_graph_chunk(&repo, 0, 100, None, &GraphLayoutOptions::default()).expect("full");
         assert_eq!(full.nodes.len(), 5);
 
         let scoped_opts = GraphLayoutOptions {
             branch: Some(head_branch.clone()),
             ..Default::default()
         };
-        let scoped = build_graph_chunk(&repo, 0, 100, &scoped_opts).expect("scoped");
+        let scoped = build_graph_chunk(&repo, 0, 100, None, &scoped_opts).expect("scoped");
         assert_eq!(scoped.nodes.len(), 4);
         assert!(!scoped.nodes.iter().any(|n| n.summary == "side work"));
 
@@ -765,7 +860,7 @@ mod tests {
             branch: Some(head_branch),
             ..Default::default()
         };
-        let clean = build_graph_chunk(&repo, 0, 100, &clean_opts).expect("clean");
+        let clean = build_graph_chunk(&repo, 0, 100, None, &clean_opts).expect("clean");
         assert_eq!(clean.nodes.len(), 3);
         assert_eq!(clean.total_lane_count, 1);
         assert!(!clean.nodes.iter().any(|n| n.summary == "feature work"));
@@ -780,14 +875,15 @@ mod tests {
         ]);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let full = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions::default()).expect("full");
+        let full =
+            build_graph_chunk(&repo, 0, 100, None, &GraphLayoutOptions::default()).expect("full");
         assert_eq!(full.total_lane_count, 6);
 
         let capped_opts = GraphLayoutOptions {
             max_lanes: Some(4),
             ..Default::default()
         };
-        let capped = build_graph_chunk(&repo, 0, 100, &capped_opts).expect("capped");
+        let capped = build_graph_chunk(&repo, 0, 100, None, &capped_opts).expect("capped");
         assert_eq!(capped.total_lane_count, 4);
         assert!(capped.nodes.iter().all(|n| n.lane < 4));
     }
@@ -800,7 +896,7 @@ mod tests {
             branch: Some("does-not-exist".to_string()),
             ..Default::default()
         };
-        assert!(build_graph_chunk(&repo, 0, 100, &opts).is_err());
+        assert!(build_graph_chunk(&repo, 0, 100, None, &opts).is_err());
     }
 
     /// After a new commit lands in the repo, `rebuild_layout_blocking`
