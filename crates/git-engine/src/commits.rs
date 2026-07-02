@@ -120,6 +120,12 @@ fn refs_for_oid(repo: &git2::Repository, target: git2::Oid) -> Vec<String> {
     hits
 }
 
+/// Result of [`Repository::simple_advance_commits`]: `Some((new_commits,
+/// old_tip_refs))` when the range is a clean linear advance (new commits
+/// newest-first, plus the refs now on the old tip), or `None` when it isn't and
+/// the caller should fall back to a full rebuild.
+pub type SimpleAdvance = Option<(Vec<CommitInfo>, Vec<String>)>;
+
 /// Options controlling how [`Repository::walk_commits_with_options`] traverses
 /// history.
 ///
@@ -336,6 +342,56 @@ impl Repository {
             commits.push(commit_to_info(&commit, oid, &ref_map));
         }
         Ok(commits)
+    }
+
+    /// Collect the commits a "simple advance" added to a branch: everything on
+    /// the first-parent chain from `new_tip` down to (but excluding) `old_tip`,
+    /// plus the refs that now point at `old_tip`.
+    ///
+    /// This powers the incremental graph-refresh fast path
+    /// ([`graph_builder::GraphLayout::try_prepend_simple_advance`]). It returns
+    /// `Ok(None)` — meaning "not a simple advance; fall back to a full rebuild"
+    /// — when:
+    /// - `new_tip == old_tip` (nothing advanced),
+    /// - the chain from `new_tip` to `old_tip` contains any commit without
+    ///   exactly one parent (a merge or a root), or
+    /// - `old_tip` isn't reached within `cap` commits (a deep jump, a rebase,
+    ///   or a force-push — none representable as a linear prepend).
+    ///
+    /// New commits come back newest-first (`[0]` is `new_tip`) with their refs
+    /// resolved by the same shared ref map the full graph walk uses, so a
+    /// layout built incrementally from them matches a full rebuild's node refs.
+    pub fn simple_advance_commits(
+        &self,
+        old_tip: &str,
+        new_tip: &str,
+        cap: usize,
+    ) -> Result<SimpleAdvance, GitError> {
+        if old_tip == new_tip {
+            return Ok(None);
+        }
+        let repo = self.inner();
+        let old_oid = git2::Oid::from_str(old_tip)?;
+        let mut cur = git2::Oid::from_str(new_tip)?;
+        let ref_map = build_ref_map(repo);
+
+        let mut commits = Vec::new();
+        while cur != old_oid {
+            if commits.len() >= cap {
+                return Ok(None); // too far away — not a linear advance
+            }
+            let commit = repo.find_commit(cur)?;
+            if commit.parent_count() != 1 {
+                return Ok(None); // merge or root in the range → not simple
+            }
+            commits.push(commit_to_info(&commit, cur, &ref_map));
+            cur = commit.parent_id(0)?;
+        }
+        if commits.is_empty() {
+            return Ok(None);
+        }
+        let old_tip_refs = ref_map.get(old_tip).cloned().unwrap_or_default();
+        Ok(Some((commits, old_tip_refs)))
     }
 
     /// Retrieve a single commit by its OID string.
@@ -744,5 +800,60 @@ mod tests {
 
         let result = repo.branch_commits("nonexistent", 100);
         assert!(result.is_err(), "nonexistent branch should return an error");
+    }
+
+    #[test]
+    fn test_simple_advance_collects_linear_range() {
+        let (_dir, path) = create_repo_with_n_commits(3);
+        let repo = Repository::open(&path).unwrap();
+        let all = repo.walk_commits(0, 100).unwrap(); // newest-first: [c3, c2, c1]
+        let new_tip = &all[0].oid;
+        let old_tip = &all[2].oid;
+
+        let (commits, _refs) = repo
+            .simple_advance_commits(old_tip, new_tip, 100)
+            .unwrap()
+            .expect("linear range is a simple advance");
+        // c3 and c2 are new relative to c1; c1 (old_tip) is excluded.
+        assert_eq!(commits.len(), 2);
+        assert_eq!(&commits[0].oid, new_tip);
+        assert_eq!(commits[1].oid, all[1].oid);
+    }
+
+    #[test]
+    fn test_simple_advance_none_when_equal_or_over_cap() {
+        let (_dir, path) = create_repo_with_n_commits(3);
+        let repo = Repository::open(&path).unwrap();
+        let all = repo.walk_commits(0, 100).unwrap();
+
+        // Same tip → nothing advanced.
+        assert!(
+            repo.simple_advance_commits(&all[0].oid, &all[0].oid, 100)
+                .unwrap()
+                .is_none()
+        );
+        // old_tip unreachable within the cap → fall back.
+        assert!(
+            repo.simple_advance_commits(&all[2].oid, &all[0].oid, 1)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn test_simple_advance_none_across_a_merge() {
+        let (_dir, path) = crate::test_support::create_repo_with_merged_branch();
+        let repo = Repository::open(&path).unwrap();
+        // HEAD is the merge commit "m"; walking from it hits a 2-parent commit
+        // immediately, so it's never a simple advance.
+        let all = repo.walk_commits(0, 100).unwrap();
+        let merge = all.iter().find(|c| c.summary == "merge feature").unwrap();
+        let root = all.iter().find(|c| c.parents.is_empty()).unwrap();
+        assert!(
+            repo.simple_advance_commits(&root.oid, &merge.oid, 100)
+                .unwrap()
+                .is_none(),
+            "a range containing a merge must not be a simple advance"
+        );
     }
 }

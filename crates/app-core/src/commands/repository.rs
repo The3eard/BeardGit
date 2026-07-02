@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use tauri::{AppHandle, State};
 
-use super::graph_cache::{GraphLayoutOptions, load_or_build_layout};
+use super::graph_cache::{GraphLayoutOptions, load_or_build_layout, ref_snapshot};
 use super::helpers::*;
 use crate::state::{AppState, ProjectSlot};
 
@@ -34,7 +34,7 @@ pub async fn open_repo(
     let config_dir = state.config_dir.clone();
 
     // Run the expensive graph computation off the main thread
-    let (repo, layout, status) = tokio::task::spawn_blocking(move || {
+    let (repo, layout, status, change_count, ref_snap) = tokio::task::spawn_blocking(move || {
         let repo =
             git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(|e| e.to_string())?;
 
@@ -45,8 +45,13 @@ pub async fn open_repo(
             &GraphLayoutOptions::default(),
         )?;
         let status = repo.status().map_err(|e| e.to_string())?;
+        // Compute the working-tree change count here, on the blocking thread,
+        // instead of a second `file_statuses()` walk back on the async runtime.
+        let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
+        // Baseline refs for the incremental graph-refresh fast path.
+        let ref_snap = ref_snapshot(&repo);
 
-        Ok::<_, String>((repo, layout, status))
+        Ok::<_, String>((repo, layout, status, change_count, ref_snap))
     })
     .await
     .map_err(|e| e.to_string())?
@@ -72,7 +77,6 @@ pub async fn open_repo(
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.clone());
     let head_branch = status.head_branch.clone();
-    let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
     let is_worktree = repo.is_worktree();
 
     let slot = ProjectSlot {
@@ -100,6 +104,7 @@ pub async fn open_repo(
     };
     *state.active_index.lock().map_err(|e| e.to_string())? = Some(active_idx);
     invalidate_forge_provider_cache(&state);
+    state.store_layout_ref_snapshot(&path, ref_snap);
 
     Ok(RepoInfo {
         path: status.path,
@@ -109,10 +114,34 @@ pub async fn open_repo(
     })
 }
 
-/// List all local branches in the open repository with their HEAD OIDs.
+/// Wholesale-clear the ahead/behind cache past this many entries. Keys are
+/// `(tip, upstream_tip)` OID pairs that accumulate as branches move over a
+/// session; clearing is safe — the next `get_branches` just recomputes.
+const AHEAD_BEHIND_CACHE_CAP: usize = 8_192;
+
+/// List all local and remote branches in the open repository.
+///
+/// Ahead/behind counts are served from [`AppState::ahead_behind_cache`], keyed
+/// on `(branch_tip, upstream_tip)`, so a branch whose tips haven't moved since
+/// the last call skips the `graph_ahead_behind` walk entirely — this command
+/// fires on every `head_changed || refs_changed`, and most refs don't move.
 #[tauri::command]
 pub fn get_branches(state: State<'_, AppState>) -> Result<Vec<git_engine::BranchInfo>, String> {
-    with_active_repo(&state, |repo| repo.branches().map_err(|e| e.to_string()))
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let active = state.active_index.lock().map_err(|e| e.to_string())?;
+    let idx = active.ok_or_else(|| "No active project".to_string())?;
+    let slot = projects
+        .get(idx)
+        .ok_or_else(|| "Active project index out of bounds".to_string())?;
+    let repo = slot
+        .repo
+        .as_ref()
+        .ok_or_else(|| "No repository open".to_string())?;
+    let mut cache = state.ahead_behind_cache.lock().map_err(|e| e.to_string())?;
+    if cache.len() > AHEAD_BEHIND_CACHE_CAP {
+        cache.clear();
+    }
+    repo.branches_cached(&mut cache).map_err(|e| e.to_string())
 }
 
 /// Return the last N commits on a specific branch.

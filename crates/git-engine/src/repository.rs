@@ -128,8 +128,42 @@ impl Repository {
         })
     }
 
-    /// List all local and remote branches.
+    /// List all local and remote branches, computing ahead/behind for every
+    /// tracking branch from scratch.
     pub fn branches(&self) -> Result<Vec<BranchInfo>, GitError> {
+        self.branches_inner(|repo, local, up| repo.graph_ahead_behind(local, up).unwrap_or((0, 0)))
+    }
+
+    /// Like [`Self::branches`] but memoises ahead/behind counts in `cache`,
+    /// keyed on `(local_tip_oid, upstream_tip_oid)`.
+    ///
+    /// The key is self-invalidating: when either tip moves the key changes and
+    /// the pair is recomputed, so stale counts are impossible. Callers that
+    /// re-list branches on every ref change (the graph refresh does) thereby
+    /// skip the O(divergence) `graph_ahead_behind` walk for every branch whose
+    /// tips are unchanged — which, after a single-branch commit, is all but one.
+    pub fn branches_cached(
+        &self,
+        cache: &mut std::collections::HashMap<(String, String), (usize, usize)>,
+    ) -> Result<Vec<BranchInfo>, GitError> {
+        self.branches_inner(|repo, local, up| {
+            let key = (local.to_string(), up.to_string());
+            if let Some(&hit) = cache.get(&key) {
+                return hit;
+            }
+            let computed = repo.graph_ahead_behind(local, up).unwrap_or((0, 0));
+            cache.insert(key, computed);
+            computed
+        })
+    }
+
+    /// Shared branch-listing body. `ahead_behind(repo, local_oid, upstream_oid)`
+    /// yields the `(ahead, behind)` pair for a tracking branch — computed live
+    /// by [`Self::branches`] or served from a cache by [`Self::branches_cached`].
+    fn branches_inner<F>(&self, mut ahead_behind: F) -> Result<Vec<BranchInfo>, GitError>
+    where
+        F: FnMut(&git2::Repository, git2::Oid, git2::Oid) -> (usize, usize),
+    {
         let head_oid = self.repo.head().ok().and_then(|h| h.target());
 
         let mut branches = Vec::new();
@@ -153,10 +187,10 @@ impl Repository {
                 head_oid.is_some_and(|h| (branch.get().target() == Some(h)) && !is_remote);
 
             // Tracking-status: only meaningful for local branches with
-            // a configured upstream. Compute via `graph_ahead_behind`
-            // against the upstream's tip OID. Failures (no upstream,
-            // upstream OID missing, walk error) silently degrade to
-            // `(None, 0, 0)` — the FE renders nothing in those cases.
+            // a configured upstream. `ahead_behind` yields the counts against
+            // the upstream's tip OID. Failures (no upstream, upstream OID
+            // missing, walk error) silently degrade to `(None, 0, 0)` — the FE
+            // renders nothing in those cases.
             let mut upstream: Option<String> = None;
             let mut ahead: usize = 0;
             let mut behind: usize = 0;
@@ -165,8 +199,8 @@ impl Repository {
                     upstream = Some(up_name.to_string());
                 }
                 if let (Some(local_oid), Some(up_oid)) = (branch.get().target(), up.get().target())
-                    && let Ok((a, b)) = self.repo.graph_ahead_behind(local_oid, up_oid)
                 {
+                    let (a, b) = ahead_behind(&self.repo, local_oid, up_oid);
                     ahead = a;
                     behind = b;
                 }
@@ -495,6 +529,26 @@ mod tests {
         assert!(default.upstream.is_none());
         assert_eq!(default.ahead, 0);
         assert_eq!(default.behind, 0);
+
+        // `branches_cached` must match `branches` and populate the cache.
+        let mut cache: std::collections::HashMap<(String, String), (usize, usize)> =
+            std::collections::HashMap::new();
+        let cached = repo.branches_cached(&mut cache).unwrap();
+        let cf = cached
+            .iter()
+            .find(|b| b.name == "feature")
+            .expect("feature present in cached listing");
+        assert_eq!((cf.ahead, cf.behind), (1, 0));
+        assert_eq!(
+            cache.len(),
+            1,
+            "exactly the feature/upstream tip pair should be cached"
+        );
+        // A second call serves the same counts from the cache.
+        let cached2 = repo.branches_cached(&mut cache).unwrap();
+        let cf2 = cached2.iter().find(|b| b.name == "feature").unwrap();
+        assert_eq!((cf2.ahead, cf2.behind), (1, 0));
+        assert_eq!(cached.len(), cached2.len());
     }
 
     #[test]

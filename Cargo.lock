@@ -1908,6 +1908,7 @@ version = "26.6.3"
 dependencies = [
  "criterion",
  "git-engine",
+ "git2",
  "serde",
  "serde_json",
 ]
