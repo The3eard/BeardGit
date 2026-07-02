@@ -18,7 +18,7 @@
   bar matches every other input row in the app.
 -->
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { requestsSave, requestsRun, requestsCancel } from "$lib/api/tauri";
   import { get } from "svelte/store";
   import { EditorView } from "@codemirror/view";
   import {
@@ -128,29 +128,20 @@
     activeTicketId = ticketId;
     try {
       const content = requestDocToHttp($currentRequest);
-      await invoke("requests_save", {
-        sourceKind: $currentSource.kind,
-        sourcePath: $currentSource.path,
-        projectPath: projectPath || null,
+      await requestsSave(
+        $currentSource.kind,
+        $currentSource.path,
+        projectPath || null,
         content,
-      });
+      );
 
-      const r = await invoke<{
-        history_id: number;
-        status: number;
-        headers: [string, string][];
-        body_base64: string;
-        truncated: boolean;
-        duration_ms: number;
-      }>("requests_run", {
-        args: {
-          source_kind: $currentSource.kind,
-          source_path: $currentSource.path,
-          project_path: projectPath || null,
-          env_name: $currentEnv,
-          overrides: {},
-          ticket_id: ticketId,
-        },
+      const r = await requestsRun({
+        source_kind: $currentSource.kind,
+        source_path: $currentSource.path,
+        project_path: projectPath || null,
+        env_name: $currentEnv,
+        overrides: {},
+        ticket_id: ticketId,
       });
       lastResponse.set({
         status: r.status,
@@ -189,7 +180,7 @@
     const id = activeTicketId;
     if (id) {
       try {
-        await invoke("requests_cancel", { ticketId: id });
+        await requestsCancel(id);
       } catch (_) {
         // Best-effort — see fn-doc above.
       }

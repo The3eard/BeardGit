@@ -28,6 +28,7 @@
 import { addToast } from "$lib/stores/toast";
 import { taskRunner } from "$lib/stores/taskRunner";
 import { openTasksPopover } from "$lib/stores/tasksPopover";
+import { firstErrorLine, getErrorCode, errorCodeMessage } from "$lib/api/errors";
 
 /** Options passed to {@link runMutation}. */
 export interface MutationOpts<T> {
@@ -51,31 +52,6 @@ export interface MutationOpts<T> {
    * for TS-only mutations (e.g. future headless AI commands).
    */
   trackAsTask?: boolean;
-}
-
-/**
- * First non-empty line of a Tauri error.
- *
- * Tauri surfaces some errors as plain strings and others as objects
- * shaped like `{ message: string }` (depending on the `serde` flavour
- * on the Rust side); both are normalised to a string first so the
- * toast body is always a single human-friendly line.
- */
-function firstLine(err: unknown): string {
-  let msg: string;
-  if (err instanceof Error) {
-    msg = err.message;
-  } else if (
-    typeof err === "object" &&
-    err !== null &&
-    "message" in err &&
-    typeof (err as { message: unknown }).message === "string"
-  ) {
-    msg = (err as { message: string }).message;
-  } else {
-    msg = String(err);
-  }
-  return msg.split(/\r?\n/, 1)[0] ?? msg;
 }
 
 /** Run a mutation with the standard toast + task policy. */
@@ -104,9 +80,15 @@ export async function runMutation<T>(opts: MutationOpts<T>): Promise<T> {
     } else {
       detailId = taskRunner.createAdhoc(opts.kind, err);
     }
+    // Prefer a code-keyed label when the error carries a known `code`
+    // (structured IpcError); otherwise fall back to the raw first line. The
+    // code→message map is deliberately tiny (see errors.ts) — full per-code
+    // i18n is deferred to the codegen follow-up.
+    const code = getErrorCode(err);
+    const detail = (code && errorCodeMessage(code)) || firstErrorLine(err);
     addToast({
       type: "error",
-      message: `${opts.failureToastPrefix} — ${firstLine(err)}`,
+      message: `${opts.failureToastPrefix} — ${detail}`,
       duration: null,
       actions: [
         {

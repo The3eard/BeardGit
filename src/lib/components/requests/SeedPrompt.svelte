@@ -20,7 +20,7 @@
   (`quickstart/jsonplaceholder/list-posts.http`).
 -->
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { requestsSeedQuickstart } from "$lib/api/tauri";
   import { activeProject } from "$lib/stores/projects";
   import { Button, Card } from "$lib/components/ui";
   import { currentSource, treeReloadSignal, newRequestOpen } from "./stores";
@@ -48,9 +48,7 @@
     busy = true;
     error = null;
     try {
-      const written = await invoke<string[]>("requests_seed_quickstart", {
-        projectPath,
-      });
+      const written = await requestsSeedQuickstart(projectPath);
       treeReloadSignal.update((n) => n + 1);
       if (written.length > 0) {
         // Quickstart's first written path is

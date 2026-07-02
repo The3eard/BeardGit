@@ -20,18 +20,13 @@
  * practice and keeps the panel honest after env edits).
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { requestsLoadEnv } from "$lib/api/tauri";
+import type { RequestEnvFile } from "$lib/types/requests";
 import {
   type CompletionContext,
   type CompletionResult,
   type Completion,
 } from "@codemirror/autocomplete";
-
-/** Shape of a loaded env file as returned by `requests_load_env`. */
-interface EnvFile {
-  vars?: Record<string, string>;
-  secrets?: string[];
-}
 
 /**
  * Build a CodeMirror autocomplete source that fires inside `{{ }}`
@@ -119,12 +114,9 @@ async function loadCandidates(
 ): Promise<Candidate[]> {
   const out = new Map<string, Candidate>();
 
-  const env: EnvFile | null =
+  const env: RequestEnvFile | null =
     projectPath && envName
-      ? await invoke<EnvFile>("requests_load_env", {
-          projectPath,
-          envName,
-        }).catch(() => null)
+      ? await requestsLoadEnv(projectPath, envName).catch(() => null)
       : null;
 
   if (env) {
