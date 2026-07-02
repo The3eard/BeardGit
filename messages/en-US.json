@@ -1272,6 +1272,7 @@
   "editor_copy_path_done": "Path copied",
   "editor_dialog_name_label": "Name",
   "editor_dialog_parent_label": "Parent folder",
+  "editor_dialog_parent_placeholder": "e.g. src/utils (blank for repo root)",
   "editor_dialog_create": "Create",
   "editor_dialog_cancel": "Cancel",
   "editor_dialog_rename_title": "Rename {name}",
