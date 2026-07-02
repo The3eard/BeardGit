@@ -16,6 +16,8 @@ members = [
     "crates/forge-provider",
     "crates/terminal",
     "crates/ai-provider",
+    "crates/ai-provider-common",
+    "crates/ai-runner",
     "crates/claude-code",
     "crates/codex",
     "crates/mutation-events",
@@ -47,3 +49,4 @@ rand = "0.8"
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
+criterion = { version = "0.5", features = ["html_reports"] }

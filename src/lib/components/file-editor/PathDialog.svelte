@@ -2,15 +2,18 @@
   PathDialog.svelte — combined dialog for new-file / new-folder / rename
   flows in the file-editor panel.
 
-  Validation is intentionally strict: empty names, names containing `..`
-  or `/`, and Windows-illegal characters all surface inline before the
-  dialog will fire its `onConfirm` callback. This keeps the dialog usable
-  cross-platform without falling through to the backend's filesystem
-  errors for trivial typos.
+  For the new-* modes the parent-directory field is editable (with a
+  `<datalist>` of existing directories): the user can type a nested
+  relative directory and the backend creates intermediate dirs on demand.
+  Validation is intentionally strict — empty/`..`/absolute/Windows-illegal
+  leaf names and parent dirs surface inline before the dialog fires its
+  `onConfirm` callback — but the backend (`validate_repo_relative_path`)
+  remains the authority. Rename keeps its original leaf-only behavior.
 -->
 <script lang="ts">
   import { Button, Dialog, Field } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
+  import { joinRepoPath, validateDir, validateLeaf } from "./path-validation";
 
   /**
    * Dialog mode. `new-file` and `new-folder` both prompt for a leaf
@@ -24,12 +27,22 @@
     open: boolean;
     /** Mode determines title, validation, and the confirm payload. */
     mode: Mode;
-    /** Parent directory ("" for repo root). Used by the new-* modes. */
+    /** Seed parent directory ("" for repo root). Used by the new-* modes. */
     parentDir?: string;
     /** Existing repo-relative path. Used by the rename mode. */
     targetPath?: string;
-    /** Confirm callback; called only after client-side validation passes. */
-    onConfirm: (name: string) => void | Promise<void>;
+    /**
+     * Existing directory paths for the parent-field autocomplete
+     * (new-* modes only). Rendered as a native `<datalist>`.
+     */
+    existingDirs?: string[];
+    /**
+     * Confirm callback. For `rename` the argument is the new leaf name;
+     * for the new-* modes it is the full repo-relative path (edited
+     * parent joined with the leaf). Called only after client-side
+     * validation passes.
+     */
+    onConfirm: (value: string) => void | Promise<void>;
     /** Cancel callback; the parent is expected to flip `open` back to false. */
     onClose: () => void;
   }
@@ -39,6 +52,7 @@
     mode,
     parentDir = "",
     targetPath = "",
+    existingDirs = [],
     onConfirm,
     onClose,
   }: Props = $props();
@@ -56,50 +70,53 @@
     return m.editor_dialog_rename_title({ name: leaf(targetPath) });
   });
 
-  /** Bound to the `<input>`. Initialised whenever the dialog re-opens. */
+  /** Bound to the leaf `<input>`. Initialised whenever the dialog re-opens. */
   let nameValue = $state("");
+  /** Bound to the editable parent-directory `<input>` (new-* modes). */
+  let parentValue = $state("");
   let touched = $state(false);
+  let parentTouched = $state(false);
 
-  // Reset the field on every open transition so prior typos don't carry
+  // Reset the fields on every open transition so prior typos don't carry
   // across.  `targetPath`/`mode` change synchronously when the parent
-  // hands us a different action, so this also re-prefills rename inputs.
+  // hands us a different action, so this also re-prefills rename inputs
+  // and re-seeds the editable parent from the tree selection.
   $effect(() => {
     if (open) {
       nameValue = mode === "rename" ? leaf(targetPath) : "";
+      parentValue = parentDir;
       touched = false;
+      parentTouched = false;
     }
   });
 
-  /** Disallowed character set — Windows reserved + path separator. */
-  const INVALID_CHARS = /[<>:"|?*\\/]/;
+  /** Map a validation code to the (single, friendly) localized message. */
+  let nameError = $derived(
+    touched && validateLeaf(nameValue) !== null
+      ? m.editor_path_invalid()
+      : null,
+  );
+  let parentError = $derived(
+    mode !== "rename" && parentTouched && validateDir(parentValue) !== null
+      ? m.editor_path_invalid()
+      : null,
+  );
 
-  /** Returns a localized error string when the input is invalid. */
-  function validate(name: string): string | null {
-    const trimmed = name.trim();
-    if (trimmed === "") return m.editor_path_invalid();
-    if (trimmed.startsWith("/") || trimmed.startsWith("..")) {
-      return m.editor_path_invalid();
-    }
-    if (trimmed.split("/").some((part) => part === "..")) {
-      return m.editor_path_invalid();
-    }
-    if (INVALID_CHARS.test(trimmed)) {
-      return m.editor_path_invalid();
-    }
-    return null;
-  }
-
-  let validationError = $derived(touched ? validate(nameValue) : null);
-
-  /** Final string passed to the parent — for rename this is the new leaf. */
-  function payloadName(): string {
-    return nameValue.trim();
-  }
+  /** True when both fields pass validation (ungated by `touched`). */
+  let canSubmit = $derived(
+    validateLeaf(nameValue) === null &&
+      (mode === "rename" || validateDir(parentValue) === null),
+  );
 
   async function submit() {
     touched = true;
-    if (validate(nameValue) !== null) return;
-    await onConfirm(payloadName());
+    parentTouched = true;
+    if (!canSubmit) return;
+    const value =
+      mode === "rename"
+        ? nameValue.trim()
+        : joinRepoPath(parentValue, nameValue);
+    await onConfirm(value);
   }
 
   function onKeyDown(event: KeyboardEvent) {
@@ -108,9 +125,6 @@
       void submit();
     }
   }
-
-  /** Display label for the parent input — empty parent reads as "/". */
-  let parentLabel = $derived(parentDir === "" ? "/" : `${parentDir}/`);
 </script>
 
 <Dialog
@@ -121,17 +135,28 @@
 >
   <div class="form" onkeydown={onKeyDown} role="presentation">
     {#if mode !== "rename"}
-      <Field label={m.editor_dialog_parent_label()}>
+      <Field
+        label={m.editor_dialog_parent_label()}
+        error={parentError ?? undefined}
+      >
         <input
-          class="input readonly"
+          class="input"
           type="text"
-          value={parentLabel}
-          readonly
-          aria-readonly="true"
+          list="path-dialog-dirs"
+          placeholder={m.editor_dialog_parent_placeholder()}
+          bind:value={parentValue}
+          oninput={() => (parentTouched = true)}
         />
+        {#if existingDirs.length > 0}
+          <datalist id="path-dialog-dirs">
+            {#each existingDirs as dir (dir)}
+              <option value={dir}></option>
+            {/each}
+          </datalist>
+        {/if}
       </Field>
     {/if}
-    <Field label={m.editor_dialog_name_label()} error={validationError ?? undefined}>
+    <Field label={m.editor_dialog_name_label()} error={nameError ?? undefined}>
       <input
         class="input"
         type="text"
@@ -146,7 +171,7 @@
     </Button>
     <Button
       variant="primary"
-      disabled={!!validationError || nameValue.trim() === ""}
+      disabled={!canSubmit}
       onclick={() => void submit()}
     >
       {m.editor_dialog_create()}
@@ -173,10 +198,5 @@
   }
   .input:focus {
     border-color: var(--accent-primary);
-  }
-  .input.readonly {
-    background: var(--bg-toolbar);
-    color: var(--text-secondary);
-    cursor: not-allowed;
   }
 </style>

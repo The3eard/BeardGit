@@ -527,13 +527,20 @@ mod tests {
         let id = mgr.spawn(config).expect("spawn should succeed");
         assert!(id > 0);
 
-        // Write a command and wait for output
+        // Write a command and poll for its output. A fixed sleep is not
+        // enough on Windows CI, where ConPTY + PowerShell startup can take
+        // several seconds before the shell even reads stdin.
         mgr.write(id, b"echo hello_terminal_test\n")
             .expect("write should succeed");
-        thread::sleep(Duration::from_millis(500));
-
-        let bytes = sink.output_bytes();
-        let output = String::from_utf8_lossy(&bytes);
+        let deadline = std::time::Instant::now() + Duration::from_secs(20);
+        let output = loop {
+            let bytes = sink.output_bytes();
+            let output = String::from_utf8_lossy(&bytes).into_owned();
+            if output.contains("hello_terminal_test") || std::time::Instant::now() >= deadline {
+                break output;
+            }
+            thread::sleep(Duration::from_millis(100));
+        };
         assert!(
             output.contains("hello_terminal_test"),
             "output should contain our echo: {output}"

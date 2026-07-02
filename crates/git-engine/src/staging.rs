@@ -221,6 +221,13 @@ mod tests {
     fn create_repo_with_committed_file() -> (tempfile::TempDir, Repository) {
         let dir = tempfile::tempdir().unwrap();
         let git_repo = git2::Repository::init(dir.path()).unwrap();
+        // Windows CI sets core.autocrlf=true globally; checkout-backed
+        // operations would rewrite \n to \r\n and break content asserts.
+        git_repo
+            .config()
+            .unwrap()
+            .set_str("core.autocrlf", "false")
+            .unwrap();
         let sig = git2::Signature::now("Test", "test@test.com").unwrap();
 
         let file_path = dir.path().join("existing.txt");

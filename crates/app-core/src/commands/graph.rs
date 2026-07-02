@@ -6,9 +6,15 @@ use graph_builder::{Dag, GraphCommit, GraphLayout};
 use tauri::State;
 use tracing::instrument;
 
-use super::graph_cache::{GraphLayoutOptions, load_or_build_layout};
+use super::graph_cache::{GraphLayoutOptions, load_or_build_layout, persist_layout, ref_snapshot};
 use super::helpers::*;
-use crate::state::AppState;
+use crate::state::{AppState, RefSnapshot};
+
+/// Ceiling on how far the incremental-refresh fast path walks a first-parent
+/// chain before giving up and letting the full rebuild handle it. Keeps the
+/// per-refresh work (done under the projects lock) bounded; larger jumps
+/// (rebases, force-pushes, deep fast-forwards) legitimately full-rebuild.
+const SIMPLE_ADVANCE_CAP: usize = 512;
 
 /// Outcome of probing the active slot for a layout matching the requested
 /// options: either a ready viewport slice, or the repo path to rebuild from.
@@ -253,27 +259,51 @@ pub async fn get_commit_stats(
 /// Core chunk-building logic, separated from Tauri state/async so it can be
 /// exercised in unit tests against a `git_engine::Repository` fixture.
 ///
-/// Walks `limit + 1` commits starting at `offset` to probe whether more
-/// commits exist beyond the window (used to populate
-/// [`GraphViewport::has_more`]), then builds a per-chunk DAG and layout over
-/// exactly `limit` truncated commits.
+/// Walks `limit + 1` commits to probe whether more commits exist beyond the
+/// window (used to populate [`GraphViewport::has_more`]), then builds a
+/// per-chunk DAG and layout over exactly `limit` truncated commits.
+///
+/// # Deep-scroll fast path
+/// When `anchor` is the OID of the last commit of the previously-loaded chunk
+/// (a sequential scroll) *and* the walk supports anchored pagination
+/// ([`git_engine::Repository::supports_anchored_pagination`] — first-parent over
+/// a single tip), the walk starts *at* the anchor instead of enumerating and
+/// discarding the first `offset` commits. That makes a chunk at offset 80K cost
+/// the same as one at offset 0. In every other case — a random scrollbar jump
+/// (`anchor` is `None`) or a walk shape where anchored pagination isn't provably
+/// equal to the offset walk — it falls back to the O(offset) walk, so results
+/// are byte-identical to before.
 ///
 /// # Parameters
 /// - `repo`    – Repository to walk.
-/// - `offset`  – Zero-based index of the first commit to return.
+/// - `offset`  – Zero-based index of the first commit to return. Always used for
+///   the reported [`GraphViewport::offset`] and for the offset fallback.
 /// - `limit`   – Maximum number of commits to include in the chunk.
+/// - `anchor`  – When `Some`, the OID preceding this chunk; enables the anchored
+///   fast path where eligible.
 /// - `options` – Layout mode (first-parent simplification, branch scope).
 fn build_graph_chunk(
     repo: &git_engine::Repository,
     offset: usize,
     limit: usize,
+    anchor: Option<&str>,
     options: &GraphLayoutOptions,
 ) -> Result<GraphViewport, String> {
     // Walk one extra so we can detect whether more commits exist without
     // paying for a second round-trip.
-    let commits = repo
-        .walk_commits_with_options(offset, limit + 1, options.walk_options())
-        .map_err(|e| e.to_string())?;
+    let use_anchor = match anchor {
+        Some(_) => repo
+            .supports_anchored_pagination(options.walk_options())
+            .map_err(|e| e.to_string())?,
+        None => false,
+    };
+    let commits = if let (true, Some(anchor)) = (use_anchor, anchor) {
+        repo.walk_commits_after_with_options(anchor, limit + 1, options.walk_options())
+            .map_err(|e| e.to_string())?
+    } else {
+        repo.walk_commits_with_options(offset, limit + 1, options.walk_options())
+            .map_err(|e| e.to_string())?
+    };
 
     let has_more = commits.len() > limit;
     let truncated: Vec<_> = commits.into_iter().take(limit).collect();
@@ -332,6 +362,11 @@ fn build_graph_chunk(
 ///   Must match the mode of the layout the chunk extends.
 /// - `max_lanes` – Lane ceiling override, clamped to 4..=16 (default 8).
 ///   Must match the mode of the layout the chunk extends.
+/// - `anchor` – OID of the last commit in the previously-loaded chunk. Pass it
+///   only for a sequential forward scroll; the walk then starts at the anchor
+///   (O(limit)) instead of skipping `offset` commits, where the walk mode
+///   supports it. Leave `None` for random scrollbar jumps — the offset walk is
+///   used and the result is identical.
 ///
 /// # Returns
 /// A [`GraphViewport`] whose `has_more` is `true` when additional commits
@@ -344,6 +379,7 @@ pub async fn load_graph_chunk(
     first_parent: Option<bool>,
     branch: Option<String>,
     max_lanes: Option<u8>,
+    anchor: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<GraphViewport, String> {
     let repo_path = get_active_project_path(&state)?;
@@ -355,7 +391,7 @@ pub async fn load_graph_chunk(
 
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        build_graph_chunk(&repo, offset, limit, &options)
+        build_graph_chunk(&repo, offset, limit, anchor.as_deref(), &options)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -373,10 +409,151 @@ fn rebuild_layout_blocking(
     path: &str,
     config_dir: &std::path::Path,
     options: &GraphLayoutOptions,
-) -> Result<GraphLayout, String> {
+) -> Result<(GraphLayout, RefSnapshot), String> {
     let repo = git_engine::Repository::open(PathBuf::from(path)).map_err(|e| e.to_string())?;
     let (layout, _was_cached) = load_or_build_layout(&repo, path, config_dir, options)?;
-    Ok(layout)
+    // Record the refs this layout was built from so a later `refresh_graph_layout`
+    // can detect a simple advance against it.
+    let refs = ref_snapshot(&repo);
+    Ok((layout, refs))
+}
+
+/// Map a `git_engine::CommitInfo` into a `graph_builder::GraphCommit`.
+fn commit_to_graph_commit(c: git_engine::CommitInfo) -> GraphCommit {
+    GraphCommit {
+        oid: c.oid,
+        parents: c.parents,
+        timestamp: c.timestamp,
+        refs: c.refs,
+        summary: c.summary,
+        author: c.author,
+        email: c.email,
+    }
+}
+
+/// If exactly one ref changed OID between `old` and `new` (none added or
+/// removed), return `(ref_name, old_oid, new_oid)`. Any other shape (a ref
+/// created/deleted, several refs moved, or nothing moved) yields `None`.
+fn single_ref_advance(old: &RefSnapshot, new: &RefSnapshot) -> Option<(String, String, String)> {
+    if old.len() != new.len() {
+        return None;
+    }
+    let mut moved: Option<(String, String, String)> = None;
+    for (name, new_oid) in new {
+        match old.get(name) {
+            None => return None, // a ref was added (and one removed to keep len equal)
+            Some(old_oid) if old_oid == new_oid => {}
+            Some(old_oid) => {
+                if moved.is_some() {
+                    return None; // more than one ref moved
+                }
+                moved = Some((name.clone(), old_oid.clone(), new_oid.clone()));
+            }
+        }
+    }
+    moved
+}
+
+/// Attempt the incremental "simple advance" fast path for
+/// [`refresh_graph_layout`]: when exactly one branch moved forward on top of
+/// the current graph tip, patch the cached layout in place instead of
+/// re-walking the whole graph.
+///
+/// Returns `Ok(true)` when it fully handled the refresh (layout patched, disk
+/// cache updated, ref snapshot advanced); `Ok(false)` when the mutation isn't a
+/// simple advance and the caller must full-rebuild. Only genuine lock failures
+/// surface as `Err`.
+///
+/// The detect-and-patch runs under the `projects`+`active_index` lock: the git
+/// walk is a capped first-parent hop and the array work is O(rows), so keeping
+/// the old layout in the slot throughout avoids a `None` window that would
+/// strand a concurrent viewport read. In debug builds the result is
+/// cross-checked against a full rebuild so the fast path can never silently
+/// diverge.
+fn try_incremental_advance(state: &State<'_, AppState>) -> Result<bool, String> {
+    // Resolve the active path, then read its recorded ref snapshot — each under
+    // its own lock so we never hold two of AppState's mutexes simultaneously.
+    let path = match get_active_project_path(state) {
+        Ok(p) => p.to_string_lossy().into_owned(),
+        Err(_) => return Ok(false),
+    };
+    let Some(old_refs) = state.layout_ref_snapshot(&path) else {
+        return Ok(false); // no baseline yet — full rebuild will record one
+    };
+    let config_dir = state.config_dir.clone();
+
+    let new_refs = {
+        let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
+        let active = state.active_index.lock().map_err(|e| e.to_string())?;
+        let Some(idx) = *active else {
+            return Ok(false);
+        };
+        let Some(slot) = projects.get_mut(idx) else {
+            return Ok(false);
+        };
+        // The fast path only reasons about the default full-graph view.
+        if slot.path != path || slot.layout_options != GraphLayoutOptions::default() {
+            return Ok(false);
+        }
+        let (Some(repo), Some(layout)) = (slot.repo.as_ref(), slot.layout.as_ref()) else {
+            return Ok(false);
+        };
+        let Some(row0) = layout.nodes.first() else {
+            return Ok(false);
+        };
+        if row0.lane != 0 {
+            return Ok(false);
+        }
+        let (row0_oid, row0_ts) = (row0.oid.clone(), row0.timestamp);
+
+        let new_refs = ref_snapshot(repo);
+        let Some((name, old_oid, new_oid)) = single_ref_advance(&old_refs, &new_refs) else {
+            return Ok(false);
+        };
+        // Only branch/remote tips anchor the graph, and the moved branch's old
+        // tip must be exactly the current row-0 commit.
+        if !(name.starts_with("refs/heads/") || name.starts_with("refs/remotes/"))
+            || old_oid != row0_oid
+        {
+            return Ok(false);
+        }
+
+        let Some((commits, former_tip_refs)) = repo
+            .simple_advance_commits(&old_oid, &new_oid, SIMPLE_ADVANCE_CAP)
+            .map_err(|e| e.to_string())?
+        else {
+            return Ok(false);
+        };
+        // Every new commit must be at least as new as the old tip, so a full
+        // rebuild would place them at the very top (see try_prepend docs).
+        if commits.iter().any(|c| c.timestamp < row0_ts) {
+            return Ok(false);
+        }
+
+        let gcs: Vec<GraphCommit> = commits.into_iter().map(commit_to_graph_commit).collect();
+        let Some(inc) = layout.try_prepend_simple_advance(&gcs, former_tip_refs) else {
+            return Ok(false);
+        };
+
+        // Dev-only correctness gate: the fast path must never diverge from a
+        // full rebuild. Release builds trust the property-tested construction.
+        #[cfg(debug_assertions)]
+        {
+            let full = super::graph_cache::build_fresh_layout(repo, &slot.layout_options)?;
+            if let Some(diff) = graph_builder::structural_diff(&inc, &full) {
+                panic!("incremental graph advance diverged from full rebuild: {diff}");
+            }
+        }
+
+        // Serialize from a borrow (no clone) and flush off-thread, then install
+        // the patched layout into the slot.
+        persist_layout(repo, &path, &config_dir, &slot.layout_options, &inc);
+        slot.layout = Some(inc);
+        new_refs
+    };
+
+    state.store_layout_ref_snapshot(&path, new_refs);
+    Ok(true)
 }
 
 /// Rebuild the active project's cached [`GraphLayout`] from the current
@@ -402,6 +579,14 @@ fn rebuild_layout_blocking(
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::graph::refresh_layout")]
 pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), String> {
+    // Fast path: a plain commit / amend / fast-forward moves exactly one branch
+    // forward on top of the current tip. Detect that and patch the cached
+    // layout in place (O(new rows)) instead of re-walking up to 20K commits.
+    // Anything else falls through to the full rebuild below.
+    if try_incremental_advance(&state)? {
+        return Ok(());
+    }
+
     // Snapshot the path + config dir + the slot's current layout options so
     // we can drop the lock before doing the (potentially expensive) walk +
     // layout build off-thread. Rebuilding with the slot's own options keeps
@@ -422,7 +607,7 @@ pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), Stri
 
     let path_clone = path.clone();
     let opts_clone = options.clone();
-    let layout = tokio::task::spawn_blocking(move || {
+    let (layout, new_refs) = tokio::task::spawn_blocking(move || {
         rebuild_layout_blocking(&path_clone, &config_dir, &opts_clone)
     })
     .await
@@ -433,14 +618,24 @@ pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), Stri
     // raced with this call is a silent no-op. Guard on the options still
     // matching too, so a concurrent mode switch isn't clobbered with a
     // layout built for the old mode.
-    let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
-    let active = state.active_index.lock().map_err(|e| e.to_string())?;
-    if let Some(idx) = *active
-        && let Some(slot) = projects.get_mut(idx)
-        && slot.path == path
-        && slot.layout_options == options
-    {
-        slot.layout = Some(layout);
+    let installed = {
+        let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
+        let active = state.active_index.lock().map_err(|e| e.to_string())?;
+        if let Some(idx) = *active
+            && let Some(slot) = projects.get_mut(idx)
+            && slot.path == path
+            && slot.layout_options == options
+        {
+            slot.layout = Some(layout);
+            true
+        } else {
+            false
+        }
+    };
+    // Record the refs this layout was built from so the next refresh can try
+    // the incremental fast path against it.
+    if installed {
+        state.store_layout_ref_snapshot(&path, new_refs);
     }
     Ok(())
 }
@@ -450,13 +645,60 @@ mod tests {
     use super::*;
     use git_engine::test_support::create_repo_with_n_commits;
 
+    fn refs(pairs: &[(&str, &str)]) -> RefSnapshot {
+        pairs
+            .iter()
+            .map(|(n, o)| (n.to_string(), o.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn single_ref_advance_detects_one_moved_branch() {
+        let old = refs(&[
+            ("refs/heads/main", "aaaa"),
+            ("refs/remotes/origin/main", "aaaa"),
+        ]);
+        let new = refs(&[
+            ("refs/heads/main", "bbbb"),
+            ("refs/remotes/origin/main", "aaaa"),
+        ]);
+        assert_eq!(
+            single_ref_advance(&old, &new),
+            Some((
+                "refs/heads/main".to_string(),
+                "aaaa".to_string(),
+                "bbbb".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn single_ref_advance_rejects_multi_move_add_remove_and_noop() {
+        let base = refs(&[("refs/heads/main", "aaaa"), ("refs/heads/dev", "cccc")]);
+        // No change.
+        assert_eq!(single_ref_advance(&base, &base), None);
+        // Two refs moved.
+        let two = refs(&[("refs/heads/main", "bbbb"), ("refs/heads/dev", "dddd")]);
+        assert_eq!(single_ref_advance(&base, &two), None);
+        // A ref added (count differs).
+        let added = refs(&[
+            ("refs/heads/main", "aaaa"),
+            ("refs/heads/dev", "cccc"),
+            ("refs/heads/feat", "eeee"),
+        ]);
+        assert_eq!(single_ref_advance(&base, &added), None);
+        // One moved, one removed, one added (same count) → not a clean advance.
+        let churn = refs(&[("refs/heads/main", "bbbb"), ("refs/heads/feat", "eeee")]);
+        assert_eq!(single_ref_advance(&base, &churn), None);
+    }
+
     #[test]
     fn build_graph_chunk_returns_offset_slice() {
         let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let chunk =
-            build_graph_chunk(&repo, 10, 20, &GraphLayoutOptions::default()).expect("chunk ok");
+        let chunk = build_graph_chunk(&repo, 10, 20, None, &GraphLayoutOptions::default())
+            .expect("chunk ok");
         assert_eq!(chunk.nodes.len(), 20);
         assert_eq!(chunk.offset, 10);
         assert!(
@@ -470,8 +712,8 @@ mod tests {
         let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let chunk =
-            build_graph_chunk(&repo, 40, 20, &GraphLayoutOptions::default()).expect("chunk ok");
+        let chunk = build_graph_chunk(&repo, 40, 20, None, &GraphLayoutOptions::default())
+            .expect("chunk ok");
         assert_eq!(chunk.nodes.len(), 10);
         assert!(
             !chunk.has_more,
@@ -484,10 +726,73 @@ mod tests {
         let (_dir, path) = create_repo_with_n_commits(50);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let chunk =
-            build_graph_chunk(&repo, 100, 20, &GraphLayoutOptions::default()).expect("chunk ok");
+        let chunk = build_graph_chunk(&repo, 100, 20, None, &GraphLayoutOptions::default())
+            .expect("chunk ok");
         assert!(chunk.nodes.is_empty());
         assert!(!chunk.has_more);
+    }
+
+    /// Assert two viewports are byte-identical in everything the renderer uses.
+    fn assert_viewports_equal(a: &GraphViewport, b: &GraphViewport) {
+        let a_oids: Vec<&String> = a.nodes.iter().map(|n| &n.oid).collect();
+        let b_oids: Vec<&String> = b.nodes.iter().map(|n| &n.oid).collect();
+        assert_eq!(a_oids, b_oids, "node OIDs differ");
+        assert_eq!(a.offset, b.offset, "offset differs");
+        assert_eq!(a.has_more, b.has_more, "has_more differs");
+        assert_eq!(a.lane_segments, b.lane_segments, "lane_segments differ");
+        assert_eq!(a.merge_curves, b.merge_curves, "merge_curves differ");
+        assert_eq!(
+            a.total_lane_count, b.total_lane_count,
+            "total_lane_count differs"
+        );
+    }
+
+    #[test]
+    fn build_graph_chunk_anchored_equals_offset_when_eligible() {
+        // First-parent single-tip walk is anchored-pagination eligible. A chunk
+        // built from the anchor (last OID of the previous chunk) must be
+        // byte-identical to the offset-built chunk at the same position.
+        let (_dir, path) = create_repo_with_n_commits(60);
+        let repo = git_engine::Repository::open(&path).unwrap();
+        let opts = GraphLayoutOptions {
+            first_parent: true,
+            ..Default::default()
+        };
+        let all = repo
+            .walk_commits_with_options(0, 1_000, opts.walk_options())
+            .unwrap();
+
+        let (offset, limit) = (20usize, 15usize);
+        let anchor = &all[offset - 1].oid;
+        let anchored =
+            build_graph_chunk(&repo, offset, limit, Some(anchor), &opts).expect("anchored");
+        let by_offset = build_graph_chunk(&repo, offset, limit, None, &opts).expect("offset");
+        assert_eq!(anchored.nodes.len(), limit);
+        assert_eq!(&anchored.nodes[0].oid, &all[offset].oid);
+        assert_viewports_equal(&anchored, &by_offset);
+    }
+
+    #[test]
+    fn build_graph_chunk_ignores_anchor_when_not_eligible() {
+        // The default (non-first-parent) walk is NOT anchored-eligible, so a
+        // supplied anchor must be ignored and the offset walk used — the result
+        // is identical to passing no anchor. This guards against the fast path
+        // silently applying to a mode where it isn't provably equal.
+        let (_dir, path) = git_engine::test_support::create_synthetic_repo(300, 20);
+        let repo = git_engine::Repository::open(&path).unwrap();
+        let opts = GraphLayoutOptions::default();
+        let all = repo
+            .walk_commits_with_options(0, 10_000, opts.walk_options())
+            .unwrap();
+
+        let (offset, limit) = (120usize, 40usize);
+        let anchor = &all[offset - 1].oid;
+        let with_anchor =
+            build_graph_chunk(&repo, offset, limit, Some(anchor), &opts).expect("with anchor");
+        let without = build_graph_chunk(&repo, offset, limit, None, &opts).expect("without");
+        assert_viewports_equal(&with_anchor, &without);
+        // Sanity: the offset walk actually landed on the expected commit.
+        assert_eq!(&without.nodes[0].oid, &all[offset].oid);
     }
 
     #[test]
@@ -496,7 +801,8 @@ mod tests {
         let repo = git_engine::Repository::open(&path).unwrap();
 
         // Default mode: 4 commits (merge + feature + 2 mainline), 2 lanes.
-        let full = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions::default()).expect("full");
+        let full =
+            build_graph_chunk(&repo, 0, 100, None, &GraphLayoutOptions::default()).expect("full");
         assert_eq!(full.nodes.len(), 4);
         assert_eq!(full.total_lane_count, 2);
 
@@ -506,7 +812,7 @@ mod tests {
             first_parent: true,
             ..Default::default()
         };
-        let fp = build_graph_chunk(&repo, 0, 100, &fp_opts).expect("fp");
+        let fp = build_graph_chunk(&repo, 0, 100, None, &fp_opts).expect("fp");
         assert_eq!(fp.nodes.len(), 3);
         assert_eq!(fp.total_lane_count, 1);
         assert!(fp.nodes.iter().all(|n| n.lane == 0));
@@ -536,14 +842,15 @@ mod tests {
         let repo = git_engine::Repository::open(&path).unwrap();
 
         // All refs: 5 commits. Scoped to the head branch: 4, no side work.
-        let full = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions::default()).expect("full");
+        let full =
+            build_graph_chunk(&repo, 0, 100, None, &GraphLayoutOptions::default()).expect("full");
         assert_eq!(full.nodes.len(), 5);
 
         let scoped_opts = GraphLayoutOptions {
             branch: Some(head_branch.clone()),
             ..Default::default()
         };
-        let scoped = build_graph_chunk(&repo, 0, 100, &scoped_opts).expect("scoped");
+        let scoped = build_graph_chunk(&repo, 0, 100, None, &scoped_opts).expect("scoped");
         assert_eq!(scoped.nodes.len(), 4);
         assert!(!scoped.nodes.iter().any(|n| n.summary == "side work"));
 
@@ -553,7 +860,7 @@ mod tests {
             branch: Some(head_branch),
             ..Default::default()
         };
-        let clean = build_graph_chunk(&repo, 0, 100, &clean_opts).expect("clean");
+        let clean = build_graph_chunk(&repo, 0, 100, None, &clean_opts).expect("clean");
         assert_eq!(clean.nodes.len(), 3);
         assert_eq!(clean.total_lane_count, 1);
         assert!(!clean.nodes.iter().any(|n| n.summary == "feature work"));
@@ -568,14 +875,15 @@ mod tests {
         ]);
         let repo = git_engine::Repository::open(&path).unwrap();
 
-        let full = build_graph_chunk(&repo, 0, 100, &GraphLayoutOptions::default()).expect("full");
+        let full =
+            build_graph_chunk(&repo, 0, 100, None, &GraphLayoutOptions::default()).expect("full");
         assert_eq!(full.total_lane_count, 6);
 
         let capped_opts = GraphLayoutOptions {
             max_lanes: Some(4),
             ..Default::default()
         };
-        let capped = build_graph_chunk(&repo, 0, 100, &capped_opts).expect("capped");
+        let capped = build_graph_chunk(&repo, 0, 100, None, &capped_opts).expect("capped");
         assert_eq!(capped.total_lane_count, 4);
         assert!(capped.nodes.iter().all(|n| n.lane < 4));
     }
@@ -588,7 +896,7 @@ mod tests {
             branch: Some("does-not-exist".to_string()),
             ..Default::default()
         };
-        assert!(build_graph_chunk(&repo, 0, 100, &opts).is_err());
+        assert!(build_graph_chunk(&repo, 0, 100, None, &opts).is_err());
     }
 
     /// After a new commit lands in the repo, `rebuild_layout_blocking`
@@ -604,7 +912,7 @@ mod tests {
         let tmp_cfg = tempfile::tempdir().unwrap();
 
         // Warm the cache with the 5-commit layout.
-        let layout1 =
+        let (layout1, _refs1) =
             rebuild_layout_blocking(path_str, tmp_cfg.path(), &GraphLayoutOptions::default())
                 .expect("initial build");
         assert_eq!(layout1.nodes.len(), 5);
@@ -626,7 +934,7 @@ mod tests {
 
         // Refresh — must surface the new commit, not re-serve the stale
         // 5-node layout from cache.
-        let layout2 =
+        let (layout2, _refs2) =
             rebuild_layout_blocking(path_str, tmp_cfg.path(), &GraphLayoutOptions::default())
                 .expect("post-commit rebuild");
         assert_eq!(

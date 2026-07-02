@@ -3,6 +3,12 @@
  *
  * On project switch: load snapshot → apply to titlebar/badges.
  * After real data loads: build snapshot from current state → save to cache.
+ *
+ * TODO(spec 08): fold the in-memory role here into the RepoState container
+ * (`stores/repo-state/`) — the disk snapshot persistence stays, but reads/
+ * writes go through the container so a RepoState only ever knows its own
+ * path (the "wrote under the wrong key" class of bug becomes impossible).
+ * See `stores/branches.ts` for the migrated facade pattern.
  */
 
 import type { ProjectSnapshot, GraphViewport } from "$lib/types";

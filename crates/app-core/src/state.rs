@@ -144,7 +144,25 @@ pub struct AppState {
     /// guard on every exit path (success, error, cancel, panic).
     pub requests_cancellations:
         Mutex<std::collections::HashMap<String, tokio_util::sync::CancellationToken>>,
+    /// Per-repo snapshot of `references()` name→OID taken when the slot's
+    /// cached [`GraphLayout`] was last (re)built, keyed by repo path. Lets
+    /// `refresh_graph_layout` detect a "simple advance" (exactly one branch
+    /// moved forward, nothing else changed) and patch the layout incrementally
+    /// instead of re-walking the whole graph. Entries are best-effort hints:
+    /// a miss or a stale entry just falls back to a full rebuild.
+    pub layout_ref_snapshots: Mutex<std::collections::BTreeMap<String, RefSnapshot>>,
+    /// Cache of `(branch_tip_oid, upstream_tip_oid) → (ahead, behind)`, shared
+    /// across all open repos. Keyed on the tip OIDs, so it is self-invalidating:
+    /// when either tip moves the key changes and the entry is recomputed. Lets
+    /// `branches()` skip the O(divergence) `graph_ahead_behind` walk for every
+    /// tracking branch whose tips are unchanged since the last call.
+    pub ahead_behind_cache: Mutex<std::collections::HashMap<(String, String), (usize, usize)>>,
 }
+
+/// A repo's `references()` name→OID picture (symbolic refs like HEAD excluded),
+/// used by the incremental graph-refresh fast path. See
+/// [`AppState::layout_ref_snapshots`].
+pub type RefSnapshot = std::collections::BTreeMap<String, String>;
 
 impl Default for AppState {
     fn default() -> Self {
@@ -188,6 +206,25 @@ impl AppState {
             ai_config_watcher: Mutex::new(None),
             ai_background_coordinator: Mutex::new(None),
             requests_cancellations: Mutex::new(std::collections::HashMap::new()),
+            layout_ref_snapshots: Mutex::new(std::collections::BTreeMap::new()),
+            ahead_behind_cache: Mutex::new(std::collections::HashMap::new()),
         }
+    }
+
+    /// Record the refs a slot's layout was built from (see
+    /// [`Self::layout_ref_snapshots`]). Best-effort — a poisoned lock is
+    /// ignored, degrading only to a full-rebuild fallback next refresh.
+    pub fn store_layout_ref_snapshot(&self, path: &str, snap: RefSnapshot) {
+        if let Ok(mut map) = self.layout_ref_snapshots.lock() {
+            map.insert(path.to_string(), snap);
+        }
+    }
+
+    /// Fetch the refs snapshot recorded for `path`, if any.
+    pub fn layout_ref_snapshot(&self, path: &str) -> Option<RefSnapshot> {
+        self.layout_ref_snapshots
+            .lock()
+            .ok()
+            .and_then(|map| map.get(path).cloned())
     }
 }

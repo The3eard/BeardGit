@@ -1,11 +1,14 @@
 <script lang="ts">
-  import { fileStatuses, stageFiles, unstageFiles, commit, amendCommit, refreshStatuses, refreshDiffs } from "../../stores/changes";
+  import { fileStatuses, unstagedStats, stagedStats, stageFiles, unstageFiles, commit, amendCommit, refreshStatuses, refreshDiffs } from "../../stores/changes";
+  import type { FileDiffStat } from "$lib/types";
   import ChangesList from "./ChangesList.svelte";
   import CleanDialog from "./CleanDialog.svelte";
   import { onMount, onDestroy } from "svelte";
   import type { UnlistenFn } from "@tauri-apps/api/event";
   import * as m from "$lib/paraglide/messages";
-  import { getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote, saveAiReview } from "$lib/api/tauri";
+  import { getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote, saveAiReview, getSigningConfig } from "$lib/api/tauri";
+  import type { SigningStatus } from "$lib/types";
+  import { formatSigningBackend } from "$lib/utils/signing";
   import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
   import { runMutation } from "$lib/api/runMutation";
   import { hasAiProvider, aiGenerateCommitMessage, aiReviewCode } from "$lib/stores/ai";
@@ -57,6 +60,17 @@
       description: msg.slice(nl + 1).replace(/^\n+/, ""),
     };
   }
+  // Signing status drives the "Will be signed" chip. Fetched on mount (and
+  // whenever the repo mutates) rather than polled — config edits happen in a
+  // different view, so the Changes view re-reads it when the user returns.
+  let signingStatus = $state<SigningStatus | null>(null);
+  async function refreshSigningStatus() {
+    try {
+      signingStatus = await getSigningConfig();
+    } catch {
+      signingStatus = null;
+    }
+  }
   let showPatchDialog = $state(false);
   let showOverflowMenu = $state(false);
   let patchStagedOnly = $state(true);
@@ -87,6 +101,7 @@
   onMount(() => {
     refreshStatuses();
     refreshDiffs();
+    refreshSigningStatus();
 
     function closeMenus(e: MouseEvent) {
       if (showOverflowMenu && !(e.target as HTMLElement).closest('.toolbar-actions')) {
@@ -100,6 +115,15 @@
   let staged = $derived($fileStatuses.filter(f => f.is_staged));
   let unstaged = $derived($fileStatuses.filter(f => !f.is_staged));
   let hasUntracked = $derived(unstaged.some(f => f.status === "new"));
+
+  // Per-file add/del counts for the lists, keyed by path. Sourced from the
+  // lightweight stats (no hunks) so the counts show without fetching every
+  // file's full diff.
+  function toStatMap(stats: FileDiffStat[]): Map<string, FileDiffStat> {
+    return new Map(stats.map((s) => [s.path, s]));
+  }
+  let stagedStatMap = $derived(toStatMap($stagedStats));
+  let unstagedStatMap = $derived(toStatMap($unstagedStats));
   let showCleanDialog = $state(false);
 
   async function handleAmendToggle() {
@@ -374,6 +398,7 @@
   <div class="file-lists">
     <ChangesList
       files={staged}
+      stats={stagedStatMap}
       title={m.staging_staged()}
       isStaged={true}
       selectedPath={selectedFile?.isStaged ? selectedFile.filename : null}
@@ -384,6 +409,7 @@
 
     <ChangesList
       files={unstaged}
+      stats={unstagedStatMap}
       title={m.staging_unstaged()}
       isStaged={false}
       selectedPath={selectedFile && !selectedFile.isStaged ? selectedFile.filename : null}
@@ -473,6 +499,13 @@
       onkeydown={(e) => { if (e.key === 'Enter' && e.metaKey) handleCommit(); }}
       data-testid="commit-description"
     ></textarea>
+
+    {#if signingStatus?.enabled}
+      <p class="signing-chip" data-testid="signing-chip">
+        <span class="nf signing-chip-icon">{"\uF023"}</span>
+        {m.staging_will_be_signed({ format: formatSigningBackend(signingStatus.format) })}
+      </p>
+    {/if}
 
     <!-- Single commit button + reason hint when disabled -->
     <Button
@@ -591,6 +624,21 @@
     font-size: var(--font-size-2xs);
     color: var(--text-muted);
     text-align: center;
+  }
+
+  .signing-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    margin: 0;
+    font-size: var(--font-size-2xs);
+    color: var(--text-secondary);
+  }
+
+  .signing-chip-icon {
+    font-size: var(--font-size-xs);
+    color: var(--accent-green);
   }
 
   .nf {

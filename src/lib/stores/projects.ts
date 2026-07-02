@@ -19,7 +19,7 @@ import {
   getStatusSummary as apiGetStatusSummary,
   detectProject,
 } from "../api/tauri";
-import { parseOpenProjectError } from "../api/errors";
+import { getErrorCode, getErrorMessage } from "../api/errors";
 import { requestOpenInitRepoDialog } from "./initRepoDialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { repoInfo, branches, isLoading, registerWatcher } from "./repo";
@@ -40,7 +40,8 @@ import { refreshStatuses, clearChangesState } from "./changes";
 import { loadProjectSnapshot, saveCurrentSnapshot, restorePersistedViewport } from "./project-cache";
 import { refreshUserEmails, clearGraphState, resetGraphViewScope, cacheViewport, restoreCachedViewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
-import { clearBranchState, cacheBranchesForProject, restoreCachedBranches } from "./branches";
+import { clearBranchState } from "./branches";
+import { createRepoState, dropRepoState, setActiveRepoPath } from "./repo-state";
 import { clearTagState } from "./tags";
 import { clearStashState } from "./stashes";
 import { clearBlameState } from "./blame";
@@ -190,13 +191,18 @@ export async function openProjectTab(path: string) {
   try {
     info = await apiOpenProject(path);
   } catch (err) {
-    const parsed = parseOpenProjectError(err);
-    if (parsed?.kind === "not_a_repo") {
-      requestOpenInitRepoDialog(parsed.path);
+    // `open_project` rejects with an IpcError; `not_a_repo` carries the
+    // attempted path in `message` so we can seed the init dialog with it.
+    if (getErrorCode(err) === "not_a_repo") {
+      requestOpenInitRepoDialog(getErrorMessage(err));
       return;
     }
     throw err;
   }
+
+  // Provision this repo's state container (idempotent) before it can be
+  // activated (spec 08).
+  createRepoState(info.path);
 
   // Get updated project list from Rust to sync
   const projects = await apiGetOpenProjects();
@@ -225,16 +231,15 @@ export async function switchToTab(tabIndex: number) {
   const prevIdx = get(activeTabIndex);
   const tab = tabs[tabIndex];
 
-  // Cache outgoing project's graph + branch list BEFORE changing
-  // activeTabIndex (activeProjectFromTab derives from activeTabIndex,
-  // so must read first). The branch cache mirrors the viewport
-  // pattern: on the next switch back to this project we paint the
-  // last-seen list immediately and reconcile when the fresh
-  // `apiBranches` IPC resolves, instead of flashing an empty list.
+  // Cache the outgoing project's graph viewport BEFORE changing
+  // activeTabIndex (activeProjectFromTab derives from activeTabIndex, so
+  // must read first). The branch list no longer needs caching here — it
+  // lives per-repo in the RepoState container and survives the switch as a
+  // pointer swap (spec 08). graph.ts still uses its viewportCache until it
+  // migrates.
   const prevProject = get(activeProjectFromTab);
   if (prevProject) {
     cacheViewport(prevProject.path);
-    cacheBranchesForProject(prevProject.path);
   }
 
   // Set active index immediately for instant tab highlight
@@ -247,6 +252,8 @@ export async function switchToTab(tabIndex: number) {
     await activateProjectTab(tabIndex);
   } else if (tab.kind === "terminal") {
     // Terminal tab — update title bar; no repo context in the status bar.
+    // Detach the RepoState facades so no repo's per-repo state is active.
+    setActiveRepoPath(null);
     activeRepoStatus.set(null);
     getCurrentWindow().setTitle(`${tab.terminal.title} — BeardGit`);
   }
@@ -260,7 +267,10 @@ async function activateProjectTab(tabIndex: number) {
   stopAllPolling();
   clearGraphState();
     resetGraphViewScope();
-  clearBranchState();
+  // NOTE: branches + changes are NOT cleared here — they live per-repo in
+  // the RepoState container and are swapped by `setActiveRepoPath` below
+  // (spec 08). The stores below still use module-level singletons and must
+  // be cleared until they migrate.
   clearTagState();
   clearStashState();
   clearBlameState();
@@ -269,7 +279,6 @@ async function activateProjectTab(tabIndex: number) {
   clearIssueState();
   clearReleaseState();
   clearReflogState();
-  clearChangesState();
 
   // Restore cached graph viewport instantly (no loading spinner for graph).
   //
@@ -282,11 +291,14 @@ async function activateProjectTab(tabIndex: number) {
   const tabs = get(openTabs);
   const targetTab = tabs[tabIndex];
   const targetPath = (targetTab?.kind === "project" || targetTab?.kind === "composite") ? targetTab.project.path : null;
-  // Restore branch list from cache so the panel paints instantly on
-  // tab switch. Falls back to clearing when no cache entry exists
-  // (cold tab), keeping the existing empty-and-loading UX. The fresh
-  // list lands later when `refreshBranches` resolves below.
-  if (targetPath !== null) restoreCachedBranches(targetPath);
+  // Point the RepoState facades at the incoming repo. This is the pointer
+  // swap that replaces the old branch/changes cache-restore choreography:
+  // the branch list, changes selection, etc. for this repo are already in
+  // its slice and paint instantly; the fresh `apiBranches`/`refreshStatuses`
+  // below reconcile them. `createRepoState` is idempotent and guarantees the
+  // active repo always has a slice, whatever path reached activation.
+  if (targetPath) createRepoState(targetPath);
+  setActiveRepoPath(targetPath);
   const hasCachedGraph = targetPath
     ? (restoreCachedViewport(targetPath) || restorePersistedViewport(targetPath))
     : false;
@@ -419,7 +431,12 @@ export async function closeTab(tabIndex: number) {
   const projectIdx = tabIndexToProjectIndex(tabIndex);
   if (projectIdx < 0) return;
 
+  const closedPath = tab.project.path;
+
   await apiCloseProject(projectIdx);
+
+  // Free this repo's state container — bounds memory to open tabs (spec 08).
+  dropRepoState(closedPath);
 
   const newActiveIdx = removeTab(tabIndex);
 
@@ -428,6 +445,8 @@ export async function closeTab(tabIndex: number) {
 
   if (get(openTabs).length === 0) {
     activeTabIndex.set(-1);
+    // Detach the RepoState facades — no active repo (spec 08).
+    setActiveRepoPath(null);
     stopAllPolling();
     clearGraphState();
     resetGraphViewScope();
@@ -473,6 +492,10 @@ export function toggleAddMenu() {
 
 export async function initProjects() {
   const projects = await apiRestoreProjects();
+
+  // Provision a RepoState container per restored project before any tab is
+  // activated (spec 08).
+  for (const p of projects) createRepoState(p.path);
 
   // Seed the unified tab array with project tabs
   const tabs = projects.map((p) => ({ kind: "project" as const, project: p }));

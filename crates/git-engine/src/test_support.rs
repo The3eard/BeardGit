@@ -17,13 +17,7 @@ pub fn create_repo_with_n_commits(n: usize) -> (TempDir, PathBuf) {
     let path = dir.path().to_path_buf();
     let repo = git2::Repository::init(&path).expect("init");
 
-    {
-        let mut config = repo.config().expect("config");
-        config.set_str("user.name", "Test User").expect("user.name");
-        config
-            .set_str("user.email", "test@example.com")
-            .expect("user.email");
-    }
+    configure_identity(&repo);
 
     let sig = git2::Signature::now("Test User", "test@example.com").expect("sig");
 
@@ -64,6 +58,12 @@ fn configure_identity(repo: &git2::Repository) {
     config
         .set_str("user.email", "test@example.com")
         .expect("user.email");
+    // Windows CI runners set core.autocrlf=true globally; CLI-backed
+    // operations (revert, stash pop) would then check files out with CRLF
+    // and break content assertions. Pin it off per test repo.
+    config
+        .set_str("core.autocrlf", "false")
+        .expect("core.autocrlf");
 }
 
 /// Create an initial (empty-tree) commit on `HEAD` and return its oid.
@@ -385,6 +385,213 @@ pub fn create_repo_with_merged_branch() -> (TempDir, PathBuf) {
     (dir, path)
 }
 
+/// Build a synthetic repository with `total_commits` commits laid out as a
+/// mainline with up to `branch_count` feature branches merged back in,
+/// producing a realistic multi-lane merge topology.
+///
+/// Every commit reuses a single empty tree — topology, not file content, is
+/// what commit-walk and graph-layout benchmarks exercise — so generating
+/// thousands of commits stays fast. Feature branches are created as real refs
+/// (`feature-0`, `feature-1`, …) and merged back into the mainline, so the
+/// resulting graph needs multiple lanes.
+///
+/// Intended for benchmarks: pass a large `total_commits` (e.g. 5000) to
+/// exercise pagination and layout without an external fixture. Returns the
+/// `TempDir` (keep it alive) plus the repo path. The returned repo has exactly
+/// `total_commits` commits reachable from its refs.
+pub fn create_synthetic_repo(total_commits: usize, branch_count: usize) -> (TempDir, PathBuf) {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().to_path_buf();
+    let repo = git2::Repository::init(&path).expect("init");
+    configure_identity(&repo);
+
+    let sig = git2::Signature::now("Test User", "test@example.com").expect("sig");
+
+    // One empty tree, reused by every commit.
+    let tree_id = {
+        let mut index = repo.index().expect("index");
+        index.write_tree().expect("write_tree")
+    };
+    let tree = repo.find_tree(tree_id).expect("find_tree");
+
+    let total = total_commits.max(1);
+
+    // Root commit on HEAD.
+    let mut mainline_tip = repo
+        .commit(Some("HEAD"), &sig, &sig, "root", &tree, &[])
+        .expect("root commit");
+    let mut created = 1usize;
+
+    // Spread the feature-branch merges evenly across the history. Each merge
+    // consumes two commits (one feature commit + the merge commit), so cap the
+    // count at what the requested total can fit.
+    let merges = branch_count.min(total.saturating_sub(1) / 2);
+    let interval = if merges > 0 {
+        (total / (merges + 1)).max(1)
+    } else {
+        total
+    };
+    let mut next_merge_at = interval;
+    let mut branch_idx = 0usize;
+
+    while created < total {
+        let time_to_merge = branch_idx < merges && created >= next_merge_at && total - created >= 2;
+        if time_to_merge {
+            // Fork a feature commit off the current mainline tip (HEAD stays put).
+            let parent = repo.find_commit(mainline_tip).expect("find mainline tip");
+            let feat = repo
+                .commit(
+                    None,
+                    &sig,
+                    &sig,
+                    &format!("feature {branch_idx} work"),
+                    &tree,
+                    &[&parent],
+                )
+                .expect("feature commit");
+            drop(parent);
+            created += 1;
+
+            // Persist the feature tip as a real branch ref.
+            let feat_commit = repo.find_commit(feat).expect("find feature commit");
+            repo.branch(&format!("feature-{branch_idx}"), &feat_commit, false)
+                .expect("create feature branch");
+
+            // Merge the feature branch back into the mainline (moves HEAD).
+            let main_commit = repo
+                .find_commit(mainline_tip)
+                .expect("find mainline commit");
+            let merge = repo
+                .commit(
+                    Some("HEAD"),
+                    &sig,
+                    &sig,
+                    &format!("merge feature {branch_idx}"),
+                    &tree,
+                    &[&main_commit, &feat_commit],
+                )
+                .expect("merge commit");
+            created += 1;
+            mainline_tip = merge;
+            branch_idx += 1;
+            next_merge_at += interval;
+        } else {
+            let parent = repo.find_commit(mainline_tip).expect("find mainline tip");
+            let c = repo
+                .commit(
+                    Some("HEAD"),
+                    &sig,
+                    &sig,
+                    &format!("commit {created}"),
+                    &tree,
+                    &[&parent],
+                )
+                .expect("mainline commit");
+            mainline_tip = c;
+            created += 1;
+        }
+    }
+
+    drop(tree);
+    drop(repo);
+
+    (dir, path)
+}
+
+/// Build a repo with two diverged branches, `main` and `feature`, that share a
+/// common `base` commit and each carry unique commits *and* unique files.
+///
+/// Topology (oldest → newest):
+/// ```text
+///            main_only.txt      (main)
+///           /
+/// base ────┤
+///           \
+///            feat_a.txt ── feat_b.txt   (feature)
+/// ```
+/// - `merge-base(main, feature)` == `base`.
+/// - `main..feature` = `[feat_b, feat_a]`; `feature..main` = `[main2]`.
+/// - three-dot diff (`base..feature`) touches `feat_a.txt`, `feat_b.txt`.
+/// - two-dot diff (`main` vs `feature`) also *deletes* `main_only.txt`.
+///
+/// `HEAD` is left on `main`. Returns the `TempDir` (keep alive) + repo path.
+/// Exercises the compare-view range semantics against the `git` CLI.
+pub fn create_repo_with_diverged_branches() -> (TempDir, PathBuf) {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().to_path_buf();
+    let repo = git2::Repository::init(&path).expect("init");
+    configure_identity(&repo);
+    let sig = git2::Signature::now("Test User", "test@example.com").expect("sig");
+
+    // Build a flat tree from `(name, content)` pairs via a treebuilder, so no
+    // index/workdir churn is needed to give each branch a distinct file set.
+    let tree_with = |files: &[(&str, &str)]| -> git2::Oid {
+        let mut tb = repo.treebuilder(None).expect("treebuilder");
+        for (name, content) in files {
+            let blob = repo.blob(content.as_bytes()).expect("blob");
+            tb.insert(name, blob, 0o100644).expect("insert");
+        }
+        tb.write().expect("write tree")
+    };
+
+    let base_tree = repo
+        .find_tree(tree_with(&[("base.txt", "base\n")]))
+        .unwrap();
+    let base = repo
+        .commit(None, &sig, &sig, "base", &base_tree, &[])
+        .expect("base commit");
+    let base_commit = repo.find_commit(base).expect("find base");
+
+    // main: base + main_only.txt
+    let main_tree = repo
+        .find_tree(tree_with(&[
+            ("base.txt", "base\n"),
+            ("main_only.txt", "m\n"),
+        ]))
+        .unwrap();
+    let main2 = repo
+        .commit(None, &sig, &sig, "main2", &main_tree, &[&base_commit])
+        .expect("main commit");
+    repo.branch("main", &repo.find_commit(main2).unwrap(), true)
+        .expect("main branch");
+
+    // feature: base + feat_a.txt, then + feat_b.txt
+    let feat_a_tree = repo
+        .find_tree(tree_with(&[("base.txt", "base\n"), ("feat_a.txt", "a\n")]))
+        .unwrap();
+    let feat_a = repo
+        .commit(None, &sig, &sig, "feature-a", &feat_a_tree, &[&base_commit])
+        .expect("feature-a commit");
+    let feat_a_commit = repo.find_commit(feat_a).unwrap();
+    let feat_b_tree = repo
+        .find_tree(tree_with(&[
+            ("base.txt", "base\n"),
+            ("feat_a.txt", "a\n"),
+            ("feat_b.txt", "b\n"),
+        ]))
+        .unwrap();
+    let feat_b = repo
+        .commit(
+            None,
+            &sig,
+            &sig,
+            "feature-b",
+            &feat_b_tree,
+            &[&feat_a_commit],
+        )
+        .expect("feature-b commit");
+    repo.branch("feature", &repo.find_commit(feat_b).unwrap(), true)
+        .expect("feature branch");
+
+    // Point HEAD at main so the `git` CLI sees a valid current branch.
+    repo.set_head("refs/heads/main").expect("set head");
+
+    // Locals drop in reverse declaration order at function end, so the borrowed
+    // trees/commits are released before `repo` — no explicit `drop(repo)` (which
+    // would move out while those borrows are live).
+    (dir, path)
+}
+
 /// Helper: shell out to `git` in `repo_path` and panic on failure.
 fn run_git(repo_path: &Path, args: &[&str]) {
     let status = std::process::Command::new("git")
@@ -456,6 +663,30 @@ mod tests {
             .unwrap();
         let s = String::from_utf8_lossy(&output.stdout);
         assert_eq!(s.lines().count(), 2);
+    }
+
+    #[test]
+    fn synthetic_repo_has_requested_commit_count_and_merges() {
+        let (_tmp, path) = create_synthetic_repo(60, 5);
+        let repo = crate::repository::Repository::open(&path).unwrap();
+        let commits = repo.walk_commits(0, 10_000).unwrap();
+        assert_eq!(
+            commits.len(),
+            60,
+            "walk should see exactly the requested count"
+        );
+        assert!(
+            commits
+                .iter()
+                .any(|c| c.summary.starts_with("merge feature")),
+            "topology should contain merge commits"
+        );
+
+        let g = git2::Repository::open(&path).unwrap();
+        assert!(
+            g.find_branch("feature-0", git2::BranchType::Local).is_ok(),
+            "feature branches should exist as refs"
+        );
     }
 
     #[test]

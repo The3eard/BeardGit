@@ -62,6 +62,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "ai-provider-common"
+version = "26.6.3"
+dependencies = [
+ "ai-provider",
+ "tempfile",
+ "which",
+]
+
+[[package]]
+name = "ai-runner"
+version = "26.6.3"
+dependencies = [
+ "ai-provider",
+ "async-trait",
+ "claude-code",
+ "codex",
+ "git-engine",
+ "git2",
+ "mutation-events",
+ "opencode",
+ "serde_json",
+ "task-runner",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -108,6 +136,7 @@ name = "app-core"
 version = "26.6.3"
 dependencies = [
  "ai-provider",
+ "ai-runner",
  "async-trait",
  "auth",
  "base64 0.22.1",
@@ -709,9 +738,9 @@ name = "claude-code"
 version = "26.6.3"
 dependencies = [
  "ai-provider",
+ "ai-provider-common",
  "chrono",
  "dirs",
- "libc",
  "serde",
  "serde_json",
  "tempfile",
@@ -738,12 +767,11 @@ name = "codex"
 version = "26.6.3"
 dependencies = [
  "ai-provider",
+ "ai-provider-common",
  "dirs",
- "libc",
  "serde",
  "serde_json",
  "tempfile",
- "which",
 ]
 
 [[package]]
@@ -1770,6 +1798,7 @@ version = "26.6.3"
 dependencies = [
  "chrono",
  "criterion",
+ "git-engine",
  "git2",
  "serde",
  "serde_json",
@@ -1905,6 +1934,9 @@ dependencies = [
 name = "graph-builder"
 version = "26.6.3"
 dependencies = [
+ "criterion",
+ "git-engine",
+ "git2",
  "serde",
  "serde_json",
 ]
@@ -3335,11 +3367,11 @@ name = "opencode"
 version = "26.6.3"
 dependencies = [
  "ai-provider",
+ "ai-provider-common",
  "dirs",
  "serde",
  "serde_json",
  "tempfile",
- "which",
 ]
 
 [[package]]

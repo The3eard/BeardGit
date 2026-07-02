@@ -16,8 +16,16 @@ impl Repository {
     ///
     /// Uses the repository's configured `user.name` and `user.email` from
     /// git config for the author and committer signature.
+    ///
+    /// When `commit.gpgsign` is enabled, creation is routed through the git
+    /// CLI ([`Repository::create_commit_signed`]) so the user's ssh/gpg/x509
+    /// signing config and agents are honored — `libgit2` cannot sign. With
+    /// signing off, the byte-identical `git2` path below is used.
     #[instrument(skip(self))]
     pub fn create_commit(&self, message: &str) -> Result<String, GitError> {
+        if self.signing_config()?.enabled {
+            return self.create_commit_signed(message);
+        }
         let repo = self.inner();
         let sig = repo.signature()?;
         let mut index = repo.index()?;

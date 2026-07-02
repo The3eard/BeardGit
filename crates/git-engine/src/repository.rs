@@ -31,6 +31,12 @@ pub struct BranchInfo {
     /// Commits the upstream has that this branch does not. Always 0
     /// when [`Self::upstream`] is `None`.
     pub behind: usize,
+    /// `true` when this branch has an upstream *configured*
+    /// (`branch.<name>.remote` / `.merge` present in config) but the
+    /// upstream ref no longer resolves — the remote branch was deleted
+    /// (typically after a merge) and pruned locally. Always `false` for
+    /// remote-tracking branches and for branches without an upstream.
+    pub upstream_gone: bool,
 }
 
 /// Starship-style git status counters for display in the title bar.
@@ -86,6 +92,16 @@ impl std::fmt::Debug for Repository {
     }
 }
 
+/// Whether a local branch has an upstream *configured* in git config
+/// (`branch.<name>.merge` present), regardless of whether the upstream ref
+/// currently resolves. Used to distinguish "upstream deleted" (gone) from
+/// "no upstream at all" when [`git2::Branch::upstream`] fails.
+fn branch_upstream_configured(config: Option<&git2::Config>, branch_name: &str) -> bool {
+    config
+        .and_then(|c| c.get_string(&format!("branch.{branch_name}.merge")).ok())
+        .is_some()
+}
+
 impl Repository {
     /// Open a repository by discovering it from the given path.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, GitError> {
@@ -128,9 +144,49 @@ impl Repository {
         })
     }
 
-    /// List all local and remote branches.
+    /// List all local and remote branches, computing ahead/behind for every
+    /// tracking branch from scratch.
     pub fn branches(&self) -> Result<Vec<BranchInfo>, GitError> {
+        self.branches_inner(|repo, local, up| repo.graph_ahead_behind(local, up).unwrap_or((0, 0)))
+    }
+
+    /// Like [`Self::branches`] but memoises ahead/behind counts in `cache`,
+    /// keyed on `(local_tip_oid, upstream_tip_oid)`.
+    ///
+    /// The key is self-invalidating: when either tip moves the key changes and
+    /// the pair is recomputed, so stale counts are impossible. Callers that
+    /// re-list branches on every ref change (the graph refresh does) thereby
+    /// skip the O(divergence) `graph_ahead_behind` walk for every branch whose
+    /// tips are unchanged — which, after a single-branch commit, is all but one.
+    pub fn branches_cached(
+        &self,
+        cache: &mut std::collections::HashMap<(String, String), (usize, usize)>,
+    ) -> Result<Vec<BranchInfo>, GitError> {
+        self.branches_inner(|repo, local, up| {
+            let key = (local.to_string(), up.to_string());
+            if let Some(&hit) = cache.get(&key) {
+                return hit;
+            }
+            let computed = repo.graph_ahead_behind(local, up).unwrap_or((0, 0));
+            cache.insert(key, computed);
+            computed
+        })
+    }
+
+    /// Shared branch-listing body. `ahead_behind(repo, local_oid, upstream_oid)`
+    /// yields the `(ahead, behind)` pair for a tracking branch — computed live
+    /// by [`Self::branches`] or served from a cache by [`Self::branches_cached`].
+    fn branches_inner<F>(&self, mut ahead_behind: F) -> Result<Vec<BranchInfo>, GitError>
+    where
+        F: FnMut(&git2::Repository, git2::Oid, git2::Oid) -> (usize, usize),
+    {
         let head_oid = self.repo.head().ok().and_then(|h| h.target());
+
+        // Snapshot config once so the "gone" check (rare branch below) can look
+        // up `branch.<name>.merge` without re-opening a config snapshot per
+        // branch. Only queried when `branch.upstream()` fails, so the common
+        // path pays nothing beyond the upstream lookup already done.
+        let config = self.repo.config().ok();
 
         let mut branches = Vec::new();
 
@@ -153,22 +209,35 @@ impl Repository {
                 head_oid.is_some_and(|h| (branch.get().target() == Some(h)) && !is_remote);
 
             // Tracking-status: only meaningful for local branches with
-            // a configured upstream. Compute via `graph_ahead_behind`
-            // against the upstream's tip OID. Failures (no upstream,
-            // upstream OID missing, walk error) silently degrade to
-            // `(None, 0, 0)` — the FE renders nothing in those cases.
+            // a configured upstream. `ahead_behind` yields the counts against
+            // the upstream's tip OID. Failures (no upstream, upstream OID
+            // missing, walk error) silently degrade to `(None, 0, 0)` — the FE
+            // renders nothing in those cases.
             let mut upstream: Option<String> = None;
             let mut ahead: usize = 0;
             let mut behind: usize = 0;
-            if !is_remote && let Ok(up) = branch.upstream() {
-                if let Ok(Some(up_name)) = up.name() {
-                    upstream = Some(up_name.to_string());
-                }
-                if let (Some(local_oid), Some(up_oid)) = (branch.get().target(), up.get().target())
-                    && let Ok((a, b)) = self.repo.graph_ahead_behind(local_oid, up_oid)
-                {
-                    ahead = a;
-                    behind = b;
+            let mut upstream_gone = false;
+            if !is_remote {
+                match branch.upstream() {
+                    Ok(up) => {
+                        if let Ok(Some(up_name)) = up.name() {
+                            upstream = Some(up_name.to_string());
+                        }
+                        if let (Some(local_oid), Some(up_oid)) =
+                            (branch.get().target(), up.get().target())
+                        {
+                            let (a, b) = ahead_behind(&self.repo, local_oid, up_oid);
+                            ahead = a;
+                            behind = b;
+                        }
+                    }
+                    // The upstream ref failed to resolve. If an upstream is
+                    // still *configured* for this branch, the remote branch was
+                    // deleted + pruned — surface it as "gone" so the UI can
+                    // offer cleanup. Otherwise the branch simply tracks nothing.
+                    Err(_) => {
+                        upstream_gone = branch_upstream_configured(config.as_ref(), &name);
+                    }
                 }
             }
 
@@ -180,6 +249,7 @@ impl Repository {
                 upstream,
                 ahead,
                 behind,
+                upstream_gone,
             });
         }
 
@@ -495,6 +565,63 @@ mod tests {
         assert!(default.upstream.is_none());
         assert_eq!(default.ahead, 0);
         assert_eq!(default.behind, 0);
+
+        // `branches_cached` must match `branches` and populate the cache.
+        let mut cache: std::collections::HashMap<(String, String), (usize, usize)> =
+            std::collections::HashMap::new();
+        let cached = repo.branches_cached(&mut cache).unwrap();
+        let cf = cached
+            .iter()
+            .find(|b| b.name == "feature")
+            .expect("feature present in cached listing");
+        assert_eq!((cf.ahead, cf.behind), (1, 0));
+        assert_eq!(
+            cache.len(),
+            1,
+            "exactly the feature/upstream tip pair should be cached"
+        );
+        // A second call serves the same counts from the cache.
+        let cached2 = repo.branches_cached(&mut cache).unwrap();
+        let cf2 = cached2.iter().find(|b| b.name == "feature").unwrap();
+        assert_eq!((cf2.ahead, cf2.behind), (1, 0));
+        assert_eq!(cached.len(), cached2.len());
+    }
+
+    #[test]
+    fn test_branches_flags_upstream_gone() {
+        // A branch that has an upstream *configured* (branch.<n>.remote/.merge)
+        // but whose remote-tracking ref does not exist must report
+        // `upstream_gone = true` — the "deleted on the remote + pruned" case.
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = create_repo_with_commit(&dir);
+        let git = git2::Repository::open(&path).unwrap();
+        let default_branch = git.head().unwrap().shorthand().unwrap().to_string();
+
+        {
+            let head_commit = git.head().unwrap().peel_to_commit().unwrap();
+            git.branch("gone", &head_commit, false).unwrap();
+        }
+
+        // Point `gone` at origin/gone, which we never create — so the upstream
+        // lookup fails while the config entry is present.
+        let mut cfg = git.config().unwrap();
+        cfg.set_str("branch.gone.remote", "origin").unwrap();
+        cfg.set_str("branch.gone.merge", "refs/heads/gone").unwrap();
+        drop(cfg);
+        drop(git);
+
+        let repo = Repository::open(&path).unwrap();
+        let branches = repo.branches().unwrap();
+        let gone = branches.iter().find(|b| b.name == "gone").unwrap();
+        assert!(
+            gone.upstream_gone,
+            "configured-but-missing upstream is gone"
+        );
+        assert!(gone.upstream.is_none(), "no resolved upstream name");
+
+        // The default branch has no upstream config → NOT gone.
+        let default = branches.iter().find(|b| b.name == default_branch).unwrap();
+        assert!(!default.upstream_gone, "no-upstream branch is not gone");
     }
 
     #[test]

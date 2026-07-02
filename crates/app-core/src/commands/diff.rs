@@ -47,6 +47,57 @@ pub async fn get_diff_between_commits(
     .map_err(|e| e.to_string())?
 }
 
+/// Return the merge base (best common ancestor) of two revisions, or `null`
+/// when they share no common history. Read-only; powers the compare view's
+/// three-dot (`merge-base..B`) range.
+///
+/// # Parameters
+/// - `a` / `b` – Any revspec: branch name, tag, `HEAD`, or (abbreviated) SHA.
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::diff::merge_base")]
+pub async fn get_merge_base(
+    a: String,
+    b: String,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.merge_base(&a, &b).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Return the commits in `from..to` (reachable from `to`, not from `from`),
+/// newest-first, paginated. Mirrors `git log from..to`. Read-only; powers the
+/// compare view's "N commits ahead / behind" list.
+///
+/// # Parameters
+/// - `from` / `to` – Any revspec (branch, tag, `HEAD`, SHA).
+/// - `limit` – Max commits to return (default 100) so a large divergence
+///   doesn't flood the IPC channel.
+/// - `anchor` – OID of the last commit already shown; when set, the walk
+///   resumes after it (cheap "load more" pagination).
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::diff::commits_between")]
+pub async fn get_commits_between(
+    from: String,
+    to: String,
+    limit: Option<usize>,
+    anchor: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::CommitInfo>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.commits_between(&from, &to, limit.unwrap_or(100), anchor.as_deref())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Return the full diff (hunks + lines) for a single file in a commit.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::diff::commit_file_diff")]
@@ -152,50 +203,135 @@ mod serde_shape {
     }
 }
 
-/// Returns raw file content from the working directory.
+/// Structured result for [`get_file_workdir`] / [`get_file_index`].
+///
+/// Same tagged shape as [`FileAtCommitResult`] so the frontend renders the
+/// binary / too-large placeholders for the workdir and index sides exactly
+/// as it does for the commit side.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FileContentResult {
+    /// Text content, UTF-8 lossy decoded.
+    Text {
+        /// The file contents.
+        data: String,
+    },
+    /// Content contained a NUL byte in its first 8 KB.
+    Binary,
+    /// Content exceeded the per-file cap and was not loaded.
+    TooLarge {
+        /// Byte size of the content.
+        size: usize,
+    },
+}
+
+/// Map a `get_file_*` result into the tagged [`FileContentResult`].
+fn tag_file_content(
+    result: Result<String, git_engine::GitError>,
+) -> Result<FileContentResult, String> {
+    match result {
+        Ok(content) => Ok(FileContentResult::Text { data: content }),
+        Err(git_engine::GitError::Binary) => Ok(FileContentResult::Binary),
+        Err(git_engine::GitError::FileTooLarge { size }) => {
+            Ok(FileContentResult::TooLarge { size })
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Returns raw file content from the working directory, or a tagged marker
+/// for binary / oversized files (see [`FileContentResult`]).
 ///
 /// # Parameters
 /// - `path` – Repo-relative file path.
-///
-/// # Returns
-/// Raw file content, or an IO error string if the file does not exist.
 #[tauri::command]
-pub fn get_file_workdir(path: String, state: State<'_, AppState>) -> Result<String, String> {
+pub fn get_file_workdir(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<FileContentResult, String> {
     with_active_repo(&state, |repo| {
-        repo.get_file_workdir(&path).map_err(|e| e.to_string())
+        tag_file_content(repo.get_file_workdir(&path))
     })
 }
 
-/// Returns raw file content from the index (staged version).
+/// Returns raw file content from the index (staged version), or a tagged
+/// marker for binary / oversized files (see [`FileContentResult`]).
 ///
 /// # Parameters
 /// - `path` – Repo-relative file path.
-///
-/// # Returns
-/// Raw staged file content, or an error string if the file is not staged.
 #[tauri::command]
-pub fn get_file_index(path: String, state: State<'_, AppState>) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
-        repo.get_file_index(&path).map_err(|e| e.to_string())
-    })
+pub fn get_file_index(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<FileContentResult, String> {
+    with_active_repo(&state, |repo| tag_file_content(repo.get_file_index(&path)))
 }
 
 /// Return the unstaged diff between the working tree and the index.
 ///
-/// Equivalent to `git diff` (without `--cached`).
+/// Equivalent to `git diff` (without `--cached`). The whole-response byte
+/// budget is enforced so a working tree full of large changed files can't
+/// balloon a single IPC payload — files past the budget come back with
+/// empty hunks and `truncated: true`.
 #[tauri::command]
 pub fn get_diff_workdir(state: State<'_, AppState>) -> Result<Vec<git_engine::FileDiff>, String> {
     with_active_repo(&state, |repo| {
-        repo.diff_workdir().map_err(|e| e.to_string())
+        let mut files = repo.diff_workdir().map_err(|e| e.to_string())?;
+        git_engine::enforce_response_budget(&mut files, git_engine::MAX_DIFF_RESPONSE_BYTES);
+        Ok(files)
     })
 }
 
 /// Return the staged diff between the index and HEAD.
 ///
-/// Equivalent to `git diff --cached`.
+/// Equivalent to `git diff --cached`. See [`get_diff_workdir`] for the
+/// whole-response budget.
 #[tauri::command]
 pub fn get_diff_index(state: State<'_, AppState>) -> Result<Vec<git_engine::FileDiff>, String> {
-    with_active_repo(&state, |repo| repo.diff_index().map_err(|e| e.to_string()))
+    with_active_repo(&state, |repo| {
+        let mut files = repo.diff_index().map_err(|e| e.to_string())?;
+        git_engine::enforce_response_budget(&mut files, git_engine::MAX_DIFF_RESPONSE_BYTES);
+        Ok(files)
+    })
+}
+
+/// Full hunks/lines diff for a single file, fetched lazily when the user
+/// opens it in the Changes view. `staged` selects the index-vs-HEAD diff
+/// (`true`) or the workdir-vs-index diff (`false`). Returns `null` when the
+/// file has no change on that side.
+#[tauri::command]
+pub fn get_diff_file(
+    path: String,
+    staged: bool,
+    state: State<'_, AppState>,
+) -> Result<Option<git_engine::FileDiff>, String> {
+    with_active_repo(&state, |repo| {
+        repo.diff_single_file(&path, staged)
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Cheap per-file change stats (name/status + add/del counts, no hunks) for
+/// the working tree. Powers the Changes list without streaming every hunk
+/// on each mutation.
+#[tauri::command]
+pub fn get_diff_stats_workdir(
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::FileDiffStat>, String> {
+    with_active_repo(&state, |repo| {
+        repo.diff_stats_workdir().map_err(|e| e.to_string())
+    })
+}
+
+/// Cheap per-file change stats for the index (staged changes) vs HEAD.
+/// See [`get_diff_stats_workdir`].
+#[tauri::command]
+pub fn get_diff_stats_index(
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::FileDiffStat>, String> {
+    with_active_repo(&state, |repo| {
+        repo.diff_stats_index().map_err(|e| e.to_string())
+    })
 }
 
 #[cfg(test)]
@@ -274,5 +410,67 @@ mod tests {
         let repo = Repository::open(&path).unwrap();
         let err = repo.get_file_workdir("does-not-exist.txt").err();
         assert!(err.is_some(), "reading a missing workdir file should error");
+    }
+
+    /// Run `git` in `path` and return the trimmed, sorted set of paths from a
+    /// `--name-only` diff, so we can compare against `diff_commits` file sets.
+    fn git_name_only(path: &std::path::Path, args: &[&str]) -> Vec<String> {
+        let out = std::process::Command::new("git")
+            .args(args)
+            .current_dir(path)
+            .output()
+            .expect("spawn git");
+        assert!(
+            out.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let mut paths: Vec<String> = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    #[test]
+    fn diff_commits_resolves_ref_names_like_git_diff() {
+        let (_tmp, path) = git_engine::test_support::create_repo_with_diverged_branches();
+        let repo = Repository::open(&path).unwrap();
+
+        // Two-dot: `main` tree vs `feature` tree directly (`git diff main..feature`).
+        let mut two_dot: Vec<String> = repo
+            .diff_commits("main", "feature")
+            .unwrap()
+            .into_iter()
+            .map(|c| c.path)
+            .collect();
+        two_dot.sort();
+        assert_eq!(
+            two_dot,
+            git_name_only(&path, &["diff", "--name-only", "main..feature"]),
+            "two-dot diff must match `git diff main..feature`"
+        );
+        // Sanity: two-dot sees the file main has but feature dropped.
+        assert!(two_dot.contains(&"main_only.txt".to_string()));
+
+        // Three-dot: merge-base vs `feature` (`git diff main...feature`).
+        let base = repo.merge_base("main", "feature").unwrap().unwrap();
+        let mut three_dot: Vec<String> = repo
+            .diff_commits(&base, "feature")
+            .unwrap()
+            .into_iter()
+            .map(|c| c.path)
+            .collect();
+        three_dot.sort();
+        assert_eq!(
+            three_dot,
+            git_name_only(&path, &["diff", "--name-only", "main...feature"]),
+            "three-dot diff must match `git diff main...feature`"
+        );
+        // Three-dot only shows what feature added; main_only.txt is absent.
+        assert!(!three_dot.contains(&"main_only.txt".to_string()));
+        assert!(three_dot.contains(&"feat_a.txt".to_string()));
     }
 }

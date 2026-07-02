@@ -20,6 +20,7 @@
   import { cherryPick, checkoutBranch, checkoutDetached, revertCommit, resetToCommit, rebaseBranch, getGraphColumns, setGraphColumns, createCommitPatches } from "../../api/tauri";
   import { runMutation } from "../../api/runMutation";
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
+  import { openCompare } from "../../stores/compare";
   import { buildCreateBranchSource } from "./GitGraph.helpers";
   import { save } from "@tauri-apps/plugin-dialog";
   import RebaseEditor from "../rebase/RebaseEditor.svelte";
@@ -604,6 +605,17 @@
       {
         label: m.graph_copy_message(),
         action: () => navigator.clipboard.writeText(node.summary),
+      },
+      { label: "", action: () => {}, separator: true },
+      {
+        // Pre-fill side A with this commit; compare against HEAD.
+        label: m.compare_with_head(),
+        action: () => openCompare(node.oid, "HEAD"),
+      },
+      {
+        // Pre-fill side A with this commit; user picks side B.
+        label: m.compare_with_ellipsis(),
+        action: () => openCompare(node.oid, null),
       },
       {
         label: m.patch_create_commit(),

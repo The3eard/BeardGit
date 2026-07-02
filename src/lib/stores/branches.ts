@@ -4,10 +4,18 @@
  *
  * Selection loads the last 30 commits on the branch with a last-wins
  * async guard. Per-commit detail and file-level diffs are loaded on demand.
+ *
+ * ── Migrated to the RepoState container (spec 08) ─────────────────────
+ * The branch list + selection now live per-repo in `RepoState.branches`
+ * (see `repo-state/BranchesSlice.ts`). The exports below are thin facades
+ * over the *active* repo's slice, so the branch list survives tab switches
+ * for free — this replaced the hand-rolled `branchCache` Map + the
+ * `cacheBranchesForProject`/`restoreCachedBranches` choreography that used
+ * to live here and be driven from `projects.ts`.
  */
 
-import { writable, derived, get } from "svelte/store";
-import type { BranchInfo, CommitInfo, CommitFileChange } from "../types";
+import { derived, get } from "svelte/store";
+import type { BranchInfo, CommitInfo, CommitFileChange, BatchDeleteResult } from "../types";
 import type { RawDiffContent } from "./graph";
 import { getCommitDetail, getCommitFiles, getFileAtCommitText as getFileAtCommit } from "../api/tauri";
 import {
@@ -15,50 +23,23 @@ import {
   getBranchCommits,
   checkoutBranch as apiCheckout,
   deleteBranch as apiDelete,
+  deleteBranches as apiDeleteBatch,
   mergeBranch as apiMerge,
 } from "../api/tauri";
 import { runMutation } from "../api/runMutation";
 import { fetchListIntoStore } from "../utils/store-helpers";
+import { activeField, getActiveRepoState } from "./repo-state";
 
-export const branches = writable<BranchInfo[]>([]);
-export const branchesLoading = writable(false);
-
-/**
- * Per-project branch list cache for instant rendering on tab switch.
- *
- * Mirrors `graph.ts`'s `viewportCache` pattern. Branch lists are
- * cheap to fetch (~100 ms for repos with thousands of refs) but
- * the round-trip is still visible after `apiSwitchProject`. Caching
- * the last seen list lets us paint immediately and reconcile when
- * the fresh fetch arrives. Keyed by repo path.
- *
- * The cache is purely RAM — no disk persistence. On cold start the
- * usual loading spinner shows until `refreshBranches` resolves.
- */
-const branchCache = new Map<string, BranchInfo[]>();
-
-/** Save the current branch list under `projectPath` for a future tab switch. */
-export function cacheBranchesForProject(projectPath: string): void {
-  const list = get(branches);
-  if (list.length > 0) branchCache.set(projectPath, list);
-}
-
-/** Restore a cached branch list. Returns `true` if the cache had an entry. */
-export function restoreCachedBranches(projectPath: string): boolean {
-  const cached = branchCache.get(projectPath);
-  if (cached) {
-    branches.set(cached);
-    return true;
-  }
-  branches.set([]);
-  return false;
-}
-export const selectedBranchName = writable<string | null>(null);
-export const selectedBranchCommits = writable<CommitInfo[]>([]);
-export const loadingDetail = writable(false);
-export const branchFileDiff = writable<RawDiffContent | null>(null);
-export const branchSelectedCommit = writable<CommitInfo | null>(null);
-export const branchSelectedFiles = writable<CommitFileChange[]>([]);
+// Facades over the active repo's BranchesSlice. Components keep importing
+// these unchanged; the data is now per-repo.
+export const branches = activeField<BranchInfo[]>((rs) => rs.branches.list);
+export const branchesLoading = activeField<boolean>((rs) => rs.branches.loading);
+export const selectedBranchName = activeField<string | null>((rs) => rs.branches.selectedName);
+export const selectedBranchCommits = activeField<CommitInfo[]>((rs) => rs.branches.selectedCommits);
+export const loadingDetail = activeField<boolean>((rs) => rs.branches.loadingDetail);
+export const branchFileDiff = activeField<RawDiffContent | null>((rs) => rs.branches.fileDiff);
+export const branchSelectedCommit = activeField<CommitInfo | null>((rs) => rs.branches.selectedCommit);
+export const branchSelectedFiles = activeField<CommitFileChange[]>((rs) => rs.branches.selectedFiles);
 
 export async function selectBranchCommit(oid: string) {
   branchSelectedCommit.set(null);
@@ -144,6 +125,36 @@ export async function doDeleteBranch(name: string, force = false) {
   // Branch list refresh is driven by the project-mutated event.
 }
 
+/**
+ * Delete a batch of local branches in one command (the cleanup dialog).
+ * `force` is the subset of `names` to force-delete (`-d` for the rest).
+ * Routes through `runMutation`, so a success/failure toast reports the
+ * deleted/failed counts; the single `project-mutated` event drives the
+ * branch-list refresh. Returns the full result so the dialog can surface
+ * per-branch failures. Clears selection if the selected branch was removed.
+ */
+export async function doDeleteBranches(
+  names: string[],
+  force: string[],
+): Promise<BatchDeleteResult> {
+  const result = await runMutation({
+    kind: "branch_delete_batch",
+    invoke: () => apiDeleteBatch(names, force),
+    successToast: (r) =>
+      r.failed.length === 0
+        ? `Deleted ${r.deleted.length} branch${r.deleted.length === 1 ? "" : "es"}`
+        : `Deleted ${r.deleted.length}, ${r.failed.length} failed`,
+    failureToastPrefix: "Branch cleanup failed",
+  });
+  const sel = get(selectedBranchName);
+  if (sel && result.deleted.includes(sel)) {
+    selectedBranchName.set(null);
+    selectedBranchCommits.set([]);
+  }
+  // Branch list refresh is driven by the project-mutated event.
+  return result;
+}
+
 export async function doMergeBranch(name: string) {
   await runMutation({
     kind: "merge",
@@ -154,12 +165,7 @@ export async function doMergeBranch(name: string) {
   // Branch list refresh is driven by the project-mutated event.
 }
 
-/** Reset all branch selection/detail state. Called on repo switch. */
+/** Reset the active repo's branch selection/detail state. Called on repo switch. */
 export function clearBranchState() {
-  selectedBranchName.set(null);
-  selectedBranchCommits.set([]);
-  loadingDetail.set(false);
-  branchFileDiff.set(null);
-  branchSelectedCommit.set(null);
-  branchSelectedFiles.set([]);
+  getActiveRepoState().branches.clear();
 }

@@ -1,0 +1,25 @@
+[package]
+name = "ai-runner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Tauri-free AI background-run coordinator: queue, concurrency cap, worktree lifecycle, session registry"
+
+[dependencies]
+ai-provider = { path = "../ai-provider" }
+claude-code = { path = "../claude-code" }
+codex = { path = "../codex" }
+opencode = { path = "../opencode" }
+git-engine = { path = "../git-engine" }
+mutation-events = { path = "../mutation-events" }
+task-runner = { path = "../task-runner" }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+ai-provider = { path = "../ai-provider", features = ["mock"] }
+async-trait = { workspace = true }
+git2 = { workspace = true }
+tempfile = "3"

@@ -21,6 +21,8 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
+use crate::ipc_error::IpcError;
+
 /// Options accepted by [`clone_repo`] (and `run_clone_pipeline`).
 #[derive(Debug, Deserialize)]
 pub struct CloneRepoOptions {
@@ -189,10 +191,15 @@ fn derive_repo_name(url: &str) -> Option<String> {
 
 /// Tauri command. Thin wrapper around [`run_clone_pipeline`] — kept
 /// trivial so all the testable logic lives in the pure function above.
+///
+/// The pure pipeline keeps its typed [`CloneRepoError`] (so its tests can
+/// match on the failing step); the command boundary folds it into the shared
+/// [`IpcError`] envelope, mapping each step to a stable `code`
+/// (`invalid_url`, `destination_exists`, `clone_failed`, …).
 #[tauri::command]
 #[tracing::instrument(name = "cmd::clone_repo")]
-pub fn clone_repo(options: CloneRepoOptions) -> Result<CloneRepoSuccess, CloneRepoError> {
-    run_clone_pipeline(&options)
+pub fn clone_repo(options: CloneRepoOptions) -> Result<CloneRepoSuccess, IpcError> {
+    run_clone_pipeline(&options).map_err(IpcError::from)
 }
 
 #[cfg(test)]
@@ -382,8 +389,17 @@ mod tests {
         run_git(&work, &["push", "origin", "main"]);
 
         let dest = tempfile::tempdir().unwrap();
+        // Build a well-formed file URL on every platform: Windows paths use
+        // backslashes and a drive letter, which would otherwise produce a
+        // malformed URL the pipeline's name-derivation can't split.
+        let bare_url_path = bare.to_string_lossy().replace('\\', "/");
+        let bare_url = if bare_url_path.starts_with('/') {
+            format!("file://{bare_url_path}")
+        } else {
+            format!("file:///{bare_url_path}")
+        };
         let success = run_clone_pipeline(&CloneRepoOptions {
-            url: format!("file://{}", bare.display()),
+            url: bare_url,
             parent_dir: dest.path().to_string_lossy().into_owned(),
         })
         .unwrap();

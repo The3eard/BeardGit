@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use git_engine::test_support::create_repo_with_n_commits;
+use git_engine::test_support::{create_repo_with_branches, create_repo_with_n_commits};
 use mutation_events::{MutationFlags, Snapshot};
 
 /// Run `git` with `args` inside `repo_path` and panic on failure.
@@ -50,6 +50,33 @@ fn branch_create_flips_refs_only() {
     let flags = before.diff(&after);
     assert!(flags.refs_changed);
     assert!(!flags.head_changed);
+}
+
+#[test]
+fn batch_branch_delete_is_one_refs_diff() {
+    // Deleting N branches must collapse into a single snapshot diff — the
+    // basis for the `delete_branches` command wrapping the whole batch in one
+    // `MutationGuard` and emitting one `project-mutated` event, not N.
+    let (_tmp, path) = create_repo_with_branches(&["b1", "b2", "b3"]);
+    let repo = git_engine::Repository::open(&path).unwrap();
+
+    let before = Snapshot::capture(&path).unwrap();
+
+    let names = vec!["b1".to_string(), "b2".to_string(), "b3".to_string()];
+    let result = repo.delete_branches(&names, &names); // force: fixture branches are unmerged
+    assert_eq!(result.deleted.len(), 3);
+    assert!(result.failed.is_empty());
+
+    let after = Snapshot::capture(&path).unwrap();
+    let flags: MutationFlags = before.diff(&after);
+    assert!(
+        flags.refs_changed,
+        "a batch of branch deletions flips refs_changed exactly once"
+    );
+    assert!(
+        !flags.head_changed,
+        "deleting non-HEAD branches leaves HEAD"
+    );
 }
 
 #[test]

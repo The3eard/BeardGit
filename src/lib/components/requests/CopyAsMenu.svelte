@@ -22,7 +22,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { requestsCopyAs } from "$lib/api/tauri";
   import { Button } from "$lib/components/ui";
   import { activeProject } from "$lib/stores/projects";
   import { addToast } from "$lib/stores/toast";
@@ -85,15 +85,13 @@
     if (!$currentSource) return;
     let result: string;
     try {
-      result = await invoke<string>("requests_copy_as", {
-        args: {
-          source_kind: $currentSource.kind,
-          source_path: $currentSource.path,
-          project_path: projectPath || null,
-          env_name: $currentEnv,
-          target,
-          overrides: {},
-        },
+      result = await requestsCopyAs({
+        source_kind: $currentSource.kind,
+        source_path: $currentSource.path,
+        project_path: projectPath || null,
+        env_name: $currentEnv,
+        target,
+        overrides: {},
       });
     } catch (err) {
       addToast({ message: `Copy as ${target} failed: ${err}`, type: "error" });

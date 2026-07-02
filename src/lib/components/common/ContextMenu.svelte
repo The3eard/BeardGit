@@ -25,6 +25,8 @@
 </script>
 
 <script lang="ts">
+  import { clampMenuPosition } from "$lib/utils/menu-position";
+
   let {
     items,
     x,
@@ -41,6 +43,51 @@
 
   /** Index (within `items`) of the currently-open submenu, or -1. */
   let openSubmenu = $state(-1);
+
+  /** Keep a small gap between the menu and the window edge. Mirrors the
+   *  submenu's declared `min-width` so we can decide flip before measuring it. */
+  const MARGIN = 8;
+  const SUBMENU_MIN_WIDTH = 180;
+
+  let menuEl: HTMLDivElement | undefined = $state();
+  /** Clamped position; only trusted once `measured` is true. */
+  let posX = $state(0);
+  let posY = $state(0);
+  let menuWidth = $state(0);
+  let measured = $state(false);
+
+  // Measure the mounted menu and clamp it into the viewport. Runs after the
+  // DOM update (Svelte effect timing), so reading offsetWidth/Height forces a
+  // synchronous layout and returns the real size before paint — the menu is
+  // held `visibility: hidden` until then, so there is no visible jump.
+  $effect(() => {
+    if (!visible || !menuEl) {
+      measured = false;
+      return;
+    }
+    // touch x/y so the effect re-runs when the anchor moves
+    const cursorX = x;
+    const cursorY = y;
+    const w = menuEl.offsetWidth;
+    const h = menuEl.offsetHeight;
+    const { left, top } = clampMenuPosition(cursorX, cursorY, w, h, {
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      margin: MARGIN,
+    });
+    posX = left;
+    posY = top;
+    menuWidth = w;
+    measured = true;
+  });
+
+  // Flip a submenu to open leftward when the parent menu sits too close to the
+  // right edge to fit the flyout beside it.
+  let submenuFlip = $derived(
+    measured &&
+      typeof window !== "undefined" &&
+      posX + menuWidth + SUBMENU_MIN_WIDTH > window.innerWidth - MARGIN,
+  );
 
   function handleClick(item: MenuItem) {
     if (item.disabled) return;
@@ -68,7 +115,11 @@
     onkeydown={(e) => { if (e.key === 'Escape') handleBackdrop(); }}
     oncontextmenu={(e) => { e.preventDefault(); handleBackdrop(); }}
   ></div>
-  <div class="context-menu" style="left: {x}px; top: {y}px">
+  <div
+    bind:this={menuEl}
+    class="context-menu"
+    style="left: {posX}px; top: {posY}px; visibility: {measured ? 'visible' : 'hidden'}"
+  >
     {#each items as item, i}
       {#if item.separator}
         <div class="separator"></div>
@@ -96,7 +147,7 @@
             {/if}
           </button>
           {#if item.children && openSubmenu === i}
-            <div class="context-menu submenu">
+            <div class="context-menu submenu" class:submenu--flip={submenuFlip}>
               {#each item.children as child}
                 {#if child.separator}
                   <div class="separator"></div>
@@ -195,5 +246,12 @@
     top: 0;
     left: 100%;
     margin-left: 2px;
+  }
+
+  .submenu--flip {
+    left: auto;
+    right: 100%;
+    margin-left: 0;
+    margin-right: 2px;
   }
 </style>
