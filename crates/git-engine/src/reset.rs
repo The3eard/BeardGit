@@ -52,17 +52,18 @@ impl Repository {
     /// # Parameters
     /// - `message` – The replacement commit message.
     ///
+    /// Amending already goes through the git CLI, so when `commit.gpgsign`
+    /// is enabled the amended commit is signed automatically (git honors the
+    /// config). The call is non-interactive so a locked key fails fast rather
+    /// than hanging on a passphrase prompt.
+    ///
     /// # Errors
-    /// Returns [`GitError::CliError`] when `git commit --amend` exits
-    /// with a non-zero status (e.g. nothing to amend, detached HEAD, etc.).
+    /// Returns [`GitError::SigningFailed`] when signing is enabled and the
+    /// amend fails (so the UI can show the signing stderr), otherwise
+    /// [`GitError::CliError`] (nothing to amend, detached HEAD, etc.).
     #[instrument(skip(self))]
     pub fn amend_commit(&self, message: &str) -> Result<(), GitError> {
-        let result = self.git_cmd(&["commit", "--amend", "-m", message])?;
-        if result.success {
-            Ok(())
-        } else {
-            Err(GitError::CliError(result.stderr))
-        }
+        self.amend_commit_cli(message)
     }
 
     /// Return the commit message of the current HEAD commit.

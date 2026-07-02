@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, BranchCleanupList, BatchDeleteResult, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
+import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, BranchCleanupList, BatchDeleteResult, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, SigningStatus, CommitSignature, SignatureVerification, SigningTestResult, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 import type { RequestTreeNode, ParsedRequest, RequestEnvFile, RequestEnvSummary, RunRequestArgs, RunResult, CopyAsArgs, RequestHistoryRow, RequestDiffPayload } from "../types/requests";
 
@@ -980,6 +980,29 @@ export async function unsetConfig(scope: ConfigScope, key: string): Promise<void
 /** Add a new value for a config key at the given scope (multi-value append). */
 export async function addConfig(scope: ConfigScope, key: string, value: string): Promise<void> {
   return invoke<void>("add_config", { scope, key, value });
+}
+
+// Commit signing
+// ---------------------------------------------------------------------------
+
+/** Effective signing status of the active repo (commit box chip + settings). */
+export async function getSigningConfig(): Promise<SigningStatus> {
+  return invoke<SigningStatus>("get_signing_config");
+}
+
+/** Presence (not validity) of a commit's embedded signature. Cheap. */
+export async function getCommitSignature(oid: string): Promise<CommitSignature> {
+  return invoke<CommitSignature>("get_commit_signature", { oid });
+}
+
+/** Lazily verify a single commit's signature (shells `git verify-commit`). */
+export async function verifyCommitSignature(oid: string): Promise<SignatureVerification> {
+  return invoke<SignatureVerification>("verify_commit_signature", { oid });
+}
+
+/** Sign a throwaway commit with the user's config and report success/stderr. */
+export async function testSigning(): Promise<SigningTestResult> {
+  return invoke<SigningTestResult>("test_signing");
 }
 
 // Gitignore management

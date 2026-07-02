@@ -50,9 +50,12 @@
     setConfig,
     unsetConfig,
     addConfig,
+    getSigningConfig,
+    testSigning,
   } from "$lib/api/tauri";
   import { isEnumKey, getEnumValues } from "$lib/utils/git-config-keys";
-  import type { ConfigEntry, ConfigScope } from "$lib/types";
+  import { formatSigningBackend } from "$lib/utils/signing";
+  import type { ConfigEntry, ConfigScope, SigningStatus } from "$lib/types";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import { Card, SettingSection, Button, IconButton } from "$lib/components/ui";
 
@@ -80,6 +83,32 @@
 
   let showSystem = $state(false);
   let errorMessage = $state<string | null>(null);
+
+  // ── Commit signing ─────────────────────────────────────────────
+  let signingStatus = $state<SigningStatus | null>(null);
+  let signingTesting = $state(false);
+  let signingTestResult = $state<{ ok: boolean; message: string } | null>(null);
+
+  async function loadSigningStatus() {
+    try {
+      signingStatus = await getSigningConfig();
+    } catch {
+      signingStatus = null;
+    }
+  }
+
+  async function handleTestSigning() {
+    signingTesting = true;
+    signingTestResult = null;
+    try {
+      const result = await testSigning();
+      signingTestResult = { ok: result.success, message: result.message };
+    } catch (err) {
+      signingTestResult = { ok: false, message: String(err) };
+    } finally {
+      signingTesting = false;
+    }
+  }
 
   const mergedKeys = $derived.by(() => {
     const keys = new Set<string>();
@@ -118,6 +147,7 @@
 
   onMount(() => {
     loadAll();
+    loadSigningStatus();
   });
 
   function startEdit(key: string, scope: ConfigScope, currentValue: string) {
@@ -199,6 +229,43 @@
   title={m.settings_git_section_title()}
   description={m.settings_git_section_description()}
 >
+  <SettingSection title={m.settings_signing_title()}>
+    <div class="signing-panel" data-setting-anchor="signing">
+      <p class="signing-desc">{m.settings_signing_description()}</p>
+      {#if signingStatus}
+        <p class="signing-status">
+          {#if signingStatus.enabled}
+            {m.settings_signing_status_enabled({ format: formatSigningBackend(signingStatus.format) })}
+          {:else}
+            {m.settings_signing_status_disabled()}
+          {/if}
+          {#if signingStatus.enabled && !signingStatus.key_present}
+            <span class="signing-warn">{m.settings_signing_key_missing()}</span>
+          {/if}
+        </p>
+      {/if}
+      <div class="signing-actions">
+        <Button
+          variant="neutral"
+          size="sm"
+          disabled={signingTesting}
+          onclick={handleTestSigning}
+        >
+          {signingTesting ? m.settings_signing_test_running() : m.settings_signing_test_button()}
+        </Button>
+      </div>
+      {#if signingTestResult}
+        <p class="signing-result" class:ok={signingTestResult.ok} class:fail={!signingTestResult.ok}>
+          {#if signingTestResult.ok}
+            {m.settings_signing_test_success({ message: signingTestResult.message })}
+          {:else}
+            {m.settings_signing_test_failed({ message: signingTestResult.message })}
+          {/if}
+        </p>
+      {/if}
+    </div>
+  </SettingSection>
+
   <SettingSection title={m.settings_git_config()}>
     <div class="config-editor" data-setting-anchor="config">
       <div class="config-toolbar" data-setting-anchor="config-filter">
@@ -423,6 +490,49 @@
 {/if}
 
 <style>
+  .signing-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .signing-desc {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .signing-status {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+  }
+
+  .signing-warn {
+    color: var(--accent-orange);
+  }
+
+  .signing-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .signing-result {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  .signing-result.ok {
+    color: var(--accent-green);
+  }
+
+  .signing-result.fail {
+    color: var(--accent-red);
+  }
+
   .config-editor {
     display: flex;
     flex-direction: column;

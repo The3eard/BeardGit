@@ -17,6 +17,12 @@ pub enum GitError {
     /// A git CLI command exited with a non-zero status.
     #[error("CLI error: {0}")]
     CliError(String),
+    /// A signed commit/amend could not be produced — the `git commit`
+    /// invocation failed while signing was enabled (bad key path, locked
+    /// gpg-agent, missing signing program, …). Carries the git stderr so
+    /// the UI can show the actual reason instead of a generic error.
+    #[error("signing failed: {0}")]
+    SigningFailed(String),
     /// An I/O error occurred (e.g. spawning the git CLI process).
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
