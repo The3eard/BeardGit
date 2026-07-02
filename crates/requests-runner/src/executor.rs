@@ -197,6 +197,10 @@ pub async fn execute(
     }
 
     let resp = tokio::select! {
+        // biased: when the token is already cancelled AND the request
+        // fails instantly (e.g. fast DNS failure), always report Canceled
+        // instead of racing the two ready branches.
+        biased;
         _ = cancel.cancelled() => return Err(RequestsError::Canceled),
         r = builder.send() => r.map_err(|e| RequestsError::Network(e.to_string()))?,
     };
@@ -209,6 +213,7 @@ pub async fn execute(
         .collect();
 
     let body_bytes = tokio::select! {
+        biased;
         _ = cancel.cancelled() => return Err(RequestsError::Canceled),
         b = resp.bytes() => b.map_err(|e| RequestsError::Network(e.to_string()))?,
     };
