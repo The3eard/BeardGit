@@ -4,8 +4,9 @@ use std::path::PathBuf;
 
 use tauri::{AppHandle, State};
 
-use super::graph_cache::{GraphLayoutOptions, load_or_build_layout};
+use super::graph_cache::{GraphLayoutOptions, load_or_build_layout, ref_snapshot};
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::{AppState, ProjectSlot};
 
 /// Open a git repository at `path`, build the full commit DAG, and store the
@@ -23,34 +24,40 @@ use crate::state::{AppState, ProjectSlot};
 ///
 /// # Returns
 /// [`RepoInfo`] with HEAD branch, HEAD OID, and branch count on success, or an
-/// error string if the path is not a valid git repository.
+/// [`IpcError`] (`code = "repo_not_found"` when the path is not a valid git
+/// repository, else a generic code) so the frontend gets a structured value.
 #[tauri::command]
 pub async fn open_repo(
     path: String,
     state: State<'_, AppState>,
     app_handle: AppHandle,
-) -> Result<RepoInfo, String> {
+) -> Result<RepoInfo, IpcError> {
     let path_clone = path.clone();
     let config_dir = state.config_dir.clone();
 
     // Run the expensive graph computation off the main thread
-    let (repo, layout, status) = tokio::task::spawn_blocking(move || {
+    let (repo, layout, status, change_count, ref_snap) = tokio::task::spawn_blocking(move || {
         let repo =
-            git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(|e| e.to_string())?;
+            git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(IpcError::from)?;
 
         let (layout, _was_cached) = load_or_build_layout(
             &repo,
             &path_clone,
             &config_dir,
             &GraphLayoutOptions::default(),
-        )?;
-        let status = repo.status().map_err(|e| e.to_string())?;
+        )
+        .map_err(IpcError::from)?;
+        let status = repo.status().map_err(IpcError::from)?;
+        // Compute the working-tree change count here, on the blocking thread,
+        // instead of a second `file_statuses()` walk back on the async runtime.
+        let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
+        // Baseline refs for the incremental graph-refresh fast path.
+        let ref_snap = ref_snapshot(&repo);
 
-        Ok::<_, String>((repo, layout, status))
+        Ok::<_, IpcError>((repo, layout, status, change_count, ref_snap))
     })
     .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e: String| e)?;
+    .map_err(|e| IpcError::new("internal", e.to_string()))??;
 
     // Start filesystem watcher for the new repo. The watcher now emits
     // `project-mutated` with `MutationKind::External` directly via the
@@ -62,6 +69,16 @@ pub async fn open_repo(
             // tree) silently disables real-time refresh for this repo with no
             // user-visible signal. Log it so a "changes don't appear live"
             // report is diagnosable from the log file.
+            //
+            // The watcher now batch-filters git-ignored paths, so `target/` /
+            // `node_modules/` churn no longer wakes a snapshot walk. It still
+            // *registers* recursively though: notify 7's `RecommendedWatcher`
+            // (inotify on Linux) walks with `WalkDir` and exposes no
+            // per-directory hook to skip ignored subtrees, so a huge `target/`
+            // can still exhaust `fs.inotify.max_user_watches` and land here.
+            // Skipping those dirs would mean hand-rolling a bespoke inotify
+            // layer (out of scope); when this fires on Linux, raising the
+            // sysctl limit is the workaround.
             tracing::warn!(?err, path = %path, "repo watcher failed to start — real-time refresh disabled for this repo");
         })
         .ok();
@@ -72,7 +89,6 @@ pub async fn open_repo(
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.clone());
     let head_branch = status.head_branch.clone();
-    let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
     let is_worktree = repo.is_worktree();
 
     let slot = ProjectSlot {
@@ -100,6 +116,7 @@ pub async fn open_repo(
     };
     *state.active_index.lock().map_err(|e| e.to_string())? = Some(active_idx);
     invalidate_forge_provider_cache(&state);
+    state.store_layout_ref_snapshot(&path, ref_snap);
 
     Ok(RepoInfo {
         path: status.path,
@@ -109,10 +126,34 @@ pub async fn open_repo(
     })
 }
 
-/// List all local branches in the open repository with their HEAD OIDs.
+/// Wholesale-clear the ahead/behind cache past this many entries. Keys are
+/// `(tip, upstream_tip)` OID pairs that accumulate as branches move over a
+/// session; clearing is safe — the next `get_branches` just recomputes.
+const AHEAD_BEHIND_CACHE_CAP: usize = 8_192;
+
+/// List all local and remote branches in the open repository.
+///
+/// Ahead/behind counts are served from [`AppState::ahead_behind_cache`], keyed
+/// on `(branch_tip, upstream_tip)`, so a branch whose tips haven't moved since
+/// the last call skips the `graph_ahead_behind` walk entirely — this command
+/// fires on every `head_changed || refs_changed`, and most refs don't move.
 #[tauri::command]
 pub fn get_branches(state: State<'_, AppState>) -> Result<Vec<git_engine::BranchInfo>, String> {
-    with_active_repo(&state, |repo| repo.branches().map_err(|e| e.to_string()))
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let active = state.active_index.lock().map_err(|e| e.to_string())?;
+    let idx = active.ok_or_else(|| "No active project".to_string())?;
+    let slot = projects
+        .get(idx)
+        .ok_or_else(|| "Active project index out of bounds".to_string())?;
+    let repo = slot
+        .repo
+        .as_ref()
+        .ok_or_else(|| "No repository open".to_string())?;
+    let mut cache = state.ahead_behind_cache.lock().map_err(|e| e.to_string())?;
+    if cache.len() > AHEAD_BEHIND_CACHE_CAP {
+        cache.clear();
+    }
+    repo.branches_cached(&mut cache).map_err(|e| e.to_string())
 }
 
 /// Return the last N commits on a specific branch.

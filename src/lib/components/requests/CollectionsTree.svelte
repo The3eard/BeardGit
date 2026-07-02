@@ -38,7 +38,16 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import {
+    requestsListProject,
+    requestsCopyAs,
+    requestsDuplicate,
+    requestsRename,
+    requestsOpenInEditor,
+    requestsDelete,
+  } from "$lib/api/tauri";
+  import { runMutation } from "$lib/api/runMutation";
+  import type { RequestTreeNode } from "$lib/types/requests";
   import { Button } from "$lib/components/ui";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
@@ -53,14 +62,7 @@
   import { activeProject } from "$lib/stores/projects";
   import { addToast } from "$lib/stores/toast";
 
-  type Node = {
-    kind: "folder" | "file";
-    name: string;
-    rel_path: string;
-    /** HTTP method for `.http` leaf nodes; null for folders. */
-    method?: string | null;
-    children: Node[];
-  };
+  type Node = RequestTreeNode;
 
   let project: Node[] = [];
 
@@ -103,7 +105,7 @@
       project = [];
       return;
     }
-    project = await invoke<Node[]>("requests_list_project", { projectPath });
+    project = await requestsListProject(projectPath);
   }
 
   /** Total file count under a tree (for the section count pill). */
@@ -238,15 +240,13 @@
   async function copyAsCurl(node: Node) {
     let out: string;
     try {
-      out = await invoke<string>("requests_copy_as", {
-        args: {
-          source_kind: "project",
-          source_path: node.rel_path,
-          project_path: projectPath || null,
-          env_name: $currentEnv,
-          target: "curl",
-          overrides: {},
-        },
+      out = await requestsCopyAs({
+        source_kind: "project",
+        source_path: node.rel_path,
+        project_path: projectPath || null,
+        env_name: $currentEnv,
+        target: "curl",
+        overrides: {},
       });
     } catch (err) {
       addToast({ message: `Copy as cURL failed: ${err}`, type: "error" });
@@ -267,15 +267,17 @@
   /** Duplicate a leaf in place; selects the new copy on success. */
   async function duplicate(node: Node) {
     try {
-      const newPath = await invoke<string>("requests_duplicate", {
-        sourceKind: "project",
-        sourcePath: node.rel_path,
-        projectPath: projectPath || null,
+      const newPath = await runMutation({
+        kind: "requests_duplicate",
+        invoke: () =>
+          requestsDuplicate("project", node.rel_path, projectPath || null),
+        successToast: (p) => `Duplicated to ${p}`,
+        failureToastPrefix: "Duplicate failed",
       });
       treeReloadSignal.update((n) => n + 1);
       currentSource.set({ kind: "project", path: newPath });
-    } catch (err) {
-      addToast({ message: `Duplicate failed: ${err}`, type: "error" });
+    } catch {
+      // runMutation already surfaced the failure toast.
     }
   }
 
@@ -317,11 +319,17 @@
       return;
     }
     try {
-      await invoke("requests_rename", {
-        sourceKind: "project",
-        fromPath: node.rel_path,
-        toPath: finalValue,
-        projectPath: projectPath || null,
+      await runMutation({
+        kind: "requests_rename",
+        invoke: () =>
+          requestsRename(
+            "project",
+            node.rel_path,
+            finalValue,
+            projectPath || null,
+          ),
+        successToast: () => `Renamed to ${finalValue}`,
+        failureToastPrefix: "Rename failed",
       });
       // Follow the rename for the active source so the editor doesn't
       // lose its document. For folder renames, anything inside the
@@ -342,8 +350,8 @@
         }
       }
       treeReloadSignal.update((n) => n + 1);
-    } catch (err) {
-      addToast({ message: `Rename failed: ${err}`, type: "error" });
+    } catch {
+      // runMutation already surfaced the failure toast.
     } finally {
       cancelRename();
     }
@@ -361,11 +369,7 @@
   async function openInEditor(node: Node) {
     if (!projectPath) return;
     try {
-      await invoke("requests_open_in_editor", {
-        sourceKind: "project",
-        sourcePath: node.rel_path,
-        projectPath,
-      });
+      await requestsOpenInEditor("project", node.rel_path, projectPath);
     } catch (err) {
       addToast({ message: `Open failed: ${err}`, type: "error" });
     }
@@ -377,10 +381,16 @@
     pendingDelete = null;
     if (!target) return;
     try {
-      await invoke("requests_delete", {
-        sourceKind: "project",
-        sourcePath: target.node.rel_path,
-        projectPath: projectPath || null,
+      await runMutation({
+        kind: "requests_delete",
+        invoke: () =>
+          requestsDelete(
+            "project",
+            target.node.rel_path,
+            projectPath || null,
+          ),
+        successToast: () => `Deleted ${target.node.name}`,
+        failureToastPrefix: "Delete failed",
       });
       // Drop the active source if it was the deleted item OR was
       // anywhere inside a deleted folder — otherwise the editor renders
@@ -396,8 +406,8 @@
         }
       }
       treeReloadSignal.update((n) => n + 1);
-    } catch (err) {
-      addToast({ message: `Delete failed: ${err}`, type: "error" });
+    } catch {
+      // runMutation already surfaced the failure toast.
     }
   }
 

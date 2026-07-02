@@ -1,5 +1,16 @@
+<script module lang="ts">
+  import type { SignatureVerification } from "../../types";
+  // Verification is expensive (shells `git verify-commit`), so cache the
+  // verdict per OID across detail-pane remounts. Module scope is shared by
+  // every CommitDetail instance — exactly the "per-OID in-memory cache" the
+  // spec calls for.
+  const verifyCache = new Map<string, SignatureVerification>();
+</script>
+
 <script lang="ts">
-  import type { CommitInfo, CommitFileChange } from "../../types";
+  import type { CommitInfo, CommitFileChange, CommitSignature } from "../../types";
+  import { getCommitSignature, verifyCommitSignature } from "$lib/api/tauri";
+  import { formatSigningBackend, signatureChipState } from "$lib/utils/signing";
   import * as m from "$lib/paraglide/messages";
   import FileChangeList from "../common/FileChangeList.svelte";
   import ContextMenu from "../common/ContextMenu.svelte";
@@ -44,6 +55,53 @@
   let ctxX = $state(0);
   let ctxY = $state(0);
   let ctxFile = $state<string | null>(null);
+
+  // Signature presence (cheap git2 read) for the detail-view "Signed" chip;
+  // detail-view only — never in the graph rows (per spec).
+  let signature = $state<CommitSignature | null>(null);
+  let verification = $state<SignatureVerification | null>(null);
+  let verifying = $state(false);
+
+  // Load presence whenever the open commit changes, then lazily verify the
+  // single open commit (cached per-OID). Re-runs only on oid change.
+  $effect(() => {
+    const oid = commit.oid;
+    signature = null;
+    verification = verifyCache.get(oid) ?? null;
+    verifying = false;
+    void loadSignature(oid);
+  });
+
+  async function loadSignature(oid: string) {
+    let sig: CommitSignature;
+    try {
+      sig = await getCommitSignature(oid);
+    } catch {
+      return;
+    }
+    // Guard against a stale response landing after the user moved on.
+    if (oid !== commit.oid) return;
+    signature = sig;
+    if (sig.present && !verifyCache.has(oid)) {
+      void runVerify(oid);
+    }
+  }
+
+  async function runVerify(oid: string) {
+    verifying = true;
+    try {
+      const result = await verifyCommitSignature(oid);
+      verifyCache.set(oid, result);
+      if (oid === commit.oid) verification = result;
+    } catch {
+      // Leave unverified — a failed verify command is itself "unverified".
+    } finally {
+      if (oid === commit.oid) verifying = false;
+    }
+  }
+
+  // Which chip state to render (verifying / verified / unverified / signed).
+  let chipState = $derived(signatureChipState(signature, verification, verifying));
 
   function openFileContextMenu(e: MouseEvent, path: string) {
     e.preventDefault();
@@ -165,6 +223,31 @@
         <span class="detail-value sha">{commit.oid}</span>
       </div>
     </div>
+
+    {#if signature?.present}
+      <div class="detail-section">
+        <div class="detail-label">{m.commit_detail_signature()}</div>
+        <button
+          class="signature-chip"
+          class:verified={chipState === "verified"}
+          class:unverified={chipState === "unverified"}
+          data-testid="signature-chip"
+          title={verification?.detail || m.commit_signature_click_to_verify()}
+          onclick={() => runVerify(commit.oid)}
+        >
+          <span class="nf signature-chip-icon">{""}</span>
+          {#if chipState === "verifying"}
+            {m.commit_signature_verifying()}
+          {:else if chipState === "verified"}
+            {m.commit_signature_verified({ format: formatSigningBackend(signature.format) })}
+          {:else if chipState === "unverified"}
+            {m.commit_signature_unverified({ format: formatSigningBackend(signature.format) })}
+          {:else}
+            {m.commit_signature_signed({ format: formatSigningBackend(signature.format) })}
+          {/if}
+        </button>
+      </div>
+    {/if}
 
     {#if commit.parents.length > 0}
       <div class="detail-section">
@@ -349,5 +432,38 @@
     cursor: default;
   }
 
+
+
+  .signature-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 3px 9px;
+    border-radius: 3px;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+    border: 1px solid var(--border);
+  }
+
+  .signature-chip.verified {
+    color: var(--accent-green);
+    background: color-mix(in srgb, var(--accent-green) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-green) 30%, transparent);
+  }
+
+  .signature-chip.unverified {
+    color: var(--accent-orange);
+    background: color-mix(in srgb, var(--accent-orange) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-orange) 30%, transparent);
+  }
+
+  .signature-chip-icon {
+    font-family: var(--font-icons);
+    line-height: 1;
+  }
 
 </style>

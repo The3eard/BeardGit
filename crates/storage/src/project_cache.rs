@@ -5,12 +5,11 @@
 //! git state so the frontend can display badges, titlebar, and tooltip data
 //! instantly without waiting for a full status computation.
 
-use std::collections::hash_map::DefaultHasher;
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::StorageError;
 
@@ -66,11 +65,22 @@ pub struct GraphViewportCache {
     pub cached_at: i64,
 }
 
-/// Compute the cache filename for a project path using std DefaultHasher.
+/// Compute the cache filename for a project path.
+///
+/// Uses SHA-256 (truncated to 16 hex chars) rather than `DefaultHasher`,
+/// whose output is not stable across Rust releases — a toolchain bump would
+/// silently orphan every cached snapshot. A stable hash keeps a project's
+/// cache file addressable across upgrades. (The one-time upgrade from the old
+/// `DefaultHasher` scheme orphans existing snapshots once; they recompute.)
 fn cache_filename(project_path: &str) -> String {
-    let mut hasher = DefaultHasher::new();
-    project_path.hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
+    let mut hasher = Sha256::new();
+    hasher.update(project_path.as_bytes());
+    let digest = hasher.finalize();
+    let mut out = String::with_capacity(16);
+    for byte in digest.iter().take(8) {
+        out.push_str(&format!("{byte:02x}"));
+    }
+    out
 }
 
 /// Return the cache directory path, creating it if needed.
@@ -116,6 +126,14 @@ mod tests {
         let b = cache_filename("/Users/test/project");
         assert_eq!(a, b);
         assert_eq!(a.len(), 16);
+    }
+
+    /// Pin the hash to a fixed value so a future toolchain bump (or an
+    /// accidental swap back to a non-stable hasher) is caught. This is the
+    /// first 8 bytes of `SHA-256("/Users/test/project")`.
+    #[test]
+    fn test_cache_filename_is_stable_sha256() {
+        assert_eq!(cache_filename("/Users/test/project"), "0654434d556baf69");
     }
 
     #[test]

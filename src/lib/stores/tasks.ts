@@ -3,6 +3,10 @@
  * (`TasksPopover.svelte`) and every derived surface the popover
  * exposes (icon spin + colour, list badge, drill-down).
  *
+ * TODO(spec 08): the per-project task views should move into the RepoState
+ * container (`stores/repo-state/`); see `stores/branches.ts` for the
+ * migrated facade pattern. (App-global task aggregation stays global.)
+ *
  * Three independent bridges feed into one internal `Map<string, TaskEntry>`:
  *
  * 1. **Rust `task://update` events** — emitted from

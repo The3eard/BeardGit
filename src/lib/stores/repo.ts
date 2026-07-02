@@ -10,6 +10,7 @@ import { writable, get } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { RepoInfo, BranchInfo } from "../types";
 import { openRepo as apiOpenRepo, getBranches as apiGetBranches, getRepoInfo as apiGetRepoInfo, detectProject } from "../api/tauri";
+import { getErrorMessage } from "../api/errors";
 import { checkStatus as checkProviderStatus } from "./provider";
 import { refreshStatuses, refreshDiffs } from "./changes";
 import { refreshConflictStatus } from "./conflict";
@@ -88,7 +89,7 @@ export async function openRepo(path: string) {
     // Listen for filesystem changes from the watcher crate.
     await registerWatcher();
   } catch (e) {
-    error.set(String(e));
+    error.set(getErrorMessage(e));
   } finally {
     isLoading.set(false);
   }

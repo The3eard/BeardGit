@@ -7,9 +7,9 @@ authors.workspace = true
 
 [dependencies]
 ai-provider = { path = "../ai-provider" }
+ai-provider-common = { path = "../ai-provider-common" }
 serde = { workspace = true }
 serde_json = { workspace = true }
-which = "7"
 dirs = "6"
 
 [dev-dependencies]

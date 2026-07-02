@@ -1,0 +1,11 @@
+[advisories]
+# quick-xml 0.39.x is pinned transitively by plist 1.9.0 (the latest
+# release) via tauri 2.x — no upstream fix path exists yet. Both
+# advisories concern parsing hostile XML; BeardGit only feeds plist
+# locally-generated macOS bundle metadata. Re-check on tauri/plist
+# releases and drop these ignores as soon as plist accepts quick-xml
+# >= 0.41.
+ignore = [
+    "RUSTSEC-2026-0194", # quick-xml: quadratic runtime on duplicate attribute check
+    "RUSTSEC-2026-0195", # quick-xml: unbounded namespace allocation in NsReader
+]

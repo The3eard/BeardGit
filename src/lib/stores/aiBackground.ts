@@ -11,6 +11,10 @@
  * Output updates are batched via `requestAnimationFrame` (mirroring the
  * `tasks.ts` pattern) so the UI doesn't repaint on every line when the
  * provider dumps hundreds of lines of JSON stream output.
+ *
+ * TODO(spec 08): the per-project run views should move into the RepoState
+ * container (`stores/repo-state/`); see `stores/branches.ts` for the
+ * migrated facade pattern.
  */
 
 import { writable, derived, get } from "svelte/store";

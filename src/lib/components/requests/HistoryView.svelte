@@ -17,20 +17,14 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { requestsHistory, requestsDiffResponses } from "$lib/api/tauri";
+  import type { RequestHistoryRow } from "$lib/types/requests";
   import { Button } from "$lib/components/ui";
   import List from "../common/List.svelte";
   import TwoLineRow from "../common/TwoLineRow.svelte";
   import { currentSource } from "./stores";
 
-  type Row = {
-    id: number;
-    status: number | null;
-    duration_ms: number;
-    executed_at: number;
-    env_name: string | null;
-    truncated: boolean;
-  };
+  type Row = RequestHistoryRow;
 
   let rows: Row[] = [];
   let selected = new Set<number>();
@@ -43,11 +37,7 @@
     }
     loading = true;
     try {
-      rows = await invoke<Row[]>("requests_history", {
-        sourceKind: $currentSource.kind,
-        sourcePath: $currentSource.path,
-        limit: 50,
-      });
+      rows = await requestsHistory($currentSource.kind, $currentSource.path, 50);
     } finally {
       loading = false;
     }
@@ -65,11 +55,7 @@
   async function diff() {
     if (selected.size !== 2) return;
     const [a, b] = [...selected];
-    const payload = await invoke<{
-      left: string;
-      right: string;
-      content_type_hint: string | null;
-    }>("requests_diff_responses", { historyIdA: a, historyIdB: b });
+    const payload = await requestsDiffResponses(a, b);
     // Hand off to the page-level diff host. A future task wires the merge view directly.
     window.dispatchEvent(
       new CustomEvent("requests:diff", { detail: payload }),

@@ -16,7 +16,14 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import {
+    requestsGetEnvs,
+    requestsLoadEnv,
+    requestsSaveEnv,
+    requestsDeleteEnv,
+  } from "$lib/api/tauri";
+  import { runMutation } from "$lib/api/runMutation";
+  import type { RequestEnvFile } from "$lib/types/requests";
   import { Button, Dialog, IconButton } from "$lib/components/ui";
   import ConfirmDialog from "$lib/components/common/ConfirmDialog.svelte";
   import SecretPrompt from "./SecretPrompt.svelte";
@@ -71,10 +78,7 @@
       names = [];
       return;
     }
-    type Summary = { name: string; vars_count: number; secrets: string[] };
-    const summaries = await invoke<Summary[]>("requests_get_envs", {
-      projectPath,
-    });
+    const summaries = await requestsGetEnvs(projectPath);
     names = summaries.map((s) => s.name);
   }
 
@@ -88,10 +92,7 @@
       newName = "";
       return;
     }
-    working = await invoke<EnvFile>("requests_load_env", {
-      projectPath,
-      envName: name,
-    });
+    working = await requestsLoadEnv(projectPath, name);
     varRows = Object.entries(working.vars ?? {}).map(([key, value]) => ({
       key,
       value,
@@ -133,7 +134,7 @@
     for (const r of varRows) {
       if (r.key.trim()) vars[r.key.trim()] = r.value;
     }
-    const env: EnvFile = {
+    const env: RequestEnvFile = {
       $schema: working.$schema ?? "beardgit-env/v1",
       vars,
       // Drop blank secret names but keep duplicates' first occurrence.
@@ -143,20 +144,21 @@
     };
     busy = true;
     try {
-      await invoke("requests_save_env", {
-        projectPath,
-        envName: target,
-        env,
+      await runMutation({
+        kind: "requests_save_env",
+        invoke: () => requestsSaveEnv(projectPath, target, env),
+        successToast: () => `Saved env "${target}"`,
+        failureToastPrefix: "Save env failed",
       });
       await reloadList();
       selected = target;
       onChanged?.();
-      // Close on success so the user gets a clear "done" signal.
-      // Failures fall through to the catch block and leave the dialog
-      // open with the error visible so the partial edit isn't lost.
+      // Close on success so the user gets a clear "done" signal. On
+      // failure runMutation surfaces the toast and we keep the dialog
+      // open so the partial edit isn't lost.
       close();
-    } catch (e) {
-      error = String(e);
+    } catch {
+      // runMutation already surfaced the failure toast.
     } finally {
       busy = false;
     }
@@ -183,15 +185,17 @@
     busy = true;
     error = null;
     try {
-      await invoke("requests_delete_env", {
-        projectPath,
-        envName: target,
+      await runMutation({
+        kind: "requests_delete_env",
+        invoke: () => requestsDeleteEnv(projectPath, target),
+        successToast: () => `Deleted env "${target}"`,
+        failureToastPrefix: "Delete env failed",
       });
       await reloadList();
       await pick(null);
       onChanged?.();
-    } catch (e) {
-      error = String(e);
+    } catch {
+      // runMutation already surfaced the failure toast.
     } finally {
       busy = false;
     }

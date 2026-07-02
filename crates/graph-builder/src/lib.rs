@@ -13,5 +13,7 @@ pub mod layout;
 pub mod viewport;
 
 pub use dag::{Dag, DagNode, GraphCommit};
-pub use layout::{DEFAULT_MAX_LANES, GraphLayout, LaneSegment, LayoutNode, MergeCurve, SyncState};
+pub use layout::{
+    DEFAULT_MAX_LANES, GraphLayout, LaneSegment, LayoutNode, MergeCurve, SyncState, structural_diff,
+};
 pub use viewport::ViewportResult;

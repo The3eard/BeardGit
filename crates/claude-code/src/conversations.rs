@@ -385,8 +385,7 @@ mod tests {
         let newer_path = write_jsonl(dir.path(), "newer.jsonl", &[&newer]);
 
         // Force a known mtime ordering: older gets mtime = now - 1000s,
-        // newer gets mtime = now. Uses `libc::utimes` directly (no
-        // `filetime` dep in the workspace).
+        // newer gets mtime = now.
         set_file_mtime_seconds_ago(&older_path, 1000);
         set_file_mtime_seconds_ago(&newer_path, 0);
 
@@ -580,42 +579,21 @@ mod tests {
         assert_eq!(result[0].id, "good");
     }
 
-    // ─── unix mtime helper for tests ───
+    // ─── mtime helper for tests ───
 
-    /// Set `path`'s atime+mtime to `N` seconds before now.
+    /// Set `path`'s mtime to `N` seconds before now.
     ///
-    /// We don't pull in `filetime` just for two test cases — the workspace
-    /// already has `libc` on unix, so `utimes(2)` is a one-liner.
-    #[cfg(unix)]
+    /// Uses `File::set_modified` (stable since Rust 1.75) so the
+    /// discovery-window tests behave identically on every CI platform —
+    /// the previous unix-only `utimes(2)` helper silently no-opped on
+    /// Windows and let stale fixtures look fresh.
     fn set_file_mtime_seconds_ago(path: &Path, seconds: u64) {
-        use std::ffi::CString;
-        use std::os::unix::ffi::OsStrExt;
-
         let target = SystemTime::now() - Duration::from_secs(seconds);
-        let since_epoch = target.duration_since(UNIX_EPOCH).unwrap();
-        let sec = since_epoch.as_secs() as libc::time_t;
-        let usec = (since_epoch.subsec_micros()) as libc::suseconds_t;
-
-        let times = [
-            libc::timeval {
-                tv_sec: sec,
-                tv_usec: usec,
-            },
-            libc::timeval {
-                tv_sec: sec,
-                tv_usec: usec,
-            },
-        ];
-        let cpath = CString::new(path.as_os_str().as_bytes()).unwrap();
-        // SAFETY: `cpath` is a valid NUL-terminated C string and `times`
-        // points at a 2-element array matching the utimes(2) ABI.
-        let rc = unsafe { libc::utimes(cpath.as_ptr(), times.as_ptr()) };
-        assert_eq!(rc, 0, "utimes failed for {}", path.display());
-    }
-
-    #[cfg(not(unix))]
-    fn set_file_mtime_seconds_ago(_path: &Path, _seconds: u64) {
-        // Non-unix CI would need a different mechanism; tests that rely on
-        // this helper currently run on macOS/Linux only.
+        let file = std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap_or_else(|e| panic!("open {} for mtime: {e}", path.display()));
+        file.set_modified(target)
+            .unwrap_or_else(|e| panic!("set_modified {}: {e}", path.display()));
     }
 }

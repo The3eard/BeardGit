@@ -14,7 +14,8 @@
   by `NavigationGuardDialog` and the rest of the dialogs in the app.
 -->
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { requestsSetSecret } from "$lib/api/tauri";
+  import { runMutation } from "$lib/api/runMutation";
   import { createEventDispatcher } from "svelte";
   import { Button, Dialog } from "$lib/components/ui";
 
@@ -26,17 +27,20 @@
   let open = true;
   let value = "";
   let busy = false;
-  let error: string | null = null;
 
   async function save() {
     busy = true;
-    error = null;
     try {
-      await invoke("requests_set_secret", { envName, secretName, value });
+      await runMutation({
+        kind: "requests_set_secret",
+        invoke: () => requestsSetSecret(envName, secretName, value),
+        successToast: () => `Saved secret "${secretName}"`,
+        failureToastPrefix: "Save secret failed",
+      });
       dispatch("saved");
       open = false;
-    } catch (e) {
-      error = String(e);
+    } catch {
+      // runMutation already surfaced the failure toast; keep the dialog open.
     } finally {
       busy = false;
     }
@@ -64,9 +68,6 @@
     placeholder="paste value"
     bind:value
   />
-  {#if error}
-    <p class="error" role="alert">{error}</p>
-  {/if}
 
   {#snippet footer()}
     <Button variant="neutral" onclick={cancel}>Cancel</Button>
@@ -115,12 +116,5 @@
 
   .bg-input:focus {
     border-color: var(--accent-primary);
-  }
-
-  .error {
-    margin: 8px 0 0 0;
-    font-size: var(--font-size-sm);
-    color: var(--accent-red);
-    line-height: 1.45;
   }
 </style>

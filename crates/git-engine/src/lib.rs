@@ -9,6 +9,7 @@
 //! - [`commits`] — walk and filter commit history
 //! - [`staging`] — file status, stage/unstage operations
 //! - [`operations`] — create commits, manage branches, checkout
+//! - [`branch_cleanup`] — merged/gone branch classification and batch deletion
 //! - [`diff`] — diff working directory, index, and individual commits
 //! - [`conflict`] — conflict detection, status, and abort/continue operations
 //! - [`file_content`] — raw file content retrieval for CodeMirror diff views
@@ -23,6 +24,7 @@
 
 pub mod bisect;
 pub mod blame;
+pub mod branch_cleanup;
 pub mod clean;
 pub mod cli;
 pub mod commits;
@@ -41,6 +43,7 @@ pub mod remote;
 pub mod rename_branch;
 pub mod repository;
 pub mod reset;
+pub mod signing;
 pub mod staging;
 pub mod submodule;
 pub mod workdir_tree;
@@ -51,18 +54,28 @@ pub mod test_support;
 
 pub use bisect::BisectState;
 pub use blame::{BlameLine, FileHistoryEntry};
+pub use branch_cleanup::{
+    BatchDeleteResult, BranchCleanupCandidate, BranchCleanupList, BranchDeleteFailure,
+};
 pub use clean::CleanItem;
 pub use cli::{CommitStats, GitCliResult, StashEntry, TagInfo};
 pub use commits::{CommitInfo, CommitWalkOptions};
 pub use config::{ConfigEntry, ConfigScope};
 pub use conflict::{ConflictFileContents, ConflictState, ConflictStatus};
-pub use diff::{CommitFileChange, DiffHunkInfo, DiffLineInfo, FileDiff};
+pub use diff::{
+    CommitFileChange, DiffHunkInfo, DiffLineInfo, FileDiff, FileDiffStat, MAX_DIFF_RESPONSE_BYTES,
+    enforce_response_budget,
+};
 pub use error::GitError;
 pub use hunk_staging::HunkSelection;
 pub use interactive_rebase::{RebaseAction, RebaseCommit};
 pub use patch::{PatchPreview, PatchStat};
 pub use reflog::ReflogEntry;
 pub use repository::{BranchInfo, RepoStatus, Repository, StatusSummary};
+pub use signing::{
+    CommitSignature, SignatureVerification, SigningConfig, SigningFormat, SigningStatus,
+    SigningTestResult,
+};
 pub use staging::FileStatus;
 pub use submodule::{SubmoduleInfo, SubmoduleStatus};
 pub use workdir_tree::WorkdirTreeEntry;

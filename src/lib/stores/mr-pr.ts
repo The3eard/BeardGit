@@ -5,6 +5,10 @@
  * for updates on open MR/PRs, and a derived store mapping branches
  * to open MR/PRs for graph badges.
  *
+ * TODO(spec 08): migrate into the RepoState container
+ * (`stores/repo-state/`) — its `ensuredShas` per-tab cache folds into an
+ * `MrPrSlice`. See `stores/branches.ts` for the migrated facade pattern.
+ *
  * PR hang mitigation
  * ------------------
  * Three layers guard against a hung detail or diff fetch:

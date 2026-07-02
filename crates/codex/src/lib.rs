@@ -20,6 +20,16 @@ use ai_provider::{
     AiWorktree, AttributionMatch, AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
 };
 
+/// Provider-specific constants shared with the [`ai_provider_common`] helpers
+/// (worktree discovery/cleanup, detection, attribution).
+pub(crate) const SPEC: ai_provider_common::ProviderSpec = ai_provider_common::ProviderSpec {
+    kind: AiProviderKind::Codex,
+    binary_name: "codex",
+    repo_marker_dir: ".codex",
+    worktree_dir: ".beardgit/ai-worktrees/codex",
+    attribution_needle: "codex",
+};
+
 /// AI provider for the Codex CLI.
 pub struct CodexProvider {
     binary: Option<PathBuf>,

@@ -139,10 +139,11 @@ pub async fn ai_start_background_run(
     let coord = coordinator(&state)?;
     let provider = make_provider(kind);
 
-    // The start call is synchronous but internally calls block_in_place to
-    // spawn the subprocess via TaskManager. That's fine — this Tauri command
-    // itself runs on a tokio worker.
-    let out = tokio::task::block_in_place(|| coord.start(args, provider.as_ref()))
+    // `start` is async end-to-end and this command already runs on a tokio
+    // worker, so await it directly.
+    let out = coord
+        .start(args, provider.as_ref())
+        .await
         .map_err(|e| e.to_string())?;
 
     Ok(StartBackgroundRunResponse {

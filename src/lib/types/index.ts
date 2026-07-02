@@ -144,6 +144,54 @@ export interface BranchInfo {
    * {@link upstream} is `null`.
    */
   behind: number;
+  /**
+   * `true` when this branch has an upstream *configured* but the upstream ref
+   * no longer resolves — the remote branch was deleted (typically after a
+   * merge) and pruned locally. Always `false` for remote-tracking branches
+   * and branches without an upstream.
+   */
+  upstream_gone: boolean;
+}
+
+/**
+ * A local branch that is a candidate for cleanup, with metadata shown as a
+ * "should I really delete this?" signal. Mirrors the Rust
+ * `git_engine::BranchCleanupCandidate`.
+ */
+export interface BranchCleanupCandidate {
+  name: string;
+  /** Full SHA-1 OID of the branch tip. */
+  tip_oid: string;
+  /** Unix timestamp (seconds) of the tip commit — the "last activity" date. */
+  last_commit_time: number;
+  /** Commits on this branch not reachable from the cleanup target. */
+  ahead: number;
+  /** Whether the configured upstream is gone. */
+  upstream_gone: boolean;
+  /** Whether the tip is fully merged into the target (else it needs force). */
+  merged: boolean;
+}
+
+/** The two cleanup groups plus the resolved target branch. */
+export interface BranchCleanupList {
+  /** Branch name candidates were classified against (the default branch). */
+  target: string;
+  /** Branches whose upstream is gone (pre-checked in the UI). */
+  gone: BranchCleanupCandidate[];
+  /** Branches fully merged into `target`, upstream not gone (unchecked). */
+  merged: BranchCleanupCandidate[];
+}
+
+/** One failed deletion in a batch: the branch name and git's refusal reason. */
+export interface BranchDeleteFailure {
+  name: string;
+  reason: string;
+}
+
+/** Result of a batch branch delete: removed names + per-branch failures. */
+export interface BatchDeleteResult {
+  deleted: string[];
+  failed: BranchDeleteFailure[];
 }
 
 export interface FileStatus {
@@ -161,15 +209,47 @@ export interface FileDiff {
   deletions: number;
   /**
    * `true` when the diff was truncated server-side because the raw
-   * patch exceeded `MAX_COMMIT_DIFF_BYTES` (5 MB). Frontends should
-   * render a placeholder ("Diff too large to display") instead of
-   * trying to highlight an empty hunks array.
+   * patch exceeded `MAX_COMMIT_DIFF_BYTES` (5 MB) or the per-file line
+   * budget (`MAX_FILE_DIFF_LINES`). Frontends should render a
+   * placeholder ("Diff too large to display") instead of trying to
+   * highlight an empty hunks array.
    *
    * Field is omitted from JSON when `false` (serde
    * `skip_serializing_if`), so older payloads parse as `undefined`.
    */
   truncated?: boolean;
+  /**
+   * `true` when the file is binary. Hunks are empty and the diff pane
+   * renders a "binary file — no preview" placeholder. Omitted from JSON
+   * when `false`.
+   */
+  binary?: boolean;
 }
+
+/**
+ * Lightweight per-file change summary (name/status + line counts, no
+ * hunks). Mirror of the Rust `FileDiffStat`. Powers the Changes list so a
+ * mutation refresh no longer streams every hunk of every changed file.
+ */
+export interface FileDiffStat {
+  path: string;
+  old_path: string | null;
+  status: string;
+  additions: number;
+  deletions: number;
+  /** `true` for binary files (line counts are 0). Omitted when false. */
+  binary?: boolean;
+}
+
+/**
+ * Tagged result from `get_file_workdir` / `get_file_index` — same shape as
+ * {@link FileAtCommitResult}, so the diff pane renders the binary /
+ * too-large placeholders for the workdir and index sides too.
+ */
+export type FileContentResult =
+  | { kind: "text"; data: string }
+  | { kind: "binary" }
+  | { kind: "too_large"; size: number };
 
 export interface DiffHunkInfo {
   header: string;
@@ -473,6 +553,40 @@ export interface CleanItem {
   path: string;
   is_directory: boolean;
   is_ignored: boolean;
+}
+
+// Commit signing
+// ---------------------------------------------------------------------------
+
+/** Signature backend (`gpg.format`). Matches Rust `SigningFormat`. */
+export type SigningFormat = "gpg" | "ssh" | "x509";
+
+/** Effective signing status for the commit box + settings. Matches Rust
+ *  `SigningStatus`. `key_present` is diagnostic only — it never blocks. */
+export interface SigningStatus {
+  enabled: boolean;
+  format: SigningFormat;
+  key_present: boolean;
+}
+
+/** Presence (not validity) of a commit's signature. Matches Rust
+ *  `CommitSignature`. */
+export interface CommitSignature {
+  present: boolean;
+  /** Format hint ("gpg" | "ssh" | "x509") when present, else null. */
+  format: string | null;
+}
+
+/** Result of a lazy `git verify-commit`. Matches Rust `SignatureVerification`. */
+export interface SignatureVerification {
+  status: "verified" | "unverified" | "unsigned";
+  detail: string;
+}
+
+/** Result of the "Test signing" diagnostic. Matches Rust `SigningTestResult`. */
+export interface SigningTestResult {
+  success: boolean;
+  message: string;
 }
 
 // Git config

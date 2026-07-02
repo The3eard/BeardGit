@@ -14,6 +14,7 @@
 
   import { cloneDialogOpen, closeCloneDialog } from "$lib/stores/cloneDialog";
   import { cloneRepo } from "$lib/api/tauri";
+  import { getErrorCode, getErrorMessage } from "$lib/api/errors";
   import { openProjectTab } from "$lib/stores/projects";
   import { addToast } from "$lib/stores/toast";
   import { Button, Dialog } from "$lib/components/ui";
@@ -122,26 +123,22 @@
   }
 
   function formatStepError(err: unknown): string {
-    if (err && typeof err === "object" && "step" in err) {
-      const e = err as
-        | { step: "invalid_url"; message: string }
-        | { step: "invalid_destination"; message: string }
-        | { step: "destination_exists"; path: string }
-        | { step: "clone"; message: string };
-      switch (e.step) {
-        case "invalid_url":
-          return m.clone_dialog_error_invalid_url({ message: e.message });
-        case "invalid_destination":
-          return m.clone_dialog_error_invalid_destination({
-            message: e.message,
-          });
-        case "destination_exists":
-          return m.clone_dialog_error_destination_exists({ path: e.path });
-        case "clone":
-          return m.clone_dialog_error_clone({ message: e.message });
-      }
+    // `clone_repo` now rejects with an IpcError `{ code, message }`; each
+    // clone-pipeline step maps to a stable code. For `destination_exists`
+    // the offending path is carried in `message`.
+    const message = getErrorMessage(err);
+    switch (getErrorCode(err)) {
+      case "invalid_url":
+        return m.clone_dialog_error_invalid_url({ message });
+      case "invalid_destination":
+        return m.clone_dialog_error_invalid_destination({ message });
+      case "destination_exists":
+        return m.clone_dialog_error_destination_exists({ path: message });
+      case "clone_failed":
+        return m.clone_dialog_error_clone({ message });
+      default:
+        return message;
     }
-    return String(err);
   }
 </script>
 

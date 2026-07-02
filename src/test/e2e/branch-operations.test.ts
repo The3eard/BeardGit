@@ -32,10 +32,10 @@ import {
 // ---------------------------------------------------------------------------
 
 const MOCK_BRANCHES: BranchInfo[] = [
-  { name: "main", is_head: true, is_remote: false, oid: "aaaa1111", upstream: null, ahead: 0, behind: 0 },
-  { name: "feature/auth", is_head: false, is_remote: false, oid: "bbbb2222", upstream: null, ahead: 0, behind: 0 },
-  { name: "origin/main", is_head: false, is_remote: true, oid: "aaaa1111", upstream: null, ahead: 0, behind: 0 },
-  { name: "origin/feature/auth", is_head: false, is_remote: true, oid: "bbbb2222", upstream: null, ahead: 0, behind: 0 },
+  { name: "main", is_head: true, is_remote: false, oid: "aaaa1111", upstream: null, ahead: 0, behind: 0, upstream_gone: false },
+  { name: "feature/auth", is_head: false, is_remote: false, oid: "bbbb2222", upstream: null, ahead: 0, behind: 0, upstream_gone: false },
+  { name: "origin/main", is_head: false, is_remote: true, oid: "aaaa1111", upstream: null, ahead: 0, behind: 0, upstream_gone: false },
+  { name: "origin/feature/auth", is_head: false, is_remote: true, oid: "bbbb2222", upstream: null, ahead: 0, behind: 0, upstream_gone: false },
 ];
 
 const MOCK_COMMITS: CommitInfo[] = [

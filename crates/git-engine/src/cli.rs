@@ -179,14 +179,14 @@ fn parse_stat_summary(output: &str) -> CommitStats {
 
 /// Apply Windows-specific process creation flags to hide the console window.
 #[cfg(target_os = "windows")]
-fn configure_no_window(cmd: &mut Command) {
+pub(crate) fn configure_no_window(cmd: &mut Command) {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(0x08000000);
 }
 
 /// No-op on non-Windows platforms.
 #[cfg(not(target_os = "windows"))]
-fn configure_no_window(_cmd: &mut Command) {}
+pub(crate) fn configure_no_window(_cmd: &mut Command) {}
 
 impl Repository {
     /// Run a git command in the repository directory.
@@ -672,6 +672,13 @@ mod tests {
             .config()
             .unwrap()
             .set_str("user.email", "test@test.com")
+            .unwrap();
+        // Windows CI sets core.autocrlf=true globally; CLI-backed checkout
+        // (stash apply, discard) would rewrite \n to \r\n and break asserts.
+        git_repo
+            .config()
+            .unwrap()
+            .set_str("core.autocrlf", "false")
             .unwrap();
         let sig = git2::Signature::now("Test", "test@test.com").unwrap();
         fs::write(dir.path().join("file.txt"), "content\n").unwrap();

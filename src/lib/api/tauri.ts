@@ -21,8 +21,9 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry } from "../types";
+import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, BranchCleanupList, BatchDeleteResult, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, SigningStatus, CommitSignature, SignatureVerification, SigningTestResult, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
+import type { RequestTreeNode, ParsedRequest, RequestEnvFile, RequestEnvSummary, RunRequestArgs, RunResult, CopyAsArgs, RequestHistoryRow, RequestDiffPayload } from "../types/requests";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
   return invoke<RepoInfo>("open_repo", { path });
@@ -50,15 +51,22 @@ export async function getGraphViewport(
  * the repo on demand — used when scrolling past the cached range. `has_more`
  * is `true` while commits exist beyond the window. `options` must match the
  * mode of the viewport the chunk extends.
+ *
+ * `anchor` is the OID of the last commit of the previously-loaded chunk. Pass
+ * it for a sequential forward scroll: the backend then starts the walk at the
+ * anchor (O(limit)) instead of skipping `offset` commits, where the walk mode
+ * supports it. Leave it out for a random scrollbar jump — the offset walk is
+ * used and the result is identical.
  */
 export async function loadGraphChunk(
-  offset: number, limit: number, options?: GraphViewOptions
+  offset: number, limit: number, options?: GraphViewOptions, anchor?: string
 ): Promise<GraphViewport> {
   return invoke<GraphViewport>("load_graph_chunk", {
     offset, limit,
     firstParent: options?.firstParent ?? null,
     branch: options?.branch ?? null,
     maxLanes: options?.maxLanes ?? null,
+    anchor: anchor ?? null,
   });
 }
 
@@ -103,6 +111,22 @@ export async function getCommitFiles(oid: string): Promise<CommitFileChange[]> {
 
 export async function getDiffBetweenCommits(fromOid: string, toOid: string): Promise<CommitFileChange[]> {
   return invoke<CommitFileChange[]>("get_diff_between_commits", { fromOid, toOid });
+}
+
+/** Merge base (common ancestor) of two revspecs, or `null` if unrelated. */
+export async function getMergeBase(a: string, b: string): Promise<string | null> {
+  return invoke<string | null>("get_merge_base", { a, b });
+}
+
+/** Commits in `from..to` (reachable from `to`, not `from`), newest-first,
+ *  paginated. `anchor` resumes the walk after a previously-shown OID. */
+export async function getCommitsBetween(
+  from: string,
+  to: string,
+  limit?: number,
+  anchor?: string,
+): Promise<CommitInfo[]> {
+  return invoke<CommitInfo[]>("get_commits_between", { from, to, limit, anchor });
 }
 
 export async function getCommitFileDiff(oid: string, path: string): Promise<FileDiff[]> {
@@ -190,6 +214,30 @@ export async function deleteBranch(name: string, force = false): Promise<void> {
   return invoke("delete_branch", { name, force });
 }
 
+/**
+ * List local branches that are candidates for cleanup, grouped into "gone"
+ * (upstream deleted) and "merged into <target>". `into` defaults to the
+ * repository's default branch when omitted. Read-only.
+ */
+export async function listBranchCleanupCandidates(
+  into?: string | null,
+): Promise<BranchCleanupList> {
+  return invoke<BranchCleanupList>("list_branch_cleanup_candidates", { into: into ?? null });
+}
+
+/**
+ * Delete a batch of local branches in one shot. Names in `force` use
+ * `git branch -D` (unmerged); the rest use the safe `-d`. The whole batch
+ * emits a single `project-mutated` event; per-branch failures are returned in
+ * the result rather than aborting the batch.
+ */
+export async function deleteBranches(
+  names: string[],
+  force: string[],
+): Promise<BatchDeleteResult> {
+  return invoke<BatchDeleteResult>("delete_branches", { names, force });
+}
+
 export async function checkoutBranch(name: string): Promise<void> {
   return invoke("checkout_branch", { name });
 }
@@ -200,6 +248,26 @@ export async function getDiffWorkdir(): Promise<FileDiff[]> {
 
 export async function getDiffIndex(): Promise<FileDiff[]> {
   return invoke<FileDiff[]>("get_diff_index");
+}
+
+/**
+ * Full hunks/lines diff for a single file, fetched lazily when the user
+ * opens it in the Changes view. `staged` picks the index-vs-HEAD diff
+ * (`true`) or the workdir-vs-index diff (`false`). Resolves to `null` when
+ * the file has no change on that side.
+ */
+export async function getDiffFile(path: string, staged: boolean): Promise<FileDiff | null> {
+  return invoke<FileDiff | null>("get_diff_file", { path, staged });
+}
+
+/** Cheap per-file change stats (name/status + counts, no hunks) for the working tree. */
+export async function getDiffStatsWorkdir(): Promise<FileDiffStat[]> {
+  return invoke<FileDiffStat[]>("get_diff_stats_workdir");
+}
+
+/** Cheap per-file change stats for the index (staged changes) vs HEAD. */
+export async function getDiffStatsIndex(): Promise<FileDiffStat[]> {
+  return invoke<FileDiffStat[]>("get_diff_stats_index");
 }
 
 export async function mergeBranch(branch: string): Promise<string> {
@@ -712,14 +780,14 @@ export async function getFileAtCommitText(oid: string, path: string): Promise<st
   return r.kind === "text" ? r.data : "";
 }
 
-/** Returns raw file content from the working directory. */
-export async function getFileWorkdir(path: string): Promise<string> {
-  return invoke<string>("get_file_workdir", { path });
+/** Returns workdir file content, or a tagged marker for binary / oversized files. */
+export async function getFileWorkdir(path: string): Promise<FileContentResult> {
+  return invoke<FileContentResult>("get_file_workdir", { path });
 }
 
-/** Returns raw file content from the index (staged version). */
-export async function getFileIndex(path: string): Promise<string> {
-  return invoke<string>("get_file_index", { path });
+/** Returns staged (index) file content, or a tagged marker for binary / oversized files. */
+export async function getFileIndex(path: string): Promise<FileContentResult> {
+  return invoke<FileContentResult>("get_file_index", { path });
 }
 
 // ---------------------------------------------------------------------------
@@ -912,6 +980,29 @@ export async function unsetConfig(scope: ConfigScope, key: string): Promise<void
 /** Add a new value for a config key at the given scope (multi-value append). */
 export async function addConfig(scope: ConfigScope, key: string, value: string): Promise<void> {
   return invoke<void>("add_config", { scope, key, value });
+}
+
+// Commit signing
+// ---------------------------------------------------------------------------
+
+/** Effective signing status of the active repo (commit box chip + settings). */
+export async function getSigningConfig(): Promise<SigningStatus> {
+  return invoke<SigningStatus>("get_signing_config");
+}
+
+/** Presence (not validity) of a commit's embedded signature. Cheap. */
+export async function getCommitSignature(oid: string): Promise<CommitSignature> {
+  return invoke<CommitSignature>("get_commit_signature", { oid });
+}
+
+/** Lazily verify a single commit's signature (shells `git verify-commit`). */
+export async function verifyCommitSignature(oid: string): Promise<SignatureVerification> {
+  return invoke<SignatureVerification>("verify_commit_signature", { oid });
+}
+
+/** Sign a throwaway commit with the user's config and report success/stderr. */
+export async function testSigning(): Promise<SigningTestResult> {
+  return invoke<SigningTestResult>("test_signing");
 }
 
 // Gitignore management
@@ -1659,9 +1750,9 @@ export async function bisectGetLog(): Promise<string> {
   return invoke<string>("bisect_get_log");
 }
 
-/** Run an automated bisect with a test command. */
-export async function bisectRunAuto(testCommand: string): Promise<string> {
-  return invoke<string>("bisect_run_auto", { testCommand });
+/** Run an automated bisect with a test command (background task, returns TaskId). */
+export async function bisectRunAuto(testCommand: string): Promise<TaskId> {
+  return invoke<TaskId>("bisect_run_auto", { testCommand });
 }
 
 // ─── Debug / Logging ────────────────────────────────────────────────
@@ -1936,4 +2027,143 @@ export async function cloneRepo(
     parent_dir: options.parentDir,
   };
   return invoke<CloneRepoSuccess>("clone_repo", { options: payload });
+}
+
+// ─── Requests panel ──────────────────────────────────────────────────────
+// 1:1 wrappers over the `requests_*` commands in
+// crates/app-core/src/commands/requests.rs. Mutating calls (save / rename /
+// delete / duplicate / env CRUD / secret set / seed) are wrapped by their
+// call sites in `runMutation` for toasts; these functions are the raw typed
+// IPC and do not themselves toast.
+
+/** List the project-scoped requests tree under `<project>/.beardgit/requests/`. */
+export async function requestsListProject(projectPath: string): Promise<RequestTreeNode[]> {
+  return invoke<RequestTreeNode[]>("requests_list_project", { projectPath });
+}
+
+/** List the global requests tree backed by `requests.db`. */
+export async function requestsListGlobal(): Promise<RequestTreeNode[]> {
+  return invoke<RequestTreeNode[]>("requests_list_global");
+}
+
+/** Load and parse a `.http` source (project file or global item) for the editor. */
+export async function requestsLoad(
+  sourceKind: string, sourcePath: string, projectPath: string | null
+): Promise<ParsedRequest[]> {
+  return invoke<ParsedRequest[]>("requests_load", { sourceKind, sourcePath, projectPath });
+}
+
+/** Persist raw `.http` content for a project file or global item. */
+export async function requestsSave(
+  sourceKind: string, sourcePath: string, projectPath: string | null, content: string
+): Promise<void> {
+  return invoke<void>("requests_save", { sourceKind, sourcePath, projectPath, content });
+}
+
+/** Create a new loose or collection-scoped global item; returns its row id. */
+export async function requestsCreateGlobalItem(
+  name: string, collectionId: number | null, httpContent: string
+): Promise<number> {
+  return invoke<number>("requests_create_global_item", { name, collectionId, httpContent });
+}
+
+/** Delete a request from the project tree or the global library (idempotent). */
+export async function requestsDelete(
+  sourceKind: string, sourcePath: string, projectPath: string | null
+): Promise<void> {
+  return invoke<void>("requests_delete", { sourceKind, sourcePath, projectPath });
+}
+
+/** Rename a request in place (project file move, or global name update). */
+export async function requestsRename(
+  sourceKind: string, fromPath: string, toPath: string, projectPath: string | null
+): Promise<void> {
+  return invoke<void>("requests_rename", { sourceKind, fromPath, toPath, projectPath });
+}
+
+/** Duplicate a request in place; returns the new source path. */
+export async function requestsDuplicate(
+  sourceKind: string, sourcePath: string, projectPath: string | null
+): Promise<string> {
+  return invoke<string>("requests_duplicate", { sourceKind, sourcePath, projectPath });
+}
+
+/** List env files for the project along with var counts + secret names. */
+export async function requestsGetEnvs(projectPath: string): Promise<RequestEnvSummary[]> {
+  return invoke<RequestEnvSummary[]>("requests_get_envs", { projectPath });
+}
+
+/** Load a single environment file for editing. */
+export async function requestsLoadEnv(projectPath: string, envName: string): Promise<RequestEnvFile> {
+  return invoke<RequestEnvFile>("requests_load_env", { projectPath, envName });
+}
+
+/** Save (or create) an environment file. */
+export async function requestsSaveEnv(
+  projectPath: string, envName: string, env: RequestEnvFile
+): Promise<void> {
+  return invoke<void>("requests_save_env", { projectPath, envName, env });
+}
+
+/** Delete an environment file (idempotent). */
+export async function requestsDeleteEnv(projectPath: string, envName: string): Promise<void> {
+  return invoke<void>("requests_delete_env", { projectPath, envName });
+}
+
+/** Persist the active-environment selection for a project (`null` clears it). */
+export async function requestsSetEnv(projectPath: string, envName: string | null): Promise<void> {
+  return invoke<void>("requests_set_env", { projectPath, envName });
+}
+
+/** Store a Requests-panel secret value in the encrypted credential store. */
+export async function requestsSetSecret(
+  envName: string, secretName: string, value: string
+): Promise<void> {
+  return invoke<void>("requests_set_secret", { envName, secretName, value });
+}
+
+/** Resolve, send, and record a single request from a `.http` source. */
+export async function requestsRun(args: RunRequestArgs): Promise<RunResult> {
+  return invoke<RunResult>("requests_run", { args });
+}
+
+/** Cancel an in-flight `requestsRun` by ticket id (unknown ids are a no-op). */
+export async function requestsCancel(ticketId: string): Promise<void> {
+  return invoke<void>("requests_cancel", { ticketId });
+}
+
+/** List recent execution-history rows for one source, newest first. */
+export async function requestsHistory(
+  sourceKind: string, sourcePath: string, limit: number
+): Promise<RequestHistoryRow[]> {
+  return invoke<RequestHistoryRow[]>("requests_history", { sourceKind, sourcePath, limit });
+}
+
+/** Fetch two history rows by id and return their decoded bodies for diffing. */
+export async function requestsDiffResponses(
+  historyIdA: number, historyIdB: number
+): Promise<RequestDiffPayload> {
+  return invoke<RequestDiffPayload>("requests_diff_responses", { historyIdA, historyIdB });
+}
+
+/** Seed the Quickstart starter pack; returns the written relative paths. */
+export async function requestsSeedQuickstart(projectPath: string): Promise<string[]> {
+  return invoke<string[]>("requests_seed_quickstart", { projectPath });
+}
+
+/** Parse a `curl` command string into a `ParsedRequest` (Paste cURL flow). */
+export async function requestsPasteCurl(curlString: string): Promise<ParsedRequest> {
+  return invoke<ParsedRequest>("requests_paste_curl", { curlString });
+}
+
+/** Open a project-scoped request file in the OS' default `.http` editor. */
+export async function requestsOpenInEditor(
+  sourceKind: string, sourcePath: string, projectPath: string | null
+): Promise<void> {
+  return invoke<void>("requests_open_in_editor", { sourceKind, sourcePath, projectPath });
+}
+
+/** Emit a shell/JS-ready snippet for the request without executing it. */
+export async function requestsCopyAs(args: CopyAsArgs): Promise<string> {
+  return invoke<string>("requests_copy_as", { args });
 }

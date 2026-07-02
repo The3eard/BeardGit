@@ -1,0 +1,14 @@
+[package]
+name = "ai-provider-common"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Shared worktree/detection/attribution helpers for CLI AI provider crates (codex, opencode)"
+
+[dependencies]
+ai-provider = { path = "../ai-provider" }
+which = "7"
+
+[dev-dependencies]
+tempfile = "3"

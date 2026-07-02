@@ -58,6 +58,9 @@ impl Database {
         if version < 2 {
             self.migrate_v2()?;
         }
+        if version < 3 {
+            self.migrate_v3()?;
+        }
 
         Ok(())
     }
@@ -100,6 +103,21 @@ impl Database {
         )?;
         Ok(())
     }
+
+    /// v3 — add a `schema_version` tag column to `commits_cache`
+    /// (see [`crate::commits_cache::SCHEMA_VERSION`]). Existing rows default to
+    /// `0`, which never matches the current tag, so they are treated as a miss
+    /// and rebuilt — a code-level guard against the row encoding drifting out
+    /// from under cached data without a DB migration to catch it.
+    fn migrate_v3(&self) -> Result<(), StorageError> {
+        self.conn.execute_batch(
+            "
+            ALTER TABLE commits_cache ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0;
+            PRAGMA user_version = 3;
+            ",
+        )?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -132,7 +150,7 @@ mod tests {
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("pragma failed");
 
-        assert_eq!(version, 2, "user_version should be 2 after migration");
+        assert_eq!(version, 3, "user_version should be 3 after migration");
     }
 
     #[test]

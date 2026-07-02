@@ -1,10 +1,11 @@
 //! Commit creation and amendment commands.
 
-use mutation_events::MutationKind;
+use mutation_events::{MutationGuard, MutationKind};
 use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Create a new commit from the current index with the given message and author.
@@ -18,19 +19,36 @@ use crate::state::AppState;
 /// - `message` – Commit message (subject + optional body).
 ///
 /// # Returns
-/// The OID of the newly created commit as a hex string.
+/// The OID of the newly created commit as a hex string. A signing failure
+/// (signing enabled but the key/agent could not produce a signature) rejects
+/// with [`IpcError`] `code = "signing_failed"` carrying the git stderr.
+///
+/// Runs on a blocking thread because, under `commit.gpgsign`, creation shells
+/// out to `git commit` (which may drive gpg/ssh) — that must not block the
+/// Tauri async runtime.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::commit::create")]
-pub fn create_commit(
+pub async fn create_commit(
     message: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<String, String> {
-    with_mutation_guard(&state, &app, MutationKind::Commit, || {
-        with_active_repo(&state, |repo| {
-            repo.create_commit(&message).map_err(|e| e.to_string())
-        })
+) -> Result<String, IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("error", e))?;
+    // Snapshot repo state before the mutation (guard emits on drop/exit).
+    let guard = MutationGuard::enter(&repo_path).ok();
+    let commit_path = repo_path.clone();
+    let oid = tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(commit_path)?;
+        repo.create_commit(&message).map_err(IpcError::from)
     })
+    .await
+    .map_err(|e| IpcError::new("internal", e.to_string()))??;
+    if let Some(g) = guard
+        && let Err(err) = g.exit(MutationKind::Commit, &app)
+    {
+        tracing::warn!(?err, "mutation guard emit failed");
+    }
+    Ok(oid)
 }
 
 /// Amend the most recent commit with a new message.
@@ -42,24 +60,31 @@ pub fn create_commit(
 /// - `message` – The replacement commit message.
 ///
 /// # Returns
-/// `Ok(())` on success, or an error string if `git commit --amend` fails.
+/// `Ok(())` on success. A signing failure (signing enabled but the amend
+/// could not be signed) rejects with [`IpcError`] `code = "signing_failed"`;
+/// other failures use the generic code.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::commit::amend")]
 pub async fn amend_commit(
     message: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
-    let repo_path = get_active_project_path(&state)?;
-    with_mutation_guard_async(&state, &app, MutationKind::Amend, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.amend_commit(&message).map_err(|e| e.to_string())
-        })
-        .await
-        .map_err(|e| e.to_string())?
+) -> Result<(), IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("error", e))?;
+    let guard = MutationGuard::enter(&repo_path).ok();
+    let amend_path = repo_path.clone();
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(amend_path)?;
+        repo.amend_commit(&message).map_err(IpcError::from)
     })
     .await
+    .map_err(|e| IpcError::new("internal", e.to_string()))??;
+    if let Some(g) = guard
+        && let Err(err) = g.exit(MutationKind::Amend, &app)
+    {
+        tracing::warn!(?err, "mutation guard emit failed");
+    }
+    Ok(())
 }
 
 /// Return the commit message of the current HEAD commit.

@@ -7,8 +7,9 @@ use rayon::prelude::*;
 use tauri::{AppHandle, State};
 use tracing::instrument;
 
-use super::graph_cache::{GraphLayoutOptions, load_or_build_layout};
+use super::graph_cache::{GraphLayoutOptions, load_or_build_layout, ref_snapshot};
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::{AppState, ProjectSlot};
 
 /// Tagged error returned by [`open_project`] so the frontend can branch
@@ -64,15 +65,14 @@ impl OpenProjectError {
 /// - `path` – Absolute filesystem path to the repository root.
 ///
 /// # Returns
-/// [`ProjectInfo`] with lightweight metadata on success, or an [`OpenProjectError`]
-/// distinguishing "not a git repository" (so the frontend can offer to init one)
-/// from any other failure.
+/// [`ProjectInfo`] with lightweight metadata on success, or an [`IpcError`].
+/// The internal [`OpenProjectError`] is folded into the shared envelope via
+/// its `From` impl, so "not a git repository" surfaces as the stable
+/// `code = "not_a_repo"` (with the attempted path in `message`) — the frontend
+/// branches on that to offer the init dialog.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::project::open")]
-pub fn open_project(
-    path: String,
-    state: State<'_, AppState>,
-) -> Result<ProjectInfo, OpenProjectError> {
+pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectInfo, IpcError> {
     let mut projects = state.projects.lock().map_err(|e| OpenProjectError::Other {
         message: e.to_string(),
     })?;
@@ -333,7 +333,7 @@ pub async fn switch_project(
     // 3. Fully load the target project off-thread
     let path_clone = path.clone();
     let config_dir = state.config_dir.clone();
-    let (repo, layout, status) = tokio::task::spawn_blocking(move || {
+    let (repo, layout, status, ref_snap) = tokio::task::spawn_blocking(move || {
         let repo =
             git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(|e| e.to_string())?;
         let (layout, _was_cached) = load_or_build_layout(
@@ -343,7 +343,9 @@ pub async fn switch_project(
             &GraphLayoutOptions::default(),
         )?;
         let status = repo.status().map_err(|e| e.to_string())?;
-        Ok::<_, String>((repo, layout, status))
+        // Baseline refs for the incremental graph-refresh fast path.
+        let ref_snap = ref_snapshot(&repo);
+        Ok::<_, String>((repo, layout, status, ref_snap))
     })
     .await
     .map_err(|e| e.to_string())?
@@ -396,6 +398,7 @@ pub async fn switch_project(
         let mut active = state.active_index.lock().map_err(|e| e.to_string())?;
         *active = Some(index);
     }
+    state.store_layout_ref_snapshot(&path, ref_snap);
 
     // 6. Persist active index
     {

@@ -20,6 +20,16 @@ use ai_provider::{
     AiWorktree, AttributionMatch, AttributionPattern, ConfigKind, ConfigScope, ExecuteOptions,
 };
 
+/// Provider-specific constants shared with the [`ai_provider_common`] helpers
+/// (worktree discovery/cleanup, detection, attribution).
+pub(crate) const SPEC: ai_provider_common::ProviderSpec = ai_provider_common::ProviderSpec {
+    kind: AiProviderKind::OpenCode,
+    binary_name: "opencode",
+    repo_marker_dir: ".opencode",
+    worktree_dir: ".beardgit/ai-worktrees/opencode",
+    attribution_needle: "opencode",
+};
+
 /// AI provider for the OpenCode CLI.
 pub struct OpenCodeProvider {
     binary: Option<PathBuf>,

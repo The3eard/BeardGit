@@ -16,6 +16,7 @@
   import { commandPaletteOpen, closeCommandPalette } from "$lib/stores/commandPalette";
   import { shortcuts, formatShortcut, type Shortcut } from "$lib/stores/shortcuts";
   import { activeViewStore } from "$lib/stores/navigation";
+  import { openCompare } from "$lib/stores/compare";
   import * as m from "$lib/paraglide/messages";
 
   type CommandKind = "navigation" | "shortcut";
@@ -43,12 +44,21 @@
       ["ai-sessions", m.sidebar_ai_sessions],
       ["requests", m.sidebar_requests],
     ];
-    return views.map(([id, label]) => ({
+    const items: Command[] = views.map(([id, label]) => ({
       id: `nav.${id}`,
       kind: "navigation" as const,
       label: label(),
       run: () => activeViewStore.set(id),
     }));
+    // Compare is a contextual view (no sidebar item), but it belongs in the
+    // palette as a discoverable entry point. Opens with empty ref pickers.
+    items.push({
+      id: "nav.compare",
+      kind: "navigation" as const,
+      label: m.compare_command(),
+      run: () => openCompare(null, null),
+    });
+    return items;
   }
 
   function shortcutItems(list: Shortcut[]): Command[] {
