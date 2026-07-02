@@ -161,15 +161,47 @@ export interface FileDiff {
   deletions: number;
   /**
    * `true` when the diff was truncated server-side because the raw
-   * patch exceeded `MAX_COMMIT_DIFF_BYTES` (5 MB). Frontends should
-   * render a placeholder ("Diff too large to display") instead of
-   * trying to highlight an empty hunks array.
+   * patch exceeded `MAX_COMMIT_DIFF_BYTES` (5 MB) or the per-file line
+   * budget (`MAX_FILE_DIFF_LINES`). Frontends should render a
+   * placeholder ("Diff too large to display") instead of trying to
+   * highlight an empty hunks array.
    *
    * Field is omitted from JSON when `false` (serde
    * `skip_serializing_if`), so older payloads parse as `undefined`.
    */
   truncated?: boolean;
+  /**
+   * `true` when the file is binary. Hunks are empty and the diff pane
+   * renders a "binary file — no preview" placeholder. Omitted from JSON
+   * when `false`.
+   */
+  binary?: boolean;
 }
+
+/**
+ * Lightweight per-file change summary (name/status + line counts, no
+ * hunks). Mirror of the Rust `FileDiffStat`. Powers the Changes list so a
+ * mutation refresh no longer streams every hunk of every changed file.
+ */
+export interface FileDiffStat {
+  path: string;
+  old_path: string | null;
+  status: string;
+  additions: number;
+  deletions: number;
+  /** `true` for binary files (line counts are 0). Omitted when false. */
+  binary?: boolean;
+}
+
+/**
+ * Tagged result from `get_file_workdir` / `get_file_index` — same shape as
+ * {@link FileAtCommitResult}, so the diff pane renders the binary /
+ * too-large placeholders for the workdir and index sides too.
+ */
+export type FileContentResult =
+  | { kind: "text"; data: string }
+  | { kind: "binary" }
+  | { kind: "too_large"; size: number };
 
 export interface DiffHunkInfo {
   header: string;

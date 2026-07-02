@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry } from "../types";
+import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 
 export async function openRepo(path: string): Promise<RepoInfo> {
@@ -200,6 +200,26 @@ export async function getDiffWorkdir(): Promise<FileDiff[]> {
 
 export async function getDiffIndex(): Promise<FileDiff[]> {
   return invoke<FileDiff[]>("get_diff_index");
+}
+
+/**
+ * Full hunks/lines diff for a single file, fetched lazily when the user
+ * opens it in the Changes view. `staged` picks the index-vs-HEAD diff
+ * (`true`) or the workdir-vs-index diff (`false`). Resolves to `null` when
+ * the file has no change on that side.
+ */
+export async function getDiffFile(path: string, staged: boolean): Promise<FileDiff | null> {
+  return invoke<FileDiff | null>("get_diff_file", { path, staged });
+}
+
+/** Cheap per-file change stats (name/status + counts, no hunks) for the working tree. */
+export async function getDiffStatsWorkdir(): Promise<FileDiffStat[]> {
+  return invoke<FileDiffStat[]>("get_diff_stats_workdir");
+}
+
+/** Cheap per-file change stats for the index (staged changes) vs HEAD. */
+export async function getDiffStatsIndex(): Promise<FileDiffStat[]> {
+  return invoke<FileDiffStat[]>("get_diff_stats_index");
 }
 
 export async function mergeBranch(branch: string): Promise<string> {
@@ -712,14 +732,14 @@ export async function getFileAtCommitText(oid: string, path: string): Promise<st
   return r.kind === "text" ? r.data : "";
 }
 
-/** Returns raw file content from the working directory. */
-export async function getFileWorkdir(path: string): Promise<string> {
-  return invoke<string>("get_file_workdir", { path });
+/** Returns workdir file content, or a tagged marker for binary / oversized files. */
+export async function getFileWorkdir(path: string): Promise<FileContentResult> {
+  return invoke<FileContentResult>("get_file_workdir", { path });
 }
 
-/** Returns raw file content from the index (staged version). */
-export async function getFileIndex(path: string): Promise<string> {
-  return invoke<string>("get_file_index", { path });
+/** Returns staged (index) file content, or a tagged marker for binary / oversized files. */
+export async function getFileIndex(path: string): Promise<FileContentResult> {
+  return invoke<FileContentResult>("get_file_index", { path });
 }
 
 // ---------------------------------------------------------------------------

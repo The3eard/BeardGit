@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { fileStatuses, stageFiles, unstageFiles, commit, amendCommit, refreshStatuses, refreshDiffs } from "../../stores/changes";
+  import { fileStatuses, unstagedStats, stagedStats, stageFiles, unstageFiles, commit, amendCommit, refreshStatuses, refreshDiffs } from "../../stores/changes";
+  import type { FileDiffStat } from "$lib/types";
   import ChangesList from "./ChangesList.svelte";
   import CleanDialog from "./CleanDialog.svelte";
   import { onMount, onDestroy } from "svelte";
@@ -100,6 +101,15 @@
   let staged = $derived($fileStatuses.filter(f => f.is_staged));
   let unstaged = $derived($fileStatuses.filter(f => !f.is_staged));
   let hasUntracked = $derived(unstaged.some(f => f.status === "new"));
+
+  // Per-file add/del counts for the lists, keyed by path. Sourced from the
+  // lightweight stats (no hunks) so the counts show without fetching every
+  // file's full diff.
+  function toStatMap(stats: FileDiffStat[]): Map<string, FileDiffStat> {
+    return new Map(stats.map((s) => [s.path, s]));
+  }
+  let stagedStatMap = $derived(toStatMap($stagedStats));
+  let unstagedStatMap = $derived(toStatMap($unstagedStats));
   let showCleanDialog = $state(false);
 
   async function handleAmendToggle() {
@@ -374,6 +384,7 @@
   <div class="file-lists">
     <ChangesList
       files={staged}
+      stats={stagedStatMap}
       title={m.staging_staged()}
       isStaged={true}
       selectedPath={selectedFile?.isStaged ? selectedFile.filename : null}
@@ -384,6 +395,7 @@
 
     <ChangesList
       files={unstaged}
+      stats={unstagedStatMap}
       title={m.staging_unstaged()}
       isStaged={false}
       selectedPath={selectedFile && !selectedFile.isStaged ? selectedFile.filename : null}
