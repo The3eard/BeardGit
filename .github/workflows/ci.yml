@@ -199,5 +199,14 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: cargo clippy --workspace -- -D warnings
 
+      - name: Neutralize Windows CRLF conversion for tests
+        # The Windows runner image sets core.autocrlf=true globally; the
+        # test suite (like Linux/macOS) assumes no eol conversion, and
+        # checkout-backed operations would rewrite \n to \r\n and break
+        # content assertions in tests whose fixtures don't pin the flag.
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: git config --global core.autocrlf false
+
       - name: Run tests
         run: cargo test --workspace
