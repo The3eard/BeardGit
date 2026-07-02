@@ -104,15 +104,33 @@ impl Repository {
 
     /// Returns the raw content of a file from the working directory.
     ///
+    /// Applies the same guard as [`Repository::get_file_at_commit`]: files
+    /// larger than [`MAX_FILE_AT_COMMIT_BYTES`] return
+    /// [`GitError::FileTooLarge`], and files with a NUL byte in the first
+    /// 8 KB return [`GitError::Binary`] — so the diff view renders a
+    /// placeholder instead of loading a 50 MB blob onto the webview thread.
+    ///
     /// # Parameters
     /// - `path` – Repo-relative file path.
     ///
     /// # Errors
-    /// Returns [`GitError::Io`] if the file does not exist or cannot be read.
+    /// Returns [`GitError::Io`] if the file does not exist or cannot be read,
+    /// [`GitError::FileTooLarge`] when oversized, or [`GitError::Binary`]
+    /// when binary.
     pub fn get_file_workdir(&self, path: &str) -> Result<String, GitError> {
         let workdir = self.path().to_path_buf();
         let full_path = workdir.join(path);
-        std::fs::read_to_string(&full_path).map_err(GitError::Io)
+        let content = std::fs::read(&full_path).map_err(GitError::Io)?;
+        if content.len() > MAX_FILE_AT_COMMIT_BYTES {
+            return Err(GitError::FileTooLarge {
+                size: content.len(),
+            });
+        }
+        let sniff_len = content.len().min(8192);
+        if content[..sniff_len].contains(&0u8) {
+            return Err(GitError::Binary);
+        }
+        Ok(String::from_utf8_lossy(&content).into_owned())
     }
 
     /// Returns the raw content of a file from the index (staged version).
@@ -129,7 +147,17 @@ impl Repository {
             .get_path(std::path::Path::new(path), 0)
             .ok_or_else(|| GitError::RepoNotFound(format!("File not in index: {path}")))?;
         let blob = self.inner().find_blob(entry.id)?;
-        Ok(String::from_utf8_lossy(blob.content()).into_owned())
+        let content = blob.content();
+        if content.len() > MAX_FILE_AT_COMMIT_BYTES {
+            return Err(GitError::FileTooLarge {
+                size: content.len(),
+            });
+        }
+        let sniff_len = content.len().min(8192);
+        if content[..sniff_len].contains(&0u8) {
+            return Err(GitError::Binary);
+        }
+        Ok(String::from_utf8_lossy(content).into_owned())
     }
 
     /// Atomically write `content` to a file in the working directory.
@@ -372,6 +400,44 @@ mod tests {
         let err = repo
             .get_file_at_commit(&head_sha, "bin.bin")
             .expect_err("binary blob must error");
+        assert!(matches!(err, crate::error::GitError::Binary));
+    }
+
+    #[test]
+    fn get_file_workdir_returns_binary_error_for_nul() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = init_repo_with_file(tmp.path());
+        fs::write(tmp.path().join("bin.bin"), [0x00, 0x01, 0x02, 0x03]).unwrap();
+        let err = repo
+            .get_file_workdir("bin.bin")
+            .expect_err("binary workdir file must error");
+        assert!(matches!(err, crate::error::GitError::Binary));
+    }
+
+    #[test]
+    fn get_file_workdir_returns_too_large_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = init_repo_with_file(tmp.path());
+        // 5 MB + 1 of NUL-free bytes trips the size cap before the sniff.
+        let big = vec![b'a'; super::MAX_FILE_AT_COMMIT_BYTES + 1];
+        fs::write(tmp.path().join("big.txt"), &big).unwrap();
+        let err = repo
+            .get_file_workdir("big.txt")
+            .expect_err("oversized workdir file must error");
+        assert!(matches!(err, crate::error::GitError::FileTooLarge { .. }));
+    }
+
+    #[test]
+    fn get_file_index_returns_binary_error_for_nul() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = init_repo_with_file(tmp.path());
+        fs::write(tmp.path().join("bin.bin"), [0x00, 0x01, 0x02, 0x03]).unwrap();
+        let mut index = repo.inner().index().unwrap();
+        index.add_path(std::path::Path::new("bin.bin")).unwrap();
+        index.write().unwrap();
+        let err = repo
+            .get_file_index("bin.bin")
+            .expect_err("binary staged file must error");
         assert!(matches!(err, crate::error::GitError::Binary));
     }
 }

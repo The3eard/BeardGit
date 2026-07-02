@@ -15,9 +15,11 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 ### Changed
 
 - **Changes keeps your checkbox selection but clears the open file on exit.** Leaving and re-entering Changes now preserves which files you had checked, while resetting the diff panel so you come back to a clean view instead of the last file you had open. The selection resets when you switch repositories.
+- **The Changes view no longer fetches every file's full diff on each refresh.** A regenerated lockfile, a minified bundle, or any large/generated file in the working tree used to freeze the Changes view and balloon memory, because every save streamed the full hunks of every changed file over IPC. The file lists now render from cheap per-file stats (name/status + add/del counts, shown inline as +N/-N), and a file's hunks are fetched only when you open it — so mutation refreshes stay tiny and instant regardless of working-tree size. The currently open file re-fetches automatically after a mutation.
 
 ### Fixed
 
+- **Oversized and binary diffs no longer freeze or bloat the app.** Every diff/file-content path is now capped: a single file's diff stops collecting past 5 MB or 10,000 lines and is tagged truncated, binary files short-circuit before any line collection, and the workdir/index file-content endpoints enforce the same 5 MB + binary guard the commit path already had. The Changes and diff panes render a clear "diff too large to display" / "binary file — no preview" notice instead of hanging on a multi-megabyte payload. A whole-response budget (20 MB) further bounds the working-tree and staged diff list endpoints.
 - **The UI no longer freezes during bisect.** Every bisect action (start, good/bad/skip, reset, state/log queries) shells out to git off the app's async runtime, so the window stays responsive — you can scroll the graph and use other commands while bisect works, even on large repos.
 - **Automated bisect is now cancellable.** `git bisect run` executes as a managed background task that streams its output and can be stopped from the UI, so a slow or runaway test command no longer locks up the app until it finishes.
 

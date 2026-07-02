@@ -361,7 +361,11 @@
       </div>
     {/each}
 
-    {#if diff.hunks.length === 0}
+    {#if diff.binary}
+      <EmptyState fill icon={"\uF440"} title={m.diff_binary_file()} />
+    {:else if diff.truncated}
+      <EmptyState fill icon={"\uF440"} title={m.diff_too_large()} />
+    {:else if diff.hunks.length === 0}
       <EmptyState fill icon={"\uF440"} title={m.diff_empty()} />
     {/if}
   </div>

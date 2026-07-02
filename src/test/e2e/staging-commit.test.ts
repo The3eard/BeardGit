@@ -8,15 +8,19 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { get } from "svelte/store";
 import { invokeMock, mockInvokeResponse } from "../setup";
-import type { FileStatus, FileDiff } from "$lib/types";
+import type { FileStatus, FileDiff, FileDiffStat } from "$lib/types";
 
 import {
   fileStatuses,
-  unstagedDiffs,
-  stagedDiffs,
+  unstagedStats,
+  stagedStats,
+  openStagingFile,
+  openStagingDiff,
   commitMessage,
   refreshStatuses,
   refreshDiffs,
+  loadStagingDiff,
+  closeStagingDiff,
   stageFiles,
   unstageFiles,
   stageAll,
@@ -46,27 +50,33 @@ const PARTIAL_STAGED_STATUSES: FileStatus[] = [
 
 const EMPTY_STATUSES: FileStatus[] = [];
 
-const MOCK_WORKDIR_DIFF: FileDiff[] = [
-  {
-    path: "src/app.ts",
-    old_path: null,
-    status: "modified",
-    hunks: [],
-    additions: 5,
-    deletions: 2,
-  },
+const MOCK_WORKDIR_STATS: FileDiffStat[] = [
+  { path: "src/app.ts", old_path: null, status: "modified", additions: 5, deletions: 2 },
 ];
 
-const MOCK_INDEX_DIFF: FileDiff[] = [
-  {
-    path: "src/utils.ts",
-    old_path: null,
-    status: "modified",
-    hunks: [],
-    additions: 3,
-    deletions: 1,
-  },
+const MOCK_INDEX_STATS: FileDiffStat[] = [
+  { path: "src/utils.ts", old_path: null, status: "modified", additions: 3, deletions: 1 },
 ];
+
+const MOCK_FILE_DIFF: FileDiff = {
+  path: "src/app.ts",
+  old_path: null,
+  status: "modified",
+  hunks: [
+    {
+      header: "@@ -1,2 +1,3 @@",
+      old_start: 1,
+      old_lines: 2,
+      new_start: 1,
+      new_lines: 3,
+      lines: [
+        { origin: "+", content: "added\n", old_lineno: null, new_lineno: 1 },
+      ],
+    },
+  ],
+  additions: 5,
+  deletions: 2,
+};
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -99,20 +109,62 @@ describe("staging and commit workflow", () => {
     expect(get(fileStatuses)).toHaveLength(0);
   });
 
-  // ── refreshDiffs ────────────────────────────────────────────────────
+  // ── refreshDiffs (stats-only + lazy per-file fetch) ─────────────────
 
-  it("refreshDiffs populates unstagedDiffs and stagedDiffs", async () => {
-    mockInvokeResponse("get_diff_workdir", MOCK_WORKDIR_DIFF);
-    mockInvokeResponse("get_diff_index", MOCK_INDEX_DIFF);
+  it("refreshDiffs fetches stats only — never the full hunk sets", async () => {
+    mockInvokeResponse("get_diff_stats_workdir", MOCK_WORKDIR_STATS);
+    mockInvokeResponse("get_diff_stats_index", MOCK_INDEX_STATS);
 
     await refreshDiffs();
 
-    const unstaged = get(unstagedDiffs);
-    const staged = get(stagedDiffs);
-    expect(unstaged).toHaveLength(1);
-    expect(unstaged[0].path).toBe("src/app.ts");
-    expect(staged).toHaveLength(1);
-    expect(staged[0].path).toBe("src/utils.ts");
+    // Stats stores populated with the light per-file summaries.
+    expect(get(unstagedStats)).toHaveLength(1);
+    expect(get(unstagedStats)[0].path).toBe("src/app.ts");
+    expect(get(unstagedStats)[0].additions).toBe(5);
+    expect(get(stagedStats)).toHaveLength(1);
+    expect(get(stagedStats)[0].path).toBe("src/utils.ts");
+
+    // The heavy full-hunk endpoints must NOT be called on refresh.
+    expect(invokeMock.mock.calls.some((c) => c[0] === "get_diff_workdir")).toBe(false);
+    expect(invokeMock.mock.calls.some((c) => c[0] === "get_diff_index")).toBe(false);
+    // No file is open, so no per-file diff is fetched either.
+    expect(invokeMock.mock.calls.some((c) => c[0] === "get_diff_file")).toBe(false);
+  });
+
+  it("loadStagingDiff fetches a single file's hunks on selection", async () => {
+    mockInvokeResponse("get_diff_file", MOCK_FILE_DIFF);
+
+    await loadStagingDiff("src/app.ts", false);
+
+    const call = invokeMock.mock.calls.find((c) => c[0] === "get_diff_file");
+    expect(call).toBeDefined();
+    expect(call?.[1]).toEqual({ path: "src/app.ts", staged: false });
+    expect(get(openStagingFile)).toEqual({ path: "src/app.ts", isStaged: false });
+    expect(get(openStagingDiff)?.hunks).toHaveLength(1);
+  });
+
+  it("refreshDiffs re-fetches the open file's full diff", async () => {
+    mockInvokeResponse("get_diff_stats_workdir", MOCK_WORKDIR_STATS);
+    mockInvokeResponse("get_diff_stats_index", MOCK_INDEX_STATS);
+    mockInvokeResponse("get_diff_file", MOCK_FILE_DIFF);
+
+    // Open a file, then simulate a mutation refresh.
+    await loadStagingDiff("src/app.ts", false);
+    invokeMock.mockClear();
+    await refreshDiffs();
+
+    // Stats fetched AND the open file re-fetched (so the pane stays live).
+    expect(invokeMock.mock.calls.some((c) => c[0] === "get_diff_stats_workdir")).toBe(true);
+    const fileCall = invokeMock.mock.calls.find((c) => c[0] === "get_diff_file");
+    expect(fileCall?.[1]).toEqual({ path: "src/app.ts", staged: false });
+  });
+
+  it("closeStagingDiff clears the open file and diff", async () => {
+    mockInvokeResponse("get_diff_file", MOCK_FILE_DIFF);
+    await loadStagingDiff("src/app.ts", false);
+    closeStagingDiff();
+    expect(get(openStagingFile)).toBeNull();
+    expect(get(openStagingDiff)).toBeNull();
   });
 
   // ── stageFiles ──────────────────────────────────────────────────────
@@ -203,13 +255,16 @@ describe("staging and commit workflow", () => {
 
   it("clearChangesState resets all stores to empty", () => {
     fileStatuses.set(STAGED_STATUSES);
-    unstagedDiffs.set(MOCK_WORKDIR_DIFF);
-    stagedDiffs.set(MOCK_INDEX_DIFF);
+    unstagedStats.set(MOCK_WORKDIR_STATS);
+    stagedStats.set(MOCK_INDEX_STATS);
+    openStagingFile.set({ path: "src/app.ts", isStaged: false });
 
     clearChangesState();
 
     expect(get(fileStatuses)).toHaveLength(0);
-    expect(get(unstagedDiffs)).toHaveLength(0);
-    expect(get(stagedDiffs)).toHaveLength(0);
+    expect(get(unstagedStats)).toHaveLength(0);
+    expect(get(stagedStats)).toHaveLength(0);
+    expect(get(openStagingFile)).toBeNull();
+    expect(get(openStagingDiff)).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { FileStatus } from "../../types";
+  import type { FileStatus, FileDiffStat } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
@@ -24,6 +24,7 @@
     selectedPath = null,
     onFileClick,
     onNavigate,
+    stats,
   }: {
     files: FileStatus[];
     title: string;
@@ -34,6 +35,8 @@
     selectedPath?: string | null;
     onFileClick?: (path: string) => void;
     onNavigate?: (view: string) => void;
+    /** Per-file add/del stats keyed by path, for the +N/-N row counts. */
+    stats?: Map<string, FileDiffStat>;
   } = $props();
 
   let contextMenuVisible = $state(false);
@@ -404,6 +407,7 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div class="file-list" role="list" tabindex="0" bind:this={listEl} onkeydown={handleKeydown}>
     {#each files as file, i}
+      {@const stat = stats?.get(file.path)}
       <div
         class="file-item"
         class:selected={file.path === selectedPath}
@@ -424,6 +428,18 @@
         >
           <FileStatusBadge status={file.status} />
           <span class="file-path">{file.path}</span>
+          {#if stat}
+            {#if stat.binary}
+              <span class="file-stat file-stat-binary">{m.diff_binary_short()}</span>
+            {:else}
+              {#if stat.additions > 0}
+                <span class="file-stat file-stat-add">+{stat.additions}</span>
+              {/if}
+              {#if stat.deletions > 0}
+                <span class="file-stat file-stat-del">-{stat.deletions}</span>
+              {/if}
+            {/if}
+          {/if}
         </button>
         {#if isStaged && onUnstage}
           <span class="item-action" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); onUnstage([file.path]); }} onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onUnstage([file.path]); } }}>&#8722;</span>
@@ -565,6 +581,26 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .file-stat {
+    flex-shrink: 0;
+    font-size: var(--font-size-2xs);
+    font-family: 'Fira Code', var(--font-mono), monospace;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .file-stat-add {
+    color: var(--accent-green);
+  }
+
+  .file-stat-del {
+    color: var(--accent-red);
+  }
+
+  .file-stat-binary {
+    color: var(--text-secondary);
   }
 
   .item-action {
