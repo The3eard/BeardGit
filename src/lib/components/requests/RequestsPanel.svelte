@@ -27,7 +27,8 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { requestsListProject } from "$lib/api/tauri";
+  import type { RequestTreeNode } from "$lib/types/requests";
   import CollectionsTree from "./CollectionsTree.svelte";
   import EnvSwitcher from "./EnvSwitcher.svelte";
   import RequestEditor from "./RequestEditor.svelte";
@@ -37,14 +38,8 @@
   import { activeProject } from "$lib/stores/projects";
   import { get } from "svelte/store";
 
-  /** Tree node shape mirrored from the backend. */
-  type Node = {
-    kind: "folder" | "file";
-    name: string;
-    rel_path: string;
-    method?: string | null;
-    children: Node[];
-  };
+  /** Tree node shape mirrored from the backend (see `$lib/types/requests`). */
+  type Node = RequestTreeNode;
 
   /** Last-seen flat list of project file rel_paths, used to detect external edits. */
   let lastSeenPaths = "";
@@ -82,9 +77,7 @@
     }
     let project: Node[] = [];
     try {
-      project = await invoke<Node[]>("requests_list_project", {
-        projectPath: path,
-      });
+      project = await requestsListProject(path);
     } catch {
       // If the listing fails (e.g. .beardgit/ disappeared), treat it as empty.
       project = [];

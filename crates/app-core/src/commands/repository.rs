@@ -6,6 +6,7 @@ use tauri::{AppHandle, State};
 
 use super::graph_cache::{GraphLayoutOptions, load_or_build_layout, ref_snapshot};
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::{AppState, ProjectSlot};
 
 /// Open a git repository at `path`, build the full commit DAG, and store the
@@ -23,39 +24,40 @@ use crate::state::{AppState, ProjectSlot};
 ///
 /// # Returns
 /// [`RepoInfo`] with HEAD branch, HEAD OID, and branch count on success, or an
-/// error string if the path is not a valid git repository.
+/// [`IpcError`] (`code = "repo_not_found"` when the path is not a valid git
+/// repository, else a generic code) so the frontend gets a structured value.
 #[tauri::command]
 pub async fn open_repo(
     path: String,
     state: State<'_, AppState>,
     app_handle: AppHandle,
-) -> Result<RepoInfo, String> {
+) -> Result<RepoInfo, IpcError> {
     let path_clone = path.clone();
     let config_dir = state.config_dir.clone();
 
     // Run the expensive graph computation off the main thread
     let (repo, layout, status, change_count, ref_snap) = tokio::task::spawn_blocking(move || {
         let repo =
-            git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(|e| e.to_string())?;
+            git_engine::Repository::open(PathBuf::from(&path_clone)).map_err(IpcError::from)?;
 
         let (layout, _was_cached) = load_or_build_layout(
             &repo,
             &path_clone,
             &config_dir,
             &GraphLayoutOptions::default(),
-        )?;
-        let status = repo.status().map_err(|e| e.to_string())?;
+        )
+        .map_err(IpcError::from)?;
+        let status = repo.status().map_err(IpcError::from)?;
         // Compute the working-tree change count here, on the blocking thread,
         // instead of a second `file_statuses()` walk back on the async runtime.
         let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
         // Baseline refs for the incremental graph-refresh fast path.
         let ref_snap = ref_snapshot(&repo);
 
-        Ok::<_, String>((repo, layout, status, change_count, ref_snap))
+        Ok::<_, IpcError>((repo, layout, status, change_count, ref_snap))
     })
     .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e: String| e)?;
+    .map_err(|e| IpcError::new("internal", e.to_string()))??;
 
     // Start filesystem watcher for the new repo. The watcher now emits
     // `project-mutated` with `MutationKind::External` directly via the
