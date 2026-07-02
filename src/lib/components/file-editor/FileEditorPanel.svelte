@@ -25,6 +25,7 @@
     refreshTree,
     renamePath,
     restoreTabsForProject,
+    treeEntries,
   } from "$lib/stores/fileEditor";
   import { activeProject } from "$lib/stores/projects";
   import type { WorkdirTreeEntry } from "$lib/types";
@@ -51,6 +52,11 @@
 
   /** Current project path — persistence + refresh trigger. */
   let projectPath = $derived($activeProject?.path ?? null);
+
+  /** Existing directories, for the new-* dialog parent autocomplete. */
+  let existingDirs = $derived(
+    $treeEntries.filter((e) => e.is_directory).map((e) => e.path),
+  );
 
   // Re-load tree + tabs whenever the active project changes.
   let lastLoadedProject: string | null = null;
@@ -95,13 +101,6 @@
     deleteTarget = entry;
   }
 
-  /** Build a repo-relative path from a parent directory and a leaf name. */
-  function joinPath(parent: string, leaf: string): string {
-    const trimmed = leaf.trim();
-    if (parent === "") return trimmed;
-    return `${parent}/${trimmed}`;
-  }
-
   /** Rebuild a path with the renamed leaf, keeping the original parent. */
   function siblingPath(currentPath: string, newLeaf: string): string {
     const idx = currentPath.lastIndexOf("/");
@@ -109,20 +108,20 @@
     return `${currentPath.slice(0, idx + 1)}${newLeaf}`;
   }
 
-  async function confirmNewFile(name: string) {
-    const target = joinPath(dialogParent, name);
+  // The new-* dialogs pass the full repo-relative path (edited parent
+  // joined with the leaf), so we forward it straight to the backend.
+  async function confirmNewFile(path: string) {
     try {
-      await createPath(target, false, respectGitignore);
+      await createPath(path, false, respectGitignore);
       newFileOpen = false;
     } catch {
       // runMutation already surfaced the toast; keep the dialog open
       // so the user can edit and retry.
     }
   }
-  async function confirmNewFolder(name: string) {
-    const target = joinPath(dialogParent, name);
+  async function confirmNewFolder(path: string) {
     try {
-      await createPath(target, true, respectGitignore);
+      await createPath(path, true, respectGitignore);
       newFolderOpen = false;
     } catch {
       // runMutation already surfaced the toast.
@@ -182,6 +181,7 @@
   open={newFileOpen}
   mode="new-file"
   parentDir={dialogParent}
+  {existingDirs}
   onConfirm={confirmNewFile}
   onClose={() => (newFileOpen = false)}
 />
@@ -190,6 +190,7 @@
   open={newFolderOpen}
   mode="new-folder"
   parentDir={dialogParent}
+  {existingDirs}
   onConfirm={confirmNewFolder}
   onClose={() => (newFolderOpen = false)}
 />
