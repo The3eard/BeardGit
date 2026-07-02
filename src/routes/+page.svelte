@@ -1027,6 +1027,8 @@
         <LazyComponent loader={() => import("$lib/components/requests/RequestsPanel.svelte")} />
       {:else if activeView === "editor"}
         <LazyComponent loader={() => import("$lib/components/file-editor/FileEditorPanel.svelte")} />
+      {:else if activeView === "compare"}
+        <LazyComponent loader={() => import("$lib/components/compare/CompareView.svelte")} />
       {:else if $isLoading}
         <div class="welcome-screen">
           <div class="spinner spinner--large"></div>

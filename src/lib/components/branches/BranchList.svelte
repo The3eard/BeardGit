@@ -27,6 +27,7 @@
   } from "../../stores/branches";
   import { remotes, refreshRemotes } from "../../stores/remotes";
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
+  import { openCompare } from "../../stores/compare";
   import { rebaseBranch, pushRemote, deleteRemoteBranch } from "../../api/tauri";
   import { runMutation } from "../../api/runMutation";
   import type { BranchInfo } from "../../types";
@@ -236,6 +237,12 @@
       items.push({ label: "Rename", action: () => openRenameDialog(contextBranch) });
     }
     items.push({ label: "Merge into current", action: () => doMergeBranch(contextBranch) });
+    items.push({
+      // Base = current branch (HEAD); compare = this branch → "what this
+      // branch adds over the current one" (the pre-PR review motion).
+      label: m.compare_with_current_branch(),
+      action: () => openCompare("HEAD", contextBranch),
+    });
     items.push({
       label: m.branch_rebase_onto(),
       action: () => {

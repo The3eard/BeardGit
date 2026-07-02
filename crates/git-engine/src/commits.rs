@@ -520,6 +520,71 @@ impl Repository {
         Ok(Some((commits, old_tip_refs)))
     }
 
+    /// Return the merge base (best common ancestor) of two revisions, or
+    /// `None` when they share no common history (unrelated roots).
+    ///
+    /// Both inputs are resolved with `revparse_single`, so branch names,
+    /// tags, `HEAD`, and abbreviated/full SHAs all work. Read-only.
+    pub fn merge_base(&self, a: &str, b: &str) -> Result<Option<String>, GitError> {
+        let repo = self.inner();
+        let a_oid = repo.revparse_single(a)?.peel_to_commit()?.id();
+        let b_oid = repo.revparse_single(b)?.peel_to_commit()?.id();
+        match repo.merge_base(a_oid, b_oid) {
+            Ok(oid) => Ok(Some(oid.to_string())),
+            // libgit2 returns an error when the two commits are on unrelated
+            // histories; surface that as "no merge base" rather than an error.
+            Err(_) => Ok(None),
+        }
+    }
+
+    /// Walk the commits in `from..to` — reachable from `to` but not from
+    /// `from` — newest-first, returning at most `limit`.
+    ///
+    /// Mirrors `git log from..to` / `git rev-list from..to`: the revwalk
+    /// pushes `to` and hides `from`. Both endpoints are resolved with
+    /// `revparse_single`, so branch names, tags, `HEAD`, and SHAs are
+    /// accepted. When `anchor` is `Some` (the OID of the last commit already
+    /// shown), the walk resumes *after* it — cheap "load more" pagination
+    /// over a bounded divergence without re-sending earlier pages.
+    pub fn commits_between(
+        &self,
+        from: &str,
+        to: &str,
+        limit: usize,
+        anchor: Option<&str>,
+    ) -> Result<Vec<CommitInfo>, GitError> {
+        let repo = self.inner();
+        let ref_map = build_ref_map(repo);
+
+        let from_oid = repo.revparse_single(from)?.peel_to_commit()?.id();
+        let to_oid = repo.revparse_single(to)?.peel_to_commit()?.id();
+
+        let mut revwalk = repo.revwalk()?;
+        revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?;
+        revwalk.push(to_oid)?;
+        revwalk.hide(from_oid)?;
+
+        // When no anchor is given we start collecting immediately; otherwise
+        // we skip until we've passed the anchor commit.
+        let mut seen_anchor = anchor.is_none();
+        let mut commits = Vec::with_capacity(limit.min(1024));
+        for oid_result in revwalk {
+            let oid = oid_result?;
+            if !seen_anchor {
+                if anchor == Some(oid.to_string().as_str()) {
+                    seen_anchor = true;
+                }
+                continue;
+            }
+            if commits.len() >= limit {
+                break;
+            }
+            let commit = repo.find_commit(oid)?;
+            commits.push(commit_to_info(&commit, oid, &ref_map));
+        }
+        Ok(commits)
+    }
+
     /// Retrieve a single commit by its OID string.
     pub fn get_commit(&self, oid_str: &str) -> Result<CommitInfo, GitError> {
         let repo = self.inner();
@@ -1219,6 +1284,129 @@ mod tests {
                 .unwrap()
                 .is_none(),
             "a range containing a merge must not be a simple advance"
+        );
+    }
+
+    // ── Compare-view range semantics (merge_base / commits_between).
+    //
+    // Verified against the `git` CLI on a diverged-branch fixture so the
+    // engine's answers match `git merge-base` / `git rev-list` exactly.
+
+    /// Run `git` in `path` and return trimmed stdout, panicking on failure.
+    fn git_stdout(path: &std::path::Path, args: &[&str]) -> String {
+        let out = std::process::Command::new("git")
+            .args(args)
+            .current_dir(path)
+            .output()
+            .expect("spawn git");
+        assert!(
+            out.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn merge_base_matches_git_cli() {
+        let (_dir, path) = crate::test_support::create_repo_with_diverged_branches();
+        let repo = Repository::open(&path).unwrap();
+
+        let expected = git_stdout(&path, &["merge-base", "main", "feature"]);
+        let got = repo.merge_base("main", "feature").unwrap();
+        assert_eq!(
+            got,
+            Some(expected),
+            "merge_base must match `git merge-base`"
+        );
+
+        // Argument order is symmetric.
+        assert_eq!(
+            repo.merge_base("feature", "main").unwrap(),
+            repo.merge_base("main", "feature").unwrap(),
+        );
+    }
+
+    #[test]
+    fn merge_base_none_for_unrelated_histories() {
+        let (_dir, path) = crate::test_support::create_repo_with_diverged_branches();
+        let repo = Repository::open(&path).unwrap();
+        let git_repo = git2::Repository::open(&path).unwrap();
+        // An orphan root with no shared history with `main`.
+        let sig = git2::Signature::now("T", "t@e").unwrap();
+        let mut tb = git_repo.treebuilder(None).unwrap();
+        let blob = git_repo.blob(b"x\n").unwrap();
+        tb.insert("orphan.txt", blob, 0o100644).unwrap();
+        let tree = git_repo.find_tree(tb.write().unwrap()).unwrap();
+        let orphan = git_repo
+            .commit(None, &sig, &sig, "orphan", &tree, &[])
+            .unwrap();
+        git_repo
+            .branch("orphan", &git_repo.find_commit(orphan).unwrap(), true)
+            .unwrap();
+
+        assert_eq!(
+            repo.merge_base("main", "orphan").unwrap(),
+            None,
+            "unrelated histories have no merge base"
+        );
+    }
+
+    #[test]
+    fn commits_between_matches_git_rev_list() {
+        let (_dir, path) = crate::test_support::create_repo_with_diverged_branches();
+        let repo = Repository::open(&path).unwrap();
+
+        // main..feature — the commits `feature` adds over `main`.
+        let expected: Vec<String> = git_stdout(&path, &["rev-list", "main..feature"])
+            .lines()
+            .map(|l| l.to_string())
+            .collect();
+        let got: Vec<String> = repo
+            .commits_between("main", "feature", 100, None)
+            .unwrap()
+            .into_iter()
+            .map(|c| c.oid)
+            .collect();
+        assert_eq!(got, expected, "count + order must match `git rev-list`");
+        assert_eq!(got.len(), 2, "feature adds feat_a + feat_b over main");
+
+        // Reverse direction — the commits `main` adds over `feature`.
+        let behind: Vec<String> = git_stdout(&path, &["rev-list", "feature..main"])
+            .lines()
+            .map(|l| l.to_string())
+            .collect();
+        let behind_got: Vec<String> = repo
+            .commits_between("feature", "main", 100, None)
+            .unwrap()
+            .into_iter()
+            .map(|c| c.oid)
+            .collect();
+        assert_eq!(behind_got, behind);
+        assert_eq!(behind_got.len(), 1, "main adds one commit over feature");
+    }
+
+    #[test]
+    fn commits_between_respects_limit_and_anchor() {
+        let (_dir, path) = crate::test_support::create_repo_with_diverged_branches();
+        let repo = Repository::open(&path).unwrap();
+
+        // Page 1: one commit (the newest, feat_b).
+        let page1 = repo.commits_between("main", "feature", 1, None).unwrap();
+        assert_eq!(page1.len(), 1);
+
+        // Page 2: resume after the last-shown OID → the next (feat_a).
+        let page2 = repo
+            .commits_between("main", "feature", 1, Some(&page1[0].oid))
+            .unwrap();
+        assert_eq!(page2.len(), 1);
+        assert_ne!(page1[0].oid, page2[0].oid);
+
+        // The concatenation equals the un-paginated walk.
+        let full = repo.commits_between("main", "feature", 100, None).unwrap();
+        assert_eq!(
+            vec![page1[0].oid.clone(), page2[0].oid.clone()],
+            full.iter().map(|c| c.oid.clone()).collect::<Vec<_>>(),
         );
     }
 }
