@@ -113,6 +113,22 @@ export async function getDiffBetweenCommits(fromOid: string, toOid: string): Pro
   return invoke<CommitFileChange[]>("get_diff_between_commits", { fromOid, toOid });
 }
 
+/** Merge base (common ancestor) of two revspecs, or `null` if unrelated. */
+export async function getMergeBase(a: string, b: string): Promise<string | null> {
+  return invoke<string | null>("get_merge_base", { a, b });
+}
+
+/** Commits in `from..to` (reachable from `to`, not `from`), newest-first,
+ *  paginated. `anchor` resumes the walk after a previously-shown OID. */
+export async function getCommitsBetween(
+  from: string,
+  to: string,
+  limit?: number,
+  anchor?: string,
+): Promise<CommitInfo[]> {
+  return invoke<CommitInfo[]>("get_commits_between", { from, to, limit, anchor });
+}
+
 export async function getCommitFileDiff(oid: string, path: string): Promise<FileDiff[]> {
   return invoke<FileDiff[]>("get_commit_file_diff", { oid, path });
 }
