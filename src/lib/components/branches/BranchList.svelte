@@ -7,6 +7,7 @@
   import List from "../common/List.svelte";
   import BranchTreeNode from "./BranchTreeNode.svelte";
   import RenameBranchDialog from "./RenameBranchDialog.svelte";
+  import BranchCleanupDialog from "./BranchCleanupDialog.svelte";
   import { IconButton, Skeleton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
   import type { MenuItem } from "../common/ContextMenu.svelte";
@@ -70,6 +71,7 @@
             oid: isLeaf ? branch.oid : "",
             ahead: isLeaf ? branch.ahead : 0,
             behind: isLeaf ? branch.behind : 0,
+            upstreamGone: isLeaf ? branch.upstream_gone : false,
             children: [],
           };
           current.push(existing);
@@ -145,6 +147,9 @@
   // Rename dialog state — mounted locally so it has access to branch context
   let renameDialogOpen = $state(false);
   let renameTarget = $state("");
+
+  // Bulk branch-cleanup dialog (spec 11).
+  let cleanupDialogOpen = $state(false);
 
   function openRenameDialog(name: string) {
     renameTarget = name;
@@ -322,6 +327,12 @@
       onclick={() => openCreateBranchDialog({ kind: "head" })}
     />
     <IconButton
+      icon={"\uE20E"}
+      description={m.branch_cleanup_tooltip()}
+      testid="branch-cleanup-btn"
+      onclick={() => (cleanupDialogOpen = true)}
+    />
+    <IconButton
       icon={"\uF021"}
       description={m.tooltip_refresh()}
       loading={$branchesLoading}
@@ -425,6 +436,10 @@
   currentName={renameTarget}
   onClose={() => (renameDialogOpen = false)}
 />
+
+{#if cleanupDialogOpen}
+  <BranchCleanupDialog onClose={() => (cleanupDialogOpen = false)} />
+{/if}
 
 {#if confirmDelete !== null}
   <ConfirmDialog

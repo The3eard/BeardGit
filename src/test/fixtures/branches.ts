@@ -20,6 +20,7 @@ export function makeBranchInfo(
     upstream: "origin/feat/example",
     ahead: 0,
     behind: 0,
+    upstream_gone: false,
     ...overrides,
   };
 }

@@ -102,6 +102,53 @@ pub fn delete_branch(
     })
 }
 
+/// List local branches that are candidates for cleanup, classified into
+/// "gone" (upstream deleted) and "merged into `<target>`" groups.
+///
+/// Read-only — no [`MutationGuard`][mutation_events::MutationGuard]. `into`
+/// defaults to the repository's default branch when `None`. Excludes the
+/// current branch, the target, and any worktree-checked-out branch.
+///
+/// # Parameters
+/// - `into` – Branch to classify "merged" against; `None` uses the default.
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::branch::cleanup_candidates")]
+pub fn list_branch_cleanup_candidates(
+    into: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<git_engine::BranchCleanupList, String> {
+    with_active_repo(&state, |repo| {
+        repo.cleanup_candidates(into.as_deref())
+            .map_err(|e| e.to_string())
+    })
+}
+
+/// Delete a batch of local branches in one shot.
+///
+/// Wraps the whole batch in a single
+/// [`MutationGuard`][mutation_events::MutationGuard] scope so N deletions emit
+/// **one** `project-mutated` event with [`MutationKind::BranchDelete`] — not N
+/// refreshes. Per-branch failures are captured in the returned
+/// [`BatchDeleteResult`][git_engine::BatchDeleteResult]; one refusal does not
+/// abort the rest.
+///
+/// # Parameters
+/// - `names` – Local branch names to delete.
+/// - `force` – Subset of `names` to delete with `git branch -D` (unmerged);
+///   names not in this list use the safe `git branch -d`.
+#[tauri::command]
+#[instrument(skip(state, app), name = "cmd::branch::delete_batch")]
+pub fn delete_branches(
+    names: Vec<String>,
+    force: Vec<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<git_engine::BatchDeleteResult, String> {
+    with_mutation_guard(&state, &app, MutationKind::BranchDelete, || {
+        with_active_repo(&state, |repo| Ok(repo.delete_branches(&names, &force)))
+    })
+}
+
 /// Switch the working tree to an existing local branch.
 ///
 /// Wraps [`git_engine::Repository::checkout_branch`] inside a

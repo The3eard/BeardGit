@@ -65,7 +65,7 @@ const A: ProjectInfo = { name: "repoA", path: "/tmp/A", head_branch: "main", cha
 const B: ProjectInfo = { name: "repoB", path: "/tmp/B", head_branch: "main", change_count: 0, is_worktree: false };
 
 function branch(name: string): BranchInfo {
-  return { name, is_head: name.endsWith("main"), is_remote: false, oid: "0".repeat(40), upstream: null, ahead: 0, behind: 0 };
+  return { name, is_head: name.endsWith("main"), is_remote: false, oid: "0".repeat(40), upstream: null, ahead: 0, behind: 0, upstream_gone: false };
 }
 
 const branchesByPath: Record<string, BranchInfo[]> = {

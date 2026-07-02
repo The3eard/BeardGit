@@ -9,6 +9,7 @@
 //! - [`commits`] — walk and filter commit history
 //! - [`staging`] — file status, stage/unstage operations
 //! - [`operations`] — create commits, manage branches, checkout
+//! - [`branch_cleanup`] — merged/gone branch classification and batch deletion
 //! - [`diff`] — diff working directory, index, and individual commits
 //! - [`conflict`] — conflict detection, status, and abort/continue operations
 //! - [`file_content`] — raw file content retrieval for CodeMirror diff views
@@ -23,6 +24,7 @@
 
 pub mod bisect;
 pub mod blame;
+pub mod branch_cleanup;
 pub mod clean;
 pub mod cli;
 pub mod commits;
@@ -51,6 +53,9 @@ pub mod test_support;
 
 pub use bisect::BisectState;
 pub use blame::{BlameLine, FileHistoryEntry};
+pub use branch_cleanup::{
+    BatchDeleteResult, BranchCleanupCandidate, BranchCleanupList, BranchDeleteFailure,
+};
 pub use clean::CleanItem;
 pub use cli::{CommitStats, GitCliResult, StashEntry, TagInfo};
 pub use commits::{CommitInfo, CommitWalkOptions};

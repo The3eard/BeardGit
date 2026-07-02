@@ -55,6 +55,7 @@ const fakeBranches: BranchInfo[] = [
     upstream: null,
     ahead: 0,
     behind: 0,
+    upstream_gone: false,
   },
 ];
 
