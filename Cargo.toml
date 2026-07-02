@@ -16,6 +16,8 @@ members = [
     "crates/forge-provider",
     "crates/terminal",
     "crates/ai-provider",
+    "crates/ai-provider-common",
+    "crates/ai-runner",
     "crates/claude-code",
     "crates/codex",
     "crates/mutation-events",

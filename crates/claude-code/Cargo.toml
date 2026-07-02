@@ -7,6 +7,7 @@ authors.workspace = true
 
 [dependencies]
 ai-provider = { path = "../ai-provider" }
+ai-provider-common = { path = "../ai-provider-common" }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

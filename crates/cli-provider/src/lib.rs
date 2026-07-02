@@ -7,11 +7,13 @@
 //! app's bundled resources directory.
 
 pub mod auth;
+pub mod command_runner;
 pub mod error;
 pub mod github;
 pub mod gitlab;
 pub mod parsers;
 pub mod releases;
+pub mod repo_config;
 pub(crate) mod runner;
 
 use std::process::Command;
