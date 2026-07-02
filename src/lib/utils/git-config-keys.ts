@@ -25,6 +25,9 @@ export const KNOWN_ENUM_KEYS: Record<string, string[]> = {
   "diff.algorithm": ["default", "minimal", "patience", "histogram"],
   "diff.colorMoved": ["no", "default", "plain", "blocks", "zebra", "dimmed-zebra"],
   "init.defaultBranch": ["main", "master"],
+  "commit.gpgsign": ["true", "false"],
+  "tag.gpgSign": ["true", "false"],
+  "gpg.format": ["openpgp", "ssh", "x509"],
   "color.ui": ["auto", "always", "never"],
   "credential.helper": ["cache", "store", "osxkeychain", "manager", "manager-core"],
 };
