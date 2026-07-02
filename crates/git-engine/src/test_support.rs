@@ -17,13 +17,7 @@ pub fn create_repo_with_n_commits(n: usize) -> (TempDir, PathBuf) {
     let path = dir.path().to_path_buf();
     let repo = git2::Repository::init(&path).expect("init");
 
-    {
-        let mut config = repo.config().expect("config");
-        config.set_str("user.name", "Test User").expect("user.name");
-        config
-            .set_str("user.email", "test@example.com")
-            .expect("user.email");
-    }
+    configure_identity(&repo);
 
     let sig = git2::Signature::now("Test User", "test@example.com").expect("sig");
 
@@ -64,6 +58,12 @@ fn configure_identity(repo: &git2::Repository) {
     config
         .set_str("user.email", "test@example.com")
         .expect("user.email");
+    // Windows CI runners set core.autocrlf=true globally; CLI-backed
+    // operations (revert, stash pop) would then check files out with CRLF
+    // and break content assertions. Pin it off per test repo.
+    config
+        .set_str("core.autocrlf", "false")
+        .expect("core.autocrlf");
 }
 
 /// Create an initial (empty-tree) commit on `HEAD` and return its oid.
