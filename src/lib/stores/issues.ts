@@ -4,6 +4,10 @@
  * Mirrors the MR/PR store pattern. The labels and milestones caches are
  * lazily populated via `refreshLabelsCache()` / `refreshMilestonesCache()`
  * the first time a picker mounts.
+ *
+ * TODO(spec 08): migrate into the RepoState container
+ * (`stores/repo-state/`) as an `IssuesSlice`. See `stores/branches.ts` for
+ * the migrated facade pattern.
  */
 
 import { writable, derived, get } from "svelte/store";

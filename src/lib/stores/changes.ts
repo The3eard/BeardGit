@@ -11,7 +11,7 @@
  * follow each mutating invoke are now handled by that listener.
  */
 
-import { writable, get } from "svelte/store";
+import { get } from "svelte/store";
 import type { FileStatus, FileDiff, FileDiffStat } from "../types";
 import {
   getFileStatuses as apiGetStatuses,
@@ -26,35 +26,38 @@ import {
   getDiffFile as apiDiffFile,
 } from "../api/tauri";
 import { runMutation } from "../api/runMutation";
-import { clearChangesSelection } from "./changesSelection";
+import { activeField, getActiveRepoState } from "./repo-state";
+
+// ── Migrated to the RepoState container (spec 08) ─────────────────────
+// The staging-area state below now lives per-repo in `RepoState.changes`
+// (see `repo-state/ChangesSlice.ts`). The exports are thin facades over the
+// *active* repo's slice, so file statuses, open diff, commit draft, and the
+// checkbox selection all survive tab switches per-repo.
 
 /** Per-file status list (staged and unstaged combined). */
-export const fileStatuses = writable<FileStatus[]>([]);
+export const fileStatuses = activeField<FileStatus[]>((rs) => rs.changes.fileStatuses);
 /**
  * Per-file change stats (name/status + add/del counts, no hunks) for the
  * Changes list. Refreshed on every mutation — cheap because hunks are
  * never materialized here. The full hunks/lines diff of a single file is
  * fetched lazily into {@link openStagingDiff} when the user opens it.
  */
-export const unstagedStats = writable<FileDiffStat[]>([]);
+export const unstagedStats = activeField<FileDiffStat[]>((rs) => rs.changes.unstagedStats);
 /** Staged (index-vs-HEAD) per-file stats. See {@link unstagedStats}. */
-export const stagedStats = writable<FileDiffStat[]>([]);
+export const stagedStats = activeField<FileDiffStat[]>((rs) => rs.changes.stagedStats);
 /** The file whose full diff is open in the staging pane, or `null`. */
-export const openStagingFile = writable<{ path: string; isStaged: boolean } | null>(null);
+export const openStagingFile = activeField<{ path: string; isStaged: boolean } | null>(
+  (rs) => rs.changes.openStagingFile,
+);
 /** Full hunks/lines diff for {@link openStagingFile}, fetched on demand. */
-export const openStagingDiff = writable<FileDiff | null>(null);
+export const openStagingDiff = activeField<FileDiff | null>((rs) => rs.changes.openStagingDiff);
 /** Current commit message draft. Cleared after successful commit. */
-export const commitMessage = writable("");
+export const commitMessage = activeField<string>((rs) => rs.changes.commitMessage);
 
-/** Clear all changes state (e.g., on project switch). */
+/** Clear the active repo's changes state (e.g., on project switch). */
 export function clearChangesState(): void {
-  fileStatuses.set([]);
-  unstagedStats.set([]);
-  stagedStats.set([]);
-  openStagingFile.set(null);
-  openStagingDiff.set(null);
-  // Checkbox selection is per-project — reset it when the repo changes.
-  clearChangesSelection();
+  // Also resets the checkbox selection — see ChangesSlice.clear().
+  getActiveRepoState().changes.clear();
 }
 
 export async function refreshStatuses() {
