@@ -14,6 +14,7 @@
   import { Button, Checkbox } from "$lib/components/ui";
   import { activeViewStore } from "$lib/stores/navigation";
   import { openTab as openEditorTab } from "$lib/stores/fileEditor";
+  import { isBatchSelection, batchActionIds, type BatchActionId } from "./changes-menu";
 
   let {
     files,
@@ -48,6 +49,8 @@
   let showDiscardConfirm = $state(false);
   let discardTargetPath = $state<string | null>(null);
   let discardTargetIsUntracked = $state(false);
+  let showDiscardSelectedConfirm = $state(false);
+  let discardSelectedPaths = $state<string[]>([]);
 
   // Checkbox selection is backed by a store so it PERSISTS across leaving
   // and re-entering the Changes view (see changesSelection.ts). `isStaged`
@@ -215,8 +218,54 @@
     return patterns;
   }
 
+  /** Discard the checkbox selection (tracked reset + untracked delete) as one
+   *  batch, after confirmation. */
+  function discardSelected() {
+    discardSelectedPaths = [...selected];
+    showDiscardSelectedConfirm = true;
+  }
+
+  /** Build the batch "… Selected (N)" menu items for the current selection. */
+  function buildBatchItems(): MenuItem[] {
+    const paths = [...selected];
+    const count = String(paths.length);
+    return batchActionIds(isStaged)
+      .map((id: BatchActionId): MenuItem | null => {
+        switch (id) {
+          case "stage":
+            return onStage
+              ? { label: m.changes_stage_selected({ count }), action: stageSelected }
+              : null;
+          case "unstage":
+            return onUnstage
+              ? { label: m.changes_unstage_selected({ count }), action: unstageSelected }
+              : null;
+          case "discard":
+            return {
+              label: m.changes_menu_discard_selected({ count }),
+              action: discardSelected,
+            };
+          case "stash":
+            return {
+              label: m.changes_menu_stash_selected({ count }),
+              action: () => {
+                setSelection(new Set());
+                void doStashPush(null, paths);
+              },
+            };
+          case "copyPaths":
+            return {
+              label: m.changes_menu_copy_paths({ count }),
+              action: () => navigator.clipboard.writeText(paths.join("\n")),
+            };
+        }
+      })
+      .filter((i): i is MenuItem => i !== null);
+  }
+
   function buildContextMenuItems(filePath: string): MenuItem[] {
     const items: MenuItem[] = [];
+    const batch = isBatchSelection(selected, filePath);
 
     if (!isStaged && onStage) {
       items.push({
@@ -233,15 +282,18 @@
     }
 
     // Stash the checkbox selection, falling back to the right-clicked file
-    // when nothing is checked.
-    const stashPaths = selected.size > 0 ? [...selected] : [filePath];
-    items.push({
-      label: m.changes_menu_stash_selected({ count: String(stashPaths.length) }),
-      action: () => {
-        setSelection(new Set());
-        void doStashPush(null, stashPaths);
-      },
-    });
+    // when nothing is checked. When the batch section is showing (≥2 checked,
+    // cursor in selection) stash lives there instead, so skip it here.
+    if (!batch) {
+      const stashPaths = selected.size > 0 ? [...selected] : [filePath];
+      items.push({
+        label: m.changes_menu_stash_selected({ count: String(stashPaths.length) }),
+        action: () => {
+          setSelection(new Set());
+          void doStashPush(null, stashPaths);
+        },
+      });
+    }
 
     items.push({
       label: m.changes_menu_copy_path(),
@@ -316,6 +368,13 @@
       }
     }
 
+    // Batch section: the same git actions applied to the whole checkbox
+    // selection, gated on ≥2 files checked with the cursor file among them.
+    if (batch) {
+      items.push({ separator: true });
+      items.push(...buildBatchItems());
+    }
+
     return items;
   }
 
@@ -356,6 +415,26 @@
     showDiscardConfirm = false;
     discardTargetPath = null;
     discardTargetIsUntracked = false;
+  }
+
+  async function handleConfirmDiscardSelected() {
+    const paths = discardSelectedPaths;
+    if (paths.length === 0) return;
+    setSelection(new Set());
+    try {
+      // `discard_files` handles the mix in one guarded call: tracked files
+      // reset to the index, untracked files are deleted from disk.
+      await runMutation<void>({
+        kind: "discard",
+        invoke: () => discardFiles(paths),
+        successToast: () => `Discarded changes in ${paths.length} files`,
+        failureToastPrefix: "Discard failed",
+      });
+    } catch {
+      // runMutation already surfaced the toast.
+    }
+    showDiscardSelectedConfirm = false;
+    discardSelectedPaths = [];
   }
 
   function openContextMenu(e: MouseEvent, filePath: string) {
@@ -481,6 +560,16 @@
     destructive={true}
     onConfirm={handleConfirmDiscard}
     onCancel={() => { showDiscardConfirm = false; discardTargetPath = null; discardTargetIsUntracked = false; }}
+  />
+{/if}
+
+{#if showDiscardSelectedConfirm && discardSelectedPaths.length > 0}
+  <ConfirmDialog
+    title={m.changes_menu_discard_confirm_title()}
+    message={m.changes_menu_discard_selected_confirm_message({ count: String(discardSelectedPaths.length) })}
+    destructive={true}
+    onConfirm={handleConfirmDiscardSelected}
+    onCancel={() => { showDiscardSelectedConfirm = false; discardSelectedPaths = []; }}
   />
 {/if}
 
