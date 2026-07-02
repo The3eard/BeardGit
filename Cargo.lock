@@ -711,7 +711,6 @@ dependencies = [
  "ai-provider",
  "chrono",
  "dirs",
- "libc",
  "serde",
  "serde_json",
  "tempfile",
