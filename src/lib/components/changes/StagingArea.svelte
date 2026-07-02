@@ -6,7 +6,9 @@
   import { onMount, onDestroy } from "svelte";
   import type { UnlistenFn } from "@tauri-apps/api/event";
   import * as m from "$lib/paraglide/messages";
-  import { getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote, saveAiReview } from "$lib/api/tauri";
+  import { getHeadMessage, createWorkingTreePatch, savePatchToFile, pushRemote, saveAiReview, getSigningConfig } from "$lib/api/tauri";
+  import type { SigningStatus } from "$lib/types";
+  import { formatSigningBackend } from "$lib/utils/signing";
   import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
   import { runMutation } from "$lib/api/runMutation";
   import { hasAiProvider, aiGenerateCommitMessage, aiReviewCode } from "$lib/stores/ai";
@@ -58,6 +60,17 @@
       description: msg.slice(nl + 1).replace(/^\n+/, ""),
     };
   }
+  // Signing status drives the "Will be signed" chip. Fetched on mount (and
+  // whenever the repo mutates) rather than polled — config edits happen in a
+  // different view, so the Changes view re-reads it when the user returns.
+  let signingStatus = $state<SigningStatus | null>(null);
+  async function refreshSigningStatus() {
+    try {
+      signingStatus = await getSigningConfig();
+    } catch {
+      signingStatus = null;
+    }
+  }
   let showPatchDialog = $state(false);
   let showOverflowMenu = $state(false);
   let patchStagedOnly = $state(true);
@@ -88,6 +101,7 @@
   onMount(() => {
     refreshStatuses();
     refreshDiffs();
+    refreshSigningStatus();
 
     function closeMenus(e: MouseEvent) {
       if (showOverflowMenu && !(e.target as HTMLElement).closest('.toolbar-actions')) {
@@ -486,6 +500,13 @@
       data-testid="commit-description"
     ></textarea>
 
+    {#if signingStatus?.enabled}
+      <p class="signing-chip" data-testid="signing-chip">
+        <span class="nf signing-chip-icon">{"\uF023"}</span>
+        {m.staging_will_be_signed({ format: formatSigningBackend(signingStatus.format) })}
+      </p>
+    {/if}
+
     <!-- Single commit button + reason hint when disabled -->
     <Button
       variant="primary"
@@ -603,6 +624,21 @@
     font-size: var(--font-size-2xs);
     color: var(--text-muted);
     text-align: center;
+  }
+
+  .signing-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    margin: 0;
+    font-size: var(--font-size-2xs);
+    color: var(--text-secondary);
+  }
+
+  .signing-chip-icon {
+    font-size: var(--font-size-xs);
+    color: var(--accent-green);
   }
 
   .nf {

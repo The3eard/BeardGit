@@ -179,14 +179,14 @@ fn parse_stat_summary(output: &str) -> CommitStats {
 
 /// Apply Windows-specific process creation flags to hide the console window.
 #[cfg(target_os = "windows")]
-fn configure_no_window(cmd: &mut Command) {
+pub(crate) fn configure_no_window(cmd: &mut Command) {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(0x08000000);
 }
 
 /// No-op on non-Windows platforms.
 #[cfg(not(target_os = "windows"))]
-fn configure_no_window(_cmd: &mut Command) {}
+pub(crate) fn configure_no_window(_cmd: &mut Command) {}
 
 impl Repository {
     /// Run a git command in the repository directory.
