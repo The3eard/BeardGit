@@ -4,6 +4,12 @@
  *
  * The graph canvas fetches a window of 300 rows at a time via `loadViewport`.
  * Selection uses a "last-wins" async guard to handle rapid clicks.
+ *
+ * TODO(spec 08): migrate this store into the RepoState container
+ * (`stores/repo-state/`) — a `GraphSlice` folds in `viewportCache`,
+ * `selectedOid`, `graphOffset`, etc., so per-repo graph state survives tab
+ * switches as a pointer swap instead of clearGraphState + viewportCache.
+ * See `stores/branches.ts` for the migrated facade pattern.
  */
 
 import { writable, get } from "svelte/store";
