@@ -10,5 +10,7 @@ export interface BranchTreeNode {
   ahead: number;
   /** Commits behind upstream. `0` for folders and untracked branches. */
   behind: number;
+  /** `true` when the branch's configured upstream is gone (deleted remote). */
+  upstreamGone: boolean;
   children: BranchTreeNode[];
 }

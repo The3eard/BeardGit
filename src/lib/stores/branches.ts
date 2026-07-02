@@ -15,7 +15,7 @@
  */
 
 import { derived, get } from "svelte/store";
-import type { BranchInfo, CommitInfo, CommitFileChange } from "../types";
+import type { BranchInfo, CommitInfo, CommitFileChange, BatchDeleteResult } from "../types";
 import type { RawDiffContent } from "./graph";
 import { getCommitDetail, getCommitFiles, getFileAtCommitText as getFileAtCommit } from "../api/tauri";
 import {
@@ -23,6 +23,7 @@ import {
   getBranchCommits,
   checkoutBranch as apiCheckout,
   deleteBranch as apiDelete,
+  deleteBranches as apiDeleteBatch,
   mergeBranch as apiMerge,
 } from "../api/tauri";
 import { runMutation } from "../api/runMutation";
@@ -122,6 +123,36 @@ export async function doDeleteBranch(name: string, force = false) {
     selectedBranchCommits.set([]);
   }
   // Branch list refresh is driven by the project-mutated event.
+}
+
+/**
+ * Delete a batch of local branches in one command (the cleanup dialog).
+ * `force` is the subset of `names` to force-delete (`-d` for the rest).
+ * Routes through `runMutation`, so a success/failure toast reports the
+ * deleted/failed counts; the single `project-mutated` event drives the
+ * branch-list refresh. Returns the full result so the dialog can surface
+ * per-branch failures. Clears selection if the selected branch was removed.
+ */
+export async function doDeleteBranches(
+  names: string[],
+  force: string[],
+): Promise<BatchDeleteResult> {
+  const result = await runMutation({
+    kind: "branch_delete_batch",
+    invoke: () => apiDeleteBatch(names, force),
+    successToast: (r) =>
+      r.failed.length === 0
+        ? `Deleted ${r.deleted.length} branch${r.deleted.length === 1 ? "" : "es"}`
+        : `Deleted ${r.deleted.length}, ${r.failed.length} failed`,
+    failureToastPrefix: "Branch cleanup failed",
+  });
+  const sel = get(selectedBranchName);
+  if (sel && result.deleted.includes(sel)) {
+    selectedBranchName.set(null);
+    selectedBranchCommits.set([]);
+  }
+  // Branch list refresh is driven by the project-mutated event.
+  return result;
 }
 
 export async function doMergeBranch(name: string) {

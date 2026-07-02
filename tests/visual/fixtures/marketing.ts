@@ -74,12 +74,12 @@ function label(name: string, color: string, description: string | null = null): 
 /** Real branches (both repos share the same ref set). */
 export function branchList(): BranchInfo[] {
   return [
-    { name: "main", is_head: true, is_remote: false, oid: oid(0xdde29e2), upstream: "origin/main", ahead: 0, behind: 0 },
-    { name: "feat/tui-dashboard", is_head: false, is_remote: false, oid: oid(0x8636791), upstream: "origin/feat/tui-dashboard", ahead: 3, behind: 1 },
-    { name: "feat/recurring-tasks", is_head: false, is_remote: false, oid: oid(0x5e8ec3e), upstream: "origin/feat/recurring-tasks", ahead: 4, behind: 1 },
-    { name: "fix/parser-edge-case", is_head: false, is_remote: false, oid: oid(0xdde29e2), upstream: "origin/fix/parser-edge-case", ahead: 1, behind: 0 },
-    { name: "chore/clippy-cleanup", is_head: false, is_remote: false, oid: oid(0xd7319fb), upstream: null, ahead: 1, behind: 2 },
-    { name: "origin/main", is_head: false, is_remote: true, oid: oid(0xdde29e2), upstream: null, ahead: 0, behind: 0 },
+    { name: "main", is_head: true, is_remote: false, oid: oid(0xdde29e2), upstream: "origin/main", ahead: 0, behind: 0, upstream_gone: false },
+    { name: "feat/tui-dashboard", is_head: false, is_remote: false, oid: oid(0x8636791), upstream: "origin/feat/tui-dashboard", ahead: 3, behind: 1, upstream_gone: false },
+    { name: "feat/recurring-tasks", is_head: false, is_remote: false, oid: oid(0x5e8ec3e), upstream: "origin/feat/recurring-tasks", ahead: 4, behind: 1, upstream_gone: false },
+    { name: "fix/parser-edge-case", is_head: false, is_remote: false, oid: oid(0xdde29e2), upstream: "origin/fix/parser-edge-case", ahead: 1, behind: 0, upstream_gone: false },
+    { name: "chore/clippy-cleanup", is_head: false, is_remote: false, oid: oid(0xd7319fb), upstream: null, ahead: 1, behind: 2, upstream_gone: false },
+    { name: "origin/main", is_head: false, is_remote: true, oid: oid(0xdde29e2), upstream: null, ahead: 0, behind: 0, upstream_gone: false },
   ];
 }
 
