@@ -188,6 +188,20 @@ struct CoordinatorInner {
     /// fraction-of-a-millisecond race between the spawn returning and
     /// the reader task's first read.
     pending_lines: std::collections::HashMap<TaskId, Vec<String>>,
+    /// Terminal events that arrived at `on_task_finished` *before* their
+    /// `task_id → session_id` mapping was registered (a very fast task can
+    /// finish before `dispatch` resumes after `spawn_with_options`). Drained
+    /// right after the mapping insert, mirroring `pending_lines` — without
+    /// this the session never reaches a terminal state and the UI shows a
+    /// run as active forever.
+    pending_finishes: std::collections::HashMap<TaskId, PendingFinish>,
+}
+
+/// Terminal-event payload buffered on `pending_finishes` (see field doc).
+struct PendingFinish {
+    exit_code: Option<i32>,
+    was_cancelled: bool,
+    error_text: Option<String>,
 }
 
 /// Serialisable payload kept around while a run is queued.
@@ -231,6 +245,7 @@ impl AiBackgroundCoordinator {
                 before_snapshots: std::collections::HashMap::new(),
                 task_id_to_session: std::collections::HashMap::new(),
                 pending_lines: std::collections::HashMap::new(),
+                pending_finishes: std::collections::HashMap::new(),
             }),
             task_manager,
             event_sink,
@@ -444,12 +459,23 @@ impl AiBackgroundCoordinator {
         if should_dispatch {
             let task_id = self.dispatch(&session_id, provider, &input).await?;
             session.task_id = Some(task_id);
-            session.background_status = Some(AiBackgroundRunStatus::Running);
             self.update_session(&session_id, |s| {
                 s.task_id = Some(task_id);
-                s.background_status = Some(AiBackgroundRunStatus::Running);
+                // A pending finish drained inside `dispatch` may already
+                // have moved the session to a terminal state — never
+                // downgrade it back to Running.
+                if !s
+                    .background_status
+                    .as_ref()
+                    .is_some_and(|st| st.is_terminal())
+                {
+                    s.background_status = Some(AiBackgroundRunStatus::Running);
+                }
             });
-            self.event_sink.on_status(&session);
+            if let Some(snapshot) = self.get(&session_id) {
+                session.background_status = snapshot.background_status.clone();
+                self.event_sink.on_status(&snapshot);
+            }
         }
 
         Ok(StartOutput {
@@ -579,6 +605,7 @@ impl AiBackgroundCoordinator {
             for tid in stale_task_ids {
                 guard.task_id_to_session.remove(&tid);
                 guard.pending_lines.remove(&tid);
+                guard.pending_finishes.remove(&tid);
             }
             guard.sessions.retain(|s| s.id != session_id);
             guard.pending.remove(session_id);
@@ -677,6 +704,20 @@ impl AiBackgroundCoordinator {
                 });
             }
         }
+
+        // Drain a terminal event that beat the mapping insert (see
+        // `pending_finishes`). Applied inline and synchronously — going back
+        // through `on_task_finished` would make this async fn recursive
+        // (`on_task_finished` → `try_dispatch_next` → `dispatch`), which
+        // Rust's opaque future types can't express. Callers are responsible
+        // for not overwriting the terminal status this may set.
+        let pending_finish = {
+            let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+            guard.pending_finishes.remove(&task_id)
+        };
+        if let Some(f) = pending_finish {
+            self.apply_task_finish(session_id, f.exit_code, f.was_cancelled, f.error_text);
+        }
         Ok(task_id)
     }
 
@@ -748,17 +789,52 @@ impl AiBackgroundCoordinator {
         error_text: Option<String>,
     ) {
         let session_id = {
-            let guard = self.inner.lock().expect("coordinator mutex poisoned");
-            guard
-                .sessions
-                .iter()
-                .find(|s| s.task_id == Some(task_id))
-                .map(|s| s.id.clone())
+            let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
+            let found = guard.task_id_to_session.get(&task_id).cloned().or_else(|| {
+                guard
+                    .sessions
+                    .iter()
+                    .find(|s| s.task_id == Some(task_id))
+                    .map(|s| s.id.clone())
+            });
+            if found.is_none() {
+                // The task outran its own dispatch: `spawn_with_options`
+                // returned, the task finished, and this callback fired all
+                // before dispatch could register the task_id mapping.
+                // Buffer the terminal event; dispatch drains it right after
+                // the insert (see `pending_finishes`).
+                guard.pending_finishes.insert(
+                    task_id,
+                    PendingFinish {
+                        exit_code,
+                        was_cancelled,
+                        error_text: error_text.clone(),
+                    },
+                );
+            }
+            found
         };
         let Some(session_id) = session_id else {
             return;
         };
 
+        self.apply_task_finish(&session_id, exit_code, was_cancelled, error_text);
+
+        // Try to drain the queue.
+        self.try_dispatch_next().await;
+    }
+
+    /// Synchronous core of [`Self::on_task_finished`]: flip the session to
+    /// its terminal status, notify the sink, and emit the worktree mutation
+    /// diff. Kept sync (and free of `try_dispatch_next`) so `dispatch` can
+    /// apply a buffered finish inline without creating a recursive async fn.
+    fn apply_task_finish(
+        &self,
+        session_id: &str,
+        exit_code: Option<i32>,
+        was_cancelled: bool,
+        error_text: Option<String>,
+    ) {
         let status = if was_cancelled {
             AiBackgroundRunStatus::Cancelled
         } else if matches!(exit_code, Some(0)) {
@@ -774,11 +850,11 @@ impl AiBackgroundCoordinator {
             }
         };
 
-        self.update_session(&session_id, |s| {
+        self.update_session(session_id, |s| {
             s.background_status = Some(status.clone());
             s.is_active = false;
         });
-        if let Some(snapshot) = self.get(&session_id) {
+        if let Some(snapshot) = self.get(session_id) {
             self.event_sink.on_status(&snapshot);
         }
 
@@ -789,7 +865,7 @@ impl AiBackgroundCoordinator {
         // AI run still produces real mutations the UI must refresh.
         let (before, worktree_path, provider_kind) = {
             let mut guard = self.inner.lock().expect("coordinator mutex poisoned");
-            let before = guard.before_snapshots.remove(&session_id);
+            let before = guard.before_snapshots.remove(session_id);
             let session = guard.sessions.iter().find(|s| s.id == session_id).cloned();
             let worktree_path = session.as_ref().and_then(|s| s.worktree_path.clone());
             let provider_kind = session.as_ref().map(|s| s.provider);
@@ -815,9 +891,6 @@ impl AiBackgroundCoordinator {
                 ),
             }
         }
-
-        // Try to drain the queue.
-        self.try_dispatch_next().await;
     }
 
     async fn try_dispatch_next(self: &Arc<Self>) {
@@ -860,7 +933,16 @@ impl AiBackgroundCoordinator {
             Ok(task_id) => {
                 self.update_session(&session_id, |s| {
                     s.task_id = Some(task_id);
-                    s.background_status = Some(AiBackgroundRunStatus::Running);
+                    // A pending finish drained inside `dispatch` may already
+                    // have moved the session to a terminal state — never
+                    // downgrade it back to Running.
+                    if !s
+                        .background_status
+                        .as_ref()
+                        .is_some_and(|st| st.is_terminal())
+                    {
+                        s.background_status = Some(AiBackgroundRunStatus::Running);
+                    }
                 });
                 if let Some(snapshot) = self.get(&session_id) {
                     self.event_sink.on_status(&snapshot);

@@ -382,8 +382,17 @@ mod tests {
         run_git(&work, &["push", "origin", "main"]);
 
         let dest = tempfile::tempdir().unwrap();
+        // Build a well-formed file URL on every platform: Windows paths use
+        // backslashes and a drive letter, which would otherwise produce a
+        // malformed URL the pipeline's name-derivation can't split.
+        let bare_url_path = bare.to_string_lossy().replace('\\', "/");
+        let bare_url = if bare_url_path.starts_with('/') {
+            format!("file://{bare_url_path}")
+        } else {
+            format!("file:///{bare_url_path}")
+        };
         let success = run_clone_pipeline(&CloneRepoOptions {
-            url: format!("file://{}", bare.display()),
+            url: bare_url,
             parent_dir: dest.path().to_string_lossy().into_owned(),
         })
         .unwrap();
