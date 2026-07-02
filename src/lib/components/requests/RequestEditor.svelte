@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { requestsLoad } from "$lib/api/tauri";
   import UrlBar from "./UrlBar.svelte";
   import HeadersTab from "./HeadersTab.svelte";
   import ParamsTab from "./ParamsTab.svelte";
@@ -48,19 +48,11 @@
       return;
     }
     try {
-      const parsed = await invoke<
-        Array<{
-          name?: string | null;
-          method?: string;
-          url?: string;
-          headers?: [string, string][];
-          body?: string | null;
-        }>
-      >("requests_load", {
-        sourceKind: $currentSource.kind,
-        sourcePath: $currentSource.path,
-        projectPath: projectPath || null,
-      });
+      const parsed = await requestsLoad(
+        $currentSource.kind,
+        $currentSource.path,
+        projectPath || null,
+      );
       const first = parsed[0];
       if (!first) {
         currentRequest.set(null);

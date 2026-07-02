@@ -27,6 +27,11 @@ jobs:
       - name: Generate Paraglide messages
         run: npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
 
+      - name: IPC contract drift check
+        # Verifies every Rust #[tauri::command] has a tauri.ts wrapper and vice
+        # versa (spec 05). Pure node source parsing — no build needed.
+        run: node scripts/check-ipc-contract.mjs
+
       - name: Svelte check
         run: npm run check
 

@@ -43,7 +43,8 @@
 </script>
 
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { requestsSave } from "$lib/api/tauri";
+  import { runMutation } from "$lib/api/runMutation";
   import { Button, Dialog, Field } from "$lib/components/ui";
   import { activeProject } from "$lib/stores/projects";
   import { currentSource, treeReloadSignal } from "./stores";
@@ -184,18 +185,19 @@
     }
     busy = true;
     try {
-      await invoke("requests_save", {
-        sourceKind: "project",
-        sourcePath: relPath,
-        projectPath,
-        content: composeHttpBody(relPath),
+      await runMutation({
+        kind: "requests_save",
+        invoke: () =>
+          requestsSave("project", relPath, projectPath, composeHttpBody(relPath)),
+        successToast: () => `Created ${relPath}`,
+        failureToastPrefix: "Create request failed",
       });
       currentSource.set({ kind: "project", path: relPath });
       treeReloadSignal.update((n) => n + 1);
       open = false;
       onClose();
-    } catch (e) {
-      error = String(e);
+    } catch {
+      // runMutation already surfaced the failure toast; keep the dialog open.
     } finally {
       busy = false;
     }

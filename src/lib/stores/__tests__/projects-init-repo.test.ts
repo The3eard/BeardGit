@@ -25,9 +25,11 @@ describe("openProjectTab not-a-repo handling", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("opens the init dialog when backend rejects with not_a_repo", async () => {
+    // open_project now rejects with an IpcError; not_a_repo carries the
+    // attempted path in `message`.
     (openProject as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce({
-      kind: "not_a_repo",
-      path: "/tmp/foo",
+      code: "not_a_repo",
+      message: "/tmp/foo",
     });
     await openProjectTab("/tmp/foo");
     expect(requestOpenInitRepoDialog).toHaveBeenCalledWith("/tmp/foo");
@@ -35,7 +37,7 @@ describe("openProjectTab not-a-repo handling", () => {
 
   it("rethrows on other errors", async () => {
     (openProject as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce({
-      kind: "other",
+      code: "open_failed",
       message: "boom",
     });
     await expect(openProjectTab("/tmp/foo")).rejects.toBeDefined();

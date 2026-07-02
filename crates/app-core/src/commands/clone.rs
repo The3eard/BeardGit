@@ -21,6 +21,8 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
+use crate::ipc_error::IpcError;
+
 /// Options accepted by [`clone_repo`] (and `run_clone_pipeline`).
 #[derive(Debug, Deserialize)]
 pub struct CloneRepoOptions {
@@ -189,10 +191,15 @@ fn derive_repo_name(url: &str) -> Option<String> {
 
 /// Tauri command. Thin wrapper around [`run_clone_pipeline`] — kept
 /// trivial so all the testable logic lives in the pure function above.
+///
+/// The pure pipeline keeps its typed [`CloneRepoError`] (so its tests can
+/// match on the failing step); the command boundary folds it into the shared
+/// [`IpcError`] envelope, mapping each step to a stable `code`
+/// (`invalid_url`, `destination_exists`, `clone_failed`, …).
 #[tauri::command]
 #[tracing::instrument(name = "cmd::clone_repo")]
-pub fn clone_repo(options: CloneRepoOptions) -> Result<CloneRepoSuccess, CloneRepoError> {
-    run_clone_pipeline(&options)
+pub fn clone_repo(options: CloneRepoOptions) -> Result<CloneRepoSuccess, IpcError> {
+    run_clone_pipeline(&options).map_err(IpcError::from)
 }
 
 #[cfg(test)]

@@ -19,7 +19,7 @@ import {
   getStatusSummary as apiGetStatusSummary,
   detectProject,
 } from "../api/tauri";
-import { parseOpenProjectError } from "../api/errors";
+import { getErrorCode, getErrorMessage } from "../api/errors";
 import { requestOpenInitRepoDialog } from "./initRepoDialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { repoInfo, branches, isLoading, registerWatcher } from "./repo";
@@ -190,9 +190,10 @@ export async function openProjectTab(path: string) {
   try {
     info = await apiOpenProject(path);
   } catch (err) {
-    const parsed = parseOpenProjectError(err);
-    if (parsed?.kind === "not_a_repo") {
-      requestOpenInitRepoDialog(parsed.path);
+    // `open_project` rejects with an IpcError; `not_a_repo` carries the
+    // attempted path in `message` so we can seed the init dialog with it.
+    if (getErrorCode(err) === "not_a_repo") {
+      requestOpenInitRepoDialog(getErrorMessage(err));
       return;
     }
     throw err;
