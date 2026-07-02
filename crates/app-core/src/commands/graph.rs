@@ -6,9 +6,15 @@ use graph_builder::{Dag, GraphCommit, GraphLayout};
 use tauri::State;
 use tracing::instrument;
 
-use super::graph_cache::{GraphLayoutOptions, load_or_build_layout};
+use super::graph_cache::{GraphLayoutOptions, load_or_build_layout, persist_layout, ref_snapshot};
 use super::helpers::*;
-use crate::state::AppState;
+use crate::state::{AppState, RefSnapshot};
+
+/// Ceiling on how far the incremental-refresh fast path walks a first-parent
+/// chain before giving up and letting the full rebuild handle it. Keeps the
+/// per-refresh work (done under the projects lock) bounded; larger jumps
+/// (rebases, force-pushes, deep fast-forwards) legitimately full-rebuild.
+const SIMPLE_ADVANCE_CAP: usize = 512;
 
 /// Outcome of probing the active slot for a layout matching the requested
 /// options: either a ready viewport slice, or the repo path to rebuild from.
@@ -373,10 +379,151 @@ fn rebuild_layout_blocking(
     path: &str,
     config_dir: &std::path::Path,
     options: &GraphLayoutOptions,
-) -> Result<GraphLayout, String> {
+) -> Result<(GraphLayout, RefSnapshot), String> {
     let repo = git_engine::Repository::open(PathBuf::from(path)).map_err(|e| e.to_string())?;
     let (layout, _was_cached) = load_or_build_layout(&repo, path, config_dir, options)?;
-    Ok(layout)
+    // Record the refs this layout was built from so a later `refresh_graph_layout`
+    // can detect a simple advance against it.
+    let refs = ref_snapshot(&repo);
+    Ok((layout, refs))
+}
+
+/// Map a `git_engine::CommitInfo` into a `graph_builder::GraphCommit`.
+fn commit_to_graph_commit(c: git_engine::CommitInfo) -> GraphCommit {
+    GraphCommit {
+        oid: c.oid,
+        parents: c.parents,
+        timestamp: c.timestamp,
+        refs: c.refs,
+        summary: c.summary,
+        author: c.author,
+        email: c.email,
+    }
+}
+
+/// If exactly one ref changed OID between `old` and `new` (none added or
+/// removed), return `(ref_name, old_oid, new_oid)`. Any other shape (a ref
+/// created/deleted, several refs moved, or nothing moved) yields `None`.
+fn single_ref_advance(old: &RefSnapshot, new: &RefSnapshot) -> Option<(String, String, String)> {
+    if old.len() != new.len() {
+        return None;
+    }
+    let mut moved: Option<(String, String, String)> = None;
+    for (name, new_oid) in new {
+        match old.get(name) {
+            None => return None, // a ref was added (and one removed to keep len equal)
+            Some(old_oid) if old_oid == new_oid => {}
+            Some(old_oid) => {
+                if moved.is_some() {
+                    return None; // more than one ref moved
+                }
+                moved = Some((name.clone(), old_oid.clone(), new_oid.clone()));
+            }
+        }
+    }
+    moved
+}
+
+/// Attempt the incremental "simple advance" fast path for
+/// [`refresh_graph_layout`]: when exactly one branch moved forward on top of
+/// the current graph tip, patch the cached layout in place instead of
+/// re-walking the whole graph.
+///
+/// Returns `Ok(true)` when it fully handled the refresh (layout patched, disk
+/// cache updated, ref snapshot advanced); `Ok(false)` when the mutation isn't a
+/// simple advance and the caller must full-rebuild. Only genuine lock failures
+/// surface as `Err`.
+///
+/// The detect-and-patch runs under the `projects`+`active_index` lock: the git
+/// walk is a capped first-parent hop and the array work is O(rows), so keeping
+/// the old layout in the slot throughout avoids a `None` window that would
+/// strand a concurrent viewport read. In debug builds the result is
+/// cross-checked against a full rebuild so the fast path can never silently
+/// diverge.
+fn try_incremental_advance(state: &State<'_, AppState>) -> Result<bool, String> {
+    // Resolve the active path, then read its recorded ref snapshot — each under
+    // its own lock so we never hold two of AppState's mutexes simultaneously.
+    let path = match get_active_project_path(state) {
+        Ok(p) => p.to_string_lossy().into_owned(),
+        Err(_) => return Ok(false),
+    };
+    let Some(old_refs) = state.layout_ref_snapshot(&path) else {
+        return Ok(false); // no baseline yet — full rebuild will record one
+    };
+    let config_dir = state.config_dir.clone();
+
+    let new_refs = {
+        let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
+        let active = state.active_index.lock().map_err(|e| e.to_string())?;
+        let Some(idx) = *active else {
+            return Ok(false);
+        };
+        let Some(slot) = projects.get_mut(idx) else {
+            return Ok(false);
+        };
+        // The fast path only reasons about the default full-graph view.
+        if slot.path != path || slot.layout_options != GraphLayoutOptions::default() {
+            return Ok(false);
+        }
+        let (Some(repo), Some(layout)) = (slot.repo.as_ref(), slot.layout.as_ref()) else {
+            return Ok(false);
+        };
+        let Some(row0) = layout.nodes.first() else {
+            return Ok(false);
+        };
+        if row0.lane != 0 {
+            return Ok(false);
+        }
+        let (row0_oid, row0_ts) = (row0.oid.clone(), row0.timestamp);
+
+        let new_refs = ref_snapshot(repo);
+        let Some((name, old_oid, new_oid)) = single_ref_advance(&old_refs, &new_refs) else {
+            return Ok(false);
+        };
+        // Only branch/remote tips anchor the graph, and the moved branch's old
+        // tip must be exactly the current row-0 commit.
+        if !(name.starts_with("refs/heads/") || name.starts_with("refs/remotes/"))
+            || old_oid != row0_oid
+        {
+            return Ok(false);
+        }
+
+        let Some((commits, former_tip_refs)) = repo
+            .simple_advance_commits(&old_oid, &new_oid, SIMPLE_ADVANCE_CAP)
+            .map_err(|e| e.to_string())?
+        else {
+            return Ok(false);
+        };
+        // Every new commit must be at least as new as the old tip, so a full
+        // rebuild would place them at the very top (see try_prepend docs).
+        if commits.iter().any(|c| c.timestamp < row0_ts) {
+            return Ok(false);
+        }
+
+        let gcs: Vec<GraphCommit> = commits.into_iter().map(commit_to_graph_commit).collect();
+        let Some(inc) = layout.try_prepend_simple_advance(&gcs, former_tip_refs) else {
+            return Ok(false);
+        };
+
+        // Dev-only correctness gate: the fast path must never diverge from a
+        // full rebuild. Release builds trust the property-tested construction.
+        #[cfg(debug_assertions)]
+        {
+            let full = super::graph_cache::build_fresh_layout(repo, &slot.layout_options)?;
+            if let Some(diff) = graph_builder::structural_diff(&inc, &full) {
+                panic!("incremental graph advance diverged from full rebuild: {diff}");
+            }
+        }
+
+        // Serialize from a borrow (no clone) and flush off-thread, then install
+        // the patched layout into the slot.
+        persist_layout(repo, &path, &config_dir, &slot.layout_options, &inc);
+        slot.layout = Some(inc);
+        new_refs
+    };
+
+    state.store_layout_ref_snapshot(&path, new_refs);
+    Ok(true)
 }
 
 /// Rebuild the active project's cached [`GraphLayout`] from the current
@@ -402,6 +549,14 @@ fn rebuild_layout_blocking(
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::graph::refresh_layout")]
 pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), String> {
+    // Fast path: a plain commit / amend / fast-forward moves exactly one branch
+    // forward on top of the current tip. Detect that and patch the cached
+    // layout in place (O(new rows)) instead of re-walking up to 20K commits.
+    // Anything else falls through to the full rebuild below.
+    if try_incremental_advance(&state)? {
+        return Ok(());
+    }
+
     // Snapshot the path + config dir + the slot's current layout options so
     // we can drop the lock before doing the (potentially expensive) walk +
     // layout build off-thread. Rebuilding with the slot's own options keeps
@@ -422,7 +577,7 @@ pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), Stri
 
     let path_clone = path.clone();
     let opts_clone = options.clone();
-    let layout = tokio::task::spawn_blocking(move || {
+    let (layout, new_refs) = tokio::task::spawn_blocking(move || {
         rebuild_layout_blocking(&path_clone, &config_dir, &opts_clone)
     })
     .await
@@ -433,14 +588,24 @@ pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), Stri
     // raced with this call is a silent no-op. Guard on the options still
     // matching too, so a concurrent mode switch isn't clobbered with a
     // layout built for the old mode.
-    let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
-    let active = state.active_index.lock().map_err(|e| e.to_string())?;
-    if let Some(idx) = *active
-        && let Some(slot) = projects.get_mut(idx)
-        && slot.path == path
-        && slot.layout_options == options
-    {
-        slot.layout = Some(layout);
+    let installed = {
+        let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
+        let active = state.active_index.lock().map_err(|e| e.to_string())?;
+        if let Some(idx) = *active
+            && let Some(slot) = projects.get_mut(idx)
+            && slot.path == path
+            && slot.layout_options == options
+        {
+            slot.layout = Some(layout);
+            true
+        } else {
+            false
+        }
+    };
+    // Record the refs this layout was built from so the next refresh can try
+    // the incremental fast path against it.
+    if installed {
+        state.store_layout_ref_snapshot(&path, new_refs);
     }
     Ok(())
 }
@@ -449,6 +614,53 @@ pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), Stri
 mod tests {
     use super::*;
     use git_engine::test_support::create_repo_with_n_commits;
+
+    fn refs(pairs: &[(&str, &str)]) -> RefSnapshot {
+        pairs
+            .iter()
+            .map(|(n, o)| (n.to_string(), o.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn single_ref_advance_detects_one_moved_branch() {
+        let old = refs(&[
+            ("refs/heads/main", "aaaa"),
+            ("refs/remotes/origin/main", "aaaa"),
+        ]);
+        let new = refs(&[
+            ("refs/heads/main", "bbbb"),
+            ("refs/remotes/origin/main", "aaaa"),
+        ]);
+        assert_eq!(
+            single_ref_advance(&old, &new),
+            Some((
+                "refs/heads/main".to_string(),
+                "aaaa".to_string(),
+                "bbbb".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn single_ref_advance_rejects_multi_move_add_remove_and_noop() {
+        let base = refs(&[("refs/heads/main", "aaaa"), ("refs/heads/dev", "cccc")]);
+        // No change.
+        assert_eq!(single_ref_advance(&base, &base), None);
+        // Two refs moved.
+        let two = refs(&[("refs/heads/main", "bbbb"), ("refs/heads/dev", "dddd")]);
+        assert_eq!(single_ref_advance(&base, &two), None);
+        // A ref added (count differs).
+        let added = refs(&[
+            ("refs/heads/main", "aaaa"),
+            ("refs/heads/dev", "cccc"),
+            ("refs/heads/feat", "eeee"),
+        ]);
+        assert_eq!(single_ref_advance(&base, &added), None);
+        // One moved, one removed, one added (same count) → not a clean advance.
+        let churn = refs(&[("refs/heads/main", "bbbb"), ("refs/heads/feat", "eeee")]);
+        assert_eq!(single_ref_advance(&base, &churn), None);
+    }
 
     #[test]
     fn build_graph_chunk_returns_offset_slice() {
@@ -604,7 +816,7 @@ mod tests {
         let tmp_cfg = tempfile::tempdir().unwrap();
 
         // Warm the cache with the 5-commit layout.
-        let layout1 =
+        let (layout1, _refs1) =
             rebuild_layout_blocking(path_str, tmp_cfg.path(), &GraphLayoutOptions::default())
                 .expect("initial build");
         assert_eq!(layout1.nodes.len(), 5);
@@ -626,7 +838,7 @@ mod tests {
 
         // Refresh — must surface the new commit, not re-serve the stale
         // 5-node layout from cache.
-        let layout2 =
+        let (layout2, _refs2) =
             rebuild_layout_blocking(path_str, tmp_cfg.path(), &GraphLayoutOptions::default())
                 .expect("post-commit rebuild");
         assert_eq!(
