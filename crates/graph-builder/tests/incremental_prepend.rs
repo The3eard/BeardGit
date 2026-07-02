@@ -251,6 +251,77 @@ fn incremental_prepend_matches_full_rebuild_merge_heavy() {
     drop(dir);
 }
 
+/// Spec 07: after `try_prepend_simple_advance` renumbers rows and shifts
+/// segments/curves, the prepended layout's freshly-derived viewport index must
+/// return the same windows as a full recompute. Advance a merge-heavy repo by
+/// several commits, prepending each onto the previous (incremental) layout, and
+/// assert `inc.viewport(w) == full_rebuild.viewport(w)` across a window sweep —
+/// including bucket boundaries (512).
+#[test]
+fn prepend_viewport_windows_match_full_rebuild() {
+    let (dir, path) = create_synthetic_repo(300, 25);
+    let mut prev = full_layout(&path);
+    let mut prev_refs = ref_snapshot(&path);
+    let mut secs: i64 = 2_000_000_000;
+    let mut applied = 0usize;
+
+    for i in 0..8 {
+        secs += 1;
+        commit_on_head(&path, secs, &format!("adv{i}"));
+        let full_after = full_layout(&path);
+        let new_refs = ref_snapshot(&path);
+
+        let Some((name, old_oid, new_oid)) = single_ref_move(&prev_refs, &new_refs) else {
+            prev = full_after;
+            prev_refs = new_refs;
+            continue;
+        };
+        let row0 = &prev.nodes[0];
+        if is_branch(&name) && old_oid == row0.oid && row0.lane == 0 {
+            let repo = Repository::open(&path).unwrap();
+            if let Some((commits, old_tip_refs)) = repo
+                .simple_advance_commits(&old_oid, &new_oid, CAP)
+                .unwrap()
+            {
+                let gcs: Vec<GraphCommit> = commits.into_iter().map(to_gc).collect();
+                let inc = prev
+                    .try_prepend_simple_advance(&gcs, old_tip_refs)
+                    .expect("plain HEAD commit must be a simple advance");
+
+                let n = inc.nodes.len();
+                let offsets = [0usize, 1, 250, 511, 512, 513, n.saturating_sub(10), n];
+                let limits = [0usize, 1, 50, 300, 600];
+                for &off in &offsets {
+                    for &lim in &limits {
+                        let a = inc.viewport(off, lim);
+                        let b = full_after.viewport(off, lim);
+                        assert_eq!(a.lane_segments, b.lane_segments, "seg off {off} lim {lim}");
+                        assert_eq!(a.merge_curves, b.merge_curves, "curve off {off} lim {lim}");
+                        let a_oids: Vec<&String> = a.nodes.iter().map(|x| &x.oid).collect();
+                        let b_oids: Vec<&String> = b.nodes.iter().map(|x| &x.oid).collect();
+                        assert_eq!(a_oids, b_oids, "nodes off {off} lim {lim}");
+                    }
+                }
+
+                // Continue advancing from the incremental layout so a later
+                // prepend indexes an already-prepended layout.
+                prev = inc;
+                prev_refs = new_refs;
+                applied += 1;
+                continue;
+            }
+        }
+        prev = full_after;
+        prev_refs = new_refs;
+    }
+
+    assert!(
+        applied >= 5,
+        "expected several simple advances, got {applied}"
+    );
+    drop(dir);
+}
+
 #[test]
 fn incremental_prepend_matches_full_rebuild_multi_branch() {
     // Fewer merges, more standing branches (wider multi-lane graph).
