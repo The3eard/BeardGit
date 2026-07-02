@@ -69,6 +69,16 @@ pub async fn open_repo(
             // tree) silently disables real-time refresh for this repo with no
             // user-visible signal. Log it so a "changes don't appear live"
             // report is diagnosable from the log file.
+            //
+            // The watcher now batch-filters git-ignored paths, so `target/` /
+            // `node_modules/` churn no longer wakes a snapshot walk. It still
+            // *registers* recursively though: notify 7's `RecommendedWatcher`
+            // (inotify on Linux) walks with `WalkDir` and exposes no
+            // per-directory hook to skip ignored subtrees, so a huge `target/`
+            // can still exhaust `fs.inotify.max_user_watches` and land here.
+            // Skipping those dirs would mean hand-rolling a bespoke inotify
+            // layer (out of scope); when this fires on Linux, raising the
+            // sysctl limit is the workaround.
             tracing::warn!(?err, path = %path, "repo watcher failed to start — real-time refresh disabled for this repo");
         })
         .ok();
