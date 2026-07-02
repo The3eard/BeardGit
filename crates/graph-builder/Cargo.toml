@@ -8,3 +8,11 @@ serde = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+# Benches build a synthetic repo via git-engine's test-support helper and walk
+# it into `GraphCommit`s. Dev-only, so graph-builder stays a pure crate.
+git-engine = { path = "../git-engine", features = ["test-support"] }
+criterion = { workspace = true }
+
+[[bench]]
+name = "layout"
+harness = false
