@@ -47,6 +47,57 @@ pub async fn get_diff_between_commits(
     .map_err(|e| e.to_string())?
 }
 
+/// Return the merge base (best common ancestor) of two revisions, or `null`
+/// when they share no common history. Read-only; powers the compare view's
+/// three-dot (`merge-base..B`) range.
+///
+/// # Parameters
+/// - `a` / `b` – Any revspec: branch name, tag, `HEAD`, or (abbreviated) SHA.
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::diff::merge_base")]
+pub async fn get_merge_base(
+    a: String,
+    b: String,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.merge_base(&a, &b).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Return the commits in `from..to` (reachable from `to`, not from `from`),
+/// newest-first, paginated. Mirrors `git log from..to`. Read-only; powers the
+/// compare view's "N commits ahead / behind" list.
+///
+/// # Parameters
+/// - `from` / `to` – Any revspec (branch, tag, `HEAD`, SHA).
+/// - `limit` – Max commits to return (default 100) so a large divergence
+///   doesn't flood the IPC channel.
+/// - `anchor` – OID of the last commit already shown; when set, the walk
+///   resumes after it (cheap "load more" pagination).
+#[tauri::command]
+#[instrument(skip(state), name = "cmd::diff::commits_between")]
+pub async fn get_commits_between(
+    from: String,
+    to: String,
+    limit: Option<usize>,
+    anchor: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::CommitInfo>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        repo.commits_between(&from, &to, limit.unwrap_or(100), anchor.as_deref())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Return the full diff (hunks + lines) for a single file in a commit.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::diff::commit_file_diff")]
@@ -359,5 +410,67 @@ mod tests {
         let repo = Repository::open(&path).unwrap();
         let err = repo.get_file_workdir("does-not-exist.txt").err();
         assert!(err.is_some(), "reading a missing workdir file should error");
+    }
+
+    /// Run `git` in `path` and return the trimmed, sorted set of paths from a
+    /// `--name-only` diff, so we can compare against `diff_commits` file sets.
+    fn git_name_only(path: &std::path::Path, args: &[&str]) -> Vec<String> {
+        let out = std::process::Command::new("git")
+            .args(args)
+            .current_dir(path)
+            .output()
+            .expect("spawn git");
+        assert!(
+            out.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let mut paths: Vec<String> = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    #[test]
+    fn diff_commits_resolves_ref_names_like_git_diff() {
+        let (_tmp, path) = git_engine::test_support::create_repo_with_diverged_branches();
+        let repo = Repository::open(&path).unwrap();
+
+        // Two-dot: `main` tree vs `feature` tree directly (`git diff main..feature`).
+        let mut two_dot: Vec<String> = repo
+            .diff_commits("main", "feature")
+            .unwrap()
+            .into_iter()
+            .map(|c| c.path)
+            .collect();
+        two_dot.sort();
+        assert_eq!(
+            two_dot,
+            git_name_only(&path, &["diff", "--name-only", "main..feature"]),
+            "two-dot diff must match `git diff main..feature`"
+        );
+        // Sanity: two-dot sees the file main has but feature dropped.
+        assert!(two_dot.contains(&"main_only.txt".to_string()));
+
+        // Three-dot: merge-base vs `feature` (`git diff main...feature`).
+        let base = repo.merge_base("main", "feature").unwrap().unwrap();
+        let mut three_dot: Vec<String> = repo
+            .diff_commits(&base, "feature")
+            .unwrap()
+            .into_iter()
+            .map(|c| c.path)
+            .collect();
+        three_dot.sort();
+        assert_eq!(
+            three_dot,
+            git_name_only(&path, &["diff", "--name-only", "main...feature"]),
+            "three-dot diff must match `git diff main...feature`"
+        );
+        // Three-dot only shows what feature added; main_only.txt is absent.
+        assert!(!three_dot.contains(&"main_only.txt".to_string()));
+        assert!(three_dot.contains(&"feat_a.txt".to_string()));
     }
 }

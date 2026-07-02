@@ -142,6 +142,8 @@ pub fn run() {
             app_core::commands::get_repo_info,
             app_core::commands::get_commit_files,
             app_core::commands::get_diff_between_commits,
+            app_core::commands::get_merge_base,
+            app_core::commands::get_commits_between,
             app_core::commands::get_commit_file_diff,
             app_core::commands::get_commit_full_diff,
             app_core::commands::get_file_at_commit,
