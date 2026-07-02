@@ -10,7 +10,7 @@
 
 // Lane layout
 
-use crate::dag::Dag;
+use crate::dag::{Dag, GraphCommit};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -528,6 +528,205 @@ impl GraphLayout {
             head_lane,
         }
     }
+
+    /// Incrementally prepend a "simple advance" onto this layout, producing the
+    /// layout a full [`GraphLayout::compute`] would yield — without re-walking
+    /// the graph.
+    ///
+    /// A *simple advance* is the common case where a single branch moved
+    /// forward by one or more commits on top of the current graph tip (a plain
+    /// commit, an amend that adds nothing new above, or a linear fast-forward):
+    /// the new commits form a first-parent chain of single-parent commits whose
+    /// oldest parent is this layout's row-0 commit, and that row-0 commit sits
+    /// on lane 0. Under exactly those conditions a full rebuild is provably
+    /// equal to "prepend the new rows on lane 0, shift every existing row down
+    /// by N": the new commits are the globally-newest commits, so the walk
+    /// after them re-enters the identical state that produced the old layout,
+    /// leaving lane assignment, group ids, segments and curves unchanged apart
+    /// from a uniform row shift.
+    ///
+    /// # Parameters
+    /// - `new_commits` — the new commits **newest-first** (`new_commits[0]` is
+    ///   the branch tip). Each must have exactly one parent; consecutive
+    ///   entries must chain (`new_commits[i].parents[0] == new_commits[i+1].oid`)
+    ///   and the last one's parent must be `self.nodes[0].oid`.
+    /// - `former_tip_refs` — the refs (short names) that now point at the former
+    ///   row-0 commit after the branch moved off it. Applied to that (shifted)
+    ///   node so ref chips track the move; the moved branch/HEAD labels ride
+    ///   along on the new commits' own refs.
+    ///
+    /// Returns `None` if the inputs don't match the strict simple-advance shape.
+    /// Callers must treat `None` as "fall back to a full rebuild" — correctness
+    /// never depends on this fast path succeeding.
+    ///
+    /// The result is cross-checked against a full rebuild by
+    /// [`structural_diff`] in the caller's debug builds and by a property test
+    /// (`incremental_prepend_matches_full_rebuild_across_topologies`).
+    pub fn try_prepend_simple_advance(
+        &self,
+        new_commits: &[GraphCommit],
+        former_tip_refs: Vec<String>,
+    ) -> Option<GraphLayout> {
+        // ── Precondition checks — bail (→ full rebuild) on anything off-shape.
+        let first = self.nodes.first()?;
+        if first.lane != 0 {
+            return None;
+        }
+        if new_commits.is_empty() {
+            return None;
+        }
+        for c in new_commits {
+            if c.parents.len() != 1 {
+                return None; // a merge (or root) in the range → not a simple advance
+            }
+        }
+        for pair in new_commits.windows(2) {
+            if pair[0].parents[0] != pair[1].oid {
+                return None; // not a contiguous first-parent chain
+            }
+        }
+        if new_commits.last()?.parents[0] != first.oid {
+            return None; // chain doesn't attach to the current tip
+        }
+
+        let n = new_commits.len();
+        let group = first.segment_group; // the lane-0 tip tenure (== 0 in practice)
+
+        // ── Nodes: N new rows on lane 0, then every old node shifted down by N.
+        let mut nodes: Vec<LayoutNode> = Vec::with_capacity(n + self.nodes.len());
+        for (i, c) in new_commits.iter().enumerate() {
+            nodes.push(LayoutNode {
+                oid: c.oid.clone(),
+                lane: 0,
+                row: i,
+                refs: c.refs.clone(),
+                summary: c.summary.clone(),
+                author: c.author.clone(),
+                email: c.email.clone(),
+                timestamp: c.timestamp,
+                is_merge: c.parents.len() > 1, // always false here (checked above)
+                is_root: c.parents.is_empty(), // always false here
+                segment_group: group,
+            });
+        }
+        for (i, old) in self.nodes.iter().enumerate() {
+            let mut node = old.clone();
+            node.row += n;
+            if i == 0 {
+                // The former tip: its moved branch/HEAD labels now live on the
+                // new tip, so replace its refs with what still points at it.
+                node.refs = former_tip_refs.clone();
+            }
+            nodes.push(node);
+        }
+
+        // ── Segments: shift by N. The tip's own segment — the one whose
+        // group id matches the row-0 node — keeps start_row 0 and just extends
+        // downward to cover the new rows; every other segment shifts start and
+        // end uniformly. (Identifying the tip segment by group id, not by
+        // `start_row == 0`, matters: a merge at row 0 opens a *second* segment
+        // that also starts at row 0 but must still shift down by N.) Reset sync
+        // state to Unknown so the re-tag below reproduces a fresh compute
+        // exactly.
+        let mut lane_segments: Vec<LaneSegment> = self
+            .lane_segments
+            .iter()
+            .map(|seg| {
+                let mut s = seg.clone();
+                s.end_row += n;
+                if seg.group_id != group {
+                    s.start_row += n;
+                }
+                s.sync_state = SyncState::Unknown;
+                s
+            })
+            .collect();
+
+        // ── Curves: shift every endpoint down by N (no new curves — the new
+        // commits are single-parent on lane 0, so they cross no lanes).
+        let merge_curves: Vec<MergeCurve> = self
+            .merge_curves
+            .iter()
+            .map(|c| MergeCurve {
+                from_row: c.from_row + n,
+                to_row: c.to_row + n,
+                ..c.clone()
+            })
+            .collect();
+
+        tag_sync_states(&nodes, &mut lane_segments);
+
+        let head_lane = nodes
+            .iter()
+            .find(|node| node.refs.iter().any(|r| r == "HEAD"))
+            .map(|node| node.lane);
+
+        Some(GraphLayout {
+            nodes,
+            lane_count: self.lane_count,
+            lane_segments,
+            merge_curves,
+            head_lane,
+        })
+    }
+}
+
+/// Compare two layouts for **structural** equality, returning `Some(reason)`
+/// describing the first difference or `None` when they match.
+///
+/// Used to cross-check [`GraphLayout::try_prepend_simple_advance`] against a
+/// full [`GraphLayout::compute`] — in the caller's debug builds via
+/// `debug_assert!` and in the incremental-prepend property test. Ref lists are
+/// compared as sets (order carries no rendering meaning); everything else is
+/// compared exactly, including `lane_segments` / `merge_curves` ordering, since
+/// the renderer consumes those vectors positionally.
+pub fn structural_diff(a: &GraphLayout, b: &GraphLayout) -> Option<String> {
+    if a.nodes.len() != b.nodes.len() {
+        return Some(format!("node count {} != {}", a.nodes.len(), b.nodes.len()));
+    }
+    if a.lane_count != b.lane_count {
+        return Some(format!("lane_count {} != {}", a.lane_count, b.lane_count));
+    }
+    if a.head_lane != b.head_lane {
+        return Some(format!("head_lane {:?} != {:?}", a.head_lane, b.head_lane));
+    }
+    for (i, (x, y)) in a.nodes.iter().zip(b.nodes.iter()).enumerate() {
+        if x.oid != y.oid
+            || x.lane != y.lane
+            || x.row != y.row
+            || x.summary != y.summary
+            || x.author != y.author
+            || x.email != y.email
+            || x.timestamp != y.timestamp
+            || x.is_merge != y.is_merge
+            || x.is_root != y.is_root
+            || x.segment_group != y.segment_group
+        {
+            return Some(format!("node[{i}] differs: {x:?} != {y:?}"));
+        }
+        let mut xr = x.refs.clone();
+        let mut yr = y.refs.clone();
+        xr.sort();
+        yr.sort();
+        if xr != yr {
+            return Some(format!("node[{i}] refs {xr:?} != {yr:?}"));
+        }
+    }
+    if a.lane_segments != b.lane_segments {
+        return Some(format!(
+            "lane_segments differ ({} vs {})",
+            a.lane_segments.len(),
+            b.lane_segments.len()
+        ));
+    }
+    if a.merge_curves != b.merge_curves {
+        return Some(format!(
+            "merge_curves differ ({} vs {})",
+            a.merge_curves.len(),
+            b.merge_curves.len()
+        ));
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -1129,6 +1328,116 @@ mod tests {
         assert_eq!(restored.nodes[0].refs.len(), 2);
         assert_eq!(restored.lane_segments[0].sync_state, SyncState::LocalOnly);
         assert_eq!(restored.merge_curves[0].from_lane, 1);
+    }
+
+    /// Full rebuild of `commits` (newest-first) as the ground truth for the
+    /// incremental-prepend assertions.
+    fn full(commits: Vec<GraphCommit>) -> GraphLayout {
+        GraphLayout::compute(Dag::build(commits))
+    }
+
+    #[test]
+    fn prepend_single_commit_equals_full_rebuild() {
+        // Old layout: b (tip, HEAD+main) → a. Advance: commit c; main+HEAD move
+        // to c, b keeps nothing.
+        let old = full(vec![
+            make_commit("b", &["a"], &["HEAD", "refs/heads/main"], "b"),
+            make_commit("a", &[], &[], "a"),
+        ]);
+        let new_commits = vec![make_commit("c", &["b"], &["HEAD", "refs/heads/main"], "c")];
+        let inc = old
+            .try_prepend_simple_advance(&new_commits, vec![])
+            .expect("simple advance should apply");
+
+        let full_after = full(vec![
+            make_commit("c", &["b"], &["HEAD", "refs/heads/main"], "c"),
+            make_commit("b", &["a"], &[], "b"),
+            make_commit("a", &[], &[], "a"),
+        ]);
+        assert_eq!(
+            structural_diff(&inc, &full_after),
+            None,
+            "incremental prepend must match a full rebuild"
+        );
+        assert_eq!(inc.head_lane, Some(0));
+    }
+
+    #[test]
+    fn prepend_multiple_commits_equals_full_rebuild() {
+        let old = full(vec![
+            make_commit("t", &["a"], &["HEAD", "refs/heads/main"], "t"),
+            make_commit("a", &[], &[], "a"),
+        ]);
+        // Three new commits, newest-first: z→y→x→t.
+        let new_commits = vec![
+            make_commit("z", &["y"], &["HEAD", "refs/heads/main"], "z"),
+            commit("y", &["x"]),
+            commit("x", &["t"]),
+        ];
+        let inc = old
+            .try_prepend_simple_advance(&new_commits, vec![])
+            .expect("simple advance should apply");
+
+        let full_after = full(vec![
+            make_commit("z", &["y"], &["HEAD", "refs/heads/main"], "z"),
+            commit("y", &["x"]),
+            commit("x", &["t"]),
+            make_commit("t", &["a"], &[], "t"),
+            make_commit("a", &[], &[], "a"),
+        ]);
+        assert_eq!(structural_diff(&inc, &full_after), None);
+        assert_eq!(inc.nodes.len(), 5);
+        assert_eq!(inc.nodes[0].oid, "z");
+        assert_eq!(inc.nodes[0].row, 0);
+    }
+
+    #[test]
+    fn prepend_over_merge_heavy_tail_equals_full_rebuild() {
+        // Recycling-heavy tail (mirrors test_lanes_are_recycled) with `main`
+        // on the merge tip m2. Advance: commit `top`; main moves to it.
+        let tail = || {
+            vec![
+                make_commit("m2", &["m1", "f2"], &["refs/heads/main"], "merge f2"),
+                make_commit("f2", &["base"], &["feature2"], "f2 work"),
+                make_commit("m1", &["base", "f1"], &[], "merge f1"),
+                make_commit("f1", &["base"], &["feature1"], "f1 work"),
+                make_commit("base", &[], &[], "initial"),
+            ]
+        };
+        let old = full(tail());
+        let new_commits = vec![make_commit("top", &["m2"], &["refs/heads/main"], "top")];
+        let inc = old
+            .try_prepend_simple_advance(&new_commits, vec![])
+            .expect("simple advance should apply over a merge-heavy tail");
+
+        let mut after = tail();
+        after[0].refs = vec![]; // main moved off m2
+        after.insert(0, make_commit("top", &["m2"], &["refs/heads/main"], "top"));
+        let full_after = full(after);
+        assert_eq!(structural_diff(&inc, &full_after), None);
+    }
+
+    #[test]
+    fn prepend_rejects_off_shape_inputs() {
+        let old = full(vec![commit("b", &["a"]), commit("a", &[])]);
+
+        // Empty new set.
+        assert!(old.try_prepend_simple_advance(&[], vec![]).is_none());
+        // A merge in the new range (two parents).
+        assert!(
+            old.try_prepend_simple_advance(&[commit("m", &["b", "x"])], vec![])
+                .is_none()
+        );
+        // Chain doesn't attach to the current tip (parent is not "b").
+        assert!(
+            old.try_prepend_simple_advance(&[commit("c", &["zzz"])], vec![])
+                .is_none()
+        );
+        // Broken chain between two new commits.
+        assert!(
+            old.try_prepend_simple_advance(&[commit("z", &["y"]), commit("w", &["b"])], vec![])
+                .is_none()
+        );
     }
 
     #[test]

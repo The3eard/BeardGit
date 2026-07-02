@@ -15,12 +15,15 @@
 //!   treated as a silent miss — never a user-visible failure.
 //! - On a miss the live layout is always written back so the next open hits.
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 use git_engine::{CommitWalkOptions, Repository};
 use graph_builder::{Dag, GraphCommit, GraphLayout};
 use storage::layout_cache::{
-    LayoutCacheEntry, SCHEMA_VERSION, compute_cache_key, load_layout_cache, save_layout_cache,
+    LayoutCacheEntryRef, SCHEMA_VERSION, compute_cache_key, load_layout_cache,
+    serialize_layout_entry, write_layout_cache_bytes,
 };
 use tracing::warn;
 
@@ -137,7 +140,7 @@ fn cache_material(repo: &Repository) -> Result<CacheMaterial, String> {
         };
         pairs.push((name, target_oid.to_string()));
     }
-    let fingerprint = state_fingerprint(inner);
+    let fingerprint = state_fingerprint(inner, &pairs);
     Ok(CacheMaterial {
         head_oid,
         refs: pairs,
@@ -145,34 +148,51 @@ fn cache_material(repo: &Repository) -> Result<CacheMaterial, String> {
     })
 }
 
-/// Cheap fingerprint of repo state that `(HEAD oid, refs)` alone can miss.
+/// Cheap, O(refs) fingerprint of repo state that `(HEAD oid, refs)` alone can
+/// miss.
 ///
-/// Two components:
-/// - `count` — number of commits reachable from all refs, capped at
-///   [`MAX_INITIAL_LAYOUT_COMMITS`] + 1 (states differing only beyond the
-///   layout cap produce identical layouts, so counting further would cost
-///   time without adding discrimination). This catches reachability changes
-///   that leave every ref OID untouched — e.g. a shallow clone being
-///   deepened, grafts, or odb surgery — which previously produced a false
-///   cache hit.
-/// - `tree` — the HEAD commit's tree OID, a belt-and-braces guard for
-///   exotic flows (e.g. `reset --soft` round-trips combined with object
-///   replacement) where HEAD's OID survives but its content identity must
-///   be re-checked.
+/// Historically this counted every commit reachable from all refs (capped at
+/// the layout window) so a reachability change that moved no ref would still
+/// change the key. That count walked up to [`MAX_INITIAL_LAYOUT_COMMITS`]
+/// commits on *every* invocation — including cache hits — and dominated
+/// `open_repo` / `switch_project` on large repos. It is replaced with material
+/// that is already O(refs):
 ///
-/// Best-effort: any walk error degrades to `count=0`, which still yields a
-/// stable (if conservative) key.
-fn state_fingerprint(inner: &git2::Repository) -> String {
-    let count = (|| -> Result<usize, git2::Error> {
-        let mut revwalk = inner.revwalk()?;
-        for reference in inner.references()?.flatten() {
-            if let Some(oid) = reference.target() {
-                let _ = revwalk.push(oid);
-            }
-        }
-        Ok(revwalk.take(MAX_INITIAL_LAYOUT_COMMITS + 1).count())
-    })()
-    .unwrap_or(0);
+/// - a hash of every `(ref_name, oid)` pair — belt-and-braces; the cache key
+///   already hashes the same refs, so this only ever adds discrimination,
+///   never removes it,
+/// - the HEAD *symbolic* target — a checkout between two branches at the same
+///   OID moves no ref OID but changes which branch is HEAD,
+/// - the HEAD commit's tree OID — guards `reset --soft` round-trips combined
+///   with object replacement, where HEAD's OID survives but its content
+///   identity changed (preserved from the previous fingerprint),
+/// - a presence + mtime marker for `.git/shallow` — an externally-created or
+///   deepened shallow boundary changes which commits are reachable while every
+///   ref OID stays put; this is the reachability-change class the old count
+///   caught, now covered without a walk.
+///
+/// A history rewrite always moves a tip, so it is caught by the ref hash (and
+/// the key's own refs component). Exotic reachability changes that move no ref
+/// and touch no shallow file (e.g. the deprecated `.git/info/grafts`) are no
+/// longer discriminated — out of scope per the spec, which scopes the
+/// preserved cases to reset --soft, shallow boundaries, and history rewrites.
+fn state_fingerprint(inner: &git2::Repository, refs: &[(String, String)]) -> String {
+    // Order-independent hash over the (name, oid) pairs.
+    let mut refs_hash: u64 = 0;
+    for (name, oid) in refs {
+        let mut h = DefaultHasher::new();
+        name.hash(&mut h);
+        oid.hash(&mut h);
+        refs_hash ^= h.finish();
+    }
+
+    // `repo.head()` resolves HEAD to the branch it points at, so read the
+    // "HEAD" reference itself to recover its symbolic target.
+    let head_symbolic = inner
+        .find_reference("HEAD")
+        .ok()
+        .and_then(|h| h.symbolic_target().map(|s| s.to_string()))
+        .unwrap_or_default();
 
     let tree_oid = inner
         .head()
@@ -182,7 +202,26 @@ fn state_fingerprint(inner: &git2::Repository) -> String {
         .map(|c| c.tree_id().to_string())
         .unwrap_or_default();
 
-    format!("count={count};tree={tree_oid}")
+    let shallow = shallow_marker(inner);
+
+    format!("refs={refs_hash:x};head={head_symbolic};tree={tree_oid};shallow={shallow}")
+}
+
+/// Presence + mtime marker for `.git/shallow` (see [`state_fingerprint`]).
+///
+/// Uses the repository *common* directory so linked worktrees — whose per-
+/// worktree gitdir differs from where the shallow file lives — still observe
+/// the boundary. Absent file → `"0"`; present → its mtime in nanoseconds, so a
+/// shallow fetch that rewrites the boundary flips the marker even if the file
+/// keeps existing.
+fn shallow_marker(inner: &git2::Repository) -> String {
+    let shallow_path = inner.commondir().join("shallow");
+    std::fs::metadata(&shallow_path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_nanos().to_string())
+        .unwrap_or_else(|| "0".to_string())
 }
 
 /// Maximum number of commits walked when building the in-memory layout
@@ -206,7 +245,7 @@ fn state_fingerprint(inner: &git2::Repository) -> String {
 const MAX_INITIAL_LAYOUT_COMMITS: usize = 20_000;
 
 /// Walk the repo and build a fresh [`GraphLayout`] with no cache interaction.
-fn build_fresh_layout(
+pub(crate) fn build_fresh_layout(
     repo: &Repository,
     options: &GraphLayoutOptions,
 ) -> Result<GraphLayout, String> {
@@ -280,43 +319,121 @@ pub(crate) fn load_or_build_layout(
     // Miss (or stale): compute and persist a fresh entry.
     let layout = build_fresh_layout(repo, options)?;
 
-    let entry = LayoutCacheEntry {
+    // Serialize the entry from a borrow — no `GraphLayout::clone`. The layout
+    // (up to ~50 MB on a full 20K-commit window) is then moved into the return
+    // value untouched; only the JSON bytes are handed off to the writer.
+    let generated_at = chrono::Utc::now().to_rfc3339();
+    let entry = LayoutCacheEntryRef {
         schema_version: SCHEMA_VERSION,
-        cache_key: fresh_key,
-        repo_path: repo_path.to_string(),
-        variant,
-        head_oid,
-        generated_at: chrono::Utc::now().to_rfc3339(),
-        layout: layout.clone(),
+        cache_key: &fresh_key,
+        repo_path,
+        variant: &variant,
+        head_oid: &head_oid,
+        generated_at: &generated_at,
+        layout: &layout,
     };
-    persist_entry_async(config_dir.to_path_buf(), entry);
+    match serialize_layout_entry(&entry) {
+        Ok(bytes) => persist_bytes_async(
+            config_dir.to_path_buf(),
+            repo_path.to_string(),
+            variant,
+            bytes,
+        ),
+        Err(e) => warn!(error = %e, "failed to serialize graph layout cache"),
+    }
 
     Ok((layout, false))
 }
 
-/// Write a freshly-computed [`LayoutCacheEntry`] to disk without blocking the
-/// caller.
-///
-/// When a Tokio runtime is available we hand the serialize + write off to a
-/// dedicated `spawn_blocking` worker so the critical path (which is itself
-/// typically running inside a `spawn_blocking` closure) returns the layout
-/// immediately. In non-async contexts (notably unit tests) we fall back to a
-/// synchronous write so tests remain deterministic without needing to pump
-/// the runtime.
-fn persist_entry_async(config_dir: std::path::PathBuf, entry: LayoutCacheEntry) {
-    match tokio::runtime::Handle::try_current() {
-        Ok(handle) => {
-            handle.spawn_blocking(move || {
-                if let Err(e) = save_layout_cache(&config_dir, &entry) {
-                    warn!(error = %e, "failed to persist graph layout cache");
-                }
-            });
-        }
-        Err(_) => {
-            if let Err(e) = save_layout_cache(&config_dir, &entry) {
-                warn!(error = %e, "failed to persist graph layout cache");
+/// Capture the repo's `references()` name→OID picture, skipping symbolic refs
+/// (e.g. HEAD). Mirrors the shape `mutation_events::Snapshot` compares on, and
+/// is what the incremental-refresh fast path diffs to detect a "one branch
+/// advanced" move. O(refs).
+pub(crate) fn ref_snapshot(repo: &Repository) -> crate::state::RefSnapshot {
+    let mut map = crate::state::RefSnapshot::new();
+    if let Ok(refs) = repo.inner().references() {
+        for r in refs.flatten() {
+            if let (Some(name), Some(oid)) = (r.name(), r.target()) {
+                map.insert(name.to_string(), oid.to_string());
             }
         }
+    }
+    map
+}
+
+/// Persist an externally-built `layout` for the repo's *current* state,
+/// computing the same cache key [`load_or_build_layout`] would so the next open
+/// hits. Used by the incremental refresh fast path, which patches the in-memory
+/// layout without going through `load_or_build_layout`. Best-effort: any error
+/// is logged and dropped; serialization + write run on a blocking worker.
+pub(crate) fn persist_layout(
+    repo: &Repository,
+    repo_path: &str,
+    config_dir: &Path,
+    options: &GraphLayoutOptions,
+    layout: &GraphLayout,
+) {
+    let Ok(CacheMaterial {
+        head_oid,
+        refs,
+        fingerprint,
+    }) = cache_material(repo)
+    else {
+        return;
+    };
+    let variant = options.variant();
+    let key_variant = if variant.is_empty() {
+        fingerprint
+    } else {
+        format!("{variant};{fingerprint}")
+    };
+    let key = compute_cache_key(repo_path, &head_oid, &refs, &key_variant);
+    let generated_at = chrono::Utc::now().to_rfc3339();
+    let entry = LayoutCacheEntryRef {
+        schema_version: SCHEMA_VERSION,
+        cache_key: &key,
+        repo_path,
+        variant: &variant,
+        head_oid: &head_oid,
+        generated_at: &generated_at,
+        layout,
+    };
+    match serialize_layout_entry(&entry) {
+        Ok(bytes) => persist_bytes_async(
+            config_dir.to_path_buf(),
+            repo_path.to_string(),
+            variant,
+            bytes,
+        ),
+        Err(e) => warn!(error = %e, "failed to serialize graph layout cache"),
+    }
+}
+
+/// Write already-serialized cache bytes to disk without blocking the caller.
+///
+/// The layout is serialized on the caller's thread (from a borrow, see
+/// [`load_or_build_layout`]); this only moves the resulting bytes to disk.
+/// When a Tokio runtime is available we hand the write off to a dedicated
+/// `spawn_blocking` worker so the critical path (itself typically running
+/// inside a `spawn_blocking` closure) returns the layout immediately. In
+/// non-async contexts (notably unit tests) we fall back to a synchronous write
+/// so tests remain deterministic without needing to pump the runtime.
+fn persist_bytes_async(
+    config_dir: std::path::PathBuf,
+    repo_path: String,
+    variant: String,
+    bytes: Vec<u8>,
+) {
+    let write = move || {
+        if let Err(e) = write_layout_cache_bytes(&config_dir, &repo_path, &variant, &bytes) {
+            warn!(error = %e, "failed to persist graph layout cache");
+        }
+    };
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => {
+            handle.spawn_blocking(write);
+        }
+        Err(_) => write(),
     }
 }
 
@@ -475,7 +592,7 @@ mod tests {
     }
 
     #[test]
-    fn cache_material_includes_commit_count_and_head_tree() {
+    fn cache_material_fingerprint_is_o_refs_and_carries_head_tree() {
         let (_tmp_repo, repo_path) = create_repo_with_n_commits(5);
         let repo = Repository::open(&repo_path).unwrap();
 
@@ -486,10 +603,29 @@ mod tests {
             .find_commit(git_repo.head().unwrap().target().unwrap())
             .unwrap();
         assert_eq!(material.head_oid, head_commit.id().to_string());
+        // The fingerprint no longer walks/counts commits — it is a compact
+        // O(refs) string carrying the HEAD tree OID and a shallow marker.
+        assert!(
+            !material.fingerprint.contains("count="),
+            "fingerprint must not carry a reachable-commit count anymore: {}",
+            material.fingerprint
+        );
+        assert!(
+            material
+                .fingerprint
+                .contains(&format!("tree={}", head_commit.tree_id())),
+            "fingerprint must carry the HEAD tree OID: {}",
+            material.fingerprint
+        );
+        assert!(
+            material.fingerprint.contains("shallow=0"),
+            "a non-shallow repo must report shallow=0: {}",
+            material.fingerprint
+        );
+        // Recomputing on unchanged state yields an identical fingerprint.
         assert_eq!(
             material.fingerprint,
-            format!("count=5;tree={}", head_commit.tree_id()),
-            "fingerprint must carry the reachable count and HEAD tree OID"
+            cache_material(&repo).unwrap().fingerprint
         );
     }
 
@@ -514,6 +650,12 @@ mod tests {
             assert!(hit2, "sanity: unchanged repo must hit");
         }
 
+        // Fingerprint of the full (non-shallow) state, before the boundary.
+        let material_before = {
+            let repo = Repository::open(&repo_path).unwrap();
+            cache_material(&repo).unwrap()
+        };
+
         // Mark the 3rd commit as a shallow boundary. Refs and HEAD are
         // untouched.
         let boundary = {
@@ -528,23 +670,28 @@ mod tests {
         let material_after = cache_material(&repo).unwrap();
         let (_l, hit) = load_or_build_layout(&repo, path_str, tmp_cfg.path(), &opts).unwrap();
 
-        // If libgit2 honors the shallow file the reachable count shrinks; the
-        // key must change and the cache must miss. (HEAD itself is untouched
-        // either way — assert that to prove refs alone wouldn't have caught
-        // this.)
+        // HEAD and refs are untouched by the shallow boundary — assert that to
+        // prove refs/HEAD alone wouldn't have caught this. The `.git/shallow`
+        // marker in the fingerprint is what changes, so the key differs and the
+        // cache misses.
         let git_repo = git2::Repository::open(&repo_path).unwrap();
         assert_eq!(
             material_after.head_oid,
             git_repo.head().unwrap().target().unwrap().to_string(),
             "HEAD must be unchanged by the shallow boundary"
         );
-        let head_tree = git_repo
-            .find_commit(git_repo.head().unwrap().target().unwrap())
-            .unwrap()
-            .tree_id();
         assert_eq!(
-            material_after.fingerprint,
-            format!("count=3;tree={head_tree}")
+            material_before.head_oid, material_after.head_oid,
+            "refs/HEAD are identical across the shallow boundary"
+        );
+        assert_ne!(
+            material_before.fingerprint, material_after.fingerprint,
+            "creating .git/shallow must change the state fingerprint"
+        );
+        assert!(
+            material_after.fingerprint.contains("shallow="),
+            "fingerprint must carry a shallow marker: {}",
+            material_after.fingerprint
         );
         assert!(
             !hit,

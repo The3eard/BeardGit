@@ -13,7 +13,13 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// Current on-disk schema revision. A mismatch on load is treated as a miss.
-pub const SCHEMA_VERSION: u32 = 1;
+///
+/// Bumped 1 → 2 when the app-core state fingerprint stopped counting reachable
+/// commits and switched to O(refs) material (ref hash + HEAD symbolic target +
+/// HEAD tree + `.git/shallow` marker). The fingerprint feeds the cache key, so
+/// the bump forces every stale entry to rebuild once instead of risking a
+/// key computed under the old scheme.
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// A single repo's cached graph layout along with the state that produced it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +42,61 @@ pub struct LayoutCacheEntry {
     pub generated_at: String,
     /// The computed layout that callers will reuse on a cache hit.
     pub layout: GraphLayout,
+}
+
+/// Borrowed twin of [`LayoutCacheEntry`] used to serialize a cache entry
+/// *without cloning* the (potentially large) [`GraphLayout`].
+///
+/// The field set and names match [`LayoutCacheEntry`] exactly, so bytes
+/// produced from this struct deserialize back into an owned
+/// [`LayoutCacheEntry`] unchanged — serde matches by field name and JSON field
+/// order is irrelevant on load. Use [`serialize_layout_entry`] to turn a borrow
+/// into bytes, then [`write_layout_cache_bytes`] (typically off-thread) to
+/// persist them.
+#[derive(Debug, Serialize)]
+pub struct LayoutCacheEntryRef<'a> {
+    /// See [`LayoutCacheEntry::schema_version`].
+    pub schema_version: u32,
+    /// See [`LayoutCacheEntry::cache_key`].
+    pub cache_key: &'a str,
+    /// See [`LayoutCacheEntry::repo_path`].
+    pub repo_path: &'a str,
+    /// See [`LayoutCacheEntry::variant`].
+    pub variant: &'a str,
+    /// See [`LayoutCacheEntry::head_oid`].
+    pub head_oid: &'a str,
+    /// See [`LayoutCacheEntry::generated_at`].
+    pub generated_at: &'a str,
+    /// See [`LayoutCacheEntry::layout`].
+    pub layout: &'a GraphLayout,
+}
+
+/// Serialize a borrowed cache entry to pretty JSON bytes, cloning nothing.
+///
+/// Callers hold the layout by reference (e.g. it lives in the active
+/// `ProjectSlot`), so this avoids the deep `GraphLayout::clone` the owned
+/// [`save_layout_cache`] path would otherwise force before serialization.
+pub fn serialize_layout_entry(entry: &LayoutCacheEntryRef) -> std::io::Result<Vec<u8>> {
+    serde_json::to_vec_pretty(entry).map_err(std::io::Error::other)
+}
+
+/// Write already-serialized cache bytes for `(repo_path, variant)`, creating
+/// parent directories as needed.
+///
+/// Pairs with [`serialize_layout_entry`]: serialize once on the caller's thread
+/// (from a borrow), then hand the owned bytes to this writer — cheap to move
+/// into a `spawn_blocking` closure.
+pub fn write_layout_cache_bytes(
+    config_dir: &Path,
+    repo_path: &str,
+    variant: &str,
+    bytes: &[u8],
+) -> std::io::Result<()> {
+    let path = layout_cache_path(config_dir, repo_path, variant);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, bytes)
 }
 
 /// Compute the identity key for a repository's current state.

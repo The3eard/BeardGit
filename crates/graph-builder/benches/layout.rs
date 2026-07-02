@@ -50,6 +50,32 @@ fn bench_layout_compute(c: &mut Criterion) {
     });
 }
 
+fn bench_incremental_advance(c: &mut Criterion) {
+    // Cost of the graph-refresh fast path: splice one new commit onto an
+    // already-built 5000-commit layout, versus rebuilding the whole layout
+    // (`bench_layout_compute` above, which is itself only the compute half —
+    // the full refresh also re-walks the repo). One new commit is the common
+    // "plain commit" case.
+    let commits = synthetic_commits();
+    let base = GraphLayout::compute(Dag::build(commits));
+    let tip = base.nodes[0].oid.clone();
+    let new_commits = vec![GraphCommit {
+        oid: "newtip0000000000000000000000000000000000".to_string(),
+        parents: vec![tip],
+        timestamp: base.nodes[0].timestamp + 1,
+        refs: Vec::new(),
+        summary: "new commit".to_string(),
+        author: String::new(),
+        email: String::new(),
+    }];
+    c.bench_function("incremental advance +1 over 5000", |b| {
+        b.iter(|| {
+            base.try_prepend_simple_advance(&new_commits, Vec::new())
+                .expect("simple advance applies")
+        })
+    });
+}
+
 fn bench_viewport_slice(c: &mut Criterion) {
     let commits = synthetic_commits();
     let layout = GraphLayout::compute(Dag::build(commits));
@@ -60,5 +86,10 @@ fn bench_viewport_slice(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_layout_compute, bench_viewport_slice);
+criterion_group!(
+    benches,
+    bench_layout_compute,
+    bench_incremental_advance,
+    bench_viewport_slice
+);
 criterion_main!(benches);
