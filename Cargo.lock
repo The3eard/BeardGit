@@ -738,7 +738,6 @@ version = "26.6.3"
 dependencies = [
  "ai-provider",
  "dirs",
- "libc",
  "serde",
  "serde_json",
  "tempfile",
