@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent, cleanup } from "@testing-library/svelte";
+import { flushSync } from "svelte";
 import ContextMenu from "../ContextMenu.svelte";
 import type { MenuItem } from "../ContextMenu.svelte";
 
@@ -79,5 +80,55 @@ describe("ContextMenu submenu", () => {
     await fireEvent.click(getByText("Parent"));
     expect(onParent).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("ContextMenu edge clamping", () => {
+  // jsdom reports 0 for offsetWidth/Height, so stub the menu box to a known
+  // size and shrink the viewport to exercise the flip/clamp path.
+  const MENU_W = 200;
+  const MENU_H = 150;
+
+  function stubLayout(viewportW: number, viewportH: number) {
+    const defs = [
+      ["offsetWidth", MENU_W],
+      ["offsetHeight", MENU_H],
+    ] as const;
+    for (const [prop, val] of defs) {
+      Object.defineProperty(HTMLElement.prototype, prop, {
+        configurable: true,
+        get() {
+          return val;
+        },
+      });
+    }
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: viewportW });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: viewportH });
+  }
+
+  afterEach(() => {
+    for (const prop of ["offsetWidth", "offsetHeight"]) {
+      delete (HTMLElement.prototype as unknown as Record<string, unknown>)[prop];
+    }
+  });
+
+  it("clamps a menu opened near the right/bottom edge back inside the viewport", () => {
+    stubLayout(300, 300);
+    const items: MenuItem[] = [{ label: "One", action: () => {} }];
+    // cursor deep in the bottom-right corner of a 300x300 window
+    const { container } = render(ContextMenu, {
+      props: { items, x: 290, y: 290, visible: true, onClose: () => {} },
+    });
+    flushSync();
+
+    const menu = container.querySelector(".context-menu") as HTMLElement;
+    const left = parseFloat(menu.style.left);
+    const top = parseFloat(menu.style.top);
+
+    expect(menu.style.visibility).toBe("visible");
+    expect(left).toBeGreaterThanOrEqual(8);
+    expect(left + MENU_W).toBeLessThanOrEqual(300 - 8);
+    expect(top).toBeGreaterThanOrEqual(8);
+    expect(top + MENU_H).toBeLessThanOrEqual(300 - 8);
   });
 });
