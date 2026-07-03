@@ -60,7 +60,7 @@ Pick a folder that isn't a repo yet and BeardGit offers to set it up in one shot
 ### Forge-native for GitHub and GitLab
 
 <p align="center">
-  <img src="docs/assets/screenshots/forge-dark.png" alt="Pull request detail with CI pipeline status and inline review comments" width="100%" />
+  <img src="docs/assets/screenshots/pull-requests-dark.png" alt="Pull request detail with CI pipeline status and inline review comments" width="100%" />
 </p>
 
 Create, edit, merge, approve, and comment on **PRs and MRs** with **per-file diff and inline review threads**. Manage issues, labels, milestones, assignees. Trigger, retry, retry-failed-only, cancel pipelines. Publish releases and stream asset uploads. Edit repo settings — description, homepage, topics, visibility, default branch, branch protection, labels — without leaving the app.
@@ -74,7 +74,7 @@ A clean `ForgeProvider` abstraction wraps `gh` and `glab`. Self-hosted **GitHub 
 ### AI that runs in a worktree, not in your face
 
 <p align="center">
-  <img src="docs/assets/screenshots/ai-dark.png" alt="AI background run transcript inside a worktree with provider and prompt selection" width="100%" />
+  <img src="docs/assets/screenshots/ai-sessions-dark.png" alt="AI background run transcript inside a worktree with provider and prompt selection" width="100%" />
 </p>
 
 **Claude Code, Codex, OpenCode** — your local install, driven by BeardGit. Each background run lands on its own `ai/<provider>/<slug>` branch in an isolated worktree under `.beardgit/ai-worktrees/`, queued at a concurrency cap you set. Review, merge, or discard. The transcript stays in-app and survives tab switches; your main checkout stays untouched.
