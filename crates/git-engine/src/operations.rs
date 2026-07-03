@@ -119,7 +119,16 @@ impl Repository {
         let commit = obj
             .peel_to_commit()
             .map_err(|_| GitError::Git(git2::Error::from_str("not a commit")))?;
-        repo.checkout_tree(commit.as_object(), None)?;
+        // A default (safe) checkout over a dirty working tree fails with a
+        // libgit2 conflict — surface it as a distinct variant so the UI can
+        // tell the user to commit or stash first.
+        repo.checkout_tree(commit.as_object(), None).map_err(|e| {
+            if e.code() == git2::ErrorCode::Conflict {
+                GitError::WouldLoseChanges(e.message().to_string())
+            } else {
+                GitError::Git(e)
+            }
+        })?;
         repo.set_head_detached(commit.id())?;
         Ok(())
     }
@@ -294,5 +303,29 @@ mod tests {
         let branch = repo.get_current_branch().unwrap();
         // Detached HEAD — branch name is the oid, not a branch ref
         assert!(branch.is_some());
+    }
+
+    #[test]
+    fn test_checkout_detached_over_dirty_tree_reports_would_lose_changes() {
+        // Detaching onto a commit whose tree would overwrite an uncommitted
+        // edit must surface WouldLoseChanges, not a generic Git — mirroring
+        // checkout_branch so the UI can prompt to commit or stash first.
+        let (dir, repo) = create_test_repo();
+        let first_oid = repo.walk_commits(0, 1).unwrap()[0].oid.clone();
+
+        // A second commit diverges file.txt from the first commit's copy.
+        fs::write(dir.path().join("file.txt"), "second commit\n").unwrap();
+        repo.stage_files(&["file.txt".to_string()]).unwrap();
+        repo.create_commit("second commit").unwrap();
+
+        // Dirty the working tree so detaching back to the first commit would
+        // clobber the edit.
+        fs::write(dir.path().join("file.txt"), "uncommitted\n").unwrap();
+
+        let err = repo.checkout_detached(&first_oid).err();
+        assert!(
+            matches!(err, Some(GitError::WouldLoseChanges(_))),
+            "dirty detached checkout must report WouldLoseChanges, got {err:?}"
+        );
     }
 }
