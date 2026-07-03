@@ -2,8 +2,8 @@
   TabStatusStrip — compact at-a-glance status pills shown on non-active
   project tabs. Mirrors the title bar's status grammar (↑ ahead, ↓ behind,
   ! modified, + staged, ? untracked, ⚑ stashes) so the user can monitor
-  multiple repos without switching tabs. Reads from the in-memory
-  `projectSnapshots` store, which is rewritten by the watcher pipeline on
+  multiple repos without switching tabs. Reads from each repo's in-memory
+  `RepoState.snapshot` slice, which is rewritten by the watcher pipeline on
   every external mutation (commit, push, stash, etc.).
 
   Active tab does NOT render this — its title bar already carries the

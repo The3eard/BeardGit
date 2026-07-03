@@ -6,7 +6,7 @@
   import {
     getSnapshotForHover,
     refreshProjectSnapshot,
-    projectSnapshots,
+    snapshotStore,
   } from "$lib/stores/project-cache";
   import { tabReordering } from "$lib/stores/tabs";
   import IconButton from "$lib/components/ui/IconButton.svelte";
@@ -91,13 +91,14 @@
   // on the Rust side so the strip's data is correct even if the
   // cache file was poisoned by the older live-status fallback.
   // Subsequent updates flow automatically: every watcher-driven
-  // saveCurrentSnapshot rewrites `projectSnapshots[path]` and Svelte
-  // re-runs the `stripSnapshot` derived below.
+  // saveCurrentSnapshot rewrites this repo's `RepoState.snapshot` slice
+  // and Svelte re-runs the `stripSnapshot` derived below.
   $effect(() => {
     if (!isActive) void refreshProjectSnapshot(project.path);
   });
 
-  let stripSnapshot = $derived($projectSnapshots[project.path] ?? null);
+  let snapshot = $derived(snapshotStore(project.path));
+  let stripSnapshot = $derived($snapshot ?? null);
 </script>
 
 <div
