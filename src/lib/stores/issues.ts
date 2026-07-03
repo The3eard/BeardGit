@@ -5,9 +5,8 @@
  * lazily populated via `refreshLabelsCache()` / `refreshMilestonesCache()`
  * the first time a picker mounts.
  *
- * TODO(spec 08): migrate into the RepoState container
- * (`stores/repo-state/`) as an `IssuesSlice`. See `stores/branches.ts` for
- * the migrated facade pattern.
+ * Migrated to the RepoState container (spec 08): the view state below is a thin
+ * facade over the active repo's `IssuesSlice` (see `repo-state/IssuesSlice.ts`).
  */
 
 import { derived, get } from "svelte/store";
