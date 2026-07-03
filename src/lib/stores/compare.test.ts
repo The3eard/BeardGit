@@ -238,4 +238,48 @@ describe("compare store", () => {
     expect(get(B.compare.files)).toEqual([]);
     expect(get(B.compare.loading)).toBe(false);
   });
+
+  it("loadMore started in repo A lands in A even if the user switches to B mid-flight", async () => {
+    const A = createRepoState("/repo/a");
+    const B = createRepoState("/repo/b");
+
+    // A already has a page of ahead commits loaded.
+    setActiveRepoPath("/repo/a");
+    A.compare.refA.set("main");
+    A.compare.refB.set("feature");
+    A.compare.commits.set([commit("p1-0"), commit("p1-1")]);
+
+    // B shares the same refs, so the old refs-changed guard would NOT catch the
+    // cross-repo write — only capturing the slice does.
+    B.compare.refA.set("main");
+    B.compare.refB.set("feature");
+
+    // Deferred next page so we can switch tabs while loadMore is in flight.
+    let resolvePage!: (v: unknown[]) => void;
+    mockInvokeResponse(
+      "get_commits_between",
+      () =>
+        new Promise<unknown[]>((resolve) => {
+          resolvePage = resolve;
+        }),
+    );
+
+    // Start loadMore in repo A.
+    const pending = loadMoreCompareCommits();
+
+    // Switch to repo B before the page resolves.
+    setActiveRepoPath("/repo/b");
+
+    // Resolve the deferred page → A's loadMore runs to completion.
+    resolvePage([commit("p2-0")]);
+    await pending;
+
+    // A's slice got the appended page…
+    expect(get(A.compare.commits).map((c) => c.oid)).toEqual(["p1-0", "p1-1", "p2-0"]);
+    expect(get(A.compare.loadingMore)).toBe(false);
+
+    // …and B's slice is untouched (no cross-repo bleed).
+    expect(get(B.compare.commits)).toEqual([]);
+    expect(get(B.compare.loadingMore)).toBe(false);
+  });
 });
