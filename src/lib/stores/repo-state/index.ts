@@ -30,10 +30,12 @@ import { writable, derived, type Writable } from "svelte/store";
 import { BranchesSlice } from "./BranchesSlice";
 import { ChangesSlice } from "./ChangesSlice";
 import { CompareSlice } from "./CompareSlice";
+import { RequestsSlice } from "./RequestsSlice";
 
 export { BranchesSlice } from "./BranchesSlice";
 export { ChangesSlice } from "./ChangesSlice";
 export { CompareSlice } from "./CompareSlice";
+export { RequestsSlice } from "./RequestsSlice";
 
 /** All per-repo state for a single open project. */
 export class RepoState {
@@ -41,6 +43,7 @@ export class RepoState {
   readonly branches = new BranchesSlice();
   readonly changes = new ChangesSlice();
   readonly compare = new CompareSlice();
+  readonly requests = new RequestsSlice();
 
   constructor(path: string) {
     this.path = path;
@@ -140,6 +143,7 @@ export function __resetRepoStateForTests(): void {
   detachedRepoState.changes.clear();
   detachedRepoState.changes.commitMessage.set("");
   detachedRepoState.compare.clear();
+  detachedRepoState.requests.clear();
   activeRepoPath.set(null);
   containerVersion.set(0);
 }
