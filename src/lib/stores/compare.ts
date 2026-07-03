@@ -144,21 +144,25 @@ export function setCompareMode(mode: CompareMode): Promise<void> {
 
 /** Append the next page of ahead commits, resuming after the last-shown OID. */
 export async function loadMoreCompareCommits(): Promise<void> {
-  const a = get(compareRefA);
-  const b = get(compareRefB);
-  const current = get(compareCommits);
-  if (!a || !b || current.length === 0 || get(compareLoadingMore)) return;
+  // Same capture-the-slice guard as runCompare: a late page response lands in
+  // its own repo's slice, so a mid-flight tab switch can't append the page into
+  // another repo that happens to share the same refA/refB.
+  const slice = getActiveRepoState().compare;
+  const a = get(slice.refA);
+  const b = get(slice.refB);
+  const current = get(slice.commits);
+  if (!a || !b || current.length === 0 || get(slice.loadingMore)) return;
 
-  compareLoadingMore.set(true);
+  slice.loadingMore.set(true);
   try {
     const anchor = current[current.length - 1].oid;
     const next = await getCommitsBetween(a, b, COMPARE_PAGE_LIMIT, anchor);
     // Guard: refs may have changed while paging.
-    if (get(compareRefA) !== a || get(compareRefB) !== b) return;
-    compareCommits.set([...get(compareCommits), ...next]);
-    compareCommitsCapped.set(next.length >= COMPARE_PAGE_LIMIT);
+    if (get(slice.refA) !== a || get(slice.refB) !== b) return;
+    slice.commits.set([...get(slice.commits), ...next]);
+    slice.commitsCapped.set(next.length >= COMPARE_PAGE_LIMIT);
   } finally {
-    compareLoadingMore.set(false);
+    slice.loadingMore.set(false);
   }
 }
 
