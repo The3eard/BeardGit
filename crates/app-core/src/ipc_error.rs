@@ -75,6 +75,7 @@ impl From<git_engine::GitError> for IpcError {
             G::InvalidArgument(_) => "invalid_argument",
             G::WouldLoseChanges(_) => "would_lose_changes",
             G::NotFullyMerged(_) => "not_fully_merged",
+            G::BranchAlreadyExists(_) => "branch_exists",
         };
         Self {
             code,
@@ -162,6 +163,10 @@ mod tests {
         assert_eq!(
             IpcError::from(git_engine::GitError::NotFullyMerged("unmerged".into())).code,
             "not_fully_merged",
+        );
+        assert_eq!(
+            IpcError::from(git_engine::GitError::BranchAlreadyExists("exists".into())).code,
+            "branch_exists",
         );
         assert_eq!(
             IpcError::from(git_engine::GitError::FileTooLarge { size: 10 }).code,

@@ -64,4 +64,10 @@ pub enum GitError {
     /// re-run with force to discard them — so it carries a stable code.
     #[error("branch is not fully merged: {0}")]
     NotFullyMerged(String),
+    /// A branch rename (`git branch -m`) was refused because the new name
+    /// collides with an existing branch. Distinct from
+    /// [`GitError::CliError`] because the user acts on it differently —
+    /// pick a different name — so it carries a stable code across IPC.
+    #[error("a branch with that name already exists: {0}")]
+    BranchAlreadyExists(String),
 }
