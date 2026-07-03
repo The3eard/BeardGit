@@ -5,16 +5,21 @@
  * The graph canvas fetches a window of 300 rows at a time via `loadViewport`.
  * Selection uses a "last-wins" async guard to handle rapid clicks.
  *
- * TODO(spec 08): migrate this store into the RepoState container
- * (`stores/repo-state/`) — a `GraphSlice` folds in `viewportCache`,
- * `selectedOid`, `graphOffset`, etc., so per-repo graph state survives tab
- * switches as a pointer swap instead of clearGraphState + viewportCache.
- * See `stores/branches.ts` for the migrated facade pattern.
+ * ── Migrated to the RepoState container (spec 08) ─────────────────────
+ * The per-repo graph state (viewport, scroll offset, selection, ref-badge
+ * diff, file-diff panel) now lives in `RepoState.graph` (see
+ * `repo-state/GraphSlice.ts`). The exports below are thin facades over the
+ * *active* repo's slice, so the graph position + selection survive tab
+ * switches as a pointer swap — this replaced the hand-rolled `viewportCache`
+ * Map + the `cacheViewport`/`restoreCachedViewport` choreography that used to
+ * live here and be driven from `projects.ts`. Only the session/window-scoped
+ * `graphViewOptions` and `userEmails` stay module-level.
  */
 
 import { writable, get } from "svelte/store";
 import type { GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange } from "../types";
 import { getGraphViewport as apiGetGraphViewport, getCommitDetail as apiGetCommitDetail, getCommitFiles as apiGetCommitFiles, getDiffBetweenCommits, getCommitFileDiff, getUserIdentities as apiGetUserIdentities, getCommitRow as apiGetCommitRow, getFileAtCommit, refreshGraphLayout as apiRefreshGraphLayout } from "../api/tauri";
+import { activeField, getActiveRepoState } from "./repo-state";
 
 /** Holds raw file content for the DiffEditor panel. */
 export interface RawDiffContent {
@@ -94,23 +99,31 @@ export async function fetchDiffSides(
   return { oldContent: oldData, newContent: newData, filename: path };
 }
 
-export const viewport = writable<GraphViewport | null>(null);
+// Facades over the active repo's GraphSlice. Components keep importing these
+// unchanged; the data is now per-repo and survives tab switches (spec 08).
+export const viewport = activeField<GraphViewport | null>((rs) => rs.graph.viewport);
 /** OID of the selected commit in the graph (drives CommitDetail). */
-export const selectedOid = writable<string | null>(null);
+export const selectedOid = activeField<string | null>((rs) => rs.graph.selectedOid);
 /** Group ID of the selected lane segment (dims other branches). */
-export const selectedGroup = writable<number | null>(null);
-/** Lowercased identity strings for highlighting the current user's commits. */
-export const userEmails = writable<string[]>([]);
-export const selectedCommit = writable<CommitInfo | null>(null);
-export const selectedCommitFiles = writable<CommitFileChange[]>([]);
-export const graphOffset = writable(0);
+export const selectedGroup = activeField<number | null>((rs) => rs.graph.selectedGroup);
+export const selectedCommit = activeField<CommitInfo | null>((rs) => rs.graph.selectedCommit);
+export const selectedCommitFiles = activeField<CommitFileChange[]>((rs) => rs.graph.selectedCommitFiles);
+export const graphOffset = activeField<number>((rs) => rs.graph.graphOffset);
 /** Ref name of the currently expanded merge-badge diff. */
-export const selectedRef = writable<string | null>(null);
+export const selectedRef = activeField<string | null>((rs) => rs.graph.selectedRef);
 /** Files changed between the merge commit's parents (for ref badge click). */
-export const refFiles = writable<CommitFileChange[] | null>(null);
-export const loadingRefFiles = writable(false);
-export const fileDiffPanel = writable<RawDiffContent | null>(null);
-export const loadingFileDiff = writable(false);
+export const refFiles = activeField<CommitFileChange[] | null>((rs) => rs.graph.refFiles);
+export const loadingRefFiles = activeField<boolean>((rs) => rs.graph.loadingRefFiles);
+export const fileDiffPanel = activeField<RawDiffContent | null>((rs) => rs.graph.fileDiffPanel);
+export const loadingFileDiff = activeField<boolean>((rs) => rs.graph.loadingFileDiff);
+
+/**
+ * Lowercased identity strings for highlighting the current user's commits.
+ * Re-fetched per repo on activation but kept module-level (not a slice field)
+ * — it feeds the canvas render, and the identities rarely differ across a
+ * user's repos, so a session-wide store is simpler than per-repo isolation.
+ */
+export const userEmails = writable<string[]>([]);
 
 const VIEWPORT_SIZE = 300;
 
@@ -143,38 +156,12 @@ export async function setGraphViewOptions(
   if (!structuralChange && !laneChange) return;
 
   graphViewOptions.set(next);
-  viewportCache.clear();
   if (structuralChange) {
     clearGraphState();
     await loadViewport(0);
   } else {
     await loadViewport(get(graphOffset));
   }
-}
-
-/**
- * Per-project viewport cache for instant graph rendering on tab switch.
- * Keyed by project path. Stores the last viewport + scroll offset.
- */
-const viewportCache = new Map<string, { vp: GraphViewport; offset: number }>();
-
-/** Save current viewport to cache before switching away from a project. */
-export function cacheViewport(projectPath: string): void {
-  const vp = get(viewport);
-  if (vp && vp.nodes.length > 0) {
-    viewportCache.set(projectPath, { vp, offset: get(graphOffset) });
-  }
-}
-
-/** Restore cached viewport for instant rendering. Returns true if cache hit. */
-export function restoreCachedViewport(projectPath: string): boolean {
-  const cached = viewportCache.get(projectPath);
-  if (cached) {
-    viewport.set(cached.vp);
-    graphOffset.set(cached.offset);
-    return true;
-  }
-  return false;
 }
 
 export async function loadViewport(offset: number) {
@@ -262,37 +249,43 @@ export async function refreshAndReloadGraph(): Promise<void> {
   reconcileViewport(fresh);
 }
 
-/** Select a commit by OID, fetching detail + files in parallel. Uses last-wins guard. */
+/** Select a commit by OID, fetching detail + files in parallel. Uses last-wins guard.
+ *  Captures the active repo's slice up front so a late response lands in the
+ *  repo it belongs to even if the user switches tabs mid-flight; the
+ *  per-slice `selectedOid` still cancels an older selection superseded by a
+ *  newer one in the SAME repo. */
 export async function selectCommit(oid: string) {
-  selectedOid.set(oid);
-  selectedCommit.set(null);
-  selectedCommitFiles.set([]);
+  const slice = getActiveRepoState().graph;
+  slice.selectedOid.set(oid);
+  slice.selectedCommit.set(null);
+  slice.selectedCommitFiles.set([]);
   try {
     const [commit, files] = await Promise.all([
       apiGetCommitDetail(oid),
       apiGetCommitFiles(oid).catch(() => [] as CommitFileChange[]),
     ]);
-    if (get(selectedOid) !== oid) return;
-    selectedCommit.set(commit);
-    selectedCommitFiles.set(files);
+    if (get(slice.selectedOid) !== oid) return;
+    slice.selectedCommit.set(commit);
+    slice.selectedCommitFiles.set(files);
   } catch {
-    if (get(selectedOid) !== oid) return;
-    selectedCommitFiles.set([]);
+    if (get(slice.selectedOid) !== oid) return;
+    slice.selectedCommitFiles.set([]);
   }
 }
 
 export async function loadRefFiles(parentOid: string, commitOid: string, ref: string) {
-  selectedRef.set(ref);
-  loadingRefFiles.set(true);
-  refFiles.set(null);
+  const slice = getActiveRepoState().graph;
+  slice.selectedRef.set(ref);
+  slice.loadingRefFiles.set(true);
+  slice.refFiles.set(null);
   try {
     const files = await getDiffBetweenCommits(parentOid, commitOid);
-    if (get(selectedRef) === ref) {
-      refFiles.set(files);
+    if (get(slice.selectedRef) === ref) {
+      slice.refFiles.set(files);
     }
   } finally {
-    if (get(selectedRef) === ref) {
-      loadingRefFiles.set(false);
+    if (get(slice.selectedRef) === ref) {
+      slice.loadingRefFiles.set(false);
     }
   }
 }
@@ -401,19 +394,11 @@ export function graphNavigateLast(): void {
   });
 }
 
-/** Reset all graph selection/detail state. Called on repo switch.
- *  The viewport is NOT cleared — it's either restored from cache
- *  or replaced when loadViewport() returns fresh data. */
+/** Reset the active repo's graph selection/detail state.
+ *  The viewport is NOT cleared — it's either restored from a sibling
+ *  slice on tab switch or replaced when loadViewport() returns fresh data. */
 export function clearGraphState() {
-  selectedOid.set(null);
-  selectedCommit.set(null);
-  selectedCommitFiles.set([]);
-  selectedRef.set(null);
-  refFiles.set(null);
-  loadingRefFiles.set(false);
-  fileDiffPanel.set(null);
-  loadingFileDiff.set(false);
-  selectedGroup.set(null);
+  getActiveRepoState().graph.clear();
 }
 
 /**
@@ -427,7 +412,5 @@ export function resetGraphViewScope() {
 
 /** Full reset including viewport (used when no cache is available). */
 export function resetGraphState() {
-  clearGraphState();
-  viewport.set(null);
-  graphOffset.set(0);
+  getActiveRepoState().graph.reset();
 }

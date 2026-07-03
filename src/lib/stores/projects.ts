@@ -38,7 +38,7 @@ import {
 } from "./provider";
 import { refreshStatuses, clearChangesState } from "./changes";
 import { loadProjectSnapshot, saveCurrentSnapshot, restorePersistedViewport } from "./project-cache";
-import { refreshUserEmails, clearGraphState, resetGraphViewScope, cacheViewport, restoreCachedViewport } from "./graph";
+import { refreshUserEmails, clearGraphState, resetGraphViewScope, viewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
 import { clearBranchState } from "./branches";
 import { createRepoState, dropRepoState, setActiveRepoPath } from "./repo-state";
@@ -231,16 +231,9 @@ export async function switchToTab(tabIndex: number) {
   const prevIdx = get(activeTabIndex);
   const tab = tabs[tabIndex];
 
-  // Cache the outgoing project's graph viewport BEFORE changing
-  // activeTabIndex (activeProjectFromTab derives from activeTabIndex, so
-  // must read first). The branch list no longer needs caching here — it
-  // lives per-repo in the RepoState container and survives the switch as a
-  // pointer swap (spec 08). graph.ts still uses its viewportCache until it
-  // migrates.
-  const prevProject = get(activeProjectFromTab);
-  if (prevProject) {
-    cacheViewport(prevProject.path);
-  }
+  // The outgoing project's graph viewport + selection no longer need caching
+  // here — like the branch list and changes selection, they live per-repo in
+  // the RepoState container and survive the switch as a pointer swap (spec 08).
 
   // Set active index immediately for instant tab highlight
   activeTabIndex.set(tabIndex);
@@ -265,12 +258,13 @@ async function activateProjectTab(tabIndex: number) {
   if (projectIdx < 0) return;
 
   stopAllPolling();
-  clearGraphState();
-    resetGraphViewScope();
-  // NOTE: branches + changes are NOT cleared here — they live per-repo in
-  // the RepoState container and are swapped by `setActiveRepoPath` below
-  // (spec 08). The stores below still use module-level singletons and must
-  // be cleared until they migrate.
+  // NOTE: graph + branches + changes are NOT cleared here — they live per-repo
+  // in the RepoState container and are swapped by `setActiveRepoPath` below, so
+  // the graph position + selection survive the switch (spec 08). Only the
+  // project-specific branch scope of the (still module-level) graph view mode
+  // is dropped. The stores below still use module-level singletons and must be
+  // cleared until they migrate.
+  resetGraphViewScope();
   clearTagState();
   clearStashState();
   clearBlameState();
@@ -280,27 +274,25 @@ async function activateProjectTab(tabIndex: number) {
   clearReleaseState();
   clearReflogState();
 
-  // Restore cached graph viewport instantly (no loading spinner for graph).
-  //
-  // Two-tier lookup: the in-memory tab cache is populated on
-  // `cacheViewport` (outgoing tab) and holds the full lane geometry;
-  // the disk-backed slice in `ProjectSnapshot.graph_viewport_cache` is
-  // populated by `saveCurrentSnapshot` and survives app restarts. When
-  // the tab cache misses we fall through to the persisted slice so
-  // cold starts still paint the graph synchronously (Phase 8).
   const tabs = get(openTabs);
   const targetTab = tabs[tabIndex];
   const targetPath = (targetTab?.kind === "project" || targetTab?.kind === "composite") ? targetTab.project.path : null;
   // Point the RepoState facades at the incoming repo. This is the pointer
-  // swap that replaces the old branch/changes cache-restore choreography:
-  // the branch list, changes selection, etc. for this repo are already in
-  // its slice and paint instantly; the fresh `apiBranches`/`refreshStatuses`
-  // below reconcile them. `createRepoState` is idempotent and guarantees the
-  // active repo always has a slice, whatever path reached activation.
+  // swap that replaces the old branch/changes/graph cache-restore
+  // choreography: the branch list, changes selection, graph viewport +
+  // selection for this repo are already in its slice and paint instantly; the
+  // fresh `apiBranches`/`refreshStatuses`/graph reload below reconcile them.
+  // `createRepoState` is idempotent and guarantees the active repo always has
+  // a slice, whatever path reached activation.
   if (targetPath) createRepoState(targetPath);
   setActiveRepoPath(targetPath);
+  // The graph viewport paints instantly with no loading spinner when the
+  // incoming repo's slice already holds a viewport (a previously-visited tab);
+  // on a cold start the slice is empty, so fall through to the disk-backed
+  // slice in `ProjectSnapshot.graph_viewport_cache` (populated by
+  // `saveCurrentSnapshot`, survives app restarts) which hydrates the slice.
   const hasCachedGraph = targetPath
-    ? (restoreCachedViewport(targetPath) || restorePersistedViewport(targetPath))
+    ? ((get(viewport)?.nodes.length ?? 0) > 0 || restorePersistedViewport(targetPath))
     : false;
 
   // (Buffered mutation-event flags get replayed AFTER apiSwitchProject

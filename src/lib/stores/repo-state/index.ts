@@ -31,11 +31,13 @@ import { BranchesSlice } from "./BranchesSlice";
 import { ChangesSlice } from "./ChangesSlice";
 import { CompareSlice } from "./CompareSlice";
 import { RequestsSlice } from "./RequestsSlice";
+import { GraphSlice } from "./GraphSlice";
 
 export { BranchesSlice } from "./BranchesSlice";
 export { ChangesSlice } from "./ChangesSlice";
 export { CompareSlice } from "./CompareSlice";
 export { RequestsSlice } from "./RequestsSlice";
+export { GraphSlice } from "./GraphSlice";
 
 /** All per-repo state for a single open project. */
 export class RepoState {
@@ -44,6 +46,7 @@ export class RepoState {
   readonly changes = new ChangesSlice();
   readonly compare = new CompareSlice();
   readonly requests = new RequestsSlice();
+  readonly graph = new GraphSlice();
 
   constructor(path: string) {
     this.path = path;
@@ -144,6 +147,7 @@ export function __resetRepoStateForTests(): void {
   detachedRepoState.changes.commitMessage.set("");
   detachedRepoState.compare.clear();
   detachedRepoState.requests.clear();
+  detachedRepoState.graph.reset();
   activeRepoPath.set(null);
   containerVersion.set(0);
 }
