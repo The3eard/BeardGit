@@ -64,7 +64,7 @@ export function isCacheFresh(cachedAt: number): boolean {
  * exposed as a Svelte store so subscribers re-render whenever a
  * watcher-driven `saveCurrentSnapshot` rewrites an entry.
  *
- * `restoreCachedViewport` is synchronous by design — it has to paint
+ * `restorePersistedViewport` is synchronous by design — it has to paint
  * the graph before the canvas mounts — so it can only hydrate from
  * what's already in memory. `loadProjectSnapshot` primes this map on
  * every successful disk read, so subsequent tab switches to the same
@@ -110,9 +110,9 @@ export async function loadProjectSnapshot(path: string): Promise<ProjectSnapshot
  *
  * Callers must have primed the cache (via `loadProjectSnapshot` on a
  * prior activation or an explicit warm-up) — this function never
- * touches disk. The tab-switch path in `projects.ts` first asks the
- * in-memory tab cache (via `graph.ts#restoreCachedViewport`); only on
- * a miss does it fall through here to the disk-backed slice.
+ * touches disk. The tab-switch path in `projects.ts` first checks the
+ * incoming repo's in-memory `GraphSlice` viewport; only when that is
+ * empty (cold start) does it fall through here to the disk-backed slice.
  *
  * The restored viewport has empty `lane_segments` / `merge_curves`
  * because the cache doesn't persist layout geometry — the skeleton +
