@@ -26,7 +26,8 @@
  * happen later, per the spec's "don't chase the long tail".
  */
 
-import { writable, derived, type Writable } from "svelte/store";
+import { writable, derived, type Writable, type Readable } from "svelte/store";
+import type { ProjectSnapshot } from "$lib/types";
 import { BranchesSlice } from "./BranchesSlice";
 import { ChangesSlice } from "./ChangesSlice";
 import { CompareSlice } from "./CompareSlice";
@@ -53,6 +54,14 @@ export class RepoState {
   readonly graph = new GraphSlice();
   readonly mrPr = new MrPrSlice();
   readonly issues = new IssuesSlice();
+  /**
+   * In-memory mirror of this repo's on-disk `ProjectSnapshot` (ahead/behind,
+   * change counts, cached graph viewport). Formerly a central
+   * `Map<projectPath, ProjectSnapshot>` in `project-cache.ts`; folded here so a
+   * RepoState only ever knows its own path (spec 08 step 5). The disk
+   * persistence stays in `project-cache.ts`; this is just the reactive cache.
+   */
+  readonly snapshot = writable<ProjectSnapshot | null>(null);
 
   constructor(path: string) {
     this.path = path;
@@ -100,6 +109,16 @@ export function getActiveRepoState(): RepoState {
   return current;
 }
 
+/**
+ * The RepoState for an arbitrary `path`, or `null` when no such tab is open.
+ * Unlike {@link getActiveRepoState} this addresses any open repo by path, so
+ * cross-tab consumers (the tab-strip badges, the snapshot cache) read/write a
+ * specific repo's slice without a central path-keyed map.
+ */
+export function getRepoState(path: string): RepoState | null {
+  return container.get(path) ?? null;
+}
+
 /** Create (or return the existing) RepoState for `path`. Idempotent. */
 export function createRepoState(path: string): RepoState {
   let rs = container.get(path);
@@ -142,6 +161,29 @@ export function activeField<T>(select: (rs: RepoState) => Writable<T>): Writable
 }
 
 /**
+ * Reactively read a field of the RepoState for an ARBITRARY `path` (not
+ * necessarily the active one). Emits `null` when that repo has no live state
+ * (the tab was never opened, or was closed). This is the cross-repo counterpart
+ * of {@link activeField}: it lets the tab strip render per-tab badges for
+ * inactive repos straight from each repo's own slice — no central
+ * `Map<projectPath, …>` cache to keep in sync.
+ */
+export function repoField<T>(
+  path: string,
+  select: (rs: RepoState) => Writable<T>,
+): Readable<T | null> {
+  return derived(containerVersion, ($v, set) => {
+    void $v;
+    const rs = container.get(path);
+    if (!rs) {
+      set(null);
+      return;
+    }
+    return select(rs).subscribe(set);
+  });
+}
+
+/**
  * Test seam — reset the container, active path, and detached fallback so
  * cases don't leak across each other. Not used in production.
  */
@@ -156,6 +198,7 @@ export function __resetRepoStateForTests(): void {
   detachedRepoState.graph.reset();
   detachedRepoState.mrPr.clear();
   detachedRepoState.issues.clear();
+  detachedRepoState.snapshot.set(null);
   activeRepoPath.set(null);
   containerVersion.set(0);
 }
