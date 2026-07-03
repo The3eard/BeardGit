@@ -72,15 +72,15 @@ pub async fn checkout_detached(
     oid: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<(), IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::Checkout, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.checkout_detached(&oid).map_err(|e| e.to_string())
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
+            repo.checkout_detached(&oid).map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
