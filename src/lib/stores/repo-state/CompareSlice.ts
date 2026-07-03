@@ -59,6 +59,17 @@ export class CompareSlice {
   /** Last error from a per-file diff fetch, or `null`. */
   readonly diffError = writable<string | null>(null);
 
+  /**
+   * Per-repo last-wins sequence guards. Bumped at the start of an async load
+   * (`requestId` for the compare, `diffRequestId` for the per-file diff); a
+   * response whose captured id no longer matches is dropped, so a newer request
+   * in THIS repo cancels an older one. Purely internal sequencing that is never
+   * rendered, so plain numbers rather than writables. Not reset by `clear()` —
+   * they must stay monotonic so an in-flight response can't be re-matched.
+   */
+  requestId = 0;
+  diffRequestId = 0;
+
   /** Reset the open per-file diff (keeps the compare selection). */
   clearDiff(): void {
     this.selectedFilePath.set(null);

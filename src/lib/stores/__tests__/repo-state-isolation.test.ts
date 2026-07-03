@@ -111,7 +111,8 @@ describe("two-repo state isolation (spec 08)", () => {
     openTabs.set([{ kind: "project", project: A }, { kind: "project", project: B }]);
     activeTabIndex.set(-1);
     activeMockPath = A.path;
-    // Graph state is still a module-level singleton (not yet migrated).
+    // Graph state is now per-repo (RepoState.graph); these reset the detached
+    // fallback slice so cases don't bleed via it.
     clearGraphState();
     viewport.set(null);
   });
@@ -142,10 +143,10 @@ describe("two-repo state isolation (spec 08)", () => {
     expect(get(unstagedSelection)).toEqual(new Set(["a-file.txt"]));
   });
 
-  // Graph selection is NOT isolated per-repo yet: `clearGraphState` wipes
-  // `selectedOid` on every switch. graph.ts migrates to the RepoState
-  // container in spec 08 step 3 — unskip and this must pass then.
-  it.skip("keeps repo A's graph selection after mutating in repo B", async () => {
+  // Graph selection is isolated per-repo: `RepoState.graph` (spec 08 step 3)
+  // survives the tab switch as a pointer swap instead of being wiped by
+  // `clearGraphState` on every switch.
+  it("keeps repo A's graph selection after mutating in repo B", async () => {
     await switchTo(A, 0);
     selectedOid.set("commit-a");
 

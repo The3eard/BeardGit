@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { get } from "svelte/store";
 import { mockInvokeResponse, clearInvokeMocks, invokeMock } from "../../test/setup";
-import { __resetRepoStateForTests } from "./repo-state";
+import { __resetRepoStateForTests, createRepoState, setActiveRepoPath } from "./repo-state";
 import {
   compareRefA,
   compareRefB,
@@ -189,5 +189,97 @@ describe("compare store", () => {
     openCompare("main", null);
     expect(get(compareRefA)).toBe("main");
     expect(get(compareRefB)).toBeNull();
+  });
+
+  it("a compare started in repo A lands in A even if the user switches to B mid-flight", async () => {
+    const A = createRepoState("/repo/a");
+    const B = createRepoState("/repo/b");
+
+    // Deferred merge-base so we can switch tabs while the compare is in flight.
+    let resolveMergeBase!: (v: string) => void;
+    mockInvokeResponse(
+      "get_merge_base",
+      () =>
+        new Promise<string>((resolve) => {
+          resolveMergeBase = resolve;
+        }),
+    );
+    mockInvokeResponse("get_diff_between_commits", [{ path: "feat.txt", status: "added" }]);
+    mockInvokeResponse("get_commits_between", (args: Record<string, unknown>) => {
+      if (args.from === "main" && args.to === "feature") return [commit("b2"), commit("b1")];
+      if (args.from === "feature" && args.to === "main") return [commit("a1")];
+      return [];
+    });
+
+    // Start the compare in repo A.
+    setActiveRepoPath("/repo/a");
+    A.compare.refA.set("main");
+    A.compare.refB.set("feature");
+    const pending = runCompare();
+
+    // Switch to repo B before A's compare resolves.
+    setActiveRepoPath("/repo/b");
+
+    // Resolve the deferred merge-base → A's compare runs to completion.
+    resolveMergeBase("base0");
+    await pending;
+
+    // A's slice got the data it asked for…
+    expect(get(A.compare.mergeBase)).toBe("base0");
+    expect(get(A.compare.commits).map((c) => c.oid)).toEqual(["b2", "b1"]);
+    expect(get(A.compare.behindCount)).toBe(1);
+    expect(get(A.compare.files)).toEqual([{ path: "feat.txt", status: "added" }]);
+    expect(get(A.compare.loading)).toBe(false);
+
+    // …and B's slice is completely untouched (no cross-repo bleed).
+    expect(get(B.compare.mergeBase)).toBeNull();
+    expect(get(B.compare.commits)).toEqual([]);
+    expect(get(B.compare.behindCount)).toBe(0);
+    expect(get(B.compare.files)).toEqual([]);
+    expect(get(B.compare.loading)).toBe(false);
+  });
+
+  it("loadMore started in repo A lands in A even if the user switches to B mid-flight", async () => {
+    const A = createRepoState("/repo/a");
+    const B = createRepoState("/repo/b");
+
+    // A already has a page of ahead commits loaded.
+    setActiveRepoPath("/repo/a");
+    A.compare.refA.set("main");
+    A.compare.refB.set("feature");
+    A.compare.commits.set([commit("p1-0"), commit("p1-1")]);
+
+    // B shares the same refs, so the old refs-changed guard would NOT catch the
+    // cross-repo write — only capturing the slice does.
+    B.compare.refA.set("main");
+    B.compare.refB.set("feature");
+
+    // Deferred next page so we can switch tabs while loadMore is in flight.
+    let resolvePage!: (v: unknown[]) => void;
+    mockInvokeResponse(
+      "get_commits_between",
+      () =>
+        new Promise<unknown[]>((resolve) => {
+          resolvePage = resolve;
+        }),
+    );
+
+    // Start loadMore in repo A.
+    const pending = loadMoreCompareCommits();
+
+    // Switch to repo B before the page resolves.
+    setActiveRepoPath("/repo/b");
+
+    // Resolve the deferred page → A's loadMore runs to completion.
+    resolvePage([commit("p2-0")]);
+    await pending;
+
+    // A's slice got the appended page…
+    expect(get(A.compare.commits).map((c) => c.oid)).toEqual(["p1-0", "p1-1", "p2-0"]);
+    expect(get(A.compare.loadingMore)).toBe(false);
+
+    // …and B's slice is untouched (no cross-repo bleed).
+    expect(get(B.compare.commits)).toEqual([]);
+    expect(get(B.compare.loadingMore)).toBe(false);
   });
 });

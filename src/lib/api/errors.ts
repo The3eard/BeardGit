@@ -57,8 +57,17 @@ export function errorCodeMessage(code: string): string | null {
       return "Authentication required";
     case "not_fast_forward":
       return "Push rejected — the remote has commits you don't have locally";
+    case "not_a_repo":
+    // `repo_not_found` was the legacy code the `open_repo` path emitted for the
+    // same situation before it was unified onto `not_a_repo`; kept as an alias.
     case "repo_not_found":
       return "Not a git repository";
+    case "would_lose_changes":
+      return "Checkout would overwrite uncommitted changes — commit or stash first";
+    case "not_fully_merged":
+      return "Branch has unmerged commits — delete with force to discard them";
+    case "branch_exists":
+      return "A branch with that name already exists — choose a different name";
     default:
       return null;
   }

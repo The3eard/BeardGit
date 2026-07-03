@@ -4,19 +4,22 @@
  * On project switch: load snapshot → apply to titlebar/badges.
  * After real data loads: build snapshot from current state → save to cache.
  *
- * TODO(spec 08): fold the in-memory role here into the RepoState container
- * (`stores/repo-state/`) — the disk snapshot persistence stays, but reads/
- * writes go through the container so a RepoState only ever knows its own
- * path (the "wrote under the wrong key" class of bug becomes impossible).
- * See `stores/branches.ts` for the migrated facade pattern.
+ * ── Migrated to the RepoState container (spec 08 step 5) ──────────────
+ * The in-memory mirror used to be a central `Map<projectPath, ProjectSnapshot>`
+ * (`projectSnapshots`) owned here — the exact "wrote under the wrong key"
+ * hazard this module documents. It now lives per-repo in `RepoState.snapshot`,
+ * reached by path through the container (`getRepoState` / `repoField`), so a
+ * RepoState only ever knows its own path. The disk snapshot persistence
+ * (`get_project_snapshot` / `save_project_snapshot`) stays here unchanged.
  */
 
 import type { ProjectSnapshot, GraphViewport } from "$lib/types";
 import * as api from "$lib/api/tauri";
 import { fileStatuses } from "./changes";
-import { get, writable } from "svelte/store";
+import { get, type Readable } from "svelte/store";
 import { repoInfo } from "./repo";
 import { viewport, graphOffset } from "./graph";
+import { getRepoState, repoField } from "./repo-state";
 
 /**
  * Persistent graph viewport slice.
@@ -60,35 +63,33 @@ export function isCacheFresh(cachedAt: number): boolean {
 }
 
 /**
- * In-memory mirror of the on-disk snapshot keyed by project path,
- * exposed as a Svelte store so subscribers re-render whenever a
- * watcher-driven `saveCurrentSnapshot` rewrites an entry.
- *
- * `restoreCachedViewport` is synchronous by design — it has to paint
- * the graph before the canvas mounts — so it can only hydrate from
- * what's already in memory. `loadProjectSnapshot` primes this map on
- * every successful disk read, so subsequent tab switches to the same
- * project are instant.
+ * Reactive view of a specific repo's in-memory snapshot, resolved by path
+ * through the container (`RepoState.snapshot`). Emits `null` when the repo has
+ * no live state (closed tab) or hasn't been hydrated yet. The tab strip
+ * subscribes to this per tab so an inactive tab's badges update reactively when
+ * a watcher-driven `saveCurrentSnapshot` rewrites that repo's snapshot.
  */
-export const projectSnapshots = writable<Record<string, ProjectSnapshot>>({});
-
-/** Expose in-memory hydration to tests and direct warm-up paths. */
-export function hydrateSnapshotCache(path: string, snap: ProjectSnapshot): void {
-  projectSnapshots.update((m) => ({ ...m, [path]: snap }));
-}
-
-/** Test seam — reset the in-memory cache so tests don't leak across files. */
-export function _clearSnapshotCacheForTests(): void {
-  projectSnapshots.set({});
+export function snapshotStore(path: string): Readable<ProjectSnapshot | null> {
+  return repoField(path, (rs) => rs.snapshot);
 }
 
 /**
- * Look up a cached snapshot synchronously from the in-memory mirror.
- * Returns `null` when the project has never been loaded in this
- * session; callers that need disk I/O should use `loadProjectSnapshot`.
+ * Mirror a snapshot into the owning repo's slice. No-ops when the repo has no
+ * live state (a closed/never-opened tab) — the disk read still returns the
+ * value to the caller.
+ */
+export function hydrateSnapshotCache(path: string, snap: ProjectSnapshot): void {
+  getRepoState(path)?.snapshot.set(snap);
+}
+
+/**
+ * Look up a cached snapshot synchronously from the owning repo's slice.
+ * Returns `null` when the project has no live state or has never been loaded in
+ * this session; callers that need disk I/O should use `loadProjectSnapshot`.
  */
 export function getCachedSnapshot(path: string): ProjectSnapshot | null {
-  return get(projectSnapshots)[path] ?? null;
+  const rs = getRepoState(path);
+  return rs ? get(rs.snapshot) : null;
 }
 
 /** Load a snapshot from cache. Returns null if not cached. */
@@ -110,9 +111,12 @@ export async function loadProjectSnapshot(path: string): Promise<ProjectSnapshot
  *
  * Callers must have primed the cache (via `loadProjectSnapshot` on a
  * prior activation or an explicit warm-up) — this function never
- * touches disk. The tab-switch path in `projects.ts` first asks the
- * in-memory tab cache (via `graph.ts#restoreCachedViewport`); only on
- * a miss does it fall through here to the disk-backed slice.
+ * touches disk. The tab-switch path in `projects.ts` first checks the
+ * incoming repo's in-memory `GraphSlice` viewport; only when that is
+ * empty (cold start) does it fall through here to the disk-backed slice.
+ *
+ * Writes go to the target repo's own `GraphSlice` (resolved by path), not the
+ * active facade — so this can only ever install a viewport under its own key.
  *
  * The restored viewport has empty `lane_segments` / `merge_curves`
  * because the cache doesn't persist layout geometry — the skeleton +
@@ -120,11 +124,12 @@ export async function loadProjectSnapshot(path: string): Promise<ProjectSnapshot
  * (< 100 ms) and the reconciler swaps in the full geometry.
  */
 export function restorePersistedViewport(projectPath: string): boolean {
-  const snap = get(projectSnapshots)[projectPath];
-  if (!snap?.graph_viewport_cache) return false;
+  const rs = getRepoState(projectPath);
+  const snap = rs ? get(rs.snapshot) : null;
+  if (!rs || !snap?.graph_viewport_cache) return false;
   const cache = snap.graph_viewport_cache;
   if (!isCacheFresh(cache.cached_at)) return false;
-  viewport.set({
+  rs.graph.viewport.set({
     nodes: cache.nodes,
     lane_segments: [],
     merge_curves: [],
@@ -135,7 +140,7 @@ export function restorePersistedViewport(projectPath: string): boolean {
     head_lane: null,
     has_more: false,
   });
-  graphOffset.set(cache.offset);
+  rs.graph.graphOffset.set(cache.offset);
   return true;
 }
 
@@ -158,7 +163,7 @@ export async function getSnapshotForHover(path: string): Promise<ProjectSnapshot
  * Tauri command, which opens a temp repo handle at `path` on the Rust
  * side and reads its status without touching `AppState`. Updates both
  * the on-disk cache (server-side, via the command's persist step) and
- * the in-memory `projectSnapshots` store (client-side, here) so the
+ * the repo's in-memory `RepoState.snapshot` slice (client-side, here) so the
  * tab strip and tooltip both see fresh data.
  *
  * Used on tab mount for non-active projects to recover from any stale

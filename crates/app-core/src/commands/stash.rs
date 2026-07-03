@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Push working-tree changes onto the stash stack.
@@ -24,24 +25,24 @@ pub async fn stash_push(
     paths: Option<Vec<String>>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<String, String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<String, IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::Stash, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
             let result = match paths {
                 Some(ref p) if !p.is_empty() => repo.stash_push_paths(message.as_deref(), p),
                 _ => repo.stash_push(message.as_deref()),
             }
-            .map_err(|e| e.to_string())?;
+            .map_err(IpcError::from)?;
             if result.success {
                 Ok(result.stdout)
             } else {
-                Err(result.stderr)
+                Err(IpcError::new("cli_error", result.stderr))
             }
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
@@ -59,20 +60,20 @@ pub async fn stash_pop(
     index: Option<usize>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<String, String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<String, IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::StashPop, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            let result = repo.stash_pop(index).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
+            let result = repo.stash_pop(index).map_err(IpcError::from)?;
             if result.success {
                 Ok(result.stdout)
             } else {
-                Err(result.stderr)
+                Err(IpcError::new("cli_error", result.stderr))
             }
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
@@ -104,22 +105,22 @@ pub async fn stash_apply(
     index: Option<usize>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<String, String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<String, IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     // `apply` does NOT remove the stash entry — use the generic `Stash` kind,
     // not `StashPop` (which would mislabel the event as a removal).
     with_mutation_guard_async(&state, &app, MutationKind::Stash, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            let result = repo.stash_apply(index).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
+            let result = repo.stash_apply(index).map_err(IpcError::from)?;
             if result.success {
                 Ok(result.stdout)
             } else {
-                Err(result.stderr)
+                Err(IpcError::new("cli_error", result.stderr))
             }
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
@@ -139,23 +140,23 @@ pub async fn stash_apply_file(
     path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<String, String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<String, IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     // `apply` does NOT remove the stash entry — use the generic `Stash` kind.
     with_mutation_guard_async(&state, &app, MutationKind::Stash, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
             let result = repo
                 .stash_apply_file(index, &path)
-                .map_err(|e| e.to_string())?;
+                .map_err(IpcError::from)?;
             if result.success {
                 Ok(result.stdout)
             } else {
-                Err(result.stderr)
+                Err(IpcError::new("cli_error", result.stderr))
             }
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
@@ -173,20 +174,20 @@ pub async fn stash_drop(
     index: Option<usize>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<String, String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<String, IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::StashDrop, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            let result = repo.stash_drop(index).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
+            let result = repo.stash_drop(index).map_err(IpcError::from)?;
             if result.success {
                 Ok(result.stdout)
             } else {
-                Err(result.stderr)
+                Err(IpcError::new("cli_error", result.stderr))
             }
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }

@@ -3,9 +3,15 @@
  * (`TasksPopover.svelte`) and every derived surface the popover
  * exposes (icon spin + colour, list badge, drill-down).
  *
- * TODO(spec 08): the per-project task views should move into the RepoState
- * container (`stores/repo-state/`); see `stores/branches.ts` for the
- * migrated facade pattern. (App-global task aggregation stays global.)
+ * Spec 08 (per-repo RepoState container): this aggregator stays **app-global**
+ * and is intentionally NOT migrated to a per-repo slice. The `task://update`
+ * wire payload carries no project path (see `crates/app-core/src/task_events.rs`
+ * / `types/tasks.ts`), and the drawer/statusbar popover is a single global
+ * surface that must keep showing background work from every repo while any tab
+ * is active. Splitting it per-repo would hide a still-streaming fetch/AI run on
+ * tab switch. It belongs with the other correctly-global stores (theme, toasts,
+ * shortcuts) the spec lists as out of scope. `entryMap` is keyed by task id,
+ * not project path, so it is not the `Map<projectPath, …>` the spec retired.
  *
  * Three independent bridges feed into one internal `Map<string, TaskEntry>`:
  *

@@ -21,7 +21,7 @@
   import { runMutation } from "../../api/runMutation";
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
   import { openCompare } from "../../stores/compare";
-  import { buildCreateBranchSource } from "./GitGraph.helpers";
+  import { buildCreateBranchSource, graphRepoChangeAction } from "./GitGraph.helpers";
   import { save } from "@tauri-apps/plugin-dialog";
   import RebaseEditor from "../rebase/RebaseEditor.svelte";
   import { debounce } from "../../utils/debounce";
@@ -955,9 +955,22 @@
     scheduleDraw();
   });
 
+  // Reset the viewport to the top only when the ACTIVE REPO changes, not on
+  // every `repoInfo` object swap. A background mutation and a tab switch both
+  // hand us a fresh `repoInfo` object; keying off object identity yanked the
+  // user's scroll back to row 0 (defeating the per-repo GraphSlice). Key off
+  // the repo path instead: a mutation refresh falls through to the reconcile
+  // path (`refreshAndReloadGraph`), a revisited tab keeps its restored
+  // offset/selection, and only a genuinely new repo loads from the top.
+  let lastRepoPath: string | null = null;
   $effect(() => {
-    if ($repoInfo) {
-      scrollAccumulator = 0;
+    const path = $repoInfo?.path ?? null;
+    const action = graphRepoChangeAction(lastRepoPath, path, get(viewport) !== null);
+    lastRepoPath = path;
+    if (action === "none") return;
+    // Drop any partial wheel delta carried over from the previous repo.
+    scrollAccumulator = 0;
+    if (action === "reset") {
       selectedGroup.set(null);
       loadViewport(0);
     }
