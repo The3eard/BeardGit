@@ -62,18 +62,26 @@ pub fn create_branch_at(
 ///
 /// # Parameters
 /// - `oid` – Commit OID to checkout.
+///
+/// Runs on a blocking thread — a checkout writes the working tree, which can
+/// be sizeable, and must not block the Tauri async runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::branch::checkout_detached")]
-pub fn checkout_detached(
+pub async fn checkout_detached(
     oid: String,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::Checkout, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::Checkout, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             repo.checkout_detached(&oid).map_err(|e| e.to_string())
         })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Delete a local branch by name.
@@ -87,19 +95,27 @@ pub fn checkout_detached(
 /// - `force` – When `true`, deletes even if the branch has unmerged commits
 ///   (`git branch -D`). When `false`, refuses unmerged branches
 ///   (`git branch -d`), matching the CLI's safer default.
+///
+/// Runs on a blocking thread — deletion shells out to `git branch -d/-D`
+/// (fork/exec/wait), which must not block the Tauri async runtime.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::branch::delete")]
-pub fn delete_branch(
+pub async fn delete_branch(
     name: String,
     force: bool,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::BranchDelete, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::BranchDelete, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             repo.delete_branch(&name, force).map_err(|e| e.to_string())
         })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// List local branches that are candidates for cleanup, classified into
@@ -111,16 +127,24 @@ pub fn delete_branch(
 ///
 /// # Parameters
 /// - `into` – Branch to classify "merged" against; `None` uses the default.
+///
+/// Runs on a blocking thread — the classification is an uncached
+/// O(branches × divergence) graph walk (ahead/behind + commit lookup per
+/// branch), which must not block the Tauri async runtime when the dialog opens.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::branch::cleanup_candidates")]
-pub fn list_branch_cleanup_candidates(
+pub async fn list_branch_cleanup_candidates(
     into: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<git_engine::BranchCleanupList, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.cleanup_candidates(into.as_deref())
             .map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Delete a batch of local branches in one shot.
@@ -136,17 +160,28 @@ pub fn list_branch_cleanup_candidates(
 /// - `names` – Local branch names to delete.
 /// - `force` – Subset of `names` to delete with `git branch -D` (unmerged);
 ///   names not in this list use the safe `git branch -d`.
+///
+/// Runs on a blocking thread — deleting N branches spawns N sequential
+/// `git branch -d/-D` subprocesses (fork/exec/wait each), which must not
+/// block the Tauri async runtime / freeze the window on a large batch.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::branch::delete_batch")]
-pub fn delete_branches(
+pub async fn delete_branches(
     names: Vec<String>,
     force: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<git_engine::BatchDeleteResult, String> {
-    with_mutation_guard(&state, &app, MutationKind::BranchDelete, || {
-        with_active_repo(&state, |repo| Ok(repo.delete_branches(&names, &force)))
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::BranchDelete, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            Ok(repo.delete_branches(&names, &force))
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Switch the working tree to an existing local branch.
@@ -157,18 +192,26 @@ pub fn delete_branches(
 ///
 /// # Parameters
 /// - `name` – Name of the branch to check out.
+///
+/// Runs on a blocking thread — a checkout writes the working tree, which can
+/// be sizeable, and must not block the Tauri async runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::branch::checkout")]
-pub fn checkout_branch(
+pub async fn checkout_branch(
     name: String,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::Checkout, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::Checkout, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             repo.checkout_branch(&name).map_err(|e| e.to_string())
         })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Merge a branch into the current branch via the git CLI.
