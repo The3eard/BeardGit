@@ -14,50 +14,33 @@
  */
 
 import { writable } from "svelte/store";
+import { activeField } from "$lib/stores/repo-state";
+import type {
+  RequestSource,
+  RunState,
+  RequestDoc,
+  ResponseDoc,
+} from "$lib/stores/repo-state/RequestsSlice";
 
-/** A pointer to a `.http` file on disk — either project-local or global. */
-export type RequestSource = { kind: "project" | "global"; path: string };
+export type { RequestSource, RunState, RequestDoc, ResponseDoc };
 
-/** Lifecycle of a single request execution. */
-export type RunState = "idle" | "running" | "done" | "error" | "canceled";
-
-/**
- * In-memory shape of a parsed `.http` request that the editor binds to.
- * Mirrors the relevant fields of the backend `RequestDoc` type.
- */
-export interface RequestDoc {
-  name?: string;
-  method: string;
-  url: string;
-  headers: [string, string][];
-  body?: string;
-}
-
-/**
- * In-memory shape of a single executed response. Body is the raw bytes
- * (truncated server-side when over the configured cap), and the viewer
- * is responsible for any text decoding.
- */
-export interface ResponseDoc {
-  status: number;
-  headers: [string, string][];
-  body: Uint8Array;
-  truncated: boolean;
-  durationMs: number;
-}
+// The user's request selection / run state is per-repo: it lives in the
+// active repo's `RequestsSlice` so switching project tabs shows that repo's
+// selection (and never Sends/Saves against the wrong repo). These facades
+// proxy the active slice so existing component imports keep working.
 
 /** The request file currently selected in the collections tree. */
-export const currentSource = writable<RequestSource | null>(null);
+export const currentSource = activeField<RequestSource | null>((rs) => rs.requests.currentSource);
 /** The parsed request doc bound to the editor. */
-export const currentRequest = writable<RequestDoc | null>(null);
+export const currentRequest = activeField<RequestDoc | null>((rs) => rs.requests.currentRequest);
 /** The active environment name (e.g. `"dev"`, `"prod"`), if any. */
-export const currentEnv = writable<string | null>(null);
+export const currentEnv = activeField<string | null>((rs) => rs.requests.currentEnv);
 /** Lifecycle state of the most recently triggered run. */
-export const runState = writable<RunState>("idle");
+export const runState = activeField<RunState>((rs) => rs.requests.runState);
 /** Last successful response body + metadata. */
-export const lastResponse = writable<ResponseDoc | null>(null);
+export const lastResponse = activeField<ResponseDoc | null>((rs) => rs.requests.lastResponse);
 /** Error message from the last run when `runState` is `"error"`. */
-export const lastResponseError = writable<string | null>(null);
+export const lastResponseError = activeField<string | null>((rs) => rs.requests.lastResponseError);
 
 /**
  * Bumped by any action that mutates the on-disk requests tree (seeding,
