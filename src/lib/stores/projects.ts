@@ -258,19 +258,17 @@ async function activateProjectTab(tabIndex: number) {
   if (projectIdx < 0) return;
 
   stopAllPolling();
-  // NOTE: graph + branches + changes are NOT cleared here — they live per-repo
-  // in the RepoState container and are swapped by `setActiveRepoPath` below, so
-  // the graph position + selection survive the switch (spec 08). Only the
-  // project-specific branch scope of the (still module-level) graph view mode
-  // is dropped. The stores below still use module-level singletons and must be
-  // cleared until they migrate.
+  // NOTE: graph + branches + changes + mr-pr + issues are NOT cleared here —
+  // they live per-repo in the RepoState container and are swapped by
+  // `setActiveRepoPath` below, so their position/selection/list survive the
+  // switch (spec 08). Only the project-specific branch scope of the (still
+  // module-level) graph view mode is dropped. The stores below still use
+  // module-level singletons and must be cleared until they migrate.
   resetGraphViewScope();
   clearTagState();
   clearStashState();
   clearBlameState();
   clearWorktreeState();
-  clearMrPrState();
-  clearIssueState();
   clearReleaseState();
   clearReflogState();
 
