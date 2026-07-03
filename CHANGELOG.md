@@ -4,6 +4,8 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased]
 
+## [26.7.1] — Off the UI thread, per-tab state isolation, and broader error codes — 2026-07-03
+
 ### Changed
 
 - **Opening diffs and refreshing the Changes view no longer compete with the UI thread.** The diff and file-content read commands — the working-tree and staged diffs (whole-tree and per-file), the cheap per-file change stats that back the Changes list, and reading a file's contents from a commit, the working tree, or the index — ran their `git2` work synchronously on the webview's main thread. On a large repo, opening a big diff or letting the Changes list refresh could stutter or briefly freeze the window. They now run on a background thread (`spawn_blocking`), keeping the UI responsive; results are unchanged. (`get_diff_workdir`/`get_diff_index`/`get_diff_file`, `get_diff_stats_workdir`/`get_diff_stats_index`, `get_file_at_commit`/`get_file_workdir`/`get_file_index`.)
