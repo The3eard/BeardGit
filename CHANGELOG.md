@@ -4,6 +4,10 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased]
 
+### Fixed
+
+- **Staging, checkout, and branch cleanup/delete no longer freeze the window.** These commands ran their real work — index writes, `git add -A` working-tree walks, patch application, checkouts that rewrite the working tree, and the `git branch -d/-D` subprocess spawns (including the batch delete, which forks one process per branch) — synchronously on the webview's main thread, so staging a large change, switching branches on a big repo, or bulk-deleting dozens of branches would lock the UI until they finished. They now run on a background thread (`spawn_blocking`), keeping the window responsive; the mutation-driven refresh is unchanged. Same fix for opening the "Clean up branches…" dialog, whose candidate list is an uncached O(branches × divergence) graph walk that used to block the thread every time it opened. (`stage_files`/`unstage_files`/`stage_all`/`unstage_all`/`stage_hunks`/`unstage_hunks`/`discard_files`/`discard_hunks`, `checkout_branch`/`checkout_detached`, `delete_branch`/`delete_branches`, `list_branch_cleanup_candidates`.)
+
 ## [26.7.0] — Instant on huge repos, commit signing, a compare view, and branch cleanup — 2026-07-02
 
 ### Added
