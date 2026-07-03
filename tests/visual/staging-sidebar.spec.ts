@@ -1,11 +1,11 @@
 /**
- * Functional regression tests for the Changes view + sidebar reorder.
+ * Functional regression tests for the Changes view + sidebar edit mode.
  *
  * Covers the post-v0.2.0 bug reports:
- *  - sidebar edit-mode reorder (mouse drag + keyboard) applies and persists;
+ *  - sidebar edit mode (hide-only customisation) applies to the nav;
  *  - clicking a file in the changes lists highlights the row;
  *  - a file that appears after an external mutation still resolves its diff
- *    (the staged/unstaged FileDiff stores must refresh with the statuses).
+ *    (the staged/unstaged stores must refresh with the statuses).
  *
  * Assertion-based — no screenshots.
  */
@@ -23,6 +23,7 @@ import { patchMockResponses } from "./helpers/mock-ipc";
 import {
   makeFileStatus,
   makeFileDiff,
+  makeFileDiffStat,
   makeProjectInfo,
   makeStatusSummary,
 } from "../../src/test/fixtures";
@@ -71,41 +72,35 @@ function changesFixture(): IpcResponses {
       makeFileStatus({ path: "src/staged.ts", status: "M", is_staged: true }),
     ],
     get_status_summary: makeStatusSummary({ staged: 1, unstaged: 1 }),
-    get_diff_workdir: [makeFileDiff({ path: "src/a.ts" })],
-    get_diff_index: [makeFileDiff({ path: "src/staged.ts" })],
+    // The Changes lists are driven by the lightweight per-file stats; the
+    // full hunks/lines diff of the opened file is fetched lazily.
+    get_diff_stats_workdir: [makeFileDiffStat({ path: "src/a.ts" })],
+    get_diff_stats_index: [makeFileDiffStat({ path: "src/staged.ts" })],
+    get_diff_file: makeFileDiff({ path: "src/a.ts" }),
   };
 }
 
-async function navOrder(page: Page): Promise<string[]> {
-  return page.$$eval('[data-testid^="nav-"]', (els) =>
-    els
-      .map((e) => e.getAttribute("data-testid")!)
-      .filter((id) => id !== "nav-settings"),
-  );
-}
-
-test.describe("sidebar reorder (edit mode)", () => {
+test.describe("sidebar edit mode", () => {
   test.beforeEach(async ({ page }) => {
     await installBootstrapMocks(page, { activeProject: PROJECT });
     await page.goto("/");
     await waitForAppReady(page);
   });
 
-  test("keyboard ArrowDown moves the focused item", async ({ page }) => {
+  test("the pencil reveals per-item hide toggles", async ({ page }) => {
+    // Hidden items only appear (greyed, with their eye toggle) in edit mode.
+    await expect(page.getByTestId("sidebar-hide-graph")).toBeHidden();
     await page.getByTestId("sidebar-edit-toggle").click();
-    const before = await navOrder(page);
-    await page.getByTestId("sidebar-reorder-graph").focus();
-    await page.keyboard.press("ArrowDown");
-    const after = await navOrder(page);
-    expect(after.indexOf("nav-graph")).toBe(before.indexOf("nav-graph") + 1);
+    await expect(page.getByTestId("sidebar-edit-done")).toBeVisible();
+    await expect(page.getByTestId("sidebar-hide-graph")).toBeVisible();
   });
 
-  test("mouse drag moves the item to the hovered row", async ({ page }) => {
+  test("hiding an item drops it from the navigation list", async ({ page }) => {
+    await expect(page.getByTestId("nav-changes")).toBeVisible();
     await page.getByTestId("sidebar-edit-toggle").click();
-    await page.getByTestId("nav-graph").dragTo(page.getByTestId("nav-editor"));
-    const after = await navOrder(page);
-    // graph lands AT editor's old slot (index 2 of the default order).
-    expect(after.indexOf("nav-graph")).toBe(2);
+    await page.getByTestId("sidebar-hide-changes").click();
+    await page.getByTestId("sidebar-edit-done").click();
+    await expect(page.getByTestId("nav-changes")).toHaveCount(0);
   });
 });
 
@@ -140,9 +135,9 @@ test.describe("changes view", () => {
         makeFileStatus({ path: "src/b.ts", status: "M", is_staged: false }),
         makeFileStatus({ path: "src/staged.ts", status: "M", is_staged: true }),
       ],
-      get_diff_workdir: [
-        makeFileDiff({ path: "src/a.ts" }),
-        makeFileDiff({ path: "src/b.ts" }),
+      get_diff_stats_workdir: [
+        makeFileDiffStat({ path: "src/a.ts" }),
+        makeFileDiffStat({ path: "src/b.ts" }),
       ],
     });
     await emitEventTargeted(page, "project-mutated", {
