@@ -11,54 +11,90 @@ use crate::state::AppState;
 ///
 /// # Parameters
 /// - `paths` – Workspace-relative paths to stage.
+///
+/// Runs on a blocking thread — index writes (and untracked-file reads) can be
+/// sizeable and must not block the Tauri async runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::stage_files")]
-pub fn stage_files(
+pub async fn stage_files(
     paths: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             repo.stage_files(&paths).map_err(|e| e.to_string())
         })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Unstage a specific list of files (equivalent to `git restore --staged <paths>`).
 ///
 /// # Parameters
 /// - `paths` – Workspace-relative paths to unstage.
+///
+/// Runs on a blocking thread — index writes must not block the Tauri async
+/// runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::unstage_files")]
-pub fn unstage_files(
+pub async fn unstage_files(
     paths: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             repo.unstage_files(&paths).map_err(|e| e.to_string())
         })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Stage all modified and untracked files (equivalent to `git add -A`).
+///
+/// Runs on a blocking thread — `add_all` walks the whole working tree, which
+/// must not block the Tauri async runtime / freeze the UI on a large repo.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::stage_all")]
-pub fn stage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| repo.stage_all().map_err(|e| e.to_string()))
+pub async fn stage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            repo.stage_all().map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Unstage all staged changes (equivalent to `git restore --staged .`).
+///
+/// Runs on a blocking thread — a mixed reset rewrites the index and must not
+/// block the Tauri async runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::unstage_all")]
-pub fn unstage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| repo.unstage_all().map_err(|e| e.to_string()))
+pub async fn unstage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            repo.unstage_all().map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Stage selected hunks or individual lines from the working directory.
@@ -66,20 +102,28 @@ pub fn unstage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), Str
 /// # Parameters
 /// - `path` – Workspace-relative file path.
 /// - `selections` – Which hunks/lines to stage.
+///
+/// Runs on a blocking thread — building and applying the patch must not block
+/// the Tauri async runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::stage_hunks")]
-pub fn stage_hunks(
+pub async fn stage_hunks(
     path: String,
     selections: Vec<git_engine::HunkSelection>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             repo.stage_hunks(&path, &selections)
                 .map_err(|e| e.to_string())
         })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Unstage selected hunks or individual lines from the index.
@@ -87,20 +131,28 @@ pub fn stage_hunks(
 /// # Parameters
 /// - `path` – Workspace-relative file path.
 /// - `selections` – Which hunks/lines to unstage.
+///
+/// Runs on a blocking thread — building and applying the patch must not block
+/// the Tauri async runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::unstage_hunks")]
-pub fn unstage_hunks(
+pub async fn unstage_hunks(
     path: String,
     selections: Vec<git_engine::HunkSelection>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             repo.unstage_hunks(&path, &selections)
                 .map_err(|e| e.to_string())
         })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Discard unstaged changes for whole files.
@@ -111,18 +163,26 @@ pub fn unstage_hunks(
 ///
 /// # Parameters
 /// - `paths` – Workspace-relative paths to discard.
+///
+/// Runs on a blocking thread — resetting the working tree / deleting files is
+/// real disk I/O and must not block the Tauri async runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::discard_files")]
-pub fn discard_files(
+pub async fn discard_files(
     paths: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             repo.discard_files(&paths).map_err(|e| e.to_string())
         })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 /// Discard selected hunks or individual lines from the working directory.
@@ -130,20 +190,28 @@ pub fn discard_files(
 /// # Parameters
 /// - `path` – Workspace-relative file path.
 /// - `selections` – Which hunks/lines to discard.
+///
+/// Runs on a blocking thread — building and applying the patch to the working
+/// tree must not block the Tauri async runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::discard_hunks")]
-pub fn discard_hunks(
+pub async fn discard_hunks(
     path: String,
     selections: Vec<git_engine::HunkSelection>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        tokio::task::spawn_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
             repo.discard_hunks(&path, &selections)
                 .map_err(|e| e.to_string())
         })
+        .await
+        .map_err(|e| e.to_string())?
     })
+    .await
 }
 
 #[cfg(test)]
