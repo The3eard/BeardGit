@@ -23,7 +23,7 @@
  *      state so a slow diff fetch can't gate the metadata render.
  */
 
-import { writable, derived, get } from "svelte/store";
+import { derived, get } from "svelte/store";
 import type { Label, MrPr, MrPrDetail, MrPrDiffFile, MrPrState, TaskId } from "../types";
 import {
   listMrPrs as apiList,
@@ -51,9 +51,10 @@ import {
   addMrPrInlineComment as apiAddInlineComment,
 } from "../api/tauri";
 import { runMutation } from "../api/runMutation";
-import { fetchIntoStore } from "../utils/store-helpers";
 import { withTimeout } from "../utils/withTimeout";
 import { addToast } from "./toast";
+import { activeField, getActiveRepoState, type MrPrSlice } from "./repo-state";
+import type { PrRawDiffContent } from "./repo-state/MrPrSlice";
 import * as m from "$lib/paraglide/messages";
 
 /**
@@ -63,14 +64,19 @@ import * as m from "$lib/paraglide/messages";
  */
 const DETAIL_TIMEOUT_MS = 15_000;
 
+// The MR/PR view state below is per-repo: it lives in the active repo's
+// `MrPrSlice` so switching project tabs shows that repo's list, selection,
+// and open diff (and never acts against the wrong repo's forge). These
+// facades proxy the active slice so existing component imports keep working.
+
 /** Current filter tab: open, closed, merged, or all. */
-export const mrPrFilter = writable<MrPrState | "all">("open");
+export const mrPrFilter = activeField<MrPrState | "all">((rs) => rs.mrPr.filter);
 
 /** List of MR/PRs matching the current filter. */
-export const mrPrList = writable<MrPr[]>([]);
+export const mrPrList = activeField<MrPr[]>((rs) => rs.mrPr.list);
 
 /** Whether the list is loading. */
-export const mrPrListLoading = writable(false);
+export const mrPrListLoading = activeField<boolean>((rs) => rs.mrPr.listLoading);
 
 /**
  * Last error raised while fetching the MR/PR list. Null on success.
@@ -80,19 +86,19 @@ export const mrPrListLoading = writable(false);
  * 401 from the forge). MrPrList reads this store and renders the error
  * message inline so users know *why* the list is empty.
  */
-export const mrPrListError = writable<string | null>(null);
+export const mrPrListError = activeField<string | null>((rs) => rs.mrPr.listError);
 
 /** Currently selected MR/PR number. */
-export const selectedMrPrNumber = writable<number | null>(null);
+export const selectedMrPrNumber = activeField<number | null>((rs) => rs.mrPr.selectedNumber);
 
 /** Detail of the selected MR/PR. */
-export const mrPrDetail = writable<MrPrDetail | null>(null);
+export const mrPrDetail = activeField<MrPrDetail | null>((rs) => rs.mrPr.detail);
 
 /** Changed files for the selected MR/PR. */
-export const mrPrDiffFiles = writable<MrPrDiffFile[]>([]);
+export const mrPrDiffFiles = activeField<MrPrDiffFile[]>((rs) => rs.mrPr.diffFiles);
 
 /** Whether the detail (summary + body + comments) is loading. */
-export const mrPrDetailLoading = writable(false);
+export const mrPrDetailLoading = activeField<boolean>((rs) => rs.mrPr.detailLoading);
 
 /**
  * Last error raised while loading the selected MR/PR detail. Null on
@@ -100,7 +106,7 @@ export const mrPrDetailLoading = writable(false);
  * this store via `ForgeDetailShell` to render an inline error banner
  * with a retry button so users aren't stuck staring at a blank pane.
  */
-export const mrPrDetailError = writable<string | null>(null);
+export const mrPrDetailError = activeField<string | null>((rs) => rs.mrPr.detailError);
 
 /**
  * Whether the diff-files fetch is in flight for the selected MR/PR.
@@ -112,10 +118,10 @@ export const mrPrDetailError = writable<string | null>(null);
  * inline spinner / error banner driven by this store + {@link
  * mrPrDiffError}.
  */
-export const mrPrDiffLoading = writable(false);
+export const mrPrDiffLoading = activeField<boolean>((rs) => rs.mrPr.diffLoading);
 
 /** Last error raised while loading the selected MR/PR's diff files. */
-export const mrPrDiffError = writable<string | null>(null);
+export const mrPrDiffError = activeField<string | null>((rs) => rs.mrPr.diffError);
 
 /** Map of branch name -> MrPr for open MR/PRs (used by graph for badges). */
 export const mrPrByBranch = derived(mrPrList, ($list) => {
@@ -130,18 +136,23 @@ export const mrPrByBranch = derived(mrPrList, ($list) => {
 
 /** Fetch the MR/PR list with the current filter. */
 export async function refreshMrPrList() {
-  const currentFilter = get(mrPrFilter);
+  // Capture the target slice up front so a late response lands in the repo it
+  // belongs to, even if the user switches tabs mid-flight (RepoState renders
+  // only the active slice, so writing back into an inactive repo's slice is
+  // correct and invisible).
+  const slice = getActiveRepoState().mrPr;
+  const currentFilter = get(slice.filter);
   const filter = currentFilter !== "all" ? currentFilter : undefined;
-  mrPrListLoading.set(true);
+  slice.listLoading.set(true);
   try {
     const data = await apiList(filter, 50);
-    mrPrList.set(data);
-    mrPrListError.set(null);
+    slice.list.set(data);
+    slice.listError.set(null);
   } catch (err) {
-    mrPrList.set([]);
-    mrPrListError.set(err instanceof Error ? err.message : String(err));
+    slice.list.set([]);
+    slice.listError.set(err instanceof Error ? err.message : String(err));
   } finally {
-    mrPrListLoading.set(false);
+    slice.listLoading.set(false);
   }
 }
 
@@ -160,63 +171,59 @@ export async function refreshMrPrList() {
  * spinner.
  */
 export async function loadMrPrDetail(number: number): Promise<void> {
-  selectedMrPrNumber.set(number);
-  const metaP = loadMrPrDetailMeta(number);
-  const diffP = loadMrPrDetailDiff(number);
+  // Capture the target slice so both the meta and diff branches (and a late
+  // response after a tab switch) land in the repo this load belongs to.
+  const slice = getActiveRepoState().mrPr;
+  slice.selectedNumber.set(number);
+  const metaP = loadMrPrDetailMeta(slice, number);
+  const diffP = loadMrPrDetailDiff(slice, number);
   // `allSettled` so one branch failing doesn't abort the other —
   // each branch already reports its own toast / store error.
   await Promise.allSettled([metaP, diffP]);
 }
 
-async function loadMrPrDetailMeta(number: number): Promise<void> {
-  mrPrDetailLoading.set(true);
-  mrPrDetailError.set(null);
+async function loadMrPrDetailMeta(slice: MrPrSlice, number: number): Promise<void> {
+  slice.detailLoading.set(true);
+  slice.detailError.set(null);
   try {
     const detail = await withTimeout(apiDetail(number), DETAIL_TIMEOUT_MS);
-    mrPrDetail.set(detail);
+    slice.detail.set(detail);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    mrPrDetail.set(null);
-    mrPrDetailError.set(msg);
+    slice.detail.set(null);
+    slice.detailError.set(msg);
     addToast({
       message: m.mrpr_load_failed({ number: number.toString(), error: msg }),
       type: "error",
     });
   } finally {
-    mrPrDetailLoading.set(false);
+    slice.detailLoading.set(false);
   }
 }
 
-async function loadMrPrDetailDiff(number: number): Promise<void> {
-  mrPrDiffLoading.set(true);
-  mrPrDiffError.set(null);
+async function loadMrPrDetailDiff(slice: MrPrSlice, number: number): Promise<void> {
+  slice.diffLoading.set(true);
+  slice.diffError.set(null);
   try {
     const diff = await withTimeout(apiDiff(number), DETAIL_TIMEOUT_MS);
-    mrPrDiffFiles.set(diff);
+    slice.diffFiles.set(diff);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    mrPrDiffFiles.set([]);
-    mrPrDiffError.set(msg);
+    slice.diffFiles.set([]);
+    slice.diffError.set(msg);
   } finally {
-    mrPrDiffLoading.set(false);
+    slice.diffLoading.set(false);
   }
 }
 
 /** Clear detail state (e.g., when navigating away). */
 export function clearMrPrDetail() {
-  selectedMrPrNumber.set(null);
-  mrPrDetail.set(null);
-  mrPrDiffFiles.set([]);
+  getActiveRepoState().mrPr.clearDetail();
 }
 
 /** Clear all MR/PR state (e.g., on project switch). */
 export function clearMrPrState() {
-  mrPrList.set([]);
-  mrPrFilter.set("open");
-  clearMrPrDetail();
-  // Ensured shas are per-repo facts — a sha present in the previous
-  // project's odb says nothing about the new one.
-  clearEnsuredShas();
+  getActiveRepoState().mrPr.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -341,20 +348,21 @@ export async function postReviewComment(
 // ---------------------------------------------------------------------------
 
 /** Cache of repository labels, populated on demand by the label picker. */
-export const repoLabels = writable<Label[]>([]);
+export const repoLabels = activeField<Label[]>((rs) => rs.mrPr.repoLabels);
 /** Whether the repository label cache is currently loading. */
-export const repoLabelsLoading = writable(false);
+export const repoLabelsLoading = activeField<boolean>((rs) => rs.mrPr.repoLabelsLoading);
 
 /** Fetch repository labels into the cache (no-op on error — list stays empty). */
 export async function loadRepoLabels(): Promise<void> {
-  repoLabelsLoading.set(true);
+  const slice = getActiveRepoState().mrPr;
+  slice.repoLabelsLoading.set(true);
   try {
     const labels = await apiListLabels();
-    repoLabels.set(labels);
+    slice.repoLabels.set(labels);
   } catch {
-    repoLabels.set([]);
+    slice.repoLabels.set([]);
   } finally {
-    repoLabelsLoading.set(false);
+    slice.repoLabelsLoading.set(false);
   }
 }
 
@@ -490,57 +498,35 @@ export async function checkoutMrPrLocally(number: number): Promise<TaskId> {
 
 // ─── PR per-file diff panel ──────────────────────────────────────────────────
 
-import type { RawDiffContent } from "./graph";
-
-/**
- * Currently-viewed PR per-file diff payload. Null when no file is selected.
- * Shares the `RawDiffContent` shape with the graph/branch/reflog diff panels
- * so `DiffEditor.svelte` can render it unchanged, plus an optional
- * `binary: boolean` flag for the placeholder branch.
- */
-export interface PrRawDiffContent extends RawDiffContent {
-  /** True when either side's blob was flagged binary. */
-  binary: boolean;
-}
+export type { PrRawDiffContent } from "./repo-state/MrPrSlice";
 
 /** Diff content for the currently-selected PR file, or `null` if none. */
-export const prFileDiff = writable<PrRawDiffContent | null>(null);
+export const prFileDiff = activeField<PrRawDiffContent | null>((rs) => rs.mrPr.prFileDiff);
 /** True while `loadPrFileDiff` is in flight. */
-export const loadingPrFileDiff = writable(false);
+export const loadingPrFileDiff = activeField<boolean>((rs) => rs.mrPr.loadingPrFileDiff);
 /** Last error raised during `loadPrFileDiff`, or `null`. */
-export const prFileDiffError = writable<string | null>(null);
+export const prFileDiffError = activeField<string | null>((rs) => rs.mrPr.prFileDiffError);
 
 /**
  * Currently selected file path in the PR file list. Drives the
  * `selected` row highlight + prev/next navigation cursor.
  */
-export const selectedPrFilePath = writable<string | null>(null);
+export const selectedPrFilePath = activeField<string | null>((rs) => rs.mrPr.selectedPrFilePath);
 
 /**
- * Commits already materialised locally (or with an ensure in flight),
- * keyed by sha. Without it, every file click in a PR re-ran the
- * `ensure_commit_local` preflight — and when the commit couldn't be
- * fetched, every click (and every `[` / `]` file-nav keystroke)
- * spawned a fresh failing `git fetch` task, surfacing the same error
- * over and over. Failed ensures are evicted so an explicit retry can
- * attempt one new fetch, but nothing retries automatically.
+ * Ensure `sha` exists in `slice`'s repo's local object database, deduped per
+ * sha via the slice's `ensuredShas` cache. Without it, every file click in a
+ * PR re-ran the `ensure_commit_local` preflight — and when the commit
+ * couldn't be fetched, every click (and every `[` / `]` file-nav keystroke)
+ * spawned a fresh failing `git fetch` task. Fork-head clone URLs can be
+ * unfetchable (e.g. anonymous https against a private fork), while the base
+ * repo advertises PR head objects too — so a failed fetch from `remoteUrl`
+ * falls back to `origin` before surfacing the error. Failed ensures are
+ * evicted so an explicit retry can attempt one new fetch, but nothing retries
+ * automatically.
  */
-const ensuredShas = new Map<string, Promise<void>>();
-
-/** Forget ensured commits — must run when the active repo changes. */
-function clearEnsuredShas(): void {
-  ensuredShas.clear();
-}
-
-/**
- * Ensure `sha` exists in the local object database, deduped per sha.
- * Fork-head clone URLs can be unfetchable (e.g. anonymous https against
- * a private fork), while the base repo advertises PR head objects too —
- * so a failed fetch from `remoteUrl` falls back to `origin` before
- * surfacing the error.
- */
-function ensureShaLocal(sha: string, remoteUrl: string | null): Promise<void> {
-  const inFlight = ensuredShas.get(sha);
+function ensureShaLocal(slice: MrPrSlice, sha: string, remoteUrl: string | null): Promise<void> {
+  const inFlight = slice.ensuredShas.get(sha);
   if (inFlight) return inFlight;
   const attempt = (async () => {
     const { ensureCommitLocal } = await import("../api/tauri");
@@ -551,15 +537,12 @@ function ensureShaLocal(sha: string, remoteUrl: string | null): Promise<void> {
       await ensureCommitLocal(sha, null);
     }
   })().catch((err: unknown) => {
-    ensuredShas.delete(sha);
+    slice.ensuredShas.delete(sha);
     throw err;
   });
-  ensuredShas.set(sha, attempt);
+  slice.ensuredShas.set(sha, attempt);
   return attempt;
 }
-
-/** Monotonic id so a stale (slower) load can't clobber a newer one. */
-let prFileDiffRequestId = 0;
 
 /**
  * Loads the diff for `path` in the PR summarised by `detail`. Ensures
@@ -573,12 +556,17 @@ let prFileDiffRequestId = 0;
  * binary. Sets `prFileDiffError` on failure.
  */
 export async function loadPrFileDiff(detail: MrPrDetail, path: string): Promise<void> {
+  // Capture the target slice so a late diff response (and the per-repo
+  // `ensuredShas` cache) lands in the repo this load belongs to, even if the
+  // user switches tabs mid-flight. The per-slice `prFileDiffRequestId` still
+  // cancels an older diff superseded by a newer one in the SAME repo.
+  const slice = getActiveRepoState().mrPr;
   const { base_sha, head_sha, head_repo_url } = detail.summary;
-  const requestId = ++prFileDiffRequestId;
-  prFileDiff.set(null);
-  prFileDiffError.set(null);
-  loadingPrFileDiff.set(true);
-  selectedPrFilePath.set(path);
+  const requestId = ++slice.prFileDiffRequestId;
+  slice.prFileDiff.set(null);
+  slice.prFileDiffError.set(null);
+  slice.loadingPrFileDiff.set(true);
+  slice.selectedPrFilePath.set(path);
   try {
     if (!base_sha || !head_sha) {
       throw new Error(m.pr_diff_missing_shas());
@@ -586,33 +574,34 @@ export async function loadPrFileDiff(detail: MrPrDetail, path: string): Promise<
     const { getFileAtCommit } = await import("../api/tauri");
     // Sequential on purpose: concurrent `git fetch` children race on
     // FETCH_HEAD. Both calls are cheap no-ops once the sha is cached.
-    await ensureShaLocal(head_sha, head_repo_url);
-    await ensureShaLocal(base_sha, null);
+    await ensureShaLocal(slice, head_sha, head_repo_url);
+    await ensureShaLocal(slice, base_sha, null);
     const [oldR, newR] = await Promise.all([
       getFileAtCommit(base_sha, path).catch(() => ({ kind: "text" as const, data: "" })),
       getFileAtCommit(head_sha, path).catch(() => ({ kind: "text" as const, data: "" })),
     ]);
-    if (requestId !== prFileDiffRequestId) return;
+    if (requestId !== slice.prFileDiffRequestId) return;
     const binary = oldR.kind === "binary" || newR.kind === "binary";
-    prFileDiff.set({
+    slice.prFileDiff.set({
       oldContent: oldR.kind === "text" ? oldR.data : "",
       newContent: newR.kind === "text" ? newR.data : "",
       filename: path,
       binary,
     });
   } catch (e) {
-    if (requestId !== prFileDiffRequestId) return;
-    prFileDiffError.set(e instanceof Error ? e.message : String(e));
+    if (requestId !== slice.prFileDiffRequestId) return;
+    slice.prFileDiffError.set(e instanceof Error ? e.message : String(e));
   } finally {
-    if (requestId === prFileDiffRequestId) loadingPrFileDiff.set(false);
+    if (requestId === slice.prFileDiffRequestId) slice.loadingPrFileDiff.set(false);
   }
 }
 
 /** Close the PR diff panel (back-to-list affordance). */
 export function closePrFileDiff(): void {
-  prFileDiff.set(null);
-  prFileDiffError.set(null);
-  selectedPrFilePath.set(null);
+  const slice = getActiveRepoState().mrPr;
+  slice.prFileDiff.set(null);
+  slice.prFileDiffError.set(null);
+  slice.selectedPrFilePath.set(null);
 }
 
 // ---------------------------------------------------------------------------
