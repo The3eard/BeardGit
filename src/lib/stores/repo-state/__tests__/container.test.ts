@@ -13,12 +13,14 @@ import {
   dropRepoState,
   setActiveRepoPath,
   getActiveRepoState,
+  getRepoState,
+  repoField,
   __resetRepoStateForTests,
 } from "..";
 import { currentSource } from "../../../components/requests/stores";
 import { mrPrList, mrPrFilter, selectedMrPrNumber } from "../../mr-pr";
 import { issueList, issueStateFilter, selectedIssueNumber } from "../../issues";
-import type { MrPr, Issue } from "../../../types";
+import type { MrPr, Issue, ProjectSnapshot } from "../../../types";
 
 describe("RepoState + slices", () => {
   it("aggregates a branches + changes slice per path", () => {
@@ -211,5 +213,66 @@ describe("issues view isolation across repos", () => {
     expect(get(issueList)).toEqual([issueA]);
     expect(get(issueStateFilter)).toBe("closed");
     expect(get(selectedIssueNumber)).toBe(1);
+  });
+});
+
+// Regression for the project-cache fold (spec 08 step 5): each repo's
+// `ProjectSnapshot` mirror lives in its own slice, and `repoField` lets the tab
+// strip observe an *inactive* repo's snapshot update without a central
+// `Map<projectPath, …>` — the exact "wrote under the wrong key" class of bug.
+describe("snapshot isolation across repos (spec 08)", () => {
+  beforeEach(() => __resetRepoStateForTests());
+
+  function snap(path: string, ahead: number): ProjectSnapshot {
+    return {
+      path,
+      head_branch: "main",
+      ahead,
+      behind: 0,
+      staged: 0,
+      unstaged: 0,
+      untracked: 0,
+      conflicted: 0,
+      stash_count: 0,
+      change_count: 0,
+      graph_viewport_cache: null,
+    };
+  }
+
+  it("each repo owns its snapshot; writing one never clobbers the other", () => {
+    createRepoState("/tmp/a");
+    createRepoState("/tmp/b");
+    getRepoState("/tmp/a")!.snapshot.set(snap("/tmp/a", 3));
+    getRepoState("/tmp/b")!.snapshot.set(snap("/tmp/b", 7));
+    expect(get(getRepoState("/tmp/a")!.snapshot)?.ahead).toBe(3);
+    expect(get(getRepoState("/tmp/b")!.snapshot)?.ahead).toBe(7);
+  });
+
+  it("repoField observes a background repo's snapshot update while another repo is active", () => {
+    createRepoState("/tmp/a");
+    createRepoState("/tmp/b");
+    setActiveRepoPath("/tmp/a"); // A is the active tab
+
+    const bSnapshot = repoField("/tmp/b", (rs) => rs.snapshot);
+    const seen: (ProjectSnapshot | null)[] = [];
+    const unsub = bSnapshot.subscribe((v) => seen.push(v));
+    expect(seen.at(-1)).toBeNull(); // B starts empty
+
+    // A background event for the INACTIVE repo B lands while A is active.
+    getRepoState("/tmp/b")!.snapshot.set(snap("/tmp/b", 5));
+    expect(seen.at(-1)?.ahead).toBe(5);
+
+    // The active repo A's slice is untouched by B's background update.
+    expect(get(getRepoState("/tmp/a")!.snapshot)).toBeNull();
+    unsub();
+  });
+
+  it("repoField emits null once a repo's tab is closed", () => {
+    createRepoState("/tmp/a");
+    getRepoState("/tmp/a")!.snapshot.set(snap("/tmp/a", 1));
+    const f = repoField("/tmp/a", (rs) => rs.snapshot);
+    expect(get(f)?.ahead).toBe(1);
+    dropRepoState("/tmp/a");
+    expect(get(f)).toBeNull();
   });
 });

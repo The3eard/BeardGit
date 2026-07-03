@@ -23,11 +23,15 @@ import {
   isCacheFresh,
   GRAPH_CACHE_TTL_MS,
   hydrateSnapshotCache,
-  _clearSnapshotCacheForTests,
   getCachedSnapshot,
   restorePersistedViewport,
 } from "../project-cache";
 import { viewport, graphOffset } from "../graph";
+import {
+  createRepoState,
+  setActiveRepoPath,
+  __resetRepoStateForTests,
+} from "../repo-state";
 import type { ProjectSnapshot, LayoutNode } from "$lib/types";
 
 function makeSnap(overrides: Partial<ProjectSnapshot> = {}): ProjectSnapshot {
@@ -85,7 +89,12 @@ describe("project-cache graph slice", () => {
 
 describe("restorePersistedViewport", () => {
   beforeEach(() => {
-    _clearSnapshotCacheForTests();
+    // The in-memory snapshot cache now lives per-repo in the RepoState
+    // container; create "/p" and make it active so the `viewport`/`graphOffset`
+    // facades resolve to the same slice `restorePersistedViewport("/p")` writes.
+    __resetRepoStateForTests();
+    createRepoState("/p");
+    setActiveRepoPath("/p");
     viewport.set(null);
     graphOffset.set(0);
   });

@@ -12,9 +12,15 @@
  * `tasks.ts` pattern) so the UI doesn't repaint on every line when the
  * provider dumps hundreds of lines of JSON stream output.
  *
- * TODO(spec 08): the per-project run views should move into the RepoState
- * container (`stores/repo-state/`); see `stores/branches.ts` for the
- * migrated facade pattern.
+ * Spec 08 (per-repo RepoState container): this store stays **app-global** and
+ * is intentionally NOT migrated to a per-repo slice. Background runs are a
+ * process-wide registry (`ai_list_background_runs` returns every repo's runs;
+ * the listeners are wired once at app-shell mount, not per repo) and the AI
+ * Sessions view + the global tasks popover surface all runs regardless of the
+ * active tab — a run keeps streaming while its tab is inactive and must stay
+ * visible. `AiSession` carries only worktree paths, not the owning repo tab
+ * path, so there is no per-repo routing key. It belongs with the other
+ * correctly-global stores the spec lists as out of scope.
  */
 
 import { writable, derived, get } from "svelte/store";
