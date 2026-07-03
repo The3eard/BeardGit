@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Cherry-pick a commit onto the current branch.
@@ -20,20 +21,20 @@ pub async fn cherry_pick(
     oid: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<String, String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<String, IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::CherryPick, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            let result = repo.cherry_pick(&oid).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
+            let result = repo.cherry_pick(&oid).map_err(IpcError::from)?;
             if result.success {
                 Ok(result.stdout)
             } else {
-                Err(result.stderr)
+                Err(IpcError::new("cli_error", result.stderr))
             }
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
@@ -51,20 +52,20 @@ pub async fn revert_commit(
     oid: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<String, String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<String, IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::Revert, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            let result = repo.revert_commit(&oid).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
+            let result = repo.revert_commit(&oid).map_err(IpcError::from)?;
             if result.success {
                 Ok(result.stdout)
             } else {
-                Err(result.stderr)
+                Err(IpcError::new("cli_error", result.stderr))
             }
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
@@ -76,7 +77,7 @@ pub async fn revert_commit(
 /// - `mode` – Reset mode: `"soft"`, `"mixed"`, or `"hard"`.
 ///
 /// # Returns
-/// `Ok(())` on success, or an error string if the mode is invalid or
+/// `Ok(())` on success, or a typed error envelope if the mode is invalid or
 /// `git reset` exits with a non-zero status.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::advanced::reset")]
@@ -85,15 +86,15 @@ pub async fn reset_to_commit(
     mode: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<(), IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::Reset, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.reset_to_commit(&oid, &mode).map_err(|e| e.to_string())
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
+            repo.reset_to_commit(&oid, &mode).map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }

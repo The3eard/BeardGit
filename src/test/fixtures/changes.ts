@@ -11,6 +11,7 @@ import type {
   DiffHunkInfo,
   DiffLineInfo,
   FileDiff,
+  FileDiffStat,
   FileStatus,
 } from "../../lib/types";
 
@@ -77,6 +78,24 @@ export function makeFileDiff(overrides: Partial<FileDiff> = {}): FileDiff {
     old_path: null,
     status: "M",
     hunks: [makeDiffHunk()],
+    additions: 3,
+    deletions: 1,
+    ...overrides,
+  };
+}
+
+/**
+ * Lightweight per-file change stat (no hunks) — the shape returned by
+ * `get_diff_stats_workdir` / `get_diff_stats_index` that powers the
+ * Changes lists.
+ */
+export function makeFileDiffStat(
+  overrides: Partial<FileDiffStat> = {},
+): FileDiffStat {
+  return {
+    path: "src/lib/feature.ts",
+    old_path: null,
+    status: "M",
     additions: 3,
     deletions: 1,
     ...overrides,

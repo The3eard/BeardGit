@@ -168,20 +168,29 @@ pub enum FileAtCommitResult {
 /// # Returns
 /// `{ "kind": "text", "data": "..." }` on success, `{ "kind": "binary" }` for
 /// binary blobs, or an `Err` string for missing OID / path.
+///
+/// Runs on a blocking thread — reading a blob out of the object store must not
+/// block the Tauri async runtime / freeze the UI.
 #[tauri::command]
-pub fn get_file_at_commit(
+pub async fn get_file_at_commit(
     oid: String,
     path: String,
     state: State<'_, AppState>,
 ) -> Result<FileAtCommitResult, String> {
-    with_active_repo(&state, |repo| match repo.get_file_at_commit(&oid, &path) {
-        Ok(content) => Ok(FileAtCommitResult::Text { data: content }),
-        Err(git_engine::GitError::Binary) => Ok(FileAtCommitResult::Binary),
-        Err(git_engine::GitError::FileTooLarge { size }) => {
-            Ok(FileAtCommitResult::TooLarge { size })
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        match repo.get_file_at_commit(&oid, &path) {
+            Ok(content) => Ok(FileAtCommitResult::Text { data: content }),
+            Err(git_engine::GitError::Binary) => Ok(FileAtCommitResult::Binary),
+            Err(git_engine::GitError::FileTooLarge { size }) => {
+                Ok(FileAtCommitResult::TooLarge { size })
+            }
+            Err(e) => Err(e.to_string()),
         }
-        Err(e) => Err(e.to_string()),
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]
@@ -244,14 +253,21 @@ fn tag_file_content(
 ///
 /// # Parameters
 /// - `path` – Repo-relative file path.
+///
+/// Runs on a blocking thread — reading a working-tree file must not block the
+/// Tauri async runtime / freeze the UI.
 #[tauri::command]
-pub fn get_file_workdir(
+pub async fn get_file_workdir(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<FileContentResult, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         tag_file_content(repo.get_file_workdir(&path))
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Returns raw file content from the index (staged version), or a tagged
@@ -259,12 +275,21 @@ pub fn get_file_workdir(
 ///
 /// # Parameters
 /// - `path` – Repo-relative file path.
+///
+/// Runs on a blocking thread — reading the staged blob must not block the Tauri
+/// async runtime / freeze the UI.
 #[tauri::command]
-pub fn get_file_index(
+pub async fn get_file_index(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<FileContentResult, String> {
-    with_active_repo(&state, |repo| tag_file_content(repo.get_file_index(&path)))
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        tag_file_content(repo.get_file_index(&path))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Return the unstaged diff between the working tree and the index.
@@ -273,65 +298,105 @@ pub fn get_file_index(
 /// budget is enforced so a working tree full of large changed files can't
 /// balloon a single IPC payload — files past the budget come back with
 /// empty hunks and `truncated: true`.
+///
+/// Runs on a blocking thread — a whole-working-tree diff is exactly the kind of
+/// work that must not block the Tauri async runtime / freeze the UI on a large
+/// repo.
 #[tauri::command]
-pub fn get_diff_workdir(state: State<'_, AppState>) -> Result<Vec<git_engine::FileDiff>, String> {
-    with_active_repo(&state, |repo| {
+pub async fn get_diff_workdir(
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::FileDiff>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let mut files = repo.diff_workdir().map_err(|e| e.to_string())?;
         git_engine::enforce_response_budget(&mut files, git_engine::MAX_DIFF_RESPONSE_BYTES);
         Ok(files)
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Return the staged diff between the index and HEAD.
 ///
 /// Equivalent to `git diff --cached`. See [`get_diff_workdir`] for the
 /// whole-response budget.
+///
+/// Runs on a blocking thread — the staged-vs-HEAD diff must not block the Tauri
+/// async runtime / freeze the UI on a large repo.
 #[tauri::command]
-pub fn get_diff_index(state: State<'_, AppState>) -> Result<Vec<git_engine::FileDiff>, String> {
-    with_active_repo(&state, |repo| {
+pub async fn get_diff_index(
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::FileDiff>, String> {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let mut files = repo.diff_index().map_err(|e| e.to_string())?;
         git_engine::enforce_response_budget(&mut files, git_engine::MAX_DIFF_RESPONSE_BYTES);
         Ok(files)
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Full hunks/lines diff for a single file, fetched lazily when the user
 /// opens it in the Changes view. `staged` selects the index-vs-HEAD diff
 /// (`true`) or the workdir-vs-index diff (`false`). Returns `null` when the
 /// file has no change on that side.
+///
+/// Runs on a blocking thread — diffing a single (possibly large) file must not
+/// block the Tauri async runtime / freeze the UI.
 #[tauri::command]
-pub fn get_diff_file(
+pub async fn get_diff_file(
     path: String,
     staged: bool,
     state: State<'_, AppState>,
 ) -> Result<Option<git_engine::FileDiff>, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.diff_single_file(&path, staged)
             .map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Cheap per-file change stats (name/status + add/del counts, no hunks) for
 /// the working tree. Powers the Changes list without streaming every hunk
 /// on each mutation.
+///
+/// Runs on a blocking thread — the working-tree status walk must not block the
+/// Tauri async runtime / freeze the UI on a large repo.
 #[tauri::command]
-pub fn get_diff_stats_workdir(
+pub async fn get_diff_stats_workdir(
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::FileDiffStat>, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.diff_stats_workdir().map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Cheap per-file change stats for the index (staged changes) vs HEAD.
 /// See [`get_diff_stats_workdir`].
+///
+/// Runs on a blocking thread — the staged-vs-HEAD diff walk must not block the
+/// Tauri async runtime / freeze the UI on a large repo.
 #[tauri::command]
-pub fn get_diff_stats_index(
+pub async fn get_diff_stats_index(
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::FileDiffStat>, String> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.diff_stats_index().map_err(|e| e.to_string())
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]

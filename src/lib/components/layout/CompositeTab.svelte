@@ -7,7 +7,7 @@
   import {
     getSnapshotForHover,
     refreshProjectSnapshot,
-    projectSnapshots,
+    snapshotStore,
   } from "$lib/stores/project-cache";
   import { tabReordering } from "$lib/stores/tabs";
   import IconButton from "$lib/components/ui/IconButton.svelte";
@@ -119,13 +119,14 @@
 
   // Mirror of ProjectTab.svelte: force a fresh snapshot from a temp
   // repo handle so the strip is correct regardless of what the cache
-  // file contains. Watcher-driven saveCurrentSnapshot writes to
-  // `projectSnapshots[path]` so subsequent updates flow reactively.
+  // file contains. Watcher-driven saveCurrentSnapshot writes to this
+  // repo's `RepoState.snapshot` slice so subsequent updates flow reactively.
   $effect(() => {
     if (!isActiveTab) void refreshProjectSnapshot(project.path);
   });
 
-  let stripSnapshot = $derived($projectSnapshots[project.path] ?? null);
+  let snapshot = $derived(snapshotStore(project.path));
+  let stripSnapshot = $derived($snapshot ?? null);
 </script>
 
 <div class="composite-tab" role="tab" tabindex="0" onmouseenter={handleMouseEnter} onmouseleave={handleMouseLeave}>

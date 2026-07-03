@@ -16,7 +16,7 @@ use crate::commands::{CloneRepoError, InitRepoError, OpenProjectError};
 #[derive(Debug, Clone, Serialize)]
 pub struct IpcError {
     /// Stable machine-readable code (snake_case), e.g. `"auth_required"`,
-    /// `"repo_not_found"`, `"not_fast_forward"`. The frontend switches on this.
+    /// `"not_a_repo"`, `"not_fast_forward"`. The frontend switches on this.
     pub code: &'static str,
     /// Human-readable detail, suitable for a toast body.
     pub message: String,
@@ -63,7 +63,9 @@ impl From<git_engine::GitError> for IpcError {
                 git2::ErrorCode::NotFastForward => "not_fast_forward",
                 _ => "git",
             },
-            G::RepoNotFound(_) => "repo_not_found",
+            // Unified with `open_project`'s `OpenProjectError::NotARepo`: both
+            // "this path isn't a git repo" situations share one code.
+            G::RepoNotFound(_) => "not_a_repo",
             G::CliError(_) => "cli_error",
             G::SigningFailed(_) => "signing_failed",
             G::Io(_) => "io_error",
@@ -71,6 +73,9 @@ impl From<git_engine::GitError> for IpcError {
             G::FileTooLarge { .. } => "file_too_large",
             G::InvalidPath(_) => "invalid_path",
             G::InvalidArgument(_) => "invalid_argument",
+            G::WouldLoseChanges(_) => "would_lose_changes",
+            G::NotFullyMerged(_) => "not_fully_merged",
+            G::BranchAlreadyExists(_) => "branch_exists",
         };
         Self {
             code,
@@ -145,11 +150,23 @@ mod tests {
     fn from_git_error_maps_variants() {
         assert_eq!(
             IpcError::from(git_engine::GitError::RepoNotFound("/x".into())).code,
-            "repo_not_found",
+            "not_a_repo",
         );
         assert_eq!(
             IpcError::from(git_engine::GitError::Binary).code,
             "binary_file",
+        );
+        assert_eq!(
+            IpcError::from(git_engine::GitError::WouldLoseChanges("dirty".into())).code,
+            "would_lose_changes",
+        );
+        assert_eq!(
+            IpcError::from(git_engine::GitError::NotFullyMerged("unmerged".into())).code,
+            "not_fully_merged",
+        );
+        assert_eq!(
+            IpcError::from(git_engine::GitError::BranchAlreadyExists("exists".into())).code,
+            "branch_exists",
         );
         assert_eq!(
             IpcError::from(git_engine::GitError::FileTooLarge { size: 10 }).code,

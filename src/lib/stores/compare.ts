@@ -45,11 +45,6 @@ export const compareOpenDiff = activeField<RawDiffContent | null>((rs) => rs.com
 export const compareLoadingDiff = activeField<boolean>((rs) => rs.compare.loadingDiff);
 export const compareDiffError = activeField<string | null>((rs) => rs.compare.diffError);
 
-// Last-wins guards so a slow response for a stale ref pair / file can't
-// clobber the newest one.
-let compareRequestId = 0;
-let diffRequestId = 0;
-
 /** The "from" endpoint of the file diff for the current mode: the merge-base
  *  in three-dot mode (falling back to A for unrelated histories), else A. */
 function diffFrom(a: string, mode: CompareMode, mergeBase: string | null): string {
@@ -62,39 +57,45 @@ function diffFrom(a: string, mode: CompareMode, mergeBase: string | null): strin
  * behind count in parallel. No-op if either ref is unset.
  */
 export async function runCompare(): Promise<void> {
-  const a = get(compareRefA);
-  const b = get(compareRefB);
+  // Capture the target slice up front so a late response lands in the repo it
+  // belongs to, even if the user switches tabs mid-flight. The per-slice
+  // `requestId` still cancels an older compare superseded by a newer one in the
+  // SAME repo. (RepoState renders only the active slice, so writing back into
+  // an inactive repo's slice is correct and invisible.)
+  const slice = getActiveRepoState().compare;
+  const a = get(slice.refA);
+  const b = get(slice.refB);
   if (!a || !b) return;
 
-  const requestId = ++compareRequestId;
-  compareLoading.set(true);
-  compareError.set(null);
-  getActiveRepoState().compare.clearDiff();
+  const requestId = ++slice.requestId;
+  slice.loading.set(true);
+  slice.error.set(null);
+  slice.clearDiff();
 
   try {
     const mergeBase = await getMergeBase(a, b).catch(() => null);
-    if (requestId !== compareRequestId) return;
-    compareMergeBase.set(mergeBase);
+    if (requestId !== slice.requestId) return;
+    slice.mergeBase.set(mergeBase);
 
-    const from = diffFrom(a, get(compareMode), mergeBase);
+    const from = diffFrom(a, get(slice.mode), mergeBase);
     const [files, ahead, behind] = await Promise.all([
       getDiffBetweenCommits(from, b),
       getCommitsBetween(a, b, COMPARE_PAGE_LIMIT),
       getCommitsBetween(b, a, COMPARE_PAGE_LIMIT),
     ]);
-    if (requestId !== compareRequestId) return;
+    if (requestId !== slice.requestId) return;
 
-    compareFiles.set(files);
-    compareCommits.set(ahead);
-    compareCommitsCapped.set(ahead.length >= COMPARE_PAGE_LIMIT);
-    compareBehindCount.set(behind.length);
+    slice.files.set(files);
+    slice.commits.set(ahead);
+    slice.commitsCapped.set(ahead.length >= COMPARE_PAGE_LIMIT);
+    slice.behindCount.set(behind.length);
   } catch (e) {
-    if (requestId !== compareRequestId) return;
-    compareError.set(e instanceof Error ? e.message : String(e));
-    compareFiles.set([]);
-    compareCommits.set([]);
+    if (requestId !== slice.requestId) return;
+    slice.error.set(e instanceof Error ? e.message : String(e));
+    slice.files.set([]);
+    slice.commits.set([]);
   } finally {
-    if (requestId === compareRequestId) compareLoading.set(false);
+    if (requestId === slice.requestId) slice.loading.set(false);
   }
 }
 
@@ -143,21 +144,25 @@ export function setCompareMode(mode: CompareMode): Promise<void> {
 
 /** Append the next page of ahead commits, resuming after the last-shown OID. */
 export async function loadMoreCompareCommits(): Promise<void> {
-  const a = get(compareRefA);
-  const b = get(compareRefB);
-  const current = get(compareCommits);
-  if (!a || !b || current.length === 0 || get(compareLoadingMore)) return;
+  // Same capture-the-slice guard as runCompare: a late page response lands in
+  // its own repo's slice, so a mid-flight tab switch can't append the page into
+  // another repo that happens to share the same refA/refB.
+  const slice = getActiveRepoState().compare;
+  const a = get(slice.refA);
+  const b = get(slice.refB);
+  const current = get(slice.commits);
+  if (!a || !b || current.length === 0 || get(slice.loadingMore)) return;
 
-  compareLoadingMore.set(true);
+  slice.loadingMore.set(true);
   try {
     const anchor = current[current.length - 1].oid;
     const next = await getCommitsBetween(a, b, COMPARE_PAGE_LIMIT, anchor);
     // Guard: refs may have changed while paging.
-    if (get(compareRefA) !== a || get(compareRefB) !== b) return;
-    compareCommits.set([...get(compareCommits), ...next]);
-    compareCommitsCapped.set(next.length >= COMPARE_PAGE_LIMIT);
+    if (get(slice.refA) !== a || get(slice.refB) !== b) return;
+    slice.commits.set([...get(slice.commits), ...next]);
+    slice.commitsCapped.set(next.length >= COMPARE_PAGE_LIMIT);
   } finally {
-    compareLoadingMore.set(false);
+    slice.loadingMore.set(false);
   }
 }
 
@@ -167,34 +172,33 @@ export async function loadMoreCompareCommits(): Promise<void> {
  * binary/too-large blobs render the shared placeholder.
  */
 export async function openCompareFileDiff(path: string): Promise<void> {
-  const a = get(compareRefA);
-  const b = get(compareRefB);
+  // Same capture-the-slice guard as runCompare: a late diff response lands in
+  // its own repo, and the per-slice `diffRequestId` cancels a superseded diff
+  // request within that repo.
+  const slice = getActiveRepoState().compare;
+  const a = get(slice.refA);
+  const b = get(slice.refB);
   if (!a || !b) return;
 
-  const requestId = ++diffRequestId;
-  compareSelectedFilePath.set(path);
-  compareLoadingDiff.set(true);
-  compareOpenDiff.set(null);
-  compareDiffError.set(null);
+  const requestId = ++slice.diffRequestId;
+  slice.selectedFilePath.set(path);
+  slice.loadingDiff.set(true);
+  slice.openDiff.set(null);
+  slice.diffError.set(null);
   try {
-    const from = diffFrom(a, get(compareMode), get(compareMergeBase));
+    const from = diffFrom(a, get(slice.mode), get(slice.mergeBase));
     const diff = await fetchDiffSides(b, from, path);
-    if (requestId !== diffRequestId) return;
-    compareOpenDiff.set(diff);
+    if (requestId !== slice.diffRequestId) return;
+    slice.openDiff.set(diff);
   } catch (e) {
-    if (requestId !== diffRequestId) return;
-    compareDiffError.set(e instanceof Error ? e.message : String(e));
+    if (requestId !== slice.diffRequestId) return;
+    slice.diffError.set(e instanceof Error ? e.message : String(e));
   } finally {
-    if (requestId === diffRequestId) compareLoadingDiff.set(false);
+    if (requestId === slice.diffRequestId) slice.loadingDiff.set(false);
   }
 }
 
 /** Close the per-file diff panel (keeps the compare selection). */
 export function closeCompareFileDiff(): void {
   getActiveRepoState().compare.clearDiff();
-}
-
-/** Reset the active repo's compare state. */
-export function clearCompare(): void {
-  getActiveRepoState().compare.clear();
 }

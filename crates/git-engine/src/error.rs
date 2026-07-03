@@ -52,4 +52,22 @@ pub enum GitError {
     /// system `git` binary.
     #[error("invalid argument: {0}")]
     InvalidArgument(String),
+    /// A checkout was refused because it would overwrite uncommitted changes
+    /// in the working tree (libgit2 reports a checkout conflict). Distinct
+    /// from [`GitError::Git`] because the user acts on it differently —
+    /// commit or stash first — so it carries a stable code across IPC.
+    #[error("checkout would overwrite local changes: {0}")]
+    WouldLoseChanges(String),
+    /// A safe branch delete (`git branch -d`) was refused because the branch
+    /// holds commits not reachable from HEAD. Distinct from
+    /// [`GitError::CliError`] because the user acts on it differently —
+    /// re-run with force to discard them — so it carries a stable code.
+    #[error("branch is not fully merged: {0}")]
+    NotFullyMerged(String),
+    /// A branch rename (`git branch -m`) was refused because the new name
+    /// collides with an existing branch. Distinct from
+    /// [`GitError::CliError`] because the user acts on it differently —
+    /// pick a different name — so it carries a stable code across IPC.
+    #[error("a branch with that name already exists: {0}")]
+    BranchAlreadyExists(String),
 }

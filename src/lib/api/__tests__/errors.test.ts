@@ -56,6 +56,23 @@ describe("errorCodeMessage", () => {
     expect(errorCodeMessage("auth_required")).toBe("Authentication required");
   });
 
+  it("maps not_a_repo and its legacy repo_not_found alias to the same label", () => {
+    expect(errorCodeMessage("not_a_repo")).toBe("Not a git repository");
+    expect(errorCodeMessage("repo_not_found")).toBe("Not a git repository");
+  });
+
+  it("maps the branch/checkout envelope codes to actionable labels", () => {
+    expect(errorCodeMessage("would_lose_changes")).toBe(
+      "Checkout would overwrite uncommitted changes — commit or stash first",
+    );
+    expect(errorCodeMessage("not_fully_merged")).toBe(
+      "Branch has unmerged commits — delete with force to discard them",
+    );
+    expect(errorCodeMessage("branch_exists")).toBe(
+      "A branch with that name already exists — choose a different name",
+    );
+  });
+
   it("returns null for unmapped codes", () => {
     expect(errorCodeMessage("something_else")).toBeNull();
   });

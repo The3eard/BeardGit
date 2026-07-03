@@ -83,6 +83,10 @@ impl Repository {
         let result = self.git_cmd(&["branch", flag, "--", name])?;
         if result.success {
             Ok(())
+        } else if result.stderr.contains("not fully merged") {
+            // `git branch -d` refusing an unmerged branch is user-actionable
+            // (re-run with force), so surface it as a distinct variant.
+            Err(GitError::NotFullyMerged(result.stderr))
         } else {
             Err(GitError::CliError(result.stderr))
         }
@@ -93,7 +97,16 @@ impl Repository {
     pub fn checkout_branch(&self, name: &str) -> Result<(), GitError> {
         let repo = self.inner();
         let obj = repo.revparse_single(&format!("refs/heads/{name}"))?;
-        repo.checkout_tree(&obj, None)?;
+        // A default (safe) checkout over a dirty working tree fails with a
+        // libgit2 conflict — surface it as a distinct variant so the UI can
+        // tell the user to commit or stash first.
+        repo.checkout_tree(&obj, None).map_err(|e| {
+            if e.code() == git2::ErrorCode::Conflict {
+                GitError::WouldLoseChanges(e.message().to_string())
+            } else {
+                GitError::Git(e)
+            }
+        })?;
         repo.set_head(&format!("refs/heads/{name}"))?;
         Ok(())
     }
@@ -106,7 +119,16 @@ impl Repository {
         let commit = obj
             .peel_to_commit()
             .map_err(|_| GitError::Git(git2::Error::from_str("not a commit")))?;
-        repo.checkout_tree(commit.as_object(), None)?;
+        // A default (safe) checkout over a dirty working tree fails with a
+        // libgit2 conflict — surface it as a distinct variant so the UI can
+        // tell the user to commit or stash first.
+        repo.checkout_tree(commit.as_object(), None).map_err(|e| {
+            if e.code() == git2::ErrorCode::Conflict {
+                GitError::WouldLoseChanges(e.message().to_string())
+            } else {
+                GitError::Git(e)
+            }
+        })?;
         repo.set_head_detached(commit.id())?;
         Ok(())
     }
@@ -196,11 +218,11 @@ mod tests {
             .or_else(|_| repo.checkout_branch("master"))
             .expect("test repo must have a default branch");
 
-        // Non-force should refuse — branch has an unmerged commit.
+        // Non-force should refuse with the distinct NotFullyMerged variant.
         let err = repo.delete_branch("feature/diverge", false).err();
         assert!(
-            err.is_some(),
-            "non-force delete must refuse an unmerged branch"
+            matches!(err, Some(GitError::NotFullyMerged(_))),
+            "non-force delete must refuse an unmerged branch with NotFullyMerged, got {err:?}"
         );
 
         // Force escalates and succeeds.
@@ -217,6 +239,34 @@ mod tests {
         repo.checkout_branch("develop").unwrap();
         let current = repo.get_current_branch().unwrap();
         assert_eq!(current, Some("develop".to_string()));
+    }
+
+    #[test]
+    fn test_checkout_over_dirty_tree_reports_would_lose_changes() {
+        // Switching branches with an uncommitted edit that the target branch
+        // would overwrite must surface WouldLoseChanges, not a generic Git.
+        let (dir, repo) = create_test_repo();
+        repo.create_branch("develop").unwrap();
+
+        // Diverge develop's copy of file.txt so checking it out would clobber
+        // the working-tree edit below.
+        repo.checkout_branch("develop").unwrap();
+        fs::write(dir.path().join("file.txt"), "develop content\n").unwrap();
+        repo.stage_files(&["file.txt".to_string()]).unwrap();
+        repo.create_commit("develop edit").unwrap();
+
+        repo.checkout_branch("main")
+            .or_else(|_| repo.checkout_branch("master"))
+            .expect("test repo must have a default branch");
+
+        // Dirty the working tree so switching back would lose the edit.
+        fs::write(dir.path().join("file.txt"), "uncommitted\n").unwrap();
+
+        let err = repo.checkout_branch("develop").err();
+        assert!(
+            matches!(err, Some(GitError::WouldLoseChanges(_))),
+            "dirty checkout must report WouldLoseChanges, got {err:?}"
+        );
     }
 
     #[test]
@@ -253,5 +303,29 @@ mod tests {
         let branch = repo.get_current_branch().unwrap();
         // Detached HEAD — branch name is the oid, not a branch ref
         assert!(branch.is_some());
+    }
+
+    #[test]
+    fn test_checkout_detached_over_dirty_tree_reports_would_lose_changes() {
+        // Detaching onto a commit whose tree would overwrite an uncommitted
+        // edit must surface WouldLoseChanges, not a generic Git — mirroring
+        // checkout_branch so the UI can prompt to commit or stash first.
+        let (dir, repo) = create_test_repo();
+        let first_oid = repo.walk_commits(0, 1).unwrap()[0].oid.clone();
+
+        // A second commit diverges file.txt from the first commit's copy.
+        fs::write(dir.path().join("file.txt"), "second commit\n").unwrap();
+        repo.stage_files(&["file.txt".to_string()]).unwrap();
+        repo.create_commit("second commit").unwrap();
+
+        // Dirty the working tree so detaching back to the first commit would
+        // clobber the edit.
+        fs::write(dir.path().join("file.txt"), "uncommitted\n").unwrap();
+
+        let err = repo.checkout_detached(&first_oid).err();
+        assert!(
+            matches!(err, Some(GitError::WouldLoseChanges(_))),
+            "dirty detached checkout must report WouldLoseChanges, got {err:?}"
+        );
     }
 }
