@@ -24,6 +24,11 @@ impl Repository {
         let result = self.git_cmd(&["branch", "-m", "--", old_name, new_name])?;
         if result.success {
             Ok(())
+        } else if result.stderr.contains("already exists") {
+            // `git branch -m` refusing a name that collides with an existing
+            // branch is user-actionable (pick a different name), so surface it
+            // as a distinct variant.
+            Err(GitError::BranchAlreadyExists(result.stderr))
         } else {
             Err(GitError::CliError(result.stderr))
         }
@@ -55,6 +60,20 @@ mod tests {
         let (_tmp, path) = create_repo_with_branches(&[]);
         let repo = Repository::open(&path).unwrap();
         assert!(repo.rename_branch("nope", "whatever").is_err());
+    }
+
+    #[test]
+    fn rename_onto_existing_name_reports_branch_already_exists() {
+        // Renaming a branch to a name another branch already holds must
+        // surface the distinct BranchAlreadyExists variant, not a generic
+        // CliError.
+        let (_tmp, path) = create_repo_with_branches(&["feat/a", "feat/b"]);
+        let repo = Repository::open(&path).unwrap();
+        let err = repo.rename_branch("feat/a", "feat/b").err();
+        assert!(
+            matches!(err, Some(crate::error::GitError::BranchAlreadyExists(_))),
+            "collision must report BranchAlreadyExists, got {err:?}"
+        );
     }
 
     #[test]

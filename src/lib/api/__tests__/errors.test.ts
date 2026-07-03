@@ -68,6 +68,9 @@ describe("errorCodeMessage", () => {
     expect(errorCodeMessage("not_fully_merged")).toBe(
       "Branch has unmerged commits — delete with force to discard them",
     );
+    expect(errorCodeMessage("branch_exists")).toBe(
+      "A branch with that name already exists — choose a different name",
+    );
   });
 
   it("returns null for unmapped codes", () => {
