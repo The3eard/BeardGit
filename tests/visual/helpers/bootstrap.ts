@@ -34,6 +34,16 @@ import type {
 import { installMockIPC, type IpcResponses } from "./mock-ipc";
 import type { ThemeMode } from "./themes";
 
+/**
+ * Wall-clock time pinned for every bootstrapped test. Calendar-relative
+ * labels ("3 days ago") are rendered off `Date.now()` in
+ * `src/lib/utils/time.ts`, so without a fixed clock those baselines
+ * re-stale every day. Chosen a few days after the newest fixture
+ * timestamp (2026-05-08 in the MR / pipeline fixtures) so the relative
+ * labels read as small, sensible "N days ago" values.
+ */
+export const FIXED_NOW = new Date("2026-05-12T10:00:00Z");
+
 export interface BootstrapOpts {
   /**
    * Theme mode returned by `resolve_startup_theme`. Default `"dark"`.
@@ -214,6 +224,11 @@ export async function installBootstrapMocks(
   page: Page,
   opts: BootstrapOpts = {},
 ): Promise<void> {
+  // Pin the clock BEFORE navigation so date formatting is deterministic.
+  // `setFixedTime` freezes `Date.now()` / `new Date()` but leaves timers
+  // and requestAnimationFrame running, so the canvas graph paint and the
+  // pickers' blur timeouts still behave normally.
+  await page.clock.setFixedTime(FIXED_NOW);
   await installMockIPC(page, bootstrapResponses(opts));
 }
 
