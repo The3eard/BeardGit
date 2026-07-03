@@ -16,6 +16,9 @@ import {
   __resetRepoStateForTests,
 } from "..";
 import { currentSource } from "../../../components/requests/stores";
+import { mrPrList, mrPrFilter, selectedMrPrNumber } from "../../mr-pr";
+import { issueList, issueStateFilter, selectedIssueNumber } from "../../issues";
+import type { MrPr, Issue } from "../../../types";
 
 describe("RepoState + slices", () => {
   it("aggregates a branches + changes slice per path", () => {
@@ -144,5 +147,69 @@ describe("requests selection isolation across repos", () => {
     // Switch back to A: its selection is intact (pointer swap, no restore).
     setActiveRepoPath("/tmp/a");
     expect(get(currentSource)).toEqual({ kind: "project", path: "users/get.http" });
+  });
+});
+
+// Regression for the MR/PR view leak: the list, filter, and selection must
+// follow the active tab instead of bleeding across repos (spec 08).
+describe("mr-pr view isolation across repos", () => {
+  beforeEach(() => __resetRepoStateForTests());
+
+  it("keeps each repo's list, filter, and selection and restores them on switch-back", () => {
+    createRepoState("/tmp/a");
+    createRepoState("/tmp/b");
+    const prA = { number: 1 } as MrPr;
+    const prB = { number: 99 } as MrPr;
+
+    setActiveRepoPath("/tmp/a");
+    mrPrList.set([prA]);
+    mrPrFilter.set("merged");
+    selectedMrPrNumber.set(1);
+
+    // Switch to B: A's PR state must not leak — B starts at defaults.
+    setActiveRepoPath("/tmp/b");
+    expect(get(mrPrList)).toEqual([]);
+    expect(get(mrPrFilter)).toBe("open");
+    expect(get(selectedMrPrNumber)).toBeNull();
+    mrPrList.set([prB]);
+    selectedMrPrNumber.set(99);
+
+    // Switch back to A: its state is intact (pointer swap, no restore).
+    setActiveRepoPath("/tmp/a");
+    expect(get(mrPrList)).toEqual([prA]);
+    expect(get(mrPrFilter)).toBe("merged");
+    expect(get(selectedMrPrNumber)).toBe(1);
+  });
+});
+
+// Regression for the Issues view leak: the list, filter, and selection must
+// follow the active tab instead of bleeding across repos (spec 08).
+describe("issues view isolation across repos", () => {
+  beforeEach(() => __resetRepoStateForTests());
+
+  it("keeps each repo's list, filter, and selection and restores them on switch-back", () => {
+    createRepoState("/tmp/a");
+    createRepoState("/tmp/b");
+    const issueA = { number: 1 } as Issue;
+    const issueB = { number: 42 } as Issue;
+
+    setActiveRepoPath("/tmp/a");
+    issueList.set([issueA]);
+    issueStateFilter.set("closed");
+    selectedIssueNumber.set(1);
+
+    // Switch to B: A's issue state must not leak — B starts at defaults.
+    setActiveRepoPath("/tmp/b");
+    expect(get(issueList)).toEqual([]);
+    expect(get(issueStateFilter)).toBe("open");
+    expect(get(selectedIssueNumber)).toBeNull();
+    issueList.set([issueB]);
+    selectedIssueNumber.set(42);
+
+    // Switch back to A: its state is intact (pointer swap, no restore).
+    setActiveRepoPath("/tmp/a");
+    expect(get(issueList)).toEqual([issueA]);
+    expect(get(issueStateFilter)).toBe("closed");
+    expect(get(selectedIssueNumber)).toBe(1);
   });
 });
