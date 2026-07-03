@@ -12,6 +12,7 @@ export { applyTheme, THEME_MODES, type ThemeMode } from "./themes";
 export {
   installBootstrapMocks,
   waitForAppReady,
+  FIXED_NOW,
   type BootstrapOpts,
 } from "./bootstrap";
 export { clickNav } from "./nav";
