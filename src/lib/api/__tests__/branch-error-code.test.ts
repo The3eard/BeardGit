@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
 
-import { checkoutBranch, deleteBranch } from "$lib/api/tauri";
+import { checkoutBranch, deleteBranch, renameBranch } from "$lib/api/tauri";
 import { runMutation } from "$lib/api/runMutation";
 import { getErrorCode, errorCodeMessage } from "$lib/api/errors";
 
@@ -63,6 +63,33 @@ describe("safe branch delete of an unmerged branch surfaces its code", () => {
     expect(mocks.invoke).toHaveBeenCalledWith("delete_branch", {
       name: "x",
       force: false,
+    });
+  });
+});
+
+describe("renaming onto an existing branch name surfaces its code", () => {
+  it("rejects with an IpcError whose branch_exists code getErrorCode extracts", async () => {
+    mocks.invoke.mockRejectedValueOnce({
+      code: "branch_exists",
+      message: "fatal: a branch named 'feat/b' already exists",
+    });
+
+    let caught: unknown;
+    await runMutation({
+      kind: "rename_branch",
+      invoke: () => renameBranch("feat/a", "feat/b"),
+      failureToastPrefix: "Rename failed",
+    }).catch((e) => {
+      caught = e;
+    });
+
+    expect(getErrorCode(caught)).toBe("branch_exists");
+    expect(errorCodeMessage(getErrorCode(caught)!)).toBe(
+      "A branch with that name already exists — choose a different name",
+    );
+    expect(mocks.invoke).toHaveBeenCalledWith("rename_branch", {
+      oldName: "feat/a",
+      newName: "feat/b",
     });
   });
 });

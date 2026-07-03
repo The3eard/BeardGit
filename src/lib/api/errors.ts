@@ -66,6 +66,8 @@ export function errorCodeMessage(code: string): string | null {
       return "Checkout would overwrite uncommitted changes — commit or stash first";
     case "not_fully_merged":
       return "Branch has unmerged commits — delete with force to discard them";
+    case "branch_exists":
+      return "A branch with that name already exists — choose a different name";
     default:
       return null;
   }

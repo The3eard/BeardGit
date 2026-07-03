@@ -303,16 +303,16 @@ pub async fn rename_branch(
     new_name: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<(), IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::BranchRename, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
             repo.rename_branch(&old_name, &new_name)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
