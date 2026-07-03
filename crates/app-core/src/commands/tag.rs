@@ -8,6 +8,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Return all tags in the active repository, sorted newest-version-first.
@@ -71,32 +72,32 @@ pub async fn create_tag(
     message: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<(), IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::TagCreate, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
             let msg = message.as_deref().filter(|m| !m.is_empty());
             let result = if target.is_empty() {
-                repo.create_tag(&name, msg).map_err(|e| e.to_string())?
+                repo.create_tag(&name, msg).map_err(IpcError::from)?
             } else {
                 match msg {
                     Some(m) => repo
                         .git_cmd(&["tag", "-a", &name, &target, "-m", m])
-                        .map_err(|e| e.to_string())?,
+                        .map_err(IpcError::from)?,
                     None => repo
                         .git_cmd(&["tag", &name, &target])
-                        .map_err(|e| e.to_string())?,
+                        .map_err(IpcError::from)?,
                 }
             };
             if result.success {
                 Ok(())
             } else {
-                Err(result.stderr)
+                Err(IpcError::new("cli_error", result.stderr))
             }
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
@@ -112,20 +113,20 @@ pub async fn delete_tag(
     name: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
-    let repo_path = get_active_project_path(&state)?;
+) -> Result<(), IpcError> {
+    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
     with_mutation_guard_async(&state, &app, MutationKind::TagDelete, || async move {
         tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            let result = repo.delete_tag(&name).map_err(|e| e.to_string())?;
+            let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
+            let result = repo.delete_tag(&name).map_err(IpcError::from)?;
             if result.success {
                 Ok(())
             } else {
-                Err(result.stderr)
+                Err(IpcError::new("cli_error", result.stderr))
             }
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
