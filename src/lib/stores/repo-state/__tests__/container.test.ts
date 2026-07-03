@@ -15,6 +15,7 @@ import {
   getActiveRepoState,
   __resetRepoStateForTests,
 } from "..";
+import { currentSource } from "../../../components/requests/stores";
 
 describe("RepoState + slices", () => {
   it("aggregates a branches + changes slice per path", () => {
@@ -119,5 +120,29 @@ describe("activeField facade", () => {
     facade.set(["detached"]);
     expect(get(facade)).toEqual(["detached"]);
     expect(getActiveRepoState().path).toBe("");
+  });
+});
+
+// Regression for the Requests-panel leak: the selected `.http` source must
+// not survive a repo switch (it drove Send/Save against the wrong repo).
+describe("requests selection isolation across repos", () => {
+  beforeEach(() => __resetRepoStateForTests());
+
+  it("keeps each repo's currentSource and restores it on switch-back", () => {
+    createRepoState("/tmp/a");
+    createRepoState("/tmp/b");
+
+    setActiveRepoPath("/tmp/a");
+    currentSource.set({ kind: "project", path: "users/get.http" });
+    expect(get(currentSource)).toEqual({ kind: "project", path: "users/get.http" });
+
+    // Switch to B: A's selection must not leak.
+    setActiveRepoPath("/tmp/b");
+    expect(get(currentSource)).toBeNull();
+    currentSource.set({ kind: "project", path: "orders/list.http" });
+
+    // Switch back to A: its selection is intact (pointer swap, no restore).
+    setActiveRepoPath("/tmp/a");
+    expect(get(currentSource)).toEqual({ kind: "project", path: "users/get.http" });
   });
 });
