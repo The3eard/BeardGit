@@ -17,7 +17,6 @@ import {
   installBootstrapMocks,
   THEME_MODES,
   waitForAppReady,
-  GRAPH_CANVAS_PIXEL_BUDGET,
   type IpcResponses,
 } from "./helpers";
 import {
@@ -48,7 +47,10 @@ function fixtureBundle(): IpcResponses {
   return {
     // Repo
     open_repo: makeRepoInfo({ path: ACTIVE_PROJECT.path, head_branch: "feat/example" }),
-    get_status_summary: makeStatusSummary({ ahead: 2, staged: 2, unstaged: 2, untracked: 0 }),
+    // Must match `makeFileStatusList()` below, which is 3 staged, 3
+    // unstaged and 2 untracked. It said 2/2/0, so the status bar in all 32
+    // route baselines contradicted the file list right next to it.
+    get_status_summary: makeStatusSummary({ ahead: 2, staged: 3, unstaged: 3, untracked: 2 }),
     get_branches: makeBranchList(),
     get_remotes: [
       { name: "origin", url: "git@github.com:adolfofuentes/sample.git" },
@@ -165,9 +167,12 @@ for (const mode of THEME_MODES) {
         await expect(page).toHaveScreenshot(`${mode}-${id}.png`, {
           fullPage: false,
           animations: "disabled",
-          // The graph is the one canvas-backed view in this loop; see
-          // `GRAPH_CANVAS_PIXEL_BUDGET`.
-          ...(id === "graph" ? { maxDiffPixels: GRAPH_CANVAS_PIXEL_BUDGET } : {}),
+          // What a route baseline is for is the chrome — sidebar, toolbar,
+          // panels, status bar. The graph canvas behind it disagrees with
+          // itself run to run (see `GRAPH_CANVAS_PIXEL_BUDGET`), so it is
+          // masked rather than paid for: masking says "not covered here",
+          // a budget would say "covered" and mean it less each year.
+          mask: [page.locator("canvas")],
         });
       });
     }

@@ -89,7 +89,12 @@ const SCENARIOS: Record<string, Scenario> = {
     files: Array.from({ length: 10 }, (_, i) =>
       makeFileStatus({
         path: `tests/visual/scratch/untracked-${i + 1}.ts`,
-        status: "untracked",
+        // `"untracked"` exists, but on the *diff* channel. `get_file_statuses`
+        // is the staging one, where untracked arrives as `"new"` with
+        // `is_staged: false` (`git-engine/src/staging.rs`). With the wrong
+        // word this baseline recorded ten blue `U` badges where the app
+        // renders ten green `A`.
+        status: "new",
         is_staged: false,
       }),
     ),
@@ -135,13 +140,6 @@ for (const mode of THEME_MODES) {
         }
         await expect(page).toHaveScreenshot(`${mode}-${name}.png`, {
           animations: "disabled",
-          // CodeMirror re-rasterises its own text between runs: measured
-          // at up to 776 differing pixels along glyph edges across
-          // repeated `--retries=0` passes, against the suite's 300 budget.
-          // Only the scenario that opens the diff pays this; the cost is
-          // that a change smaller than ~1,200px inside the diff pane goes
-          // unseen there.
-          ...(scenario.select ? { maxDiffPixels: 1_200 } : {}),
         });
       });
     }

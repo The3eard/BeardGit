@@ -12,7 +12,7 @@
   import { get } from "svelte/store";
   import { viewport, selectedOid, selectedGroup, graphOffset, loadViewport, selectCommit, userEmails, reloadGraph, graphViewOptions, setGraphViewOptions } from "../../stores/graph";
   import { repoInfo } from "../../stores/repo";
-  import { renderGraph, hitTest, graphHitTest, getResizeTarget, ROW_HEIGHT, DEFAULT_COLUMNS, defaultGraphTheme, type GraphColumn } from "./graph-renderer";
+  import { renderGraph, hitTest, graphHitTest, getResizeTarget, loadCanvasFonts, ROW_HEIGHT, DEFAULT_COLUMNS, defaultGraphTheme, type GraphColumn } from "./graph-renderer";
   import { getLastMetrics, getRollingFps } from "./graph-perf";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
@@ -893,6 +893,12 @@
   onMount(() => {
     ctx = canvas.getContext("2d");
     resizeCanvas();
+
+    // The canvas paints before Fira Code has been fetched and, unlike DOM
+    // text, is never repainted when it arrives — so on a cold cache the
+    // graph keeps its fallback typeface until something else forces a
+    // redraw. Ask for the face, then redraw once it is there.
+    void loadCanvasFonts().then(() => scheduleDraw());
 
     const debouncedResize = debounce(resizeCanvas, 100);
     const resizeObserver = new ResizeObserver(() => debouncedResize());
