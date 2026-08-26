@@ -35,6 +35,14 @@ pub fn set_theme(name: String, app: AppHandle, state: State<'_, AppState>) -> Re
 
     let themes_dir = state.config_dir.join("themes");
     let theme = storage::theme::resolve_theme(&name, &themes_dir);
+    // A theme id, and whether it resolved to something else (a user theme
+    // that failed to load falls back). Colour-rendering reports are hard to
+    // read without knowing which theme was actually active.
+    tracing::info!(
+        requested = %name,
+        resolved = %theme.meta.id,
+        "theme changed"
+    );
     use tauri::Emitter as _;
     let _ = app.emit("theme-changed", &theme);
     Ok(())

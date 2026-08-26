@@ -156,7 +156,7 @@ impl Repository {
     /// Create a commit through the git CLI, honoring signing config.
     ///
     /// Used by [`Repository::create_commit`] when `commit.gpgsign` is on.
-    #[instrument(skip(self))]
+    #[instrument(skip_all, fields(repo = %self.path().display()))]
     pub fn create_commit_signed(&self, message: &str) -> Result<String, GitError> {
         let result = self.commit_via_cli(&["commit"], message)?;
         if !result.success {
@@ -171,7 +171,7 @@ impl Repository {
     /// When signing is enabled a failure surfaces as
     /// [`GitError::SigningFailed`]; otherwise (plain amend) it stays a
     /// [`GitError::CliError`] so existing callers see no change.
-    #[instrument(skip(self))]
+    #[instrument(skip_all, fields(repo = %self.path().display()))]
     pub fn amend_commit_cli(&self, message: &str) -> Result<(), GitError> {
         let signing = self.signing_config()?.enabled;
         let result = self.commit_via_cli(&["commit", "--amend"], message)?;

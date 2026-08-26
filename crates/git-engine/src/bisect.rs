@@ -138,7 +138,9 @@ pub fn bisect_log(repo_path: &Path) -> Result<String, String> {
 /// Run an automated bisect with a test command.
 ///
 /// The test command is split on whitespace and passed to `git bisect run`.
-#[instrument(fields(repo = %repo_path.display()))]
+// `skip_all`: see `cmd::bisect::run_auto` — the test command is
+// user-typed and can carry inline secrets.
+#[instrument(skip_all, fields(repo = %repo_path.display()))]
 pub fn bisect_run(repo_path: &Path, test_command: &str) -> Result<String, String> {
     let parts: Vec<&str> = test_command.split_whitespace().collect();
     if parts.is_empty() {

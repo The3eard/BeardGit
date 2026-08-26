@@ -21,7 +21,7 @@ impl Repository {
     /// CLI ([`Repository::create_commit_signed`]) so the user's ssh/gpg/x509
     /// signing config and agents are honored — `libgit2` cannot sign. With
     /// signing off, the byte-identical `git2` path below is used.
-    #[instrument(skip(self))]
+    #[instrument(skip_all, fields(repo = %self.path().display()))]
     pub fn create_commit(&self, message: &str) -> Result<String, GitError> {
         if self.signing_config()?.enabled {
             return self.create_commit_signed(message);
