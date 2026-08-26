@@ -1,0 +1,42 @@
+# Zenburn.
+# ANSI palette from mbadolato/iTerm2-Color-Schemes (alacritty), the
+# canonical 16-colour rendering of the upstream palette.
+
+[meta]
+id = "zenburn"
+name = "Zenburn"
+mode = "dark"
+
+[colors]
+background = "#3f3f3f"
+foreground = "#dcdccc"
+black = "#4d4d4d"
+red = "#7d5d5d"
+green = "#60b48a"
+yellow = "#f0dfaf"
+blue = "#5d6d7d"
+magenta = "#dc8cc3"
+cyan = "#8cd0d3"
+white = "#dcdccc"
+bright-black = "#709080"
+bright-red = "#dca3a3"
+bright-green = "#c3bf9f"
+bright-yellow = "#e0cf9f"
+bright-blue = "#94bff3"
+bright-magenta = "#ec93d3"
+bright-cyan = "#93e0e3"
+bright-white = "#ffffff"
+
+[accents]
+primary = "yellow"
+secondary = "green"
+tertiary = "blue"
+
+# Accessibility overrides. `text_secondary` derives from `bright-black`,
+# which in this palette lands below the WCAG AA floor on the page; raising
+# `bright-black` itself would change the terminal's ANSI colours, so the UI
+# text tokens are pinned here instead. Audited by
+# `test_all_builtin_themes_meet_contrast_floors`.
+[derived]
+text-secondary = "#9fb1a1"  # 4.65:1 — blend
+text-muted = "#849085"  # 3.16:1 — blend

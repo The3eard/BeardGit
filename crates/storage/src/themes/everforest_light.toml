@@ -1,0 +1,44 @@
+# Everforest Light (medium contrast).
+# ANSI palette from mbadolato/iTerm2-Color-Schemes (alacritty), the
+# canonical 16-colour rendering of the upstream palette.
+
+[meta]
+id = "everforest-light"
+name = "Everforest Light"
+mode = "light"
+complementary = "everforest-dark"
+
+[colors]
+background = "#efebd4"
+foreground = "#5c6a72"
+black = "#7a8478"
+red = "#e67e80"
+green = "#9ab373"
+yellow = "#c1a266"
+blue = "#7fbbb3"
+magenta = "#d699b6"
+cyan = "#83c092"
+white = "#b2af9f"
+bright-black = "#a6b0a0"
+bright-red = "#f85552"
+bright-green = "#8da101"
+bright-yellow = "#dfa000"
+bright-blue = "#3a94c5"
+bright-magenta = "#df69ba"
+bright-cyan = "#35a77c"
+bright-white = "#fffbef"
+
+[accents]
+primary = "green"
+secondary = "blue"
+tertiary = "yellow"
+
+# Accessibility overrides. `text_secondary` derives from `bright-black`,
+# which in this palette lands below the WCAG AA floor on the page; raising
+# `bright-black` itself would change the terminal's ANSI colours, so the UI
+# text tokens are pinned here instead. Audited by
+# `test_all_builtin_themes_meet_contrast_floors`.
+[derived]
+text-primary = "#444e54"  # 7.11:1 — the canonical fg is only 4.66:1 here, which left no room for a distinct secondary; primary is darkened so the ramp has three legible steps
+text-secondary = "#5c6a72"  # 4.66:1 — palette `foreground` (Everforest fg)
+text-muted = "#7a8478"  # 3.24:1 — palette `black` (grey0)

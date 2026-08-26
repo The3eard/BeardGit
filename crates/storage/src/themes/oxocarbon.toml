@@ -1,0 +1,46 @@
+# Oxocarbon, built on IBM's Carbon design system.
+#
+# ANSI mapping note: Oxocarbon's own palette has no yellow — its accents are
+# Carbon's teal / cyan / blue / magenta / green / purple. `yellow` uses
+# Carbon's yellow-30 (#f1c21b) rather than a substitute from another slot,
+# so warning states stay yellow while every other slot is a real Oxocarbon
+# colour. Greys are Carbon's gray-90 ramp.
+
+[meta]
+id = "oxocarbon"
+name = "Oxocarbon"
+mode = "dark"
+
+[colors]
+background = "#161616"
+foreground = "#f2f4f8"
+black = "#262626"
+red = "#ee5396"
+green = "#42be65"
+yellow = "#f1c21b"
+blue = "#78a9ff"
+magenta = "#be95ff"
+cyan = "#3ddbd9"
+white = "#dde1e6"
+bright-black = "#525252"
+bright-red = "#ff7eb6"
+bright-green = "#42be65"
+bright-yellow = "#f1c21b"
+bright-blue = "#82cfff"
+bright-magenta = "#be95ff"
+bright-cyan = "#08bdba"
+bright-white = "#ffffff"
+
+[accents]
+primary = "blue"
+secondary = "magenta"
+tertiary = "green"
+
+# Accessibility overrides. `text_secondary` derives from `bright-black`,
+# which in this palette lands below the WCAG AA floor on the page; raising
+# `bright-black` itself would change the terminal's ANSI colours, so the UI
+# text tokens are pinned here instead. Audited by
+# `test_all_builtin_themes_meet_contrast_floors`.
+[derived]
+text-secondary = "#828283"  # 4.71:1 — blend; Carbon gray-60 territory
+text-muted = "#666668"  # 3.16:1 — blend

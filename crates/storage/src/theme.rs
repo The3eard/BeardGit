@@ -33,6 +33,17 @@ const SOLARIZED_DARK_TOML: &str = include_str!("themes/solarized_dark.toml");
 const SOLARIZED_LIGHT_TOML: &str = include_str!("themes/solarized_light.toml");
 const GRUVBOX_DARK_TOML: &str = include_str!("themes/gruvbox_dark.toml");
 const MONOKAI_PRO_TOML: &str = include_str!("themes/monokai_pro.toml");
+const ROSE_PINE_MOON_TOML: &str = include_str!("themes/rose_pine_moon.toml");
+const ROSE_PINE_DAWN_TOML: &str = include_str!("themes/rose_pine_dawn.toml");
+const EVERFOREST_DARK_TOML: &str = include_str!("themes/everforest_dark.toml");
+const EVERFOREST_LIGHT_TOML: &str = include_str!("themes/everforest_light.toml");
+const KANAGAWA_TOML: &str = include_str!("themes/kanagawa.toml");
+const AYU_DARK_TOML: &str = include_str!("themes/ayu_dark.toml");
+const AYU_MIRAGE_TOML: &str = include_str!("themes/ayu_mirage.toml");
+const AYU_LIGHT_TOML: &str = include_str!("themes/ayu_light.toml");
+const MATERIAL_TOML: &str = include_str!("themes/material.toml");
+const ZENBURN_TOML: &str = include_str!("themes/zenburn.toml");
+const OXOCARBON_TOML: &str = include_str!("themes/oxocarbon.toml");
 
 /// The default theme used when the requested theme is not found.
 pub const DEFAULT_THEME_ID: &str = "beardgit-dark";
@@ -1224,6 +1235,17 @@ pub fn load_builtin_themes() -> Vec<Theme> {
         SOLARIZED_LIGHT_TOML,
         GRUVBOX_DARK_TOML,
         MONOKAI_PRO_TOML,
+        ROSE_PINE_MOON_TOML,
+        ROSE_PINE_DAWN_TOML,
+        EVERFOREST_DARK_TOML,
+        EVERFOREST_LIGHT_TOML,
+        KANAGAWA_TOML,
+        AYU_DARK_TOML,
+        AYU_MIRAGE_TOML,
+        AYU_LIGHT_TOML,
+        MATERIAL_TOML,
+        ZENBURN_TOML,
+        OXOCARBON_TOML,
     ]
     .iter()
     .filter_map(|src| parse_theme(src).ok())
@@ -1578,7 +1600,7 @@ lane-colors = ["#0000ff"]
     #[test]
     fn test_load_builtin_themes() {
         let themes = load_builtin_themes();
-        assert_eq!(themes.len(), 20);
+        assert_eq!(themes.len(), 31);
     }
 
     // ── WCAG contrast ─────────────────────────────────────────────────────
@@ -2017,13 +2039,59 @@ syntax-keyword = "#ff00ff"
         }
     }
 
+    /// Every `complementary` must point at a real theme, and point back.
+    ///
+    /// `resolve_theme_for_mode` follows this link when the user has
+    /// follow-system-theme on. A one-way link means switching to dark
+    /// finds the pair but switching back does not, so the app appears to
+    /// get stuck on one variant.
+    #[test]
+    fn test_complementary_links_are_symmetric_and_resolve() {
+        let themes = load_builtin_themes();
+        let by_id: std::collections::HashMap<&str, &Theme> =
+            themes.iter().map(|t| (t.meta.id.as_str(), t)).collect();
+
+        let mut problems = Vec::new();
+        for theme in &themes {
+            let Some(comp_id) = theme.meta.complementary.as_deref() else {
+                continue;
+            };
+            let Some(other) = by_id.get(comp_id) else {
+                problems.push(format!(
+                    "{} → `{comp_id}`, which is not a bundled theme",
+                    theme.meta.id
+                ));
+                continue;
+            };
+            if other.meta.complementary.as_deref() != Some(theme.meta.id.as_str()) {
+                problems.push(format!(
+                    "{} → {comp_id}, but {comp_id} → {:?} (must point back)",
+                    theme.meta.id, other.meta.complementary
+                ));
+            }
+            if other.meta.mode == theme.meta.mode {
+                problems.push(format!(
+                    "{} and {comp_id} are both `{}` — a complement must be the other mode",
+                    theme.meta.id, theme.meta.mode
+                ));
+            }
+        }
+
+        assert!(
+            problems.is_empty(),
+            "{} broken complementary link(s):\n  {}",
+            problems.len(),
+            problems.join("\n  ")
+        );
+    }
+
     #[test]
     fn test_builtin_themes_have_correct_modes() {
         let themes = load_builtin_themes();
         let dark_count = themes.iter().filter(|t| t.meta.mode == "dark").count();
         let light_count = themes.iter().filter(|t| t.meta.mode == "light").count();
-        assert_eq!(dark_count, 13);
-        assert_eq!(light_count, 7);
+        assert_eq!(dark_count, 21);
+        assert_eq!(light_count, 10);
     }
 
     #[test]
