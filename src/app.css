@@ -34,11 +34,11 @@
   /* Static defaults mirror BeardGit Dark (the app default theme) so
    * the pre-theme first paint matches what applyTheme() will set. */
   --bg-primary: #151312;
-  --bg-secondary: #201e1d;
-  --bg-toolbar: #272524;
+  --bg-secondary: #272524;
+  --bg-toolbar: #353433;
   --text-primary: #e8e4de;
-  --text-secondary: #98928a;
-  --text-muted: #837e77;
+  --text-secondary: #a29d95;
+  --text-muted: #918d85;
   --accent-blue: #6fb1cc;
   --accent-green: #8fbc62;
   --accent-orange: #e0a458;
@@ -50,7 +50,7 @@
   --accent-primary: #d9924f;
   --accent-secondary: #7cc7b8;
   --accent-tertiary: #8fbc62;
-  --selection: rgba(111, 177, 204, 0.15);
+  --selection: #6fb1cc40;
   --theme-mode: dark;
   /* Render native controls (checkbox, select, scrollbar) in the theme's
    * mode. Without this WebKit paints them light-mode regardless of the
@@ -74,10 +74,10 @@
    * `theme.ts::applyTheme()`. Runs stronger than the 10 % accent overlays so
    * selection stays visible on light surfaces. */
   --overlay-selected: rgba(217, 146, 79, 0.13);
-  --border: #504d4b;
+  --border: #6a6764;
   /* Control outlines; see `--border`. Overwritten per theme by
      `theme.ts::applyTheme`. */
-  --border-strong: #696663;
+  --border-strong: #84817e;
 
   /* Syntax + diff tokens — mirror the default theme's [editor] palette;
    * overridden at runtime by `theme.ts::applyTheme()`. Consumed by the
@@ -85,7 +85,7 @@
    * diff's added/removed line backgrounds. */
   --syntax-keyword: #e0604c;
   --syntax-string: #8fbc62;
-  --syntax-comment: #948e86;
+  --syntax-comment: #a29d95;
   --syntax-function: #c78bb0;
   --syntax-type: #6fb1cc;
   --syntax-number: #e0a458;
@@ -104,7 +104,7 @@
   --diff-removed-text: var(--accent-red);
   --editor-cursor: var(--accent-blue);
   --editor-selection: var(--selection);
-  --editor-line-highlight: transparent;
+  --editor-line-highlight: #27252466;
   --editor-gutter-bg: var(--bg-primary);
   --editor-gutter-fg: var(--text-secondary);
 
