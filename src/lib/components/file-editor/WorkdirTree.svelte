@@ -20,8 +20,12 @@
   import type { WorkdirTreeEntry } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import { fileGlyphFor } from "./file-icons";
+  // Self-import rather than `<svelte:self>`, which Svelte 5 deprecates.
+  import WorkdirTree from "./WorkdirTree.svelte";
   import {
+    DIRECTORY_ENTRY_CAP,
     expandedDirs,
+    failedDirs,
     loadingDirs,
     toggleDirectory,
     treeChildren,
@@ -50,6 +54,13 @@
 
   let entries = $derived($treeChildren.get(prefix) ?? []);
   let isLoadingThisLevel = $derived($loadingDirs.has(prefix));
+  /**
+   * A directory holding more children than the cap comes back cut, and the
+   * cut happens during `read_dir` — before the sort — so what is missing is
+   * arbitrary. Small-scale, that is the same shape as the bug this tree
+   * replaced, and the difference that matters is that it says so.
+   */
+  let truncated = $derived(entries.length >= DIRECTORY_ENTRY_CAP);
 
   function onRowClick(entry: WorkdirTreeEntry) {
     if (entry.is_directory) {
@@ -86,7 +97,7 @@
   >
     <span class="glyph" aria-hidden="true">
       {#if entry.is_directory}
-        {#if $loadingDirs.has(entry.path)}{:else}{open ? "" : ""}{/if}
+        {#if $loadingDirs.has(entry.path)}{:else}{open ? "" : ""}{/if}
       {:else}
         {fileGlyphFor(entry.name)}
       {/if}
@@ -99,12 +110,18 @@
       <div class="level-state" style={indent(depth + 1)}>
         {m.editor_loading_tree()}
       </div>
+    {:else if $failedDirs.has(entry.path)}
+      <!-- Not "empty": a listing that failed is not a fact about the
+           filesystem, and saying so would be the tree lying again. -->
+      <div class="level-state is-error" style={indent(depth + 1)}>
+        {m.editor_tree_level_failed()}
+      </div>
     {:else if ($treeChildren.get(entry.path) ?? []).length === 0}
       <div class="level-state" style={indent(depth + 1)}>
         {m.editor_tree_empty_folder()}
       </div>
     {:else}
-      <svelte:self
+      <WorkdirTree
         prefix={entry.path}
         depth={depth + 1}
         {selectedPath}
@@ -115,8 +132,16 @@
   {/if}
 {/each}
 
+{#if truncated}
+  <div class="level-state" style={indent(depth)} role="status">
+    {m.editor_tree_level_truncated({ count: String(DIRECTORY_ENTRY_CAP) })}
+  </div>
+{/if}
+
 {#if depth === 0 && entries.length === 0 && !isLoadingThisLevel}
-  <div class="level-state" style={indent(0)}>{m.editor_tree_empty()}</div>
+  <div class="level-state" style={indent(0)}>
+    {$failedDirs.has("") ? m.editor_tree_level_failed() : m.editor_tree_empty()}
+  </div>
 {/if}
 
 <style>
@@ -166,7 +191,12 @@
   .level-state {
     padding-top: 3px;
     padding-bottom: 3px;
+    padding-right: 8px;
     font-size: var(--font-size-xs);
     color: var(--text-secondary);
+  }
+
+  .level-state.is-error {
+    color: var(--accent-red);
   }
 </style>

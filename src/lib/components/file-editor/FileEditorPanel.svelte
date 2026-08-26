@@ -24,6 +24,7 @@
     persistTabsForProject,
     refreshTree,
     resetTree,
+    setTreeRefreshHook,
     renamePath,
     restoreTabsForProject,
     knownEntries,
@@ -86,6 +87,13 @@
     if (projectPath) {
       void refreshTree(respectGitignore);
     }
+  });
+
+  // External changes (checkout, pull, an edit outside the app) should be
+  // visible in the tree without anyone pressing Reload.
+  onMount(() => {
+    setTreeRefreshHook(() => refreshTree(respectGitignore));
+    return () => setTreeRefreshHook(null);
   });
 
   onMount(() => {

@@ -76,6 +76,8 @@ import {
   searchTruncated,
   toggleDirectory,
   loadDirectory,
+  resetTree,
+  failedDirs,
   searchTree,
   SEARCH_RESULT_CAP,
   updateBuffer,
@@ -358,13 +360,9 @@ describe("fileEditor store", () => {
       expect(mocks.listWorkdirTree).not.toHaveBeenCalled();
     });
 
-    it("refreshes the root and every open directory, and nothing else", async () => {
+    it("refreshes the root and every open directory", async () => {
       mocks.listWorkdirTree.mockResolvedValueOnce([file("src/a.ts")]);
       await toggleDirectory("src", true);
-      // Loaded but then collapsed: not on screen, so not refreshed.
-      mocks.listWorkdirTree.mockResolvedValueOnce([file("docs/b.md")]);
-      await toggleDirectory("docs", true);
-      await toggleDirectory("docs", true);
       mocks.listWorkdirTree.mockClear();
       mocks.listWorkdirTree.mockResolvedValue([]);
 
@@ -374,12 +372,68 @@ describe("fileEditor store", () => {
       expect(prefixes).toEqual([null, "src"]);
     });
 
-    it("clears the per-directory loading flag even when the listing fails", async () => {
+    /**
+     * The reachability bug the caching created: a refresh that skipped
+     * collapsed folders, plus an expand that skipped cached ones, left a
+     * file that exists on disk with no path to the screen.
+     */
+    it("forgets a collapsed directory on refresh, so re-opening re-lists it", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("docs/a.md")]);
+      await toggleDirectory("docs", true);
+      await toggleDirectory("docs", true); // collapse — still cached
+
+      mocks.listWorkdirTree.mockResolvedValue([]); // the refresh itself
+      await refreshTree(true);
+      expect(get(treeChildren).has("docs")).toBe(false);
+
+      // Re-opening now goes back to disk and sees the new file.
+      mocks.listWorkdirTree.mockClear();
+      mocks.listWorkdirTree.mockResolvedValueOnce([
+        file("docs/a.md"),
+        file("docs/new.md"),
+      ]);
+      await toggleDirectory("docs", true);
+
+      expect(mocks.listWorkdirTree).toHaveBeenCalledWith("docs", expect.any(Number), true);
+      expect(get(treeChildren).get("docs")).toHaveLength(2);
+    });
+
+    it("marks a directory whose listing failed, rather than showing it empty", async () => {
       mocks.listWorkdirTree.mockRejectedValueOnce(new Error("boom"));
 
       await loadDirectory("src", true);
 
       expect(get(loadingDirs).has("src")).toBe(false);
+      expect(get(failedDirs).has("src")).toBe(true);
+      expect(get(treeChildren).has("src")).toBe(false);
+    });
+
+    it("clears the failed mark once the directory lists again", async () => {
+      mocks.listWorkdirTree.mockRejectedValueOnce(new Error("boom"));
+      await loadDirectory("src", true);
+
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("src/a.ts")]);
+      await loadDirectory("src", true);
+
+      expect(get(failedDirs).has("src")).toBe(false);
+    });
+
+    it("drops a listing that lands after the tree was reset", async () => {
+      // A project switch resets the tree; the listing still in flight from
+      // the previous repo must not write its paths into the new one.
+      let resolveSlow: (v: unknown) => void = () => {};
+      mocks.listWorkdirTree.mockReturnValueOnce(
+        new Promise((r) => {
+          resolveSlow = r;
+        }),
+      );
+      const inFlight = loadDirectory("old-project-dir", true);
+
+      resetTree();
+      resolveSlow([file("old-project-dir/stale.ts")]);
+      await inFlight;
+
+      expect(get(treeChildren).has("old-project-dir")).toBe(false);
     });
   });
 

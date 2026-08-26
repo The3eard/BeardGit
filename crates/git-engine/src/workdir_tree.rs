@@ -26,10 +26,12 @@ use crate::repository::Repository;
 /// simply does not exist as far as the user is concerned. That is only
 /// acceptable for names that are never hand-authored source.
 ///
-/// Which is why `build`, `dist`, `out`, `bin`, `obj` and `vendor` are
-/// **not** here despite being the usual suspects: `bin/` routinely holds
-/// committed scripts, Go's `vendor/` is committed dependency *source*, and
-/// plenty of projects keep real files in `build/`. When those directories
+/// Which is why `build`, `dist`, `out`, `bin`, `obj`, `vendor` and `Pods`
+/// are **not** here despite being the usual suspects: `bin/` routinely
+/// holds committed scripts, Go's `vendor/` is committed dependency
+/// *source*, checking `Pods/` in is a mainstream CocoaPods workflow and it
+/// is dependency source by the same argument, and plenty of projects keep
+/// real files in `build/`. When those directories
 /// are genuinely build output the repo ignores them, and `respect_gitignore`
 /// — now on by default — takes care of it with an escape hatch the user
 /// controls. The names below have no such ambiguity.
@@ -45,7 +47,6 @@ const ALWAYS_SKIP_DIR_NAMES: &[&str] = &[
     ".next",
     ".turbo",
     "DerivedData",
-    "Pods",
 ];
 
 /// How many directory entries [`Repository::search_workdir_files`] will
@@ -430,17 +431,19 @@ mod tests {
         assert!(!names.contains(&"b.txt"));
     }
 
-    /// Acceptance criterion for the lazy tree: expanding a folder is
-    /// interactive work and has to cost what that folder costs.
+    /// Acceptance criterion for the lazy tree: expanding a folder reads
+    /// that folder and stops.
     ///
-    /// The bound is deliberately loose. A wall-clock assertion on shared CI
-    /// hardware is worth having only if it cannot fail for being unlucky,
-    /// and what it is really guarding is a return to recursion — which on
-    /// this fixture would be orders of magnitude over, not a near miss. The
-    /// per-entry `status_should_ignore` call is the hot one, so gitignore
-    /// is left on: the cheap configuration is not the one worth measuring.
+    /// This started life with a wall-clock bound and that was theatre. On
+    /// this fixture the one-level listing measures ~5ms and the recursive
+    /// walk it replaced ~14ms — 2.8× slower and still 36× inside the 500ms
+    /// the assertion allowed, so it could not tell the fix from the bug.
+    /// The count can: 1,001 is this directory, and any descent adds the
+    /// 1,200 files below it. Gitignore stays on because the per-entry
+    /// `status_should_ignore` call is the expensive one, and measuring the
+    /// cheap configuration would be its own kind of theatre.
     #[test]
-    fn list_workdir_tree_expands_a_thousand_entry_folder_promptly() {
+    fn list_workdir_tree_does_not_descend_into_subdirectories() {
         let (_tmp, path) = create_repo_with_n_commits(1);
         let big = path.join("big");
         fs::create_dir_all(&big).unwrap();
@@ -458,14 +461,17 @@ mod tests {
         }
 
         let repo = Repository::open(&path).unwrap();
-        let started = std::time::Instant::now();
         let entries = repo.list_workdir_tree(Some("big"), 5_000, true).unwrap();
-        let elapsed = started.elapsed();
 
-        assert_eq!(entries.len(), 1_001, "1000 files plus the level0 directory");
+        assert_eq!(
+            entries.len(),
+            1_001,
+            "1000 files plus the `level0` directory — anything more means the \
+             interactive path walked the subtree"
+        );
         assert!(
-            elapsed < std::time::Duration::from_millis(500),
-            "expanding one folder took {elapsed:?}; the interactive path must not walk the subtree"
+            entries.iter().all(|e| !e.path.contains("level0/")),
+            "a descendant of `level0` reached a one-level listing"
         );
     }
 

@@ -73,12 +73,22 @@
    */
   const SEARCH_DEBOUNCE_MS = 180;
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * True from the keystroke until the query it produced has been answered.
+   * Without it the pane shows "No files match." for the length of the
+   * debounce on every fresh search — the query is non-empty, the request
+   * has not started, and the previous results are empty.
+   */
+  let searchPending = $state(false);
 
   $effect(() => {
     const q = filterQuery;
     clearTimeout(searchTimer);
+    searchPending = q.trim() !== "";
     searchTimer = setTimeout(() => {
-      void searchTree(q, respectGitignore);
+      void searchTree(q, respectGitignore).finally(() => {
+        searchPending = false;
+      });
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(searchTimer);
   });
@@ -194,7 +204,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="tree-body" oncontextmenu={onTreeContext}>
     {#if searching}
-      {#if $searchLoading && $searchResults.length === 0}
+      {#if (searchPending || $searchLoading) && $searchResults.length === 0}
         <div class="tree-state">
           <span class="muted">{m.editor_tree_searching()}</span>
         </div>
