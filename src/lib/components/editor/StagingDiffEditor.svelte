@@ -12,6 +12,11 @@
   import EmptyState from "$lib/components/common/EmptyState.svelte";
   import { Button, Checkbox, IconButton } from "$lib/components/ui";
   import { diffLineWrapping } from "$lib/stores/diffSettings";
+  import {
+    FULL_FILE_CONTEXT,
+    setStagingDiffExpanded,
+    stagingDiffContext,
+  } from "$lib/stores/changes";
   import { loadLineParser, highlightLineHtml } from "./line-highlight";
   import type { Parser } from "@lezer/common";
   import * as m from "$lib/paraglide/messages";
@@ -48,7 +53,46 @@
   $effect(() => {
     void diff;
     selectedLines = new Map();
+    collapsedHunks = new Set();
   });
+
+  /**
+   * Hunks the user has collapsed, by index.
+   *
+   * Keyed positionally like `selectedLines`, and reset with it for the same
+   * reason: the page re-resolves `diff` from the stores after a mutation
+   * without remounting this component, so hunk 3 after a stage is not hunk
+   * 3 before it.
+   */
+  let collapsedHunks = $state(new Set<number>());
+
+  /** True when every hunk is collapsed — drives the header toggle's label. */
+  let allCollapsed = $derived(
+    diff.hunks.length > 0 && collapsedHunks.size === diff.hunks.length,
+  );
+
+  function toggleHunkCollapsed(hunkIdx: number) {
+    const next = new Set(collapsedHunks);
+    if (!next.delete(hunkIdx)) next.add(hunkIdx);
+    collapsedHunks = next;
+  }
+
+  function toggleAllCollapsed() {
+    collapsedHunks = allCollapsed
+      ? new Set()
+      : new Set(diff.hunks.map((_, i) => i));
+  }
+
+  /** Whether the open diff was fetched with the whole file as context. */
+  let fileExpanded = $derived($stagingDiffContext >= FULL_FILE_CONTEXT);
+
+  /**
+   * Expanding is a re-fetch, not a client-side reveal: the unchanged lines
+   * are not in the payload until the backend is asked for them.
+   */
+  function toggleFileExpanded() {
+    void setStagingDiffExpanded(!fileExpanded);
+  }
 
   /** Whether a discard confirmation dialog is open. */
   let showDiscardConfirm = $state(false);
@@ -265,6 +309,20 @@
           {m.staging_lines_selected({ count: String(selectedLineCount) })}
         </span>
       {/if}
+      <IconButton
+        icon={fileExpanded ? "\uF066" : "\uF065"}
+        description={fileExpanded ? m.staging_collapse_file() : m.staging_expand_file()}
+        size="sm"
+        onclick={toggleFileExpanded}
+      />
+      <IconButton
+        icon={allCollapsed ? "\uF078" : "\uF077"}
+        description={allCollapsed
+          ? m.staging_expand_all_hunks()
+          : m.staging_collapse_all_hunks()}
+        size="sm"
+        onclick={toggleAllCollapsed}
+      />
       <Button variant="neutral" size="sm" onclick={selectAll} description={m.staging_select_all()}>
         {m.staging_select_all()}
       </Button>
@@ -311,8 +369,17 @@
   <div class="hunk-list">
     {#each diff.hunks as hunk, hunkIdx}
       {@const checkState = hunkCheckState(hunkIdx)}
+      {@const collapsed = collapsedHunks.has(hunkIdx)}
       <div class="hunk">
         <div class="hunk-header">
+          <button
+            type="button"
+            class="hunk-toggle"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? m.staging_expand_hunk() : m.staging_collapse_hunk()}
+            title={collapsed ? m.staging_expand_hunk() : m.staging_collapse_hunk()}
+            onclick={() => toggleHunkCollapsed(hunkIdx)}
+          >{collapsed ? "\uF054" : "\uF078"}</button>
           <span class="hunk-checkbox-label">
             <Checkbox
               id="hunk-toggle-{isStaged ? 'staged' : 'unstaged'}-{hunkIdx}"
@@ -326,6 +393,11 @@
             >{hunk.header}</label>
           </span>
         </div>
+        {#if collapsed}
+          <div class="hunk-collapsed">
+            {m.staging_hunk_collapsed({ count: String(hunk.lines.length) })}
+          </div>
+        {:else}
         <div class="hunk-lines">
           {#each hunk.lines as line, lineIdx}
             {@const isChanged = line.origin !== " "}
@@ -358,6 +430,7 @@
             </div>
           {/each}
         </div>
+        {/if}
       </div>
     {/each}
 
@@ -504,6 +577,36 @@
     gap: 8px;
     cursor: pointer;
     min-width: 0;
+  }
+
+  /* Chevron toggle. Sized to the checkbox beside it so the header keeps one
+     baseline, and it takes the dim text rung — it is an affordance, not a
+     thing to read. */
+  .hunk-toggle {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-secondary);
+    font-family: var(--font-icons);
+    font-size: var(--font-size-2xs);
+    cursor: pointer;
+  }
+
+  .hunk-toggle:hover {
+    color: var(--text-primary);
+  }
+
+  .hunk-collapsed {
+    padding: 4px 12px 4px 34px;
+    font-size: var(--font-size-xs);
+    font-style: italic;
+    color: var(--text-secondary);
   }
 
   .hunk-header-text {

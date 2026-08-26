@@ -255,9 +255,22 @@ export async function getDiffIndex(): Promise<FileDiff[]> {
  * opens it in the Changes view. `staged` picks the index-vs-HEAD diff
  * (`true`) or the workdir-vs-index diff (`false`). Resolves to `null` when
  * the file has no change on that side.
+ *
+ * `contextLines` is how much unchanged code to keep around each change;
+ * omit it for libgit2's default of 3. The unchanged lines are simply not in
+ * the response until asked for, so "show me the rest of the file" is a
+ * re-fetch, not a client-side expansion.
  */
-export async function getDiffFile(path: string, staged: boolean): Promise<FileDiff | null> {
-  return invoke<FileDiff | null>("get_diff_file", { path, staged });
+export async function getDiffFile(
+  path: string,
+  staged: boolean,
+  contextLines?: number,
+): Promise<FileDiff | null> {
+  return invoke<FileDiff | null>("get_diff_file", {
+    path,
+    staged,
+    contextLines: contextLines ?? null,
+  });
 }
 
 /** Cheap per-file change stats (name/status + counts, no hunks) for the working tree. */

@@ -68,6 +68,7 @@
   import {
     persistTabsForProject as persistEditorTabs,
     startFileEditorListeners,
+    openTab as openEditorTab,
   } from "$lib/stores/fileEditor";
   import { initRepoConfigRouteSync } from "$lib/stores/repoConfigRoute";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
@@ -334,6 +335,21 @@
         label: m.sidebar_collapse(),
         category: "UI",
         action: () => handleToggleSidebar(),
+      },
+      {
+        id: "editor.openSelected",
+        keys: { mod: true, key: "e" },
+        label: m.editor_open_in_editor(),
+        category: "Editor",
+        // Whatever file the Changes view currently has open in its diff
+        // pane. The same action the row button and the context-menu item
+        // run — there was no keyboard route to it at all before.
+        action: () => {
+          const open = get(openStagingFile);
+          if (!open) return;
+          activeView = "editor";
+          void openEditorTab(open.path);
+        },
       },
       {
         id: "tab.newTerminal",
