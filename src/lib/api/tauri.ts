@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, BranchCleanupList, BatchDeleteResult, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, SigningStatus, CommitSignature, SignatureVerification, SigningTestResult, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
+import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, BranchCleanupList, BatchDeleteResult, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, ThemeContrastReport, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, SigningStatus, CommitSignature, SignatureVerification, SigningTestResult, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 import type { RequestTreeNode, ParsedRequest, RequestEnvFile, RequestEnvSummary, RunRequestArgs, RunResult, CopyAsArgs, RequestHistoryRow, RequestDiffPayload } from "../types/requests";
 
@@ -639,6 +639,19 @@ export async function listThemes(): Promise<ThemeMeta[]> {
 
 export async function getTheme(name: string): Promise<ThemeData> {
   return invoke<ThemeData>("get_theme", { name });
+}
+
+/**
+ * Audit a theme's text contrast against its own background.
+ *
+ * Advisory only — a user theme is never modified to meet a floor. Bundled
+ * themes always come back with an empty `warnings` list (enforced by a
+ * Rust test), so anything reported here belongs to a theme the user wrote.
+ */
+export async function checkThemeContrast(
+  name: string,
+): Promise<ThemeContrastReport> {
+  return invoke<ThemeContrastReport>("check_theme_contrast", { name });
 }
 
 export async function setTheme(name: string): Promise<void> {

@@ -24,6 +24,27 @@ pub fn get_theme(name: String, state: State<'_, AppState>) -> storage::Theme {
     storage::theme::resolve_theme(&name, &themes_dir)
 }
 
+/// Audit a theme's text contrast against its own background.
+///
+/// Advisory only, and deliberately so: a user theme in
+/// `~/.config/beardgit/themes` is never modified to meet a floor. Their
+/// colours are theirs. The Settings UI surfaces the report as a
+/// non-blocking notice next to the theme picker so an unreadable palette
+/// is diagnosable rather than mysterious.
+///
+/// Bundled themes always return an empty `warnings` list — that is
+/// enforced by `test_all_builtin_themes_meet_contrast_floors`, so a
+/// non-empty report here means the user's own theme.
+#[tauri::command]
+pub fn check_theme_contrast(
+    name: String,
+    state: State<'_, AppState>,
+) -> storage::theme::ThemeContrastReport {
+    let themes_dir = state.config_dir.join("themes");
+    let theme = storage::theme::resolve_theme(&name, &themes_dir);
+    storage::theme::check_theme_contrast(&theme)
+}
+
 /// Set the active theme name and emit a `theme-changed` event with the resolved theme.
 #[tauri::command]
 pub fn set_theme(name: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {

@@ -20,6 +20,23 @@ module.exports = {
     "color-no-hex": [true, { severity: "error" }],
     "color-named": ["never", { severity: "error" }],
     "function-no-unknown": [true, { ignoreFunctions: ["color-mix"] }],
+    // Close the gap that let mode-dependent colours hide in <style> blocks.
+    // `color-no-hex` catches `#fff` but not `rgba(255,255,255,0.15)`, and the
+    // ESLint rule `no-hex-in-svelte` only inspects inline `style="…"` and
+    // `style:prop` — so a white-on-transparent tint could sit in a component
+    // stylesheet and be invisible in every light theme. That is exactly what
+    // happened to the scrollbar thumb and the spinner track.
+    //
+    // Escape hatch is stylelint's own directive with a reason, e.g.
+    //   /* stylelint-disable-next-line function-disallowed-list -- modal backdrop */
+    // Reach for `var(--token)` or `color-mix()` first.
+    "function-disallowed-list": [
+      // Every functional colour notation, not just rgb/rgba: `hsl()`,
+      // `oklch()` and friends are all viable ways to write the same
+      // mode-dependent white tint.
+      ["rgb", "rgba", "hsl", "hsla", "hwb", "lab", "lch", "oklab", "oklch", "color"],
+      { severity: "error" },
+    ],
   },
   overrides: [
     {
@@ -41,6 +58,11 @@ module.exports = {
       rules: {
         "color-no-hex": null,
         "color-named": null,
+        // NOTE: `function-disallowed-list` is deliberately NOT nulled here.
+        // `src/app.css` is exactly where the white-on-white scrollbar tint
+        // lived, so exempting it would leave the guard pointing away from
+        // the crime scene. The few literals these files legitimately need
+        // carry a per-line `stylelint-disable-next-line` with a reason.
       },
     },
   ],

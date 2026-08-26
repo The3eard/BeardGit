@@ -1,0 +1,49 @@
+# Rosé Pine Dawn.
+#
+# ANSI mapping note: see rose_pine_moon.toml — the palette has no green or
+# cyan, so `green` is `pine` (teal) and `cyan` is `rose` (pink).
+#
+# `bright-black` is `subtle` (#797593) rather than upstream's `muted`
+# (#9893a5): on this light background `muted` is too pale to read as text,
+# and `bright-black` is what `text_secondary` derives from. Everything else
+# matches the upstream palette exactly.
+
+[meta]
+id = "rose-pine-dawn"
+name = "Rosé Pine Dawn"
+mode = "light"
+complementary = "rose-pine-moon"
+
+[colors]
+background = "#faf4ed"
+foreground = "#575279"
+black = "#f2e9e1"
+red = "#b4637a"
+green = "#286983"
+yellow = "#ea9d34"
+blue = "#56949f"
+magenta = "#907aa9"
+cyan = "#d7827e"
+white = "#575279"
+bright-black = "#797593"
+bright-red = "#b4637a"
+bright-green = "#286983"
+bright-yellow = "#ea9d34"
+bright-blue = "#56949f"
+bright-magenta = "#907aa9"
+bright-cyan = "#d7827e"
+bright-white = "#575279"
+
+[accents]
+primary = "magenta"
+secondary = "blue"
+tertiary = "green"
+
+# Accessibility overrides. `text_secondary` derives from `bright-black`,
+# which in this palette lands below the WCAG AA floor on the page; raising
+# `bright-black` itself would change the terminal's ANSI colours, so the UI
+# text tokens are pinned here instead. Audited by
+# `test_all_builtin_themes_meet_contrast_floors`.
+[derived]
+text-secondary = "#706b8c"  # 4.61:1 — blend toward `text`
+text-muted = "#8c879f"  # 3.16:1 — blend

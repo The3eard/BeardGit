@@ -205,3 +205,102 @@ describe("applyTheme — editor tokens reach the CSS custom properties", () => {
     expect(token("--diff-added-bg")).toBe(previousAdded);
   });
 });
+
+// ── Mode-dependent overlay tints ────────────────────────────────────────
+//
+// These were hardcoded white-on-transparent at `:root` in app.css, which
+// made the scrollbar thumb invisible on every light theme (white on white)
+// and left the spinner with no visible track ring.
+
+describe("applyTheme — scrollbar and spinner tints follow the mode", () => {
+  it("uses dark-on-light tints for a light theme", () => {
+    applyTheme(themes["github-light"]);
+
+    // The exact alphas are a design choice; what must hold is that a light
+    // theme gets a *dark* tint, because the failure mode was white on white.
+    expect(token("--scrollbar-thumb")).toContain("rgba(0,0,0");
+    expect(token("--scrollbar-thumb-hover")).toContain("rgba(0,0,0");
+    expect(token("--spinner-track")).toContain("rgba(0,0,0");
+  });
+
+  it("makes the hover state stronger than the resting thumb", () => {
+    applyTheme(themes["github-light"]);
+
+    const alpha = (value: string): number =>
+      Number.parseFloat(value.split(",").pop()!.replace(")", ""));
+    expect(alpha(token("--scrollbar-thumb-hover"))).toBeGreaterThan(
+      alpha(token("--scrollbar-thumb")),
+    );
+  });
+
+  it("keeps light-on-dark tints for a dark theme", () => {
+    // Built from the light fixture rather than adding a dark one: only the
+    // mode drives these, and asserting that is the point.
+    applyTheme({
+      ...themes["github-light"],
+      meta: { ...themes["github-light"].meta, mode: "dark" },
+    });
+
+    expect(token("--scrollbar-thumb")).toContain("rgba(255,255,255");
+    expect(token("--spinner-track")).toContain("rgba(255,255,255");
+  });
+});
+
+// ── The invariant lint cannot express ───────────────────────────────────
+//
+// `app.css`'s `:root` block legitimately holds white-based literals: they
+// are the pre-theme defaults `applyTheme` overwrites. Stylelint's
+// `function-disallowed-list` is therefore disabled for that block, which
+// leaves one hole — a NEW white-based token added there, and forgotten in
+// `computeOverlays`, is invisible in every light theme with no signal.
+//
+// That is not a lint rule, it's a cross-file invariant: every white-based
+// default must have a per-mode override. This is the test for it.
+
+import { readFileSync } from "node:fs";
+
+describe("app.css white-based tokens all have per-mode overrides", () => {
+  it("finds no white default that applyTheme leaves alone", () => {
+    // Repo-root-relative: vitest runs from the project root, and
+    // `import.meta.url` is not a file: URL under Vite's transform.
+    const css = readFileSync("src/app.css", "utf8");
+
+    // Literal white tints: `rgba(255,255,255,…)` plus the `hsl`/`hwb`
+    // notations, which matter because the `:root` block-disable turns off
+    // `function-disallowed-list` in exactly this region — so those are the
+    // spellings that would otherwise evade both guards.
+    //
+    // Narrower than "every white-ish default" on purpose: this is a
+    // convention check, not a colour parser. Every tint literal in app.css
+    // is currently `rgba()`.
+    const whiteDefaults = [
+      ...css.matchAll(
+        /^\s*(--[a-z0-9-]+)\s*:\s*[^;]*(?:rgba?\(\s*255[\s,]+255[\s,]+255|hsla?\(\s*0[\s,]+0%[\s,]+100%|hwb\(\s*0\s+100%)/gim,
+      ),
+    ].map((m) => m[1]);
+
+    // Sanity: the scan must actually find the known dark defaults, or a
+    // regex that matches nothing would make this test vacuous.
+    expect(whiteDefaults.length).toBeGreaterThan(0);
+
+    // Every one must be written by applyTheme in BOTH modes.
+    applyTheme(themes["github-light"]);
+    const lightMissing = whiteDefaults.filter((t) => token(t) === "");
+
+    // Reset first: `applyTheme` only ever sets properties, never removes
+    // them, so without this the set of written tokens grows monotonically
+    // and `darkMissing` could never fail independently of `lightMissing`.
+    document.documentElement.removeAttribute("style");
+    applyTheme({
+      ...themes["github-light"],
+      meta: { ...themes["github-light"].meta, mode: "dark" },
+    });
+    const darkMissing = whiteDefaults.filter((t) => token(t) === "");
+
+    expect(
+      { lightMissing, darkMissing },
+      `these app.css tokens default to a white tint but applyTheme never ` +
+        `overrides them, so they stay white-on-white in light themes`,
+    ).toEqual({ lightMissing: [], darkMissing: [] });
+  });
+});

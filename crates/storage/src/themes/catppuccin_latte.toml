@@ -23,3 +23,12 @@ bright-blue = "#1e66f5"
 bright-magenta = "#8839ef"
 bright-cyan = "#179299"
 bright-white = "#bcc0cc"
+
+# Accessibility overrides. `text_secondary` derives from `bright-black`,
+# which in this palette lands below the WCAG AA floor on the page; raising
+# `bright-black` itself would change the terminal's ANSI colours, so the UI
+# text tokens are pinned here instead. Audited by
+# `test_all_builtin_themes_meet_contrast_floors`.
+[derived]
+text-secondary = "#5c5f77"  # 5.53:1 — palette `black` (Latte subtext1)
+text-muted = "#6c6f85"  # 4.37:1 — palette `bright-black` (Latte subtext0)

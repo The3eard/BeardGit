@@ -262,6 +262,7 @@ pub fn run() {
             app_core::commands::get_user_identities,
             app_core::commands::list_themes,
             app_core::commands::get_theme,
+            app_core::commands::check_theme_contrast,
             app_core::commands::set_theme,
             app_core::commands::get_theme_auto,
             app_core::commands::set_theme_auto,
