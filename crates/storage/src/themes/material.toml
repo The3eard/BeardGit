@@ -1,0 +1,42 @@
+# Material (Darker).
+# ANSI palette from mbadolato/iTerm2-Color-Schemes (alacritty), the
+# canonical 16-colour rendering of the upstream palette.
+
+[meta]
+id = "material"
+name = "Material"
+mode = "dark"
+
+[colors]
+background = "#212121"
+foreground = "#eeffff"
+black = "#000000"
+red = "#ff5370"
+green = "#c3e88d"
+yellow = "#ffcb6b"
+blue = "#82aaff"
+magenta = "#c792ea"
+cyan = "#89ddff"
+white = "#ffffff"
+bright-black = "#545454"
+bright-red = "#ff5370"
+bright-green = "#c3e88d"
+bright-yellow = "#ffcb6b"
+bright-blue = "#82aaff"
+bright-magenta = "#c792ea"
+bright-cyan = "#89ddff"
+bright-white = "#ffffff"
+
+[accents]
+primary = "blue"
+secondary = "magenta"
+tertiary = "green"
+
+# Accessibility overrides. `text_secondary` derives from `bright-black`,
+# which in this palette lands below the WCAG AA floor on the page; raising
+# `bright-black` itself would change the terminal's ANSI colours, so the UI
+# text tokens are pinned here instead. Audited by
+# `test_all_builtin_themes_meet_contrast_floors`.
+[derived]
+text-secondary = "#858a8a"  # 4.60:1 — blend
+text-muted = "#6c6f6f"  # 3.18:1 — blend
