@@ -1247,6 +1247,8 @@
   "editor_tree_filter_placeholder": "Filter files…",
   "editor_tree_empty": "This repository has no files to show.",
   "editor_tree_empty_folder": "Empty folder",
+  "editor_tree_level_truncated": "Only the first {count} entries of this folder are shown.",
+  "editor_tree_level_failed": "Couldn't list this folder. Collapse and open it again to retry.",
   "editor_tree_searching": "Searching…",
   "editor_tree_no_matches": "No files match.",
   "editor_search_truncated": "Showing the first matches — narrow the query to see the rest.",

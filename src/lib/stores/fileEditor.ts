@@ -108,6 +108,8 @@ export const treeChildren = writable<Map<string, WorkdirTreeEntry[]>>(new Map())
 export const expandedDirs = writable<Set<string>>(new Set());
 /** Prefixes with a listing in flight — the row shows a spinner. */
 export const loadingDirs = writable<Set<string>>(new Set());
+/** Prefixes whose last listing failed, so the row can say so. */
+export const failedDirs = writable<Set<string>>(new Set());
 /** `true` while the root listing is in flight. */
 export const treeLoading = writable(false);
 
@@ -137,14 +139,15 @@ function withFlag(set: Set<string>, key: string, on: boolean): Set<string> {
 /**
  * List one directory and store its children. `""` is the repo root.
  *
- * Errors are non-fatal: the previous children stay, and the reload button
- * is always available. A directory that has gone missing on disk comes
- * back empty from the backend rather than throwing, which collapses it.
+ * Errors leave the previous children in place and mark the directory in
+ * `failedDirs`, so the row can say the listing failed rather than
+ * silently reading as an empty folder.
  */
 export async function loadDirectory(
   prefix: string,
   respectGitignore: boolean,
 ): Promise<void> {
+  const seq = treeSeq;
   if (prefix === "") treeLoading.set(true);
   loadingDirs.update((s) => withFlag(s, prefix, true));
   try {
@@ -153,21 +156,31 @@ export async function loadDirectory(
       DIRECTORY_ENTRY_CAP,
       respectGitignore,
     );
+    // The tree may have been reset or refreshed while this was in flight —
+    // a project switch, or the gitignore toggle firing a second root load.
+    // Writing now would put another repository's paths, or the answer to
+    // the opposite question, into the tree the user is looking at.
+    if (seq !== treeSeq) return;
     treeChildren.update((map) => new Map(map).set(prefix, entries));
+    failedDirs.update((s) => withFlag(s, prefix, false));
   } catch {
-    // Keep whatever was there before.
+    if (seq !== treeSeq) return;
+    failedDirs.update((s) => withFlag(s, prefix, true));
   } finally {
-    loadingDirs.update((s) => withFlag(s, prefix, false));
-    if (prefix === "") treeLoading.set(false);
+    if (seq === treeSeq) {
+      loadingDirs.update((s) => withFlag(s, prefix, false));
+      if (prefix === "") treeLoading.set(false);
+    }
   }
 }
 
 /**
  * Expand or collapse a directory, listing it on first expand.
  *
- * Collapsing keeps the children in `treeChildren`: re-opening a folder the
- * user just closed should not go back to the disk, and the memory is one
- * array per folder actually visited.
+ * Collapsing keeps the children cached: re-opening a folder the user just
+ * closed should not go back to the disk. That cache is only valid until
+ * the next refresh, which is why {@link refreshTree} drops it rather than
+ * skipping over it — see the note there.
  */
 export async function toggleDirectory(
   prefix: string,
@@ -181,25 +194,50 @@ export async function toggleDirectory(
 }
 
 /**
- * Reload the root and every directory the user currently has open.
+ * Reload what is on screen and forget the rest.
  *
- * Only what is on screen: a refresh should cost what the view costs, not
- * what the repository costs.
+ * The eviction is the important half. Reloading only the open directories
+ * and leaving the collapsed ones cached made content unreachable: create a
+ * file inside a folder you had opened and then closed, and the refresh
+ * that follows the mutation skips that folder — it is not expanded — while
+ * re-expanding it skips the listing, because it is still cached. The file
+ * exists, the tree cannot show it, and no button in the UI fixes it.
+ * Renaming was worse: the tree kept offering the old name, which opens an
+ * error.
+ *
+ * So a refresh drops every cached listing and re-lists the root plus
+ * whatever is currently open. Collapsed folders re-list when the user next
+ * opens them. The "don't re-list on collapse and re-open" saving still
+ * holds between refreshes, which is where it was worth having.
  */
 export async function refreshTree(respectGitignore: boolean): Promise<void> {
-  const open = [...get(expandedDirs)].filter((p) => get(treeChildren).has(p));
+  treeSeq++;
+  const open = [...get(expandedDirs)];
+  treeChildren.set(new Map());
+  failedDirs.set(new Set());
   await loadDirectory("", respectGitignore);
   await Promise.all(open.map((p) => loadDirectory(p, respectGitignore)));
 }
 
 /** Drop all tree state — used when switching to a different project. */
 export function resetTree(): void {
+  treeSeq++;
   treeChildren.set(new Map());
   expandedDirs.set(new Set());
   loadingDirs.set(new Set());
+  failedDirs.set(new Set());
   searchResults.set([]);
   searchTruncated.set(false);
 }
+
+/**
+ * Monotonic id for tree listings, bumped by every reset and refresh.
+ *
+ * Same reasoning as {@link searchTree}'s: a listing that was in flight when
+ * the user switched project, or when the gitignore toggle fired a second
+ * root load, must not land on top of the newer state.
+ */
+let treeSeq = 0;
 
 /**
  * Monotonic id for search requests. Typing produces overlapping in-flight
@@ -238,6 +276,9 @@ export async function searchTree(
   } catch {
     if (seq !== searchSeq) return;
     searchResults.set([]);
+    // Or the pane reads "No files match." with "narrow the query to see
+    // the rest" underneath it.
+    searchTruncated.set(false);
   } finally {
     if (seq === searchSeq) searchLoading.set(false);
   }
@@ -610,6 +651,21 @@ let externalListenerPromise: Promise<UnlistenFn> | null = null;
  * either clicks "Reload" / activates the tab (which lazily re-reads)
  * or "Keep my version" (which just clears the flag).
  */
+/**
+ * How the listener refreshes the tree.
+ *
+ * A callback rather than a direct `refreshTree(...)` call because the
+ * gitignore preference lives in another store, and reaching for it from
+ * here would tie the editor store to the settings store for one boolean.
+ * `FileEditorPanel` installs it with the value it is already deriving.
+ */
+let treeRefreshHook: (() => Promise<void>) | null = null;
+
+/** Install (or clear, with `null`) the tree refresh used on external changes. */
+export function setTreeRefreshHook(fn: (() => Promise<void>) | null): void {
+  treeRefreshHook = fn;
+}
+
 export function startFileEditorListeners(): () => void {
   // `??=` is synchronous, so two calls racing before the first `listen()`
   // resolves reuse the SAME promise rather than each registering a listener
@@ -622,6 +678,11 @@ export function startFileEditorListeners(): () => void {
         t.dirty || t.externalChange ? t : { ...t, externalChange: true },
       ),
     );
+    // The tree is a view of the filesystem, and something just changed it —
+    // a checkout, a pull, an edit outside the app. Without this the tree
+    // stayed stale until the user thought to press Reload, which is not a
+    // thing anyone thinks to do. Costs the root plus whatever is open.
+    if (treeRefreshHook) void treeRefreshHook();
   });
   return stopFileEditorListeners;
 }

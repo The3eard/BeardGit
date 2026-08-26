@@ -435,11 +435,14 @@ export function workdirTree(): ByArgResponse {
       ],
       tests: [f("tests/recurrence.rs", 2440)],
     },
+    // Directories first, then files, each group by lowercased path — the
+    // order `list_workdir_tree` really returns, so the baseline depicts a
+    // listing the app can actually produce.
     [
       d("src"),
       d("tests"),
-      f("CHANGELOG.md", 2150),
       f("Cargo.toml", 612),
+      f("CHANGELOG.md", 2150),
       f("README.md", 3870),
     ],
   );
