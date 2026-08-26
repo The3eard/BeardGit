@@ -16,6 +16,8 @@ import {
   installBootstrapMocks,
   THEME_MODES,
   waitForAppReady,
+  waitForGraphPainted,
+  GRAPH_CANVAS_PIXEL_BUDGET,
 } from "../helpers";
 import {
   makeCommitFileChange,
@@ -28,6 +30,8 @@ import {
 
 const PROJECT = makeProjectInfo();
 const TARGET_OID = "1".repeat(40);
+/** Node count of the viewport both tests mock, for the paint wait. */
+const GRAPH_COMMITS = 12;
 
 for (const mode of THEME_MODES) {
   test.describe(`commit-detail — ${mode}`, () => {
@@ -41,8 +45,10 @@ for (const mode of THEME_MODES) {
       await applyTheme(page, mode);
       await waitForAppReady(page);
       await clickNav(page, "Graph");
+      await waitForGraphPainted(page, GRAPH_COMMITS);
       await expect(page).toHaveScreenshot(`${mode}-no-selection.png`, {
         animations: "disabled",
+        maxDiffPixels: GRAPH_CANVAS_PIXEL_BUDGET,
       });
     });
 
@@ -65,9 +71,9 @@ for (const mode of THEME_MODES) {
             refs: ["HEAD", "refs/heads/feat/visual-tests"],
           }),
           get_commit_files: [
-            makeCommitFileChange({ path: "tests/visual/components/commit-detail.spec.ts", status: "A" }),
-            makeCommitFileChange({ path: "src/test/fixtures/commits.ts", status: "M" }),
-            makeCommitFileChange({ path: "tests/visual/helpers/index.ts", status: "M" }),
+            makeCommitFileChange({ path: "tests/visual/components/commit-detail.spec.ts", status: "added" }),
+            makeCommitFileChange({ path: "src/test/fixtures/commits.ts", status: "modified" }),
+            makeCommitFileChange({ path: "tests/visual/helpers/index.ts", status: "modified" }),
           ],
           get_commit_full_diff: {
             "src/test/fixtures/commits.ts": makeFileDiff({
@@ -87,6 +93,7 @@ for (const mode of THEME_MODES) {
       await applyTheme(page, mode);
       await waitForAppReady(page);
       await clickNav(page, "Graph");
+      await waitForGraphPainted(page, GRAPH_COMMITS);
 
       // Click the first row of the canvas. `graphHitTest` resolves a click
       // to `Math.floor(y / ROW_HEIGHT) + offset` and treats a hit anywhere
@@ -105,6 +112,7 @@ for (const mode of THEME_MODES) {
 
       await expect(page).toHaveScreenshot(`${mode}-selected.png`, {
         animations: "disabled",
+        maxDiffPixels: GRAPH_CANVAS_PIXEL_BUDGET,
       });
     });
   });

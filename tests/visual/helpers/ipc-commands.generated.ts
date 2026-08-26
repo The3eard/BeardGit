@@ -206,6 +206,7 @@ export type IpcCommandName =
   | "open_log_directory"
   | "open_project"
   | "open_repo"
+  | "plugin:event|emit"
   | "plugin:event|listen"
   | "plugin:window|set_title"
   | "preprocess_job_log"

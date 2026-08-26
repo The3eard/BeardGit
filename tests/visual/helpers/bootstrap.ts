@@ -249,4 +249,11 @@ export async function waitForAppReady(page: Page): Promise<void> {
   await page
     .locator(".welcome-screen .loading-text")
     .waitFor({ state: "detached", timeout: 10_000 });
+  // Fira Code and the Nerd Font symbols are webfonts. Text painted before
+  // they resolve uses a fallback and is repainted after — invisible in DOM
+  // terms, and worth thousands of pixels in a screenshot. It only lost the
+  // race under the full suite's six workers, never when a spec ran alone,
+  // which is exactly the shape that makes it look like flakiness rather
+  // than a missing wait.
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
 }

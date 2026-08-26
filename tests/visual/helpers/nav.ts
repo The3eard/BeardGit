@@ -72,4 +72,16 @@ export async function clickNav(page: Page, label: string): Promise<void> {
   await expect(
     page.getByText(/Failed to load|Cannot read properties of|is not a function/),
   ).toHaveCount(0);
+
+  // 5. Park the pointer. `click()` leaves it on the item, the nav list
+  //    scrolls the active entry into view under it, and the row that ends
+  //    up beneath the cursor renders `:hover` — a different row from the
+  //    one that was clicked, and only sometimes repainted before the
+  //    screenshot. That is a 5,400px difference in a 27px strip of the
+  //    sidebar, run to run, in whichever tests happen to lose the race.
+  //
+  //    It never failed anything because `maxDiffPixelRatio: 0.01` allows
+  //    12,960px. The five clean `--retries=0` runs I reported earlier were
+  //    clean because of that budget, not because the renders agreed.
+  await page.mouse.move(0, 0);
 }
