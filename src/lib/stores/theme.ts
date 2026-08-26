@@ -155,6 +155,18 @@ export function applyTheme(theme: ThemeData): void {
   el.setProperty("--syntax-number", ed?.syntax_number ?? d.accent_orange);
   el.setProperty("--syntax-operator", ed?.syntax_operator ?? d.accent_red);
   el.setProperty("--syntax-property", ed?.syntax_property ?? d.accent_blue);
+  // These two are the only editor tokens with no derived fallback, so they
+  // stay behind a value guard. The guard was never the bug: `ed.added_bg`
+  // was permanently `undefined` because the Rust side serialized the field
+  // as `added-bg` (a `#[serde(rename)]`, now an `alias`), so nothing ever
+  // wrote these properties and light themes kept the DARK defaults from
+  // app.css. With snake_case keys these are always truthy hex strings.
+  //
+  // Keep the guard rather than assigning unconditionally: `setProperty`
+  // with `undefined` stores the literal string "undefined", which makes
+  // `var(--diff-added-bg)` invalid at computed-value time and paints the
+  // row transparent. Skipping the write degrades to the previous value
+  // instead, which is the better failure mode for a malformed payload.
   if (ed?.added_bg) el.setProperty("--diff-added-bg", ed.added_bg);
   if (ed?.removed_bg) el.setProperty("--diff-removed-bg", ed.removed_bg);
   el.setProperty("--diff-added-text", ed?.added_text ?? d.accent_green);
