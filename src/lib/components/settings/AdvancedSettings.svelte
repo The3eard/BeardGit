@@ -8,7 +8,9 @@
       `UpdateSettings.svelte`. Check-for-updates + install + auto-
       check toggle, all wired to the existing `autoUpdate` store.
    2. **Diagnostics** — "Open log directory" button that shells out
-      to the host file manager via `open_log_directory` IPC.
+      to the host file manager via `open_log_directory` IPC, plus the
+      log-level selector (`get_log_level` / `set_log_level`), which
+      takes effect live with no restart.
    3. **Cache management** — "Clear graph layout cache" button that
       wipes `<config_dir>/beardgit/layouts/` via the new
       `clear_layout_cache` IPC.
@@ -45,6 +47,14 @@
       anchor: "log-directory",
     },
     {
+      id: "advanced.log-level",
+      label: "Log level",
+      description:
+        "How much detail BeardGit writes to its log file — error, info, or debug. Applies immediately, no restart. Logging verbosity for diagnostics and bug reports.",
+      category: "advanced",
+      anchor: "log-level",
+    },
+    {
       id: "advanced.clear-cache",
       label: "Clear graph layout cache",
       description:
@@ -73,6 +83,10 @@
     setAutoCheckUpdates,
     openLogDirectory,
     clearLayoutCache,
+    getLogLevel,
+    setLogLevel,
+    LOG_LEVELS,
+    type LogLevel,
   } from "$lib/api/tauri";
   import { addToast } from "$lib/stores/toast";
   import { Card, SettingSection, FormRow, Button, Switch } from "$lib/components/ui";
@@ -96,6 +110,13 @@
   let installing = $state(false);
   let clearingCache = $state(false);
   let openingLogs = $state(false);
+  let logLevel = $state<LogLevel>("info");
+  let savingLogLevel = $state(false);
+  /* The selector starts on the default, which is indistinguishable from a
+     loaded value. Gate it until hydration resolves so the user can't act
+     on a stale reading — and so `onMount` can't overwrite a choice made
+     inside that window. */
+  let logLevelReady = $state(false);
 
   /* Drives the unsigned-build notice in the "available" helper line.
      This is the only place a Settings-initiated install can surface it:
@@ -128,16 +149,55 @@
     return rawErrorMessage;
   });
 
-  onMount(async () => {
-    // Not awaited: a cold plugin-os chunk fetch must not delay hydrating
-    // the auto-check toggle below.
+  onMount(() => {
+    // Three independent loads, deliberately not chained. The log-level
+    // selector is gated on its own fetch resolving, so serializing it
+    // behind either of the others would mean an unrelated hang leaves the
+    // select disabled for good.
     void detectOs().then((v) => (os = v));
-    try {
-      autoCheck = await getAutoCheckUpdates();
-    } catch {
+
+    void getAutoCheckUpdates()
+      .then((v) => (autoCheck = v))
       // IPC unavailable (tests / dev) — keep the default.
-    }
+      .catch(() => {});
+
+    void getLogLevel()
+      .then((persisted) => {
+        if ((LOG_LEVELS as readonly string[]).includes(persisted)) {
+          logLevel = persisted as LogLevel;
+        }
+      })
+      // IPC unavailable (tests / dev) — keep the default.
+      .catch(() => {})
+      // Lift the gate either way: a failed read must not lock the selector.
+      .finally(() => (logLevelReady = true));
   });
+
+  /** Localized label for a level, so the option text isn't a raw enum. */
+  function logLevelLabel(level: LogLevel): string {
+    if (level === "error") return m.settings_advanced_log_level_error();
+    if (level === "debug") return m.settings_advanced_log_level_debug();
+    return m.settings_advanced_log_level_info();
+  }
+
+  async function handleLogLevelChange(event: Event) {
+    const next = (event.target as HTMLSelectElement).value as LogLevel;
+    const previous = logLevel;
+    logLevel = next;
+    savingLogLevel = true;
+    try {
+      await setLogLevel(next);
+    } catch (e) {
+      // Revert so the selector never claims a level the backend rejected.
+      logLevel = previous;
+      addToast({
+        message: `${m.settings_advanced_log_level_failed()}: ${e}`,
+        type: "error",
+      });
+    } finally {
+      savingLogLevel = false;
+    }
+  }
 
   async function handleCheck() {
     checking = true;
@@ -321,6 +381,27 @@
       </FormRow>
     </div>
 
+    <div data-setting-anchor="log-level">
+      <FormRow
+        label={m.settings_advanced_log_level_label()}
+        for="log-level-select"
+        helperText={m.settings_advanced_log_level_hint()}
+      >
+        <select
+          id="log-level-select"
+          class="bg-select"
+          data-testid="log-level-select"
+          value={logLevel}
+          disabled={savingLogLevel || !logLevelReady}
+          onchange={handleLogLevelChange}
+        >
+          {#each LOG_LEVELS as level (level)}
+            <option value={level}>{logLevelLabel(level)}</option>
+          {/each}
+        </select>
+      </FormRow>
+    </div>
+
     <div data-setting-anchor="clear-cache">
       <FormRow
         label={m.settings_advanced_clear_cache_label()}
@@ -368,6 +449,24 @@
     font-family: var(--font-mono);
     color: var(--accent-red);
     word-break: break-word;
+  }
+
+  /* Matches the select styling used by Editor + General settings. */
+  .bg-select {
+    padding: 5px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    outline: none;
+    cursor: pointer;
+    min-width: 96px;
+    font-family: inherit;
+  }
+
+  .bg-select:focus {
+    border-color: var(--accent-primary);
   }
 
   .diag-line.diag-endpoint {

@@ -213,7 +213,9 @@ pub async fn remove_remote(
 /// Returns `Ok(())` on presence (no task spawned) or after the fetch
 /// completes; returns `Err` with a human-readable message otherwise.
 #[tauri::command]
-#[instrument(skip(state, task_manager), name = "cmd::remote::ensure_commit_local")]
+// `remote_url` can embed credentials (`https://<token>@host`), so it is
+// skipped rather than relying on the writer's redaction patterns.
+#[instrument(skip_all, fields(sha = %sha), name = "cmd::remote::ensure_commit_local")]
 pub async fn ensure_commit_local(
     sha: String,
     remote_url: Option<String>,

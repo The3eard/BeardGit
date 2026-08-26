@@ -22,13 +22,43 @@ pub struct IpcError {
     pub message: String,
 }
 
+/// Cap on the error detail written to the log.
+///
+/// The detail is usually our own prose, but for `cli_error` / `signing_failed`
+/// it is raw stderr from git — or from a user's git hook, which can print
+/// anything, including a diff. Capping bounds that exposure while keeping
+/// enough of the message to identify the failure.
+const LOG_DETAIL_MAX: usize = 300;
+
+fn truncate_detail(detail: &str) -> String {
+    match detail.char_indices().nth(LOG_DETAIL_MAX) {
+        Some((idx, _)) => format!("{}… (truncated)", &detail[..idx]),
+        None => detail.to_string(),
+    }
+}
+
 impl IpcError {
     /// Construct an [`IpcError`] from a static code and any string-like message.
+    ///
+    /// Every construction path funnels through here — including the `From`
+    /// impls below — so this is also the single place that logs IPC
+    /// failures.
+    ///
+    /// **Coverage is partial by design.** Only the command modules already
+    /// migrated off `Result<_, String>` build an `IpcError`, so this logs
+    /// 27 of the ~310 commands. The rest gain it for free as the migration
+    /// proceeds (phase 7 of the bugfix roadmap) — that synergy is why the
+    /// hook lives here rather than in each command body.
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
+        let message = message.into();
+        // `detail`, not `message`: tracing reserves `message` for the
+        // event's own text, so a field by that name renders unlabelled.
+        tracing::error!(
             code,
-            message: message.into(),
-        }
+            detail = %truncate_detail(&message),
+            "ipc command failed"
+        );
+        Self { code, message }
     }
 }
 
@@ -45,10 +75,7 @@ impl std::error::Error for IpcError {}
 /// `"error"` code so the function compiles without rewriting every arm.
 impl From<String> for IpcError {
     fn from(message: String) -> Self {
-        Self {
-            code: "error",
-            message,
-        }
+        Self::new("error", message)
     }
 }
 
@@ -77,10 +104,7 @@ impl From<git_engine::GitError> for IpcError {
             G::NotFullyMerged(_) => "not_fully_merged",
             G::BranchAlreadyExists(_) => "branch_exists",
         };
-        Self {
-            code,
-            message: err.to_string(),
-        }
+        Self::new(code, err.to_string())
     }
 }
 

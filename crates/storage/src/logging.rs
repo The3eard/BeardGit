@@ -11,11 +11,210 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use regex::Regex;
-use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::fmt::format::{DefaultFields, FmtSpan, Format, Full};
+use tracing_subscriber::fmt::writer::BoxMakeWriter;
+use tracing_subscriber::registry::Registry;
+use tracing_subscriber::{
+    EnvFilter, Layer, fmt, layer::SubscriberExt, reload, util::SubscriberInitExt,
+};
 
 /// Maximum number of rotated log files retained on disk. Older days are
 /// dropped automatically by `tracing_appender`.
 const MAX_LOG_FILES: usize = 14;
+
+/// The log levels the Settings selector offers, coarsest first.
+///
+/// Deliberately three, not the full `tracing` ladder: `error` for "only
+/// tell me when something broke", `info` for the default narrative
+/// (project open/close, mutations, network tasks), and `debug` for the
+/// per-command detail a bug report needs.
+pub const LOG_LEVELS: &[&str] = &["error", "info", "debug"];
+
+/// Workspace crates promoted to `debug` when the user selects `debug`.
+///
+/// An allowlist rather than a bare `debug` directive: a global `debug`
+/// drags in `hyper`, `tao`, `wry`, and `notify`, which bury our own
+/// events under transport and event-loop chatter.
+const WORKSPACE_TARGETS: &[&str] = &[
+    "beardgit",
+    "beardgit_lib",
+    "app_core",
+    "git_engine",
+    "graph_builder",
+    "forge_provider",
+    "cli_provider",
+    "provider",
+    "github_api",
+    "gitlab_api",
+    "ai_provider",
+    "ai_provider_common",
+    "ai_runner",
+    "claude_code",
+    "codex",
+    "opencode",
+    "auth",
+    "storage",
+    "task_runner",
+    "terminal",
+    "watcher",
+    "mutation_events",
+    "requests_runner",
+    "requests_store",
+];
+
+/// The concrete file layer type, needed to name the reload handle.
+///
+/// The writer is boxed rather than generic so this stays a single nameable
+/// type — that is what lets the reload handle live in a `static`, and what
+/// lets tests install an in-memory writer through the same code path.
+type FileFmtLayer = fmt::Layer<Registry, DefaultFields, Format<Full>, BoxMakeWriter>;
+
+/// Rebuilds a writer on demand so [`set_level`] can construct a fresh fmt
+/// layer against the same sink. `BoxMakeWriter` is not `Clone`, so we keep
+/// the factory rather than the writer.
+type WriterFactory = Box<dyn Fn() -> BoxMakeWriter + Send + Sync>;
+
+static WRITER_FACTORY: OnceLock<WriterFactory> = OnceLock::new();
+
+/// Swaps the fmt layer, which is what changes span-event rendering.
+static FMT_HANDLE: OnceLock<reload::Handle<FileFmtLayer, Registry>> = OnceLock::new();
+
+/// Swaps the level filter.
+///
+/// **Two handles, not one, and this is load-bearing.** The obvious design
+/// — wrapping the whole `Filtered<fmt, EnvFilter>` in one `reload::Layer`
+/// — is broken: `Filtered::new` starts with `FilterId::disabled()` and
+/// only receives its real id from `Layer::on_layer`, which runs once at
+/// subscriber construction. `Handle::reload` swaps the value without
+/// re-running it, so the replacement keeps the disabled id and the next
+/// event trips a `debug_assert!` ("a `Filtered` layer was used, but it had
+/// no `FilterId`"). Reloading the fmt layer and the filter *separately*
+/// means the `Filtered` wrapper itself is built exactly once and keeps its
+/// id for the life of the process.
+static FILTER_HANDLE: OnceLock<reload::Handle<EnvFilter, Registry>> = OnceLock::new();
+
+/// Canonicalize a user-supplied level string, or `None` if unrecognized.
+///
+/// Callers treat `None` as "reject" rather than "fall back", so a typo in
+/// `settings.json` surfaces instead of silently logging at the wrong
+/// verbosity.
+pub fn normalize_level(level: &str) -> Option<&'static str> {
+    match level.trim().to_ascii_lowercase().as_str() {
+        "error" => Some("error"),
+        "info" => Some("info"),
+        "debug" => Some("debug"),
+        _ => None,
+    }
+}
+
+/// Build the `EnvFilter` directive string for a normalized level.
+fn directives_for(level: &str) -> String {
+    match level {
+        "error" => "error".to_string(),
+        "debug" => {
+            let mut s = String::from("info");
+            for target in WORKSPACE_TARGETS {
+                s.push(',');
+                s.push_str(target);
+                s.push_str("=debug");
+            }
+            s
+        }
+        _ => "info".to_string(),
+    }
+}
+
+/// Build a fresh fmt layer for `level`.
+///
+/// Span close events are enabled only at `debug`: the ~165
+/// `#[instrument]` attributes across the workspace default to INFO
+/// spans, so emitting their close events at `info` would put a timing
+/// line under every single IPC command.
+fn build_fmt_layer(level: &str, writer: BoxMakeWriter) -> FileFmtLayer {
+    let span_events = if level == "debug" {
+        FmtSpan::CLOSE
+    } else {
+        FmtSpan::NONE
+    };
+    fmt::layer()
+        .with_writer(writer)
+        .with_ansi(false)
+        .with_target(true)
+        .with_thread_ids(true)
+        .with_span_events(span_events)
+}
+
+/// Install the reloadable subscriber. Shared by [`init_logging`] and the
+/// test entry point so both exercise the same wiring.
+fn install(level: &str, filter: EnvFilter, factory: WriterFactory) -> Result<(), String> {
+    let _ = WRITER_FACTORY.set(factory);
+    let make_writer = WRITER_FACTORY.get().ok_or("writer factory unavailable")?();
+
+    let (fmt_layer, fmt_handle) = reload::Layer::new(build_fmt_layer(level, make_writer));
+    let (filter_layer, filter_handle) = reload::Layer::new(filter);
+    let _ = FMT_HANDLE.set(fmt_handle);
+    let _ = FILTER_HANDLE.set(filter_handle);
+
+    tracing_subscriber::registry()
+        .with(fmt_layer.with_filter(filter_layer))
+        .try_init()
+        .map_err(|e| e.to_string())
+}
+
+/// Change the active log level without restarting the app.
+///
+/// Swaps the filter and the fmt layer (span-event config) through their
+/// reload handles. Each swap rebuilds tracing's callsite interest cache,
+/// so callsites registered before the change start or stop emitting
+/// immediately rather than keeping their original verdict.
+///
+/// Unlike [`init_logging`], this ignores `RUST_LOG`: an explicit choice
+/// in Settings must take effect even in a dev shell that exports it.
+///
+/// # Errors
+/// Returns an error for an unrecognized level, or if called before
+/// [`init_logging`] succeeded.
+pub fn set_level(level: &str) -> Result<(), String> {
+    let level = normalize_level(level).ok_or_else(|| format!("unknown log level: {level}"))?;
+    let fmt_handle = FMT_HANDLE.get().ok_or("logging is not initialized")?;
+    let filter_handle = FILTER_HANDLE.get().ok_or("logging is not initialized")?;
+    let factory = WRITER_FACTORY.get().ok_or("logging is not initialized")?;
+
+    fmt_handle
+        .reload(build_fmt_layer(level, factory()))
+        .map_err(|e| e.to_string())?;
+    filter_handle
+        .reload(EnvFilter::new(directives_for(level)))
+        .map_err(|e| e.to_string())?;
+
+    tracing::info!(level, "log level changed");
+    Ok(())
+}
+
+/// Install the subscriber against an arbitrary writer, for tests that need
+/// to read back what was actually emitted.
+///
+/// Production goes through [`init_logging`]; this exists because the
+/// reload path cannot be verified any other way — the real file appender
+/// flushes on a background thread, and the `FilterId` bug this wiring
+/// works around only shows up with a live subscriber. The writer is
+/// wrapped in the same redaction layer production uses.
+#[doc(hidden)]
+pub fn init_with_writer<W>(level: &str, writer: W) -> Result<(), String>
+where
+    W: for<'a> fmt::MakeWriter<'a> + Clone + Send + Sync + 'static,
+{
+    let level = normalize_level(level).unwrap_or("info");
+    install(
+        level,
+        EnvFilter::new(directives_for(level)),
+        Box::new(move || {
+            BoxMakeWriter::new(RedactingMakeWriter {
+                inner: writer.clone(),
+            })
+        }),
+    )
+}
 
 /// Compiled regex catching common credential shapes that may leak into log
 /// streams (errors emitted by `git`/`gh`/`glab`, accidental debug prints, …).
@@ -41,8 +240,17 @@ fn secret_pattern() -> &'static Regex {
             // Authorization header (bearer / basic / token).
             r"authorization:\s*(?:bearer|basic|token)\s+[A-Za-z0-9._\-+/=]+",
             r"|",
-            // user:secret@host basic-auth segment in URLs.
-            r"//[^/\s:@]+:[^@\s/]+@",
+            // GitLab's own header name, used by `http.*.extraHeader`.
+            r"private-token:\s*[A-Za-z0-9._\-+/=]+",
+            r"|",
+            // Anthropic API keys — the AI provider crates surface these in
+            // config errors.
+            r"sk-ant-[A-Za-z0-9._\-]{16,}",
+            r"|",
+            // Userinfo in a URL, with or without a password half. The
+            // single-token form (`https://<token>@host`) is what `git
+            // remote set-url` produces from a PAT.
+            r"//[^/\s@]+@",
         ))
         .expect("redaction regex must compile")
     })
@@ -211,12 +419,17 @@ fn build_file_appender(
         .expect("rolling file appender builder should not fail for a valid directory")
 }
 
-/// Initialize the global tracing subscriber with file logging.
+/// Initialize the global tracing subscriber with file logging at `level`.
 ///
-/// Creates a daily-rotating log file in the platform log directory.
-/// The non-blocking writer guard is intentionally leaked so it stays alive
-/// for the entire process lifetime.
-pub fn init_logging() -> Result<(), String> {
+/// Creates a daily-rotating log file in the platform log directory and
+/// installs a reloadable file layer so [`set_level`] can change verbosity
+/// later without a restart. The non-blocking writer guard is intentionally
+/// leaked so it stays alive for the entire process lifetime.
+///
+/// `RUST_LOG`, when set, seeds the startup filter and wins over `level` —
+/// the dev escape hatch for targeting one noisy crate. It does not affect
+/// span events, and [`set_level`] ignores it entirely.
+pub fn init_logging(level: &str) -> Result<(), String> {
     let log_dir = log_directory();
     std::fs::create_dir_all(&log_dir).map_err(|e| format!("failed to create log dir: {e}"))?;
 
@@ -227,26 +440,26 @@ pub fn init_logging() -> Result<(), String> {
     // We leak it intentionally — it is a singleton that lives until process exit.
     std::mem::forget(guard);
 
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info,git_engine=debug,app_core=debug"));
+    let level = normalize_level(level).unwrap_or("info");
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(directives_for(level)));
 
-    let file_layer = fmt::layer()
-        .with_writer(RedactingMakeWriter {
-            inner: non_blocking,
-        })
-        .with_ansi(false)
-        .with_target(true)
-        .with_thread_ids(true);
-
-    tracing_subscriber::registry()
-        .with(env_filter)
-        .with(file_layer)
-        .init();
+    install(
+        level,
+        env_filter,
+        Box::new(move || {
+            BoxMakeWriter::new(RedactingMakeWriter {
+                inner: non_blocking.clone(),
+            })
+        }),
+    )?;
 
     tracing::info!(
         version = env!("CARGO_PKG_VERSION"),
         os = std::env::consts::OS,
         arch = std::env::consts::ARCH,
+        level,
+        log_dir = %log_dir.display(),
         "BeardGit logging initialized"
     );
 
@@ -282,6 +495,109 @@ mod tests {
 
     // Test fixtures use the literal `EXAMPLE_FAKE` infix so secret-scanning
     // tools (GitHub, TruffleHog, …) don't pattern-match them as live tokens.
+
+    #[test]
+    fn normalize_level_accepts_the_three_offered_levels() {
+        for level in LOG_LEVELS {
+            assert_eq!(normalize_level(level), Some(*level));
+        }
+        // Case and surrounding whitespace are tolerated — the value round
+        // trips through settings.json where hand-edits happen.
+        assert_eq!(normalize_level(" DEBUG "), Some("debug"));
+    }
+
+    #[test]
+    fn normalize_level_rejects_unknown_levels() {
+        // `trace` and `warn` are real tracing levels but not offered by the
+        // UI; rejecting them keeps settings.json and the selector in sync.
+        for bad in ["", "trace", "warn", "verbose", "off"] {
+            assert_eq!(
+                normalize_level(bad),
+                None,
+                "expected {bad:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn directives_for_error_silences_everything_below_error() {
+        assert_eq!(directives_for("error"), "error");
+    }
+
+    #[test]
+    fn directives_for_info_is_a_bare_info_filter() {
+        // No per-crate promotions: `info` must be the plain narrative level,
+        // otherwise "debug" has nothing left to add.
+        assert_eq!(directives_for("info"), "info");
+    }
+
+    #[test]
+    fn directives_for_debug_promotes_only_workspace_crates() {
+        let directives = directives_for("debug");
+        assert!(
+            directives.starts_with("info,"),
+            "third-party crates must stay at info, got {directives:?}"
+        );
+        // Hardcoded, not derived from WORKSPACE_TARGETS: asserting the
+        // constant contains its own entries passes for any content. These
+        // are the crates that actually emit events today, so dropping one
+        // silently makes `debug` useless for the area it covers.
+        for target in [
+            "app_core",
+            "git_engine",
+            "storage",
+            "watcher",
+            "mutation_events",
+            "task_runner",
+        ] {
+            assert!(
+                directives.contains(&format!("{target}=debug")),
+                "{target} missing from {directives:?}"
+            );
+        }
+        // A bare global `debug` would drown our events in transport noise.
+        assert!(!directives.split(',').any(|d| d == "debug"));
+    }
+
+    #[test]
+    fn each_level_parses_and_raises_the_ceiling_it_claims() {
+        use tracing::level_filters::LevelFilter;
+
+        // Narrow on purpose: `EnvFilter` has no idea which crates exist, so
+        // this would pass with a bogus allowlist. What it proves is that
+        // each level's directive string parses and widens the ceiling as
+        // advertised — an empty or malformed one would leave `debug` at
+        // INFO. Whether the allowlist names *real* targets is covered by
+        // `tests/log_level_reload.rs`, against a live subscriber.
+        for (level, expected) in [
+            ("error", LevelFilter::ERROR),
+            ("info", LevelFilter::INFO),
+            ("debug", LevelFilter::DEBUG),
+        ] {
+            let filter = EnvFilter::new(directives_for(level));
+            assert_eq!(
+                Layer::<Registry>::max_level_hint(&filter),
+                Some(expected),
+                "level {level:?} produced the wrong ceiling"
+            );
+        }
+    }
+
+    #[test]
+    fn set_level_rejects_unknown_level_before_touching_the_subscriber() {
+        // Validation happens before the handle lookup, so this is the error
+        // even in a process where logging was never initialized.
+        let err = set_level("shout").unwrap_err();
+        assert!(err.contains("unknown log level"), "got {err:?}");
+    }
+
+    #[test]
+    fn set_level_errors_when_logging_was_never_initialized() {
+        // These unit tests never call `init_logging` (it installs a global
+        // subscriber), so the handle is unset and a valid level still fails.
+        let err = set_level("debug").unwrap_err();
+        assert!(err.contains("not initialized"), "got {err:?}");
+    }
 
     #[test]
     fn redact_strips_github_classic_pat() {
@@ -327,6 +643,38 @@ mod tests {
         let r = redact_secrets(s);
         assert!(r.contains("<redacted>"), "got {r}");
         assert!(!r.contains("EXAMPLE_FAKE_BEARER_VALUE"));
+    }
+
+    #[test]
+    fn redact_strips_single_token_userinfo_in_url() {
+        // `git remote set-url` with a PAT produces this shape — no colon,
+        // so the password-style pattern alone missed it.
+        let s = "remote=https://ghp_EXAMPLE_FAKE_PAT_VALUE_1234567890@github.com/foo/bar.git";
+        let r = redact_secrets(s);
+        assert!(!r.contains("ghp_"), "got {r}");
+    }
+
+    #[test]
+    fn redact_strips_private_token_header() {
+        let s = "http.extraHeader=PRIVATE-TOKEN: EXAMPLE_FAKE_GITLAB_HEADER_VALUE";
+        let r = redact_secrets(s);
+        assert!(!r.contains("EXAMPLE_FAKE_GITLAB_HEADER_VALUE"), "got {r}");
+    }
+
+    #[test]
+    fn redact_strips_anthropic_api_key() {
+        let s = "provider error: key sk-ant-EXAMPLE_FAKE_ANTHROPIC_VALUE_123 rejected";
+        let r = redact_secrets(s);
+        assert!(!r.contains("sk-ant-EXAMPLE"), "got {r}");
+    }
+
+    #[test]
+    fn redact_leaves_credential_free_urls_alone() {
+        // The userinfo pattern must not eat ordinary remote URLs, which are
+        // allowed in the log and are often the useful part of the line.
+        let s = "remote=https://github.com/foo/bar.git";
+        let r = redact_secrets(s);
+        assert_eq!(r.as_ref(), s);
     }
 
     #[test]

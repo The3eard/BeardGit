@@ -65,7 +65,9 @@ pub async fn search_tags(
 /// scope so that on success a `project-mutated` event with
 /// [`MutationKind::TagCreate`] is emitted.
 #[tauri::command]
-#[instrument(skip(state, app), name = "cmd::tag::create")]
+// `skip_all` keeps the annotation `message` out; name and target are
+// refs, which are safe and are the useful part.
+#[instrument(skip_all, fields(tag = %name, target = %target), name = "cmd::tag::create")]
 pub async fn create_tag(
     name: String,
     target: String,

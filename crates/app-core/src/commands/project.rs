@@ -79,6 +79,7 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
 
     // Check if already open
     if let Some(existing) = projects.iter().find(|p| p.path == path) {
+        tracing::debug!(path = %path, "open_project: tab already open, reusing");
         return Ok(ProjectInfo {
             path: existing.path.clone(),
             name: existing.name.clone(),
@@ -116,9 +117,18 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
     };
 
     projects.push(slot);
+    let tab_count = projects.len();
     // Release the `projects` lock before taking `config` — AppState's
     // one-mutex-at-a-time invariant (see CLAUDE.md) forbids holding two.
     drop(projects);
+
+    tracing::info!(
+        path = %path,
+        tab_count,
+        change_count,
+        is_worktree,
+        "project opened"
+    );
 
     // Persist to config
     {
@@ -269,6 +279,12 @@ pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), Str
         let closed_path = projects[index].path.clone();
         let prior_len = projects.len();
         projects.remove(index);
+        tracing::info!(
+            path = %closed_path,
+            index,
+            tab_count = projects.len(),
+            "project closed"
+        );
         (closed_path, prior_len)
     };
 
@@ -361,6 +377,8 @@ pub async fn switch_project(
             tracing::warn!(?err, path = %path, "repo watcher failed to start — real-time refresh disabled for this repo");
         })
         .ok();
+    // Captured before `new_watcher` is moved into the slot below.
+    let watcher_started = new_watcher.is_some();
 
     let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
 
@@ -398,6 +416,16 @@ pub async fn switch_project(
         let mut active = state.active_index.lock().map_err(|e| e.to_string())?;
         *active = Some(index);
     }
+
+    // Heavy state (`repo`, `layout`, `watcher`) is only ever loaded for the
+    // active tab, so this line marks exactly where that moved.
+    tracing::info!(
+        index,
+        path = %path,
+        change_count,
+        watcher_started = watcher_started,
+        "active project switched"
+    );
     state.store_layout_ref_snapshot(&path, ref_snap);
 
     // 6. Persist active index

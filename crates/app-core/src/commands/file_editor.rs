@@ -137,8 +137,21 @@ pub fn list_workdir_tree(
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::WorkdirTreeEntry>, String> {
     with_active_repo(&state, |repo| {
-        repo.list_workdir_tree(prefix.as_deref(), max_entries as usize, respect_gitignore)
-            .map_err(|e| e.to_string())
+        let entries = repo
+            .list_workdir_tree(prefix.as_deref(), max_entries as usize, respect_gitignore)
+            .map_err(|e| e.to_string())?;
+        // `entries == max_entries` means the walk hit the cap and the tree
+        // the user sees is an arbitrary subset — the shape behind "my folder
+        // isn't listed". Log the counts, never the entry paths.
+        tracing::debug!(
+            prefix = prefix.as_deref().unwrap_or(""),
+            max_entries,
+            respect_gitignore,
+            returned = entries.len(),
+            capped = entries.len() >= max_entries as usize,
+            "workdir tree listed"
+        );
+        Ok(entries)
     })
 }
 

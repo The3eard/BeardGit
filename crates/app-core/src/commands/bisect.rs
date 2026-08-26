@@ -98,7 +98,9 @@ pub async fn bisect_get_log(state: State<'_, AppState>) -> Result<String, String
 /// cancellable [`TaskManager`] task that streams its line-oriented output
 /// through the task lifecycle events instead of blocking the runtime.
 #[tauri::command]
-#[instrument(skip(state, task_manager), name = "cmd::bisect::run_auto")]
+// `skip_all`: `test_command` is a user-typed shell line that can carry
+// inline env secrets (`TOKEN=… npm test`).
+#[instrument(skip_all, name = "cmd::bisect::run_auto")]
 pub async fn bisect_run_auto(
     test_command: String,
     state: State<'_, AppState>,

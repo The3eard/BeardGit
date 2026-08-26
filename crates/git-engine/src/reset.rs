@@ -61,7 +61,7 @@ impl Repository {
     /// Returns [`GitError::SigningFailed`] when signing is enabled and the
     /// amend fails (so the UI can show the signing stderr), otherwise
     /// [`GitError::CliError`] (nothing to amend, detached HEAD, etc.).
-    #[instrument(skip(self))]
+    #[instrument(skip_all, fields(repo = %self.path().display()))]
     pub fn amend_commit(&self, message: &str) -> Result<(), GitError> {
         self.amend_commit_cli(message)
     }

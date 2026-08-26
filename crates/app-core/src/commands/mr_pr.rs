@@ -71,7 +71,13 @@ pub async fn get_mr_pr_diff(
 /// remote, so downstream consumers refresh as if a push happened.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip(state, body, app), name = "cmd::mr_pr::create")]
+// `skip_all`: `title` is the user's prose, and `labels`/`reviewers` name
+// people and process. Branch names are the useful diagnostic.
+#[instrument(
+    skip_all,
+    fields(source = %source, target = %target, draft),
+    name = "cmd::mr_pr::create"
+)]
 pub async fn create_mr_pr(
     source: String,
     target: String,
@@ -101,7 +107,7 @@ pub async fn create_mr_pr(
 
 /// Edit a MR/PR's title and/or description.
 #[tauri::command]
-#[instrument(skip(state, body), name = "cmd::mr_pr::edit")]
+#[instrument(skip_all, fields(number), name = "cmd::mr_pr::edit")]
 pub async fn edit_mr_pr(
     number: u64,
     title: Option<String>,

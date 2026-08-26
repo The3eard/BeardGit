@@ -28,10 +28,22 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .manage(app_core::state::AppState::new())
         .setup(|app| {
-            // Initialize structured file logging (best-effort — don't crash if it fails)
-            storage::logging::init_logging().ok();
-
             use tauri::Manager as _;
+
+            // Initialize structured file logging (best-effort — don't crash
+            // if it fails). Seeded with the persisted level so a user who
+            // selected `debug` still gets debug output for startup itself,
+            // not just for whatever happens after Settings is opened.
+            {
+                let state: tauri::State<'_, app_core::state::AppState> = app.state();
+                let level = state
+                    .config
+                    .lock()
+                    .map(|c| c.log_level.clone())
+                    .unwrap_or_else(|_| "info".to_string());
+                storage::logging::init_logging(&level).ok();
+            }
+
             let sink = std::sync::Arc::new(app_core::event_sink::TauriEventSink::new(
                 app.handle().clone(),
             ));
@@ -428,6 +440,8 @@ pub fn run() {
             app_core::commands::get_debug_info,
             app_core::commands::get_log_path,
             app_core::commands::open_log_directory,
+            app_core::commands::get_log_level,
+            app_core::commands::set_log_level,
             // Requests panel — added in feat/requests-panel
             app_core::commands::requests_list_project,
             app_core::commands::requests_list_global,
