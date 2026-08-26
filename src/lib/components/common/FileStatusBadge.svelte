@@ -71,7 +71,22 @@
   .is-conflicted {
     --st: var(--accent-red);
   }
+  /* The only kind whose colour is an audited text token, and so the only
+     one that cannot afford the tinted fill. `background` is 18 % of `--st`
+     over whatever is behind it, which lightens the surface under the
+     letter in dark mode and darkens it in light — either way it eats
+     contrast. Measured across all 31 themes, `--text-muted` on its own
+     18 % tint bottoms out at 4.04:1 on the page and 3.37:1 on a panel,
+     under the 4.5:1 the theme audit enforces. `--text-secondary` fares no
+     better (4.65 / 3.82), so this is not fixable by picking a brighter
+     token: nothing dimmer than `--text-primary` survives being drawn on a
+     tint of itself. Unfilled, the letter sits on the plain surface, which
+     is exactly the pair `audit_surfaces` measures.
+
+     The seven other kinds keep the fill: accents carry no contrast floor
+     and are far louder than the surface to begin with. */
   .is-unknown {
     --st: var(--text-muted);
+    background: none;
   }
 </style>

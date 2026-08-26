@@ -143,11 +143,18 @@ Raising `bright-black` itself would also change your terminal's ANSI palette,
 so pin the UI text tokens here instead:
 
 - `text-primary`, `text-secondary`, `text-muted` — the three text rungs
-- `border` — panel and control borders (accepts `#RRGGBBAA`)
+- `border` — panel separators (accepts `#RRGGBBAA`)
+- `border-strong` — outlines around inputs, selects and buttons
 
-Aim for at least 4.5:1 against `background` for `text-primary` and
-`text-secondary`, and 3:1 for `text-muted`. Every bundled theme is checked
-against those floors; yours is only reported.
+All three text rungs want at least 4.5:1 (WCAG AA for normal text), and
+`border-strong` 3:1. Not against `background` alone: the check measures
+each token against every surface it is drawn on, which for text means the
+page and the panels, and for the borders the toolbar as well — a colour
+solved for the page alone can be a full point dimmer up there. `border`
+takes a lower 2:1, being a divider rather than something you have to read.
+
+Every bundled theme is checked against those floors; yours is only
+reported.
 
 ### Graph fields
 - `lane-colors` — array of hex colors for commit graph lanes (min 2)
@@ -296,7 +303,8 @@ pub struct DerivedColors {
     /// A third, dimmer text step for de-emphasised metadata (timestamps,
     /// paths, counts). Sits between `text_secondary` and the surface so
     /// the type hierarchy has three rungs instead of two. Derived per
-    /// mode and kept above the large-text contrast floor.
+    /// mode and held at WCAG AA for normal text — it renders at 10px, so
+    /// the large-text allowance it used to claim never applied.
     pub text_muted: String,
     pub accent_blue: String,
     pub accent_green: String,
@@ -616,9 +624,23 @@ pub fn contrast_floor(token: &str) -> Option<f64> {
 /// (`text_primary` at 7.5:1 on the toolbar is 11.6:1 on the page). So the
 /// set follows the callsites.
 ///
-/// **This is a claim about CSS that Rust cannot verify.** Putting
-/// `--text-muted` on a `--bg-toolbar` surface would land it at ~3.7:1 with
-/// nothing failing here. Add `bg_toolbar` to its set if that changes.
+/// **These are claims about CSS that Rust cannot verify**, and they have
+/// two failure modes, only one of which is obvious:
+///
+/// - A token gets used on a surface that is not in its set. Putting
+///   `--text-muted` on a `--bg-toolbar` surface would land it at ~3.7:1
+///   with nothing failing here. Add `bg_toolbar` to its set if that
+///   happens.
+/// - A component *invents* a surface out of the token itself. That is not
+///   hypothetical: `FileStatusBadge` paints
+///   `background: color-mix(var(--st) 18%, transparent)` under a letter
+///   coloured by the same `--st`, and its `.is-unknown` kind took
+///   `--text-muted` — 4.04:1 on the page and 3.37:1 on a panel, both
+///   under the floor this function reports as met. No token dimmer than
+///   `text_primary` survives being drawn on a tint of itself
+///   (`text_secondary` bottoms out at 3.82), so the rule is that audited
+///   text tokens do not get self-tinted fills, guarded by
+///   `FileStatusBadge.test.ts`.
 fn audit_surfaces<'a>(token: &str, d: &'a DerivedColors) -> Vec<&'a String> {
     match token {
         "text_muted" => vec![&d.bg_primary, &d.bg_secondary],
@@ -848,23 +870,34 @@ fn lstar(hex: &str) -> Option<f64> {
     })
 }
 
-/// Push `from` toward `toward` until it is at least `min_delta` L\* away
-/// from `below`, so the two read as distinct rungs.
+/// Push `from` toward `toward` until it is at least `min_delta` L\* *past*
+/// `below`, in the direction of `toward`, so the two read as distinct
+/// rungs of one ramp.
 ///
 /// The contrast floors alone no longer guarantee this. Once each rung is
 /// raised to clear WCAG AA on the worst surface it is drawn on, the
 /// low-contrast palettes bunch up: one-dark's secondary landed 1.8 L\*
 /// from its primary, which is at the edge of being noticeable at all.
+///
+/// Signed, not `abs()`. A rung that is already `min_delta` away on the
+/// *wrong* side is an inverted ramp, and an absolute-distance test would
+/// hand it back as if it were fine — the one input where this function is
+/// the last thing standing between a user theme and a nonsense hierarchy.
 fn separate_above(from: &str, below: &str, toward: &str, min_delta: f64) -> String {
-    let Some(anchor) = lstar(below) else {
+    let (Some(anchor), Some(target)) = (lstar(below), lstar(toward)) else {
         return from.to_string();
     };
+    // `toward` is pure white or black, so its own lightness gives the
+    // direction the ramp climbs in this mode.
+    let sign = if target >= anchor { 1.0 } else { -1.0 };
     for step in 0..=200 {
         let candidate = mix_hex(from, toward, step as f64 / 200.0);
-        if lstar(&candidate).is_some_and(|l| (l - anchor).abs() >= min_delta) {
+        if lstar(&candidate).is_some_and(|l| (l - anchor) * sign >= min_delta) {
             return candidate;
         }
     }
+    // Unreachable for a parseable palette: `toward` is an extreme, so the
+    // last step is 100 L* from anything. Fall back to the input.
     from.to_string()
 }
 
@@ -897,10 +930,15 @@ const FLOOR_TEXT_SECONDARY: f64 = 6.0;
 const FLOOR_TEXT_AA: f64 = 4.6;
 /// Minimum perceptual distance between adjacent text rungs, in L\*.
 ///
-/// Chosen from what the ramp already achieved before the AA pass existed
-/// (secondary→muted was 6.9–10.4 across the bundled themes), so the
-/// hierarchy is now guaranteed rather than emergent. Roughly 3–6× the
-/// just-noticeable difference.
+/// Set at the bottom of the range the ramp used to reach on its own
+/// (secondary→muted was 6.9–10.4 before the AA pass existed) — so the
+/// hierarchy is now *guaranteed* where it used to be emergent, but it is
+/// also, honestly, a little tighter than before: raising muted to AA
+/// pulls it up toward secondary, and 28 of the 31 bundled themes now land
+/// at a secondary→muted gap of 6.0–7.4 with nine sitting exactly on this
+/// floor. That is the trade taken deliberately — legibility on every
+/// surface over a wider ramp — and 6.0 L\* is still 3–6× the
+/// just-noticeable difference, so the three rungs remain plainly distinct.
 const MIN_TEXT_STEP_LSTAR: f64 = 6.0;
 /// A safety floor for user themes, below which a divider is simply not
 /// there — see [`contrast_floor`]. The derivation targets the toolbar and
@@ -2201,7 +2239,7 @@ lane-colors = ["#0000ff"]
     fn test_separate_above_opens_a_gap_and_leaves_a_wide_one_alone() {
         let below = "#606060";
         let touching = separate_above("#666666", below, "#ffffff", 6.0);
-        let gap = (lstar(&touching).unwrap() - lstar(below).unwrap()).abs();
+        let gap = lstar(&touching).unwrap() - lstar(below).unwrap();
         assert!(gap >= 6.0, "gap not opened: {gap}");
 
         let already_apart = "#e0e0e0";
@@ -2209,6 +2247,32 @@ lane-colors = ["#0000ff"]
             separate_above(already_apart, below, "#ffffff", 6.0),
             already_apart,
             "a rung already far enough away must be kept verbatim"
+        );
+    }
+
+    #[test]
+    fn test_separate_above_corrects_an_inverted_rung() {
+        // Far enough away, but on the wrong side: darker than the rung it
+        // is supposed to sit above. An absolute-distance check would call
+        // this separated and hand back the inversion.
+        let below = "#909090";
+        let inverted = "#404040";
+        assert!(
+            (lstar(inverted).unwrap() - lstar(below).unwrap()).abs() >= 6.0,
+            "the setup must already clear the gap in absolute terms, or this proves nothing"
+        );
+
+        let fixed = separate_above(inverted, below, "#ffffff", 6.0);
+        assert!(
+            lstar(&fixed).unwrap() - lstar(below).unwrap() >= 6.0,
+            "must end up above, not merely far: {fixed}"
+        );
+
+        // Same, mirrored, for light mode: the ramp climbs toward black.
+        let fixed_light = separate_above("#d0d0d0", below, "#000000", 6.0);
+        assert!(
+            lstar(below).unwrap() - lstar(&fixed_light).unwrap() >= 6.0,
+            "light mode must separate downward: {fixed_light}"
         );
     }
 
