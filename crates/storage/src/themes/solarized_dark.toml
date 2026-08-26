@@ -28,3 +28,12 @@ bright-white = "#fdf6e3"
 primary = "cyan"
 secondary = "yellow"
 tertiary = "magenta"
+
+# Accessibility overrides. `text_secondary` derives from `bright-black`,
+# which in this palette lands below the WCAG AA floor on the page; raising
+# `bright-black` itself would change the terminal's ANSI colours, so the UI
+# text tokens are pinned here instead. Audited by
+# `test_all_builtin_themes_meet_contrast_floors`.
+[derived]
+text-secondary = "#93a1a1"  # 5.61:1 — palette `bright-cyan` (base1)
+text-muted = "#657b83"  # 3.37:1 — palette `bright-yellow` (base00)
