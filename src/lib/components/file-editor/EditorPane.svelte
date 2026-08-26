@@ -204,7 +204,6 @@
     <CodeEditor
       content={active.bufferContent}
       filename={active.path}
-      editorTheme={$activeTheme?.editor}
       isDark={$activeTheme?.meta.mode !== "light"}
       readonly={false}
       lineWrapping={$editorPrefs?.line_wrapping ?? true}

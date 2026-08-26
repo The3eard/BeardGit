@@ -144,7 +144,7 @@
     width: 100%;
     padding: 7px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: var(--font-size-md);
@@ -160,7 +160,7 @@
   .toggle-group {
     display: flex;
     gap: 0;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     overflow: hidden;
   }

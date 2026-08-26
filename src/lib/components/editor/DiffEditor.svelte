@@ -26,7 +26,6 @@
     oldContent: string;
     newContent: string;
     filename?: string;
-    editorTheme?: ThemeEditorData | null;
     isDark?: boolean;
     extensions?: Extension[];
     onClose?: () => void;
@@ -41,7 +40,6 @@
     oldContent,
     newContent,
     filename = '',
-    editorTheme = null,
     isDark = true,
     extensions = [],
     onClose,
@@ -114,7 +112,7 @@
     const langName = getLanguageExtensionName(filename);
     const langExt = langName ? await loadLanguageExtension(langName) : null;
 
-    const theme = createCodemirrorTheme(editorTheme, isDark);
+    const theme = createCodemirrorTheme(isDark);
     const sharedExtensions: Extension[] = [
       theme,
       lineNumbers(),
@@ -160,7 +158,6 @@
     const _old = oldContent;
     const _new = newContent;
     const _file = filename;
-    const _theme = editorTheme;
     const _dark = isDark;
     const _placeholder = placeholder;
     const _commentsLayer = commentsLayer;

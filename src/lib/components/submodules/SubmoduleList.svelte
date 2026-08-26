@@ -336,7 +336,7 @@
 
   .add-input {
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     padding: 6px 10px;
     font-size: var(--font-size-sm);

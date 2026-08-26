@@ -353,7 +353,7 @@
   .detail-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
   .detail-actions button {
     background: var(--bg-secondary); color: var(--text-primary);
-    border: 1px solid var(--border); border-radius: 4px;
+    border: 1px solid var(--border-strong); border-radius: 4px;
     padding: 4px 10px; font-size: var(--font-size-xs); cursor: pointer;
   }
   .detail-actions button:hover:not(:disabled) { border-color: var(--accent-primary); color: var(--accent-primary); }

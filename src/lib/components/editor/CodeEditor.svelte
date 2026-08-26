@@ -16,7 +16,6 @@
   interface Props {
     content: string;
     filename?: string;
-    editorTheme?: ThemeEditorData | null;
     isDark?: boolean;
     readonly?: boolean;
     extensions?: Extension[];
@@ -46,7 +45,6 @@
   let {
     content,
     filename = '',
-    editorTheme = null,
     isDark = true,
     readonly = true,
     extensions = [],
@@ -69,13 +67,12 @@
    */
   let mountedFilename: string | undefined;
   let mountedRevisionId: number | undefined;
-  let mountedTheme: ThemeEditorData | null | undefined;
   let mountedIsDark: boolean | undefined;
 
   /** Assemble all extensions for the editor state. */
   function buildExtensions(langExt: Extension | null): Extension[] {
     const exts: Extension[] = [
-      createCodemirrorTheme(editorTheme, isDark),
+      createCodemirrorTheme(isDark),
       lineNumbers(),
       EditorView.updateListener.of((update: ViewUpdate) => {
         if (update.docChanged && onChange) {
@@ -125,7 +122,6 @@
     view = new EditorView({ state, parent: target });
     mountedFilename = fname;
     mountedRevisionId = untrack(() => revisionId);
-    mountedTheme = untrack(() => editorTheme);
     mountedIsDark = untrack(() => isDark);
   }
 
@@ -142,29 +138,25 @@
 
   /**
    * Re-init the view when the user-controlled keys actually change.
-   * Tracked deps: `filename`, `revisionId`, `editorTheme`, `isDark`.
-   * Everything else (extensions, content, callbacks) is read via
-   * `untrack` inside `initEditor`. The diff-against-snapshot guard
-   * skips the no-op runs — Svelte's `$effect` will fire any time the
-   * parent re-renders us with the same props, so we compare values
-   * ourselves before destroying the live view. Theme + dark-mode are
-   * in the dep set so that an OS-driven auto theme flip (or a manual
-   * theme change) actually reskins the editor; the surrounding panel
-   * passes `\$activeTheme?.editor` and `\$activeTheme?.meta.mode !==
-   * "light"`, both stable references across keystrokes.
+   * Tracked deps: `filename`, `revisionId`, `isDark`.
+   *
+   * `isDark` is here because it is baked into the CodeMirror theme
+   * extension at build time, so a light/dark flip genuinely needs a
+   * rebuild. The theme's *colours* are not: every one reaches CodeMirror
+   * as a `var(--token)`, so switching between two dark themes reskins the
+   * editor with no rebuild at all.
+   *
+   * That is why the old `editorTheme` prop is gone rather than merely
+   * unused. It was in this dep set, so any same-mode theme switch tore
+   * down and rebuilt the view — losing scroll position and selection — to
+   * produce a result CSS had already applied.
    */
   $effect(() => {
     const f = filename;
     const r = revisionId;
-    const t = editorTheme;
     const d = isDark;
     if (!view) return; // first mount handled by onMount
-    if (
-      f === mountedFilename &&
-      r === mountedRevisionId &&
-      t === mountedTheme &&
-      d === mountedIsDark
-    ) {
+    if (f === mountedFilename && r === mountedRevisionId && d === mountedIsDark) {
       return;
     }
     void untrack(() => initEditor());

@@ -352,7 +352,7 @@ glab auth status</code></pre>
     font-size: var(--font-size-sm);
     border-radius: 4px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     color: var(--text-primary);
   }
 

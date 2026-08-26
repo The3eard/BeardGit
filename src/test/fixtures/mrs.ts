@@ -142,7 +142,7 @@ export function makeMrPrDiffFile(
   return {
     path: "tests/visual/helpers/mock-ipc.ts",
     old_path: null,
-    status: "A",
+    status: "added",
     additions: 142,
     deletions: 0,
     patch: null,

@@ -31,12 +31,3 @@ bright-white = "#ffffff"
 primary = "yellow"
 secondary = "green"
 tertiary = "blue"
-
-# Accessibility overrides. `text_secondary` derives from `bright-black`,
-# which in this palette lands below the WCAG AA floor on the page; raising
-# `bright-black` itself would change the terminal's ANSI colours, so the UI
-# text tokens are pinned here instead. Audited by
-# `test_all_builtin_themes_meet_contrast_floors`.
-[derived]
-text-secondary = "#9fb1a1"  # 4.65:1 — blend
-text-muted = "#849085"  # 3.16:1 — blend

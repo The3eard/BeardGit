@@ -927,7 +927,6 @@
                 newContent={$branchFileDiff.newContent}
                 filename={$branchFileDiff.filename}
                 placeholder={$branchFileDiff.placeholder}
-                editorTheme={$activeTheme?.editor}
                 isDark={$activeTheme?.meta.mode !== 'light'}
                 onClose={() => branchFileDiff.set(null)}
               />
@@ -955,7 +954,6 @@
                 newContent={$reflogFileDiff.newContent}
                 filename={$reflogFileDiff.filename}
                 placeholder={$reflogFileDiff.placeholder}
-                editorTheme={$activeTheme?.editor}
                 isDark={$activeTheme?.meta.mode !== 'light'}
                 onClose={() => reflogFileDiff.set(null)}
               />
@@ -998,7 +996,6 @@
                   oldContent={$prFileDiff.oldContent}
                   newContent={$prFileDiff.newContent}
                   filename={$prFileDiff.filename}
-                  editorTheme={$activeTheme?.editor}
                   isDark={$activeTheme?.meta.mode !== 'light'}
                   placeholder={$prFileDiff.binary ? m.diff_binary_file() : undefined}
                   commentsLayer={commentsLayerFor($prFileDiff.filename)}
@@ -1075,7 +1072,6 @@
                   newContent={$fileDiffPanel.newContent}
                   filename={$fileDiffPanel.filename}
                   placeholder={$fileDiffPanel.placeholder}
-                  editorTheme={$activeTheme?.editor}
                   isDark={$activeTheme?.meta.mode !== 'light'}
                   onClose={closeFileDiff}
                 />
