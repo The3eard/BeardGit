@@ -6,6 +6,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
+  /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
   background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
   z-index: 999;
 }
@@ -21,6 +22,7 @@
   border-radius: 10px;
   padding: 20px 24px;
   z-index: 1000;
+  /* stylelint-disable-next-line function-disallowed-list -- drop shadow neutral */
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: drop shadow neutral */
 }
 

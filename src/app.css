@@ -24,6 +24,12 @@
   font-display: block;
 }
 
+/* Literal colour values are permitted inside this token block and only
+   here: these are the pre-theme defaults that `theme.ts::applyTheme`
+   overwrites on the first paint. Anything outside the block must go
+   through a token — a raw `rgba(255,255,255,…)` in a *rule* is how the
+   scrollbar thumb ended up invisible on every light theme. */
+/* stylelint-disable function-disallowed-list -- pre-theme token defaults */
 :root {
   /* Static defaults mirror BeardGit Dark (the app default theme) so
    * the pre-theme first paint matches what applyTheme() will set. */
@@ -134,6 +140,7 @@
   font-size: var(--font-size-md);
   color: var(--text-primary);
   background-color: var(--bg-primary);
+  /* stylelint-enable function-disallowed-list */
 }
 
 /* Nerd Font icon helper */

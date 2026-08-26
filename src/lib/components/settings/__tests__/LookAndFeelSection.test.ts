@@ -49,6 +49,8 @@ vi.mock("$lib/stores/theme", async () => {
   };
 });
 
+import type { ThemeData } from "$lib/types";
+import themeFixtures from "../../../stores/__fixtures__/themes.json";
 import LookAndFeelSection from "../LookAndFeelSection.svelte";
 import { currentLocale, changeLocale } from "$lib/stores/locale";
 
@@ -124,6 +126,20 @@ describe("LookAndFeelSection", () => {
 // must not appear for a theme that passes.
 
 describe("LookAndFeelSection — contrast notice", () => {
+  /**
+   * A complete `ThemeData` with only `meta` varied.
+   *
+   * Built from the generated fixture rather than hand-rolled, so the store
+   * gets the real serde shape — the component only reads `meta.id`, but
+   * `activeTheme` is typed `ThemeData` and a stub would need a cast.
+   */
+  function themeWith(id: string, name: string, mode = "dark"): ThemeData {
+    const base = (themeFixtures as unknown as Record<string, ThemeData>)[
+      "beardgit-light"
+    ];
+    return { ...base, meta: { id, name, mode, complementary: null } };
+  }
+
   /** Render and let the async onMount probes settle. */
   async function renderSettled() {
     const rendered = render(LookAndFeelSection);
@@ -132,12 +148,16 @@ describe("LookAndFeelSection — contrast notice", () => {
     return rendered;
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
     checkThemeContrastMock.mockReset();
     checkThemeContrastMock.mockImplementation(async (name: string) => ({
       theme_id: name,
       warnings: [],
     }));
+    // The mocked `activeTheme` is a module-level singleton, so a test that
+    // switches it would otherwise leak into the next one.
+    const { activeTheme } = await import("$lib/stores/theme");
+    activeTheme.set(themeWith("dark", "Dark"));
   });
 
   it("shows no notice for a theme that passes", async () => {
@@ -167,7 +187,11 @@ describe("LookAndFeelSection — contrast notice", () => {
     expect(notice.textContent).toContain("4.5");
   });
 
-  it("re-audits when the theme changes and clears a stale notice", async () => {
+  it("re-audits when the active theme changes, clearing a stale notice", async () => {
+    // Drives `activeTheme` rather than the <select>, because that is the
+    // real trigger: the OS dark/light auto-switch changes the theme through
+    // the `theme-changed` listener and never touches `handleThemeChange`.
+    // A one-shot read on mount left the notice describing the old theme.
     checkThemeContrastMock.mockImplementation(async (name: string) => ({
       theme_id: name,
       warnings:
@@ -184,15 +208,48 @@ describe("LookAndFeelSection — contrast notice", () => {
           : [],
     }));
 
-    const { getByTestId, queryByTestId, container } = await renderSettled();
+    const { getByTestId, queryByTestId } = await renderSettled();
     expect(getByTestId("theme-contrast-notice")).toBeTruthy();
 
-    const select = container.querySelector("#theme-select") as HTMLSelectElement;
-    await fireEvent.change(select, { target: { value: "light" } });
+    const { activeTheme } = await import("$lib/stores/theme");
+    activeTheme.set(themeWith("light", "Light", "light"));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await tick();
 
     expect(queryByTestId("theme-contrast-notice")).toBeNull();
+  });
+
+  it("surfaces a notice when the auto-switch lands on a failing theme", async () => {
+    // The inverse direction, which is the one that actually hid a problem:
+    // follow-system flips to a low-contrast theme and the panel must start
+    // warning, not stay silent because it audited once on mount.
+    checkThemeContrastMock.mockImplementation(async (name: string) => ({
+      theme_id: name,
+      warnings:
+        name === "light"
+          ? [
+              {
+                token: "text_secondary",
+                foreground: "#89888d",
+                background: "#ffffff",
+                ratio: 3.52,
+                required: 4.5,
+              },
+            ]
+          : [],
+    }));
+
+    const { getByTestId, queryByTestId } = await renderSettled();
+    expect(queryByTestId("theme-contrast-notice")).toBeNull();
+
+    const { activeTheme } = await import("$lib/stores/theme");
+    activeTheme.set(themeWith("light", "Light", "light"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await tick();
+
+    expect(getByTestId("theme-contrast-notice").textContent).toContain(
+      "text_secondary",
+    );
   });
 
   it("stays silent when the audit itself fails", async () => {

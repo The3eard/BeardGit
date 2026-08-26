@@ -55,12 +55,20 @@
   onMount(async () => {
     themes = await listThemes();
     themeAuto = await getThemeAuto();
-    const current = $activeTheme;
-    if (current) {
-      selectedThemeId = current.meta.id;
-      void refreshContrast(current.meta.id);
-    }
     uiScale = await getUiScale();
+  });
+
+  /* Tracks `activeTheme` rather than reading it once on mount. With
+     follow-system-theme on, an OS dark/light flip swaps the theme through
+     the `theme-changed` listener without going through `handleThemeChange`
+     — so a one-shot read left both the selector and the contrast notice
+     showing the previous theme. Same for `handleAutoToggle`, which can
+     switch the theme backend-side the moment it is enabled. */
+  $effect(() => {
+    const current = $activeTheme;
+    if (!current) return;
+    selectedThemeId = current.meta.id;
+    void refreshContrast(current.meta.id);
   });
 
   async function refreshContrast(themeId: string) {
@@ -86,7 +94,8 @@
       await setThemeAuto(false);
     }
     await setTheme(select.value);
-    void refreshContrast(select.value);
+    // `$effect` above picks up the resulting `activeTheme` change and
+    // re-audits; no explicit refresh needed here.
   }
 
   async function handleAutoToggle(event: Event) {
