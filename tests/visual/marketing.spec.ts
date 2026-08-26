@@ -126,7 +126,7 @@ function commonFixtures(host: "github" | "gitlab"): IpcResponses {
     // CI + detail
     list_ci_runs: ciRunList(host),
     get_ci_run_detail: ciRunDetail(host),
-    list_workflows: [],
+    list_ci_workflows: [],
 
     // Releases / tags
     list_releases: releaseList(),
@@ -141,7 +141,6 @@ function commonFixtures(host: "github" | "gitlab"): IpcResponses {
     // AI
     ai_list_conversations: aiConversationList(),
     ai_list_background_runs: [],
-    list_ai_sessions: [],
 
     // Editor
     list_workdir_tree: workdirTree(),

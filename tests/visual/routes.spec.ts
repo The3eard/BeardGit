@@ -75,18 +75,48 @@ function fixtureBundle(): IpcResponses {
 
     // Lists that should render empty-state for now
     list_tags: [],
-    list_stashes: [],
+    stash_entries: [],
     list_worktrees: [],
     get_reflog: [],
     list_submodules: [],
     list_releases: [],
-    list_workflows: [],
-    list_ai_sessions: [],
+    list_ci_workflows: [],
+    ai_list_conversations: [],
 
-    // Repo config / blame / file editor
-    get_repo_config_labels: [],
-    get_branch_protections: [],
-    get_remote_repo_config: null,
+    // Repo config / blame / file editor.
+    //
+    // `load_remote_repo_config` is the command the Repo settings view
+    // actually calls, and it has to return a real `RemoteRepoConfig`:
+    // `cloneConfig(undefined)` throws and the page renders a "Failed to
+    // load" card. It did, and that card was this view's baseline —
+    // recorded, committed, and passing, because the key was spelled
+    // `get_remote_repo_config`. Two invented siblings
+    // (`get_repo_config_labels`, `get_branch_protections`) were removed:
+    // the sections read both out of this payload.
+    load_remote_repo_config: {
+      description: "Native desktop Git client",
+      homepage: "https://beardgit.dev",
+      topics: ["git", "tauri", "svelte"],
+      visibility: "public",
+      default_branch: "main",
+      issues_enabled: true,
+      wiki_enabled: false,
+      archived: false,
+      branch_protection: {
+        require_pull_request: true,
+        required_approvals: 1,
+        require_status_checks: true,
+        status_check_contexts: ["ci/build", "ci/test"],
+        require_up_to_date: true,
+        require_conversation_resolution: false,
+        enforce_admins: false,
+      },
+      labels: [
+        { name: "bug", color: "d73a4a", description: "Something isn't working" },
+        { name: "enhancement", color: "a2eeef", description: "New feature or request" },
+        { name: "documentation", color: "0075ca", description: null },
+      ],
+    },
     list_workdir_tree: [],
   };
 }
