@@ -626,6 +626,15 @@ export interface ContrastWarning {
 export interface ThemeContrastReport {
   theme_id: string;
   warnings: ContrastWarning[];
+  /**
+   * Tokens whose colour could not be parsed, so no ratio exists.
+   *
+   * `validate_color` accepts `rgba(…)` and the themes README documents it,
+   * so a user following that advice can write an unmeasurable
+   * `text-secondary`. Surfacing these is the difference between "your
+   * theme passes" and "your theme was not checked".
+   */
+  unaudited: string[];
 }
 
 export interface ThemeMeta {

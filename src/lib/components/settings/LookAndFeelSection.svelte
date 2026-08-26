@@ -74,7 +74,13 @@
   async function refreshContrast(themeId: string) {
     try {
       const report = await checkThemeContrast(themeId);
-      contrast = report.warnings.length > 0 ? report : null;
+      // Unmeasurable tokens count as "worth telling the user about" too.
+      // Gating on `warnings` alone meant a theme whose colours could not be
+      // parsed rendered no notice at all — reported as clean precisely
+      // because it had never been checked.
+      const worthShowing =
+        report.warnings.length > 0 || report.unaudited.length > 0;
+      contrast = worthShowing ? report : null;
     } catch {
       // Advisory only — a failed audit must never block theme selection.
       contrast = null;
@@ -162,6 +168,12 @@
                 ratio: warning.ratio.toFixed(2),
                 required: warning.required.toFixed(1),
               })}
+            </li>
+          {/each}
+          {#each contrast.unaudited as token (token)}
+            <li>
+              <code>{token}</code>
+              {m.settings_theme_contrast_unmeasurable()}
             </li>
           {/each}
         </ul>

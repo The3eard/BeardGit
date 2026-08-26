@@ -22,6 +22,7 @@ vi.mock("$lib/stores/locale", async () => {
 const checkThemeContrastMock = vi.fn(async (name: string) => ({
   theme_id: name,
   warnings: [] as Array<Record<string, unknown>>,
+  unaudited: [] as string[],
 }));
 
 vi.mock("$lib/api/tauri", () => ({
@@ -133,7 +134,7 @@ describe("LookAndFeelSection — contrast notice", () => {
    * gets the real serde shape — the component only reads `meta.id`, but
    * `activeTheme` is typed `ThemeData` and a stub would need a cast.
    */
-  function themeWith(id: string, name: string, mode = "dark"): ThemeData {
+  function themeWith(id: string, name: string, mode: string): ThemeData {
     const base = (themeFixtures as unknown as Record<string, ThemeData>)[
       "beardgit-light"
     ];
@@ -153,11 +154,12 @@ describe("LookAndFeelSection — contrast notice", () => {
     checkThemeContrastMock.mockImplementation(async (name: string) => ({
       theme_id: name,
       warnings: [],
+      unaudited: [],
     }));
     // The mocked `activeTheme` is a module-level singleton, so a test that
     // switches it would otherwise leak into the next one.
     const { activeTheme } = await import("$lib/stores/theme");
-    activeTheme.set(themeWith("dark", "Dark"));
+    activeTheme.set(themeWith("dark", "Dark", "dark"));
   });
 
   it("shows no notice for a theme that passes", async () => {
@@ -168,6 +170,7 @@ describe("LookAndFeelSection — contrast notice", () => {
   it("lists each failing token with its ratio", async () => {
     checkThemeContrastMock.mockImplementation(async (name: string) => ({
       theme_id: name,
+      unaudited: [],
       warnings: [
         {
           token: "text_secondary",
@@ -194,6 +197,7 @@ describe("LookAndFeelSection — contrast notice", () => {
     // A one-shot read on mount left the notice describing the old theme.
     checkThemeContrastMock.mockImplementation(async (name: string) => ({
       theme_id: name,
+      unaudited: [],
       warnings:
         name === "dark"
           ? [
@@ -225,6 +229,7 @@ describe("LookAndFeelSection — contrast notice", () => {
     // warning, not stay silent because it audited once on mount.
     checkThemeContrastMock.mockImplementation(async (name: string) => ({
       theme_id: name,
+      unaudited: [],
       warnings:
         name === "light"
           ? [
@@ -250,6 +255,39 @@ describe("LookAndFeelSection — contrast notice", () => {
     expect(getByTestId("theme-contrast-notice").textContent).toContain(
       "text_secondary",
     );
+  });
+
+  it("shows unmeasurable tokens instead of reporting the theme clean", async () => {
+    // `validate_color` accepts `rgba(…)` and the themes README documents it,
+    // so a user can pin an unmeasurable `text-secondary`. Gating the notice
+    // on `warnings` alone reported that theme as passing precisely because
+    // it had never been checked.
+    checkThemeContrastMock.mockImplementation(async (name: string) => ({
+      theme_id: name,
+      warnings: [],
+      unaudited: ["text_secondary"],
+    }));
+
+    const { getByTestId } = await renderSettled();
+
+    expect(getByTestId("theme-contrast-notice").textContent).toContain(
+      "text_secondary",
+    );
+  });
+
+  it("selecting a theme turns off follow-system and applies it", async () => {
+    // Covers `handleThemeChange` itself. The contrast tests drive
+    // `activeTheme` directly (that is the real trigger), which left this
+    // path — including the themeAuto-disable branch — untested.
+    const tauri = await import("$lib/api/tauri");
+    const { getByTestId, container } = await renderSettled();
+    void getByTestId;
+
+    const select = container.querySelector("#theme-select") as HTMLSelectElement;
+    await fireEvent.change(select, { target: { value: "light" } });
+
+    expect(vi.mocked(tauri.setThemeAuto)).toHaveBeenCalledWith(false);
+    expect(vi.mocked(tauri.setTheme)).toHaveBeenCalledWith("light");
   });
 
   it("stays silent when the audit itself fails", async () => {

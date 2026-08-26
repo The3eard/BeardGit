@@ -551,11 +551,16 @@ pub fn contrast_ratio(a: &str, b: &str) -> Option<f64> {
 /// exemption.** WCAG's large-text allowance needs ≥18.66px bold or ≥24px;
 /// `--text-muted` renders at 10px (`--font-size-2xs`) in the staging area
 /// and sidebar and 13px elsewhere, so it does not qualify and every
-/// bundled theme is below AA for this one token. It is held at 3:1 because
+/// bundled theme is below AA for this one token — the spread runs 3.03:1
+/// (dracula) to 4.37:1 (catppuccin-latte). It is held at 3:1 because
 /// pushing de-emphasised metadata — paths, timestamps, counts — to 4.5:1
 /// collapses the three-rung text ramp on dark palettes, where there is
 /// little room between `text_secondary` and the page. Treat 3:1 as the
 /// floor below which the token is outright illegible, not as compliance.
+///
+/// What would reopen this: moving the two 10px sites
+/// (`StagingArea.svelte`, `Sidebar.svelte`) up the type scale, or dropping
+/// to a two-rung ramp, would both make a genuine 4.5:1 floor reachable.
 ///
 /// `border` and `selection` are deliberately unaudited. They carry alpha,
 /// so their effective contrast depends on what they overlay. Measured by
@@ -1785,7 +1790,13 @@ lane-colors = ["#0000ff"]
             .map(check_theme_contrast)
             .filter(|report| !report.passes())
             .flat_map(|report| {
-                report
+                // Both vectors, not just `warnings`. `passes()` also requires
+                // `unaudited` to be empty, so filtering on `!passes()` and
+                // then only listing warnings would let a theme with an
+                // unparseable colour produce zero failure strings — the
+                // assertion below would hold and the guard would pass
+                // vacuously on exactly the silent-pass case it exists for.
+                let mut lines: Vec<String> = report
                     .warnings
                     .iter()
                     .map(|w| {
@@ -1799,7 +1810,14 @@ lane-colors = ["#0000ff"]
                             w.required
                         )
                     })
-                    .collect::<Vec<_>>()
+                    .collect();
+                lines.extend(report.unaudited.iter().map(|token| {
+                    format!(
+                        "{}: {token} could not be parsed as hex, so it was never measured",
+                        report.theme_id
+                    )
+                }));
+                lines
             })
             .collect();
 
