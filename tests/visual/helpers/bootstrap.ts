@@ -139,7 +139,7 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
 
     // Locale
     get_locale: "en-US",
-    set_locale_config: undefined,
+    set_locale: undefined,
 
     // Projects / tabs — `switch_project` is the workhorse the active-tab
     // activation calls; it must return a fully-formed RepoInfo or the
@@ -154,12 +154,16 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
     get_project_snapshot: null,
     detect_project: undefined,
 
-    // AI — empty / disabled defaults so onMount paths short-circuit
-    detect_ai_providers: [],
-    get_preferred_ai_provider: null,
-    list_ai_sessions: [],
-    list_ai_background_runs: [],
-    get_ai_background_settings: {
+    // AI — empty / disabled defaults so onMount paths short-circuit.
+    // These are the real command names; an earlier set of invented ones
+    // (`detect_ai_providers`, `list_ai_sessions`, `get_ai_background_settings`)
+    // sat here answering nothing until `IpcResponses` became typed.
+    ai_get_providers: [],
+    ai_refresh_detection: undefined,
+    ai_get_preferred_provider: null,
+    ai_list_conversations: [],
+    ai_list_background_runs: [],
+    ai_background_get_settings: {
       auto_resume: false,
       max_concurrent: 1,
     },
@@ -167,7 +171,7 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
     // Forge / CI — `get_provider_status` controls which sidebar items
     // render (pipelines / issues / mr-pr / releases / repo-config).
     get_provider_status: makeProviderStatus(opts.forge ?? "github"),
-    get_cli_auth_status: [],
+    cli_check_auth_status: [],
     try_auto_connect: undefined,
 
     // ── Activation-path commands ─────────────────────────────────────
@@ -189,19 +193,12 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
       ? makeProjectSnapshot({ path: opts.activeProject.path })
       : makeProjectSnapshot(),
     save_project_snapshot: undefined,
-    register_watcher: undefined,
 
     // Diff settings
     get_diff_show_whitespace: false,
     get_diff_line_wrapping: false,
     set_diff_show_whitespace: undefined,
     set_diff_line_wrapping: undefined,
-
-    // AI surface — alternate command names found at runtime
-    ai_refresh_detection: undefined,
-    ai_get_preferred_provider: null,
-    ai_list_background_runs: [],
-    ai_get_providers: [],
 
     // Window plugin (set_title from titlebar updates)
     "plugin:window|set_title": undefined,

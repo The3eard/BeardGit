@@ -56,4 +56,20 @@ export async function clickNav(page: Page, label: string): Promise<void> {
   //    perfectly stable thing to screenshot, and exactly the kind of wrong
   //    baseline this helper exists to prevent.
   await expect(page.locator(".lazy-error")).toHaveCount(0);
+
+  // 4. …and so is a view that mounted fine but whose data threw. Repo
+  //    settings spent this whole branch baselined as a "Failed to load"
+  //    card, because its fixture named a command that does not exist
+  //    (`get_remote_repo_config`; the real one is
+  //    `load_remote_repo_config`) and `cloneConfig(undefined)` threw into
+  //    the store's own catch. Nothing above notices that: the chunk
+  //    loaded, the view rendered, the render was stable.
+  //
+  //    Deliberately a short list of unambiguous failure strings rather
+  //    than anything resembling "does this look wrong" — the app's own
+  //    error-card title, plus the two shapes a thrown JS error takes when
+  //    it reaches the UI as a message.
+  await expect(
+    page.getByText(/Failed to load|Cannot read properties of|is not a function/),
+  ).toHaveCount(0);
 }

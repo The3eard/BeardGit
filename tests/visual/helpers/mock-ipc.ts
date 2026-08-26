@@ -21,6 +21,8 @@
 
 import type { Page } from "@playwright/test";
 
+import type { IpcCommandName } from "./ipc-commands.generated";
+
 /**
  * Map of Tauri IPC command name (snake_case, exactly as passed to
  * `invoke()`) → response value. Values must be JSON-serialisable; if
@@ -29,8 +31,15 @@ import type { Page } from "@playwright/test";
  *
  * Unregistered commands resolve to `undefined` (not throw), matching
  * the vitest setup at `src/test/setup.ts:43`.
+ *
+ * Keyed by the generated union of real commands rather than by `string`.
+ * A misspelled key used to be indistinguishable from a command the view
+ * never calls — it just answered nothing — and six of them had
+ * accumulated in `routes.spec.ts`. One (`get_remote_repo_config`, really
+ * `load_remote_repo_config`) made the Repo settings view render an error
+ * card, which was then recorded as its baseline and passed forever.
  */
-export type IpcResponses = Record<string, unknown>;
+export type IpcResponses = Partial<Record<IpcCommandName, unknown>>;
 
 /** A captured IPC call recorded by the in-page mock. */
 export interface MockCall {
@@ -84,7 +93,7 @@ export async function installMockIPC(
     const internals = {
       invoke(cmd: string, args: unknown): Promise<unknown> {
         state.calls.push({ cmd, args, index: state.calls.length + 1 });
-        return Promise.resolve(state.responses[cmd]);
+        return Promise.resolve((state.responses as Record<string, unknown>)[cmd]);
       },
       transformCallback(callback: (payload: unknown) => void): number {
         const id = state.nextCallbackId++;
