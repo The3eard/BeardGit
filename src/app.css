@@ -37,8 +37,8 @@
   --bg-secondary: #201e1d;
   --bg-toolbar: #272524;
   --text-primary: #e8e4de;
-  --text-secondary: #948e86;
-  --text-muted: #6f6a64;
+  --text-secondary: #98928a;
+  --text-muted: #837e77;
   --accent-blue: #6fb1cc;
   --accent-green: #8fbc62;
   --accent-orange: #e0a458;
@@ -74,7 +74,10 @@
    * `theme.ts::applyTheme()`. Runs stronger than the 10 % accent overlays so
    * selection stays visible on light surfaces. */
   --overlay-selected: rgba(217, 146, 79, 0.13);
-  --border: rgba(243, 240, 234, 0.1);
+  --border: #504d4b;
+  /* Control outlines; see `--border`. Overwritten per theme by
+     `theme.ts::applyTheme`. */
+  --border-strong: #696663;
 
   /* Syntax + diff tokens — mirror the default theme's [editor] palette;
    * overridden at runtime by `theme.ts::applyTheme()`. Consumed by the

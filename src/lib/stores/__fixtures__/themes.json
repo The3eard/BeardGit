@@ -32,11 +32,12 @@
       "bg_primary": "#faf8f5",
       "bg_secondary": "#edebe8",
       "bg_toolbar": "#e1dfdc",
-      "border": "#6b645c80",
+      "border": "#aca9a5",
+      "border_strong": "#8e8a85",
       "selection": "#37749a40",
-      "text_muted": "#8a847d",
+      "text_muted": "#767069",
       "text_primary": "#36312b",
-      "text_secondary": "#6b645c"
+      "text_secondary": "#655e56"
     },
     "editor": {
       "added_bg": "#e1e4d7",
@@ -45,7 +46,7 @@
       "cursor": "#37749a",
       "foreground": "#36312b",
       "gutter_bg": "#faf8f5",
-      "gutter_fg": "#6b645c",
+      "gutter_fg": "#655e56",
       "line_highlight": "#edebe866",
       "removed_bg": "#f0dcd6",
       "removed_text": "#bf4a36",
@@ -85,7 +86,7 @@
       "selection": "#37749a44",
       "selection_highlight": "#37749a66",
       "text_primary": "#36312b",
-      "text_secondary": "#6b645c",
+      "text_secondary": "#655e56",
       "text_sha": "#37749a"
     },
     "meta": {
@@ -128,9 +129,10 @@
       "bg_primary": "#ffffff",
       "bg_secondary": "#f2f2f2",
       "bg_toolbar": "#e5e5e5",
-      "border": "#57606a80",
+      "border": "#adaeb0",
+      "border_strong": "#8d8f92",
       "selection": "#0969da40",
-      "text_muted": "#7b828a",
+      "text_muted": "#6e767e",
       "text_primary": "#1f2328",
       "text_secondary": "#57606a"
     },

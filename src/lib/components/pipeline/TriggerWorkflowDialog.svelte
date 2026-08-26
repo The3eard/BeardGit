@@ -197,7 +197,7 @@
   .dialog-body label { display: flex; flex-direction: column; font-size: var(--font-size-sm); color: var(--text-secondary); gap: 4px; }
   .dialog-body input, .dialog-body select {
     background: var(--bg-secondary); color: var(--text-primary);
-    border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: var(--font-size-sm);
+    border: 1px solid var(--border-strong); border-radius: 4px; padding: 6px 8px; font-size: var(--font-size-sm);
   }
   fieldset {
     border: 1px solid var(--border); border-radius: 4px; padding: 8px; margin: 0;

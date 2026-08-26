@@ -261,7 +261,7 @@
     padding: 4px 8px;
     background: var(--bg-input);
     color: var(--text-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     font-family: inherit;
     font-size: var(--font-size-sm);
@@ -273,7 +273,7 @@
     padding: 4px 8px;
     background: var(--bg-input);
     color: var(--text-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     font-family: inherit;
     font-size: var(--font-size-sm);

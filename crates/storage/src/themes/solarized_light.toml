@@ -23,12 +23,3 @@ bright-blue = "#839496"
 bright-magenta = "#6c71c4"
 bright-cyan = "#93a1a1"
 bright-white = "#fdf6e3"
-
-# Accessibility overrides. `text_secondary` derives from `bright-black`,
-# which in this palette lands below the WCAG AA floor on the page; raising
-# `bright-black` itself would change the terminal's ANSI colours, so the UI
-# text tokens are pinned here instead. Audited by
-# `test_all_builtin_themes_meet_contrast_floors`.
-[derived]
-text-primary = "#073642"  # 12.05:1 — palette `black` (base02). The old primary was base00 at 4.13:1, *less* contrast than secondary — the ramp was inverted.
-text-muted = "#657b83"  # 4.13:1 — palette `foreground` (base00), completing the canonical base02→base01→base00 ramp

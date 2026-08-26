@@ -211,7 +211,7 @@
 
   .tab-toggle {
     display: flex;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     overflow: hidden;
   }

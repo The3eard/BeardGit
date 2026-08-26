@@ -101,6 +101,7 @@ const MOCK_THEME: ThemeData = {
     accent_secondary: "#8be9fd",
     accent_tertiary: "#50fa7b",
     border: "#44475a",
+    border_strong: "#44475a",
     selection: "#44475a",
   },
   graph: {

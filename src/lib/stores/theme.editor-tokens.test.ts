@@ -39,6 +39,26 @@ import fixtures from "./__fixtures__/themes.json";
 const themes: Record<string, ThemeData> = fixtures;
 const THEME_IDS = ["beardgit-light", "github-light"] as const;
 
+/**
+ * WCAG 2.x contrast ratio, mirroring `storage::theme::contrast_ratio`.
+ *
+ * Duplicated in the test rather than imported because the Rust side owns
+ * the implementation — asserting the frontend's tokens against an
+ * independent copy is the point.
+ */
+function contrastRatio(a: string, b: string): number {
+  const luminance = (hex: string): number => {
+    const h = hex.replace("#", "");
+    const channel = (i: number): number => {
+      const v = parseInt(h.slice(i, i + 2), 16) / 255;
+      return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+  };
+  const [la, lb] = [luminance(a), luminance(b)];
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
 /** Read a custom property off the documentElement's inline style. */
 function token(name: string): string {
   return document.documentElement.style.getPropertyValue(name);
@@ -302,5 +322,36 @@ describe("app.css white-based tokens all have per-mode overrides", () => {
       `these app.css tokens default to a white tint but applyTheme never ` +
         `overrides them, so they stay white-on-white in light themes`,
     ).toEqual({ lightMissing: [], darkMissing: [] });
+  });
+});
+
+// ── Border tokens ───────────────────────────────────────────────────────
+//
+// `--border` used to serve both panel separators and control outlines,
+// with opposite requirements: WCAG 1.4.11 asks 3:1 for anything that
+// identifies a control, while a 3:1 line on every divider draws hard
+// boxes across the whole UI. One token could only be wrong for one of
+// them, and it was wrong for both — the old derivation composited to as
+// little as 1.27:1.
+
+describe("applyTheme — the two border tokens", () => {
+  it.each(THEME_IDS)("%s writes both border tokens", (id) => {
+    applyTheme(themes[id]);
+
+    expect(token("--border")).toBe(themes[id].derived.border);
+    expect(token("--border-strong")).toBe(themes[id].derived.border_strong);
+  });
+
+  it.each(THEME_IDS)("%s's control outline is stronger than its divider", (id) => {
+    // The whole point of the split. If these ever converge, one of the two
+    // jobs is being served badly again.
+    const d = themes[id].derived;
+    const contrast = (hex: string) => contrastRatio(hex, d.bg_primary);
+
+    expect(contrast(d.border_strong)).toBeGreaterThan(contrast(d.border));
+    // The floors the Rust derivation guarantees, asserted from the
+    // consumer side so a change there can't quietly slip past.
+    expect(contrast(d.border)).toBeGreaterThanOrEqual(2.0);
+    expect(contrast(d.border_strong)).toBeGreaterThanOrEqual(3.0);
   });
 });

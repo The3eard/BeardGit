@@ -311,7 +311,19 @@ pub struct DerivedColors {
     pub accent_primary: String,
     pub accent_secondary: String,
     pub accent_tertiary: String,
+    /// Panel and card separators. Held to a lower floor than
+    /// [`Self::border_strong`] because separation is carried mainly by the
+    /// elevation ramp; the line only refines it.
     pub border: String,
+    /// Outline for interactive controls — inputs, selects, textareas,
+    /// buttons.
+    ///
+    /// Split out from [`Self::border`] because one token was doing two
+    /// jobs with opposite requirements. WCAG 1.4.11 asks 3:1 for anything
+    /// that *identifies* a control, and a control whose outline is
+    /// invisible has no perceivable boundary — but applying 3:1 to every
+    /// panel divider draws hard lines across the whole UI.
+    pub border_strong: String,
     pub selection: String,
 }
 
@@ -574,10 +586,38 @@ pub fn contrast_ratio(a: &str, b: &str) -> Option<f64> {
 /// themes — a redesign, not an accessibility fix.
 pub fn contrast_floor(token: &str) -> Option<f64> {
     match token {
-        "text_primary" | "text_secondary" => Some(4.5),
-        "text_muted" => Some(3.0),
+        "text_primary" | "text_secondary" | "text_muted" => Some(4.5),
+        // Below WCAG 1.4.11's 3:1, deliberately: a panel divider is not
+        // what identifies a component here — the elevation ramp is — so a
+        // 3:1 line everywhere would be decoration masquerading as
+        // compliance. 2.0:1 is the floor below which the line is simply
+        // not there (the old derivation reached 1.27:1).
+        "border" => Some(2.0),
+        // Control outlines DO identify a component, so these take the
+        // full 1.4.11 requirement.
+        "border_strong" => Some(3.0),
+        // `selection` carries alpha over arbitrary content — text, diff
+        // rows, graph lanes — so there is no single pair to measure.
         _ => None,
     }
+}
+
+/// Flatten `#RRGGBBAA` over an opaque background.
+///
+/// The audited tokens are opaque as derived, but `[derived]` accepts an
+/// 8-digit value, so a user-pinned translucent border has to be measured
+/// as it renders rather than as it is written.
+fn composite_over(foreground: &str, background: &str) -> String {
+    let (Some(fg), Some(bg)) = (foreground.strip_prefix('#'), background.strip_prefix('#')) else {
+        return foreground.to_string();
+    };
+    if fg.len() != 8 {
+        return foreground.to_string();
+    }
+    let byte = |s: &str, i: usize| u8::from_str_radix(&s[i..i + 2], 16).unwrap_or(0) as f64;
+    let alpha = byte(fg, 6) / 255.0;
+    let channel = |i: usize| (byte(fg, i) * alpha + byte(bg, i) * (1.0 - alpha)) as u8;
+    format!("#{:02x}{:02x}{:02x}", channel(0), channel(2), channel(4))
 }
 
 /// One token that falls below its contrast floor against the page.
@@ -641,11 +681,14 @@ pub fn check_theme_contrast(theme: &Theme) -> ThemeContrastReport {
         ("text_primary", &d.text_primary),
         ("text_secondary", &d.text_secondary),
         ("text_muted", &d.text_muted),
+        ("border", &d.border),
+        ("border_strong", &d.border_strong),
     ] {
         let Some(required) = contrast_floor(token) else {
             continue;
         };
-        let Some(ratio) = contrast_ratio(foreground, background) else {
+        let flattened = composite_over(foreground, background);
+        let Some(ratio) = contrast_ratio(&flattened, background) else {
             unaudited.push(token.to_string());
             continue;
         };
@@ -667,6 +710,71 @@ pub fn check_theme_contrast(theme: &Theme) -> ThemeContrastReport {
     }
 }
 
+/// Blend `from` toward `toward` until the result clears `target` contrast
+/// against `background`.
+///
+/// Returns `from` unchanged when it already clears the target, so a theme
+/// whose own colours are legible keeps them verbatim. Steps in 0.5%
+/// increments, which is finer than any perceivable difference and keeps
+/// the result close to the palette's own hue line.
+///
+/// This is the mechanism that makes the accessibility floors hold for
+/// *user* themes as well as bundled ones. Clamping here is legitimate
+/// where clamping a declared colour would not be: these tokens are
+/// derived, never authored — a theme file declares 18 ANSI colours, and
+/// anything it does declare explicitly in `[derived]` still wins, because
+/// that merge runs after this.
+fn blend_to_contrast(from: &str, toward: &str, background: &str, target: f64) -> String {
+    if contrast_ratio(from, background).is_some_and(|r| r >= target) {
+        return from.to_string();
+    }
+    for step in 0..=200 {
+        let candidate = mix_hex(from, toward, step as f64 / 200.0);
+        if contrast_ratio(&candidate, background).is_some_and(|r| r >= target) {
+            return candidate;
+        }
+    }
+    // Unreachable for any parseable palette: `toward` is pure black or
+    // white, which is 21:1 against anything. Fall back to the input.
+    from.to_string()
+}
+
+/// Blend `from` toward the page, keeping the dimmest value that still
+/// clears `target`.
+///
+/// Used for `text_muted`, which has to sit *below* `text_secondary` while
+/// staying legible. Solving upward from the palette would land it on the
+/// same value as secondary in themes whose `bright_black` already clears
+/// the higher floor.
+fn dim_to_contrast(from: &str, background: &str, target: f64) -> String {
+    let mut dimmest = from.to_string();
+    for step in 0..=200 {
+        let candidate = mix_hex(from, background, step as f64 / 200.0);
+        match contrast_ratio(&candidate, background) {
+            Some(r) if r >= target => dimmest = candidate,
+            _ => break,
+        }
+    }
+    dimmest
+}
+
+/// Contrast floors the derivation guarantees, so the three text rungs are
+/// each legible *and* distinguishable from one another.
+///
+/// `text_muted` sits at the WCAG AA normal-text floor with a little
+/// margin; the two rungs above it are spaced far enough apart to read as
+/// a hierarchy rather than as three shades of the same grey. `primary` is
+/// only raised when a theme's own foreground falls below its floor — 22 of
+/// the 31 bundled themes keep theirs verbatim.
+const FLOOR_TEXT_PRIMARY: f64 = 7.5;
+const FLOOR_TEXT_SECONDARY: f64 = 6.0;
+const FLOOR_TEXT_MUTED: f64 = 4.6;
+/// Separators only refine the elevation ramp, so they sit below WCAG
+/// 1.4.11's 3:1 — see [`contrast_floor`].
+const FLOOR_BORDER: f64 = 2.2;
+/// Control outlines take 1.4.11's 3:1, with margin.
+const FLOOR_BORDER_STRONG: f64 = 3.2;
+
 /// Derive semantic UI colors from the 18 base colors.
 fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors {
     // Elevation ramp. The previous steps (dark +5/+8 %, light −3/−5 %) sat
@@ -686,17 +794,36 @@ fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors 
         darken_hex(&colors.background, 0.10)
     };
 
-    // Third text rung — blend the secondary toward the page so de-emphasised
-    // metadata reads dimmer than secondary without dropping below the
-    // large-text contrast floor (verified per theme by the contrast check).
-    let text_muted = mix_hex(&colors.bright_black, &colors.background, 0.22);
+    // Text ramp, solved against the page rather than taken verbatim.
+    //
+    // `text_secondary` used to be `bright_black` as-is, and `text_muted`
+    // that blended 22 % toward the page. An 18-slot ANSI palette has no
+    // mid-neutral — it jumps from `foreground` straight to `bright_black` —
+    // so on a dozen bundled palettes that landed far below readable
+    // (nord 1.69:1, gruvbox-dark 1.67:1). Solving toward the edge of the
+    // range instead keeps each rung on the palette's own hue line while
+    // guaranteeing the floor.
+    //
+    // The blend target is pure white or black, not the palette's
+    // `bright_white` / `black` slots: those are arbitrary ANSI colours
+    // (Catppuccin Latte's `black` is #5c5f77, *lighter* than its
+    // foreground), so blending toward them can move away from the edge.
+    let extreme = if is_dark { "#ffffff" } else { "#000000" };
+    let bg = &colors.background;
+
+    let text_primary = blend_to_contrast(&colors.foreground, extreme, bg, FLOOR_TEXT_PRIMARY);
+    let text_secondary = blend_to_contrast(&colors.bright_black, extreme, bg, FLOOR_TEXT_SECONDARY);
+    // Step *down* from secondary, so muted reads dimmer rather than
+    // landing on the same value in themes whose `bright_black` already
+    // clears the higher floor.
+    let text_muted = dim_to_contrast(&text_secondary, bg, FLOOR_TEXT_MUTED);
 
     DerivedColors {
         bg_primary: colors.background.clone(),
         bg_secondary,
         bg_toolbar,
-        text_primary: colors.foreground.clone(),
-        text_secondary: colors.bright_black.clone(),
+        text_primary,
+        text_secondary,
         text_muted,
         accent_blue: colors.blue.clone(),
         accent_green: colors.green.clone(),
@@ -706,7 +833,12 @@ fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors 
         accent_primary: colors.blue.clone(),
         accent_secondary: colors.magenta.clone(),
         accent_tertiary: colors.green.clone(),
-        border: with_alpha(&colors.bright_black, "80"),
+        // Solved outward from the page rather than `bright_black` at 50 %
+        // alpha, which composited to as little as 1.27:1 (gruvbox-dark) —
+        // an invisible line. Opaque, so the audited ratio is the ratio the
+        // eye sees rather than one that depends on what it overlays.
+        border: blend_to_contrast(bg, &colors.foreground, bg, FLOOR_BORDER),
+        border_strong: blend_to_contrast(bg, &colors.foreground, bg, FLOOR_BORDER_STRONG),
         selection: with_alpha(&colors.blue, "40"),
     }
 }
@@ -1766,13 +1898,60 @@ lane-colors = ["#0000ff"]
 
     #[test]
     fn test_contrast_floor_only_covers_audited_tokens() {
+        // All three text rungs take the WCAG AA normal-text floor. `muted`
+        // used to sit at 3:1 on a large-text exemption it never qualified
+        // for — it renders at 10px.
         assert_eq!(contrast_floor("text_primary"), Some(4.5));
         assert_eq!(contrast_floor("text_secondary"), Some(4.5));
-        assert_eq!(contrast_floor("text_muted"), Some(3.0));
-        // `border` and `selection` carry alpha and depend on what they
-        // overlay, so they are deliberately unaudited.
-        assert_eq!(contrast_floor("border"), None);
+        assert_eq!(contrast_floor("text_muted"), Some(4.5));
+        // Control outlines identify a component, so they take WCAG
+        // 1.4.11's 3:1; plain separators only refine the elevation ramp.
+        assert_eq!(contrast_floor("border_strong"), Some(3.0));
+        assert_eq!(contrast_floor("border"), Some(2.0));
+        // `selection` overlays arbitrary content, so there is no single
+        // pair to measure.
         assert_eq!(contrast_floor("selection"), None);
+    }
+
+    #[test]
+    fn test_composite_over_flattens_alpha() {
+        // 50 % black over white is mid-grey; a fully opaque value and a
+        // non-hex value pass through untouched.
+        assert_eq!(composite_over("#00000080", "#ffffff"), "#7f7f7f");
+        assert_eq!(composite_over("#123456", "#ffffff"), "#123456");
+        assert_eq!(
+            composite_over("rgba(0,0,0,0.5)", "#ffffff"),
+            "rgba(0,0,0,0.5)"
+        );
+    }
+
+    #[test]
+    fn test_blend_to_contrast_leaves_a_passing_colour_alone() {
+        // A theme whose own colour is already legible keeps it verbatim —
+        // the derivation is a floor, not a normaliser.
+        assert_eq!(
+            blend_to_contrast("#ffffff", "#ffffff", "#000000", 7.5),
+            "#ffffff"
+        );
+    }
+
+    #[test]
+    fn test_blend_to_contrast_raises_a_failing_colour() {
+        let raised = blend_to_contrast("#111111", "#ffffff", "#000000", 7.5);
+        assert_ne!(raised, "#111111");
+        assert!(contrast_ratio(&raised, "#000000").unwrap() >= 7.5);
+    }
+
+    #[test]
+    fn test_dim_to_contrast_steps_below_its_input() {
+        // `muted` has to read dimmer than `secondary` while staying above
+        // its own floor, so this must move *and* stay legible.
+        let secondary = "#98928a";
+        let muted = dim_to_contrast(secondary, "#151312", 4.6);
+        let rs = contrast_ratio(secondary, "#151312").unwrap();
+        let rm = contrast_ratio(&muted, "#151312").unwrap();
+        assert!(rm >= 4.6, "muted fell below its floor: {rm}");
+        assert!(rm < rs, "muted must be dimmer than secondary: {rm} vs {rs}");
     }
 
     /// **Every bundled theme must be legible.** This is the audit the
