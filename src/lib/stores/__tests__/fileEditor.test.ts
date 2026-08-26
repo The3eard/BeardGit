@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   writeWorkdirFile: vi.fn(),
   stageFiles: vi.fn(),
   listWorkdirTree: vi.fn(),
+  searchWorkdirFiles: vi.fn(),
   createWorkdirPath: vi.fn(),
   renameWorkdirPath: vi.fn(),
   deleteWorkdirPath: vi.fn(),
@@ -28,6 +29,7 @@ vi.mock("$lib/api/tauri", () => ({
   writeWorkdirFile: mocks.writeWorkdirFile,
   stageFiles: mocks.stageFiles,
   listWorkdirTree: mocks.listWorkdirTree,
+  searchWorkdirFiles: mocks.searchWorkdirFiles,
   createWorkdirPath: mocks.createWorkdirPath,
   renameWorkdirPath: mocks.renameWorkdirPath,
   deleteWorkdirPath: mocks.deleteWorkdirPath,
@@ -67,8 +69,17 @@ import {
   saveActive,
   setActiveTab,
   tabs,
-  treeEntries,
-  treeTruncated,
+  treeChildren,
+  expandedDirs,
+  loadingDirs,
+  searchResults,
+  searchTruncated,
+  toggleDirectory,
+  loadDirectory,
+  resetTree,
+  failedDirs,
+  searchTree,
+  SEARCH_RESULT_CAP,
   updateBuffer,
 } from "../fileEditor";
 
@@ -301,14 +312,227 @@ describe("fileEditor store", () => {
     });
   });
 
-  describe("refreshTree", () => {
-    it("populates treeEntries and treeTruncated", async () => {
-      mocks.listWorkdirTree.mockResolvedValueOnce([
-        { path: "a.ts", name: "a.ts", is_directory: false, size: 0 },
-      ]);
+  const dir = (path: string) => ({
+    path,
+    name: path.split("/").pop() ?? path,
+    is_directory: true,
+    size: null,
+  });
+  const file = (path: string) => ({
+    path,
+    name: path.split("/").pop() ?? path,
+    is_directory: false,
+    size: 0,
+  });
+
+  describe("tree listing", () => {
+    it("loads the repo root under the empty prefix", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("a.ts"), dir("src")]);
+
       await refreshTree(true);
-      expect(get(treeEntries)).toHaveLength(1);
-      expect(get(treeTruncated)).toBe(false);
+
+      expect(mocks.listWorkdirTree).toHaveBeenCalledWith(null, expect.any(Number), true);
+      expect(get(treeChildren).get("")).toHaveLength(2);
+    });
+
+    it("lists a directory only when it is first expanded", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("src")]);
+      await refreshTree(true);
+      mocks.listWorkdirTree.mockClear();
+
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("src/a.ts")]);
+      await toggleDirectory("src", true);
+
+      expect(mocks.listWorkdirTree).toHaveBeenCalledWith("src", expect.any(Number), true);
+      expect(get(expandedDirs).has("src")).toBe(true);
+      expect(get(treeChildren).get("src")).toHaveLength(1);
+    });
+
+    it("does not re-list a directory the user collapses and re-opens", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("src/a.ts")]);
+      await toggleDirectory("src", true);
+      mocks.listWorkdirTree.mockClear();
+
+      await toggleDirectory("src", true); // collapse
+      await toggleDirectory("src", true); // re-open
+
+      expect(get(expandedDirs).has("src")).toBe(true);
+      expect(mocks.listWorkdirTree).not.toHaveBeenCalled();
+    });
+
+    it("refreshes the root and every open directory", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("src/a.ts")]);
+      await toggleDirectory("src", true);
+      mocks.listWorkdirTree.mockClear();
+      mocks.listWorkdirTree.mockResolvedValue([]);
+
+      await refreshTree(true);
+
+      const prefixes = mocks.listWorkdirTree.mock.calls.map((c) => c[0]);
+      expect(prefixes).toEqual([null, "src"]);
+    });
+
+    /**
+     * The reachability bug the caching created: a refresh that skipped
+     * collapsed folders, plus an expand that skipped cached ones, left a
+     * file that exists on disk with no path to the screen.
+     */
+    it("forgets a collapsed directory on refresh, so re-opening re-lists it", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("docs/a.md")]);
+      await toggleDirectory("docs", true);
+      await toggleDirectory("docs", true); // collapse — still cached
+
+      mocks.listWorkdirTree.mockResolvedValue([]); // the refresh itself
+      await refreshTree(true);
+      expect(get(treeChildren).has("docs")).toBe(false);
+
+      // Re-opening now goes back to disk and sees the new file.
+      mocks.listWorkdirTree.mockClear();
+      mocks.listWorkdirTree.mockResolvedValueOnce([
+        file("docs/a.md"),
+        file("docs/new.md"),
+      ]);
+      await toggleDirectory("docs", true);
+
+      expect(mocks.listWorkdirTree).toHaveBeenCalledWith("docs", expect.any(Number), true);
+      expect(get(treeChildren).get("docs")).toHaveLength(2);
+    });
+
+    it("marks a directory whose listing failed, rather than showing it empty", async () => {
+      mocks.listWorkdirTree.mockRejectedValueOnce(new Error("boom"));
+
+      await loadDirectory("src", true);
+
+      expect(get(loadingDirs).has("src")).toBe(false);
+      expect(get(failedDirs).has("src")).toBe(true);
+      expect(get(treeChildren).has("src")).toBe(false);
+    });
+
+    it("clears the failed mark once the directory lists again", async () => {
+      mocks.listWorkdirTree.mockRejectedValueOnce(new Error("boom"));
+      await loadDirectory("src", true);
+
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("src/a.ts")]);
+      await loadDirectory("src", true);
+
+      expect(get(failedDirs).has("src")).toBe(false);
+    });
+
+    it("clears the loading flag even for a listing that arrives too late", async () => {
+      // Expand, collapse mid-flight, then refresh: the answer lands under a
+      // stale sequence and is discarded, but the flag it set is its own to
+      // clear. Left set, the row shows a spinner nothing will ever stop.
+      let resolveSlow: (v: unknown) => void = () => {};
+      mocks.listWorkdirTree.mockReturnValueOnce(
+        new Promise((r) => {
+          resolveSlow = r;
+        }),
+      );
+      const inFlight = loadDirectory("docs", true);
+      expect(get(loadingDirs).has("docs")).toBe(true);
+
+      resetTree();
+      resolveSlow([file("docs/a.md")]);
+      await inFlight;
+
+      expect(get(treeChildren).has("docs")).toBe(false);
+      expect(get(loadingDirs).has("docs")).toBe(false);
+    });
+
+    it("abandons a refresh that was superseded before its children loaded", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("src")]);
+      await refreshTree(true);
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("src/a.ts")]);
+      await toggleDirectory("src", true);
+
+      // Refresh A's root resolves after refresh B has bumped the sequence.
+      let resolveRootA: (v: unknown) => void = () => {};
+      mocks.listWorkdirTree.mockReturnValueOnce(
+        new Promise((r) => {
+          resolveRootA = r;
+        }),
+      );
+      const refreshA = refreshTree(false);
+
+      mocks.listWorkdirTree.mockResolvedValue([]);
+      await refreshTree(true);
+      const callsAfterB = mocks.listWorkdirTree.mock.calls.length;
+
+      resolveRootA([dir("src")]);
+      await refreshA;
+
+      // A must not go on to list `src` under B's sequence.
+      expect(mocks.listWorkdirTree.mock.calls.length).toBe(callsAfterB);
+    });
+
+    it("drops a listing that lands after the tree was reset", async () => {
+      // A project switch resets the tree; the listing still in flight from
+      // the previous repo must not write its paths into the new one.
+      let resolveSlow: (v: unknown) => void = () => {};
+      mocks.listWorkdirTree.mockReturnValueOnce(
+        new Promise((r) => {
+          resolveSlow = r;
+        }),
+      );
+      const inFlight = loadDirectory("old-project-dir", true);
+
+      resetTree();
+      resolveSlow([file("old-project-dir/stale.ts")]);
+      await inFlight;
+
+      expect(get(treeChildren).has("old-project-dir")).toBe(false);
+    });
+  });
+
+  describe("searchTree", () => {
+    it("asks the backend rather than filtering what is already loaded", async () => {
+      mocks.searchWorkdirFiles.mockResolvedValueOnce([file("deep/down/needle.ts")]);
+
+      await searchTree("needle", true);
+
+      expect(mocks.searchWorkdirFiles).toHaveBeenCalledWith("needle", SEARCH_RESULT_CAP, true);
+      expect(get(searchResults)).toHaveLength(1);
+    });
+
+    it("treats an empty query as 'not searching', without a round-trip", async () => {
+      mocks.searchWorkdirFiles.mockResolvedValueOnce([file("a.ts")]);
+      await searchTree("a", true);
+      mocks.searchWorkdirFiles.mockClear();
+
+      await searchTree("   ", true);
+
+      expect(mocks.searchWorkdirFiles).not.toHaveBeenCalled();
+      expect(get(searchResults)).toEqual([]);
+    });
+
+    it("flags a result set that came back at the cap", async () => {
+      mocks.searchWorkdirFiles.mockResolvedValueOnce(
+        Array.from({ length: SEARCH_RESULT_CAP }, (_, i) => file(`f${i}.ts`)),
+      );
+
+      await searchTree("f", true);
+
+      expect(get(searchTruncated)).toBe(true);
+    });
+
+    it("ignores a slow answer to a query the user has moved past", async () => {
+      // Typing produces overlapping searches that need not resolve in
+      // order; the stale one must not win.
+      let resolveSlow: (v: unknown) => void = () => {};
+      mocks.searchWorkdirFiles.mockReturnValueOnce(
+        new Promise((r) => {
+          resolveSlow = r;
+        }),
+      );
+      const slow = searchTree("ol", true);
+
+      mocks.searchWorkdirFiles.mockResolvedValueOnce([file("new.ts")]);
+      await searchTree("old", true);
+
+      resolveSlow([file("stale.ts")]);
+      await slow;
+
+      expect(get(searchResults).map((e) => e.path)).toEqual(["new.ts"]);
     });
   });
 

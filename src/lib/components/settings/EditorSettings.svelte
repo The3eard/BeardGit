@@ -416,7 +416,7 @@
         >
           <Switch
             id="editor-respect-gitignore-toggle"
-            checked={$editorPrefs?.respect_gitignore_in_tree ?? false}
+            checked={$editorPrefs?.respect_gitignore_in_tree ?? true}
             disabled={loading}
             onchange={(e) => handleToggle("respect_gitignore_in_tree", e)}
           />

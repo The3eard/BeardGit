@@ -1,10 +1,12 @@
 export {
+  byArg,
   installMockIPC,
   setMockResponses,
   patchMockResponses,
   emitMockEvent,
   getMockCalls,
   clearMockCalls,
+  type ByArgResponse,
   type IpcResponses,
   type MockCall,
 } from "./mock-ipc";

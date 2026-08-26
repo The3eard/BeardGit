@@ -270,6 +270,7 @@ export type IpcCommandName =
   | "save_project_snapshot"
   | "search_commits"
   | "search_tags"
+  | "search_workdir_files"
   | "set_auto_check_updates"
   | "set_branch_protection"
   | "set_config"

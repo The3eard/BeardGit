@@ -41,6 +41,40 @@ import type { IpcCommandName } from "./ipc-commands.generated";
  */
 export type IpcResponses = Partial<Record<IpcCommandName, unknown>>;
 
+/**
+ * A response that depends on one of the call's arguments.
+ *
+ * Most commands answer the same thing however they are called, and a flat
+ * map covers them. `list_workdir_tree` does not: the editor tree lists one
+ * directory at a time, so a single canned array would hand the same
+ * children to every folder and draw a tree that repeats itself. Wrap the
+ * value in this to key it on an argument instead.
+ *
+ *     list_workdir_tree: byArg("prefix", { src: srcChildren }, rootEntries)
+ *
+ * Serialisable on purpose — the response map is passed through
+ * `addInitScript`, so a callback would not survive the trip.
+ */
+export interface ByArgResponse {
+  __byArg: {
+    /** Argument name to switch on. `null` / `undefined` reads as `""`. */
+    key: string;
+    /** Value per argument. */
+    cases: Record<string, unknown>;
+    /** Used when the argument matches no case. */
+    fallback: unknown;
+  };
+}
+
+/** Build a {@link ByArgResponse}. See its docs for when that is needed. */
+export function byArg(
+  key: string,
+  cases: Record<string, unknown>,
+  fallback: unknown,
+): ByArgResponse {
+  return { __byArg: { key, cases, fallback } };
+}
+
 /** A captured IPC call recorded by the in-page mock. */
 export interface MockCall {
   cmd: string;
@@ -93,7 +127,18 @@ export async function installMockIPC(
     const internals = {
       invoke(cmd: string, args: unknown): Promise<unknown> {
         state.calls.push({ cmd, args, index: state.calls.length + 1 });
-        return Promise.resolve((state.responses as Record<string, unknown>)[cmd]);
+        const canned = (state.responses as Record<string, unknown>)[cmd];
+        const spec = (canned as ByArgResponse | undefined)?.__byArg;
+        if (spec) {
+          const argv = (args ?? {}) as Record<string, unknown>;
+          const key = String(argv[spec.key] ?? "");
+          return Promise.resolve(
+            Object.prototype.hasOwnProperty.call(spec.cases, key)
+              ? spec.cases[key]
+              : spec.fallback,
+          );
+        }
+        return Promise.resolve(canned);
       },
       transformCallback(callback: (payload: unknown) => void): number {
         const id = state.nextCallbackId++;
