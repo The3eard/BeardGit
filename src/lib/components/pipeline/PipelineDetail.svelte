@@ -353,14 +353,14 @@
   .detail-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
   .detail-actions button {
     background: var(--bg-secondary); color: var(--text-primary);
-    border: 1px solid var(--border); border-radius: 4px;
+    border: 1px solid var(--border-strong); border-radius: 4px;
     padding: 4px 10px; font-size: var(--font-size-xs); cursor: pointer;
   }
   .detail-actions button:hover:not(:disabled) { border-color: var(--accent-primary); color: var(--accent-primary); }
   .detail-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
   .action-error { color: var(--accent-red); font-size: var(--font-size-xs); margin-top: 6px; }
 
-  .job-row-wrapper { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); }
+  .job-row-wrapper { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border-strong); }
   .job-row-wrapper:last-child { border-bottom: none; }
   .job-row-wrapper .job-row { border-bottom: none; flex: 1; }
 </style>

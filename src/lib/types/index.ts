@@ -683,6 +683,8 @@ export interface DerivedColors {
   accent_secondary: string;
   accent_tertiary: string;
   border: string;
+  /** Outline for interactive controls — inputs, selects, buttons. */
+  border_strong: string;
   selection: string;
 }
 

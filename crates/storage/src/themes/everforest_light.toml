@@ -32,13 +32,3 @@ bright-white = "#fffbef"
 primary = "green"
 secondary = "blue"
 tertiary = "yellow"
-
-# Accessibility overrides. `text_secondary` derives from `bright-black`,
-# which in this palette lands below the WCAG AA floor on the page; raising
-# `bright-black` itself would change the terminal's ANSI colours, so the UI
-# text tokens are pinned here instead. Audited by
-# `test_all_builtin_themes_meet_contrast_floors`.
-[derived]
-text-primary = "#444e54"  # 7.11:1 — the canonical fg is only 4.66:1 here, which left no room for a distinct secondary; primary is darkened so the ramp has three legible steps
-text-secondary = "#5c6a72"  # 4.66:1 — palette `foreground` (Everforest fg)
-text-muted = "#7a8478"  # 3.24:1 — palette `black` (grey0)

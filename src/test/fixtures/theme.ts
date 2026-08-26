@@ -68,6 +68,7 @@ const DARK_DERIVED: DerivedColors = {
   accent_secondary: "#7cc7b8",
   accent_tertiary: "#8fbc62",
   border: "#948e8680",
+  border_strong: "#948e8680",
   selection: "#6fb1cc33",
 };
 
@@ -165,6 +166,7 @@ const LIGHT_DERIVED: DerivedColors = {
   accent_secondary: "#3a8579",
   accent_tertiary: "#5f7d3a",
   border: "#6b645c80",
+  border_strong: "#6b645c80",
   selection: "#37749a33",
 };
 
