@@ -21,7 +21,7 @@
  *
  * Update the baseline with: npm run check:glyphs -- --write
  */
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -46,7 +46,17 @@ function collectFiles(dir, out = []) {
   for (const name of entries) {
     if (SKIP_DIRS.has(name)) continue;
     const full = join(dir, name);
-    if (statSync(full).isDirectory()) collectFiles(full, out);
+    let stat;
+    try {
+      // `lstat`, not `stat`: a dangling symlink is a thing that exists in a
+      // working tree, and following it here would abort the whole check
+      // with an unhandled ENOENT instead of reporting anything.
+      stat = lstatSync(full);
+    } catch {
+      continue;
+    }
+    if (stat.isSymbolicLink()) continue;
+    if (stat.isDirectory()) collectFiles(full, out);
     else if (EXTENSIONS.some((e) => name.endsWith(e))) out.push(full);
   }
   return out;
@@ -74,6 +84,27 @@ function main() {
   const path = join(ROOT, BASELINE);
 
   if (write) {
+    // Report the losses before accepting them. `--write` rewrites the whole
+    // baseline, so re-baselining one deliberate removal would otherwise
+    // silently absorb any other glyph loss sitting in the same working
+    // tree — which is precisely the accident this script exists to catch.
+    let previous = {};
+    try {
+      previous = JSON.parse(readFileSync(path, "utf8"));
+    } catch {
+      /* first run */
+    }
+    const dropped = Object.entries(previous)
+      .map(([file, expected]) => ({ file, expected, actual: found[file] ?? 0 }))
+      .filter(({ expected, actual }) => actual < expected);
+    if (dropped.length > 0) {
+      console.log(`⚠ ${dropped.length} file(s) lose glyphs in this re-baseline:`);
+      for (const { file, expected, actual } of dropped) {
+        console.log(`    ${file}  ${expected} → ${actual}`);
+      }
+      console.log("  Check every line above is a removal you meant.\n");
+    }
+
     writeFileSync(path, `${JSON.stringify(found, null, 2)}\n`);
     const total = Object.values(found).reduce((a, b) => a + b, 0);
     console.log(
