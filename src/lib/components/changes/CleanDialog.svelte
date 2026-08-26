@@ -226,7 +226,7 @@
 
   .select-row {
     padding: 4px 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-strong);
     margin-bottom: 4px;
   }
 

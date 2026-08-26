@@ -198,7 +198,6 @@
         <CodeEditor
           content={editorContent}
           filename={displayName}
-          editorTheme={$activeTheme?.editor}
           isDark={$activeTheme?.meta.mode !== "light"}
           readonly={false}
           onChange={handleEditorChange}

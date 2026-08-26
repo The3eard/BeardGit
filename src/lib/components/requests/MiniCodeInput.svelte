@@ -86,9 +86,7 @@
   /** Build the CodeMirror theme extension from the active app theme. */
   function buildThemeExt() {
     const theme = get(activeTheme);
-    return createCodemirrorTheme(
-      theme?.editor ?? null,
-      theme?.meta.mode !== "light",
+    return createCodemirrorTheme(theme?.meta.mode !== "light",
     );
   }
 
@@ -244,7 +242,7 @@
     box-sizing: border-box;
     background: var(--bg-primary);
     color: var(--text-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     font-family: var(--font-mono);
     font-size: var(--font-size-sm);

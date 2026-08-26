@@ -201,7 +201,6 @@
             newContent={$compareOpenDiff.newContent}
             filename={$compareOpenDiff.filename}
             placeholder={$compareOpenDiff.placeholder}
-            editorTheme={$activeTheme?.editor}
             isDark={$activeTheme?.meta.mode !== "light"}
             onClose={closeCompareFileDiff}
           >
@@ -257,6 +256,7 @@
     font-size: var(--font-size-sm);
     cursor: pointer;
   }
+  /* Divider *between* segments, not the group's outline. */
   .mode-btn + .mode-btn {
     border-left: 1px solid var(--border);
   }

@@ -37,3 +37,10 @@ syntax-type = "#79c0ff"
 syntax-number = "#79c0ff"
 syntax-operator = "#ff7b72"
 syntax-property = "#7ee787"
+
+# Palette pins. The derivation guarantees the contrast floors on its own;
+# these are kept because the theme's *own* palette has a slot that clears
+# them by a wider margin, so pinning is strictly better than blending.
+# `[derived]` merges after the derivation, so it wins.
+[derived]
+text-secondary = "#b1bac4"  # 9.63:1 — palette `white` (GitHub fg.muted). Kept as a pin because the derivation lands at 6.02:1 and this is both higher and canonical.
