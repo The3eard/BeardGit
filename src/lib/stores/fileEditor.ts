@@ -5,8 +5,11 @@
  * Composition:
  *  - `tabs`         — open buffer list (one per file).
  *  - `activeTabPath` — which tab is currently visible.
- *  - `treeEntries`   — last `list_workdir_tree` result for the file tree.
- *  - `treeLoading` / `treeTruncated` — UI flags for the tree pane.
+ *  - `treeChildren`  — one `list_workdir_tree` result per expanded
+ *    directory, keyed by prefix (`""` is the repo root).
+ *  - `expandedDirs` / `loadingDirs` / `treeLoading` — tree pane UI state.
+ *  - `searchResults` / `searchLoading` — server-side file search, which is
+ *    how the filter reaches files no expanded directory contains.
  *
  * All mutations go through `runMutation` so failures surface a sticky
  * toast with the standard "See details" affordance.
@@ -17,7 +20,7 @@
  * whatever `app-core` considers the active project, so the store never
  * needs to thread a project handle.
  */
-import { get, writable } from "svelte/store";
+import { derived, get, writable } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   createWorkdirPath as apiCreatePath,
@@ -25,6 +28,7 @@ import {
   listWorkdirTree as apiListTree,
   readWorkdirFile as apiReadFile,
   renameWorkdirPath as apiRenamePath,
+  searchWorkdirFiles as apiSearchFiles,
   stageFiles as apiStageFiles,
   writeWorkdirFile as apiWriteFile,
 } from "$lib/api/tauri";
@@ -35,8 +39,20 @@ import type {
 } from "$lib/types";
 import type { MutationEvent } from "$lib/stores/mutations";
 
-/** Maximum entries we ask the backend to return per tree refresh. */
-export const TREE_ENTRY_CAP = 10_000;
+/**
+ * Cap on a single directory listing.
+ *
+ * A guard against one pathological directory, not a budget for the tree.
+ * The tree used to ask for the whole working directory at once with a cap
+ * of 10,000 — applied to a depth-first walk that stopped wherever it was,
+ * so entire folders arrived empty and the ones past the cutoff never
+ * arrived at all. Nothing recursive happens on this path any more: opening
+ * a folder reads that folder.
+ */
+export const DIRECTORY_ENTRY_CAP = 5_000;
+
+/** Cap on how many search hits the backend returns for one query. */
+export const SEARCH_RESULT_CAP = 300;
 
 /** localStorage key prefix used for per-project tab persistence. */
 const STORAGE_PREFIX = "beardgit:editor-tabs:";
@@ -82,29 +98,148 @@ export interface EditorTab {
 export const tabs = writable<EditorTab[]>([]);
 /** Path of the currently active tab, or `null` when no tab is open. */
 export const activeTabPath = writable<string | null>(null);
-/** Last `list_workdir_tree` result — `[]` until the first refresh. */
-export const treeEntries = writable<WorkdirTreeEntry[]>([]);
-/** `true` while a tree refresh is in flight. */
+/**
+ * Children of every directory listed so far, keyed by repo-relative
+ * prefix. `""` is the repo root, which is loaded on project open; the rest
+ * appear as the user expands them.
+ */
+export const treeChildren = writable<Map<string, WorkdirTreeEntry[]>>(new Map());
+/** Prefixes the user has expanded, so the tree can render them open. */
+export const expandedDirs = writable<Set<string>>(new Set());
+/** Prefixes with a listing in flight — the row shows a spinner. */
+export const loadingDirs = writable<Set<string>>(new Set());
+/** `true` while the root listing is in flight. */
 export const treeLoading = writable(false);
-/** `true` when the last tree result hit the entry cap. */
-export const treeTruncated = writable(false);
+
+/** Matches for the current filter query, or `[]` when not searching. */
+export const searchResults = writable<WorkdirTreeEntry[]>([]);
+/** `true` while a search is in flight. */
+export const searchLoading = writable(false);
+/** `true` when the last search came back at {@link SEARCH_RESULT_CAP}. */
+export const searchTruncated = writable(false);
+
+/** Flat view of everything listed so far — path → entry. */
+export const knownEntries = derived(treeChildren, ($children) => {
+  const map = new Map<string, WorkdirTreeEntry>();
+  for (const entries of $children.values()) {
+    for (const e of entries) map.set(e.path, e);
+  }
+  return map;
+});
+
+function withFlag(set: Set<string>, key: string, on: boolean): Set<string> {
+  const next = new Set(set);
+  if (on) next.add(key);
+  else next.delete(key);
+  return next;
+}
 
 /**
- * Refresh the file tree for the active project, respecting the user's
- * gitignore preference. Errors are non-fatal — the store keeps the prior
- * entries and clears the loading flag.
+ * List one directory and store its children. `""` is the repo root.
+ *
+ * Errors are non-fatal: the previous children stay, and the reload button
+ * is always available. A directory that has gone missing on disk comes
+ * back empty from the backend rather than throwing, which collapses it.
+ */
+export async function loadDirectory(
+  prefix: string,
+  respectGitignore: boolean,
+): Promise<void> {
+  if (prefix === "") treeLoading.set(true);
+  loadingDirs.update((s) => withFlag(s, prefix, true));
+  try {
+    const entries = await apiListTree(
+      prefix === "" ? null : prefix,
+      DIRECTORY_ENTRY_CAP,
+      respectGitignore,
+    );
+    treeChildren.update((map) => new Map(map).set(prefix, entries));
+  } catch {
+    // Keep whatever was there before.
+  } finally {
+    loadingDirs.update((s) => withFlag(s, prefix, false));
+    if (prefix === "") treeLoading.set(false);
+  }
+}
+
+/**
+ * Expand or collapse a directory, listing it on first expand.
+ *
+ * Collapsing keeps the children in `treeChildren`: re-opening a folder the
+ * user just closed should not go back to the disk, and the memory is one
+ * array per folder actually visited.
+ */
+export async function toggleDirectory(
+  prefix: string,
+  respectGitignore: boolean,
+): Promise<void> {
+  const open = get(expandedDirs).has(prefix);
+  expandedDirs.update((s) => withFlag(s, prefix, !open));
+  if (!open && !get(treeChildren).has(prefix)) {
+    await loadDirectory(prefix, respectGitignore);
+  }
+}
+
+/**
+ * Reload the root and every directory the user currently has open.
+ *
+ * Only what is on screen: a refresh should cost what the view costs, not
+ * what the repository costs.
  */
 export async function refreshTree(respectGitignore: boolean): Promise<void> {
-  treeLoading.set(true);
+  const open = [...get(expandedDirs)].filter((p) => get(treeChildren).has(p));
+  await loadDirectory("", respectGitignore);
+  await Promise.all(open.map((p) => loadDirectory(p, respectGitignore)));
+}
+
+/** Drop all tree state — used when switching to a different project. */
+export function resetTree(): void {
+  treeChildren.set(new Map());
+  expandedDirs.set(new Set());
+  loadingDirs.set(new Set());
+  searchResults.set([]);
+  searchTruncated.set(false);
+}
+
+/**
+ * Monotonic id for search requests. Typing produces overlapping in-flight
+ * searches and they do not necessarily come back in order, so a late
+ * answer to an earlier query must not overwrite a newer one.
+ */
+let searchSeq = 0;
+
+/**
+ * Search the working directory for `query`, server-side.
+ *
+ * An empty query clears the results and leaves the tree showing. The old
+ * filter ran in the browser over the truncated tree, so a file that was
+ * really there but had not survived the walk simply could not be found —
+ * and the footer's advice to "refine the filter to see more" asked the
+ * backend for nothing at all.
+ */
+export async function searchTree(
+  query: string,
+  respectGitignore: boolean,
+): Promise<void> {
+  const seq = ++searchSeq;
+  const trimmed = query.trim();
+  if (trimmed === "") {
+    searchResults.set([]);
+    searchTruncated.set(false);
+    searchLoading.set(false);
+    return;
+  }
+  searchLoading.set(true);
   try {
-    const result = await apiListTree(null, TREE_ENTRY_CAP, respectGitignore);
-    treeEntries.set(result);
-    treeTruncated.set(result.length >= TREE_ENTRY_CAP);
+    const hits = await apiSearchFiles(trimmed, SEARCH_RESULT_CAP, respectGitignore);
+    if (seq !== searchSeq) return;
+    searchResults.set(hits);
+    searchTruncated.set(hits.length >= SEARCH_RESULT_CAP);
   } catch {
-    // Leave existing entries in place; the toolbar reload button is
-    // always available so the user can retry manually.
+    if (seq !== searchSeq) return;
+    searchResults.set([]);
   } finally {
-    treeLoading.set(false);
+    if (seq === searchSeq) searchLoading.set(false);
   }
 }
 
@@ -458,9 +593,9 @@ export async function restoreTabsForProject(
 export function clearAll(): void {
   tabs.set([]);
   activeTabPath.set(null);
-  treeEntries.set([]);
-  treeTruncated.set(false);
+  resetTree();
   treeLoading.set(false);
+  searchLoading.set(false);
 }
 
 let externalListenerPromise: Promise<UnlistenFn> | null = null;
@@ -561,8 +696,8 @@ export async function deletePath(
 export function __resetForTests(): void {
   tabs.set([]);
   activeTabPath.set(null);
-  treeEntries.set([]);
+  resetTree();
   treeLoading.set(false);
-  treeTruncated.set(false);
+  searchLoading.set(false);
   stopFileEditorListeners();
 }

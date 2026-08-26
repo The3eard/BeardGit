@@ -23,9 +23,10 @@
     deletePath,
     persistTabsForProject,
     refreshTree,
+    resetTree,
     renamePath,
     restoreTabsForProject,
-    treeEntries,
+    knownEntries,
   } from "$lib/stores/fileEditor";
   import { activeProject } from "$lib/stores/projects";
   import type { WorkdirTreeEntry } from "$lib/types";
@@ -38,7 +39,7 @@
 
   /** Whether the workdir tree should hide gitignored entries. */
   let respectGitignore = $derived(
-    $editorPrefs?.respect_gitignore_in_tree ?? false,
+    $editorPrefs?.respect_gitignore_in_tree ?? true,
   );
 
   // Dialog state.
@@ -53,17 +54,28 @@
   /** Current project path — persistence + refresh trigger. */
   let projectPath = $derived($activeProject?.path ?? null);
 
-  /** Existing directories, for the new-* dialog parent autocomplete. */
+  /**
+   * Existing directories, for the new-* dialog parent autocomplete.
+   *
+   * Only the ones the tree has actually expanded — the tree no longer
+   * knows every directory in the repository, and pretending otherwise
+   * would mean walking it on every project open for an autocomplete.
+   */
   let existingDirs = $derived(
-    $treeEntries.filter((e) => e.is_directory).map((e) => e.path),
+    [...$knownEntries.values()]
+      .filter((e) => e.is_directory)
+      .map((e) => e.path),
   );
 
-  // Re-load tree + tabs whenever the active project changes.
+  // Re-load tree + tabs whenever the active project changes. The old
+  // project's expanded folders are dropped first: their paths mean
+  // something else here.
   let lastLoadedProject: string | null = null;
   $effect(() => {
     const path = projectPath;
     if (path && path !== lastLoadedProject) {
       lastLoadedProject = path;
+      resetTree();
       void refreshTree(respectGitignore);
       void restoreTabsForProject(path);
     }
