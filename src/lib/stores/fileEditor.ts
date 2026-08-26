@@ -167,10 +167,13 @@ export async function loadDirectory(
     if (seq !== treeSeq) return;
     failedDirs.update((s) => withFlag(s, prefix, true));
   } finally {
-    if (seq === treeSeq) {
-      loadingDirs.update((s) => withFlag(s, prefix, false));
-      if (prefix === "") treeLoading.set(false);
-    }
+    // Unconditionally: this flag records that *this* call is in flight, so
+    // a stale answer still has to clear its own. Guarding it left a
+    // directory that was collapsed mid-listing marked as loading forever —
+    // and since it was no longer expanded, no refresh would ever re-list it
+    // and clear the mark.
+    loadingDirs.update((s) => withFlag(s, prefix, false));
+    if (seq === treeSeq && prefix === "") treeLoading.set(false);
   }
 }
 
@@ -211,11 +214,17 @@ export async function toggleDirectory(
  * holds between refreshes, which is where it was worth having.
  */
 export async function refreshTree(respectGitignore: boolean): Promise<void> {
-  treeSeq++;
+  const seq = ++treeSeq;
   const open = [...get(expandedDirs)];
   treeChildren.set(new Map());
   failedDirs.set(new Set());
   await loadDirectory("", respectGitignore);
+  // The child listings are launched *after* an await, so without this they
+  // would capture whatever `treeSeq` had become and sail through the guard
+  // that just discarded this refresh's own root listing. Two refreshes with
+  // different `respectGitignore` — the toggle, clicked twice — could then
+  // race, and the loser's children could land last.
+  if (seq !== treeSeq) return;
   await Promise.all(open.map((p) => loadDirectory(p, respectGitignore)));
 }
 
@@ -652,18 +661,34 @@ let externalListenerPromise: Promise<UnlistenFn> | null = null;
  * or "Keep my version" (which just clears the flag).
  */
 /**
- * How the listener refreshes the tree.
+ * How an external change refreshes the tree.
  *
  * A callback rather than a direct `refreshTree(...)` call because the
  * gitignore preference lives in another store, and reaching for it from
  * here would tie the editor store to the settings store for one boolean.
- * `FileEditorPanel` installs it with the value it is already deriving.
+ * `FileEditorPanel` installs it with the value it is already deriving, and
+ * clears it on destroy — so when the editor is not mounted this is a no-op
+ * rather than a listing nobody is looking at.
  */
 let treeRefreshHook: (() => Promise<void>) | null = null;
 
 /** Install (or clear, with `null`) the tree refresh used on external changes. */
 export function setTreeRefreshHook(fn: (() => Promise<void>) | null): void {
   treeRefreshHook = fn;
+}
+
+/**
+ * Called by `mutations.ts` — the single fan-out point for
+ * `project-mutated` — when the working tree changed.
+ *
+ * Deliberately not a second `project-mutated` listener in this module.
+ * That is what this started as, and it bypassed the dispatcher's rAF
+ * coalescing (so a burst re-listed the tree once per event, blanking the
+ * pane each time) and its project scoping (so a mutation in a background
+ * tab refreshed the active tab's tree).
+ */
+export function refreshFileEditorTree(): void {
+  if (treeRefreshHook) void treeRefreshHook();
 }
 
 export function startFileEditorListeners(): () => void {
@@ -678,11 +703,6 @@ export function startFileEditorListeners(): () => void {
         t.dirty || t.externalChange ? t : { ...t, externalChange: true },
       ),
     );
-    // The tree is a view of the filesystem, and something just changed it —
-    // a checkout, a pull, an edit outside the app. Without this the tree
-    // stayed stale until the user thought to press Reload, which is not a
-    // thing anyone thinks to do. Costs the root plus whatever is open.
-    if (treeRefreshHook) void treeRefreshHook();
   });
   return stopFileEditorListeners;
 }

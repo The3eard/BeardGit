@@ -86,11 +86,20 @@ fn default_indent_guides() -> bool {
 ///
 /// All extension toggles default to the values most users expect from a
 /// modern code editor (most ON; rectangular-selection / crosshair OFF
-/// because they're niche). `respect_gitignore_in_tree` defaults to `true`:
-/// it started at `false` so nothing was hidden, but what that produced in
-/// practice was a tree whose first thousand entries were build output. The
-/// toggle is one click away in Settings → Editor for the case where the
-/// file being edited is a gitignored one.
+/// because they're niche). `respect_gitignore_in_tree` defaults to `true`,
+/// which is a tidier first listing rather than a fix for anything: the
+/// tree used to walk the whole working directory under a cap, so build
+/// output really did crowd it out, but it now lists one level at a time
+/// and there is no budget left to crowd. The toggle is one click away in
+/// Settings → Editor for the case where the file being edited is itself
+/// gitignored.
+///
+/// The flip reaches new installs only. This field carries no
+/// `#[serde(default)]`, and `AppConfig::editor_preferences` has a
+/// struct-level default, so any `settings.json` that already has an
+/// `editor_preferences` object keeps its stored `false`. That is
+/// deliberate: a stored value is indistinguishable from a deliberate
+/// choice, and this is not worth overriding one.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EditorPreferences {
     // --- Toggleable CodeMirror extensions ---

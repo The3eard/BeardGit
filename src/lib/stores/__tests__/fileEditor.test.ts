@@ -418,6 +418,53 @@ describe("fileEditor store", () => {
       expect(get(failedDirs).has("src")).toBe(false);
     });
 
+    it("clears the loading flag even for a listing that arrives too late", async () => {
+      // Expand, collapse mid-flight, then refresh: the answer lands under a
+      // stale sequence and is discarded, but the flag it set is its own to
+      // clear. Left set, the row shows a spinner nothing will ever stop.
+      let resolveSlow: (v: unknown) => void = () => {};
+      mocks.listWorkdirTree.mockReturnValueOnce(
+        new Promise((r) => {
+          resolveSlow = r;
+        }),
+      );
+      const inFlight = loadDirectory("docs", true);
+      expect(get(loadingDirs).has("docs")).toBe(true);
+
+      resetTree();
+      resolveSlow([file("docs/a.md")]);
+      await inFlight;
+
+      expect(get(treeChildren).has("docs")).toBe(false);
+      expect(get(loadingDirs).has("docs")).toBe(false);
+    });
+
+    it("abandons a refresh that was superseded before its children loaded", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("src")]);
+      await refreshTree(true);
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("src/a.ts")]);
+      await toggleDirectory("src", true);
+
+      // Refresh A's root resolves after refresh B has bumped the sequence.
+      let resolveRootA: (v: unknown) => void = () => {};
+      mocks.listWorkdirTree.mockReturnValueOnce(
+        new Promise((r) => {
+          resolveRootA = r;
+        }),
+      );
+      const refreshA = refreshTree(false);
+
+      mocks.listWorkdirTree.mockResolvedValue([]);
+      await refreshTree(true);
+      const callsAfterB = mocks.listWorkdirTree.mock.calls.length;
+
+      resolveRootA([dir("src")]);
+      await refreshA;
+
+      // A must not go on to list `src` under B's sequence.
+      expect(mocks.listWorkdirTree.mock.calls.length).toBe(callsAfterB);
+    });
+
     it("drops a listing that lands after the tree was reset", async () => {
       // A project switch resets the tree; the listing still in flight from
       // the previous repo must not write its paths into the new one.
