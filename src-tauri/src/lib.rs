@@ -360,8 +360,6 @@ pub fn run() {
             app_core::commands::set_diff_line_wrapping,
             app_core::commands::get_editor_preferences,
             app_core::commands::set_editor_preferences,
-            app_core::commands::get_reauth_dismissed,
-            app_core::commands::set_reauth_dismissed,
             // Terminal
             app_core::terminal_commands::terminal_spawn,
             app_core::terminal_commands::terminal_write,

@@ -61,9 +61,12 @@
   import {
     autoUpdateState,
     checkForUpdates,
-    startInstallFlow,
+    detectOs,
+    installUpdate,
     relaunchApp,
     resetAutoUpdateState,
+    updateAvailableMessage,
+    type AutoUpdateOs,
   } from "$lib/stores/autoUpdate";
   import {
     getAutoCheckUpdates,
@@ -94,6 +97,12 @@
   let clearingCache = $state(false);
   let openingLogs = $state(false);
 
+  /* Drives the unsigned-build notice in the "available" helper line.
+     This is the only place a Settings-initiated install can surface it:
+     on Windows the NSIS installer kills the process mid-install, so
+     there is no post-download surface to fall back on. */
+  let os = $state<AutoUpdateOs>("other");
+
   const status = $derived($autoUpdateState.status);
   const availableVersion = $derived($autoUpdateState.availableVersion ?? "");
   const rawErrorMessage = $derived($autoUpdateState.error ?? "");
@@ -120,6 +129,9 @@
   });
 
   onMount(async () => {
+    // Not awaited: a cold plugin-os chunk fetch must not delay hydrating
+    // the auto-check toggle below.
+    void detectOs().then((v) => (os = v));
     try {
       autoCheck = await getAutoCheckUpdates();
     } catch {
@@ -139,7 +151,7 @@
   async function handleInstall() {
     installing = true;
     try {
-      const outcome = await startInstallFlow();
+      const outcome = await installUpdate();
       if (outcome === "ready") {
         await relaunchApp();
       }
@@ -216,7 +228,7 @@
           : status === "up_to_date"
             ? m.update_up_to_date()
             : status === "available"
-              ? m.update_available({ version: availableVersion })
+              ? updateAvailableMessage(availableVersion, os)
               : status === "downloading"
                 ? m.update_downloading({ percent: "0" })
                 : status === "ready"
