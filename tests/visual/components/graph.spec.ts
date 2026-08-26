@@ -95,6 +95,8 @@ for (const mode of THEME_MODES) {
         await waitForGraphPainted(page, viewport.nodes.length);
         await expect(page).toHaveScreenshot(`${mode}-${name}.png`, {
           animations: "disabled",
+          // The drawing is the subject here, so it cannot be masked; see
+          // `GRAPH_CANVAS_PIXEL_BUDGET` for what that costs.
           maxDiffPixels: GRAPH_CANVAS_PIXEL_BUDGET,
         });
       });

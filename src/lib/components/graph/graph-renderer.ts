@@ -108,6 +108,32 @@ export function defaultGraphTheme(): GraphTheme {
 const CANVAS_FONT_SANS = "-apple-system, BlinkMacSystemFont, sans-serif";
 const CANVAS_FONT_MONO = "'Fira Code', 'SF Mono', 'Consolas', monospace";
 
+/**
+ * Ensure the mono face the canvas draws with is actually loaded.
+ *
+ * Canvas text does not take part in font loading the way DOM text does:
+ * setting `ctx.font` never triggers a fetch, and a canvas is never
+ * repainted when a webfont arrives later. Fira Code is a webfont
+ * (`app.css`), so on a cold cache the graph paints its SHAs, ref badges
+ * and dates in the `SF Mono` fallback and *stays there* — no repaint is
+ * scheduled, so it survives until something else happens to redraw.
+ *
+ * Callers await this and redraw. The sans stack needs no equivalent: it
+ * is system fonts only.
+ *
+ * Sizes are the ones the renderer actually uses. `Fira Code` is a
+ * variable font, so this is one file either way, but asking for the real
+ * sizes keeps the request honest if that ever changes.
+ */
+export function loadCanvasFonts(): Promise<unknown> {
+  if (typeof document === "undefined" || !document.fonts) return Promise.resolve();
+  return Promise.all(
+    [10, 11, 12].map((size) =>
+      document.fonts.load(`${size}px 'Fira Code'`).catch(() => undefined),
+    ),
+  );
+}
+
 // ── Column configuration ────────────────────────────────────────────────
 
 export interface GraphColumn {

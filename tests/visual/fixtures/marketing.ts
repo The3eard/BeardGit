@@ -86,11 +86,17 @@ export function branchList(): BranchInfo[] {
 /** Real working-tree changes — a believable mid-edit state for the tasklog crate. */
 export function fileStatusList(): FileStatus[] {
   return [
+    // Staging vocabulary: `"new" | "modified" | "deleted" | "renamed"`.
+    // Not `"added"` — that is the diff channel's word. Both normalise to
+    // the same green `A` badge, but `StagingArea.svelte` and
+    // `ChangesList.svelte` branch on the raw string to decide whether a
+    // discard deletes the file or resets it to the index, so the wrong
+    // word makes those paths unreachable from a fixture.
     { path: "src/store.rs", status: "modified", is_staged: true },
-    { path: "src/recurrence.rs", status: "added", is_staged: true },
+    { path: "src/recurrence.rs", status: "new", is_staged: true },
     { path: "src/cli.rs", status: "modified", is_staged: false },
     { path: "src/main.rs", status: "modified", is_staged: false },
-    { path: "tests/recurrence.rs", status: "added", is_staged: false },
+    { path: "tests/recurrence.rs", status: "new", is_staged: false },
     { path: "README.md", status: "modified", is_staged: false },
   ];
 }

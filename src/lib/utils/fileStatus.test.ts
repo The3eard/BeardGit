@@ -15,6 +15,14 @@ describe("normalizeFileStatus", () => {
     expect(normalizeFileStatus("untracked")).toEqual({ kind: "untracked", letter: "U" });
   });
 
+  it("maps GitHub's own words, which the PR diff passes through verbatim", () => {
+    // `cli-provider::github::mr_pr` forwards `f["status"]` unchanged, and
+    // GitHub calls a deletion "removed". Every deleted file in a GitHub PR
+    // used to render as the dim unknown badge.
+    expect(normalizeFileStatus("removed")).toEqual({ kind: "deleted", letter: "D" });
+    expect(normalizeFileStatus("changed")).toEqual({ kind: "modified", letter: "M" });
+  });
+
   it("treats conflicts as a single conflicted kind", () => {
     expect(normalizeFileStatus("conflicted").kind).toBe("conflicted");
     expect(normalizeFileStatus("unmerged").kind).toBe("conflicted");
