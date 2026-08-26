@@ -2225,12 +2225,18 @@ syntax-keyword = "#ff00ff"
         // shipping a pinned `[editor]` block and differs on four
         // (`syntax_string`, `_type`, `_number`, `_property`), which is
         // what gives the syntax assertions real signal.
+        //
+        // `beardgit-dark` is here so `src/test/fixtures/theme.ts` can build
+        // the visual suite's theme pair from generated data. That file used
+        // to hand-mirror the derivation, which meant every screenshot
+        // baseline was rendered against a copy that drifted the moment the
+        // derivation changed — and so could never catch a theme regression.
         (
             concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/../../src/lib/stores/__fixtures__/themes.json"
             ),
-            &["beardgit-light", "github-light"],
+            &["beardgit-dark", "beardgit-light", "github-light"],
         ),
         // Playwright marketing screenshots (`marketing.spec.ts` feeds these
         // to `resolve_startup_theme` / `get_theme`).
