@@ -245,3 +245,51 @@ describe("applyTheme — scrollbar and spinner tints follow the mode", () => {
     expect(token("--spinner-track")).toContain("rgba(255,255,255");
   });
 });
+
+// ── The invariant lint cannot express ───────────────────────────────────
+//
+// `app.css`'s `:root` block legitimately holds white-based literals: they
+// are the pre-theme defaults `applyTheme` overwrites. Stylelint's
+// `function-disallowed-list` is therefore disabled for that block, which
+// leaves one hole — a NEW white-based token added there, and forgotten in
+// `computeOverlays`, is invisible in every light theme with no signal.
+//
+// That is not a lint rule, it's a cross-file invariant: every white-based
+// default must have a per-mode override. This is the test for it.
+
+import { readFileSync } from "node:fs";
+
+describe("app.css white-based tokens all have per-mode overrides", () => {
+  it("finds no white default that applyTheme leaves alone", () => {
+    // Repo-root-relative: vitest runs from the project root, and
+    // `import.meta.url` is not a file: URL under Vite's transform.
+    const css = readFileSync("src/app.css", "utf8");
+
+    // `--token: rgba(255, 255, 255, …)` / `rgb(255 255 255 …)`.
+    const whiteDefaults = [
+      ...css.matchAll(
+        /^\s*(--[a-z0-9-]+)\s*:\s*[^;]*rgba?\(\s*255[\s,]+255[\s,]+255/gim,
+      ),
+    ].map((m) => m[1]);
+
+    // Sanity: the scan must actually find the known dark defaults, or a
+    // regex that matches nothing would make this test vacuous.
+    expect(whiteDefaults.length).toBeGreaterThan(0);
+
+    // Every one must be written by applyTheme in BOTH modes.
+    applyTheme(themes["github-light"]);
+    const lightMissing = whiteDefaults.filter((t) => token(t) === "");
+
+    applyTheme({
+      ...themes["github-light"],
+      meta: { ...themes["github-light"].meta, mode: "dark" },
+    });
+    const darkMissing = whiteDefaults.filter((t) => token(t) === "");
+
+    expect(
+      { lightMissing, darkMissing },
+      `these app.css tokens default to a white tint but applyTheme never ` +
+        `overrides them, so they stay white-on-white in light themes`,
+    ).toEqual({ lightMissing: [], darkMissing: [] });
+  });
+});

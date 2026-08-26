@@ -775,21 +775,39 @@ mod tests {
         }
     }
 
+    /// The one shared log buffer for this test binary.
+    ///
+    /// **Global, not thread-scoped, and that is load-bearing.**
+    /// `tracing::subscriber::set_default` installs a *thread-local*
+    /// default, and `finish_task` runs from a spawned task that does not
+    /// reliably land on the test's thread — so a scoped subscriber caught
+    /// `task started` but dropped `task finished` intermittently. Tests
+    /// key on a unique label instead of on buffer isolation.
+    fn shared_log_buffer() -> &'static LogBuffer {
+        static BUFFER: std::sync::OnceLock<LogBuffer> = std::sync::OnceLock::new();
+        BUFFER.get_or_init(|| {
+            let buffer = LogBuffer::default();
+            let subscriber = tracing_subscriber::fmt()
+                .with_writer(buffer.clone())
+                .with_ansi(false)
+                .finish();
+            // Another test may have won the race; either way a subscriber
+            // writing to this buffer is now installed.
+            let _ = tracing::subscriber::set_global_default(subscriber);
+            buffer
+        })
+    }
+
     /// The AI commands pass their whole prompt as a single argv element,
     /// and those prompts embed the staged diff or the file under review.
     /// Logging the joined argv wrote user code to disk at the *default*
     /// level, so this pins that only the program name and arg count go out.
-    ///
-    /// `#[tokio::test]` uses a current-thread runtime, so a thread-scoped
-    /// default subscriber sees the spawn's events.
     #[tokio::test]
     async fn spawn_does_not_log_argv() {
-        let buffer = LogBuffer::default();
-        let subscriber = tracing_subscriber::fmt()
-            .with_writer(buffer.clone())
-            .with_ansi(false)
-            .finish();
-        let _guard = tracing::subscriber::set_default(subscriber);
+        let buffer = shared_log_buffer();
+        // Unique to this test, so its lines are identifiable in a buffer
+        // shared with every other test in the binary.
+        let label = "argv-probe-AI-commit-message";
 
         let (manager, events) = new_manager();
         let cwd = std::env::temp_dir();
@@ -797,13 +815,7 @@ mod tests {
         let secret_payload = "SENSITIVE_DIFF_BODY_do_not_log";
 
         manager
-            .spawn(
-                "AI commit message".into(),
-                "echo",
-                &[secret_payload],
-                &cwd,
-                false,
-            )
+            .spawn(label.into(), "echo", &[secret_payload], &cwd, false)
             .await;
 
         wait_for(&events, |ev| {
@@ -811,28 +823,35 @@ mod tests {
         })
         .await;
 
-        let logged = buffer.contents();
-        // Positive anchor: the lifecycle lines really were captured, so the
+        let mine: Vec<String> = buffer
+            .contents()
+            .lines()
+            .filter(|l| l.contains(label))
+            .map(str::to_string)
+            .collect();
+        let mine = mine.join("\n");
+
+        // Positive anchors: the lifecycle lines really were captured, so the
         // absence assertion below can't pass by capturing nothing.
         assert!(
-            logged.contains("task started"),
-            "expected the start event in the log, got: {logged}"
+            mine.contains("task started"),
+            "expected the start event in the log, got: {mine}"
         );
         assert!(
-            logged.contains("task finished"),
-            "expected the finish event in the log, got: {logged}"
+            mine.contains("task finished"),
+            "expected the finish event in the log, got: {mine}"
         );
         assert!(
-            logged.contains("program=echo"),
-            "the program name is the useful part and must survive, got: {logged}"
+            mine.contains("program=echo"),
+            "the program name is the useful part and must survive, got: {mine}"
         );
         assert!(
-            logged.contains("arg_count=1"),
-            "the arg count replaces the argv and must be present, got: {logged}"
+            mine.contains("arg_count=1"),
+            "the arg count replaces the argv and must be present, got: {mine}"
         );
         assert!(
-            !logged.contains(secret_payload),
-            "argv leaked into the log: {logged}"
+            !mine.contains(secret_payload),
+            "argv leaked into the log: {mine}"
         );
     }
 
