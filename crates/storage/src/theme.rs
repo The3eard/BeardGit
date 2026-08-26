@@ -103,10 +103,19 @@ UI colors are derived automatically:
 
 ## Optional Overrides
 
-To tweak specific derived values, add a partial `[graph]` or `[editor]` section.
-Only the fields you include are overridden — everything else keeps the derived value.
+To tweak specific derived values, add a partial `[accents]`, `[derived]`,
+`[graph]` or `[editor]` section. Only the fields you include are overridden —
+everything else keeps the derived value.
 
 ```toml
+[accents]
+primary = "cyan"              # an ANSI colour name, or a literal hex
+secondary = "#c678dd"
+
+[derived]
+text-secondary = "#969ead"    # UI text tokens, when the derived ones are too dim
+text-muted = "#78808e"
+
 [graph]
 lane-colors = ["#7aa2f7", "#9ece6a", "#ff9e64"]  # custom lane palette
 node-radius = 5.0                                   # bigger commit dots
@@ -118,6 +127,27 @@ removed-bg = "#3c1e22"        # custom diff removed background
 syntax-keyword = "#ff7b72"    # override keyword color
 syntax-string = "#a5d6ff"     # override string color
 ```
+
+### Accent fields
+- `primary`, `secondary`, `tertiary` — the signature accents. Each takes an
+  ANSI colour name (`"cyan"`, `"bright_magenta"`, …) or a literal hex.
+
+### Derived fields — fixing low-contrast text
+
+`text-secondary` is derived from `bright-black`, and `text-muted` from that
+blended toward the page. In a palette whose `bright-black` sits close to the
+background, that lands below the readable threshold — and BeardGit will tell
+you so in Settings → General rather than changing your colours for you.
+
+Raising `bright-black` itself would also change your terminal's ANSI palette,
+so pin the UI text tokens here instead:
+
+- `text-primary`, `text-secondary`, `text-muted` — the three text rungs
+- `border` — panel and control borders (accepts `#RRGGBBAA`)
+
+Aim for at least 4.5:1 against `background` for `text-primary` and
+`text-secondary`, and 3:1 for `text-muted`. Every bundled theme is checked
+against those floors; yours is only reported.
 
 ### Graph fields
 - `lane-colors` — array of hex colors for commit graph lanes (min 2)
@@ -465,6 +495,22 @@ fn darken_hex(hex: &str, amount: f64) -> String {
 /// `border` and `selection` carry alpha and are deliberately not audited —
 /// their contrast depends on what they sit on top of.
 fn srgb_channels(hex: &str) -> Option<[f64; 3]> {
+    // Expand `#abc` to `#aabbcc` first — the short form is legal CSS and a
+    // user theme may well use it, and silently failing to parse it means
+    // silently not auditing it.
+    let expanded = match hex.strip_prefix('#') {
+        Some(short) if short.len() == 3 => {
+            let mut out = String::with_capacity(7);
+            out.push('#');
+            for c in short.chars() {
+                out.push(c);
+                out.push(c);
+            }
+            out
+        }
+        _ => hex.to_string(),
+    };
+    let hex = expanded.as_str();
     if !hex.starts_with('#') || (hex.len() != 7 && hex.len() != 9) {
         return None;
     }
@@ -498,11 +544,29 @@ pub fn contrast_ratio(a: &str, b: &str) -> Option<f64> {
 
 /// The minimum contrast ratio a token must reach against the page.
 ///
-/// `text_primary` and `text_secondary` carry body copy, so they take the
-/// WCAG AA normal-text floor of 4.5:1. `text_muted` is only ever used for
-/// de-emphasised metadata rendered at a larger effective weight — paths,
-/// timestamps, counts — so it takes the 3:1 large-text floor. Anything
-/// below that is illegible rather than merely quiet.
+/// `text_primary` and `text_secondary` carry body copy and take the WCAG
+/// AA normal-text floor of 4.5:1.
+///
+/// **`text_muted` at 3:1 is a deliberate product trade-off, not a WCAG
+/// exemption.** WCAG's large-text allowance needs ≥18.66px bold or ≥24px;
+/// `--text-muted` renders at 10px (`--font-size-2xs`) in the staging area
+/// and sidebar and 13px elsewhere, so it does not qualify and every
+/// bundled theme is below AA for this one token. It is held at 3:1 because
+/// pushing de-emphasised metadata — paths, timestamps, counts — to 4.5:1
+/// collapses the three-rung text ramp on dark palettes, where there is
+/// little room between `text_secondary` and the page. Treat 3:1 as the
+/// floor below which the token is outright illegible, not as compliance.
+///
+/// `border` and `selection` are deliberately unaudited. They carry alpha,
+/// so their effective contrast depends on what they overlay. Measured by
+/// compositing over `bg_primary`, all 31 bundled themes fall below WCAG
+/// 1.4.11's 3:1 for UI boundaries — the dark ones worst (gruvbox-dark
+/// 1.29:1, nord 1.30:1), not the light ones. That is by design rather
+/// than by neglect: `derive_semantic_colors` widened the elevation ramp
+/// specifically so surfaces separate by luminance and borders only refine
+/// it, which makes them decorative rather than the affordance 1.4.11
+/// targets. Auditing them would mean drawing hard lines across all 31
+/// themes — a redesign, not an accessibility fix.
 pub fn contrast_floor(token: &str) -> Option<f64> {
     match token {
         "text_primary" | "text_secondary" => Some(4.5),
@@ -536,12 +600,21 @@ pub struct ThemeContrastReport {
     pub theme_id: String,
     /// Tokens below their floor. Empty when the theme passes.
     pub warnings: Vec<ContrastWarning>,
+    /// Tokens whose colour could not be parsed as hex, so no ratio could
+    /// be computed.
+    ///
+    /// Reported rather than dropped: `validate_color` accepts `rgba(…)`,
+    /// so a theme written that way would otherwise come back looking clean
+    /// no matter how illegible it is — a silent pass is the one outcome an
+    /// accessibility check must never produce.
+    pub unaudited: Vec<String>,
 }
 
 impl ThemeContrastReport {
-    /// `true` when every audited token clears its floor.
+    /// `true` when every audited token clears its floor **and** every token
+    /// could actually be measured. An unparseable colour is not a pass.
     pub fn passes(&self) -> bool {
-        self.warnings.is_empty()
+        self.warnings.is_empty() && self.unaudited.is_empty()
     }
 }
 
@@ -556,28 +629,36 @@ pub fn check_theme_contrast(theme: &Theme) -> ThemeContrastReport {
     let d = &theme.derived;
     let background = &d.bg_primary;
 
-    let warnings = [
+    let mut warnings = Vec::new();
+    let mut unaudited = Vec::new();
+
+    for (token, foreground) in [
         ("text_primary", &d.text_primary),
         ("text_secondary", &d.text_secondary),
         ("text_muted", &d.text_muted),
-    ]
-    .into_iter()
-    .filter_map(|(token, foreground)| {
-        let required = contrast_floor(token)?;
-        let ratio = contrast_ratio(foreground, background)?;
-        (ratio < required).then(|| ContrastWarning {
-            token: token.to_string(),
-            foreground: foreground.clone(),
-            background: background.clone(),
-            ratio: (ratio * 100.0).round() / 100.0,
-            required,
-        })
-    })
-    .collect();
+    ] {
+        let Some(required) = contrast_floor(token) else {
+            continue;
+        };
+        let Some(ratio) = contrast_ratio(foreground, background) else {
+            unaudited.push(token.to_string());
+            continue;
+        };
+        if ratio < required {
+            warnings.push(ContrastWarning {
+                token: token.to_string(),
+                foreground: foreground.clone(),
+                background: background.clone(),
+                ratio: (ratio * 100.0).round() / 100.0,
+                required,
+            });
+        }
+    }
 
     ThemeContrastReport {
         theme_id: theme.meta.id.clone(),
         warnings,
+        unaudited,
     }
 }
 
@@ -1639,9 +1720,36 @@ lane-colors = ["#0000ff"]
 
     #[test]
     fn test_contrast_ratio_rejects_non_hex() {
+        // `rgba(…)` is accepted by `validate_color` but carries alpha over
+        // an unknown backdrop, so there is no single ratio to report. It is
+        // surfaced as `unaudited` rather than silently skipped.
         assert!(contrast_ratio("rgba(0,0,0,0.5)", "#ffffff").is_none());
-        assert!(contrast_ratio("#fff", "#000000").is_none());
         assert!(contrast_ratio("", "#000000").is_none());
+        assert!(contrast_ratio("#12345", "#000000").is_none());
+    }
+
+    #[test]
+    fn test_contrast_ratio_expands_three_digit_hex() {
+        // `#fff` is legal CSS and a user theme may use it. Failing to parse
+        // it would mean silently not auditing the token.
+        let short = contrast_ratio("#fff", "#000").unwrap();
+        let long = contrast_ratio("#ffffff", "#000000").unwrap();
+        assert!((short - long).abs() < 1e-9, "{short} vs {long}");
+        assert!((short - 21.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_unparseable_token_is_reported_not_dropped() {
+        // A silent pass is the one outcome an accessibility check must never
+        // produce: before this, an `rgba()` token made the theme look clean.
+        let mut theme = builtin("beardgit-dark");
+        theme.derived.text_secondary = "rgba(255, 255, 255, 0.2)".to_string();
+
+        let report = check_theme_contrast(&theme);
+
+        assert!(!report.passes());
+        assert_eq!(report.unaudited, vec!["text_secondary".to_string()]);
+        assert!(report.warnings.is_empty(), "no ratio means no warning");
     }
 
     #[test]
@@ -2039,14 +2147,16 @@ syntax-keyword = "#ff00ff"
         }
     }
 
-    /// Every `complementary` must point at a real theme, and point back.
+    /// Every `complementary` must point at a real bundled theme, point
+    /// back, and cross modes. Structural only — it does not exercise
+    /// `resolve_theme_for_mode` itself, which has its own tests.
     ///
     /// `resolve_theme_for_mode` follows this link when the user has
     /// follow-system-theme on. A one-way link means switching to dark
     /// finds the pair but switching back does not, so the app appears to
     /// get stuck on one variant.
     #[test]
-    fn test_complementary_links_are_symmetric_and_resolve() {
+    fn test_complementary_links_are_symmetric_and_reference_real_themes() {
         let themes = load_builtin_themes();
         let by_id: std::collections::HashMap<&str, &Theme> =
             themes.iter().map(|t| (t.meta.id.as_str(), t)).collect();

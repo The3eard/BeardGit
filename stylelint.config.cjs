@@ -31,7 +31,10 @@ module.exports = {
     //   /* stylelint-disable-next-line function-disallowed-list -- modal backdrop */
     // Reach for `var(--token)` or `color-mix()` first.
     "function-disallowed-list": [
-      ["rgb", "rgba"],
+      // Every functional colour notation, not just rgb/rgba: `hsl()`,
+      // `oklch()` and friends are all viable ways to write the same
+      // mode-dependent white tint.
+      ["rgb", "rgba", "hsl", "hsla", "hwb", "lab", "lch", "oklab", "oklch", "color"],
       { severity: "error" },
     ],
   },
@@ -55,8 +58,11 @@ module.exports = {
       rules: {
         "color-no-hex": null,
         "color-named": null,
-        // These files own the literal values they distribute.
-        "function-disallowed-list": null,
+        // NOTE: `function-disallowed-list` is deliberately NOT nulled here.
+        // `src/app.css` is exactly where the white-on-white scrollbar tint
+        // lived, so exempting it would leave the guard pointing away from
+        // the crime scene. The few literals these files legitimately need
+        // carry a per-line `stylelint-disable-next-line` with a reason.
       },
     },
   ],

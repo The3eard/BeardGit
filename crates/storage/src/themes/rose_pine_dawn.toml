@@ -2,6 +2,11 @@
 #
 # ANSI mapping note: see rose_pine_moon.toml — the palette has no green or
 # cyan, so `green` is `pine` (teal) and `cyan` is `rose` (pink).
+#
+# `bright-black` is `subtle` (#797593) rather than upstream's `muted`
+# (#9893a5): on this light background `muted` is too pale to read as text,
+# and `bright-black` is what `text_secondary` derives from. Everything else
+# matches the upstream palette exactly.
 
 [meta]
 id = "rose-pine-dawn"
