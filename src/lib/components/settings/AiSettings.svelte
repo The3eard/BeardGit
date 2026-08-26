@@ -281,7 +281,7 @@
     gap: 12px;
     padding: 10px 12px;
     border-radius: 6px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     background: var(--bg-primary);
     cursor: pointer;
     transition:
