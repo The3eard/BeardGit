@@ -1,0 +1,42 @@
+# Ayu Mirage.
+# ANSI palette from mbadolato/iTerm2-Color-Schemes (alacritty), the
+# canonical 16-colour rendering of the upstream palette.
+
+[meta]
+id = "ayu-mirage"
+name = "Ayu Mirage"
+mode = "dark"
+
+[colors]
+background = "#1f2430"
+foreground = "#cccac2"
+black = "#171b24"
+red = "#ed8274"
+green = "#87d96c"
+yellow = "#facc6e"
+blue = "#6dcbfa"
+magenta = "#dabafa"
+cyan = "#90e1c6"
+white = "#c7c7c7"
+bright-black = "#686868"
+bright-red = "#f28779"
+bright-green = "#d5ff80"
+bright-yellow = "#ffd173"
+bright-blue = "#73d0ff"
+bright-magenta = "#dfbfff"
+bright-cyan = "#95e6cb"
+bright-white = "#ffffff"
+
+[accents]
+primary = "yellow"
+secondary = "blue"
+tertiary = "green"
+
+# Accessibility overrides. `text_secondary` derives from `bright-black`,
+# which in this palette lands below the WCAG AA floor on the page; raising
+# `bright-black` itself would change the terminal's ANSI colours, so the UI
+# text tokens are pinned here instead. Audited by
+# `test_all_builtin_themes_meet_contrast_floors`.
+[derived]
+text-secondary = "#8d8c89"  # 4.61:1 — blend
+text-muted = "#717173"  # 3.19:1 — blend

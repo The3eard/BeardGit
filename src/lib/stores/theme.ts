@@ -73,6 +73,16 @@ function computeAccentOverlays(d: ThemeData["derived"]): Record<string, string> 
   };
 }
 
+/**
+ * Mode-dependent overlay tints and shadows.
+ *
+ * The scrollbar and spinner tints belong here rather than in `app.css`
+ * because they are white-on-transparent: hardcoded at `:root` they were
+ * invisible in every light theme — a white scrollbar thumb on a white
+ * page, and a spinner with no visible track ring. Light mode needs them
+ * darker, and slightly stronger than the hover tint, because a scrollbar
+ * is a control rather than a hover hint.
+ */
 function computeOverlays(mode: string): Record<string, string> {
   if (mode === "light") {
     return {
@@ -81,6 +91,9 @@ function computeOverlays(mode: string): Record<string, string> {
       "--overlay-shadow": "rgba(0,0,0,0.15)",
       "--shadow-overlay": "0 4px 12px rgba(0,0,0,0.14)",
       "--shadow-modal": "0 12px 32px rgba(0,0,0,0.22)",
+      "--scrollbar-thumb": "rgba(0,0,0,0.20)",
+      "--scrollbar-thumb-hover": "rgba(0,0,0,0.32)",
+      "--spinner-track": "rgba(0,0,0,0.12)",
     };
   }
   return {
@@ -89,6 +102,9 @@ function computeOverlays(mode: string): Record<string, string> {
     "--overlay-shadow": "rgba(0,0,0,0.3)",
     "--shadow-overlay": "0 4px 12px rgba(0,0,0,0.35)",
     "--shadow-modal": "0 12px 32px rgba(0,0,0,0.45)",
+    "--scrollbar-thumb": "rgba(255,255,255,0.15)",
+    "--scrollbar-thumb-hover": "rgba(255,255,255,0.25)",
+    "--spinner-track": "rgba(255,255,255,0.1)",
   };
 }
 

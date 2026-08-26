@@ -24,6 +24,12 @@
   font-display: block;
 }
 
+/* Literal colour values are permitted inside this token block and only
+   here: these are the pre-theme defaults that `theme.ts::applyTheme`
+   overwrites on the first paint. Anything outside the block must go
+   through a token — a raw `rgba(255,255,255,…)` in a *rule* is how the
+   scrollbar thumb ended up invisible on every light theme. */
+/* stylelint-disable function-disallowed-list -- pre-theme token defaults */
 :root {
   /* Static defaults mirror BeardGit Dark (the app default theme) so
    * the pre-theme first paint matches what applyTheme() will set. */
@@ -82,6 +88,13 @@
   --syntax-number: #e0a458;
   --syntax-operator: #e0604c;
   --syntax-property: #7cc7b8;
+  /* Overlay tints. `applyTheme` overwrites these per theme mode — the
+     values here are the dark defaults that apply for the frame before the
+     theme IPC round-trip lands. A light theme with white-on-white
+     scrollbars was the visible symptom of hardcoding them below. */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+  --spinner-track: rgba(255, 255, 255, 0.1);
   --diff-added-bg: #2a3120;
   --diff-removed-bg: #39201c;
   --diff-added-text: var(--accent-green);
@@ -127,6 +140,7 @@
   font-size: var(--font-size-md);
   color: var(--text-primary);
   background-color: var(--bg-primary);
+  /* stylelint-enable function-disallowed-list */
 }
 
 /* Nerd Font icon helper */
@@ -183,19 +197,19 @@ input, textarea, pre, code,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Global spinner utility */
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid var(--spinner-track);
   border-top-color: var(--accent-primary);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
