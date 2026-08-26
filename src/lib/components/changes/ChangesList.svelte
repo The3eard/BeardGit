@@ -11,7 +11,7 @@
   import { cleanPaths, discardFiles } from "$lib/api/tauri";
   import { addGitignorePattern } from "$lib/api/tauri";
   import { runMutation } from "$lib/api/runMutation";
-  import { Button, Checkbox } from "$lib/components/ui";
+  import { Button, Checkbox, IconButton } from "$lib/components/ui";
   import { activeViewStore } from "$lib/stores/navigation";
   import { openTab as openEditorTab } from "$lib/stores/fileEditor";
   import { isBatchSelection, batchActionIds, type BatchActionId } from "./changes-menu";
@@ -261,6 +261,18 @@
         }
       })
       .filter((i): i is MenuItem => i !== null);
+  }
+
+  /**
+   * Switch to the editor view and open the file there.
+   *
+   * Shared by the per-row button and the context-menu item so the two
+   * cannot drift; the menu item stays because discoverability and muscle
+   * memory are different needs.
+   */
+  function openInEditor(filePath: string): void {
+    activeViewStore.set("editor");
+    void openEditorTab(filePath);
   }
 
   function buildContextMenuItems(filePath: string): MenuItem[] {
@@ -520,6 +532,17 @@
             {/if}
           {/if}
         </button>
+        <span class="row-edit">
+          <IconButton
+            icon={"\uF044"}
+            description={m.editor_open_in_editor()}
+            size="sm"
+            onclick={(e: MouseEvent) => {
+              e.stopPropagation();
+              openInEditor(file.path);
+            }}
+          />
+        </span>
         {#if isStaged && onUnstage}
           <span class="item-action" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); onUnstage([file.path]); }} onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onUnstage([file.path]); } }}>&#8722;</span>
         {/if}
@@ -648,6 +671,20 @@
 
   .file-list:focus {
     outline: none;
+  }
+
+  /* Hidden until the row is hovered or holds focus. A per-row action that
+     is always visible turns a file list into a toolbar; keyboard users get
+     it via `:focus-within`, and everyone still has the context menu. */
+  .row-edit {
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  .file-item:hover .row-edit,
+  .file-item:focus-within .row-edit {
+    opacity: 1;
   }
 
   .file-btn {
