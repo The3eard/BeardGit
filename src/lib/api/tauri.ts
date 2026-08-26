@@ -728,22 +728,6 @@ export async function setEditorPreferences(prefs: EditorPreferences): Promise<vo
   return invoke<void>("set_editor_preferences", { prefs });
 }
 
-/**
- * Return whether the per-OS re-authorization notice has been dismissed.
- * `os` must be `"macos"` or `"windows"` — Linux never shows the dialog.
- */
-export async function getReauthDismissed(os: string): Promise<boolean> {
-  return invoke<boolean>("get_reauth_dismissed", { os });
-}
-
-/** Persist the re-authorization-notice dismissal for a single OS. */
-export async function setReauthDismissed(
-  os: string,
-  dismissed: boolean,
-): Promise<void> {
-  return invoke<void>("set_reauth_dismissed", { os, dismissed });
-}
-
 export async function getGraphColumns(): Promise<GraphColumnConfig[]> {
   return invoke<GraphColumnConfig[]>("get_graph_columns");
 }
