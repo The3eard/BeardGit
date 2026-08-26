@@ -88,16 +88,20 @@ for (const mode of THEME_MODES) {
       await waitForAppReady(page);
       await clickNav(page, "Graph");
 
-      // Drive selection through the store directly — the canvas-based
-      // commit list can't be clicked from Playwright reliably.
-      await page.evaluate((oid) => {
-        // Two-step: triggers the same fetches that a click does.
-        return Promise.all([
-          window.__TAURI_INTERNALS__!.invoke("get_commit_detail", { oid }),
-          window.__TAURI_INTERNALS__!.invoke("get_commit_files", { oid }),
-        ]);
-      }, TARGET_OID);
-      await page.waitForTimeout(300);
+      // Click the first row of the canvas. `graphHitTest` resolves a click
+      // to `Math.floor(y / ROW_HEIGHT) + offset` and treats a hit anywhere
+      // in the text area as a node hit, so row 0 is (any x past the lanes,
+      // ROW_HEIGHT / 2) — deterministic, and it runs the real
+      // `selectCommit` path.
+      //
+      // What it replaced called `invoke("get_commit_detail")` straight
+      // through the mock, which resolves a canned value to nobody and left
+      // the app in exactly the unselected state the sibling test captures.
+      // Both baselines came out byte-identical, so this one could never
+      // fail for the reason it exists.
+      await page.locator("canvas").first().click({ position: { x: 300, y: 14 } });
+      await page.locator(".graph-detail-sidebar").waitFor({ timeout: 10_000 });
+      await expect(page.getByText("feat(visual): add commit detail screenshots")).toBeVisible();
 
       await expect(page).toHaveScreenshot(`${mode}-selected.png`, {
         animations: "disabled",

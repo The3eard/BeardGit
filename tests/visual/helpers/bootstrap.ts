@@ -238,11 +238,17 @@ export async function installBootstrapMocks(
  * any view — taking a screenshot then would just baseline the spinner.
  *
  * `.welcome-screen .loading-text` is the specific element bound to the
- * `$isLoading` branch in `+page.svelte` (line ~1065); waiting for it to
- * detach is the cleanest signal that the project has finished
- * activating.
+ * `$isLoading` branch in `+page.svelte`; waiting for it to detach is the
+ * cleanest signal that the project has finished activating.
+ *
+ * The `.app-shell` wait in front of it is not decoration. "Wait for
+ * detached" is satisfied by an element that has not been attached *yet*,
+ * so on its own this returns instantly against a blank page and every
+ * caller proceeds to screenshot the load. Anchoring on the shell first
+ * means the app has rendered at least once before the detach is read.
  */
 export async function waitForAppReady(page: Page): Promise<void> {
+  await page.locator(".app-shell").waitFor({ state: "attached", timeout: 10_000 });
   await page
     .locator(".welcome-screen .loading-text")
     .waitFor({ state: "detached", timeout: 10_000 });
