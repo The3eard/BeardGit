@@ -28,9 +28,10 @@
     setThemeAuto,
     getUiScale,
     setUiScale,
+    checkThemeContrast,
   } from "$lib/api/tauri";
   import { activeTheme, applyUiScale } from "$lib/stores/theme";
-  import type { ThemeMeta } from "$lib/types";
+  import type { ThemeContrastReport, ThemeMeta } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import { FormRow, Switch } from "$lib/components/ui";
 
@@ -45,14 +46,32 @@
   let themeAuto = $state(true);
   let selectedThemeId = $state("");
   let uiScale = $state(100);
+  /* Non-blocking accessibility notice for the selected theme. Bundled
+     themes always come back clean (a Rust test enforces that), so anything
+     here is a theme the user wrote — and we report it rather than
+     "correcting" colours they chose. */
+  let contrast = $state<ThemeContrastReport | null>(null);
 
   onMount(async () => {
     themes = await listThemes();
     themeAuto = await getThemeAuto();
     const current = $activeTheme;
-    if (current) selectedThemeId = current.meta.id;
+    if (current) {
+      selectedThemeId = current.meta.id;
+      void refreshContrast(current.meta.id);
+    }
     uiScale = await getUiScale();
   });
+
+  async function refreshContrast(themeId: string) {
+    try {
+      const report = await checkThemeContrast(themeId);
+      contrast = report.warnings.length > 0 ? report : null;
+    } catch {
+      // Advisory only — a failed audit must never block theme selection.
+      contrast = null;
+    }
+  }
 
   async function handleLanguageChange(event: Event) {
     const select = event.target as HTMLSelectElement;
@@ -67,6 +86,7 @@
       await setThemeAuto(false);
     }
     await setTheme(select.value);
+    void refreshContrast(select.value);
   }
 
   async function handleAutoToggle(event: Event) {
@@ -119,6 +139,25 @@
         {/each}
       </select>
     </FormRow>
+
+    {#if contrast}
+      <div class="contrast-notice" data-testid="theme-contrast-notice">
+        <p class="contrast-notice__lead">
+          {m.settings_theme_contrast_lead()}
+        </p>
+        <ul class="contrast-notice__list">
+          {#each contrast.warnings as warning (warning.token)}
+            <li>
+              <code>{warning.token}</code>
+              {m.settings_theme_contrast_ratio({
+                ratio: warning.ratio.toFixed(2),
+                required: warning.required.toFixed(1),
+              })}
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
   </div>
 
   <div data-setting-anchor="ui-scale">
@@ -164,4 +203,32 @@
     border-color: var(--accent-primary);
   }
 
+  /* Advisory, not an error: the theme still applies. Warning colours
+     rather than danger, and no dismiss affordance — it disappears when the
+     user picks a theme that passes. */
+  .contrast-notice {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--accent-orange);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+  }
+
+  .contrast-notice__lead {
+    margin: 0;
+    color: var(--text-primary);
+  }
+
+  .contrast-notice__list {
+    margin: 6px 0 0;
+    padding-left: 18px;
+  }
+
+  .contrast-notice__list code {
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+  }
 </style>

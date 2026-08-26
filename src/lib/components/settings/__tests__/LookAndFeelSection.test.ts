@@ -19,6 +19,11 @@ vi.mock("$lib/stores/locale", async () => {
   return { currentLocale, changeLocale };
 });
 
+const checkThemeContrastMock = vi.fn(async (name: string) => ({
+  theme_id: name,
+  warnings: [] as Array<Record<string, unknown>>,
+}));
+
 vi.mock("$lib/api/tauri", () => ({
   listThemes: vi
     .fn()
@@ -31,6 +36,7 @@ vi.mock("$lib/api/tauri", () => ({
   setThemeAuto: vi.fn(),
   getUiScale: vi.fn().mockResolvedValue(100),
   setUiScale: vi.fn(),
+  checkThemeContrast: (name: string) => checkThemeContrastMock(name),
 }));
 
 vi.mock("$lib/stores/theme", async () => {
@@ -108,5 +114,97 @@ describe("LookAndFeelSection", () => {
       );
       expect(el, `expected [data-setting-anchor="${anchor}"]`).not.toBeNull();
     }
+  });
+});
+
+// ── Contrast notice ─────────────────────────────────────────────────────
+//
+// The policy this encodes: a low-contrast theme is *reported*, never
+// corrected. So the notice must appear without blocking selection, and it
+// must not appear for a theme that passes.
+
+describe("LookAndFeelSection — contrast notice", () => {
+  /** Render and let the async onMount probes settle. */
+  async function renderSettled() {
+    const rendered = render(LookAndFeelSection);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await tick();
+    return rendered;
+  }
+
+  beforeEach(() => {
+    checkThemeContrastMock.mockReset();
+    checkThemeContrastMock.mockImplementation(async (name: string) => ({
+      theme_id: name,
+      warnings: [],
+    }));
+  });
+
+  it("shows no notice for a theme that passes", async () => {
+    const { queryByTestId } = await renderSettled();
+    expect(queryByTestId("theme-contrast-notice")).toBeNull();
+  });
+
+  it("lists each failing token with its ratio", async () => {
+    checkThemeContrastMock.mockImplementation(async (name: string) => ({
+      theme_id: name,
+      warnings: [
+        {
+          token: "text_secondary",
+          foreground: "#4c566a",
+          background: "#2e3440",
+          ratio: 1.69,
+          required: 4.5,
+        },
+      ],
+    }));
+
+    const { getByTestId } = await renderSettled();
+
+    const notice = getByTestId("theme-contrast-notice");
+    expect(notice.textContent).toContain("text_secondary");
+    expect(notice.textContent).toContain("1.69");
+    expect(notice.textContent).toContain("4.5");
+  });
+
+  it("re-audits when the theme changes and clears a stale notice", async () => {
+    checkThemeContrastMock.mockImplementation(async (name: string) => ({
+      theme_id: name,
+      warnings:
+        name === "dark"
+          ? [
+              {
+                token: "text_muted",
+                foreground: "#3a405b",
+                background: "#1a1b26",
+                ratio: 1.68,
+                required: 3.0,
+              },
+            ]
+          : [],
+    }));
+
+    const { getByTestId, queryByTestId, container } = await renderSettled();
+    expect(getByTestId("theme-contrast-notice")).toBeTruthy();
+
+    const select = container.querySelector("#theme-select") as HTMLSelectElement;
+    await fireEvent.change(select, { target: { value: "light" } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await tick();
+
+    expect(queryByTestId("theme-contrast-notice")).toBeNull();
+  });
+
+  it("stays silent when the audit itself fails", async () => {
+    // Advisory only: a broken audit must not block theme selection or
+    // surface a scary banner.
+    checkThemeContrastMock.mockImplementation(async () => {
+      throw new Error("ipc unavailable");
+    });
+
+    const { queryByTestId, container } = await renderSettled();
+
+    expect(queryByTestId("theme-contrast-notice")).toBeNull();
+    expect(container.querySelector("#theme-select")).toBeTruthy();
   });
 });
