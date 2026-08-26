@@ -7,10 +7,10 @@
  *
  * Transitions covered:
  *   - idle → checking → up_to_date
- *   - idle → checking → available → downloading → ready (+ reauth flag)
+ *   - idle → checking → available → downloading → ready
  *   - idle → checking → error (network failure)
  *   - download failure → error (after available)
- *   - Linux: no reauth flag after download
+ *   - installUpdate() reaches `ready` on every OS (no dialog gate)
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -129,7 +129,7 @@ describe("autoUpdate store — state transitions", () => {
     expect(state.error).toBe("offline");
   });
 
-  it("available → downloading → ready and flips reauth notice on macOS", async () => {
+  it("available → downloading → ready tracks byte progress", async () => {
     osTypeMock.mockImplementation(() => "macos");
     checkMock.mockResolvedValueOnce(
       makeFakeUpdate({
@@ -153,43 +153,6 @@ describe("autoUpdate store — state transitions", () => {
     expect(state.availableVersion).toBe("2.0.0");
     expect(state.totalBytes).toBe(1024);
     expect(state.downloadedBytes).toBe(1024);
-    expect(get(mod.needsReauthNotice)).toBe(true);
-  });
-
-  it("does not flip the reauth notice on Linux", async () => {
-    osTypeMock.mockImplementation(() => "linux");
-    checkMock.mockResolvedValueOnce(
-      makeFakeUpdate({
-        version: "2.0.0",
-        downloadEvents: [
-          { event: "Started", data: { contentLength: 512 } },
-          { event: "Progress", data: { chunkLength: 512 } },
-          { event: "Finished" },
-        ],
-      }),
-    );
-    const mod = await import("../autoUpdate");
-
-    await mod.checkForUpdates();
-    await mod.downloadAndInstall();
-
-    expect(get(mod.needsReauthNotice)).toBe(false);
-  });
-
-  it("skips the reauth notice when confirmedReauth=true", async () => {
-    osTypeMock.mockImplementation(() => "macos");
-    checkMock.mockResolvedValueOnce(
-      makeFakeUpdate({
-        version: "2.0.0",
-        downloadEvents: [{ event: "Started", data: { contentLength: 1 } }],
-      }),
-    );
-    const mod = await import("../autoUpdate");
-
-    await mod.checkForUpdates();
-    await mod.downloadAndInstall(true);
-
-    expect(get(mod.needsReauthNotice)).toBe(false);
   });
 
   it("download failure → error surfaces the message", async () => {
@@ -245,115 +208,28 @@ describe("autoUpdate store — state transitions", () => {
     expect(relaunchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("dismissReauthForThisOs clears the flag", async () => {
-    const mod = await import("../autoUpdate");
+  it.each(["macos", "windows", "linux"] as const)(
+    "installUpdate downloads and installs on %s with no extra dialog gate",
+    async (os) => {
+      osTypeMock.mockImplementation(() => os);
+      checkMock.mockResolvedValueOnce(
+        makeFakeUpdate({
+          version: "4.0.0",
+          downloadEvents: [
+            { event: "Started", data: { contentLength: 16 } },
+            { event: "Progress", data: { chunkLength: 16 } },
+            { event: "Finished" },
+          ],
+        }),
+      );
+      const mod = await import("../autoUpdate");
 
-    mod.needsReauthNotice.set(true);
-    mod.dismissReauthForThisOs();
+      await mod.checkForUpdates();
 
-    expect(get(mod.needsReauthNotice)).toBe(false);
-  });
-
-  it("startInstallFlow shows the reauth dialog on macOS when not dismissed", async () => {
-    osTypeMock.mockImplementation(() => "macos");
-    mockInvokeResponse("get_reauth_dismissed", false);
-    checkMock.mockResolvedValueOnce(
-      makeFakeUpdate({ version: "4.0.0" }),
-    );
-    const mod = await import("../autoUpdate");
-
-    await mod.checkForUpdates();
-    const outcome = await mod.startInstallFlow();
-
-    expect(outcome).toBe("available");
-    expect(get(mod.needsReauthNotice)).toBe(true);
-  });
-
-  it("startInstallFlow skips the dialog on macOS when previously dismissed", async () => {
-    osTypeMock.mockImplementation(() => "macos");
-    mockInvokeResponse("get_reauth_dismissed", true);
-    checkMock.mockResolvedValueOnce(
-      makeFakeUpdate({
-        version: "4.0.0",
-        downloadEvents: [
-          { event: "Started", data: { contentLength: 16 } },
-          { event: "Progress", data: { chunkLength: 16 } },
-          { event: "Finished" },
-        ],
-      }),
-    );
-    const mod = await import("../autoUpdate");
-
-    await mod.checkForUpdates();
-    const outcome = await mod.startInstallFlow();
-
-    expect(outcome).toBe("ready");
-    expect(get(mod.needsReauthNotice)).toBe(false);
-  });
-
-  it("startInstallFlow skips the dialog entirely on Linux", async () => {
-    osTypeMock.mockImplementation(() => "linux");
-    checkMock.mockResolvedValueOnce(
-      makeFakeUpdate({
-        version: "4.0.0",
-        downloadEvents: [
-          { event: "Started", data: { contentLength: 8 } },
-          { event: "Progress", data: { chunkLength: 8 } },
-        ],
-      }),
-    );
-    const mod = await import("../autoUpdate");
-
-    await mod.checkForUpdates();
-    const outcome = await mod.startInstallFlow();
-
-    expect(outcome).toBe("ready");
-  });
-
-  it("confirmReauthAndInstall persists dismissal when dismissForever=true", async () => {
-    osTypeMock.mockImplementation(() => "macos");
-    let persistedOs: string | undefined;
-    let persistedValue: boolean | undefined;
-    mockInvokeResponse(
-      "set_reauth_dismissed",
-      (args: Record<string, unknown>) => {
-        persistedOs = args?.os as string;
-        persistedValue = args?.dismissed as boolean;
-        return undefined;
-      },
-    );
-    checkMock.mockResolvedValueOnce(
-      makeFakeUpdate({
-        version: "4.0.0",
-        downloadEvents: [{ event: "Started", data: { contentLength: 1 } }],
-      }),
-    );
-    const mod = await import("../autoUpdate");
-
-    await mod.checkForUpdates();
-    mod.needsReauthNotice.set(true);
-    await mod.confirmReauthAndInstall(true);
-
-    expect(persistedOs).toBe("macos");
-    expect(persistedValue).toBe(true);
-    expect(get(mod.needsReauthNotice)).toBe(false);
-  });
-
-  it("cancelReauthFlow clears the flag without persisting anything", async () => {
-    osTypeMock.mockImplementation(() => "macos");
-    let persistCalled = false;
-    mockInvokeResponse("set_reauth_dismissed", () => {
-      persistCalled = true;
-      return undefined;
-    });
-    const mod = await import("../autoUpdate");
-    mod.needsReauthNotice.set(true);
-
-    mod.cancelReauthFlow();
-
-    expect(get(mod.needsReauthNotice)).toBe(false);
-    expect(persistCalled).toBe(false);
-  });
+      expect(await mod.installUpdate()).toBe("ready");
+      expect(get(mod.autoUpdateState).status).toBe("ready");
+    },
+  );
 
   it("updateTask is null for idle and up_to_date states", async () => {
     const mod = await import("../autoUpdate");
@@ -419,8 +295,43 @@ describe("autoUpdate store — state transitions", () => {
     mod.resetAutoUpdateState();
 
     expect(get(mod.autoUpdateState).status).toBe("idle");
-    expect(get(mod.needsReauthNotice)).toBe(false);
   });
+});
+
+// ---------------------------------------------------------------------------
+// Unsigned-build notice — has to ride along with the "available" toast,
+// because on Windows the NSIS installer kills the process mid-install and
+// nothing after the download is guaranteed to render.
+// ---------------------------------------------------------------------------
+
+describe("emitUpdateAvailableToast — unsigned-build notice", () => {
+  it.each([
+    ["macos", /gatekeeper/i],
+    ["windows", /smartscreen/i],
+  ] as const)("appends the %s notice to the available toast", async (os, re) => {
+    const mod = await import("../autoUpdate");
+    const { toasts } = await import("../toast");
+
+    mod.emitUpdateAvailableToast("7.0.0", os);
+
+    const toast = get(toasts)[0];
+    expect(toast.message).toContain("7.0.0");
+    expect(toast.message).toMatch(re);
+  });
+
+  it.each(["linux", "other"] as const)(
+    "adds no notice on %s",
+    async (os) => {
+      const mod = await import("../autoUpdate");
+      const { toasts } = await import("../toast");
+
+      mod.emitUpdateAvailableToast("7.0.0", os);
+
+      const toast = get(toasts)[0];
+      expect(toast.message).toContain("7.0.0");
+      expect(toast.message).not.toMatch(/gatekeeper|smartscreen/i);
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------

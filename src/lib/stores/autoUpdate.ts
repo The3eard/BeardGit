@@ -19,23 +19,21 @@
  * - The plugin imports are dynamic so unit tests can vi.mock them and
  *   the store still loads in Node (no Tauri runtime needed at import
  *   time).
- * - `needsReauthNotice` becomes `true` once the download completes on
- *   macOS / Windows so the install flow can render the apology dialog
- *   (Phase 4). On Linux it stays `false`.
- * - Per-OS "don't show again" persistence lives in the settings store
- *   (Phase 4). This module just exposes OS detection and the state
- *   machine.
+ * - {@link installUpdate} is the single install entry point shared by
+ *   the startup toast and Settings → Advanced. It downloads
+ *   immediately: there is no confirmation gate in between.
+ * - Unsigned-build friction (macOS Gatekeeper / Windows SmartScreen) is
+ *   announced in the "update available" toast, *before* the download.
+ *   It can't be announced afterwards: the NSIS installer replaces the
+ *   binary and kills the process, so code after
+ *   `update.downloadAndInstall(...)` may never run on Windows.
  */
 
 import { writable, type Readable, derived } from "svelte/store";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { addToast, updateToast, removeToast } from "./toast";
 import * as m from "$lib/paraglide/messages";
-import {
-  getAutoCheckUpdates,
-  getReauthDismissed,
-  setReauthDismissed,
-} from "$lib/api/tauri";
+import { getAutoCheckUpdates } from "$lib/api/tauri";
 import type { TaskEntry } from "$lib/types/tasks";
 
 /**
@@ -107,16 +105,9 @@ export type AutoUpdateOs = "macos" | "windows" | "linux" | "other";
 
 /**
  * The current update state. Components subscribe to this to render
- * spinners, toasts, progress bars, or the re-auth dialog.
+ * spinners, toasts, and progress bars.
  */
 export const autoUpdateState = writable<UpdateState>({ status: "idle" });
-
-/**
- * Flips to `true` after a successful download on macOS / Windows, so
- * the install flow can prompt the user with the Gatekeeper / SmartScreen
- * apology dialog before relaunching.
- */
-export const needsReauthNotice = writable(false);
 
 /** Read-only view over `autoUpdateState`. */
 export const autoUpdateStateReadonly: Readable<UpdateState> = derived(
@@ -188,18 +179,14 @@ export async function checkForUpdates(): Promise<UpdateStatus> {
 
 /**
  * Download the pending update and install it. Transitions the store
- * through `downloading` (with progress) → `ready`. On macOS / Windows
- * the `needsReauthNotice` flag is flipped once the download completes,
- * so the caller may show the Gatekeeper / SmartScreen apology dialog
- * before invoking `relaunchApp()`.
+ * through `downloading` (with progress) → `ready`.
  *
- * @param confirmedReauth When `true`, the caller has already shown the
- * apology dialog (or the user dismissed it previously). Skips setting
- * `needsReauthNotice` on macOS / Windows.
+ * Note that on Windows the NSIS installer spawned by the plugin
+ * replaces the binary and terminates the process, so the `"ready"`
+ * return and the store transition below are best-effort there — never
+ * rely on post-install code running on that platform.
  */
-export async function downloadAndInstall(
-  confirmedReauth = false,
-): Promise<UpdateStatus> {
+export async function downloadAndInstall(): Promise<UpdateStatus> {
   if (!currentUpdate) {
     autoUpdateState.set({ status: "error", error: "no_update_available" });
     return "error";
@@ -244,13 +231,6 @@ export async function downloadAndInstall(
       totalBytes,
     });
 
-    if (!confirmedReauth) {
-      const os = await detectOs();
-      if (os === "macos" || os === "windows") {
-        needsReauthNotice.set(true);
-      }
-    }
-
     return "ready";
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -269,89 +249,19 @@ export async function relaunchApp(): Promise<void> {
 }
 
 /**
- * Kick off the install flow, honouring the persisted per-OS
- * re-authorization-notice dismissal.
+ * The single install entry point, shared by the startup toast's
+ * **Install** action and the Settings → Advanced **Install** button.
  *
- * Called by the toast Install action and the Settings "Install" button
- * once `checkForUpdates()` has resolved to `"available"`. On macOS and
- * Windows the flow consults [`getReauthDismissed`](../api/tauri.ts);
- * when the user has *not* previously dismissed the dialog, it flips the
- * [`needsReauthNotice`] store to `true` and returns — the caller must
- * render `ReauthNoticeDialog` and call
- * [`confirmReauthAndInstall`] once the user confirms.
- *
- * On Linux (or when the notice is already dismissed) it proceeds
- * straight to [`downloadAndInstall`].
- *
- * Returns the final `UpdateStatus` if the download runs inline, or
- * `"available"` when the dialog was surfaced and we're awaiting the
- * user's confirmation.
+ * Call it once `checkForUpdates()` has resolved to `"available"`. It
+ * downloads and installs straight away — there is deliberately no
+ * confirmation step in between. The unsigned-build warning users need
+ * to read is already on screen by then: both callers render it via
+ * {@link updateAvailableMessage} while the status is `"available"`.
+ * Putting it after the download would be unreadable on Windows, where
+ * the NSIS installer kills the process mid-install.
  */
-export async function startInstallFlow(): Promise<UpdateStatus> {
-  const os = await detectOs();
-  if (os === "macos" || os === "windows") {
-    let dismissed = false;
-    try {
-      dismissed = await getReauthDismissed(os);
-    } catch {
-      // If the IPC call fails, err on the side of showing the dialog —
-      // worst case the user clicks through an extra click.
-      dismissed = false;
-    }
-    if (!dismissed) {
-      needsReauthNotice.set(true);
-      return "available";
-    }
-  }
-  return downloadAndInstall(true);
-}
-
-/**
- * Called by the `ReauthNoticeDialog` after the user clicks **Update now**.
- *
- * Clears the in-session notice flag, persists the dismissal when the
- * user ticked the "Don't show this again" checkbox, then proceeds with
- * the actual download-and-install. `dismissForever` is the current
- * value of that checkbox.
- */
-export async function confirmReauthAndInstall(
-  dismissForever: boolean,
-): Promise<UpdateStatus> {
-  needsReauthNotice.set(false);
-  if (dismissForever) {
-    const os = await detectOs();
-    if (os === "macos" || os === "windows") {
-      try {
-        await setReauthDismissed(os, true);
-      } catch {
-        // Persistence failures are non-fatal — the flag only affects the
-        // next update cycle, not this one.
-      }
-    }
-  }
-  return downloadAndInstall(true);
-}
-
-/**
- * Called by the `ReauthNoticeDialog` after the user clicks **Cancel**.
- *
- * Clears the in-session flag and resets the store to `idle` so the
- * next "Install" click starts a fresh flow. Does not persist anything.
- */
-export function cancelReauthFlow(): void {
-  needsReauthNotice.set(false);
-  autoUpdateState.update((s) =>
-    s.status === "available" ? s : { status: "idle" },
-  );
-}
-
-/**
- * Suppress the re-auth notice for subsequent prompts in the current
- * session. Persistence across restarts is the caller's responsibility
- * (wired in Phase 4 via `AppConfig`).
- */
-export function dismissReauthForThisOs(): void {
-  needsReauthNotice.set(false);
+export async function installUpdate(): Promise<UpdateStatus> {
+  return downloadAndInstall();
 }
 
 /**
@@ -360,7 +270,6 @@ export function dismissReauthForThisOs(): void {
  */
 export function resetAutoUpdateState(): void {
   autoUpdateState.set({ status: "idle" });
-  needsReauthNotice.set(false);
   currentUpdate = null;
   clearAutoUpdateStartedAt();
 }
@@ -430,8 +339,9 @@ export async function runStartupCheck(): Promise<void> {
 
   const pendingVersion =
     getStateSnapshot().availableVersion ?? "";
+  const os = await detectOs();
 
-  emitUpdateAvailableToast(pendingVersion);
+  emitUpdateAvailableToast(pendingVersion, os);
 }
 
 /** Cheap synchronous view of the store (no subscription bookkeeping). */
@@ -445,12 +355,48 @@ function getStateSnapshot(): UpdateState {
 }
 
 /**
- * Render the "update available" toast with Install / Later actions.
+ * Per-OS note warning that the freshly installed build will trip the
+ * platform's unsigned-binary gate on first launch. Empty on Linux and
+ * unknown platforms, which have no such prompt.
+ *
+ * This has to be shown *before* the download (see the module header):
+ * on Windows the NSIS installer terminates the app mid-install, so no
+ * post-download surface is guaranteed to render.
+ */
+function unsignedBuildNotice(os: AutoUpdateOs): string {
+  if (os === "macos") return m.update_restart_notice_macos();
+  if (os === "windows") return m.update_restart_notice_windows();
+  return "";
+}
+
+/**
+ * "BeardGit x.y.z is available", plus the unsigned-build notice for `os`
+ * when that platform has one.
+ *
+ * Shared by *both* pre-install surfaces — the startup toast and the
+ * Settings → Advanced helper line — so the warning can't silently go
+ * missing from one of them.
+ */
+export function updateAvailableMessage(
+  version: string,
+  os: AutoUpdateOs,
+): string {
+  const headline = m.update_available({ version });
+  const notice = unsignedBuildNotice(os);
+  return notice ? `${headline} — ${notice}` : headline;
+}
+
+/**
+ * Render the "update available" toast with Install / Later actions,
+ * appending the unsigned-build notice for `os` when there is one.
  * Exposed for unit tests; the production caller is `runStartupCheck()`.
  */
-export function emitUpdateAvailableToast(version: string): void {
+export function emitUpdateAvailableToast(
+  version: string,
+  os: AutoUpdateOs = "other",
+): void {
   const toastId = addToast({
-    message: m.update_available({ version }),
+    message: updateAvailableMessage(version, os),
     type: "info",
     duration: null,
     actions: [
@@ -505,9 +451,7 @@ async function startDownloadFromToast(toastId: string): Promise<void> {
     });
   });
 
-  const outcome = await startInstallFlow().catch(
-    () => "error" as UpdateStatus,
-  );
+  const outcome = await installUpdate().catch(() => "error" as UpdateStatus);
 
   unsubscribe();
 
@@ -527,12 +471,6 @@ async function startDownloadFromToast(toastId: string): Promise<void> {
         },
       ],
     });
-  } else if (outcome === "available") {
-    // The re-auth dialog is showing — remove the transient progress
-    // toast; the dialog now owns the UX until the user confirms or
-    // cancels. If the user confirms, the restart toast will be emitted
-    // from `confirmReauthAndInstall` → `downloadAndInstall` downstream.
-    removeToast(toastId);
   } else {
     removeToast(toastId);
     addToast({
@@ -602,7 +540,6 @@ export function cancelUpdateDownload(): void {
   currentUpdate = null;
   clearAutoUpdateStartedAt();
   autoUpdateState.set({ status: "idle" });
-  needsReauthNotice.set(false);
 }
 
 /**
