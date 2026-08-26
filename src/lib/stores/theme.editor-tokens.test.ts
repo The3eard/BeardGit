@@ -205,3 +205,43 @@ describe("applyTheme — editor tokens reach the CSS custom properties", () => {
     expect(token("--diff-added-bg")).toBe(previousAdded);
   });
 });
+
+// ── Mode-dependent overlay tints ────────────────────────────────────────
+//
+// These were hardcoded white-on-transparent at `:root` in app.css, which
+// made the scrollbar thumb invisible on every light theme (white on white)
+// and left the spinner with no visible track ring.
+
+describe("applyTheme — scrollbar and spinner tints follow the mode", () => {
+  it("uses dark-on-light tints for a light theme", () => {
+    applyTheme(themes["github-light"]);
+
+    // The exact alphas are a design choice; what must hold is that a light
+    // theme gets a *dark* tint, because the failure mode was white on white.
+    expect(token("--scrollbar-thumb")).toContain("rgba(0,0,0");
+    expect(token("--scrollbar-thumb-hover")).toContain("rgba(0,0,0");
+    expect(token("--spinner-track")).toContain("rgba(0,0,0");
+  });
+
+  it("makes the hover state stronger than the resting thumb", () => {
+    applyTheme(themes["github-light"]);
+
+    const alpha = (value: string): number =>
+      Number.parseFloat(value.split(",").pop()!.replace(")", ""));
+    expect(alpha(token("--scrollbar-thumb-hover"))).toBeGreaterThan(
+      alpha(token("--scrollbar-thumb")),
+    );
+  });
+
+  it("keeps light-on-dark tints for a dark theme", () => {
+    // Built from the light fixture rather than adding a dark one: only the
+    // mode drives these, and asserting that is the point.
+    applyTheme({
+      ...themes["github-light"],
+      meta: { ...themes["github-light"].meta, mode: "dark" },
+    });
+
+    expect(token("--scrollbar-thumb")).toContain("rgba(255,255,255");
+    expect(token("--spinner-track")).toContain("rgba(255,255,255");
+  });
+});
