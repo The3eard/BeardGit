@@ -75,19 +75,19 @@ for (const mode of THEME_MODES) {
           get_mr_pr_diff: [
             makeMrPrDiffFile({
               path: "tests/visual/helpers/mock-ipc.ts",
-              status: "A",
+              status: "added",
               additions: 142,
               deletions: 0,
             }),
             makeMrPrDiffFile({
               path: "src/test/fixtures/index.ts",
-              status: "M",
+              status: "modified",
               additions: 8,
               deletions: 0,
             }),
             makeMrPrDiffFile({
               path: "tests/visual/routes.spec.ts",
-              status: "M",
+              status: "modified",
               additions: 56,
               deletions: 28,
             }),

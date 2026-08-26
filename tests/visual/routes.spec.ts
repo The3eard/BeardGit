@@ -17,6 +17,7 @@ import {
   installBootstrapMocks,
   THEME_MODES,
   waitForAppReady,
+  GRAPH_CANVAS_PIXEL_BUDGET,
   type IpcResponses,
 } from "./helpers";
 import {
@@ -164,6 +165,9 @@ for (const mode of THEME_MODES) {
         await expect(page).toHaveScreenshot(`${mode}-${id}.png`, {
           fullPage: false,
           animations: "disabled",
+          // The graph is the one canvas-backed view in this loop; see
+          // `GRAPH_CANVAS_PIXEL_BUDGET`.
+          ...(id === "graph" ? { maxDiffPixels: GRAPH_CANVAS_PIXEL_BUDGET } : {}),
         });
       });
     }

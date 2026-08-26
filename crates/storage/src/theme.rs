@@ -148,10 +148,13 @@ so pin the UI text tokens here instead:
 
 All three text rungs want at least 4.5:1 (WCAG AA for normal text), and
 `border-strong` 3:1. Not against `background` alone: the check measures
-each token against every surface it is drawn on, which for text means the
-page and the panels, and for the borders the toolbar as well — a colour
-solved for the page alone can be a full point dimmer up there. `border`
-takes a lower 2:1, being a divider rather than something you have to read.
+each token against every surface it is drawn on, and reports the worst.
+That means the page, the panels *and* the toolbar for `text-primary`,
+`text-secondary` and both borders — a colour solved for the page alone can
+be a full point dimmer up there. `text-muted` is the one exception, page
+and panels only, because nothing in the UI draws it on the toolbar.
+`border` takes a lower 2:1, being a divider rather than something you have
+to read.
 
 Every bundled theme is checked against those floors; yours is only
 reported.

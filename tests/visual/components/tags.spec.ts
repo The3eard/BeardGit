@@ -52,9 +52,9 @@ const FIXTURES = {
     deletions: 7,
   }),
   get_commit_files: [
-    makeCommitFileChange({ path: "src/lib/a.ts", status: "M" }),
-    makeCommitFileChange({ path: "src/lib/b.ts", status: "A" }),
-    makeCommitFileChange({ path: "README.md", status: "M" }),
+    makeCommitFileChange({ path: "src/lib/a.ts", status: "modified" }),
+    makeCommitFileChange({ path: "src/lib/b.ts", status: "added" }),
+    makeCommitFileChange({ path: "README.md", status: "modified" }),
   ],
 };
 

@@ -105,7 +105,7 @@ export function makeCommitFileChange(
 ): CommitFileChange {
   return {
     path: "src/lib/feature.ts",
-    status: "M",
+    status: "modified",
     ...overrides,
   };
 }

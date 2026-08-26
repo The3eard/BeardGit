@@ -16,3 +16,4 @@ export {
   type BootstrapOpts,
 } from "./bootstrap";
 export { clickNav } from "./nav";
+export { waitForGraphPainted, GRAPH_CANVAS_PIXEL_BUDGET } from "./graph";

@@ -61,17 +61,17 @@ const SCENARIOS: Record<string, Scenario> = {
   },
   "only-staged": {
     files: [
-      makeFileStatus({ path: "src/lib/feature.ts", status: "M", is_staged: true }),
-      makeFileStatus({ path: "src/lib/types/index.ts", status: "M", is_staged: true }),
-      makeFileStatus({ path: "src/lib/utils/format.ts", status: "A", is_staged: true }),
+      makeFileStatus({ path: "src/lib/feature.ts", status: "modified", is_staged: true }),
+      makeFileStatus({ path: "src/lib/types/index.ts", status: "modified", is_staged: true }),
+      makeFileStatus({ path: "src/lib/utils/format.ts", status: "new", is_staged: true }),
     ],
     summary: makeStatusSummary({ staged: 3 }),
   },
   "only-unstaged": {
     files: [
-      makeFileStatus({ path: "src/routes/+page.svelte", status: "M", is_staged: false }),
-      makeFileStatus({ path: "src/lib/components/ui/Button.svelte", status: "M", is_staged: false }),
-      makeFileStatus({ path: "src/lib/legacy/old-helper.ts", status: "D", is_staged: false }),
+      makeFileStatus({ path: "src/routes/+page.svelte", status: "modified", is_staged: false }),
+      makeFileStatus({ path: "src/lib/components/ui/Button.svelte", status: "modified", is_staged: false }),
+      makeFileStatus({ path: "src/lib/legacy/old-helper.ts", status: "deleted", is_staged: false }),
     ],
     summary: makeStatusSummary({ unstaged: 3 }),
   },
@@ -80,7 +80,7 @@ const SCENARIOS: Record<string, Scenario> = {
     summary: makeStatusSummary({ staged: 3, unstaged: 3, untracked: 2 }),
   },
   "populated-diff": {
-    files: [makeFileStatus({ path: "src/a.ts", status: "M", is_staged: false })],
+    files: [makeFileStatus({ path: "src/a.ts", status: "modified", is_staged: false })],
     summary: makeStatusSummary({ unstaged: 1 }),
     diff: makeFileDiff({ path: "src/a.ts" }),
     select: "src/a.ts",
@@ -89,7 +89,7 @@ const SCENARIOS: Record<string, Scenario> = {
     files: Array.from({ length: 10 }, (_, i) =>
       makeFileStatus({
         path: `tests/visual/scratch/untracked-${i + 1}.ts`,
-        status: "?",
+        status: "untracked",
         is_staged: false,
       }),
     ),
@@ -135,6 +135,13 @@ for (const mode of THEME_MODES) {
         }
         await expect(page).toHaveScreenshot(`${mode}-${name}.png`, {
           animations: "disabled",
+          // CodeMirror re-rasterises its own text between runs: measured
+          // at up to 776 differing pixels along glyph edges across
+          // repeated `--retries=0` passes, against the suite's 300 budget.
+          // Only the scenario that opens the diff pays this; the cost is
+          // that a change smaller than ~1,200px inside the diff pane goes
+          // unseen there.
+          ...(scenario.select ? { maxDiffPixels: 1_200 } : {}),
         });
       });
     }

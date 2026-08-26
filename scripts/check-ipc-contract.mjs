@@ -154,7 +154,14 @@ function extractWrappers(src) {
  * bootstrap rejects, but they are plugin endpoints, not
  * `#[tauri::command]`s, so they can never appear in the Rust scan.
  */
-const PLUGIN_CHANNELS = ["plugin:window|set_title", "plugin:event|listen"];
+const PLUGIN_CHANNELS = [
+  "plugin:window|set_title",
+  "plugin:event|listen",
+  // Not stubbed by anything today. Listed because the SDK routes it
+  // through the same bridge, so the first test that needs it would
+  // otherwise hit a type error with nothing pointing at this list.
+  "plugin:event|emit",
+];
 
 /**
  * Render the generated command-name union consumed by the visual test

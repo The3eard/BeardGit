@@ -92,9 +92,9 @@ function commonFixtures(host: "github" | "gitlab"): IpcResponses {
       author: "Adolfo Fuentes",
     }),
     get_commit_files: [
-      makeCommitFileChange({ path: "src/store.rs", status: "M" }),
-      makeCommitFileChange({ path: "src/recurrence.rs", status: "A" }),
-      makeCommitFileChange({ path: "tests/recurrence.rs", status: "M" }),
+      makeCommitFileChange({ path: "src/store.rs", status: "modified" }),
+      makeCommitFileChange({ path: "src/recurrence.rs", status: "added" }),
+      makeCommitFileChange({ path: "tests/recurrence.rs", status: "modified" }),
     ],
 
     // Bisect — an in-progress session (more telling than the idle start screen)
@@ -109,8 +109,8 @@ function commonFixtures(host: "github" | "gitlab"): IpcResponses {
 
     // Changes
     get_file_statuses: fileStatusList(),
-    get_diff_workdir: [makeFileDiff({ path: "src/cli.rs", status: "M" })],
-    get_diff_index: [makeFileDiff({ path: "src/store.rs", status: "M" })],
+    get_diff_workdir: [makeFileDiff({ path: "src/cli.rs", status: "modified" })],
+    get_diff_index: [makeFileDiff({ path: "src/store.rs", status: "modified" })],
 
     // Forge — PRs/MRs + detail
     list_mr_prs: host === "github" ? prList() : mrList(),
