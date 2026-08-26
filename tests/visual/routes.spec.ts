@@ -13,6 +13,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   applyTheme,
+  clickNav,
   installBootstrapMocks,
   THEME_MODES,
   waitForAppReady,
@@ -125,15 +126,11 @@ for (const mode of THEME_MODES) {
 
     for (const [id, label] of VIEWS) {
       test(`${id}`, async ({ page }) => {
-        // `Settings` lives outside the <nav> in Sidebar.svelte but uses
-        // the same `.nav-item` class — we target by label match on the
-        // nav-label span so a single selector hits every sidebar entry.
-        await page
-          .locator(
-            `button.nav-item:has(.nav-label:text-is("${label}"))`,
-          )
-          .first()
-          .click();
+        // Via the shared helper, which waits for the view to be there.
+        // Clicking and screenshotting straight away recorded three of
+        // these baselines against a `LazyComponent` spinner — see
+        // `helpers/nav.ts` for why that passed forever.
+        await clickNav(page, label);
         await expect(page).toHaveScreenshot(`${mode}-${id}.png`, {
           fullPage: false,
           animations: "disabled",
