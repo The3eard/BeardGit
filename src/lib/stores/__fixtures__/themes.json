@@ -35,9 +35,9 @@
       "border": "#6a6764",
       "border_strong": "#84817e",
       "selection": "#6fb1cc40",
-      "text_muted": "#837e77",
+      "text_muted": "#918d85",
       "text_primary": "#e8e4de",
-      "text_secondary": "#98928a"
+      "text_secondary": "#a29d95"
     },
     "editor": {
       "added_bg": "#2a3120",
@@ -46,7 +46,7 @@
       "cursor": "#6fb1cc",
       "foreground": "#e8e4de",
       "gutter_bg": "#151312",
-      "gutter_fg": "#98928a",
+      "gutter_fg": "#a29d95",
       "line_highlight": "#27252466",
       "removed_bg": "#39201c",
       "removed_text": "#e0604c",
@@ -86,7 +86,7 @@
       "selection": "#6fb1cc44",
       "selection_highlight": "#6fb1cc66",
       "text_primary": "#e8e4de",
-      "text_secondary": "#98928a",
+      "text_secondary": "#a29d95",
       "text_sha": "#6fb1cc"
     },
     "meta": {
@@ -132,9 +132,9 @@
       "border": "#999692",
       "border_strong": "#7e7a75",
       "selection": "#37749a40",
-      "text_muted": "#767069",
+      "text_muted": "#6f6862",
       "text_primary": "#36312b",
-      "text_secondary": "#655e57"
+      "text_secondary": "#605953"
     },
     "editor": {
       "added_bg": "#e1e4d7",
@@ -143,7 +143,7 @@
       "cursor": "#37749a",
       "foreground": "#36312b",
       "gutter_bg": "#faf8f5",
-      "gutter_fg": "#655e57",
+      "gutter_fg": "#605953",
       "line_highlight": "#edebe866",
       "removed_bg": "#f0dcd6",
       "removed_text": "#bf4a36",
@@ -183,7 +183,7 @@
       "selection": "#37749a44",
       "selection_highlight": "#37749a66",
       "text_primary": "#36312b",
-      "text_secondary": "#655e57",
+      "text_secondary": "#605953",
       "text_sha": "#37749a"
     },
     "meta": {
@@ -229,9 +229,9 @@
       "border": "#999a9d",
       "border_strong": "#7b7e81",
       "selection": "#0969da40",
-      "text_muted": "#6e767e",
+      "text_muted": "#666e77",
       "text_primary": "#1f2328",
-      "text_secondary": "#57606a"
+      "text_secondary": "#565f69"
     },
     "editor": {
       "added_bg": "#d4f8db",
@@ -240,7 +240,7 @@
       "cursor": "#0969da",
       "foreground": "#1f2328",
       "gutter_bg": "#ffffff",
-      "gutter_fg": "#57606a",
+      "gutter_fg": "#565f69",
       "line_highlight": "#f2f2f266",
       "removed_bg": "#fdd8d8",
       "removed_text": "#cf222e",
@@ -280,7 +280,7 @@
       "selection": "#0969da44",
       "selection_highlight": "#0969da66",
       "text_primary": "#1f2328",
-      "text_secondary": "#57606a",
+      "text_secondary": "#565f69",
       "text_sha": "#0969da"
     },
     "meta": {
