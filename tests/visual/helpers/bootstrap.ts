@@ -139,7 +139,7 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
 
     // Locale
     get_locale: "en-US",
-    set_locale_config: undefined,
+    set_locale: undefined,
 
     // Projects / tabs — `switch_project` is the workhorse the active-tab
     // activation calls; it must return a fully-formed RepoInfo or the
@@ -154,12 +154,16 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
     get_project_snapshot: null,
     detect_project: undefined,
 
-    // AI — empty / disabled defaults so onMount paths short-circuit
-    detect_ai_providers: [],
-    get_preferred_ai_provider: null,
-    list_ai_sessions: [],
-    list_ai_background_runs: [],
-    get_ai_background_settings: {
+    // AI — empty / disabled defaults so onMount paths short-circuit.
+    // These are the real command names; an earlier set of invented ones
+    // (`detect_ai_providers`, `list_ai_sessions`, `get_ai_background_settings`)
+    // sat here answering nothing until `IpcResponses` became typed.
+    ai_get_providers: [],
+    ai_refresh_detection: undefined,
+    ai_get_preferred_provider: null,
+    ai_list_conversations: [],
+    ai_list_background_runs: [],
+    ai_background_get_settings: {
       auto_resume: false,
       max_concurrent: 1,
     },
@@ -167,7 +171,7 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
     // Forge / CI — `get_provider_status` controls which sidebar items
     // render (pipelines / issues / mr-pr / releases / repo-config).
     get_provider_status: makeProviderStatus(opts.forge ?? "github"),
-    get_cli_auth_status: [],
+    cli_check_auth_status: [],
     try_auto_connect: undefined,
 
     // ── Activation-path commands ─────────────────────────────────────
@@ -189,19 +193,12 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
       ? makeProjectSnapshot({ path: opts.activeProject.path })
       : makeProjectSnapshot(),
     save_project_snapshot: undefined,
-    register_watcher: undefined,
 
     // Diff settings
     get_diff_show_whitespace: false,
     get_diff_line_wrapping: false,
     set_diff_show_whitespace: undefined,
     set_diff_line_wrapping: undefined,
-
-    // AI surface — alternate command names found at runtime
-    ai_refresh_detection: undefined,
-    ai_get_preferred_provider: null,
-    ai_list_background_runs: [],
-    ai_get_providers: [],
 
     // Window plugin (set_title from titlebar updates)
     "plugin:window|set_title": undefined,
@@ -238,12 +235,25 @@ export async function installBootstrapMocks(
  * any view — taking a screenshot then would just baseline the spinner.
  *
  * `.welcome-screen .loading-text` is the specific element bound to the
- * `$isLoading` branch in `+page.svelte` (line ~1065); waiting for it to
- * detach is the cleanest signal that the project has finished
- * activating.
+ * `$isLoading` branch in `+page.svelte`; waiting for it to detach is the
+ * cleanest signal that the project has finished activating.
+ *
+ * The `.app-shell` wait in front of it is not decoration. "Wait for
+ * detached" is satisfied by an element that has not been attached *yet*,
+ * so on its own this returns instantly against a blank page and every
+ * caller proceeds to screenshot the load. Anchoring on the shell first
+ * means the app has rendered at least once before the detach is read.
  */
 export async function waitForAppReady(page: Page): Promise<void> {
+  await page.locator(".app-shell").waitFor({ state: "attached", timeout: 10_000 });
   await page
     .locator(".welcome-screen .loading-text")
     .waitFor({ state: "detached", timeout: 10_000 });
+  // Fira Code and the Nerd Font symbols are webfonts. Text painted before
+  // they resolve uses a fallback and is repainted after — invisible in DOM
+  // terms, and worth thousands of pixels in a screenshot. It only lost the
+  // race under the full suite's six workers, never when a spec ran alone,
+  // which is exactly the shape that makes it look like flakiness rather
+  // than a missing wait.
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
 }

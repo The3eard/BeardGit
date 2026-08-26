@@ -1,4 +1,101 @@
 {
+  "beardgit-dark": {
+    "colors": {
+      "background": "#151312",
+      "black": "#45403a",
+      "blue": "#6fb1cc",
+      "bright_black": "#948e86",
+      "bright_blue": "#92c9e0",
+      "bright_cyan": "#9cd9cc",
+      "bright_green": "#abd084",
+      "bright_magenta": "#dcabc9",
+      "bright_red": "#f08573",
+      "bright_white": "#f3f0ea",
+      "bright_yellow": "#f0bd72",
+      "cyan": "#7cc7b8",
+      "foreground": "#e8e4de",
+      "green": "#8fbc62",
+      "magenta": "#c78bb0",
+      "red": "#e0604c",
+      "white": "#c6c0b8",
+      "yellow": "#e0a458"
+    },
+    "derived": {
+      "accent_blue": "#6fb1cc",
+      "accent_green": "#8fbc62",
+      "accent_orange": "#e0a458",
+      "accent_primary": "#d9924f",
+      "accent_purple": "#c78bb0",
+      "accent_red": "#e0604c",
+      "accent_secondary": "#7cc7b8",
+      "accent_tertiary": "#8fbc62",
+      "bg_primary": "#151312",
+      "bg_secondary": "#272524",
+      "bg_toolbar": "#353433",
+      "border": "#6a6764",
+      "border_strong": "#84817e",
+      "selection": "#6fb1cc40",
+      "text_muted": "#918d85",
+      "text_primary": "#e8e4de",
+      "text_secondary": "#a29d95"
+    },
+    "editor": {
+      "added_bg": "#2a3120",
+      "added_text": "#8fbc62",
+      "background": "#151312",
+      "cursor": "#6fb1cc",
+      "foreground": "#e8e4de",
+      "gutter_bg": "#151312",
+      "gutter_fg": "#a29d95",
+      "line_highlight": "#27252466",
+      "removed_bg": "#39201c",
+      "removed_text": "#e0604c",
+      "selection": "#6fb1cc44",
+      "syntax_comment": null,
+      "syntax_function": "#c78bb0",
+      "syntax_keyword": "#e0604c",
+      "syntax_number": "#e0a458",
+      "syntax_operator": "#e0604c",
+      "syntax_property": "#7cc7b8",
+      "syntax_string": "#8fbc62",
+      "syntax_type": "#6fb1cc"
+    },
+    "graph": {
+      "background": "#151312",
+      "dim_opacity": 0.4,
+      "foreground": "#e8e4de",
+      "head_lane_tint": "#d9924f22",
+      "lane_colors": [
+        "#6fb1cc",
+        "#8fbc62",
+        "#e0a458",
+        "#c78bb0",
+        "#e0604c",
+        "#93c4d8",
+        "#abcc89",
+        "#e07658",
+        "#d5a8c3",
+        "#e67f6f"
+      ],
+      "merge_radius": 3.0,
+      "node_radius": 4.0,
+      "ref_branch": "#8fbc62",
+      "ref_head": "#c78bb0",
+      "ref_remote": "#6fb1cc",
+      "ref_tag": "#e0a458",
+      "selection": "#6fb1cc44",
+      "selection_highlight": "#6fb1cc66",
+      "text_primary": "#e8e4de",
+      "text_secondary": "#a29d95",
+      "text_sha": "#6fb1cc"
+    },
+    "meta": {
+      "complementary": "beardgit-light",
+      "id": "beardgit-dark",
+      "mode": "dark",
+      "name": "BeardGit Dark"
+    }
+  },
   "beardgit-light": {
     "colors": {
       "background": "#faf8f5",
@@ -32,11 +129,12 @@
       "bg_primary": "#faf8f5",
       "bg_secondary": "#edebe8",
       "bg_toolbar": "#e1dfdc",
-      "border": "#6b645c80",
+      "border": "#999692",
+      "border_strong": "#7e7a75",
       "selection": "#37749a40",
-      "text_muted": "#8a847d",
+      "text_muted": "#6f6862",
       "text_primary": "#36312b",
-      "text_secondary": "#6b645c"
+      "text_secondary": "#605953"
     },
     "editor": {
       "added_bg": "#e1e4d7",
@@ -45,7 +143,7 @@
       "cursor": "#37749a",
       "foreground": "#36312b",
       "gutter_bg": "#faf8f5",
-      "gutter_fg": "#6b645c",
+      "gutter_fg": "#605953",
       "line_highlight": "#edebe866",
       "removed_bg": "#f0dcd6",
       "removed_text": "#bf4a36",
@@ -85,7 +183,7 @@
       "selection": "#37749a44",
       "selection_highlight": "#37749a66",
       "text_primary": "#36312b",
-      "text_secondary": "#6b645c",
+      "text_secondary": "#605953",
       "text_sha": "#37749a"
     },
     "meta": {
@@ -128,11 +226,12 @@
       "bg_primary": "#ffffff",
       "bg_secondary": "#f2f2f2",
       "bg_toolbar": "#e5e5e5",
-      "border": "#57606a80",
+      "border": "#999a9d",
+      "border_strong": "#7b7e81",
       "selection": "#0969da40",
-      "text_muted": "#7b828a",
+      "text_muted": "#666e77",
       "text_primary": "#1f2328",
-      "text_secondary": "#57606a"
+      "text_secondary": "#565f69"
     },
     "editor": {
       "added_bg": "#d4f8db",
@@ -141,7 +240,7 @@
       "cursor": "#0969da",
       "foreground": "#1f2328",
       "gutter_bg": "#ffffff",
-      "gutter_fg": "#57606a",
+      "gutter_fg": "#565f69",
       "line_highlight": "#f2f2f266",
       "removed_bg": "#fdd8d8",
       "removed_text": "#cf222e",
@@ -181,7 +280,7 @@
       "selection": "#0969da44",
       "selection_highlight": "#0969da66",
       "text_primary": "#1f2328",
-      "text_secondary": "#57606a",
+      "text_secondary": "#565f69",
       "text_sha": "#0969da"
     },
     "meta": {

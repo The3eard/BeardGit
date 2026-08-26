@@ -16,6 +16,8 @@ import {
   installBootstrapMocks,
   THEME_MODES,
   waitForAppReady,
+  waitForGraphPainted,
+  GRAPH_CANVAS_PIXEL_BUDGET,
 } from "../helpers";
 import {
   makeGraphViewport,
@@ -90,10 +92,12 @@ for (const mode of THEME_MODES) {
         await applyTheme(page, mode);
         await waitForAppReady(page);
         await clickNav(page, "Graph");
-        // Give the canvas one frame to paint the new viewport.
-        await page.waitForTimeout(150);
+        await waitForGraphPainted(page, viewport.nodes.length);
         await expect(page).toHaveScreenshot(`${mode}-${name}.png`, {
           animations: "disabled",
+          // The drawing is the subject here, so it cannot be masked; see
+          // `GRAPH_CANVAS_PIXEL_BUDGET` for what that costs.
+          maxDiffPixels: GRAPH_CANVAS_PIXEL_BUDGET,
         });
       });
     }

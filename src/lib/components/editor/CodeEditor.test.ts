@@ -99,17 +99,17 @@ describe('createCodemirrorTheme', () => {
       syntax_operator: '#ff7b72',
       syntax_property: '#7ee787',
     };
-    const ext = createCodemirrorTheme(editorData, true);
+    const ext = createCodemirrorTheme(true);
     expect(ext).toBeDefined();
   });
 
   it('creates a fallback theme when editor data is null', () => {
-    const ext = createCodemirrorTheme(null, true);
+    const ext = createCodemirrorTheme(true);
     expect(ext).toBeDefined();
   });
 
   it('creates a light mode theme (isDark=false)', () => {
-    const ext = createCodemirrorTheme(null, false);
+    const ext = createCodemirrorTheme(false);
     expect(ext).toBeDefined();
   });
 
@@ -135,7 +135,7 @@ describe('createCodemirrorTheme', () => {
       syntax_operator: '#cf222e',
       syntax_property: '#116329',
     };
-    const ext = createCodemirrorTheme(editorData, false);
+    const ext = createCodemirrorTheme(false);
     expect(ext).toBeDefined();
     expect(Array.isArray(ext)).toBe(true);
   });
@@ -165,7 +165,7 @@ describe('createCodemirrorTheme', () => {
     };
     // Cast to any to simulate a partial/incomplete theme payload arriving from IPC
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ext = createCodemirrorTheme(partial as any, true);
+    const ext = createCodemirrorTheme(true);
     expect(ext).toBeDefined();
   });
 });

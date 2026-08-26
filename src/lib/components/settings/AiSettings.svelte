@@ -281,7 +281,7 @@
     gap: 12px;
     padding: 10px 12px;
     border-radius: 6px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     background: var(--bg-primary);
     cursor: pointer;
     transition:
@@ -377,7 +377,7 @@
   .field-input {
     padding: 6px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);

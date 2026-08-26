@@ -552,7 +552,7 @@
     flex: 1;
     padding: 6px 10px;
     background: color-mix(in srgb, var(--text-primary) 4%, transparent);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);
@@ -584,7 +584,7 @@
   .add-input {
     padding: 4px 8px;
     background: color-mix(in srgb, var(--text-primary) 4%, transparent);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);
@@ -603,7 +603,7 @@
   .scope-select {
     padding: 4px 8px;
     background: color-mix(in srgb, var(--text-primary) 4%, transparent);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);

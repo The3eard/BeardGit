@@ -588,7 +588,7 @@
   .commit-input {
     width: 100%;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     padding: 8px 10px;
     color: var(--text-primary);

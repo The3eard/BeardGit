@@ -86,12 +86,18 @@ export function branchList(): BranchInfo[] {
 /** Real working-tree changes — a believable mid-edit state for the tasklog crate. */
 export function fileStatusList(): FileStatus[] {
   return [
-    { path: "src/store.rs", status: "M", is_staged: true },
-    { path: "src/recurrence.rs", status: "A", is_staged: true },
-    { path: "src/cli.rs", status: "M", is_staged: false },
-    { path: "src/main.rs", status: "M", is_staged: false },
-    { path: "tests/recurrence.rs", status: "A", is_staged: false },
-    { path: "README.md", status: "M", is_staged: false },
+    // Staging vocabulary: `"new" | "modified" | "deleted" | "renamed"`.
+    // Not `"added"` — that is the diff channel's word. Both normalise to
+    // the same green `A` badge, but `StagingArea.svelte` and
+    // `ChangesList.svelte` branch on the raw string to decide whether a
+    // discard deletes the file or resets it to the index, so the wrong
+    // word makes those paths unreachable from a fixture.
+    { path: "src/store.rs", status: "modified", is_staged: true },
+    { path: "src/recurrence.rs", status: "new", is_staged: true },
+    { path: "src/cli.rs", status: "modified", is_staged: false },
+    { path: "src/main.rs", status: "modified", is_staged: false },
+    { path: "tests/recurrence.rs", status: "new", is_staged: false },
+    { path: "README.md", status: "modified", is_staged: false },
   ];
 }
 
@@ -238,10 +244,10 @@ export function prDetail(): MrPrDetail {
 
 export function prDiff(): MrPrDiffFile[] {
   return [
-    { path: "src/recurrence.rs", old_path: null, status: "A", additions: 96, deletions: 0, patch: null },
-    { path: "src/store.rs", old_path: null, status: "M", additions: 31, deletions: 9, patch: null },
-    { path: "src/cli.rs", old_path: null, status: "M", additions: 12, deletions: 0, patch: null },
-    { path: "tests/recurrence.rs", old_path: null, status: "A", additions: 75, deletions: 0, patch: null },
+    { path: "src/recurrence.rs", old_path: null, status: "added", additions: 96, deletions: 0, patch: null },
+    { path: "src/store.rs", old_path: null, status: "modified", additions: 31, deletions: 9, patch: null },
+    { path: "src/cli.rs", old_path: null, status: "modified", additions: 12, deletions: 0, patch: null },
+    { path: "tests/recurrence.rs", old_path: null, status: "added", additions: 75, deletions: 0, patch: null },
   ];
 }
 

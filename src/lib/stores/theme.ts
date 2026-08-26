@@ -131,6 +131,7 @@ export function applyTheme(theme: ThemeData): void {
   el.setProperty("--accent-secondary", d.accent_secondary);
   el.setProperty("--accent-tertiary", d.accent_tertiary);
   el.setProperty("--border", d.border);
+  el.setProperty("--border-strong", d.border_strong);
   el.setProperty("--selection", d.selection);
   el.setProperty("--theme-mode", theme.meta.mode);
   // Native controls (checkbox, select, scrollbar) follow the theme's

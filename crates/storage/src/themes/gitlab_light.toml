@@ -23,12 +23,3 @@ bright-blue = "#0d5eb0"
 bright-magenta = "#694598"
 bright-cyan = "#096e76"
 bright-white = "#bfbfc3"
-
-# Accessibility overrides. `text_secondary` derives from `bright-black`,
-# which in this palette lands below the WCAG AA floor on the page; raising
-# `bright-black` itself would change the terminal's ANSI colours, so the UI
-# text tokens are pinned here instead. Audited by
-# `test_all_builtin_themes_meet_contrast_floors`.
-[derived]
-text-secondary = "#737278"  # 4.77:1 — palette `white` (GitLab gray-500)
-text-muted = "#89888d"  # 3.52:1 — palette `bright-black` (gray-400)

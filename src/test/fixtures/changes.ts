@@ -15,12 +15,20 @@ import type {
   FileStatus,
 } from "../../lib/types";
 
+/**
+ * A working-tree file status, in the *staging* vocabulary the backend
+ * actually emits: `"new" | "modified" | "deleted" | "renamed"`
+ * (`git-engine::staging`). Not the porcelain letters — `normalizeFileStatus`
+ * does not know them, so `"M"` renders as the dim `?` unknown badge and the
+ * colour-coded badges never appear. Every Changes baseline was recorded
+ * that way before this was fixed.
+ */
 export function makeFileStatus(
   overrides: Partial<FileStatus> = {},
 ): FileStatus {
   return {
     path: "src/lib/feature.ts",
-    status: "M",
+    status: "modified",
     is_staged: false,
     ...overrides,
   };
@@ -28,14 +36,16 @@ export function makeFileStatus(
 
 export function makeFileStatusList(): FileStatus[] {
   return [
-    makeFileStatus({ path: "src/lib/feature.ts", status: "M", is_staged: true }),
-    makeFileStatus({ path: "src/lib/types/index.ts", status: "M", is_staged: true }),
-    makeFileStatus({ path: "src/routes/+page.svelte", status: "M", is_staged: false }),
-    makeFileStatus({ path: "src/lib/components/ui/Button.svelte", status: "M", is_staged: false }),
-    makeFileStatus({ path: "src/lib/utils/format.ts", status: "A", is_staged: true }),
-    makeFileStatus({ path: "src/lib/legacy/old-helper.ts", status: "D", is_staged: false }),
-    makeFileStatus({ path: "tests/visual/new-spec.ts", status: "?", is_staged: false }),
-    makeFileStatus({ path: "tests/visual/another.ts", status: "?", is_staged: false }),
+    makeFileStatus({ path: "src/lib/feature.ts", status: "modified", is_staged: true }),
+    makeFileStatus({ path: "src/lib/types/index.ts", status: "modified", is_staged: true }),
+    makeFileStatus({ path: "src/routes/+page.svelte", status: "modified", is_staged: false }),
+    makeFileStatus({ path: "src/lib/components/ui/Button.svelte", status: "modified", is_staged: false }),
+    makeFileStatus({ path: "src/lib/utils/format.ts", status: "new", is_staged: true }),
+    makeFileStatus({ path: "src/lib/legacy/old-helper.ts", status: "deleted", is_staged: false }),
+    // Untracked: the staging path collapses staged-add and untracked into
+    // `"new"`, distinguished by `is_staged`.
+    makeFileStatus({ path: "tests/visual/new-spec.ts", status: "new", is_staged: false }),
+    makeFileStatus({ path: "tests/visual/another.ts", status: "new", is_staged: false }),
   ];
 }
 
@@ -76,7 +86,7 @@ export function makeFileDiff(overrides: Partial<FileDiff> = {}): FileDiff {
   return {
     path: "src/lib/feature.ts",
     old_path: null,
-    status: "M",
+    status: "modified",
     hunks: [makeDiffHunk()],
     additions: 3,
     deletions: 1,
@@ -95,7 +105,7 @@ export function makeFileDiffStat(
   return {
     path: "src/lib/feature.ts",
     old_path: null,
-    status: "M",
+    status: "modified",
     additions: 3,
     deletions: 1,
     ...overrides,

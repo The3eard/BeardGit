@@ -52,9 +52,9 @@ const FIXTURES = {
     deletions: 7,
   }),
   get_commit_files: [
-    makeCommitFileChange({ path: "src/lib/a.ts", status: "M" }),
-    makeCommitFileChange({ path: "src/lib/b.ts", status: "A" }),
-    makeCommitFileChange({ path: "README.md", status: "M" }),
+    makeCommitFileChange({ path: "src/lib/a.ts", status: "modified" }),
+    makeCommitFileChange({ path: "src/lib/b.ts", status: "added" }),
+    makeCommitFileChange({ path: "README.md", status: "modified" }),
   ],
 };
 
@@ -77,13 +77,48 @@ for (const mode of THEME_MODES) {
       await page.locator(".parent-oid.clickable").first().click();
       await page.locator(".parent-detail-panel").waitFor();
 
-      // Scroll the detail body so the parent panel is fully in frame.
+      // The parent panel's content arrives asynchronously, so scrolling to
+      // `scrollHeight` while it is still growing lands at a different
+      // offset on every run — a ~3 % pixel difference, invisible under
+      // Playwright's default per-pixel threshold and a hard failure once
+      // that threshold was tightened.
+      //
+      // Wait for the container's height to stop changing rather than for a
+      // specific child, so this doesn't couple to CommitDetail's internals.
+      await page.waitForFunction(
+        () => {
+          const el = document.querySelector(".tag-detail > .detail-body");
+          if (!el) return false;
+          const w = window as unknown as { __h?: number; __n?: number };
+          if (w.__h === el.scrollHeight) {
+            w.__n = (w.__n ?? 0) + 1;
+          } else {
+            w.__h = el.scrollHeight;
+            w.__n = 0;
+          }
+          return (w.__n ?? 0) >= 3;
+        },
+        undefined,
+        { timeout: 10_000, polling: 100 },
+      );
+
+      // Now scroll, and confirm the offset actually landed at the bottom.
       await page
         .locator(".tag-detail > .detail-body")
         .first()
         .evaluate((el) => {
           el.scrollTop = el.scrollHeight;
         });
+      await page.waitForFunction(
+        () => {
+          const el = document.querySelector(".tag-detail > .detail-body");
+          return (
+            !!el && el.scrollTop >= el.scrollHeight - el.clientHeight - 1
+          );
+        },
+        undefined,
+        { timeout: 5000 },
+      );
 
       await expect(page).toHaveScreenshot(`${mode}-parent-detail.png`, {
         animations: "disabled",
