@@ -849,9 +849,16 @@ mod tests {
             mine.contains("arg_count=1"),
             "the arg count replaces the argv and must be present, got: {mine}"
         );
+        // Deliberately the WHOLE buffer, not the label-filtered slice: the
+        // filter is needed for the positive anchors, but narrowing the leak
+        // check would miss exactly what this test exists to catch — a new,
+        // unexpected log site that emits argv without a `label` field. The
+        // sentinel is unique to this test, so there is no false-positive
+        // risk in checking everything.
         assert!(
-            !mine.contains(secret_payload),
-            "argv leaked into the log: {mine}"
+            !buffer.contents().contains(secret_payload),
+            "argv leaked into the log: {}",
+            buffer.contents()
         );
     }
 

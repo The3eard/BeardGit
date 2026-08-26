@@ -265,10 +265,17 @@ describe("app.css white-based tokens all have per-mode overrides", () => {
     // `import.meta.url` is not a file: URL under Vite's transform.
     const css = readFileSync("src/app.css", "utf8");
 
-    // `--token: rgba(255, 255, 255, …)` / `rgb(255 255 255 …)`.
+    // Literal white tints: `rgba(255,255,255,…)` plus the `hsl`/`hwb`
+    // notations, which matter because the `:root` block-disable turns off
+    // `function-disallowed-list` in exactly this region — so those are the
+    // spellings that would otherwise evade both guards.
+    //
+    // Narrower than "every white-ish default" on purpose: this is a
+    // convention check, not a colour parser. Every tint literal in app.css
+    // is currently `rgba()`.
     const whiteDefaults = [
       ...css.matchAll(
-        /^\s*(--[a-z0-9-]+)\s*:\s*[^;]*rgba?\(\s*255[\s,]+255[\s,]+255/gim,
+        /^\s*(--[a-z0-9-]+)\s*:\s*[^;]*(?:rgba?\(\s*255[\s,]+255[\s,]+255|hsla?\(\s*0[\s,]+0%[\s,]+100%|hwb\(\s*0\s+100%)/gim,
       ),
     ].map((m) => m[1]);
 
@@ -280,6 +287,10 @@ describe("app.css white-based tokens all have per-mode overrides", () => {
     applyTheme(themes["github-light"]);
     const lightMissing = whiteDefaults.filter((t) => token(t) === "");
 
+    // Reset first: `applyTheme` only ever sets properties, never removes
+    // them, so without this the set of written tokens grows monotonically
+    // and `darkMissing` could never fail independently of `lightMissing`.
+    document.documentElement.removeAttribute("style");
     applyTheme({
       ...themes["github-light"],
       meta: { ...themes["github-light"].meta, mode: "dark" },
