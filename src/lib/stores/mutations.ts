@@ -23,6 +23,7 @@ import { loadReflog } from "./reflog";
 import { refreshRepoInfo } from "./repo";
 import { refreshConflictStatus } from "./conflict";
 import { refreshSubmodules } from "./submodules";
+import { refreshFileEditorTree } from "./fileEditor";
 import { saveCurrentSnapshot } from "./project-cache";
 
 /** Shape emitted by `mutation_events::emit_mutation`. */
@@ -102,6 +103,14 @@ export function dispatchRefresh(flags: MutationFlags, path?: string): void {
     // `repo-changed` listener), so any stage/unstage/commit/external
     // edit left them stale and clicking a file found no diff.
     void refreshDiffs();
+    // The editor's file tree is a view of the filesystem, and something
+    // just changed it. Driven from here rather than from its own
+    // `project-mutated` listener so it inherits this dispatcher's two
+    // properties: a burst (a checkout, a pull, a build under the watcher)
+    // coalesces into one refresh, and a mutation in a background tab does
+    // not blank the active tab's tree. The hook is installed by the editor
+    // panel, which owns the gitignore preference.
+    void refreshFileEditorTree();
   }
   if (flags.head_changed || flags.refs_changed || flags.status_changed) {
     // Conflict state (in-progress rebase/merge → the ConflictToolbar, the

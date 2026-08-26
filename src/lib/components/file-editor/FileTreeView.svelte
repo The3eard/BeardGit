@@ -87,7 +87,10 @@
     searchPending = q.trim() !== "";
     searchTimer = setTimeout(() => {
       void searchTree(q, respectGitignore).finally(() => {
-        searchPending = false;
+        // Only if the box still holds the query this timer was armed for:
+        // an earlier search resolving under a newer pending one would
+        // otherwise clear the flag and flash the empty state.
+        if (q === filterQuery) searchPending = false;
       });
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(searchTimer);

@@ -1247,7 +1247,7 @@
   "editor_tree_filter_placeholder": "Filtrar archivos…",
   "editor_tree_empty": "Este repositorio no tiene archivos que mostrar.",
   "editor_tree_empty_folder": "Carpeta vacía",
-  "editor_tree_level_truncated": "Solo se muestran las primeras {count} entradas de esta carpeta.",
+  "editor_tree_level_truncated": "Esta carpeta tiene más de {count} entradas; algunas no se listan. Usa el filtro para buscar un archivo por nombre.",
   "editor_tree_level_failed": "No se pudo listar esta carpeta. Ciérrala y vuelve a abrirla para reintentar.",
   "editor_tree_searching": "Buscando…",
   "editor_tree_no_matches": "Ningún archivo coincide.",

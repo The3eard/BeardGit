@@ -97,7 +97,7 @@
   >
     <span class="glyph" aria-hidden="true">
       {#if entry.is_directory}
-        {#if $loadingDirs.has(entry.path)}{:else}{open ? "" : ""}{/if}
+        {#if $loadingDirs.has(entry.path)}{:else}{open ? "" : ""}{/if}
       {:else}
         {fileGlyphFor(entry.name)}
       {/if}

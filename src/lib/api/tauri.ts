@@ -825,8 +825,8 @@ export async function writeWorkdirFile(path: string, content: string): Promise<v
  * repo's gitignore patterns.
  *
  * Always skipped: `.git/`, `node_modules/`, `target/`, tool caches
- * (`.gradle`, `.venv`, `__pycache__`, `.next`, `.turbo`, `DerivedData`,
- * `Pods`), `.beardgit/ai-worktrees/`, and symlinks.
+ * (`.gradle`, `.venv`, `__pycache__`, `.next`, `.turbo`, `DerivedData`),
+ * `.beardgit/ai-worktrees/`, and symlinks.
  */
 export async function listWorkdirTree(
   prefix: string | null,
