@@ -455,7 +455,7 @@
 
   .edit-action {
     background: none;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     color: var(--text-primary);
     font-size: var(--font-size-xs);
     padding: 2px 6px;

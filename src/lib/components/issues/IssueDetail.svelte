@@ -514,7 +514,7 @@
     padding-left: 20px;
   }
   .comment-input-section {
-    border-top: 1px solid var(--border-strong);
+    border-top: 1px solid var(--border);
     padding-top: 12px;
   }
   .comment-textarea {
