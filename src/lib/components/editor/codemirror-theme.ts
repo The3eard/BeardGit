@@ -7,21 +7,20 @@
  * CSS-in-JS, so var() references are valid values; this makes every
  * editor/diff surface follow the app theme live, with no rebuilds and
  * no per-instance theme plumbing.
- *
- * The `_editor` parameter is kept for call-site compatibility (it also
- * serves as a rebuild dependency in the wrappers) but is no longer read.
  */
 
 import { EditorView } from '@codemirror/view';
 import { type Extension } from '@codemirror/state';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
-import type { ThemeEditorData } from '$lib/types';
 
 /**
- * Build a CodeMirror `Extension[]` from a theme's editor token data.
+ * Build a CodeMirror `Extension[]` for the active theme.
  *
  * Returns an array containing the base chrome theme AND syntax highlighting.
+ * The only input is the light/dark flag: every colour is emitted as a
+ * `var(--…)` reference, so the extension itself never has to be rebuilt
+ * when the theme changes within a mode.
  */
 export function createCodemirrorTheme(isDark: boolean): Extension {
   return [buildChromeTheme(isDark), buildSyntaxHighlighting()];
