@@ -100,8 +100,7 @@
    */
   function buildThemeExt() {
     const theme = get(activeTheme);
-    return createCodemirrorTheme(theme?.meta.mode !== "light",
-    );
+    return createCodemirrorTheme(theme?.meta.mode !== "light");
   }
 
   /**

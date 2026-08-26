@@ -86,8 +86,7 @@
   /** Build the CodeMirror theme extension from the active app theme. */
   function buildThemeExt() {
     const theme = get(activeTheme);
-    return createCodemirrorTheme(theme?.meta.mode !== "light",
-    );
+    return createCodemirrorTheme(theme?.meta.mode !== "light");
   }
 
   /**
