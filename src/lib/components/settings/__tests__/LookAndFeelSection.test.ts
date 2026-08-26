@@ -280,8 +280,7 @@ describe("LookAndFeelSection — contrast notice", () => {
     // `activeTheme` directly (that is the real trigger), which left this
     // path — including the themeAuto-disable branch — untested.
     const tauri = await import("$lib/api/tauri");
-    const { getByTestId, container } = await renderSettled();
-    void getByTestId;
+    const { container } = await renderSettled();
 
     const select = container.querySelector("#theme-select") as HTMLSelectElement;
     await fireEvent.change(select, { target: { value: "light" } });
