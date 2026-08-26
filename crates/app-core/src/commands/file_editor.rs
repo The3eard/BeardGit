@@ -124,10 +124,10 @@ pub fn write_workdir_file(
     })
 }
 
-/// List entries from the working directory.
+/// List one level of the working directory.
 ///
 /// See [`git_engine::Repository::list_workdir_tree`] for full semantics.
-/// `prefix` is repo-relative; pass `None` for a full recursive walk.
+/// `prefix` is repo-relative; `None` lists the repo root.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::file_editor::list_workdir_tree")]
 pub fn list_workdir_tree(
@@ -140,9 +140,9 @@ pub fn list_workdir_tree(
         let entries = repo
             .list_workdir_tree(prefix.as_deref(), max_entries as usize, respect_gitignore)
             .map_err(|e| e.to_string())?;
-        // `entries == max_entries` means the walk hit the cap and the tree
-        // the user sees is an arbitrary subset — the shape behind "my folder
-        // isn't listed". Log the counts, never the entry paths.
+        // Reaching the cap now means one directory holds more children than
+        // it, not that the tree was cut short. Log the counts either way,
+        // never the entry paths.
         tracing::debug!(
             prefix = prefix.as_deref().unwrap_or(""),
             max_entries,
@@ -152,6 +152,35 @@ pub fn list_workdir_tree(
             "workdir tree listed"
         );
         Ok(entries)
+    })
+}
+
+/// Find files anywhere in the working directory whose path contains `query`.
+///
+/// The tree lists one level at a time, so a filter that only looked at what
+/// had been expanded could not see the file the user is typing the name of.
+/// See [`git_engine::Repository::search_workdir_files`].
+#[tauri::command]
+#[instrument(
+    skip_all,
+    fields(limit, respect_gitignore),
+    name = "cmd::file_editor::search_workdir_files"
+)]
+pub fn search_workdir_files(
+    query: String,
+    limit: u32,
+    respect_gitignore: bool,
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::WorkdirTreeEntry>, String> {
+    with_active_repo(&state, |repo| {
+        let hits = repo
+            .search_workdir_files(&query, limit as usize, respect_gitignore)
+            .map_err(|e| e.to_string())?;
+        // `skip_all` plus explicit fields above: the query is user prose and
+        // has no business in a span field, and neither do the paths it
+        // matched. The count is the useful part.
+        tracing::debug!(matched = hits.len(), "workdir search");
+        Ok(hits)
     })
 }
 
