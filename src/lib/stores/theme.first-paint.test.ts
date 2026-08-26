@@ -52,9 +52,16 @@ describe("app.css first-paint defaults mirror the default theme", () => {
   /**
    * Every token whose default is a literal colour that `applyTheme` later
    * overwrites from the theme payload, paired with the value it will be
-   * overwritten *with*. Tokens defaulting to `var(…)` or an overlay
-   * computed per mode are out of scope: they have no fixed literal to
-   * drift from.
+   * overwritten *with*.
+   *
+   * Tokens defaulting to `var(…)` or to a per-mode computed overlay are
+   * out of scope — not because they cannot drift (`--editor-selection`
+   * defaults to `var(--selection)` = `#6fb1cc40` while `applyTheme` sets
+   * the editor's own `#6fb1cc44`) but because the indirection is the
+   * point: they track whatever they alias, and pinning them here would
+   * assert that the alias is wrong rather than that the default is stale.
+   * Two parts in 255 of alpha, for one pre-mount frame, is the whole
+   * exposure.
    */
   const MIRRORED: Array<[token: string, expected: string | null | undefined]> = [
     ["--bg-primary", d.bg_primary],
@@ -92,9 +99,12 @@ describe("app.css first-paint defaults mirror the default theme", () => {
 
   it("declares every mirrored token", () => {
     const tokens = firstPaintTokens();
-    // Positive anchor first: a regex that matched nothing would make the
-    // comparison below pass with two empty objects.
-    expect(tokens.size).toBeGreaterThan(30);
+    // Positive anchor first: a regex that matched nothing, or a slice cut
+    // short at the wrong brace, would make the comparison below pass over
+    // an empty list. The block holds ~70 declarations; this sits close
+    // enough to that for a truncated parse to fail here rather than
+    // silently.
+    expect(tokens.size).toBeGreaterThan(60);
     expect(MIRRORED.filter(([t]) => !tokens.has(t)).map(([t]) => t)).toEqual([]);
   });
 
