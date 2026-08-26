@@ -39,6 +39,15 @@ jobs:
         # parsing — no build needed.
         run: node scripts/check-instrument-fields.mjs
 
+      - name: Playwright spec collection check
+        # Collection only (--list): no browsers, no app build, ~2s. One
+        # unloadable module aborts collection for the WHOLE project, so a
+        # bad import in a shared fixture silently zeroes every visual
+        # baseline. svelte-check cannot see it — the effective `module` is
+        # esnext, under which tsc never applies Node's runtime JSON import
+        # attribute rule.
+        run: npx playwright test --list
+
       - name: Svelte check
         run: npm run check
 

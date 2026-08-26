@@ -305,49 +305,49 @@ pub struct ThemeEditor {
     /// Text selection background color.
     pub selection: String,
     /// Active line highlight background.
-    #[serde(rename = "line-highlight")]
+    #[serde(alias = "line-highlight")]
     pub line_highlight: String,
     /// Gutter background color.
-    #[serde(rename = "gutter-bg")]
+    #[serde(alias = "gutter-bg")]
     pub gutter_bg: String,
     /// Gutter foreground (line numbers) color.
-    #[serde(rename = "gutter-fg")]
+    #[serde(alias = "gutter-fg")]
     pub gutter_fg: String,
     /// Added line background in diff view.
-    #[serde(rename = "added-bg")]
+    #[serde(alias = "added-bg")]
     pub added_bg: String,
     /// Removed line background in diff view.
-    #[serde(rename = "removed-bg")]
+    #[serde(alias = "removed-bg")]
     pub removed_bg: String,
     /// Added line text color in diff view.
-    #[serde(rename = "added-text")]
+    #[serde(alias = "added-text")]
     pub added_text: String,
     /// Removed line text color in diff view.
-    #[serde(rename = "removed-text")]
+    #[serde(alias = "removed-text")]
     pub removed_text: String,
     /// Syntax: keyword color.
-    #[serde(default, rename = "syntax-keyword")]
+    #[serde(default, alias = "syntax-keyword")]
     pub syntax_keyword: Option<String>,
     /// Syntax: string literal color.
-    #[serde(default, rename = "syntax-string")]
+    #[serde(default, alias = "syntax-string")]
     pub syntax_string: Option<String>,
     /// Syntax: comment color.
-    #[serde(default, rename = "syntax-comment")]
+    #[serde(default, alias = "syntax-comment")]
     pub syntax_comment: Option<String>,
     /// Syntax: function/method name color.
-    #[serde(default, rename = "syntax-function")]
+    #[serde(default, alias = "syntax-function")]
     pub syntax_function: Option<String>,
     /// Syntax: type/class name color.
-    #[serde(default, rename = "syntax-type")]
+    #[serde(default, alias = "syntax-type")]
     pub syntax_type: Option<String>,
     /// Syntax: number literal color.
-    #[serde(default, rename = "syntax-number")]
+    #[serde(default, alias = "syntax-number")]
     pub syntax_number: Option<String>,
     /// Syntax: operator color.
-    #[serde(default, rename = "syntax-operator")]
+    #[serde(default, alias = "syntax-operator")]
     pub syntax_operator: Option<String>,
     /// Syntax: property/attribute color.
-    #[serde(default, rename = "syntax-property")]
+    #[serde(default, alias = "syntax-property")]
     pub syntax_property: Option<String>,
 }
 
@@ -677,35 +677,35 @@ struct RawEditorOverride {
     foreground: Option<String>,
     cursor: Option<String>,
     selection: Option<String>,
-    #[serde(rename = "line-highlight")]
+    #[serde(alias = "line-highlight")]
     line_highlight: Option<String>,
-    #[serde(rename = "gutter-bg")]
+    #[serde(alias = "gutter-bg")]
     gutter_bg: Option<String>,
-    #[serde(rename = "gutter-fg")]
+    #[serde(alias = "gutter-fg")]
     gutter_fg: Option<String>,
-    #[serde(rename = "added-bg")]
+    #[serde(alias = "added-bg")]
     added_bg: Option<String>,
-    #[serde(rename = "removed-bg")]
+    #[serde(alias = "removed-bg")]
     removed_bg: Option<String>,
-    #[serde(rename = "added-text")]
+    #[serde(alias = "added-text")]
     added_text: Option<String>,
-    #[serde(rename = "removed-text")]
+    #[serde(alias = "removed-text")]
     removed_text: Option<String>,
-    #[serde(rename = "syntax-keyword")]
+    #[serde(alias = "syntax-keyword")]
     syntax_keyword: Option<String>,
-    #[serde(rename = "syntax-string")]
+    #[serde(alias = "syntax-string")]
     syntax_string: Option<String>,
-    #[serde(rename = "syntax-comment")]
+    #[serde(alias = "syntax-comment")]
     syntax_comment: Option<String>,
-    #[serde(rename = "syntax-function")]
+    #[serde(alias = "syntax-function")]
     syntax_function: Option<String>,
-    #[serde(rename = "syntax-type")]
+    #[serde(alias = "syntax-type")]
     syntax_type: Option<String>,
-    #[serde(rename = "syntax-number")]
+    #[serde(alias = "syntax-number")]
     syntax_number: Option<String>,
-    #[serde(rename = "syntax-operator")]
+    #[serde(alias = "syntax-operator")]
     syntax_operator: Option<String>,
-    #[serde(rename = "syntax-property")]
+    #[serde(alias = "syntax-property")]
     syntax_property: Option<String>,
 }
 
@@ -1392,6 +1392,319 @@ lane-colors = ["#0000ff"]
     fn test_load_builtin_themes() {
         let themes = load_builtin_themes();
         assert_eq!(themes.len(), 20);
+    }
+
+    // ── Serde contract with the TypeScript mirror ─────────────────────────
+    //
+    // `src/lib/types/index.ts` declares these shapes by hand and the
+    // frontend reads the fields by name. `#[serde(rename = "…")]` changes
+    // *serialization* as well as deserialization, so a kebab-case rename
+    // here silently makes every TS read `undefined` — no compile error, no
+    // runtime error, just tokens that never apply. `#[serde(alias)]` is the
+    // correct attribute for accepting kebab-case TOML input.
+
+    /// Fetch one built-in theme by id.
+    fn builtin(id: &str) -> Theme {
+        load_builtin_themes()
+            .into_iter()
+            .find(|t| t.meta.id == id)
+            .unwrap_or_else(|| panic!("built-in theme `{id}` not found"))
+    }
+
+    /// Serialize a theme and return the sorted keys of one section.
+    fn serialized_keys(theme: &Theme, section: &str) -> Vec<String> {
+        let value = serde_json::to_value(theme).expect("theme must serialize");
+        let mut keys: Vec<String> = value
+            .get(section)
+            .unwrap_or_else(|| panic!("missing `{section}` section"))
+            .as_object()
+            .unwrap_or_else(|| panic!("`{section}` must be an object"))
+            .keys()
+            .cloned()
+            .collect();
+        keys.sort();
+        keys
+    }
+
+    fn sorted(items: &[&str]) -> Vec<String> {
+        let mut v: Vec<String> = items.iter().map(|s| (*s).to_string()).collect();
+        v.sort();
+        v
+    }
+
+    #[test]
+    fn test_serialized_editor_keys_are_snake_case() {
+        assert_eq!(
+            serialized_keys(&builtin("beardgit-dark"), "editor"),
+            sorted(&[
+                "background",
+                "foreground",
+                "cursor",
+                "selection",
+                "line_highlight",
+                "gutter_bg",
+                "gutter_fg",
+                "added_bg",
+                "removed_bg",
+                "added_text",
+                "removed_text",
+                "syntax_keyword",
+                "syntax_string",
+                "syntax_comment",
+                "syntax_function",
+                "syntax_type",
+                "syntax_number",
+                "syntax_operator",
+                "syntax_property",
+            ]),
+            "the `editor` keys the frontend receives must match \
+             `ThemeEditorData` in src/lib/types/index.ts exactly"
+        );
+    }
+
+    #[test]
+    fn test_serialized_graph_keys_are_snake_case() {
+        assert_eq!(
+            serialized_keys(&builtin("beardgit-dark"), "graph"),
+            sorted(&[
+                "lane_colors",
+                "background",
+                "foreground",
+                "text_primary",
+                "text_secondary",
+                "text_sha",
+                "selection",
+                "head_lane_tint",
+                "selection_highlight",
+                "dim_opacity",
+                "node_radius",
+                "merge_radius",
+                "ref_branch",
+                "ref_remote",
+                "ref_tag",
+                "ref_head",
+            ])
+        );
+    }
+
+    #[test]
+    fn test_no_serialized_key_is_kebab_case() {
+        // Belt and braces across every section of every built-in theme: a
+        // `rename` added to any future field fails here even if nobody
+        // remembers to extend the two key lists above.
+        for theme in load_builtin_themes() {
+            let value = serde_json::to_value(&theme).expect("theme must serialize");
+            for (section, contents) in value.as_object().expect("theme is an object") {
+                let Some(fields) = contents.as_object() else {
+                    continue;
+                };
+                for key in fields.keys() {
+                    assert!(
+                        !key.contains('-'),
+                        "theme `{}` serializes `{section}.{key}` in kebab-case; \
+                         use #[serde(alias = \"…\")] instead of rename so the \
+                         TypeScript mirror keeps matching",
+                        theme.meta.id
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_editor_section_still_deserializes_kebab_case_toml() {
+        // The bundled TOML files use kebab-case, and so do user themes in
+        // `~/.config/beardgit/themes`. Switching rename→alias must not
+        // break reading them.
+        let toml = r##"
+[meta]
+id = "probe"
+name = "Probe"
+mode = "dark"
+
+[colors]
+background = "#000000"
+foreground = "#ffffff"
+black = "#000000"
+red = "#ff0000"
+green = "#00ff00"
+yellow = "#ffff00"
+blue = "#0000ff"
+magenta = "#ff00ff"
+cyan = "#00ffff"
+white = "#ffffff"
+bright_black = "#444444"
+bright_red = "#ff4444"
+bright_green = "#44ff44"
+bright_yellow = "#ffff44"
+bright_blue = "#4444ff"
+bright_magenta = "#ff44ff"
+bright_cyan = "#44ffff"
+bright_white = "#ffffff"
+
+[editor]
+background = "#111111"
+foreground = "#eeeeee"
+cursor = "#ffffff"
+selection = "#333333"
+line-highlight = "#222222"
+gutter-bg = "#101010"
+gutter-fg = "#888888"
+added-bg = "#0a2a0a"
+removed-bg = "#2a0a0a"
+added-text = "#44ff44"
+removed-text = "#ff4444"
+syntax-keyword = "#ff00ff"
+"##;
+        let theme = parse_theme(toml).expect("kebab-case [editor] must parse");
+        let editor = theme.editor.expect("editor section present");
+        assert_eq!(editor.added_bg, "#0a2a0a");
+        assert_eq!(editor.removed_bg, "#2a0a0a");
+        assert_eq!(editor.line_highlight, "#222222");
+        assert_eq!(editor.gutter_fg, "#888888");
+        assert_eq!(editor.syntax_keyword.as_deref(), Some("#ff00ff"));
+    }
+
+    // ── The fixture the frontend test suite consumes ──────────────────────
+
+    /// Every generated theme fixture the frontend consumes: output path and
+    /// the theme ids it holds.
+    ///
+    /// One generator, several outputs. Before this existed, each consumer
+    /// hand-dumped its own copy — `theme.test.ts` wrote snake_case by hand
+    /// (so it tested the TS type against itself) while
+    /// `tests/visual/fixtures/theme-data.ts` held a kebab-case dump taken
+    /// from the buggy serialization. Two hand-maintained copies of a shape
+    /// is how the mismatch survived; generating them all from here is what
+    /// makes it impossible to reintroduce in one place only.
+    const FIXTURES: &[(&str, &[&str])] = &[
+        // Unit tests for `applyTheme`'s token mapping.
+        //
+        // `beardgit-light` is the light-mode default, where the bug showed
+        // up as dark diff backgrounds. It distinguishes a working read
+        // from a broken one on one field only (`syntax_property`, which
+        // `derive_editor` maps to `colors.cyan` while the frontend falls
+        // back to `accent_blue`). `github-light` is the only light theme
+        // shipping a pinned `[editor]` block and differs on four
+        // (`syntax_string`, `_type`, `_number`, `_property`), which is
+        // what gives the syntax assertions real signal.
+        (
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../src/lib/stores/__fixtures__/themes.json"
+            ),
+            &["beardgit-light", "github-light"],
+        ),
+        // Playwright marketing screenshots (`marketing.spec.ts` feeds these
+        // to `resolve_startup_theme` / `get_theme`).
+        (
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/visual/fixtures/theme-data.json"
+            ),
+            &[
+                "beardgit-dark",
+                "beardgit-light",
+                "fjord-dark",
+                "fjord-light",
+                "nebula-dark",
+                "nebula-light",
+            ],
+        ),
+    ];
+
+    fn fixture_value(ids: &[&str]) -> serde_json::Value {
+        let mut map = serde_json::Map::new();
+        for id in ids {
+            map.insert(
+                (*id).to_string(),
+                serde_json::to_value(builtin(id)).expect("theme must serialize"),
+            );
+        }
+        serde_json::Value::Object(map)
+    }
+
+    /// The fixtures the frontend consumes must be byte-for-byte what this
+    /// crate actually serializes.
+    ///
+    /// This is the cross-language half of the contract, and the reason the
+    /// original bug was invisible: with hand-written fixtures, both test
+    /// suites agreed with the TypeScript types by construction and neither
+    /// ever saw what serde emitted.
+    #[test]
+    fn test_theme_fixtures_match_live_serialization() {
+        for (path, ids) in FIXTURES {
+            let committed: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(path)
+                    .unwrap_or_else(|e| panic!("fixture {path} must exist: {e}")),
+            )
+            .unwrap_or_else(|e| panic!("fixture {path} must be valid JSON: {e}"));
+
+            let live = fixture_value(ids);
+
+            // Report the key-set difference before the value comparison:
+            // `assert_eq!` on two multi-kilobyte `Value`s prints two
+            // unreadable single-line dumps, and a kebab/snake mismatch is
+            // exactly the case where you want to see the key names.
+            if committed != live {
+                let keys = |v: &serde_json::Value| -> Vec<String> {
+                    v.as_object()
+                        .map(|themes| {
+                            let mut out: Vec<String> = themes
+                                .iter()
+                                .flat_map(|(id, theme)| {
+                                    theme.as_object().into_iter().flat_map(move |sections| {
+                                        sections.iter().flat_map(move |(section, fields)| {
+                                            fields.as_object().into_iter().flat_map(
+                                                move |f| -> Vec<String> {
+                                                    f.keys()
+                                                        .map(|k| format!("{id}.{section}.{k}"))
+                                                        .collect()
+                                                },
+                                            )
+                                        })
+                                    })
+                                })
+                                .collect();
+                            out.sort();
+                            out
+                        })
+                        .unwrap_or_default()
+                };
+                let committed_keys = keys(&committed);
+                let live_keys = keys(&live);
+                let only_committed: Vec<_> = committed_keys
+                    .iter()
+                    .filter(|k| !live_keys.contains(k))
+                    .collect();
+                let only_live: Vec<_> = live_keys
+                    .iter()
+                    .filter(|k| !committed_keys.contains(k))
+                    .collect();
+
+                panic!(
+                    "{path} is stale.\n\
+                     keys only in the committed fixture: {only_committed:?}\n\
+                     keys only in live serialization:    {only_live:?}\n\
+                     (empty on both sides means the keys match and only \
+                     values differ)\n\
+                     Regenerate with: \
+                     cargo test -p storage regenerate_theme_fixtures -- --ignored"
+                );
+            }
+        }
+    }
+
+    /// Rewrite the committed fixtures. Ignored by default; run explicitly
+    /// after an intentional shape change.
+    #[test]
+    #[ignore = "writes fixture files; run explicitly after a shape change"]
+    fn regenerate_theme_fixtures() {
+        for (path, ids) in FIXTURES {
+            let json = serde_json::to_string_pretty(&fixture_value(ids)).unwrap();
+            std::fs::write(path, format!("{json}\n")).expect("fixture must be writable");
+            println!("rewrote {path}");
+        }
     }
 
     #[test]
