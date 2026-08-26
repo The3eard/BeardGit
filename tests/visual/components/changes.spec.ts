@@ -1,10 +1,19 @@
 /**
  * Per-state baselines for the Changes view.
  *
- * Each scenario varies `get_file_statuses` + `get_status_summary` so
- * the StagingArea panel exercises a distinct visual state. Diff panels
- * are kept empty here — that's covered separately in
- * `commit-detail.spec.ts`.
+ * Each scenario varies `get_file_statuses` + `get_status_summary` so the
+ * StagingArea panel exercises a distinct visual state. Most keep the diff
+ * panel empty — that's covered in `commit-detail.spec.ts` — except
+ * `populated-diff`, which exists specifically to put added/removed rows on
+ * screen.
+ *
+ * That last one is the end-to-end guard for the theme-token class of bug.
+ * `--diff-added-bg` / `--diff-removed-bg` were inert for months because
+ * the Rust side serialized `added-bg` while the TypeScript mirror read
+ * `added_bg`, so light themes rendered dark green and red diff rows. No
+ * unit test could see it — the token reaches the DOM through `var()`, and
+ * both test suites agreed with the types by construction. A rendered
+ * light-theme diff is the only thing that catches it.
  */
 
 import { expect, test } from "@playwright/test";
@@ -18,12 +27,15 @@ import {
   type IpcResponses,
 } from "../helpers";
 import {
+  makeFileDiff,
+  makeFileDiffStat,
   makeFileStatus,
   makeFileStatusList,
   makeProjectInfo,
   makeStatusSummary,
 } from "../../../src/test/fixtures";
 import type {
+  FileDiff,
   FileStatus,
   StatusSummary,
 } from "../../../src/lib/types";
@@ -36,6 +48,10 @@ const PROJECT = makeProjectInfo({
 interface Scenario {
   files: FileStatus[];
   summary: StatusSummary;
+  /** Diff rows to render, served from `get_diff_file`. */
+  diff?: FileDiff;
+  /** File to click so the diff panel opens. */
+  select?: string;
 }
 
 const SCENARIOS: Record<string, Scenario> = {
@@ -63,6 +79,12 @@ const SCENARIOS: Record<string, Scenario> = {
     files: makeFileStatusList(),
     summary: makeStatusSummary({ staged: 3, unstaged: 3, untracked: 2 }),
   },
+  "populated-diff": {
+    files: [makeFileStatus({ path: "src/a.ts", status: "M", is_staged: false })],
+    summary: makeStatusSummary({ unstaged: 1 }),
+    diff: makeFileDiff({ path: "src/a.ts" }),
+    select: "src/a.ts",
+  },
   "many-untracked": {
     files: Array.from({ length: 10 }, (_, i) =>
       makeFileStatus({
@@ -81,6 +103,13 @@ function fixtureFor(scenario: Scenario): IpcResponses {
     get_status_summary: scenario.summary,
     get_diff_workdir: [],
     get_diff_index: [],
+    // The lists are driven by the lightweight per-file stats; the selected
+    // file's hunks come from `get_diff_file`, fetched lazily.
+    get_diff_stats_workdir: scenario.select
+      ? [makeFileDiffStat({ path: scenario.select })]
+      : [],
+    get_diff_stats_index: [],
+    get_diff_file: scenario.diff ?? null,
   };
 }
 
@@ -97,6 +126,13 @@ for (const mode of THEME_MODES) {
         await applyTheme(page, mode);
         await waitForAppReady(page);
         await clickNav(page, "Changes");
+        if (scenario.select) {
+          // Open the diff panel so the added/removed row backgrounds are
+          // actually in the screenshot.
+          const testId = `file-row-${scenario.select.replace(/\//g, "-")}`;
+          await page.getByTestId(testId).locator(".file-btn").click();
+          await expect(page.locator(".staging-diff-editor")).toBeVisible();
+        }
         await expect(page).toHaveScreenshot(`${mode}-${name}.png`, {
           animations: "disabled",
         });

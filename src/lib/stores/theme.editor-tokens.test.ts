@@ -84,14 +84,21 @@ beforeEach(() => {
 });
 
 describe("theme fixture — the shape the frontend actually receives", () => {
-  it("contains both themes, in light mode, with editor sections", () => {
+  it("contains the light pair under test, plus the dark default", () => {
     // Guards everything below: a fixture that lost a theme or its editor
     // section would make the colour assertions vacuous.
-    expect(Object.keys(themes).sort()).toEqual([...THEME_IDS].sort());
+    //
+    // `beardgit-dark` rides along because `src/test/fixtures/theme.ts`
+    // builds the visual suite's theme pair from this same file; the
+    // assertions here are about the *light* themes, where the original bug
+    // was visible.
     for (const id of THEME_IDS) {
+      expect(themes[id], id).toBeDefined();
       expect(themes[id].meta.mode, id).toBe("light");
       expect(themes[id].editor, id).not.toBeNull();
     }
+    expect(themes["beardgit-dark"].meta.mode).toBe("dark");
+    expect(themes["beardgit-dark"].editor).not.toBeNull();
   });
 
   it.each(THEME_IDS)("names every %s editor key in snake_case", (id) => {
