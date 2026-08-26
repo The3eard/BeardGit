@@ -22,6 +22,12 @@ fn default_diff_line_wrapping() -> bool {
     true
 }
 
+/// Default file-log verbosity. See [`crate::logging::LOG_LEVELS`] for the
+/// accepted values.
+fn default_log_level() -> String {
+    "info".to_string()
+}
+
 fn default_locale() -> String {
     "en-US".to_string()
 }
@@ -329,6 +335,13 @@ pub struct AppConfig {
     #[serde(default = "default_editor_preferences")]
     pub editor_preferences: EditorPreferences,
 
+    /// File-log verbosity: `"error"`, `"info"` (default), or `"debug"`.
+    /// Applied at startup and changed live from Settings → Advanced;
+    /// an unrecognized value falls back to `"info"` rather than failing
+    /// to load the whole config.
+    #[serde(default = "default_log_level")]
+    pub log_level: String,
+
     // -- Legacy fields (read during migration, never written) --
     /// Legacy Plan 5 field. Migrated to `providers` vec.
     #[serde(default, skip_serializing)]
@@ -367,6 +380,7 @@ impl Default for AppConfig {
             diff_show_whitespace: false,
             diff_line_wrapping: default_diff_line_wrapping(),
             editor_preferences: EditorPreferences::default(),
+            log_level: default_log_level(),
             provider_kind: None,
             provider_instance_url: None,
             gitlab_instance_url: None,
@@ -673,6 +687,33 @@ mod tests {
 
         let config = AppConfig::load(&path).unwrap();
         assert!(config.auto_check_updates);
+    }
+
+    #[test]
+    fn test_log_level_defaults_to_info_and_roundtrips() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+
+        assert_eq!(AppConfig::default().log_level, "info");
+
+        let config = AppConfig {
+            log_level: "debug".to_string(),
+            ..AppConfig::default()
+        };
+        config.save(&path).unwrap();
+        assert_eq!(AppConfig::load(&path).unwrap().log_level, "debug");
+    }
+
+    #[test]
+    fn test_legacy_config_defaults_log_level_to_info() {
+        // Configs written before the field existed must load with the
+        // documented default rather than an empty string, which would make
+        // `normalize_level` reject it on every startup.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, r#"{"theme": "github-dark"}"#).unwrap();
+
+        assert_eq!(AppConfig::load(&path).unwrap().log_level, "info");
     }
 
     #[test]

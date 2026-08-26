@@ -27,7 +27,10 @@ use crate::state::AppState;
 /// out to `git commit` (which may drive gpg/ssh) — that must not block the
 /// Tauri async runtime.
 #[tauri::command]
-#[instrument(skip(state, app), name = "cmd::commit::create")]
+// `skip_all`, not `skip(state, app)`: `message` is the commit body, and
+// span fields are re-rendered on *every* event inside the span, so a
+// plain skip list wrote the message to the log at the default level.
+#[instrument(skip_all, name = "cmd::commit::create")]
 pub async fn create_commit(
     message: String,
     state: State<'_, AppState>,
@@ -64,7 +67,7 @@ pub async fn create_commit(
 /// could not be signed) rejects with [`IpcError`] `code = "signing_failed"`;
 /// other failures use the generic code.
 #[tauri::command]
-#[instrument(skip(state, app), name = "cmd::commit::amend")]
+#[instrument(skip_all, name = "cmd::commit::amend")]
 pub async fn amend_commit(
     message: String,
     state: State<'_, AppState>,

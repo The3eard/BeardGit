@@ -17,6 +17,18 @@ use crate::types::{
     OutputLine, Stream, TaskError, TaskHandle, TaskId, TaskInfo, TaskKind, TaskStatus,
 };
 
+/// The bare binary name of `command`, for logging.
+///
+/// Callers pass absolute paths for resolved sidecars and AI CLIs
+/// (`/Users/…/.bun/bin/claude`), and the interesting part is which tool
+/// ran, not where it lives.
+fn program_name(command: &str) -> &str {
+    Path::new(command)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(command)
+}
+
 /// Minimum gap between two progress emissions for the same task.
 ///
 /// 200 ms ⇒ max 5 emissions / second / task, matching the spec's event-storm
@@ -245,6 +257,23 @@ impl TaskManager {
             .duration_since(SystemTime::UNIX_EPOCH)
             .ok()
             .map(|d| d.as_millis() as u64);
+
+        // Program name and arg *count* only — never the argv.
+        //
+        // The AI commands put their whole prompt in argv (`claude --print
+        // <prompt>`, `codex -p <prompt>`), and those prompts embed the
+        // staged diff or the contents of the file under review. Logging
+        // the joined argv here would write user code to disk at the
+        // default level. `command_str` still reaches the tasks drawer for
+        // display; it just doesn't reach the log.
+        tracing::info!(
+            task_id = id,
+            label = %label,
+            kind = ?kind,
+            program = %program_name(command),
+            arg_count = args.len(),
+            "task started"
+        );
 
         let handle = TaskHandle {
             id,
@@ -542,6 +571,25 @@ impl TaskManager {
             }
         };
 
+        // One line per task completion. Fetch/pull/push are the ops users
+        // most often report as "it just didn't do anything", and the exit
+        // code plus the outcome is what distinguishes a network failure
+        // from a cancel from a clean no-op.
+        tracing::info!(
+            task_id,
+            label = %info.label,
+            kind = ?info.task_kind,
+            exit_code = ?info.exit_code,
+            elapsed_secs = ?info.elapsed_secs,
+            outcome = match &status {
+                TaskStatus::Completed => "completed",
+                TaskStatus::Failed { .. } => "failed",
+                TaskStatus::Cancelled => "cancelled",
+                _ => "running",
+            },
+            "task finished"
+        );
+
         // Lifecycle transition — push a snapshot through the drawer
         // emitter before the existing sink callbacks so the drawer sees
         // the terminal state first.
@@ -694,6 +742,108 @@ mod tests {
     }
 
     // ── 1 ─────────────────────────────────────────────────────────────────────
+
+    // ── argv must never reach the log ─────────────────────────────────────
+
+    /// In-memory sink for the scoped subscriber below.
+    #[derive(Clone, Default)]
+    struct LogBuffer(Arc<StdMutex<Vec<u8>>>);
+
+    impl LogBuffer {
+        fn contents(&self) -> String {
+            String::from_utf8_lossy(&self.0.lock().expect("log buffer poisoned")).into_owned()
+        }
+    }
+
+    impl std::io::Write for LogBuffer {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0
+                .lock()
+                .expect("log buffer poisoned")
+                .extend_from_slice(buf);
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for LogBuffer {
+        type Writer = LogBuffer;
+        fn make_writer(&'a self) -> Self::Writer {
+            self.clone()
+        }
+    }
+
+    /// The AI commands pass their whole prompt as a single argv element,
+    /// and those prompts embed the staged diff or the file under review.
+    /// Logging the joined argv wrote user code to disk at the *default*
+    /// level, so this pins that only the program name and arg count go out.
+    ///
+    /// `#[tokio::test]` uses a current-thread runtime, so a thread-scoped
+    /// default subscriber sees the spawn's events.
+    #[tokio::test]
+    async fn spawn_does_not_log_argv() {
+        let buffer = LogBuffer::default();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(buffer.clone())
+            .with_ansi(false)
+            .finish();
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let (manager, events) = new_manager();
+        let cwd = std::env::temp_dir();
+        // Stands in for an AI prompt carrying a staged diff.
+        let secret_payload = "SENSITIVE_DIFF_BODY_do_not_log";
+
+        manager
+            .spawn(
+                "AI commit message".into(),
+                "echo",
+                &[secret_payload],
+                &cwd,
+                false,
+            )
+            .await;
+
+        wait_for(&events, |ev| {
+            ev.iter().any(|e| matches!(e, TaskEvent::Completed(_)))
+        })
+        .await;
+
+        let logged = buffer.contents();
+        // Positive anchor: the lifecycle lines really were captured, so the
+        // absence assertion below can't pass by capturing nothing.
+        assert!(
+            logged.contains("task started"),
+            "expected the start event in the log, got: {logged}"
+        );
+        assert!(
+            logged.contains("task finished"),
+            "expected the finish event in the log, got: {logged}"
+        );
+        assert!(
+            logged.contains("program=echo"),
+            "the program name is the useful part and must survive, got: {logged}"
+        );
+        assert!(
+            logged.contains("arg_count=1"),
+            "the arg count replaces the argv and must be present, got: {logged}"
+        );
+        assert!(
+            !logged.contains(secret_payload),
+            "argv leaked into the log: {logged}"
+        );
+    }
+
+    #[test]
+    fn program_name_strips_the_directory() {
+        assert_eq!(program_name("/Users/x/.bun/bin/claude"), "claude");
+        assert_eq!(program_name("git"), "git");
+        // A trailing separator has no file name — fall back to the input
+        // rather than logging an empty field.
+        assert_eq!(program_name("/tmp/"), "tmp");
+    }
 
     #[tokio::test]
     async fn test_spawn_and_complete() {

@@ -1756,6 +1756,27 @@ export async function openLogDirectory(): Promise<void> {
   return invoke<void>("open_log_directory");
 }
 
+/** Log verbosity levels offered by Settings → Advanced, coarsest first. */
+export const LOG_LEVELS = ["error", "info", "debug"] as const;
+
+/** One of {@link LOG_LEVELS}. */
+export type LogLevel = (typeof LOG_LEVELS)[number];
+
+/** Get the persisted file-log verbosity. */
+export async function getLogLevel(): Promise<string> {
+  return invoke<string>("get_log_level");
+}
+
+/**
+ * Persist a new file-log verbosity and apply it to the running app.
+ *
+ * Takes effect immediately — no restart. Rejects with
+ * `code = "invalid_log_level"` for anything outside {@link LOG_LEVELS}.
+ */
+export async function setLogLevel(level: LogLevel): Promise<void> {
+  return invoke<void>("set_log_level", { level });
+}
+
 // ---------------------------------------------------------------------------
 // Remote repo configuration (gh/glab)
 // ---------------------------------------------------------------------------

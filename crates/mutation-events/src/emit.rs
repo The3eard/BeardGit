@@ -38,6 +38,15 @@ pub fn emit_mutation(
     flags: MutationFlags,
     project_path: &Path,
 ) -> Result<(), EmitError> {
+    // The single fan-out point for every mutation, so one event here is the
+    // whole refresh narrative: kind + which store families the diff marked
+    // dirty. Structural only — no commit messages, no file contents.
+    tracing::info!(
+        ?kind,
+        ?flags,
+        path = %project_path.display(),
+        "project mutated"
+    );
     let payload = MutationEventPayload {
         project_path: &project_path.display().to_string(),
         kind,
