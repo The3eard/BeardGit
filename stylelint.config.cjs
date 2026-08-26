@@ -20,6 +20,20 @@ module.exports = {
     "color-no-hex": [true, { severity: "error" }],
     "color-named": ["never", { severity: "error" }],
     "function-no-unknown": [true, { ignoreFunctions: ["color-mix"] }],
+    // Close the gap that let mode-dependent colours hide in <style> blocks.
+    // `color-no-hex` catches `#fff` but not `rgba(255,255,255,0.15)`, and the
+    // ESLint rule `no-hex-in-svelte` only inspects inline `style="…"` and
+    // `style:prop` — so a white-on-transparent tint could sit in a component
+    // stylesheet and be invisible in every light theme. That is exactly what
+    // happened to the scrollbar thumb and the spinner track.
+    //
+    // Escape hatch is stylelint's own directive with a reason, e.g.
+    //   /* stylelint-disable-next-line function-disallowed-list -- modal backdrop */
+    // Reach for `var(--token)` or `color-mix()` first.
+    "function-disallowed-list": [
+      ["rgb", "rgba"],
+      { severity: "error" },
+    ],
   },
   overrides: [
     {
@@ -41,6 +55,8 @@ module.exports = {
       rules: {
         "color-no-hex": null,
         "color-named": null,
+        // These files own the literal values they distribute.
+        "function-disallowed-list": null,
       },
     },
   ],

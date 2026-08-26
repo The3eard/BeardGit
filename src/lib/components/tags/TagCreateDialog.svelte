@@ -131,6 +131,7 @@
   .dialog-backdrop {
     position: fixed;
     inset: 0;
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     background: rgba(0, 0, 0, 0.6); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 999;
     display: flex;

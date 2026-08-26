@@ -179,6 +179,7 @@
 
 <style>
   .dialog-overlay {
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
     display: flex; align-items: center; justify-content: center; z-index: 1000;
   }

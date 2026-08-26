@@ -251,6 +251,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     background: rgba(0, 0, 0, 0.6); /* beardgit:allow-hex: modal backdrop neutral */
     backdrop-filter: blur(4px);
   }

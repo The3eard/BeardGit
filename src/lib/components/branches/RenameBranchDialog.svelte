@@ -117,6 +117,7 @@
     right: 0;
     bottom: 0;
     z-index: 1001;
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
   }
 
