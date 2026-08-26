@@ -139,39 +139,6 @@ pub fn set_diff_line_wrapping(enabled: bool, state: State<'_, AppState>) -> Resu
     config.save(&state.config_path).map_err(|e| e.to_string())
 }
 
-/// Return whether the per-OS re-authorization notice has been dismissed.
-///
-/// `os` must be `"macos"` or `"windows"`; other values return `false`
-/// (Linux never shows the dialog, so the frontend never probes for it).
-#[tauri::command]
-pub fn get_reauth_dismissed(os: String, state: State<'_, AppState>) -> Result<bool, String> {
-    let config = state.config.lock().map_err(|e| e.to_string())?;
-    Ok(match os.as_str() {
-        "macos" => config.auto_update_reauth_notice_dismissed_macos,
-        "windows" => config.auto_update_reauth_notice_dismissed_windows,
-        _ => false,
-    })
-}
-
-/// Persist the re-authorization-notice dismissal for a single OS.
-///
-/// `os` must be `"macos"` or `"windows"`; other values are ignored so
-/// the frontend can't accidentally poison the config with arbitrary keys.
-#[tauri::command]
-pub fn set_reauth_dismissed(
-    os: String,
-    dismissed: bool,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
-    let mut config = state.config.lock().map_err(|e| e.to_string())?;
-    match os.as_str() {
-        "macos" => config.auto_update_reauth_notice_dismissed_macos = dismissed,
-        "windows" => config.auto_update_reauth_notice_dismissed_windows = dismissed,
-        _ => return Ok(()),
-    }
-    config.save(&state.config_path).map_err(|e| e.to_string())
-}
-
 // ─── Sidebar nav layout (Phase 11) ───────────────────────────────────
 
 /// Serialisable view of the user's customised Navigation sidebar layout.
