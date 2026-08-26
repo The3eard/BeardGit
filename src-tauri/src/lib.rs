@@ -164,6 +164,7 @@ pub fn run() {
             app_core::commands::read_workdir_file,
             app_core::commands::write_workdir_file,
             app_core::commands::list_workdir_tree,
+            app_core::commands::search_workdir_files,
             app_core::commands::create_workdir_path,
             app_core::commands::rename_workdir_path,
             app_core::commands::delete_workdir_path,

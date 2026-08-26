@@ -86,9 +86,11 @@ fn default_indent_guides() -> bool {
 ///
 /// All extension toggles default to the values most users expect from a
 /// modern code editor (most ON; rectangular-selection / crosshair OFF
-/// because they're niche). `respect_gitignore_in_tree` defaults to `false`
-/// per the product brief — the file tree shows `.gitignore`d files unless
-/// the user opts into hiding them.
+/// because they're niche). `respect_gitignore_in_tree` defaults to `true`:
+/// it started at `false` so nothing was hidden, but what that produced in
+/// practice was a tree whose first thousand entries were build output. The
+/// toggle is one click away in Settings → Editor for the case where the
+/// file being edited is a gitignored one.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EditorPreferences {
     // --- Toggleable CodeMirror extensions ---
@@ -138,7 +140,7 @@ pub struct EditorPreferences {
     pub tab_size: u8,
     /// When true, the editor inserts tab characters; otherwise spaces.
     pub indent_with_tabs: bool,
-    /// When true, the file tree hides paths matched by `.gitignore`. Default `false`.
+    /// When true, the file tree hides paths matched by `.gitignore`. Default `true`.
     pub respect_gitignore_in_tree: bool,
     /// File-size threshold (KB) above which the editor warns before opening. Clamped 1..=2048.
     pub large_file_warning_kb: u32,
@@ -164,7 +166,7 @@ impl Default for EditorPreferences {
             color_picker: default_color_picker(),
             tab_size: 2,
             indent_with_tabs: false,
-            respect_gitignore_in_tree: false,
+            respect_gitignore_in_tree: true,
             large_file_warning_kb: 256,
         }
     }

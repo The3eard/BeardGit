@@ -1,11 +1,16 @@
 <!--
   FileTreeView.svelte — left pane of the in-app editor.
 
-  Renders the workdir tree (filtered by an optional substring search) and
+  Renders the workdir tree — one level at a time via `WorkdirTree` — and
   exposes a context menu with file-system CRUD actions on each row.
   Selection mirrors the active editor tab so clicking a file opens it,
   and right-click on directory rows offers "New file/folder here" with
   the directory pre-filled as the parent in the dialogs.
+
+  Typing in the filter switches the pane to a flat result list from
+  `search_workdir_files`, which walks the working directory on the Rust
+  side. The filter used to be a substring test over whatever the tree had
+  loaded, which could not match a file the tree had not reached.
 
   This component is presentational: it reads from / writes to the
   `fileEditor` store and never talks to the backend directly. All
@@ -15,19 +20,22 @@
 <script lang="ts">
   import { addToast } from "$lib/stores/toast";
   import { IconButton, SearchInput } from "$lib/components/ui";
-  import PathTree from "$lib/components/common/PathTree.svelte";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
   import type { WorkdirTreeEntry } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import { fileGlyphFor } from "./file-icons";
+  import WorkdirTree from "./WorkdirTree.svelte";
   import {
     activeTabPath,
+    knownEntries,
     openTab,
     refreshTree,
-    treeEntries,
+    searchLoading,
+    searchResults,
+    searchTree,
+    searchTruncated,
     treeLoading,
-    treeTruncated,
   } from "$lib/stores/fileEditor";
 
   /**
@@ -54,20 +62,35 @@
   }: Props = $props();
 
   let filterQuery = $state("");
+  let searching = $derived(filterQuery.trim() !== "");
 
-  /** Items shown in the PathTree — file rows only, filtered by the query. */
-  let filteredItems = $derived.by(() => {
-    const q = filterQuery.trim().toLowerCase();
-    return $treeEntries
-      .filter((e) => !e.is_directory)
-      .filter((e) => (q === "" ? true : e.path.toLowerCase().includes(q)))
-      .map((e) => ({ path: e.path, meta: e }));
+  /**
+   * Debounce before hitting the backend. Every keystroke would otherwise
+   * start a working-directory walk; 180ms is under the threshold where
+   * typing feels laggy and long enough that a burst of keys is one query.
+   * Stale answers are dropped in the store by request id, so an early
+   * search finishing late cannot overwrite a later one.
+   */
+  const SEARCH_DEBOUNCE_MS = 180;
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+  $effect(() => {
+    const q = filterQuery;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      void searchTree(q, respectGitignore);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(searchTimer);
   });
 
-  /** Lookup by path for context-menu actions and rename / delete flows. */
+  /**
+   * Lookup by path for context-menu actions and rename / delete flows.
+   * Covers both what the tree has expanded and the current search hits —
+   * a right-click on a search result has to find its entry too.
+   */
   let entryByPath = $derived.by(() => {
-    const map = new Map<string, WorkdirTreeEntry>();
-    for (const e of $treeEntries) map.set(e.path, e);
+    const map = new Map<string, WorkdirTreeEntry>($knownEntries);
+    for (const e of $searchResults) map.set(e.path, e);
     return map;
   });
 
@@ -145,6 +168,12 @@
   function onSelect(path: string) {
     void openTab(path);
   }
+
+  /** Parent directory of a search hit, shown dimmed beside the file name. */
+  function dirOf(path: string): string {
+    const cut = path.lastIndexOf("/");
+    return cut < 0 ? "" : path.slice(0, cut);
+  }
 </script>
 
 <div class="file-tree-view">
@@ -164,28 +193,46 @@
   </header>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="tree-body" oncontextmenu={onTreeContext}>
-    {#if $treeLoading && $treeEntries.length === 0}
+    {#if searching}
+      {#if $searchLoading && $searchResults.length === 0}
+        <div class="tree-state">
+          <span class="muted">{m.editor_tree_searching()}</span>
+        </div>
+      {:else if $searchResults.length === 0}
+        <div class="tree-state">
+          <span class="muted">{m.editor_tree_no_matches()}</span>
+        </div>
+      {:else}
+        {#each $searchResults as hit (hit.path)}
+          <button
+            type="button"
+            class="result"
+            class:is-selected={hit.path === $activeTabPath}
+            aria-label={hit.path}
+            data-pathtree-leaf="true"
+            onclick={() => onSelect(hit.path)}
+          >
+            <span class="glyph" aria-hidden="true">{fileGlyphFor(hit.name)}</span>
+            <span class="result-name">{hit.name}</span>
+            <span class="result-dir">{dirOf(hit.path)}</span>
+          </button>
+        {/each}
+      {/if}
+    {:else if $treeLoading}
       <div class="tree-state">
         <span class="muted">{m.editor_loading_tree()}</span>
       </div>
-    {:else if filteredItems.length === 0}
-      <div class="tree-state">
-        <span class="muted">{m.editor_no_tab_open()}</span>
-      </div>
     {:else}
-      <PathTree
-        items={filteredItems}
+      <WorkdirTree
         selectedPath={$activeTabPath}
-        showIcons
-        fileIconResolver={fileGlyphFor}
-        autoFlattenThreshold={0}
+        {respectGitignore}
         {onSelect}
       />
     {/if}
   </div>
-  {#if $treeTruncated}
+  {#if searching && $searchTruncated}
     <footer class="tree-footer" role="status">
-      {m.editor_tree_truncated()}
+      {m.editor_search_truncated()}
     </footer>
   {/if}
 </div>
@@ -231,6 +278,46 @@
   }
   .muted {
     color: var(--text-secondary);
+  }
+  .result {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    width: 100%;
+    padding: 3px 8px 3px 6px;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .result:hover {
+    background: var(--overlay-hover);
+  }
+  .result.is-selected {
+    background: var(--overlay-selected);
+  }
+  .glyph {
+    flex-shrink: 0;
+    width: 1.1em;
+    font-family: var(--font-icons);
+    color: var(--text-secondary);
+  }
+  .result-name {
+    flex-shrink: 0;
+  }
+  /* The directory is context, not the answer: it gets the dim rung and
+     loses its head rather than pushing the file name out of view. */
+  .result-dir {
+    min-width: 0;
+    overflow: hidden;
+    direction: rtl;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
   }
   .tree-footer {
     padding: 6px 10px;

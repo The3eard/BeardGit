@@ -817,13 +817,16 @@ export async function writeWorkdirFile(path: string, content: string): Promise<v
  * List entries from the working directory.
  *
  * Pass `prefix` to list only the immediate children of a sub-directory
- * (one level), or `null` for a full recursive walk. Results are
- * truncated at `maxEntries` without erroring; compare `result.length`
- * against the cap to detect truncation. `respectGitignore` filters
- * entries through the repo's gitignore patterns.
+ * (one level), or `null` for the repo root — also one level. Callers
+ * expand one folder at a time; there is no recursive mode.
  *
- * Always skipped: `.git/`, `node_modules/`, `target/`,
- * `.beardgit/ai-worktrees/`, and symlinks.
+ * `maxEntries` guards against a single pathological directory rather than
+ * budgeting a tree walk. `respectGitignore` filters entries through the
+ * repo's gitignore patterns.
+ *
+ * Always skipped: `.git/`, `node_modules/`, `target/`, tool caches
+ * (`.gradle`, `.venv`, `__pycache__`, `.next`, `.turbo`, `DerivedData`,
+ * `Pods`), `.beardgit/ai-worktrees/`, and symlinks.
  */
 export async function listWorkdirTree(
   prefix: string | null,
@@ -833,6 +836,26 @@ export async function listWorkdirTree(
   return invoke<WorkdirTreeEntry[]>("list_workdir_tree", {
     prefix,
     maxEntries,
+    respectGitignore,
+  });
+}
+
+/**
+ * Find files whose repo-relative path contains `query`, case-insensitively.
+ *
+ * The tree only ever holds the levels the user has expanded, so filtering
+ * it in the browser cannot find a file that has not been reached yet. This
+ * walks the working directory server-side and returns files only, ranked
+ * shallowest-first and truncated to `limit`.
+ */
+export async function searchWorkdirFiles(
+  query: string,
+  limit: number,
+  respectGitignore: boolean,
+): Promise<WorkdirTreeEntry[]> {
+  return invoke<WorkdirTreeEntry[]>("search_workdir_files", {
+    query,
+    limit,
     respectGitignore,
   });
 }
