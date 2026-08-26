@@ -197,7 +197,9 @@ fn derive_repo_name(url: &str) -> Option<String> {
 /// [`IpcError`] envelope, mapping each step to a stable `code`
 /// (`invalid_url`, `destination_exists`, `clone_failed`, …).
 #[tauri::command]
-#[tracing::instrument(name = "cmd::clone_repo")]
+// `skip_all`: `CloneRepoOptions` holds the source URL, which names a
+// possibly-private repo. The destination is enough to follow the flow.
+#[tracing::instrument(skip_all, fields(parent_dir = %options.parent_dir), name = "cmd::clone_repo")]
 pub fn clone_repo(options: CloneRepoOptions) -> Result<CloneRepoSuccess, IpcError> {
     run_clone_pipeline(&options).map_err(IpcError::from)
 }

@@ -58,7 +58,8 @@ pub fn deinit_submodule(
 /// - `url` – Remote URL of the submodule repository.
 /// - `path` – Relative path where the submodule will be placed.
 #[tauri::command]
-#[instrument(skip(state, app), name = "cmd::submodule::add")]
+// `url` can embed credentials — log only the destination path.
+#[instrument(skip_all, fields(path = %path), name = "cmd::submodule::add")]
 pub fn add_submodule(
     url: String,
     path: String,

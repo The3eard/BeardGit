@@ -188,6 +188,129 @@ pub(crate) fn configure_no_window(cmd: &mut Command) {
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn configure_no_window(_cmd: &mut Command) {}
 
+/// Flags whose *following* argument is user-authored prose, or a path to a
+/// file holding it — but only under the subcommands in
+/// [`MESSAGE_SUBCOMMANDS`].
+///
+/// Elision has to be subcommand-aware: `git branch -m` is `--move`, where
+/// the operands are branch names worth logging, and blanking the argument
+/// after it would hide the `--` separator instead.
+const MESSAGE_FLAGS: &[&str] = &["-m", "--message", "-F", "--file"];
+
+/// Subcommands where [`MESSAGE_FLAGS`] really mean "message".
+const MESSAGE_SUBCOMMANDS: &[&str] = &["commit", "stash", "tag", "merge", "notes", "am"];
+// Deliberately absent: `revert` and `cherry-pick`, where git's `-m` is
+// `--mainline <parent-number>` — a number worth logging, not prose.
+
+/// Render a git argv for logging with payload arguments elided.
+///
+/// Full argv is what makes a debug log worth reading — you can paste it
+/// into a terminal and reproduce. But `commit -m <message>` carries
+/// content the user wrote, and `config <key> <value>` carries signing
+/// keys, credential helpers and `http.*.extraHeader` tokens, none of
+/// which the logging policy allows on disk.
+///
+/// Every call site in this crate passes the subcommand first (no `git -c
+/// …` global options), so `args[0]` identifies the subcommand.
+fn loggable_git_args(args: &[&str]) -> String {
+    let subcommand = args.first().copied().unwrap_or("");
+
+    if subcommand == "config" {
+        return loggable_config_args(args);
+    }
+
+    let elide_messages = MESSAGE_SUBCOMMANDS.contains(&subcommand);
+    let mut out: Vec<String> = Vec::with_capacity(args.len());
+    let mut elide_next = false;
+    for arg in args {
+        if elide_next {
+            out.push("<elided>".to_string());
+            elide_next = false;
+            continue;
+        }
+        if elide_messages && MESSAGE_FLAGS.contains(arg) {
+            out.push((*arg).to_string());
+            elide_next = true;
+            continue;
+        }
+        match arg.split_once('=') {
+            Some((flag, _)) if elide_messages && MESSAGE_FLAGS.contains(&flag) => {
+                out.push(format!("{flag}=<elided>"));
+            }
+            _ => out.push((*arg).to_string()),
+        }
+    }
+    out.join(" ")
+}
+
+/// `git config` argv with the *value* elided but the key kept.
+///
+/// Which key was written is the useful diagnostic; the value can be a
+/// signing key, a credential-helper command, or an auth header. Flags
+/// (`--global`, `--add`, `--unset`) and the key are positional 1 and 2;
+/// anything after is a value.
+fn loggable_config_args(args: &[&str]) -> String {
+    let mut out: Vec<String> = Vec::with_capacity(args.len());
+    let mut positionals = 0;
+    for arg in args {
+        if arg.starts_with('-') {
+            out.push((*arg).to_string());
+            continue;
+        }
+        positionals += 1;
+        if positionals <= 2 {
+            out.push((*arg).to_string());
+        } else {
+            out.push("<elided>".to_string());
+        }
+    }
+    out.join(" ")
+}
+
+/// Cap a stderr blob so one pathological git failure can't dominate a day
+/// of logs.
+fn truncate_stderr(stderr: &str) -> String {
+    const MAX: usize = 2000;
+    let trimmed = stderr.trim();
+    match trimmed.char_indices().nth(MAX) {
+        Some((idx, _)) => format!("{}… (truncated)", &trimmed[..idx]),
+        None => trimmed.to_string(),
+    }
+}
+
+/// Log one git invocation's outcome, at `debug` either way.
+///
+/// Two reasons this is not `warn`/`error`:
+///
+/// - Plenty of git commands use a non-zero status as an ordinary signal
+///   (`cat-file -e` presence probes, `symbolic-ref` on a detached HEAD,
+///   `diff --quiet`, `commit_stats` on a root commit) and the callers
+///   handle them. Warning about non-problems trains people to ignore
+///   warnings.
+/// - `stderr` is arbitrary output from git *and from the user's hooks*. A
+///   `pre-commit` hook that prints `git diff --cached` would put a staged
+///   diff on disk. Keeping it at `debug` means it only lands when someone
+///   deliberately opted in to reproduce a bug.
+///
+/// A failure the *user* sees still surfaces at error level through
+/// `IpcError`.
+fn log_git_outcome(args: &[&str], result: &GitCliResult, elapsed_ms: u128) {
+    if result.success {
+        tracing::debug!(
+            args = %loggable_git_args(args),
+            elapsed_ms,
+            "git command ok"
+        );
+    } else {
+        tracing::debug!(
+            args = %loggable_git_args(args),
+            elapsed_ms,
+            stderr = %truncate_stderr(&result.stderr),
+            "git command exited non-zero"
+        );
+    }
+}
+
 impl Repository {
     /// Run a git command in the repository directory.
     ///
@@ -198,13 +321,23 @@ impl Repository {
         cmd.args(args).current_dir(self.path());
         configure_no_window(&mut cmd);
 
-        let output = cmd.output().map_err(GitError::Io)?;
+        let started = std::time::Instant::now();
+        let output = cmd.output().map_err(|e| {
+            tracing::error!(
+                args = %loggable_git_args(args),
+                error = %e,
+                "failed to spawn git"
+            );
+            GitError::Io(e)
+        })?;
 
-        Ok(GitCliResult {
+        let result = GitCliResult {
             success: output.status.success(),
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        })
+        };
+        log_git_outcome(args, &result, started.elapsed().as_millis());
+        Ok(result)
     }
 
     /// Run a git command with additional environment variables.
@@ -224,13 +357,23 @@ impl Repository {
         }
         configure_no_window(&mut cmd);
 
-        let output = cmd.output().map_err(GitError::Io)?;
+        let started = std::time::Instant::now();
+        let output = cmd.output().map_err(|e| {
+            tracing::error!(
+                args = %loggable_git_args(args),
+                error = %e,
+                "failed to spawn git"
+            );
+            GitError::Io(e)
+        })?;
 
-        Ok(GitCliResult {
+        let result = GitCliResult {
             success: output.status.success(),
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        })
+        };
+        log_git_outcome(args, &result, started.elapsed().as_millis());
+        Ok(result)
     }
 
     /// Merge `branch` into the current branch using `--no-edit` (no interactive prompt).
@@ -258,7 +401,7 @@ impl Repository {
     }
 
     /// Save uncommitted changes to the stash, optionally with a description message.
-    #[instrument(skip(self))]
+    #[instrument(skip_all, fields(repo = %self.path().display()))]
     pub fn stash_push(&self, message: Option<&str>) -> Result<GitCliResult, GitError> {
         match message {
             Some(msg) => self.git_cmd(&["stash", "push", "-m", msg]),
@@ -272,7 +415,9 @@ impl Repository {
     /// `--include-untracked` is passed so newly-added (untracked) files in the
     /// selection are stashed too; the trailing pathspec keeps it scoped to
     /// exactly those paths.
-    #[instrument(skip(self))]
+    // `skip_all` for the message, but keep `paths`: file paths are the
+    // useful diagnostic and are permitted in the log.
+    #[instrument(skip_all, fields(?paths))]
     pub fn stash_push_paths(
         &self,
         message: Option<&str>,
@@ -447,7 +592,7 @@ impl Repository {
     }
 
     /// Create a lightweight tag (`name`) or an annotated tag when `message` is provided.
-    #[instrument(skip(self), fields(tag = %name))]
+    #[instrument(skip_all, fields(tag = %name))]
     pub fn create_tag(&self, name: &str, message: Option<&str>) -> Result<GitCliResult, GitError> {
         let result = match message {
             // `--` keeps a tag name beginning with `-` from being parsed as a flag.
@@ -652,6 +797,158 @@ fn revert_args(oid: &str) -> [&str; 4] {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod log_redaction_tests {
+    use super::{loggable_git_args, truncate_stderr};
+
+    #[test]
+    fn plain_args_pass_through_verbatim() {
+        // The whole point of logging argv is being able to paste it back
+        // into a terminal, so anything non-sensitive must survive intact.
+        assert_eq!(
+            loggable_git_args(&["status", "--porcelain=v2", "--branch"]),
+            "status --porcelain=v2 --branch"
+        );
+    }
+
+    #[test]
+    fn commit_message_after_dash_m_is_elided() {
+        assert_eq!(
+            loggable_git_args(&["commit", "-m", "fix: the user's secret plan"]),
+            "commit -m <elided>"
+        );
+    }
+
+    #[test]
+    fn long_form_and_inline_message_flags_are_elided() {
+        assert_eq!(
+            loggable_git_args(&["commit", "--message", "prose"]),
+            "commit --message <elided>"
+        );
+        assert_eq!(
+            loggable_git_args(&["commit", "--message=prose"]),
+            "commit --message=<elided>"
+        );
+    }
+
+    #[test]
+    fn message_file_flags_are_elided() {
+        // `-F` / `--file` point at a file whose *contents* become the commit
+        // message; the path itself is enough to leak intent.
+        assert_eq!(
+            loggable_git_args(&["commit", "-F", "/tmp/msg.txt"]),
+            "commit -F <elided>"
+        );
+        assert_eq!(
+            loggable_git_args(&["commit", "--file", "/tmp/msg.txt"]),
+            "commit --file <elided>"
+        );
+    }
+
+    #[test]
+    fn elision_does_not_leak_into_the_following_flag() {
+        // Only the single argument after the flag is elided — a bug here
+        // would either leak the payload or blank out the rest of the argv.
+        assert_eq!(
+            loggable_git_args(&["commit", "-m", "prose", "--no-verify", "--amend"]),
+            "commit -m <elided> --no-verify --amend"
+        );
+    }
+
+    #[test]
+    fn trailing_payload_flag_with_no_value_is_harmless() {
+        assert_eq!(loggable_git_args(&["commit", "-m"]), "commit -m");
+    }
+
+    // ── Shapes this crate actually emits ──────────────────────────────────
+
+    #[test]
+    fn annotated_tag_message_is_elided_but_the_name_survives() {
+        // Exact argv from `create_tag`.
+        assert_eq!(
+            loggable_git_args(&["tag", "-a", "-m", "release notes", "--", "v1.2.3"]),
+            "tag -a -m <elided> -- v1.2.3"
+        );
+    }
+
+    #[test]
+    fn stash_push_message_is_elided() {
+        // Exact argv from `stash_push`.
+        assert_eq!(
+            loggable_git_args(&["stash", "push", "-m", "wip on the thing"]),
+            "stash push -m <elided>"
+        );
+    }
+
+    #[test]
+    fn branch_move_is_not_treated_as_a_message_flag() {
+        // `git branch -m` is `--move`. Eliding here would blank the `--`
+        // separator and hide the rename while leaking nothing useful —
+        // the branch names are the whole point of the line.
+        assert_eq!(
+            loggable_git_args(&["branch", "-m", "--", "old-name", "new-name"]),
+            "branch -m -- old-name new-name"
+        );
+    }
+
+    // ── git config: keep the key, drop the value ──────────────────────────
+
+    #[test]
+    fn config_value_is_elided_and_the_key_is_kept() {
+        assert_eq!(
+            loggable_git_args(&["config", "--global", "user.signingkey", "ABCD1234"]),
+            "config --global user.signingkey <elided>"
+        );
+    }
+
+    #[test]
+    fn config_add_form_elides_only_the_value() {
+        assert_eq!(
+            loggable_git_args(&[
+                "config",
+                "--local",
+                "--add",
+                "http.https://host.extraHeader",
+                "PRIVATE-TOKEN: secret",
+            ]),
+            "config --local --add http.https://host.extraHeader <elided>"
+        );
+    }
+
+    #[test]
+    fn config_reads_have_no_value_to_elide() {
+        assert_eq!(
+            loggable_git_args(&["config", "--get", "user.email"]),
+            "config --get user.email"
+        );
+    }
+
+    #[test]
+    fn truncate_stderr_keeps_short_output_and_trims() {
+        assert_eq!(
+            truncate_stderr("  fatal: not a repo\n"),
+            "fatal: not a repo"
+        );
+    }
+
+    #[test]
+    fn truncate_stderr_caps_pathological_output() {
+        let huge = "x".repeat(5000);
+        let out = truncate_stderr(&huge);
+        assert!(out.ends_with("… (truncated)"), "got {out:?}");
+        assert!(out.len() < huge.len());
+    }
+
+    #[test]
+    fn truncate_stderr_does_not_split_a_multibyte_char() {
+        // Byte-slicing a 2001-char string of 2-byte chars would panic if the
+        // cap were applied to bytes instead of char boundaries.
+        let huge = "é".repeat(5000);
+        let out = truncate_stderr(&huge);
+        assert!(out.ends_with("… (truncated)"), "got {out:?}");
+    }
+}
 
 #[cfg(test)]
 mod tests {

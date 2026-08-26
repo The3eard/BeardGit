@@ -20,6 +20,8 @@
     "lint:style": "stylelint \"src/**/*.{css,svelte}\"",
     "lint:js": "eslint \"src/**/*.{ts,svelte}\"",
     "lint": "npm run lint:style && npm run lint:js",
+    "check:ipc": "node scripts/check-ipc-contract.mjs",
+    "check:instrument": "node scripts/check-instrument-fields.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

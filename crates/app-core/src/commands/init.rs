@@ -242,7 +242,9 @@ fn push_initial(path: &str, branch: &str) -> Result<(), InitRepoError> {
 /// Tauri command. Resolves the forge provider for the requested index
 /// (when `remote = Create`) and delegates to [`run_init_pipeline`].
 #[tauri::command]
-#[tracing::instrument(skip(state, _app), name = "cmd::init_repo")]
+// `skip_all`: `InitRepoOptions` carries the `.gitignore` body to write
+// and a clone URL. The repo path is the part worth logging.
+#[tracing::instrument(skip_all, fields(path = %options.path), name = "cmd::init_repo")]
 pub fn init_repo(
     options: InitRepoOptions,
     state: State<'_, AppState>,

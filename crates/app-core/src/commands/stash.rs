@@ -19,7 +19,12 @@ use crate::state::AppState;
 /// # Returns
 /// The stdout of `git stash push` on success, or stderr as an error.
 #[tauri::command]
-#[instrument(skip(state, app), name = "cmd::stash::push")]
+// `skip_all` — `message` is user prose and `paths` is a file list.
+#[instrument(
+    skip_all,
+    fields(?paths),
+    name = "cmd::stash::push"
+)]
 pub async fn stash_push(
     message: Option<String>,
     paths: Option<Vec<String>>,

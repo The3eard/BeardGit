@@ -245,6 +245,10 @@ impl RepoWatcher {
             .watcher()
             .watch(&repo_path, notify::RecursiveMode::Recursive)?;
 
+        // Its absence is the diagnosis for "external changes don't show up",
+        // so record the successful start too, not just the failure.
+        tracing::info!(path = %repo_path.display(), "repo watcher started");
+
         std::thread::spawn(move || {
             while let Ok(result) = rx.recv() {
                 let Ok(events) = result else { continue };

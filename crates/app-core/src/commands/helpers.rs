@@ -103,10 +103,17 @@ where
     let slot = projects
         .get(idx)
         .ok_or_else(|| "Active project index out of bounds".to_string())?;
-    let repo = slot
-        .repo
-        .as_ref()
-        .ok_or_else(|| "No repository open".to_string())?;
+    // Debug-only: a command running against a background tab (heavy state
+    // is `None` there) is the shape behind most "nothing happened" reports,
+    // and the resolved index tells you which tab it actually hit.
+    let repo = slot.repo.as_ref().ok_or_else(|| {
+        tracing::debug!(
+            index = idx,
+            "with_active_repo: slot has no repository loaded"
+        );
+        "No repository open".to_string()
+    })?;
+    tracing::debug!(index = idx, path = %slot.path, "with_active_repo: resolved");
     f(repo)
 }
 
@@ -178,12 +185,19 @@ where
 }
 
 /// Run a blocking closure on a dedicated thread and map errors to `String`.
+///
+/// The current span is carried across the thread boundary. Tracing's
+/// current span is thread-local and `spawn_blocking` moves the closure to
+/// a pool thread, so without this the `#[instrument(name = "cmd::…")]`
+/// span is lost and any error logged from inside `f` has no indication of
+/// which command produced it.
 pub(super) async fn run_blocking<T, F>(f: F) -> Result<T, String>
 where
     T: Send + 'static,
     F: FnOnce() -> Result<T, String> + Send + 'static,
 {
-    tokio::task::spawn_blocking(f)
+    let span = tracing::Span::current();
+    tokio::task::spawn_blocking(move || span.in_scope(f))
         .await
         .map_err(|e| e.to_string())?
 }

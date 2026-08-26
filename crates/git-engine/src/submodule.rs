@@ -131,7 +131,8 @@ impl Repository {
     /// Add a new submodule to the repository.
     ///
     /// Equivalent to `git submodule add <url> <path>`.
-    #[instrument(skip(self), fields(url = %url, path = %path))]
+    // `url` can embed credentials — log only the destination path.
+    #[instrument(skip_all, fields(path = %path))]
     pub fn add_submodule(&self, url: &str, path: &str) -> Result<(), GitError> {
         let result = self.git_cmd(&["submodule", "add", url, path])?;
         if result.success {

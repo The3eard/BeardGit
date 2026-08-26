@@ -32,6 +32,13 @@ jobs:
         # versa (spec 05). Pure node source parsing — no build needed.
         run: node scripts/check-ipc-contract.mjs
 
+      - name: Instrument field-leak check
+        # Verifies no #[instrument] records a sensitive argument as a span
+        # field. Span fields are re-rendered on every event inside the span,
+        # so this is how user content reaches the log file. Pure node source
+        # parsing — no build needed.
+        run: node scripts/check-instrument-fields.mjs
+
       - name: Svelte check
         run: npm run check
 
