@@ -183,7 +183,6 @@
             newContent={fileDiff.newContent}
             filename={fileDiff.filename}
             placeholder={fileDiff.placeholder}
-            editorTheme={$activeTheme?.editor}
             isDark={$activeTheme?.meta.mode !== 'light'}
             onClose={() => { fileDiff = null; }}
           />

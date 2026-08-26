@@ -138,7 +138,6 @@
             <CodeEditor
               content={fileContent}
               filename={$blamePath ?? ''}
-              editorTheme={$activeTheme?.editor}
               isDark={$activeTheme?.meta.mode !== 'light'}
               readonly={true}
             />
@@ -227,6 +226,8 @@
     transition: background 0.15s, color 0.15s;
   }
 
+  /* Divider *between* segments, not the group's outline — the group's
+     own border carries `--border-strong`. */
   .tab-btn:first-child {
     border-right: 1px solid var(--border);
   }

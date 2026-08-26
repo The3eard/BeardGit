@@ -502,10 +502,10 @@ fn darken_hex(hex: &str, amount: f64) -> String {
 
 /// Parse `#RRGGBB` or `#RRGGBBAA` into linear-light sRGB components.
 ///
-/// Alpha is ignored rather than composited: every caller here compares a
-/// text color against a page background, and the text colors are opaque.
-/// `border` and `selection` carry alpha and are deliberately not audited —
-/// their contrast depends on what they sit on top of.
+/// Alpha is ignored here rather than composited. Callers that may be
+/// handed a translucent value flatten it first with `composite_over` —
+/// which the border tokens do, since they are audited against every
+/// surface they are drawn on.
 fn srgb_channels(hex: &str) -> Option<[f64; 3]> {
     // Expand `#abc` to `#aabbcc` first — the short form is legal CSS and a
     // user theme may well use it, and silently failing to parse it means
@@ -556,34 +556,30 @@ pub fn contrast_ratio(a: &str, b: &str) -> Option<f64> {
 
 /// The minimum contrast ratio a token must reach against the page.
 ///
-/// `text_primary` and `text_secondary` carry body copy and take the WCAG
-/// AA normal-text floor of 4.5:1.
+/// All three text rungs take the WCAG AA normal-text floor of 4.5:1.
+/// `text_muted` used to sit at 3:1 on a large-text exemption it never
+/// qualified for — it renders at 10px (`--font-size-2xs`) in the staging
+/// area and sidebar, where the allowance needs ≥18.66px bold or ≥24px.
 ///
-/// **`text_muted` at 3:1 is a deliberate product trade-off, not a WCAG
-/// exemption.** WCAG's large-text allowance needs ≥18.66px bold or ≥24px;
-/// `--text-muted` renders at 10px (`--font-size-2xs`) in the staging area
-/// and sidebar and 13px elsewhere, so it does not qualify and every
-/// bundled theme is below AA for this one token — the spread runs 3.03:1
-/// (dracula) to 4.37:1 (catppuccin-latte). It is held at 3:1 because
-/// pushing de-emphasised metadata — paths, timestamps, counts — to 4.5:1
-/// collapses the three-rung text ramp on dark palettes, where there is
-/// little room between `text_secondary` and the page. Treat 3:1 as the
-/// floor below which the token is outright illegible, not as compliance.
+/// The two border tokens are split because one token was serving panel
+/// separators and control outlines, whose requirements diverge:
 ///
-/// What would reopen this: moving the two 10px sites
-/// (`StagingArea.svelte`, `Sidebar.svelte`) up the type scale, or dropping
-/// to a two-rung ramp, would both make a genuine 4.5:1 floor reachable.
+/// - `border_strong` outlines interactive controls, which WCAG 1.4.11
+///   covers, so it takes the full 3:1.
+/// - `border` draws separators, and takes 2.0:1. A deliberate relaxation,
+///   not an oversight: `derive_semantic_colors` widened the elevation ramp
+///   so surfaces separate by luminance and the line only refines it, which
+///   puts a divider outside what 1.4.11 targets. 2.0:1 is the floor below
+///   which the line is simply not there — the previous translucent
+///   derivation reached 1.27:1 on gruvbox-dark. Applying 3:1 to every
+///   divider would draw hard boxes across the whole UI.
 ///
-/// `border` and `selection` are deliberately unaudited. They carry alpha,
-/// so their effective contrast depends on what they overlay. Measured by
-/// compositing over `bg_primary`, all 31 bundled themes fall below WCAG
-/// 1.4.11's 3:1 for UI boundaries — the dark ones worst (gruvbox-dark
-/// 1.29:1, nord 1.30:1), not the light ones. That is by design rather
-/// than by neglect: `derive_semantic_colors` widened the elevation ramp
-/// specifically so surfaces separate by luminance and borders only refine
-/// it, which makes them decorative rather than the affordance 1.4.11
-/// targets. Auditing them would mean drawing hard lines across all 31
-/// themes — a redesign, not an accessibility fix.
+/// Both border tokens are measured against every surface they are drawn
+/// on, not just the page: an opaque line solved for the page alone
+/// measured 1.42:1 on the toolbar.
+///
+/// `selection` stays unaudited: it overlays arbitrary content — text, diff
+/// rows, graph lanes — so there is no single pair to measure.
 pub fn contrast_floor(token: &str) -> Option<f64> {
     match token {
         "text_primary" | "text_secondary" | "text_muted" => Some(4.5),
@@ -666,17 +662,23 @@ impl ThemeContrastReport {
 /// Audit a theme's text tokens against its own page background.
 ///
 /// Measures against `derived.bg_primary` (the page), not against panels or
-/// the toolbar: those are lighter/darker variants of the same hue, so the
-/// page is the worst case for text sitting on any of them in dark mode and
-/// the best case in light mode — close enough that a second axis would add
-/// noise without changing which themes need attention.
+/// the toolbar: those are lighter/darker variants of the same hue, and the
+/// page is close enough that a second axis would add noise without
+/// changing which themes need attention.
+///
+/// Borders are different — they are *drawn* on all three surfaces, so they
+/// are measured against every one and reported at their worst.
 pub fn check_theme_contrast(theme: &Theme) -> ThemeContrastReport {
     let d = &theme.derived;
-    let background = &d.bg_primary;
 
     let mut warnings = Vec::new();
     let mut unaudited = Vec::new();
 
+    // Text sits on the page. Borders are drawn on all three surfaces, so
+    // they are measured against the worst of them — auditing a divider
+    // only against `bg_primary` reported 2.2:1 for a line rendering at
+    // 1.42:1 on the toolbar.
+    let surfaces = [&d.bg_primary, &d.bg_secondary, &d.bg_toolbar];
     for (token, foreground) in [
         ("text_primary", &d.text_primary),
         ("text_secondary", &d.text_secondary),
@@ -687,8 +689,31 @@ pub fn check_theme_contrast(theme: &Theme) -> ThemeContrastReport {
         let Some(required) = contrast_floor(token) else {
             continue;
         };
-        let flattened = composite_over(foreground, background);
-        let Some(ratio) = contrast_ratio(&flattened, background) else {
+        let against: Vec<&String> = if token.starts_with("border") {
+            surfaces.to_vec()
+        } else {
+            vec![&d.bg_primary]
+        };
+        // Worst surface wins: a border only counts as visible if it is
+        // visible everywhere it is drawn.
+        let mut worst: Option<(f64, &String)> = None;
+        let mut parse_failed = false;
+        for surface in against {
+            let flattened = composite_over(foreground, surface);
+            match contrast_ratio(&flattened, surface) {
+                Some(r) if worst.is_none_or(|(w, _)| r < w) => worst = Some((r, surface)),
+                Some(_) => {}
+                None => {
+                    parse_failed = true;
+                    break;
+                }
+            }
+        }
+        if parse_failed {
+            unaudited.push(token.to_string());
+            continue;
+        }
+        let Some((ratio, background)) = worst else {
             unaudited.push(token.to_string());
             continue;
         };
@@ -739,6 +764,33 @@ fn blend_to_contrast(from: &str, toward: &str, background: &str, target: f64) ->
     from.to_string()
 }
 
+/// Reach `target` while giving up as little of the palette's colour as
+/// possible.
+///
+/// Tries `preferred` first — normally the theme's own foreground, which
+/// keeps the result on a line between two of its real colours — and only
+/// falls back to `last_resort` (pure white or black) when the preferred
+/// anchor cannot get there, which happens when the foreground's own
+/// contrast is below the target.
+///
+/// The two-stage form exists because blending straight to an extreme
+/// desaturates: gruvbox-dark's `text_secondary` went from chroma 36 to 6,
+/// turning its tan into near-neutral grey. Preferring the foreground keeps
+/// the hue for the themes whose foreground is bright enough.
+fn blend_preferring(
+    from: &str,
+    preferred: &str,
+    last_resort: &str,
+    background: &str,
+    target: f64,
+) -> String {
+    let via_preferred = blend_to_contrast(from, preferred, background, target);
+    if contrast_ratio(&via_preferred, background).is_some_and(|r| r >= target) {
+        return via_preferred;
+    }
+    blend_to_contrast(from, last_resort, background, target)
+}
+
 /// Blend `from` toward the page, keeping the dimmest value that still
 /// clears `target`.
 ///
@@ -763,9 +815,18 @@ fn dim_to_contrast(from: &str, background: &str, target: f64) -> String {
 ///
 /// `text_muted` sits at the WCAG AA normal-text floor with a little
 /// margin; the two rungs above it are spaced far enough apart to read as
-/// a hierarchy rather than as three shades of the same grey. `primary` is
-/// only raised when a theme's own foreground falls below its floor — 22 of
-/// the 31 bundled themes keep theirs verbatim.
+/// a hierarchy rather than as three shades of the same grey. Measured:
+/// secondary→muted is ΔL* 6.9–10.4 across all 31 themes, comfortably above
+/// the ~1–2 just-noticeable difference.
+///
+/// `primary` is only raised when a theme's own foreground falls below its
+/// floor — 24 of the 31 bundled themes keep theirs verbatim. The 7 that
+/// change (one-dark, catppuccin-latte, solarized dark/light,
+/// rose-pine-dawn, everforest-light, ayu-light) are low-contrast-by-design
+/// palettes, and this trades some of that identity for legibility. In
+/// solarized-dark's case it also fixes an inverted ramp: its foreground
+/// was 4.75:1 while its `bright_black` was 2.79:1, so secondary was
+/// *darker* than primary.
 const FLOOR_TEXT_PRIMARY: f64 = 7.5;
 const FLOOR_TEXT_SECONDARY: f64 = 6.0;
 const FLOOR_TEXT_MUTED: f64 = 4.6;
@@ -812,11 +873,40 @@ fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors 
     let bg = &colors.background;
 
     let text_primary = blend_to_contrast(&colors.foreground, extreme, bg, FLOOR_TEXT_PRIMARY);
-    let text_secondary = blend_to_contrast(&colors.bright_black, extreme, bg, FLOOR_TEXT_SECONDARY);
+    // `primary` starts from the foreground, so the extreme is its only
+    // anchor. `secondary` prefers the foreground and reaches for the
+    // extreme only when that cannot get it to the floor.
+    let text_secondary = blend_preferring(
+        &colors.bright_black,
+        &colors.foreground,
+        extreme,
+        bg,
+        FLOOR_TEXT_SECONDARY,
+    );
     // Step *down* from secondary, so muted reads dimmer rather than
     // landing on the same value in themes whose `bright_black` already
     // clears the higher floor.
     let text_muted = dim_to_contrast(&text_secondary, bg, FLOOR_TEXT_MUTED);
+
+    // Solved against `bg_toolbar`, the most elevated surface these lines
+    // are drawn on, rather than against the page. Solved against
+    // `bg_primary` alone, an opaque border measured 2.2:1 there and as
+    // little as 1.42:1 on the toolbar — below the floor on a surface where
+    // plenty of these dividers actually live, and on 11 themes worse than
+    // the translucent version it replaced.
+    // `blend_preferring`, not `blend_to_contrast`: mixing the page toward
+    // the foreground caps at the foreground's own contrast, and on
+    // solarized-dark (fg 4.75:1) that cannot reach the control floor
+    // against the toolbar — `blend_to_contrast` would silently hand back
+    // the background itself, an invisible border reported as derived.
+    let border = blend_preferring(bg, &colors.foreground, extreme, &bg_toolbar, FLOOR_BORDER);
+    let border_strong = blend_preferring(
+        bg,
+        &colors.foreground,
+        extreme,
+        &bg_toolbar,
+        FLOOR_BORDER_STRONG,
+    );
 
     DerivedColors {
         bg_primary: colors.background.clone(),
@@ -837,8 +927,8 @@ fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors 
         // alpha, which composited to as little as 1.27:1 (gruvbox-dark) —
         // an invisible line. Opaque, so the audited ratio is the ratio the
         // eye sees rather than one that depends on what it overlays.
-        border: blend_to_contrast(bg, &colors.foreground, bg, FLOOR_BORDER),
-        border_strong: blend_to_contrast(bg, &colors.foreground, bg, FLOOR_BORDER_STRONG),
+        border,
+        border_strong,
         selection: with_alpha(&colors.blue, "40"),
     }
 }
@@ -1111,17 +1201,21 @@ struct RawTheme {
 /// The `[derived]` section — per-theme overrides for the semantic UI
 /// tokens that `derive_semantic_colors` computes from the base palette.
 ///
-/// This exists because the derivation cannot be fixed in code without
-/// breaking something else. `text_secondary` is `colors.bright_black`
-/// verbatim, and in a dozen bundled themes that lands below 4.5:1 on the
-/// page — Nord's is 1.69:1. But `bright_black` also feeds the terminal's
-/// ANSI palette, so raising it there would mean shipping a Nord that
-/// isn't Nord. And clamping inside the derivation would silently rewrite
-/// every *user* theme, which the accessibility policy forbids: user
-/// themes are reported, never modified.
+/// **Note the policy this reflects, which changed.** The contrast floors
+/// are now enforced in `derive_semantic_colors` itself, so a user theme
+/// declaring only `[colors]` *does* get its derived text and border tokens
+/// adjusted. That is deliberate: those tokens were never authored — a
+/// theme file declares 18 ANSI colours — and the audit can otherwise only
+/// warn about a palette it is not allowed to help.
 ///
-/// So the fix is per-theme literal values in the TOML, audited by
-/// `test_all_builtin_themes_meet_contrast_floors`.
+/// What is still never touched is a value the author wrote down. This
+/// section merges after the derivation, so an explicit pin always wins,
+/// including one that fails its floor: failing pins are reported, never
+/// corrected.
+///
+/// Raising `colors.bright_black` would not have worked as a fix — it also
+/// feeds the terminal's ANSI palette, so a legible Nord would stop being
+/// Nord in the terminal.
 #[derive(Debug, Clone, Deserialize)]
 struct RawDerivedOverride {
     #[serde(default, alias = "text-primary")]
@@ -1132,6 +1226,11 @@ struct RawDerivedOverride {
     text_muted: Option<String>,
     #[serde(default)]
     border: Option<String>,
+    /// Audited like `border`, so it has to be pinnable too — otherwise a
+    /// user whose control outlines are reported as failing has no
+    /// supported way to fix them.
+    #[serde(default, alias = "border-strong")]
+    border_strong: Option<String>,
 }
 
 /// Apply partial overrides from a `[derived]` section onto the computed
@@ -1148,6 +1247,9 @@ fn merge_derived_overrides(base: &mut DerivedColors, overrides: RawDerivedOverri
     }
     if let Some(v) = overrides.border {
         base.border = v;
+    }
+    if let Some(v) = overrides.border_strong {
+        base.border_strong = v;
     }
 }
 
@@ -1357,6 +1459,7 @@ pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
             ),
             ("derived.text_muted", overrides.text_muted.as_deref()),
             ("derived.border", overrides.border.as_deref()),
+            ("derived.border_strong", overrides.border_strong.as_deref()),
         ] {
             if let Some(v) = value {
                 validate_color(field, v)?;
@@ -1958,10 +2061,11 @@ lane-colors = ["#0000ff"]
     /// `derive_semantic_colors` comment already claimed existed ("verified
     /// per theme by the contrast check") before one did.
     ///
-    /// Failures are fixed by editing the theme's TOML by hand, never by
-    /// clamping in the derivation: a floor applied in code would silently
-    /// change every user theme too, and the whole point of the audit is
-    /// that user themes are reported and never modified.
+    /// A failure here means the derivation regressed, since it solves for
+    /// these floors — so the fix is normally in `derive_semantic_colors`,
+    /// not in a TOML. A `[derived]` pin is the right answer only when a
+    /// theme's own palette has a slot that beats the derived value, which
+    /// four of them do.
     #[test]
     fn test_all_builtin_themes_meet_contrast_floors() {
         let failures: Vec<String> = load_builtin_themes()

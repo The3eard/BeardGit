@@ -23,6 +23,18 @@ export default defineConfig({
   expect: {
     toHaveScreenshot: {
       maxDiffPixelRatio: 0.01,
+      // Playwright's default per-pixel `threshold` is 0.2 in YIQ space,
+      // which is an order of magnitude more than a theme-token change
+      // produces — a grey shifting by 18/255 scores ~164 against a 1408
+      // cutoff, so those pixels are never counted and `maxDiffPixelRatio`
+      // is never reached. That made these baselines blind to exactly the
+      // regressions they look like they guard: an entire panel losing its
+      // elevated background passed clean.
+      //
+      // The renders are deterministic (identical across repeated runs), so
+      // this can be tight. Raise it, don't remove it, if a real
+      // antialiasing difference appears on another platform.
+      threshold: 0.02,
     },
   },
 });

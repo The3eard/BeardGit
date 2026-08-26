@@ -23,3 +23,10 @@ bright-blue = "#839496"
 bright-magenta = "#6c71c4"
 bright-cyan = "#93a1a1"
 bright-white = "#fdf6e3"
+
+# Palette pins. The derivation guarantees the contrast floors on its own;
+# these are kept because the theme's *own* palette has a slot that clears
+# them by a wider margin, so pinning is strictly better than blending.
+# `[derived]` merges after the derivation, so it wins.
+[derived]
+text-primary = "#073642"  # 12.05:1 — palette `black` (base02), well above the derived 7.54:1, and the canonical Solarized emphasis step.

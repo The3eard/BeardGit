@@ -23,10 +23,7 @@ import type { ThemeEditorData } from '$lib/types';
  *
  * Returns an array containing the base chrome theme AND syntax highlighting.
  */
-export function createCodemirrorTheme(
-  _editor: ThemeEditorData | null,
-  isDark: boolean,
-): Extension {
+export function createCodemirrorTheme(isDark: boolean): Extension {
   return [buildChromeTheme(isDark), buildSyntaxHighlighting()];
 }
 

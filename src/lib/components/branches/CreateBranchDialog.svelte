@@ -255,7 +255,7 @@
     padding: 6px 10px;
     font-size: var(--font-size-md);
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     box-sizing: border-box;

@@ -168,7 +168,6 @@
       theirs={mergeContents.theirs}
       base={mergeContents.base}
       filename={mergeFile}
-      editorTheme={$activeTheme?.editor}
       isDark={$activeTheme?.meta.mode !== 'light'}
       onResolve={handleResolve}
       onCancel={handleCancelMerge}
