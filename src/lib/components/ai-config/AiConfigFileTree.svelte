@@ -13,6 +13,7 @@
     activeFileDirty,
   } from "../../stores/aiConfig";
   import type { AiConfigFile } from "../../types";
+  import { repoInfo } from "$lib/stores/repo";
   import * as m from "$lib/paraglide/messages";
 
   // ─── Props ───
@@ -68,16 +69,30 @@
   // ─── Tree building ───
 
   /**
-   * Extract the relative display path from an absolute file path.
-   * Splits on `.claude/` to get the portion after it. For files like
-   * CLAUDE.md at the repo root (no `.claude/` segment), uses the filename.
+   * Display path for a config file: what the tree groups and labels by.
+   *
+   * Inside `.claude/`, the part after it — `agents/reviewer.md` — since the
+   * scope header already says whose `.claude` it is.
+   *
+   * Anywhere else, the path relative to the repo root, which is what makes
+   * a module's CLAUDE.md identifiable. This used to fall back to the bare
+   * filename, so every CLAUDE.md in the project rendered as an identical
+   * row labelled "CLAUDE.md": twelve of them in this repo, with nothing to
+   * tell `src/lib/stores/` from `crates/git-engine/`. Returning the
+   * relative path also gives `buildTree` the segments it needs to nest them
+   * under their directories instead of piling them at the root.
    */
   function relativePath(absPath: string): string {
     const claudeIdx = absPath.indexOf(".claude/");
     if (claudeIdx !== -1) {
       return absPath.substring(claudeIdx + ".claude/".length);
     }
-    // Fallback: just the filename (for CLAUDE.md at repo root)
+    const root = $repoInfo?.path;
+    if (root && absPath.startsWith(`${root}/`)) {
+      return absPath.substring(root.length + 1);
+    }
+    // Outside the repo and outside any `.claude/` — nothing better to say
+    // than the filename.
     const lastSlash = absPath.lastIndexOf("/");
     return lastSlash >= 0 ? absPath.substring(lastSlash + 1) : absPath;
   }
