@@ -167,7 +167,15 @@ jobs:
             patchelf \
             libssl-dev
 
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned, and must match rust-toolchain.toml. On @stable this job ran a
+      # newer clippy than any developer had locally, so a new lint failed here
+      # while the local gate stayed green. Bump both together: raise the version
+      # here and in rust-toolchain.toml, run the full gate, fix what the newer
+      # clippy reports. Note that 1.98.0 is not preinstalled on the runner image
+      # the way `stable` is — the `components` list in rust-toolchain.toml is
+      # what makes clippy and rustfmt exist at all here, since this action
+      # installs with `--profile minimal`.
+      - uses: dtolnay/rust-toolchain@1.98.0
 
       - uses: Swatinem/rust-cache@v2
 
@@ -221,8 +229,12 @@ jobs:
           echo "OK: trait crates are runtime-dep free."
 
       - name: Clippy
+        # Linux-only, like formatting above — so a lint regression can only ever
+        # surface on this leg, never on the macOS or Windows ones.
+        # `--all-targets` matches the local gate in CLAUDE.md; without it CI
+        # skipped tests and benches and lint drift could land there unseen.
         if: matrix.os == 'ubuntu-latest'
-        run: cargo clippy --workspace -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Neutralize Windows CRLF conversion for tests
         # The Windows runner image sets core.autocrlf=true globally; the
