@@ -86,3 +86,44 @@ export function computeVirtualWindow(
 export function virtualRowStyle(index: number, rowHeight: number): string {
   return `position: absolute; left: 0; right: 0; top: ${index * rowHeight}px; height: ${rowHeight}px`;
 }
+
+/**
+ * Nearest scrollable ancestor of `el`, or `null` if nothing scrolls.
+ *
+ * Starts at the parent, so an element with its own inert `overflow-y: auto`
+ * doesn't nominate itself.
+ */
+export function findScroller(el: HTMLElement): HTMLElement | null {
+  let parent = el.parentElement;
+  while (parent) {
+    const overflowY = getComputedStyle(parent).overflowY;
+    if (overflowY === "auto" || overflowY === "scroll") return parent;
+    parent = parent.parentElement;
+  }
+  return null;
+}
+
+/**
+ * How far `scroller` has scrolled past the top of `listEl`, and the height of
+ * its viewport — the two inputs `computeVirtualWindow` needs when the list is
+ * not itself the scroll container.
+ *
+ * Every list virtualized so far needs this. The changes list sits inside
+ * `StagingArea`'s shared scroller so staged and unstaged move together; the
+ * commit-detail file list sits inside the detail `<aside>`. Measuring the list
+ * itself returns its full content height, which produces a window covering
+ * every row — the bug worth naming, because the code looks right.
+ */
+export function measureAgainstScroller(
+  listEl: HTMLElement,
+  scroller: HTMLElement,
+): { scrollTop: number; viewportHeight: number } {
+  const listTop =
+    listEl.getBoundingClientRect().top -
+    scroller.getBoundingClientRect().top +
+    scroller.scrollTop;
+  return {
+    scrollTop: Math.max(0, scroller.scrollTop - listTop),
+    viewportHeight: scroller.clientHeight,
+  };
+}

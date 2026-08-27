@@ -9,6 +9,12 @@
 <script lang="ts">
   import type { CommitFileChange } from "../../types";
   import FileStatusBadge from "./FileStatusBadge.svelte";
+  import {
+    computeVirtualWindow,
+    findScroller,
+    measureAgainstScroller,
+    virtualRowStyle,
+  } from "../../utils/virtualWindow";
 
   let {
     files,
@@ -29,6 +35,45 @@
     }
   });
 
+  // ── Virtualization ────────────────────────────────────────────────────
+  // A commit's file list has no cap: an initial commit or a wide merge can
+  // carry thousands of paths, and each row mounts a status badge.
+  //
+  // 26 px measured in the browser (`padding: 4px` plus content), uniform.
+  // The scroll container is the detail `<aside>`, not this list — see
+  // `measureAgainstScroller`. Only engages above 500 rows, so every existing
+  // baseline renders through the plain `{#each}`.
+  const ROW_HEIGHT = 26;
+
+  let listEl = $state<HTMLUListElement | null>(null);
+  let scrollTop = $state(0);
+  let viewportHeight = $state(0);
+
+  let virtualWindow = $derived(
+    computeVirtualWindow({
+      count: files.length,
+      rowHeight: ROW_HEIGHT,
+      scrollTop,
+      viewportHeight,
+      threshold: 500,
+    }),
+  );
+
+  $effect(() => {
+    void files.length;
+    if (!listEl) return;
+    const scroller = findScroller(listEl);
+    if (!scroller) return;
+
+    const measure = () => {
+      if (!listEl) return;
+      ({ scrollTop, viewportHeight } = measureAgainstScroller(listEl, scroller));
+    };
+    measure();
+    scroller.addEventListener("scroll", measure, { passive: true });
+    return () => scroller.removeEventListener("scroll", measure);
+  });
+
   function handleClick(path: string) {
     if (onSelect) {
       onSelect(path);
@@ -44,25 +89,43 @@
 </script>
 
 {#if files.length > 0}
-  <ul class="file-list">
-    {#each files as file (file.path)}
-      {@const parts = splitPath(file.path)}
-      <li>
-        <button
-          class="file-item"
-          class:selected={selectedPath === file.path}
-          onclick={() => handleClick(file.path)}
-          oncontextmenu={onContextMenu ? (e) => onContextMenu!(e, file.path) : undefined}
-        >
-          <FileStatusBadge status={file.status} />
-          <span class="file-path">
-            {#if parts.dir}<span class="file-dir">{parts.dir}</span>{/if}<span class="file-name">{parts.name}</span>
-          </span>
-        </button>
+  <ul class="file-list" bind:this={listEl}>
+    {#if virtualWindow}
+      <!-- Windowed: the sizer holds the full scroll height, and only the
+           visible slice is mounted, anchored at (index * ROW_HEIGHT). -->
+      <li
+        class="virt-sizer"
+        style="height: {virtualWindow.totalHeight}px"
+        aria-hidden="true"
+      >
+        {#each files.slice(virtualWindow.start, virtualWindow.end) as file, offset (file.path)}
+          {@render fileRow(file, virtualWindow.start + offset, true)}
+        {/each}
       </li>
-    {/each}
+    {:else}
+      {#each files as file (file.path)}
+        {@render fileRow(file, 0, false)}
+      {/each}
+    {/if}
   </ul>
 {/if}
+
+{#snippet fileRow(file: CommitFileChange, index: number, positioned: boolean)}
+  {@const parts = splitPath(file.path)}
+  <li style={positioned ? virtualRowStyle(index, ROW_HEIGHT) : undefined}>
+    <button
+      class="file-item"
+      class:selected={selectedPath === file.path}
+      onclick={() => handleClick(file.path)}
+      oncontextmenu={onContextMenu ? (e) => onContextMenu!(e, file.path) : undefined}
+    >
+      <FileStatusBadge status={file.status} />
+      <span class="file-path">
+        {#if parts.dir}<span class="file-dir">{parts.dir}</span>{/if}<span class="file-name">{parts.name}</span>
+      </span>
+    </button>
+  </li>
+{/snippet}
 
 <style>
   .file-list {
@@ -71,6 +134,12 @@
     padding: 0;
     display: flex;
     flex-direction: column;
+  }
+
+  /* Sizer for the windowed path: carries the full scroll height while only
+     the visible slice is mounted, absolutely positioned inside it. */
+  .virt-sizer {
+    position: relative;
   }
 
   .file-item {

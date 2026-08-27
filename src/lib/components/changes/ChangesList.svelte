@@ -17,6 +17,8 @@
   import { isBatchSelection, batchActionIds, type BatchActionId } from "./changes-menu";
   import {
     computeVirtualWindow,
+    findScroller,
+    measureAgainstScroller,
     virtualRowStyle,
   } from "../../utils/virtualWindow";
 
@@ -111,28 +113,12 @@
     }),
   );
 
-  /** Nearest scrollable ancestor, or null if nothing scrolls. */
-  function findScroller(el: HTMLElement): HTMLElement | null {
-    let parent = el.parentElement;
-    while (parent) {
-      const overflowY = getComputedStyle(parent).overflowY;
-      if (overflowY === "auto" || overflowY === "scroll") return parent;
-      parent = parent.parentElement;
-    }
-    return null;
-  }
-
   function measureAgainst(scroller: HTMLElement) {
     if (!listEl) return;
-    // Offset of this list's top within the scroller's content box. Stable
-    // while windowed: the sizer's height is `count * ROW_HEIGHT`, so the
-    // window changing never moves the list.
-    const listTop =
-      listEl.getBoundingClientRect().top -
-      scroller.getBoundingClientRect().top +
-      scroller.scrollTop;
-    scrollTop = Math.max(0, scroller.scrollTop - listTop);
-    viewportHeight = scroller.clientHeight;
+    // The list's own offset within the scroller is stable while windowed: the
+    // sizer's height is `count * ROW_HEIGHT`, so the window changing never
+    // moves the list.
+    ({ scrollTop, viewportHeight } = measureAgainstScroller(listEl, scroller));
   }
 
   $effect(() => {
