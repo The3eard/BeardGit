@@ -1322,6 +1322,78 @@ mod tests {
         );
     }
 
+    /// CRLF survives a line-level discard. This exists to stop a fix being
+    /// written for a bug that is not there.
+    ///
+    /// It was reported that discarding rewrote a CRLF file to LF. It does not.
+    /// What actually happened is that the fixture repo inherited the
+    /// developer's global `core.autocrlf = input`, under which git normalises
+    /// to LF *on the way into the index* — so the committed blob genuinely is
+    /// LF, libgit2 faithfully reports LF content, and restoring from the repo
+    /// faithfully produces LF. Plain `git checkout -- f.txt` on the same
+    /// fixture produces byte-identical output, so there is nothing here that
+    /// BeardGit does differently from git.
+    ///
+    /// Hence the explicit `core.autocrlf = false`: without it this test
+    /// measures the machine's git config rather than this crate, and would
+    /// report a failure on a developer set to `input` and a pass on one set to
+    /// `false`. The same reason `ci.yml` neutralises autocrlf on the Windows
+    /// runner, which sets it globally to `true`.
+    #[test]
+    fn discarding_one_line_preserves_crlf_endings() {
+        let dir = tempfile::tempdir().unwrap();
+        let git_repo = git2::Repository::init(dir.path()).unwrap();
+        git_repo
+            .config()
+            .unwrap()
+            .set_str("core.autocrlf", "false")
+            .unwrap();
+        let sig = git2::Signature::now("Test", "test@test.com").unwrap();
+
+        fs::write(dir.path().join("f.txt"), "a\r\nb\r\nc\r\n").unwrap();
+        let mut index = git_repo.index().unwrap();
+        index.add_path(Path::new("f.txt")).unwrap();
+        index.write().unwrap();
+        let tree = git_repo.find_tree(index.write_tree().unwrap()).unwrap();
+        git_repo
+            .commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .unwrap();
+
+        fs::write(dir.path().join("f.txt"), "a\r\nX\r\nY\r\nc\r\n").unwrap();
+        let repo = Repository::open(dir.path()).unwrap();
+
+        let diff = repo
+            .diff_single_file("f.txt", false, None)
+            .unwrap()
+            .unwrap();
+        assert!(
+            diff.hunks[0]
+                .lines
+                .iter()
+                .any(|l| l.content.ends_with("\r\n")),
+            "libgit2 must hand back the CR, or this fixture is not testing CRLF"
+        );
+        let x = line_at(&diff, '+', "X");
+
+        repo.discard_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(x, x)]),
+            }],
+            None,
+        )
+        .expect("discarding one line of a CRLF file must apply");
+
+        // X reverted, Y kept, b reinstated by nothing — and every surviving
+        // line still ends CRLF.
+        assert_eq!(
+            fs::read_to_string(dir.path().join("f.txt")).unwrap(),
+            "a\r\nY\r\nc\r\n",
+            "line endings must survive a line-level discard untouched"
+        );
+    }
+
     /// End-to-end regression: staging the last hunk of a file that has no
     /// trailing EOF newline must succeed. Before the fix, `build_patch`
     /// fabricated a `\n` and `git apply --cached` rejected the patch.
