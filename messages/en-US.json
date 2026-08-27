@@ -828,6 +828,7 @@
   "ai_config_user": "User",
   "ai_config_create": "New file",
   "ai_config_no_claude_md": "No CLAUDE.md found. Create one manually or run /init in Claude Code.",
+  "ai_config_no_project_files": "No project config files yet.",
   "ai_config_save": "Save",
   "ai_config_unsaved": "Unsaved changes",
   "ai_config_discard": "Discard changes?",

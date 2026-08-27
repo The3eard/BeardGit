@@ -828,6 +828,7 @@
   "ai_config_user": "Usuario",
   "ai_config_create": "Nuevo archivo",
   "ai_config_no_claude_md": "CLAUDE.md no encontrado. Créalo manualmente o ejecuta /init en Claude Code.",
+  "ai_config_no_project_files": "Aún no hay ficheros de configuración en el proyecto.",
   "ai_config_save": "Guardar",
   "ai_config_unsaved": "Cambios sin guardar",
   "ai_config_discard": "¿Descartar cambios?",
