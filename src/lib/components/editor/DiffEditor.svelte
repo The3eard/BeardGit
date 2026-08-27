@@ -201,8 +201,8 @@
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
-        class="split-handle"
-        class:dragging
+        class="resize-handle resize-handle--overlay split-handle"
+        class:is-dragging={dragging}
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize diff panes"
@@ -263,24 +263,16 @@
     flex: 1 1 0;
   }
 
+  /* Colours and hover/drag states come from the shared
+     `.resize-handle` / `.resize-handle--overlay` rules; only the
+     positioning is local to this component. */
   .split-handle {
     position: absolute;
     top: 0;
     bottom: 0;
     left: var(--diff-split, 50%);
-    width: 7px;
     margin-left: -3px;
-    cursor: col-resize;
     z-index: 5;
-    background: transparent;
-    transition: background 0.12s ease;
-  }
-
-  .split-handle:hover,
-  .split-handle.dragging,
-  .split-handle:focus-visible {
-    background: color-mix(in srgb, var(--accent-primary) 35%, transparent);
-    outline: none;
   }
 
   .diff-editor :global(.cm-editor) {
