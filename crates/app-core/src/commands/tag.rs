@@ -78,7 +78,7 @@ pub async fn create_tag(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::TagCreate, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -119,7 +119,7 @@ pub async fn delete_tag(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::TagDelete, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;

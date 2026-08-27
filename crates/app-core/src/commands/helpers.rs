@@ -599,7 +599,12 @@ pub(super) fn build_forge_provider_for_index(
             .kind
     };
 
-    let cwd = get_active_project_path(state).unwrap_or_default();
+    // Discarded on purpose: the forge provider works without a project
+    // path (it falls back to the empty path), so "no active project" is not
+    // a failure here. `ok()` rather than `unwrap_or_default()` on the
+    // Result so it is obvious the error is being dropped rather than
+    // defaulted past.
+    let cwd = get_active_project_path(state).ok().unwrap_or_default();
 
     // Cache hit?
     if let Ok(cache) = state.forge_provider_cache.lock()

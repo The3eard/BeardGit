@@ -116,6 +116,15 @@ impl From<&str> for IpcError {
 /// The reverse direction, for the few helper closures that still work in
 /// plain `String` errors. Keeps the message and drops the code, which is
 /// what those callers were doing by hand.
+///
+/// **It exists to satisfy a closure's error bound, and nothing else.**
+/// Because it makes `IpcError: Into<String>` hold, an
+/// `IpcError::new("internal", some_ipc_error)` compiles silently — and
+/// that double conversion drops the original code *and* logs a second
+/// time under the wrong one. Nineteen callsites did exactly that, left
+/// over from when `get_active_project_path` returned a `String`. If you
+/// find yourself converting an `IpcError` into a `String`, a bare `?` is
+/// almost certainly what you want.
 impl From<IpcError> for String {
     fn from(err: IpcError) -> Self {
         err.message
