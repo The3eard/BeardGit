@@ -66,13 +66,18 @@ pub fn get_user_identities(state: State<'_, AppState>) -> Result<Vec<String>, Ip
 
     // Git config email and name from active repo.
     //
-    // These two closures keep plain `String` errors on purpose: the results
-    // are discarded by `if let Ok`, so routing them through `IpcError`
-    // would write a log line for a probe whose failure means "this user has
-    // no git identity configured", which is not a failure.
+    // Both closures go through `IpcError::expected`, which builds the
+    // envelope **without logging**. The results are discarded by `if let
+    // Ok`, and a failure here means "this user has no git identity
+    // configured" — not a failure worth an ERROR line. These used to keep
+    // plain `String` errors for the same reason, which worked only because
+    // `String: From<IpcError>` existed; `expected` states the intent
+    // directly instead of relying on a conversion that silently dropped
+    // error codes everywhere else.
+    let probe = |e: git2::Error| IpcError::expected("git", e.to_string());
     if let Ok(email) = with_active_repo(&state, |repo| {
-        let config = repo.inner().config().map_err(|e| e.to_string())?;
-        config.get_string("user.email").map_err(|e| e.to_string())
+        let config = repo.inner().config().map_err(probe)?;
+        config.get_string("user.email").map_err(probe)
     }) {
         let lower = email.to_lowercase();
         if !lower.is_empty() {
@@ -80,8 +85,8 @@ pub fn get_user_identities(state: State<'_, AppState>) -> Result<Vec<String>, Ip
         }
     }
     if let Ok(name) = with_active_repo(&state, |repo| {
-        let config = repo.inner().config().map_err(|e| e.to_string())?;
-        config.get_string("user.name").map_err(|e| e.to_string())
+        let config = repo.inner().config().map_err(probe)?;
+        config.get_string("user.name").map_err(probe)
     }) {
         let lower = name.to_lowercase();
         if !lower.is_empty() {

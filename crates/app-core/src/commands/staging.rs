@@ -24,15 +24,13 @@ pub async fn stage_files(
 ) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.stage_files(&paths).map_err(|e| e.to_string())
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
+            repo.stage_files(&paths).map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Unstage a specific list of files (equivalent to `git restore --staged <paths>`).
@@ -51,15 +49,13 @@ pub async fn unstage_files(
 ) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.unstage_files(&paths).map_err(|e| e.to_string())
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
+            repo.unstage_files(&paths).map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Stage all modified and untracked files (equivalent to `git add -A`).
@@ -71,15 +67,13 @@ pub async fn unstage_files(
 pub async fn stage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.stage_all().map_err(|e| e.to_string())
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
+            repo.stage_all().map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Unstage all staged changes (equivalent to `git restore --staged .`).
@@ -91,15 +85,13 @@ pub async fn stage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(),
 pub async fn unstage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.unstage_all().map_err(|e| e.to_string())
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
+            repo.unstage_all().map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Stage selected hunks or individual lines from the working directory.
@@ -125,16 +117,14 @@ pub async fn stage_hunks(
 ) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
             repo.stage_hunks(&path, &selections, context_lines)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Unstage selected hunks or individual lines from the index.
@@ -160,16 +150,14 @@ pub async fn unstage_hunks(
 ) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
             repo.unstage_hunks(&path, &selections, context_lines)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Discard unstaged changes for whole files.
@@ -192,15 +180,13 @@ pub async fn discard_files(
 ) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.discard_files(&paths).map_err(|e| e.to_string())
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
+            repo.discard_files(&paths).map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Discard selected hunks or individual lines from the working directory.
@@ -226,16 +212,14 @@ pub async fn discard_hunks(
 ) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
             repo.discard_hunks(&path, &selections, context_lines)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 #[cfg(test)]
