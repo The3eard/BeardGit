@@ -1,0 +1,18 @@
+# Pinned so the local gate and CI run the *same* clippy.
+#
+# Without this, `cargo clippy` locally used whatever stable the machine
+# happened to have while CI installed a fresh one. That gap let a
+# `manual_filter` lint land on beta and go red for seven straight merges:
+# the local gate could not see the lint, and the macOS/Windows CI legs
+# passed off a warm cache while only ubuntu-latest reported it.
+#
+# Bump this deliberately: raise the version, run the full gate, fix what
+# the newer clippy reports, then commit the bump with those fixes.
+[toolchain]
+channel = "1.98.0"
+# Load-bearing, do not trim. dtolnay/rust-toolchain installs with
+# `--profile minimal`, and unlike `stable` this exact version is not
+# preinstalled on the runner images — so this list is the only reason clippy
+# and rustfmt exist in CI. Remove it and the Clippy and Check-formatting
+# steps break.
+components = ["clippy", "rustfmt"]

@@ -89,10 +89,7 @@ pub fn load_remote_repo_config_gitlab<R: CommandRunner + ?Sized>(
         RepoConfigError::JsonError(format!("unknown visibility: {}", view.visibility))
     })?;
 
-    let homepage = view
-        .homepage
-        .or(view.web_url)
-        .and_then(|v| if v.is_empty() { None } else { Some(v) });
+    let homepage = view.homepage.or(view.web_url).filter(|v| !v.is_empty());
 
     let labels = load_labels_gitlab(runner, repo_path)?;
 
