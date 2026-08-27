@@ -14,10 +14,16 @@
  * whole gate plus a re-rendered marketing screenshot went green over it.
  * The regression was caught by a human reading the picture.
  *
- * So this pins the count per file. It is deliberately dumb — it does not
- * care *which* glyphs a file uses, only that a file which had icons still
- * has at least as many as it did. Adding icons is free; losing them is a
- * failure with the file name attached.
+ * So this pins the glyphs per file, as a multiset of codepoints: every
+ * codepoint a file had, it must still have at least as many of. Adding
+ * icons is free; losing one is a failure with the file name and the
+ * codepoint attached.
+ *
+ * It used to pin a bare count per file, which left the obvious hole: swap
+ * a folder glyph for a chevron and the total is unchanged, so the check
+ * passed while the icon column was wrong. A count cannot tell "the icons
+ * are intact" from "the icons were shuffled". Codepoints can, and the
+ * error message can then name what went missing instead of just how many.
  *
  * Update the baseline with: npm run check:glyphs -- --write
  */
@@ -62,20 +68,74 @@ function collectFiles(dir, out = []) {
   return out;
 }
 
-/** `{ "relative/path": count }` for every file that contains any icon. */
+/** `U+E5FF`-style label, so the baseline and the errors are greppable. */
+function label(codePoint) {
+  return `U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
+}
+
+/**
+ * `{ "relative/path": { "U+E5FF": 3 } }` for every file that contains any
+ * icon — a multiset of codepoints per file, not a total.
+ */
 function scan() {
-  const counts = {};
+  const files = {};
   for (const rootRel of SCAN_DIRS) {
     for (const file of collectFiles(join(ROOT, rootRel))) {
       const source = readFileSync(file, "utf8");
-      let n = 0;
+      const glyphs = {};
       for (const ch of source) {
-        if (isPrivateUse(ch.codePointAt(0))) n++;
+        const cp = ch.codePointAt(0);
+        if (!isPrivateUse(cp)) continue;
+        const key = label(cp);
+        glyphs[key] = (glyphs[key] ?? 0) + 1;
       }
-      if (n > 0) counts[relative(ROOT, file)] = n;
+      // Sorted so a re-baseline produces a stable, reviewable diff instead
+      // of reordering on every run.
+      const keys = Object.keys(glyphs).sort();
+      if (keys.length > 0) {
+        files[relative(ROOT, file)] = Object.fromEntries(
+          keys.map((k) => [k, glyphs[k]]),
+        );
+      }
     }
   }
-  return counts;
+  return files;
+}
+
+/**
+ * A baseline entry from before this check pinned codepoints: a bare total.
+ *
+ * Kept so a stale baseline still enforces *something* rather than crashing
+ * or silently passing. `main` fails on it anyway, with instructions.
+ */
+function isLegacyEntry(entry) {
+  return typeof entry === "number";
+}
+
+/** Count-only comparison, for a legacy baseline entry. */
+function legacyLosses(expectedTotal, actualGlyphs) {
+  const have = Object.values(actualGlyphs ?? {}).reduce((a, b) => a + b, 0);
+  return have < expectedTotal
+    ? [{ cp: "(total, legacy baseline)", want: expectedTotal, have }]
+    : [];
+}
+
+/** Total glyphs across a scan result, for the summary line. */
+function totalGlyphs(files) {
+  return Object.values(files)
+    .flatMap((glyphs) => Object.values(glyphs))
+    .reduce((a, b) => a + b, 0);
+}
+
+/**
+ * Per-codepoint losses for one file: every codepoint whose count dropped.
+ * A swap shows up as one entry at `n → 0` (the glyph that left) while the
+ * replacement is simply a new key, which is allowed.
+ */
+function lossesFor(expected, actual) {
+  return Object.entries(expected)
+    .map(([cp, want]) => ({ cp, want, have: actual?.[cp] ?? 0 }))
+    .filter(({ want, have }) => have < want);
 }
 
 function main() {
@@ -95,20 +155,28 @@ function main() {
       /* first run */
     }
     const dropped = Object.entries(previous)
-      .map(([file, expected]) => ({ file, expected, actual: found[file] ?? 0 }))
-      .filter(({ expected, actual }) => actual < expected);
+      .map(([file, expected]) => ({
+        file,
+        losses: isLegacyEntry(expected)
+          ? legacyLosses(expected, found[file])
+          : lossesFor(expected, found[file]),
+      }))
+      .filter(({ losses }) => losses.length > 0);
     if (dropped.length > 0) {
       console.log(`⚠ ${dropped.length} file(s) lose glyphs in this re-baseline:`);
-      for (const { file, expected, actual } of dropped) {
-        console.log(`    ${file}  ${expected} → ${actual}`);
+      for (const { file, losses } of dropped) {
+        console.log(`    ${file}`);
+        for (const { cp, want, have } of losses) {
+          console.log(`      ${cp}  ${want} → ${have}`);
+        }
       }
       console.log("  Check every line above is a removal you meant.\n");
     }
 
     writeFileSync(path, `${JSON.stringify(found, null, 2)}\n`);
-    const total = Object.values(found).reduce((a, b) => a + b, 0);
     console.log(
-      `✎ Wrote ${BASELINE}: ${Object.keys(found).length} files, ${total} glyphs.`,
+      `✎ Wrote ${BASELINE}: ${Object.keys(found).length} files, ` +
+        `${totalGlyphs(found)} glyphs.`,
     );
     return;
   }
@@ -122,24 +190,45 @@ function main() {
     process.exit(1);
   }
 
+  const legacy = Object.values(baseline).some(isLegacyEntry);
   const lost = [];
   for (const [file, expected] of Object.entries(baseline)) {
-    const actual = found[file] ?? 0;
-    if (actual < expected) lost.push({ file, expected, actual });
+    const losses = isLegacyEntry(expected)
+      ? legacyLosses(expected, found[file])
+      : lossesFor(expected, found[file]);
+    if (losses.length > 0) lost.push({ file, losses });
   }
 
-  const totalFiles = Object.keys(found).length;
-  const totalGlyphs = Object.values(found).reduce((a, b) => a + b, 0);
-  console.log(`Icon glyph check: ${totalGlyphs} glyphs across ${totalFiles} files.`);
+  console.log(
+    `Icon glyph check: ${totalGlyphs(found)} glyphs across ` +
+      `${Object.keys(found).length} files.`,
+  );
 
   if (lost.length > 0) {
     console.error(`\n✖ ${lost.length} file(s) lost icon glyphs:`);
-    for (const { file, expected, actual } of lost) {
-      console.error(`    ${file}  ${expected} → ${actual}`);
+    for (const { file, losses } of lost) {
+      console.error(`    ${file}`);
+      for (const { cp, want, have } of losses) {
+        console.error(`      ${cp}  ${want} → ${have}`);
+      }
     }
     console.error(
       "\n  Nerd Font icons are private-use characters and vanish silently from" +
-        "\n  a bad edit. If the removal was deliberate, re-baseline with:" +
+        "\n  a bad edit. A codepoint at `n → 0` with a new one alongside it is a" +
+        "\n  swap, not a loss — but it is still a different icon than shipped." +
+        "\n  If the change was deliberate, re-baseline with:" +
+        "\n    npm run check:glyphs -- --write",
+    );
+    process.exit(1);
+  }
+
+  if (legacy) {
+    // A count-only baseline cannot detect a swap. Still enforce what it can
+    // rather than skipping the file, but do not let the weaker form persist
+    // silently — it looks identical to the strong one from the outside.
+    console.error(
+      "\n✖ Baseline is in the old count-only format, which cannot catch a" +
+        "\n  glyph swap. Regenerate it with:" +
         "\n    npm run check:glyphs -- --write",
     );
     process.exit(1);

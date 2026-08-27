@@ -1,28 +1,127 @@
 {
-  "src/lib/components/branches/BranchList.svelte": 2,
-  "src/lib/components/common/PathTree.svelte": 3,
-  "src/lib/components/common/SearchBar.svelte": 1,
-  "src/lib/components/detail/CommitDetail.svelte": 1,
-  "src/lib/components/editor/DiffEditor.svelte": 1,
-  "src/lib/components/file-editor/EditorTabs.svelte": 1,
-  "src/lib/components/file-editor/EditorToolbar.svelte": 2,
-  "src/lib/components/file-editor/FileTreeView.svelte": 1,
-  "src/lib/components/file-editor/WorkdirTree.svelte": 3,
-  "src/lib/components/issues/CreateIssueDialog.svelte": 4,
-  "src/lib/components/layout/CompositeTab.svelte": 2,
-  "src/lib/components/layout/ProjectTab.svelte": 2,
-  "src/lib/components/layout/Sidebar.svelte": 23,
-  "src/lib/components/layout/TabBar.svelte": 7,
-  "src/lib/components/layout/TerminalTab.svelte": 1,
-  "src/lib/components/pipeline/TriggerWorkflowDialog.svelte": 1,
-  "src/lib/components/requests/CollectionsTree.svelte": 4,
-  "src/lib/components/requests/CopyAsMenu.svelte": 4,
-  "src/lib/components/requests/EnvSwitcher.svelte": 2,
-  "src/lib/components/settings/ConnectionHowTo.svelte": 2,
-  "src/lib/components/stash/StashList.svelte": 2,
-  "src/lib/components/ui/Checkbox.svelte": 1,
-  "src/lib/components/ui/IconButton.svelte": 3,
-  "src/lib/components/ui/Toast.svelte": 1,
-  "src/lib/components/ui/__tests__/IconButton.test.ts": 10,
-  "src/lib/repo-config/sections.ts": 5
+  "src/lib/components/branches/BranchList.svelte": {
+    "U+F054": 2
+  },
+  "src/lib/components/common/PathTree.svelte": {
+    "U+F07B": 1,
+    "U+F07C": 1,
+    "U+F15B": 1
+  },
+  "src/lib/components/common/SearchBar.svelte": {
+    "U+F00D": 1
+  },
+  "src/lib/components/detail/CommitDetail.svelte": {
+    "U+F023": 1
+  },
+  "src/lib/components/editor/DiffEditor.svelte": {
+    "U+F00D": 1
+  },
+  "src/lib/components/file-editor/EditorTabs.svelte": {
+    "U+F00D": 1
+  },
+  "src/lib/components/file-editor/EditorToolbar.svelte": {
+    "U+F0C7": 2
+  },
+  "src/lib/components/file-editor/FileTreeView.svelte": {
+    "U+F021": 1
+  },
+  "src/lib/components/file-editor/WorkdirTree.svelte": {
+    "U+F07B": 1,
+    "U+F07C": 1,
+    "U+F110": 1
+  },
+  "src/lib/components/issues/CreateIssueDialog.svelte": {
+    "U+F00D": 2,
+    "U+F067": 2
+  },
+  "src/lib/components/layout/CompositeTab.svelte": {
+    "U+F00D": 2
+  },
+  "src/lib/components/layout/ProjectTab.svelte": {
+    "U+E728": 1,
+    "U+F00D": 1
+  },
+  "src/lib/components/layout/Sidebar.svelte": {
+    "U+E725": 1,
+    "U+E728": 1,
+    "U+F002": 1,
+    "U+F013": 2,
+    "U+F02B": 1,
+    "U+F053": 1,
+    "U+F054": 1,
+    "U+F06E": 1,
+    "U+F070": 1,
+    "U+F085": 1,
+    "U+F121": 1,
+    "U+F126": 1,
+    "U+F135": 1,
+    "U+F144": 1,
+    "U+F187": 1,
+    "U+F188": 1,
+    "U+F1D8": 1,
+    "U+F1DA": 1,
+    "U+F1E6": 1,
+    "U+F407": 1,
+    "U+F440": 1,
+    "U+F489": 1
+  },
+  "src/lib/components/layout/TabBar.svelte": {
+    "U+F013": 1,
+    "U+F062": 1,
+    "U+F063": 1,
+    "U+F067": 1,
+    "U+F078": 1,
+    "U+F0ED": 1,
+    "U+F489": 1
+  },
+  "src/lib/components/layout/TerminalTab.svelte": {
+    "U+F00D": 1
+  },
+  "src/lib/components/pipeline/TriggerWorkflowDialog.svelte": {
+    "U+F067": 1
+  },
+  "src/lib/components/requests/CollectionsTree.svelte": {
+    "U+F054": 1,
+    "U+F067": 1,
+    "U+F114": 1,
+    "U+F115": 1
+  },
+  "src/lib/components/requests/CopyAsMenu.svelte": {
+    "U+F0EA": 4
+  },
+  "src/lib/components/requests/EnvSwitcher.svelte": {
+    "U+F013": 1,
+    "U+F078": 1
+  },
+  "src/lib/components/settings/ConnectionHowTo.svelte": {
+    "U+F0C5": 2
+  },
+  "src/lib/components/stash/StashList.svelte": {
+    "U+F00C": 1,
+    "U+F00D": 1
+  },
+  "src/lib/components/ui/Checkbox.svelte": {
+    "U+F00C": 1
+  },
+  "src/lib/components/ui/IconButton.svelte": {
+    "U+F00D": 2,
+    "U+F110": 1
+  },
+  "src/lib/components/ui/Toast.svelte": {
+    "U+F00D": 1
+  },
+  "src/lib/components/ui/__tests__/IconButton.test.ts": {
+    "U+F00D": 1,
+    "U+F021": 5,
+    "U+F067": 2,
+    "U+F110": 1,
+    "U+F1F8": 1
+  },
+  "src/lib/repo-config/sections.ts": {
+    "U+F013": 1,
+    "U+F023": 1,
+    "U+F02B": 1,
+    "U+F06E": 1,
+    "U+F1E6": 1
+  }
 }
