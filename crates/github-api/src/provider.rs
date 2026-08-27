@@ -17,6 +17,13 @@ use provider::{
 use crate::client::{ApiError, GitHubClient};
 use crate::types;
 
+/// Jobs requested per page. GitHub's documented maximum.
+const JOBS_PER_PAGE: u32 = 100;
+
+/// Safety bound on job pagination, so a misbehaving endpoint cannot spin
+/// forever. Reaching it is logged, never silent.
+const MAX_JOB_PAGES: u32 = 20;
+
 /// GitHub implementation of the [`CiProvider`] trait.
 ///
 /// Delegates HTTP calls to [`GitHubClient`] and converts the GitHub-specific
@@ -123,20 +130,37 @@ impl CiProvider for GitHubProvider {
             .await
             .map_err(into_provider_error)?;
 
-        // Fetch jobs
-        let jobs_resp: types::WorkflowJobsResponse = self
-            .client
-            .get(&format!(
-                "/repos/{project_ref}/actions/runs/{run_id}/jobs?per_page=100"
-            ))
-            .await
-            .map_err(into_provider_error)?;
+        // Fetch jobs, following pagination. This used to be a single
+        // `?per_page=100` with no paging, so a run with more than 100 jobs — a
+        // wide matrix — showed the first hundred and said nothing. GitHub
+        // reports `total_count`, so the end condition is exact.
+        let mut jobs: Vec<types::WorkflowJob> = Vec::new();
+        for page in 1..=MAX_JOB_PAGES {
+            let resp: types::WorkflowJobsResponse = self
+                .client
+                .get(&format!(
+                    "/repos/{project_ref}/actions/runs/{run_id}/jobs?per_page={JOBS_PER_PAGE}&page={page}"
+                ))
+                .await
+                .map_err(into_provider_error)?;
+            let total = resp.total_count as usize;
+            jobs.extend(resp.jobs);
+            if jobs.len() >= total {
+                break;
+            }
+            if page == MAX_JOB_PAGES {
+                // Say what was dropped instead of returning a short list that
+                // looks complete.
+                tracing::warn!(
+                    run_id,
+                    fetched = jobs.len(),
+                    total,
+                    "stopped paginating run jobs at the page cap — the list is incomplete"
+                );
+            }
+        }
 
-        let ci_jobs: Vec<CiJob> = jobs_resp
-            .jobs
-            .into_iter()
-            .map(workflow_job_to_ci_job)
-            .collect();
+        let ci_jobs: Vec<CiJob> = jobs.into_iter().map(workflow_job_to_ci_job).collect();
 
         // GitHub has no stages — group all jobs under a single virtual stage
         let stages = vec![CiStage {
