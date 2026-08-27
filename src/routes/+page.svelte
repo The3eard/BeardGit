@@ -353,8 +353,7 @@
           // `activeView` directly leaves `openStagingFile` set, so every
           // later mutation re-fetches the diff of a pane nobody is looking
           // at — at full context if the user had expanded it.
-          tryChangeView("editor");
-          void openEditorTab(open.path);
+          tryChangeView("editor", () => void openEditorTab(open.path));
         },
       },
       {
@@ -623,13 +622,18 @@
    * and has unsaved edits in the active section. Outside that view the
    * assignment runs straight through.
    */
-  function tryChangeView(nextView: string): void {
+  function tryChangeView(nextView: string, then?: () => void): void {
     const apply = () => {
       activeView = nextView;
       // Leaving the Changes view resets the open file/diff so re-entering
       // lands on the empty diff panel. The checkbox selection persists via
       // the changesSelection store.
       if (nextView !== "changes") closeStagingDiff();
+      // Anything the caller wants done *because* the view changed goes
+      // here, not after the call: on a dirty repo-config page the
+      // navigation is deferred behind a guard dialog, and work queued
+      // outside would run against a view that never switched.
+      then?.();
     };
     if (activeView === "repo-config" && repoConfigPageRef) {
       repoConfigPageRef.requestGuardedNavigation(apply);
