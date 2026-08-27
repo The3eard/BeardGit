@@ -12,6 +12,7 @@
   import CreateConfigDialog from "./CreateConfigDialog.svelte";
   import CodeEditor from "../editor/CodeEditor.svelte";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
+  import SplitView from "$lib/components/common/SplitView.svelte";
   import {
     configFiles,
     activeFilePath,
@@ -149,71 +150,78 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="ai-config-editor">
-  <!-- Left panel: file tree -->
-  <div class="file-tree-panel">
-    <AiConfigFileTree
-      onSelectFile={handleSelectFile}
-      onCreateFile={handleCreateFile}
-    />
-  </div>
+  <SplitView refreshFn={() => {}} defaultWidth={240}>
+    {#snippet left()}
+    <!-- Left panel: file tree -->
+    <div class="file-tree-panel">
+      <AiConfigFileTree
+        onSelectFile={handleSelectFile}
+        onCreateFile={handleCreateFile}
+      />
+    </div>
+    {/snippet}
 
-  <!-- Right panel: editor or empty state -->
-  <div class="editor-panel">
-    {#if $activeFilePath && $activeFileContent !== null}
-      <!-- Toolbar -->
-      <div class="toolbar">
-        <span class="toolbar-filename">{displayName}</span>
-        {#if $activeFileDirty}
-          <span class="dirty-dot" title={m.ai_config_unsaved()}></span>
-        {/if}
-        {#if activeFile}
-          <span class="badge badge-scope">{activeFile.scope}</span>
-        {/if}
-        {#if languageBadge}
-          <span class="badge badge-lang">{languageBadge}</span>
-        {/if}
-        <div class="toolbar-spacer"></div>
-        <Button
-          variant="primary"
-          disabled={!$activeFileDirty}
-          onclick={() => saveFile(editorContent)}
-        >
-          {m.ai_config_save()} <kbd class="save-kbd">{navigator.platform.includes("Mac") ? "\u2318S" : "Ctrl+S"}</kbd>
-        </Button>
-        {#if $configFileChangedOnDisk}
-          <div class="disk-change-notice">
-            <span>{m.ai_config_changed_on_disk()}</span>
-            <Button variant="neutral" size="sm" onclick={() => reloadActiveFile()}>
-              {m.ai_config_reload()}
-            </Button>
-            <Button variant="neutral" size="sm" onclick={() => dismissDiskChange()}>
-              {m.ai_config_dismiss()}
-            </Button>
-          </div>
-        {/if}
-      </div>
+    {#snippet right()}
 
-      <!-- CodeMirror editor -->
-      <div class="editor-area">
-        <CodeEditor
-          content={editorContent}
-          filename={displayName}
-          isDark={$activeTheme?.meta.mode !== "light"}
-          readonly={false}
-          onChange={handleEditorChange}
-        />
-      </div>
-    {:else if $configLoading}
-      <div class="empty-state">
-        <div class="spinner"></div>
-      </div>
-    {:else}
-      <div class="empty-state">
-        <span class="empty-icon nf">{"\uF15C"}</span>
-        <span class="empty-text">{m.ai_config_select_file()}</span>
-      </div>
-    {/if}
-  </div>
+    <!-- Right panel: editor or empty state -->
+    <div class="editor-panel">
+      {#if $activeFilePath && $activeFileContent !== null}
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <span class="toolbar-filename">{displayName}</span>
+          {#if $activeFileDirty}
+            <span class="dirty-dot" title={m.ai_config_unsaved()}></span>
+          {/if}
+          {#if activeFile}
+            <span class="badge badge-scope">{activeFile.scope}</span>
+          {/if}
+          {#if languageBadge}
+            <span class="badge badge-lang">{languageBadge}</span>
+          {/if}
+          <div class="toolbar-spacer"></div>
+          <Button
+            variant="primary"
+            disabled={!$activeFileDirty}
+            onclick={() => saveFile(editorContent)}
+          >
+            {m.ai_config_save()} <kbd class="save-kbd">{navigator.platform.includes("Mac") ? "\u2318S" : "Ctrl+S"}</kbd>
+          </Button>
+          {#if $configFileChangedOnDisk}
+            <div class="disk-change-notice">
+              <span>{m.ai_config_changed_on_disk()}</span>
+              <Button variant="neutral" size="sm" onclick={() => reloadActiveFile()}>
+                {m.ai_config_reload()}
+              </Button>
+              <Button variant="neutral" size="sm" onclick={() => dismissDiskChange()}>
+                {m.ai_config_dismiss()}
+              </Button>
+            </div>
+          {/if}
+        </div>
+
+        <!-- CodeMirror editor -->
+        <div class="editor-area">
+          <CodeEditor
+            content={editorContent}
+            filename={displayName}
+            isDark={$activeTheme?.meta.mode !== "light"}
+            readonly={false}
+            onChange={handleEditorChange}
+          />
+        </div>
+      {:else if $configLoading}
+        <div class="empty-state">
+          <div class="spinner"></div>
+        </div>
+      {:else}
+        <div class="empty-state">
+          <span class="empty-icon nf">{"\uF15C"}</span>
+          <span class="empty-text">{m.ai_config_select_file()}</span>
+        </div>
+      {/if}
+    </div>
+    {/snippet}
+  </SplitView>
 </div>
 
 <!-- Create dialog -->
@@ -246,12 +254,14 @@
 
   /* ─── Left panel ─── */
 
+  /* Width comes from SplitView (draggable), and the separator line from its
+     `.resize-handle`. This panel used to be a fixed 240px with its own
+     `border-right`, which is why AI config was the one two-pane view in the
+     app that could not be resized. */
   .file-tree-panel {
-    width: 240px;
-    flex-shrink: 0;
+    height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    border-right: 1px solid var(--border);
     background: var(--bg-secondary);
   }
 
