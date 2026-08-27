@@ -60,6 +60,21 @@ pub enum TaskKind {
     GitClone,
     /// Auto-update download driven by `tauri-plugin-updater`.
     AppUpdate,
+    /// A long-running operation the **user** started that has no category of
+    /// its own: submodule update, MR/PR checkout, release publish, automated
+    /// bisect.
+    ///
+    /// Distinct from [`TaskKind::Generic`] in the one way that matters: this
+    /// one is on `should_emit`'s allowlist, so it reaches the tasks drawer.
+    /// Eight such operations used to spawn as `Generic` and were therefore
+    /// invisible — no row, and no spinner on the statusbar icon, which derives
+    /// from the same store.
+    ///
+    /// Not a replacement for a precise kind. If what you are adding is a git
+    /// push, tag it [`TaskKind::GitPush`]; this is for the ones that genuinely
+    /// have nowhere else to go. The task's `label` is what the user reads, so
+    /// make that specific instead.
+    Background,
 }
 
 /// Which output stream a line came from.

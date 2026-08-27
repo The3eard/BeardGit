@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use task_runner::{TaskId, TaskManager};
+use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use tauri::State;
 use tracing::instrument;
 
@@ -125,8 +125,20 @@ pub async fn bisect_run_auto(
     let mut args: Vec<&str> = vec!["bisect", "run"];
     args.extend_from_slice(&parts);
 
-    let label = format!("Bisect run: {test_command}");
-    let id = task_manager.spawn(label, "git", &args, &cwd, true).await;
+    // Explicit `Background`: the bare `spawn`'s `Generic` kind is dropped by
+    // `should_emit`, so an automated bisect — which can run a test command
+    // dozens of times — never appeared in the drawer.
+    let id = task_manager
+        .spawn_with_options(SpawnOptions {
+            label: format!("Bisect run: {test_command}"),
+            command: "git",
+            args: &args,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
+        })
+        .await;
 
     Ok(id)
 }

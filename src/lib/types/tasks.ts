@@ -31,7 +31,8 @@ export type TaskKind =
   | "git_pull"
   | "git_push"
   | "git_clone"
-  | "app_update";
+  | "app_update"
+  | "background";
 
 /**
  * Lifecycle phase of a task as surfaced to the drawer.
