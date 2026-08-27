@@ -48,6 +48,15 @@ jobs:
         # gate went green over it.
         run: node scripts/check-icon-glyphs.mjs
 
+      - name: Toolchain pin consistency check
+        # The Rust version lives in six places: `channel` in
+        # rust-toolchain.toml and one action ref in each of the five
+        # workflows. Nothing but this script makes them agree, and when they
+        # did not, CI ran a newer clippy than any local gate could and beta
+        # was red for eight straight merges. Cheap to run here even though
+        # this job installs no Rust — it is a text comparison.
+        run: node scripts/check-toolchain-pin.mjs
+
       - name: Playwright spec collection check
         # Collection only (--list): no browsers, no app build, ~2s. One
         # unloadable module aborts collection for the WHOLE project, so a
