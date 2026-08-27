@@ -53,6 +53,10 @@
     adding = true;
     addError = null;
     try {
+      // Resolves once the task is accepted, not once the submodule is cloned.
+      // `addError` therefore only ever shows a failure to *start* it; a clone
+      // that fails surfaces as a failed row in the tasks drawer, the same way
+      // a failed clone or push does. The list fills in via the watcher.
       await addSubmodule(addUrl.trim(), addPath.trim());
       showAddForm = false;
       addUrl = "";

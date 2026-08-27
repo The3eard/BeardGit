@@ -53,10 +53,17 @@ export async function deinitSubmodule(path: string, force: boolean): Promise<voi
   await refreshSubmodules();
 }
 
-/** Add a new submodule and refresh the list. */
-export async function addSubmodule(url: string, path: string): Promise<void> {
-  await apiAdd(url, path);
-  await refreshSubmodules();
+/**
+ * Add a new submodule (background task).
+ *
+ * No `refreshSubmodules()` here any more: the clone outlives the call, so
+ * refreshing on return listed the repo before the submodule existed. The
+ * watcher sees `.gitmodules` and the new working tree and emits
+ * `project-mutated` with `status_changed`, which `mutations.ts` already maps
+ * to a submodule refresh.
+ */
+export async function addSubmodule(url: string, path: string): Promise<TaskId> {
+  return apiAdd(url, path);
 }
 
 /** Remove a submodule completely and refresh the list. */
