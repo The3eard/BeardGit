@@ -89,20 +89,11 @@
 
   .split-sidebar {
     flex-shrink: 0;
+    /* The separator line lives here rather than on the handle. Moving it
+       onto the handle is tidier and shifts every pane by 1px under the
+       global `box-sizing: border-box` — see lib/styles/resize-handle.css. */
     border-right: 1px solid var(--border);
     overflow: hidden;
-  }
-
-  .resize-handle {
-    width: 4px;
-    cursor: col-resize;
-    background: transparent;
-    transition: background 0.15s;
-    flex-shrink: 0;
-  }
-
-  .resize-handle:hover {
-    background: var(--accent-primary);
   }
 
   .split-main {

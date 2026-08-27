@@ -1071,7 +1071,7 @@
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
             <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-            <div class="changes-resize-handle" class:is-dragging={isDraggingChanges} role="separator" aria-orientation="vertical" aria-label={m.resize_changes_sidebar()} tabindex="0" onmousedown={startChangesSidebarResize} ondblclick={resetChangesSidebarWidth} onkeydown={handleChangesResizeKeys}></div>
+            <div class="resize-handle resize-handle--bordered" class:is-dragging={isDraggingChanges} role="separator" aria-orientation="vertical" aria-label={m.resize_changes_sidebar()} tabindex="0" onmousedown={startChangesSidebarResize} ondblclick={resetChangesSidebarWidth} onkeydown={handleChangesResizeKeys}></div>
             <div class="changes-diff">
               {#if $openStagingDiff && $openStagingFile}
                 <StagingDiffEditor
@@ -1499,22 +1499,10 @@
     overflow: hidden;
   }
 
-  .changes-resize-handle {
-    width: 4px;
-    cursor: col-resize;
-    background: transparent;
-    transition: background 0.15s;
-    flex-shrink: 0;
-    border-left: 1px solid var(--border);
-  }
-
-  .changes-resize-handle:hover {
-    background: var(--overlay-accent-blue);
-  }
-
-  .changes-resize-handle.is-dragging {
-    background: var(--accent-primary);
-  }
+  /* Colours, width and hover/drag states come from the shared
+     `.resize-handle` rules in lib/styles/resize-handle.css. This one used
+     `--overlay-accent-blue`, the theme accent at 10% — a token meant for
+     selected-row backgrounds, too faint to register on a 5px strip. */
 
   .changes-diff {
     flex: 1;

@@ -4,6 +4,7 @@
 @import "./lib/styles/empty-state.css";
 @import "./lib/styles/markdown.css";
 @import "./lib/styles/syntax.css";
+@import "./lib/styles/resize-handle.css";
 
 /* Monospace — Fira Code with ligatures */
 @font-face {
