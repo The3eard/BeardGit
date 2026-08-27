@@ -98,6 +98,31 @@
     }
   });
 
+  /**
+   * Bumped every time a different file is opened, and handed to
+   * `CodeEditor` as `revisionId`.
+   *
+   * Without it the editor showed the first file you clicked and then never
+   * changed. `CodeEditor` only rebuilds its `EditorState` when `filename`,
+   * `revisionId` or `isDark` change — a new `content` prop alone is
+   * deliberately ignored, so typing does not tear the view down. This panel
+   * passed no `revisionId` and a `filename` of just the basename, so
+   * switching between two files with the same basename changed neither.
+   * Harmless while only one CLAUDE.md was ever listed; twelve of them made
+   * it obvious.
+   */
+  let fileRevision = $state(0);
+  let revisionOfPath: string | null = null;
+
+  $effect(() => {
+    const path = $activeFilePath;
+    if (path !== revisionOfPath) {
+      revisionOfPath = path;
+      // Not read in this effect, so incrementing it cannot re-trigger it.
+      fileRevision += 1;
+    }
+  });
+
   // ─── Keyboard shortcut: Cmd+S / Ctrl+S ───
 
   function handleKeydown(e: KeyboardEvent) {
@@ -203,6 +228,7 @@
         <div class="editor-area">
           <CodeEditor
             content={editorContent}
+            revisionId={fileRevision}
             filename={displayName}
             isDark={$activeTheme?.meta.mode !== "light"}
             readonly={false}
