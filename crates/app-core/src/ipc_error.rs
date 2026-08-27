@@ -44,11 +44,12 @@ impl IpcError {
     /// impls below — so this is also the single place that logs IPC
     /// failures.
     ///
-    /// **Coverage is partial by design.** Only the command modules already
-    /// migrated off `Result<_, String>` build an `IpcError`, so this logs
-    /// 27 of the ~310 commands. The rest gain it for free as the migration
-    /// proceeds (phase 7 of the bugfix roadmap) — that synergy is why the
-    /// hook lives here rather than in each command body.
+    /// **Coverage is now every command.** It was 27 of ~310 while the
+    /// migration off `Result<_, String>` was in progress: a module still on
+    /// the old signature failed silently, so the user got a toast and the
+    /// log got nothing. That was the argument for finishing the migration
+    /// rather than leaving it perpetually last, and it is why the hook
+    /// lives here rather than in each command body.
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
         let message = message.into();
         // `detail`, not `message`: tracing reserves `message` for the
