@@ -37,7 +37,6 @@ pub async fn cherry_pick(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Revert a commit, creating a new commit that undoes its changes.
@@ -69,7 +68,6 @@ pub async fn revert_commit(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Reset HEAD to a specific commit.
@@ -99,7 +97,6 @@ pub async fn reset_to_commit(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Get per-line blame information for a file, optionally at a specific commit.
@@ -255,7 +252,7 @@ mod tests {
     /// Re-implements the body of `clear_layout_cache` so the test can
     /// exercise it without a Tauri runtime. Any change to the real
     /// command MUST mirror here or the tests stop being load-bearing.
-    fn clear_layouts_in(dir: &std::path::Path) -> Result<u32, IpcError> {
+    fn clear_layouts_in(dir: &std::path::Path) -> Result<u32, String> {
         match fs::read_dir(dir) {
             Ok(entries) => {
                 let mut removed: u32 = 0;

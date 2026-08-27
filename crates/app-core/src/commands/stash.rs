@@ -50,7 +50,6 @@ pub async fn stash_push(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Pop (apply and drop) a stash entry.
@@ -82,7 +81,6 @@ pub async fn stash_pop(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Return a list of stash entry descriptions (one per stash entry).
@@ -131,7 +129,6 @@ pub async fn stash_apply(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Restore a single file from a stash entry into the working directory.
@@ -168,7 +165,6 @@ pub async fn stash_apply_file(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Drop a stash entry without applying it.
@@ -200,7 +196,6 @@ pub async fn stash_drop(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Return structured stash entries with parsed metadata.

@@ -200,10 +200,11 @@ where
 /// a pool thread, so without this the `#[instrument(name = "cmd::…")]`
 /// span is lost and any error logged from inside `f` has no indication of
 /// which command produced it.
-pub(super) async fn run_blocking<T, F>(f: F) -> Result<T, String>
+pub(super) async fn run_blocking<T, F, E>(f: F) -> Result<T, E>
 where
     T: Send + 'static,
-    F: FnOnce() -> Result<T, String> + Send + 'static,
+    E: Send + 'static + From<String>,
+    F: FnOnce() -> Result<T, E> + Send + 'static,
 {
     let span = tracing::Span::current();
     tokio::task::spawn_blocking(move || span.in_scope(f))
