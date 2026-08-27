@@ -11,7 +11,7 @@
  * follow each mutating invoke are now handled by that listener.
  */
 
-import { get } from "svelte/store";
+import { get, writable } from "svelte/store";
 import type { FileStatus, FileDiff, FileDiffStat } from "../types";
 import {
   getFileStatuses as apiGetStatuses,
@@ -83,18 +83,49 @@ export async function refreshDiffs() {
   unstagedStats.set(workdir);
   stagedStats.set(index);
   const open = get(openStagingFile);
-  if (open) await loadStagingDiff(open.path, open.isStaged);
+  // Carry the current context through: a mutation refresh must not quietly
+  // collapse a file the user asked to see in full.
+  if (open) await loadStagingDiff(open.path, open.isStaged, get(stagingDiffContext));
 }
+
+/**
+ * Context lines the backend keeps around each change when a file is opened
+ * normally. Mirrors libgit2's own default; named here because the "expand
+ * the whole file" control needs something to go back to.
+ */
+export const DEFAULT_DIFF_CONTEXT = 3;
+
+/**
+ * What `FULL_FILE_CONTEXT` is on the Rust side — enough context that the
+ * window covers any real file, so the diff arrives as one hunk holding
+ * every line.
+ */
+export const FULL_FILE_CONTEXT = 1_000_000;
+
+/**
+ * Context lines the currently open staging diff was fetched with.
+ *
+ * Lives next to the diff rather than inside the viewer because it is a
+ * property of the *fetch*: the surrounding lines are not in the payload
+ * until someone asks for them, so expanding is a round-trip and the viewer
+ * has to be able to tell "expanded" from "not expanded yet".
+ */
+export const stagingDiffContext = writable<number>(DEFAULT_DIFF_CONTEXT);
 
 /**
  * Open a file's full diff in the staging pane, fetching its hunks lazily.
  * Guards against a slower fetch clobbering a newer selection.
  */
-export async function loadStagingDiff(path: string, isStaged: boolean): Promise<void> {
+export async function loadStagingDiff(
+  path: string,
+  isStaged: boolean,
+  contextLines: number = DEFAULT_DIFF_CONTEXT,
+): Promise<void> {
   openStagingFile.set({ path, isStaged });
+  stagingDiffContext.set(contextLines);
   let diff: FileDiff | null = null;
   try {
-    diff = await apiDiffFile(path, isStaged);
+    diff = await apiDiffFile(path, isStaged, contextLines);
   } catch {
     diff = null;
   }
@@ -104,10 +135,28 @@ export async function loadStagingDiff(path: string, isStaged: boolean): Promise<
   }
 }
 
+/**
+ * Re-fetch the open file with the whole file as context, or back to the
+ * default. A no-op when no file is open.
+ */
+export async function setStagingDiffExpanded(expanded: boolean): Promise<void> {
+  const open = get(openStagingFile);
+  if (!open) return;
+  await loadStagingDiff(
+    open.path,
+    open.isStaged,
+    expanded ? FULL_FILE_CONTEXT : DEFAULT_DIFF_CONTEXT,
+  );
+}
+
 /** Close the staging diff pane. */
 export function closeStagingDiff(): void {
   openStagingFile.set(null);
   openStagingDiff.set(null);
+  // The context describes the *currently open* diff, so leaving it at full
+  // file with nothing open makes that description false — and the next
+  // reader of this store would believe it.
+  stagingDiffContext.set(DEFAULT_DIFF_CONTEXT);
 }
 
 /** Truncate a commit message for the success-toast body. */

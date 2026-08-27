@@ -169,19 +169,45 @@ export async function unstageAll(): Promise<void> {
   return invoke("unstage_all");
 }
 
-/** Stage selected hunks or individual lines from the working directory. */
-export async function stageHunks(path: string, selections: HunkSelection[]): Promise<void> {
-  return invoke<void>("stage_hunks", { path, selections });
+/**
+ * Stage selected hunks or individual lines from the working directory.
+ *
+ * `contextLines` must be the value the displayed diff was fetched with.
+ * A `HunkSelection` is positional — hunk 2, lines 5–7 of the array the UI
+ * rendered — and a different context cuts the file into different hunks, so
+ * the same indices name different lines. Omitting it means libgit2's
+ * default of 3, which is right only when the pane is not expanded.
+ */
+export async function stageHunks(
+  path: string,
+  selections: HunkSelection[],
+  contextLines?: number,
+): Promise<void> {
+  return invoke<void>("stage_hunks", { path, selections, contextLines: contextLines ?? null });
 }
 
-/** Unstage selected hunks or individual lines from the index. */
-export async function unstageHunks(path: string, selections: HunkSelection[]): Promise<void> {
-  return invoke<void>("unstage_hunks", { path, selections });
+/**
+ * Unstage selected hunks or individual lines from the index.
+ *
+ * `contextLines` must be what the displayed diff was fetched with — a
+ * selection is positional, so the backend has to cut the file into the same
+ * hunks the user was looking at. See {@link stageHunks}.
+ */
+export async function unstageHunks(
+  path: string,
+  selections: HunkSelection[],
+  contextLines?: number,
+): Promise<void> {
+  return invoke<void>("unstage_hunks", { path, selections, contextLines: contextLines ?? null });
 }
 
 /** Discard selected hunks or individual lines from the working directory. */
-export async function discardHunks(path: string, selections: HunkSelection[]): Promise<void> {
-  return invoke<void>("discard_hunks", { path, selections });
+export async function discardHunks(
+  path: string,
+  selections: HunkSelection[],
+  contextLines?: number,
+): Promise<void> {
+  return invoke<void>("discard_hunks", { path, selections, contextLines: contextLines ?? null });
 }
 
 /**
@@ -255,9 +281,22 @@ export async function getDiffIndex(): Promise<FileDiff[]> {
  * opens it in the Changes view. `staged` picks the index-vs-HEAD diff
  * (`true`) or the workdir-vs-index diff (`false`). Resolves to `null` when
  * the file has no change on that side.
+ *
+ * `contextLines` is how much unchanged code to keep around each change;
+ * omit it for libgit2's default of 3. The unchanged lines are simply not in
+ * the response until asked for, so "show me the rest of the file" is a
+ * re-fetch, not a client-side expansion.
  */
-export async function getDiffFile(path: string, staged: boolean): Promise<FileDiff | null> {
-  return invoke<FileDiff | null>("get_diff_file", { path, staged });
+export async function getDiffFile(
+  path: string,
+  staged: boolean,
+  contextLines?: number,
+): Promise<FileDiff | null> {
+  return invoke<FileDiff | null>("get_diff_file", {
+    path,
+    staged,
+    contextLines: contextLines ?? null,
+  });
 }
 
 /** Cheap per-file change stats (name/status + counts, no hunks) for the working tree. */
