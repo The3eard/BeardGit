@@ -1,6 +1,80 @@
 {
+  "src/lib/components/ai-config/AiConfigEditor.svelte": {
+    "U+F15C": 1
+  },
+  "src/lib/components/ai-config/AiConfigFileTree.svelte": {
+    "U+F005": 1,
+    "U+F007": 1,
+    "U+F013": 1,
+    "U+F054": 3,
+    "U+F067": 2,
+    "U+F114": 1,
+    "U+F115": 1,
+    "U+F15C": 2,
+    "U+F449": 1
+  },
+  "src/lib/components/ai-sessions/AiSessionDetail.svelte": {
+    "U+F067": 1,
+    "U+F489": 1
+  },
+  "src/lib/components/ai-sessions/AiSessionList.svelte": {
+    "U+F021": 1,
+    "U+F067": 1
+  },
+  "src/lib/components/bisect/BisectWorkflow.svelte": {
+    "U+F002": 1,
+    "U+F00C": 1,
+    "U+F00D": 2,
+    "U+F04B": 1,
+    "U+F04E": 1
+  },
+  "src/lib/components/blame/BlameView.svelte": {
+    "U+F00D": 1,
+    "U+F15C": 1
+  },
+  "src/lib/components/branches/BranchDetail.svelte": {
+    "U+E725": 1
+  },
   "src/lib/components/branches/BranchList.svelte": {
-    "U+F054": 2
+    "U+E20E": 1,
+    "U+F021": 1,
+    "U+F054": 2,
+    "U+F067": 1
+  },
+  "src/lib/components/branches/BranchTreeNode.svelte": {
+    "U+F054": 1,
+    "U+F114": 1,
+    "U+F115": 1,
+    "U+F418": 1
+  },
+  "src/lib/components/changes/ChangesList.svelte": {
+    "U+F044": 1
+  },
+  "src/lib/components/changes/CleanDialog.svelte": {
+    "U+F4A5": 1,
+    "U+F4D3": 1
+  },
+  "src/lib/components/changes/StagingArea.svelte": {
+    "U+E20E": 1,
+    "U+F002": 1,
+    "U+F023": 1,
+    "U+F062": 1,
+    "U+F0EB": 1,
+    "U+F141": 1,
+    "U+F1C9": 1,
+    "U+F1DA": 1
+  },
+  "src/lib/components/common/EmptyState.svelte": {
+    "U+F0C7": 1
+  },
+  "src/lib/components/common/ErrorDialog.svelte": {
+    "U+EAB6": 1,
+    "U+F002": 1,
+    "U+F021": 1,
+    "U+F0C5": 1
+  },
+  "src/lib/components/common/List.svelte": {
+    "U+F021": 1
   },
   "src/lib/components/common/PathTree.svelte": {
     "U+F07B": 1,
@@ -10,11 +84,41 @@
   "src/lib/components/common/SearchBar.svelte": {
     "U+F00D": 1
   },
+  "src/lib/components/common/ShortcutOverlay.svelte": {
+    "U+F00D": 1
+  },
+  "src/lib/components/compare/CompareView.svelte": {
+    "U+F00D": 1,
+    "U+F071": 2,
+    "U+F0EC": 1,
+    "U+F126": 1
+  },
+  "src/lib/components/conflict/ConflictToolbar.svelte": {
+    "U+F071": 1,
+    "U+F078": 1,
+    "U+F15C": 1
+  },
   "src/lib/components/detail/CommitDetail.svelte": {
+    "U+F00D": 1,
     "U+F023": 1
   },
   "src/lib/components/editor/DiffEditor.svelte": {
     "U+F00D": 1
+  },
+  "src/lib/components/editor/MergeEditor.svelte": {
+    "U+F062": 1,
+    "U+F063": 1,
+    "U+F292": 1,
+    "U+F2EA": 1
+  },
+  "src/lib/components/editor/StagingDiffEditor.svelte": {
+    "U+F00D": 1,
+    "U+F054": 1,
+    "U+F065": 1,
+    "U+F066": 1,
+    "U+F077": 1,
+    "U+F078": 2,
+    "U+F440": 3
   },
   "src/lib/components/file-editor/EditorTabs.svelte": {
     "U+F00D": 1
@@ -30,12 +134,74 @@
     "U+F07C": 1,
     "U+F110": 1
   },
+  "src/lib/components/file-editor/file-icons.ts": {
+    "U+E21E": 1,
+    "U+E603": 2,
+    "U+E606": 2,
+    "U+E608": 1,
+    "U+E60B": 1,
+    "U+E60E": 2,
+    "U+E614": 2,
+    "U+E619": 1,
+    "U+E61D": 5,
+    "U+E61E": 2,
+    "U+E626": 1,
+    "U+E628": 3,
+    "U+E634": 1,
+    "U+E697": 2,
+    "U+E6A8": 2,
+    "U+E6B2": 1,
+    "U+E702": 3,
+    "U+E706": 1,
+    "U+E718": 4,
+    "U+E738": 1,
+    "U+E73E": 2,
+    "U+E74E": 4,
+    "U+E755": 1,
+    "U+E779": 1,
+    "U+E795": 4,
+    "U+E7A8": 3,
+    "U+E7BA": 2,
+    "U+EBC7": 1,
+    "U+F013": 3,
+    "U+F023": 1,
+    "U+F02D": 2,
+    "U+F15B": 1,
+    "U+F15C": 2,
+    "U+F18D": 1,
+    "U+F1C0": 1,
+    "U+F1C1": 1,
+    "U+F1C5": 7,
+    "U+F1C6": 6,
+    "U+F1C7": 1,
+    "U+F1C8": 3,
+    "U+F308": 2,
+    "U+F462": 1,
+    "U+F48A": 2,
+    "U+F81A": 1
+  },
   "src/lib/components/issues/CreateIssueDialog.svelte": {
     "U+F00D": 2,
     "U+F067": 2
   },
+  "src/lib/components/issues/IssueDetail.svelte": {
+    "U+F044": 3,
+    "U+F08E": 1,
+    "U+F188": 1
+  },
+  "src/lib/components/issues/IssueList.svelte": {
+    "U+F00D": 1,
+    "U+F021": 1,
+    "U+F41E": 1
+  },
+  "src/lib/components/layout/AddProjectMenu.svelte": {
+    "U+F019": 1,
+    "U+F07C": 2
+  },
   "src/lib/components/layout/CompositeTab.svelte": {
-    "U+F00D": 2
+    "U+E728": 1,
+    "U+F00D": 2,
+    "U+F489": 1
   },
   "src/lib/components/layout/ProjectTab.svelte": {
     "U+E728": 1,
@@ -47,6 +213,7 @@
     "U+F002": 1,
     "U+F013": 2,
     "U+F02B": 1,
+    "U+F040": 1,
     "U+F053": 1,
     "U+F054": 1,
     "U+F06E": 1,
@@ -74,11 +241,106 @@
     "U+F0ED": 1,
     "U+F489": 1
   },
+  "src/lib/components/layout/TabTooltip.svelte": {
+    "U+E725": 1
+  },
   "src/lib/components/layout/TerminalTab.svelte": {
+    "U+F00D": 1,
+    "U+F489": 1
+  },
+  "src/lib/components/layout/statusbar/RepoSlot.svelte": {
+    "U+E725": 1
+  },
+  "src/lib/components/layout/statusbar/TasksSlot.svelte": {
+    "U+F0AE": 1
+  },
+  "src/lib/components/mr-pr/MrPrDetail.svelte": {
+    "U+F078": 1,
+    "U+F08E": 1,
+    "U+F407": 1
+  },
+  "src/lib/components/mr-pr/MrPrList.svelte": {
+    "U+F00D": 1,
+    "U+F021": 1,
+    "U+F126": 1,
+    "U+F41E": 1
+  },
+  "src/lib/components/mr-pr/PillRow.svelte": {
+    "U+F00D": 1,
+    "U+F067": 1
+  },
+  "src/lib/components/pipeline/JobLog.svelte": {
+    "U+F017": 1,
+    "U+F062": 1,
+    "U+F063": 1,
+    "U+F120": 1
+  },
+  "src/lib/components/pipeline/JobSteps.svelte": {
+    "U+F00C": 1,
+    "U+F00D": 2,
+    "U+F04B": 1,
+    "U+F051": 1,
+    "U+F05E": 1,
+    "U+F10C": 3
+  },
+  "src/lib/components/pipeline/PipelineDetail.svelte": {
+    "U+F00C": 1,
+    "U+F00D": 2,
+    "U+F017": 2,
+    "U+F04B": 1,
+    "U+F04D": 1,
+    "U+F051": 1,
+    "U+F05E": 1,
+    "U+F061": 1,
+    "U+F144": 2
+  },
+  "src/lib/components/pipeline/PipelineList.svelte": {
+    "U+F021": 1
+  },
+  "src/lib/components/pipeline/PipelineView.svelte": {
     "U+F00D": 1
   },
   "src/lib/components/pipeline/TriggerWorkflowDialog.svelte": {
+    "U+F00D": 2,
     "U+F067": 1
+  },
+  "src/lib/components/reflog/ReflogDetail.svelte": {
+    "U+E725": 1,
+    "U+E727": 1,
+    "U+E728": 1,
+    "U+F0C5": 1,
+    "U+F0E2": 1
+  },
+  "src/lib/components/reflog/ReflogList.svelte": {
+    "U+E725": 1,
+    "U+E727": 1,
+    "U+F021": 1,
+    "U+F063": 1,
+    "U+F0E2": 1,
+    "U+F41E": 1,
+    "U+F444": 2
+  },
+  "src/lib/components/reflog/ReflogView.svelte": {
+    "U+F1DA": 1
+  },
+  "src/lib/components/releases/AssetUploadProgress.svelte": {
+    "U+F00C": 1,
+    "U+F00D": 1
+  },
+  "src/lib/components/releases/ReleaseDetail.svelte": {
+    "U+F00D": 1,
+    "U+F135": 1
+  },
+  "src/lib/components/releases/ReleaseList.svelte": {
+    "U+F187": 1
+  },
+  "src/lib/components/repo-config/GeneralSection.svelte": {
+    "U+F00D": 1
+  },
+  "src/lib/components/repo-config/LabelsSection.svelte": {
+    "U+F044": 1,
+    "U+F067": 1,
+    "U+F2ED": 1
   },
   "src/lib/components/requests/CollectionsTree.svelte": {
     "U+F054": 1,
@@ -94,11 +356,54 @@
     "U+F078": 1
   },
   "src/lib/components/settings/ConnectionHowTo.svelte": {
-    "U+F0C5": 2
+    "U+F0C5": 2,
+    "U+F105": 1
+  },
+  "src/lib/components/settings/GitSettings.svelte": {
+    "U+F00D": 2,
+    "U+F067": 2
+  },
+  "src/lib/components/settings/SettingsPage.svelte": {
+    "U+E702": 1,
+    "U+F013": 1,
+    "U+F044": 1,
+    "U+F085": 1,
+    "U+F0C1": 1,
+    "U+F2DB": 2,
+    "U+F544": 1
+  },
+  "src/lib/components/settings/__tests__/AiSettings.icon.test.ts": {
+    "U+F021": 1
+  },
+  "src/lib/components/stash/StashDetail.svelte": {
+    "U+F187": 1
   },
   "src/lib/components/stash/StashList.svelte": {
     "U+F00C": 1,
     "U+F00D": 1
+  },
+  "src/lib/components/tags/TagDetail.svelte": {
+    "U+F02B": 1
+  },
+  "src/lib/components/tags/TagList.svelte": {
+    "U+F021": 1
+  },
+  "src/lib/components/tasks/TaskEntryRow.svelte": {
+    "U+E725": 2,
+    "U+F019": 2,
+    "U+F0EB": 1
+  },
+  "src/lib/components/tasks/TasksPopover.svelte": {
+    "U+F00D": 2,
+    "U+F054": 1,
+    "U+F060": 1
+  },
+  "src/lib/components/ui/Button.svelte": {
+    "U+F021": 2
+  },
+  "src/lib/components/ui/CategoryNav.svelte": {
+    "U+F085": 1,
+    "U+F1FC": 1
   },
   "src/lib/components/ui/Checkbox.svelte": {
     "U+F00C": 1
@@ -107,8 +412,18 @@
     "U+F00D": 2,
     "U+F110": 1
   },
+  "src/lib/components/ui/SearchInput.svelte": {
+    "U+F002": 1
+  },
+  "src/lib/components/ui/SettingSection.svelte": {
+    "U+F054": 1,
+    "U+F078": 1
+  },
   "src/lib/components/ui/Toast.svelte": {
     "U+F00D": 1
+  },
+  "src/lib/components/ui/__tests__/Button.test.ts": {
+    "U+F021": 2
   },
   "src/lib/components/ui/__tests__/IconButton.test.ts": {
     "U+F00D": 1,
@@ -117,11 +432,25 @@
     "U+F110": 1,
     "U+F1F8": 1
   },
+  "src/lib/components/worktrees/WorktreeList.svelte": {
+    "U+E728": 1,
+    "U+F021": 1,
+    "U+F067": 1,
+    "U+F08E": 1,
+    "U+F1F8": 1
+  },
   "src/lib/repo-config/sections.ts": {
     "U+F013": 1,
     "U+F023": 1,
     "U+F02B": 1,
     "U+F06E": 1,
     "U+F1E6": 1
+  },
+  "src/routes/+page.svelte": {
+    "U+F00D": 1,
+    "U+F019": 1,
+    "U+F071": 1,
+    "U+F07B": 1,
+    "U+F07C": 1
   }
 }

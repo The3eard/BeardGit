@@ -25,6 +25,14 @@
  * are intact" from "the icons were shuffled". Codepoints can, and the
  * error message can then name what went missing instead of just how many.
  *
+ * **All three ways of writing a glyph count the same.** A literal
+ * character, a `` escape, and an `&#xF07B;` HTML entity are the same
+ * icon to a reader of the running app, so they are the same icon here.
+ * Counting only literals would have made this check *punish* the fix for
+ * its own root cause: rewriting a literal as an escape — which is the one
+ * form a careless edit cannot delete invisibly — would have read as three
+ * lost glyphs.
+ *
  * Update the baseline with: npm run check:glyphs -- --write
  */
 import { lstatSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -77,15 +85,41 @@ function label(codePoint) {
  * `{ "relative/path": { "U+E5FF": 3 } }` for every file that contains any
  * icon — a multiset of codepoints per file, not a total.
  */
+/**
+ * Every private-use codepoint a source file names, in any of the three
+ * forms: a literal character, a `\uXXXX` / `\u{XXXX}` escape, or an
+ * `&#xXXXX;` / `&#61563;` HTML entity.
+ *
+ * Escapes and entities are the *preferred* form — they are visible in a
+ * diff and cannot be deleted silently — so they have to count, or this
+ * check would penalise migrating to them.
+ */
+function glyphsIn(source) {
+  const found = [];
+  for (const ch of source) {
+    const cp = ch.codePointAt(0);
+    if (isPrivateUse(cp)) found.push(cp);
+  }
+  const add = (re, radix, group = 1) => {
+    for (const m of source.matchAll(re)) {
+      const cp = Number.parseInt(m[group], radix);
+      if (Number.isFinite(cp) && isPrivateUse(cp)) found.push(cp);
+    }
+  };
+  add(/\\u\{([0-9a-fA-F]{1,6})\}/g, 16); // \u{f07b}
+  add(/\\u([0-9a-fA-F]{4})/g, 16); //       
+  add(/&#x([0-9a-fA-F]{1,6});/g, 16); //    &#xf07b;
+  add(/&#([0-9]{1,7});/g, 10); //           &#61563;
+  return found;
+}
+
 function scan() {
   const files = {};
   for (const rootRel of SCAN_DIRS) {
     for (const file of collectFiles(join(ROOT, rootRel))) {
       const source = readFileSync(file, "utf8");
       const glyphs = {};
-      for (const ch of source) {
-        const cp = ch.codePointAt(0);
-        if (!isPrivateUse(cp)) continue;
+      for (const cp of glyphsIn(source)) {
         const key = label(cp);
         glyphs[key] = (glyphs[key] ?? 0) + 1;
       }
