@@ -35,6 +35,8 @@
   import { activeProvider } from "../../stores/provider";
   import { shortOid } from "../../utils/git";
   import { bisectState, markGood, markBad, skipCommit } from "../../stores/bisect";
+  import { addToast } from "../../stores/toast";
+  import { getErrorMessage } from "$lib/api/errors";
   import * as m from "$lib/paraglide/messages";
   import { Button, Checkbox } from "$lib/components/ui";
 
@@ -850,21 +852,35 @@
         {
           label: m.graph_bisect_mark_good(),
           action: async () => {
-            try { await markGood(node.oid); } catch {}
+            try {
+              await markGood(node.oid);
+            } catch (e) {
+              // Same handling as BisectWorkflow, the other caller of these
+              // actions: the store lets the error through and does not toast.
+              addToast({ message: getErrorMessage(e), type: "error" });
+            }
           },
           disabled: isGood,
         },
         {
           label: m.graph_bisect_mark_bad(),
           action: async () => {
-            try { await markBad(node.oid); } catch {}
+            try {
+              await markBad(node.oid);
+            } catch (e) {
+              addToast({ message: getErrorMessage(e), type: "error" });
+            }
           },
           disabled: isBad,
         },
         {
           label: m.graph_bisect_skip(),
           action: async () => {
-            try { await skipCommit(); } catch {}
+            try {
+              await skipCommit();
+            } catch (e) {
+              addToast({ message: getErrorMessage(e), type: "error" });
+            }
           },
         },
       );
