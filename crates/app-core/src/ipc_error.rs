@@ -79,6 +79,15 @@ impl From<String> for IpcError {
     }
 }
 
+/// Same fallback for a string literal. Command bodies raise plenty of
+/// `Err("no active project")`-shaped failures, and without this every one
+/// of them needs a `.to_string()` before it can flow into the envelope.
+impl From<&str> for IpcError {
+    fn from(message: &str) -> Self {
+        Self::new("error", message)
+    }
+}
+
 impl From<git_engine::GitError> for IpcError {
     fn from(err: git_engine::GitError) -> Self {
         use git_engine::GitError as G;

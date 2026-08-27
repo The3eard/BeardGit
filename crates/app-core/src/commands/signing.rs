@@ -9,15 +9,16 @@ use tauri::State;
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Return the active repo's effective signing status for the commit box and
 /// settings: `{ enabled, format, key_present }`. `key_present` is diagnostic
 /// only and never blocks committing.
 #[tauri::command]
-pub fn get_signing_config(state: State<'_, AppState>) -> Result<git_engine::SigningStatus, String> {
+pub fn get_signing_config(state: State<'_, AppState>) -> Result<git_engine::SigningStatus, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.signing_status().map_err(|e| e.to_string())
+        repo.signing_status().map_err(IpcError::from)
     })
 }
 
@@ -27,9 +28,9 @@ pub fn get_signing_config(state: State<'_, AppState>) -> Result<git_engine::Sign
 pub fn get_commit_signature(
     oid: String,
     state: State<'_, AppState>,
-) -> Result<git_engine::CommitSignature, String> {
+) -> Result<git_engine::CommitSignature, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.commit_signature(&oid).map_err(|e| e.to_string())
+        repo.commit_signature(&oid).map_err(IpcError::from)
     })
 }
 
@@ -41,7 +42,7 @@ pub fn get_commit_signature(
 pub async fn verify_commit_signature(
     oid: String,
     state: State<'_, AppState>,
-) -> Result<git_engine::SignatureVerification, String> {
+) -> Result<git_engine::SignatureVerification, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     run_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -49,6 +50,7 @@ pub async fn verify_commit_signature(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Exercise the user's signing config end-to-end by signing a throwaway commit
@@ -58,11 +60,12 @@ pub async fn verify_commit_signature(
 #[instrument(skip(state), name = "cmd::signing::test")]
 pub async fn test_signing(
     state: State<'_, AppState>,
-) -> Result<git_engine::SigningTestResult, String> {
+) -> Result<git_engine::SigningTestResult, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     run_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         repo.test_signing().map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }

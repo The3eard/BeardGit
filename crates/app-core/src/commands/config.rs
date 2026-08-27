@@ -3,6 +3,7 @@
 use tauri::State;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List all config entries at the given scope ("local", "global", or "system").
@@ -10,9 +11,9 @@ use crate::state::AppState;
 pub fn list_config(
     scope: git_engine::ConfigScope,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::ConfigEntry>, String> {
+) -> Result<Vec<git_engine::ConfigEntry>, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.list_config(scope).map_err(|e| e.to_string())
+        repo.list_config(scope).map_err(IpcError::from)
     })
 }
 
@@ -23,10 +24,10 @@ pub fn set_config(
     key: String,
     value: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_active_repo(&state, |repo| {
         repo.set_config(scope, &key, &value)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
@@ -36,9 +37,9 @@ pub fn unset_config(
     scope: git_engine::ConfigScope,
     key: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_active_repo(&state, |repo| {
-        repo.unset_config(scope, &key).map_err(|e| e.to_string())
+        repo.unset_config(scope, &key).map_err(IpcError::from)
     })
 }
 
@@ -49,10 +50,10 @@ pub fn add_config(
     key: String,
     value: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_active_repo(&state, |repo| {
         repo.add_config(scope, &key, &value)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
@@ -62,7 +63,7 @@ pub fn add_config(
 /// provider user emails, display names, and usernames. Returns a deduplicated,
 /// lowercased list of all identity strings.
 #[tauri::command]
-pub fn get_user_identities(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+pub fn get_user_identities(state: State<'_, AppState>) -> Result<Vec<String>, IpcError> {
     let mut identities: Vec<String> = Vec::new();
 
     // Git config email and name from active repo
