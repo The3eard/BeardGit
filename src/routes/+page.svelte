@@ -68,6 +68,7 @@
   import {
     persistTabsForProject as persistEditorTabs,
     startFileEditorListeners,
+    openTab as openEditorTab,
   } from "$lib/stores/fileEditor";
   import { initRepoConfigRouteSync } from "$lib/stores/repoConfigRoute";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
@@ -336,6 +337,26 @@
         action: () => handleToggleSidebar(),
       },
       {
+        id: "editor.openSelected",
+        keys: { mod: true, key: "e" },
+        label: m.editor_open_in_editor(),
+        category: "Editor",
+        // Whatever file the Changes view currently has open in its diff
+        // pane. The command palette could already *navigate* to the editor;
+        // what had no keyboard route was opening the file you were looking
+        // at, which is the thing you want when your hands are on the diff.
+        action: () => {
+          const open = get(openStagingFile);
+          if (!open) return;
+          // `tryChangeView`, not a bare assignment: it is what runs
+          // `closeStagingDiff` on the way out of Changes. Assigning
+          // `activeView` directly leaves `openStagingFile` set, so every
+          // later mutation re-fetches the diff of a pane nobody is looking
+          // at — at full context if the user had expanded it.
+          tryChangeView("editor", () => void openEditorTab(open.path));
+        },
+      },
+      {
         id: "tab.newTerminal",
         keys: { mod: true, key: "t" },
         label: m.tab_terminal_here(),
@@ -601,13 +622,18 @@
    * and has unsaved edits in the active section. Outside that view the
    * assignment runs straight through.
    */
-  function tryChangeView(nextView: string): void {
+  function tryChangeView(nextView: string, then?: () => void): void {
     const apply = () => {
       activeView = nextView;
       // Leaving the Changes view resets the open file/diff so re-entering
       // lands on the empty diff panel. The checkbox selection persists via
       // the changesSelection store.
       if (nextView !== "changes") closeStagingDiff();
+      // Anything the caller wants done *because* the view changed goes
+      // here, not after the call: on a dirty repo-config page the
+      // navigation is deferred behind a guard dialog, and work queued
+      // outside would run against a view that never switched.
+      then?.();
     };
     if (activeView === "repo-config" && repoConfigPageRef) {
       repoConfigPageRef.requestGuardedNavigation(apply);

@@ -52,6 +52,8 @@ interface Scenario {
   diff?: FileDiff;
   /** File to click so the diff panel opens. */
   select?: string;
+  /** Collapse every hunk after opening the diff. */
+  collapseHunks?: boolean;
 }
 
 const SCENARIOS: Record<string, Scenario> = {
@@ -84,6 +86,16 @@ const SCENARIOS: Record<string, Scenario> = {
     summary: makeStatusSummary({ unstaged: 1 }),
     diff: makeFileDiff({ path: "src/a.ts" }),
     select: "src/a.ts",
+  },
+  // Every hunk collapsed. Its own scenario because the collapsed state is
+  // the feature: without a baseline, "collapse all" could stop collapsing
+  // and the suite would not notice.
+  "collapsed-hunks": {
+    files: [makeFileStatus({ path: "src/a.ts", status: "modified", is_staged: false })],
+    summary: makeStatusSummary({ unstaged: 1 }),
+    diff: makeFileDiff({ path: "src/a.ts" }),
+    select: "src/a.ts",
+    collapseHunks: true,
   },
   "many-untracked": {
     files: Array.from({ length: 10 }, (_, i) =>
@@ -137,6 +149,17 @@ for (const mode of THEME_MODES) {
           const testId = `file-row-${scenario.select.replace(/\//g, "-")}`;
           await page.getByTestId(testId).locator(".file-btn").click();
           await expect(page.locator(".staging-diff-editor")).toBeVisible();
+        }
+        if (scenario.collapseHunks) {
+          await page
+            .getByRole("button", { name: "Collapse all", exact: true })
+            .click();
+          // Positive signal: the hunk body is replaced by its summary line,
+          // so this cannot pass against a diff that simply failed to render.
+          await expect(page.locator(".hunk-collapsed")).toHaveCount(
+            scenario.diff?.hunks.length ?? 1,
+          );
+          await expect(page.locator(".hunk-lines")).toHaveCount(0);
         }
         await expect(page).toHaveScreenshot(`${mode}-${name}.png`, {
           animations: "disabled",

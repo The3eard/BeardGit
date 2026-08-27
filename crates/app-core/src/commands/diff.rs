@@ -344,18 +344,26 @@ pub async fn get_diff_index(
 /// (`true`) or the workdir-vs-index diff (`false`). Returns `null` when the
 /// file has no change on that side.
 ///
+/// `context_lines` is how much unchanged code to keep around each change;
+/// `null` leaves libgit2's default of 3. The Changes view sends
+/// [`git_engine::FULL_FILE_CONTEXT`] when the user asks to see the whole
+/// file — which is why this has to be a parameter rather than a constant:
+/// the surrounding lines are not in the response until someone asks for
+/// them, and the old UI could only ever show three.
+///
 /// Runs on a blocking thread — diffing a single (possibly large) file must not
 /// block the Tauri async runtime / freeze the UI.
 #[tauri::command]
 pub async fn get_diff_file(
     path: String,
     staged: bool,
+    context_lines: Option<u32>,
     state: State<'_, AppState>,
 ) -> Result<Option<git_engine::FileDiff>, String> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.diff_single_file(&path, staged)
+        repo.diff_single_file(&path, staged, context_lines)
             .map_err(|e| e.to_string())
     })
     .await

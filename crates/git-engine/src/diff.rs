@@ -80,6 +80,15 @@ pub const MAX_COMMIT_DIFF_BYTES: usize = 5 * 1024 * 1024;
 /// this, hunk collection stops and the file is marked `truncated`.
 pub const MAX_FILE_DIFF_LINES: usize = 10_000;
 
+/// Context-line count meaning "the whole file, as one hunk".
+///
+/// libgit2 takes a `u32` and clamps the window to the file, so any value
+/// past the longest plausible source file behaves as unlimited. Deliberately
+/// not `u32::MAX`: libgit2 does arithmetic on this internally, and leaving
+/// four billion lines of headroom for an overflow to hide in buys nothing
+/// over a million.
+pub const FULL_FILE_CONTEXT: u32 = 1_000_000;
+
 /// Whole-response byte budget for the `FileDiff[]` list endpoints
 /// (`get_diff_workdir` / `get_diff_index`). Once the accumulated line
 /// content across files exceeds this, the remaining files come back with
@@ -347,10 +356,25 @@ impl Repository {
     /// `FileDiff[]` set is never materialized on every mutation. The
     /// returned diff carries the same per-file byte/line/binary caps as
     /// [`collect_file_diffs`].
-    pub fn diff_single_file(&self, path: &str, staged: bool) -> Result<Option<FileDiff>, GitError> {
+    ///
+    /// `context_lines` is how many unchanged lines libgit2 keeps either side
+    /// of a change; `None` leaves its default of 3. [`FULL_FILE_CONTEXT`]
+    /// asks for the whole file, which is what the Changes view's "expand
+    /// file" control sends — note that a large enough file still hits
+    /// [`MAX_FILE_DIFF_LINES`] and comes back `truncated`, which the UI
+    /// already renders as a placeholder.
+    pub fn diff_single_file(
+        &self,
+        path: &str,
+        staged: bool,
+        context_lines: Option<u32>,
+    ) -> Result<Option<FileDiff>, GitError> {
         let repo = self.inner();
         let mut opts = DiffOptions::new();
         opts.pathspec(path);
+        if let Some(n) = context_lines {
+            opts.context_lines(n);
+        }
         let diff = if staged {
             let head_tree = repo.head()?.peel_to_tree()?;
             repo.diff_tree_to_index(Some(&head_tree), None, Some(&mut opts))?
@@ -823,6 +847,22 @@ mod tests {
         (dir, repo)
     }
 
+    /// Stage `rel` and commit it, so a follow-up edit diffs against real
+    /// committed content rather than against an empty index.
+    fn stage_and_commit(repo: &Repository, root: &Path, rel: &str) {
+        let git_repo = git2::Repository::open(root).unwrap();
+        let sig = git2::Signature::now("Test", "test@test.com").unwrap();
+        let mut index = git_repo.index().unwrap();
+        index.add_path(Path::new(rel)).unwrap();
+        index.write().unwrap();
+        let tree = git_repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let parent = git_repo.head().unwrap().peel_to_commit().unwrap();
+        git_repo
+            .commit(Some("HEAD"), &sig, &sig, "add file", &tree, &[&parent])
+            .unwrap();
+        let _ = repo;
+    }
+
     #[test]
     fn test_diff_workdir_no_changes() {
         let (_dir, repo) = create_repo_with_file();
@@ -1270,16 +1310,58 @@ diff --git a/b.txt b/b.txt
         let (dir, repo) = create_repo_with_file();
         fs::write(dir.path().join("test.txt"), "line 1\nchanged\nline 3\n").unwrap();
         let d = repo
-            .diff_single_file("test.txt", false)
+            .diff_single_file("test.txt", false, None)
             .unwrap()
             .expect("changed file must have a diff");
         assert_eq!(d.path, "test.txt");
         assert!(!d.hunks.is_empty());
         assert!(
-            repo.diff_single_file("does-not-exist.txt", false)
+            repo.diff_single_file("does-not-exist.txt", false, None)
                 .unwrap()
                 .is_none(),
             "a path with no change must return None"
+        );
+    }
+
+    /// The context window is what decides how much of the file the user can
+    /// see. Without a parameter the Changes view could only ever show the
+    /// three lines libgit2 defaults to, and "expand the whole file" had
+    /// nothing to ask for.
+    #[test]
+    fn test_diff_single_file_context_lines_widen_the_window() {
+        let (dir, repo) = create_repo_with_file();
+        // A file long enough that a default-context diff cannot reach both
+        // ends of it from a change in the middle.
+        let original: String = (1..=40).map(|i| format!("line {i}\n")).collect();
+        fs::write(dir.path().join("long.txt"), &original).unwrap();
+        stage_and_commit(&repo, dir.path(), "long.txt");
+        let edited = original.replace("line 20\n", "line 20 changed\n");
+        fs::write(dir.path().join("long.txt"), &edited).unwrap();
+
+        let count_lines = |ctx: Option<u32>| -> usize {
+            repo.diff_single_file("long.txt", false, ctx)
+                .unwrap()
+                .expect("the edit must produce a diff")
+                .hunks
+                .iter()
+                .map(|h| h.lines.len())
+                .sum()
+        };
+
+        let default_ctx = count_lines(None);
+        let wide = count_lines(Some(10));
+        let whole = count_lines(Some(FULL_FILE_CONTEXT));
+
+        assert!(
+            default_ctx < wide,
+            "10 lines of context must show more than the default 3: {default_ctx} vs {wide}"
+        );
+        // 40 original lines, one of them replaced: 39 context + the removed
+        // line + the added line.
+        assert_eq!(whole, 41, "full context must be the whole file, once");
+        assert!(
+            whole > wide,
+            "full context must beat a merely wide window: {whole} vs {wide}"
         );
     }
 
@@ -1290,7 +1372,7 @@ diff --git a/b.txt b/b.txt
         let (dir, repo) = create_repo_with_file();
         fs::write(dir.path().join("new.txt"), "hello\nworld\n").unwrap();
         let d = repo
-            .diff_single_file("new.txt", false)
+            .diff_single_file("new.txt", false, None)
             .unwrap()
             .expect("untracked file must have a diff");
         assert_eq!(d.status, "untracked");

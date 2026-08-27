@@ -63,8 +63,8 @@ pub use commits::{CommitInfo, CommitWalkOptions};
 pub use config::{ConfigEntry, ConfigScope};
 pub use conflict::{ConflictFileContents, ConflictState, ConflictStatus};
 pub use diff::{
-    CommitFileChange, DiffHunkInfo, DiffLineInfo, FileDiff, FileDiffStat, MAX_DIFF_RESPONSE_BYTES,
-    enforce_response_budget,
+    CommitFileChange, DiffHunkInfo, DiffLineInfo, FULL_FILE_CONTEXT, FileDiff, FileDiffStat,
+    MAX_DIFF_RESPONSE_BYTES, enforce_response_budget,
 };
 pub use error::GitError;
 pub use hunk_staging::HunkSelection;
