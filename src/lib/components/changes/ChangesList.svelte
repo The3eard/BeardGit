@@ -15,6 +15,10 @@
   import { activeViewStore } from "$lib/stores/navigation";
   import { openTab as openEditorTab } from "$lib/stores/fileEditor";
   import { isBatchSelection, batchActionIds, type BatchActionId } from "./changes-menu";
+  import {
+    computeVirtualWindow,
+    virtualRowStyle,
+  } from "../../utils/virtualWindow";
 
   let {
     files,
@@ -72,6 +76,79 @@
   let anchorIndex = $state(-1);
   let listEl = $state<HTMLDivElement | null>(null);
 
+  // ── Virtualization ────────────────────────────────────────────────────
+  // This list is the one that can genuinely reach tens of thousands of rows:
+  // `file_statuses` recurses untracked directories, so a `node_modules` that
+  // isn't ignored shows up file by file. Every one of those rows mounts a
+  // Checkbox, a badge and an IconButton, so rendering them all is the
+  // difference between a list and a freeze.
+  //
+  // 28 px is measured, not assumed — `.file-item` is 3px padding plus its
+  // content, and it comes out at exactly 28 with a uniform pitch. The
+  // windowed path is only taken above the 500-row threshold, so every
+  // existing visual baseline (a handful of files) renders through the plain
+  // `{#each}` and is unaffected.
+  const ROW_HEIGHT = 28;
+
+  // The scroll container is NOT this list: `StagingArea` puts both lists
+  // inside one `.file-lists` scroller so staged and unstaged scroll
+  // together. (`.file-list`'s own `overflow-y: auto` never engages, because
+  // its parent grows without bound.) So the window is computed against the
+  // ancestor: how far the scroller has moved *past the top of this list*,
+  // and the scroller's viewport height. Measuring this list instead reports
+  // its full content height and mounts every row — which is exactly what
+  // the first attempt at this did.
+  let scrollTop = $state(0);
+  let viewportHeight = $state(0);
+
+  let virtualWindow = $derived(
+    computeVirtualWindow({
+      count: files.length,
+      rowHeight: ROW_HEIGHT,
+      scrollTop,
+      viewportHeight,
+      threshold: 500,
+    }),
+  );
+
+  /** Nearest scrollable ancestor, or null if nothing scrolls. */
+  function findScroller(el: HTMLElement): HTMLElement | null {
+    let parent = el.parentElement;
+    while (parent) {
+      const overflowY = getComputedStyle(parent).overflowY;
+      if (overflowY === "auto" || overflowY === "scroll") return parent;
+      parent = parent.parentElement;
+    }
+    return null;
+  }
+
+  function measureAgainst(scroller: HTMLElement) {
+    if (!listEl) return;
+    // Offset of this list's top within the scroller's content box. Stable
+    // while windowed: the sizer's height is `count * ROW_HEIGHT`, so the
+    // window changing never moves the list.
+    const listTop =
+      listEl.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop;
+    scrollTop = Math.max(0, scroller.scrollTop - listTop);
+    viewportHeight = scroller.clientHeight;
+  }
+
+  $effect(() => {
+    // Re-runs when the row count changes: the second list's offset within
+    // the scroller depends on how tall the first one is.
+    void files.length;
+    if (!listEl) return;
+    const scroller = findScroller(listEl);
+    if (!scroller) return;
+
+    measureAgainst(scroller);
+    const onScroll = () => measureAgainst(scroller);
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
+  });
+
   function toggleFile(path: string, index = -1) {
     const next = new Set(selected);
     if (next.has(path)) next.delete(path);
@@ -114,7 +191,28 @@
   function setFocus(index: number) {
     focusIndex = Math.max(0, Math.min(index, files.length - 1));
     const row = listEl?.querySelector<HTMLElement>(`[data-row-index="${focusIndex}"]`);
-    row?.scrollIntoView({ block: "nearest" });
+    if (row) {
+      row.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    // Windowed: the target row isn't mounted, so there is nothing to scroll
+    // into view. Move the scroller to where the row will be, which re-renders
+    // the window around it. Only reached while virtualized, where rows sit a
+    // known ROW_HEIGHT apart.
+    if (!listEl) return;
+    const scroller = findScroller(listEl);
+    if (!scroller) return;
+    const listTop =
+      listEl.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop;
+    const top = listTop + focusIndex * ROW_HEIGHT;
+    const bottom = top + ROW_HEIGHT;
+    if (top < scroller.scrollTop) {
+      scroller.scrollTop = top;
+    } else if (bottom > scroller.scrollTop + scroller.clientHeight) {
+      scroller.scrollTop = bottom - scroller.clientHeight;
+    }
   }
 
   function handleRowClick(e: MouseEvent, index: number) {
@@ -496,8 +594,30 @@
   </div>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <div class="file-list" role="list" tabindex="0" bind:this={listEl} onkeydown={handleKeydown}>
-    {#each files as file, i}
+  <div
+    class="file-list"
+    role="list"
+    tabindex="0"
+    bind:this={listEl}
+    onkeydown={handleKeydown}
+  >
+    {#if virtualWindow}
+      <!-- Windowed: a tall sizer keeps the scrollbar honest and only the
+           visible slice is mounted, anchored at (index * ROW_HEIGHT). -->
+      <div class="virt-sizer" style="height: {virtualWindow.totalHeight}px">
+        {#each files.slice(virtualWindow.start, virtualWindow.end) as file, offset (file.path)}
+          {@render fileRow(file, virtualWindow.start + offset, true)}
+        {/each}
+      </div>
+    {:else}
+      {#each files as file, i (file.path)}
+        {@render fileRow(file, i, false)}
+      {/each}
+    {/if}
+  </div>
+</div>
+
+{#snippet fileRow(file: FileStatus, i: number, positioned: boolean)}
       {@const stat = stats?.get(file.path)}
       <div
         class="file-item"
@@ -506,6 +626,7 @@
         role="listitem"
         data-row-index={i}
         data-testid="file-row-{file.path.replace(/\//g, '-')}"
+        style={positioned ? virtualRowStyle(i, ROW_HEIGHT) : undefined}
         oncontextmenu={(e) => openContextMenu(e, file.path)}
       >
         <Checkbox
@@ -550,9 +671,7 @@
           <span class="item-action" role="button" tabindex="0" onclick={(e) => { e.stopPropagation(); onStage([file.path]); }} onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onStage([file.path]); } }}>+</span>
         {/if}
       </div>
-    {/each}
-  </div>
-</div>
+{/snippet}
 
 <ContextMenu
   items={contextMenuFile ? buildContextMenuItems(contextMenuFile) : []}
@@ -637,6 +756,12 @@
 
   .file-list {
     overflow-y: auto;
+  }
+
+  /* Sizer for the windowed path: holds the full scroll height while only
+     the visible slice is mounted, absolutely positioned inside it. */
+  .virt-sizer {
+    position: relative;
   }
 
   .file-item {
