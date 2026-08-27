@@ -76,6 +76,7 @@ run "IPC contract"         "npm run check:ipc"
 run "instrument fields"    "npm run check:instrument"
 run "icon glyphs"          "npm run check:glyphs"
 run "toolchain pin"        "npm run check:toolchain"
+run "IPC error codes"     "npm run check:codes"
 
 printf '\nPlaywright\n'
 run "specs load"           "npm run check:specs"

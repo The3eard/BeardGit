@@ -59,6 +59,49 @@ export function firstErrorLine(e: unknown): string {
  * message. This is deliberately NOT an exhaustive i18n table (spec 05 defers
  * full codegen + per-code localization); extend it only as codes prove
  * branch-worthy.
+ *
+ * `scripts/check-ipc-codes.mjs` asserts every code Rust can emit appears
+ * either here or in `@unmapped` below. The check is there because nothing
+ * used to notice a *new* code at all — a fresh `IpcError::new("…")` in Rust
+ * raised no question about whether the UI should say something better than
+ * the raw message, so the question never got asked. Adding a code now fails
+ * the gate until it is classified.
+ *
+ * A code belongs here when the raw message would leave the user without a
+ * next step. `not_fast_forward` is the archetype: git says "rejected
+ * (non-fast-forward)", which does not tell anyone to pull first.
+ *
+ * Codes below are deliberately left to their raw message, grouped by why:
+ *
+ * - The message *is* the content, and a fixed sentence would replace
+ *   detail with less. These carry stderr from git, a git hook, or a CLI:
+ *   @unmapped git cli_error signing_failed io_error error internal
+ *
+ * - Already reported next to the field or dialog that caused them, where a
+ *   toast-level sentence would be redundant or worse — several carry the
+ *   offending path or URL as the whole message:
+ *   @unmapped invalid_url invalid_destination destination_exists invalid_path
+ *   @unmapped invalid_argument invalid_log_level
+ *
+ * - Step-level failures of a multi-step flow (clone, init, log config). The
+ *   step name is in the code and the cause is in the message; a generic
+ *   sentence per step would say only what the code already says:
+ *   @unmapped clone_failed open_failed init_failed gitignore_failed
+ *   @unmapped commit_failed create_remote_failed add_origin_failed
+ *   @unmapped push_failed log_level_failed
+ *
+ * - Routine conditions, not failures. Raised via `IpcError::expected` (so
+ *   they are not even logged as errors) when a read is dispatched against a
+ *   background tab, where heavy state is `None` by the active-tab
+ *   invariant. The UI shows an empty state, never a toast:
+ *   @unmapped no_active_project no_repository_open
+ *
+ * - Content-shape refusals the viewer handles structurally, by showing a
+ *   placeholder instead of text:
+ *   @unmapped binary_file file_too_large
+ *
+ * Kept as an alias for a code Rust no longer emits:
+ * @legacy-code repo_not_found
  */
 export function errorCodeMessage(code: string): string | null {
   switch (code) {
