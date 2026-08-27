@@ -14,6 +14,7 @@
  * non-empty (see {@link isPatchEmpty}).
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { derived, get, writable } from "svelte/store";
 import type {
   RemoteRepoConfig,
@@ -280,7 +281,7 @@ export async function refreshRepoConfig(): Promise<void> {
     const config = await loadRemoteRepoConfig(repoPath);
     setLoadedConfig(repoPath, config);
   } catch (e) {
-    setLoadError(String(e));
+    setLoadError(getErrorMessage(e));
   }
 }
 

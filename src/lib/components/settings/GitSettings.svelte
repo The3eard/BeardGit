@@ -15,6 +15,7 @@
   card or button chrome.
 -->
 <script module lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import type { SettingDescriptor } from "./settings-index";
 
   /**
@@ -104,7 +105,7 @@
       const result = await testSigning();
       signingTestResult = { ok: result.success, message: result.message };
     } catch (err) {
-      signingTestResult = { ok: false, message: String(err) };
+      signingTestResult = { ok: false, message: getErrorMessage(err) };
     } finally {
       signingTesting = false;
     }
@@ -175,7 +176,7 @@
       editingScope = null;
       await loadAll();
     } catch (err) {
-      errorMessage = String(err);
+      errorMessage = getErrorMessage(err);
     }
   }
 
@@ -197,7 +198,7 @@
       unsetTarget = null;
       await loadAll();
     } catch (err) {
-      errorMessage = String(err);
+      errorMessage = getErrorMessage(err);
     }
   }
 
@@ -211,7 +212,7 @@
       showAddRow = false;
       await loadAll();
     } catch (err) {
-      errorMessage = String(err);
+      errorMessage = getErrorMessage(err);
     }
   }
 

@@ -9,6 +9,7 @@
   (same order as `git rebase -i`).
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { getRebaseCommits, startInteractiveRebase } from "../../api/tauri";
   import type { RebaseCommit, RebaseAction } from "../../types";
   import * as m from "$lib/paraglide/messages";
@@ -83,7 +84,7 @@
         loading = false;
       })
       .catch((err) => {
-        error = String(err);
+        error = getErrorMessage(err);
         loading = false;
       });
   });
@@ -149,7 +150,7 @@
       await startInteractiveRebase(baseOid, actions);
       onComplete();
     } catch (err) {
-      error = String(err);
+      error = getErrorMessage(err);
     } finally {
       submitting = false;
     }

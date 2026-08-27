@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { selectedCiRun, loadingDetail, loadJobLog, retryCiRun, retryCiFailedJobs, cancelCiRun, retryCiJob } from "../../stores/provider";
   import type { CiJob } from "../../types";
   import * as m from "$lib/paraglide/messages";
@@ -17,28 +18,28 @@
     if (!$selectedCiRun || busy) return;
     busy = true; actionError = null;
     try { await retryCiRun($selectedCiRun.run.id); }
-    catch (e) { actionError = m.pipeline_retry_error({ error: String(e) }); }
+    catch (e) { actionError = m.pipeline_retry_error({ error: getErrorMessage(e) }); }
     finally { busy = false; }
   }
   async function doRetryFailed() {
     if (!$selectedCiRun || busy) return;
     busy = true; actionError = null;
     try { await retryCiFailedJobs($selectedCiRun.run.id); }
-    catch (e) { actionError = m.pipeline_retry_error({ error: String(e) }); }
+    catch (e) { actionError = m.pipeline_retry_error({ error: getErrorMessage(e) }); }
     finally { busy = false; }
   }
   async function doCancel() {
     if (!$selectedCiRun || busy) return;
     busy = true; actionError = null;
     try { await cancelCiRun($selectedCiRun.run.id); }
-    catch (e) { actionError = m.pipeline_cancel_error({ error: String(e) }); }
+    catch (e) { actionError = m.pipeline_cancel_error({ error: getErrorMessage(e) }); }
     finally { busy = false; }
   }
   async function doRetryJob(jobId: number) {
     if (busy) return;
     busy = true; actionError = null;
     try { await retryCiJob(jobId); }
-    catch (e) { actionError = m.pipeline_retry_error({ error: String(e) }); }
+    catch (e) { actionError = m.pipeline_retry_error({ error: getErrorMessage(e) }); }
     finally { busy = false; }
   }
 

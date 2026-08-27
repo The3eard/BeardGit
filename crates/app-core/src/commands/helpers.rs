@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use mutation_events::{MutationGuard, MutationKind};
 use tauri::{AppHandle, State};
 
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 // ─── Serializable response types ────────────────────────────────────────────
@@ -97,39 +98,63 @@ pub struct RemoteInfo {
 /// Generic over the error type rather than fixed to `String`, so a command
 /// returning [`IpcError`](crate::ipc_error::IpcError) can use this as its
 /// tail expression without a conversion at every callsite. The bound is
-/// `From<String>` because the failures raised here are prose; `String`
-/// itself satisfies it, so the commands still on `Result<_, String>` are
-/// unaffected.
+/// `From<IpcError>` rather than `From<String>` so the "no active project"
+/// family can be raised as [`IpcError::expected`] — those are routine, not
+/// failures, and routing them through the logging constructor turned every
+/// read command dispatched against a background tab into an ERROR line.
+/// `String` satisfies the bound through `Display`, so the handful of
+/// callers still on `Result<_, String>` are unaffected.
 pub(super) fn with_active_repo<F, R, E>(state: &State<'_, AppState>, f: F) -> Result<R, E>
 where
     F: FnOnce(&git_engine::Repository) -> Result<R, E>,
-    E: From<String>,
+    E: From<IpcError>,
 {
-    let projects = state.projects.lock().map_err(|e| e.to_string())?;
-    let active = state.active_index.lock().map_err(|e| e.to_string())?;
-    let idx = active.ok_or_else(|| "No active project".to_string())?;
-    let slot = projects
-        .get(idx)
-        .ok_or_else(|| "Active project index out of bounds".to_string())?;
+    // A poisoned mutex is a real failure and logs like one.
+    let projects = state
+        .projects
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?;
+    let active = state
+        .active_index
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?;
+    let idx = active.ok_or_else(no_active_project)?;
+    let slot = projects.get(idx).ok_or_else(|| {
+        tracing::debug!(index = idx, "with_active_repo: index out of bounds");
+        IpcError::expected("no_active_project", "Active project index out of bounds")
+    })?;
     // Debug-only: a command running against a background tab (heavy state
     // is `None` there) is the shape behind most "nothing happened" reports,
-    // and the resolved index tells you which tab it actually hit.
+    // and the resolved index tells you which tab it actually hit. It is
+    // also *routine* — see `no_active_project`.
     let repo = slot.repo.as_ref().ok_or_else(|| {
         tracing::debug!(
             index = idx,
             "with_active_repo: slot has no repository loaded"
         );
-        "No repository open".to_string()
+        IpcError::expected("no_repository_open", "No repository open")
     })?;
     tracing::debug!(index = idx, path = %slot.path, "with_active_repo: resolved");
     f(repo)
+}
+
+/// The "there is nothing to act on" message, logged at DEBUG rather than
+/// ERROR.
+///
+/// Every view issues its reads on mount, and a background tab has no
+/// repository loaded by the active-tab invariant, so this fires constantly
+/// in normal use. It is the one failure in the IPC surface that says
+/// nothing went wrong.
+fn no_active_project() -> IpcError {
+    tracing::debug!("no active project");
+    IpcError::expected("no_active_project", "No active project")
 }
 
 /// Get the filesystem path of the active project.
 pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<PathBuf, String> {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let active = state.active_index.lock().map_err(|e| e.to_string())?;
-    let idx = active.ok_or_else(|| "No active project".to_string())?;
+    let idx = active.ok_or_else(|| String::from(no_active_project()))?;
     let slot = projects
         .get(idx)
         .ok_or_else(|| "Active project index out of bounds".to_string())?;
@@ -193,7 +218,7 @@ where
     result
 }
 
-/// Run a blocking closure on a dedicated thread and map errors to `String`.
+/// Run a blocking closure on a dedicated thread, propagating its error type.
 ///
 /// The current span is carried across the thread boundary. Tracing's
 /// current span is thread-local and `spawn_blocking` moves the closure to

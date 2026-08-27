@@ -15,6 +15,7 @@
  * string already prefixed with `git_` or `ai_` is passed through.
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { get } from "svelte/store";
 import { tasksStore } from "./tasks";
 import type { TaskEntry, TaskKind, TaskStatus } from "../types/tasks";
@@ -107,7 +108,7 @@ export const taskRunner = {
       startedAt: Date.now(),
       finishedAt: Date.now(),
       status: "error" as TaskStatus,
-      errorMessage: err instanceof Error ? err.message : String(err),
+      errorMessage: getErrorMessage(err),
       actions: [],
     });
     return id;

@@ -15,6 +15,7 @@
   "Apply protection" button inside this card.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { Button, Card, Field, FormRow, Switch } from "$lib/components/ui";
   import type { BranchProtection } from "$lib/types/repoConfig";
 
@@ -63,7 +64,7 @@
       const loaded = await getBranchProtection(repoPath, next);
       rules = loaded ?? emptyRules();
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
       rules = emptyRules();
     } finally {
       loading = false;
@@ -88,8 +89,8 @@
         type: "success",
       });
     } catch (e) {
-      error = String(e);
-      addToast({ message: String(e), type: "error" });
+      error = getErrorMessage(e);
+      addToast({ message: getErrorMessage(e), type: "error" });
     } finally {
       saving = false;
     }

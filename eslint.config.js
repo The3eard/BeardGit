@@ -23,6 +23,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const noHexInSvelte = require("./eslint-rules/no-hex-in-svelte.cjs");
+const noStringifyCaughtError = require("./eslint-rules/no-stringify-caught-error.cjs");
 
 /**
  * Guardrail for the "three-file IPC contract" (see src/CLAUDE.md): every
@@ -66,8 +67,12 @@ export default [
   {
     files: ["src/**/*.ts"],
     languageOptions: { parser: tsParser, ecmaVersion: "latest", sourceType: "module" },
+    plugins: {
+      "beardgit": { rules: { "no-stringify-caught-error": noStringifyCaughtError } },
+    },
     rules: {
       "no-restricted-imports": noRawInvoke,
+      "beardgit/no-stringify-caught-error": "error",
     },
   },
   {
@@ -77,10 +82,16 @@ export default [
       parserOptions: { parser: tsParser, extraFileExtensions: [".svelte"] },
     },
     plugins: {
-      "beardgit": { rules: { "no-hex-in-svelte": noHexInSvelte } },
+      "beardgit": {
+        rules: {
+          "no-hex-in-svelte": noHexInSvelte,
+          "no-stringify-caught-error": noStringifyCaughtError,
+        },
+      },
     },
     rules: {
       "beardgit/no-hex-in-svelte": "error",
+      "beardgit/no-stringify-caught-error": "error",
       "no-restricted-imports": noRawInvoke,
     },
   },

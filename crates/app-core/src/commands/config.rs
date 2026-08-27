@@ -64,7 +64,12 @@ pub fn add_config(
 pub fn get_user_identities(state: State<'_, AppState>) -> Result<Vec<String>, IpcError> {
     let mut identities: Vec<String> = Vec::new();
 
-    // Git config email and name from active repo
+    // Git config email and name from active repo.
+    //
+    // These two closures keep plain `String` errors on purpose: the results
+    // are discarded by `if let Ok`, so routing them through `IpcError`
+    // would write a log line for a probe whose failure means "this user has
+    // no git identity configured", which is not a failure.
     if let Ok(email) = with_active_repo(&state, |repo| {
         let config = repo.inner().config().map_err(|e| e.to_string())?;
         config.get_string("user.email").map_err(|e| e.to_string())

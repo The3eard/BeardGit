@@ -18,6 +18,7 @@
     labelsCacheLoading,
     refreshLabelsCache,
   } from "../../stores/issues";
+  import { getErrorMessage } from "$lib/api/errors";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as m from "$lib/paraglide/messages";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
@@ -45,7 +46,7 @@
       actionError = "";
       await closeIssue(d.summary.number);
     } catch (e) {
-      actionError = m.issues_close_failed({ error: String(e) });
+      actionError = m.issues_close_failed({ error: getErrorMessage(e) });
     }
     showCloseConfirm = false;
   }
@@ -57,7 +58,7 @@
       actionError = "";
       await reopenIssue(d.summary.number);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
   }
 
@@ -70,7 +71,7 @@
       await addIssueComment(d.summary.number, commentBody.trim());
       commentBody = "";
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     } finally {
       commentSubmitting = false;
     }
@@ -92,7 +93,7 @@
       if (added.length) await addIssueLabels(d.summary.number, added);
       if (removed.length) await removeIssueLabels(d.summary.number, removed);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
     showLabelPicker = false;
   }
@@ -108,7 +109,7 @@
       if (added.length) await addIssueAssignees(d.summary.number, added);
       if (removed.length) await removeIssueAssignees(d.summary.number, removed);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
     showAssigneePicker = false;
   }
@@ -123,7 +124,7 @@
       actionError = "";
       await setIssueMilestone(d.summary.number, id);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
     showMilestonePicker = false;
   }

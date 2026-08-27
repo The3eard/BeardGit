@@ -1,5 +1,6 @@
 //! Tauri command handlers for the background task system.
 
+use crate::ipc_error::IpcError;
 use std::sync::Arc;
 
 use task_runner::{OutputLine, TaskId, TaskInfo, TaskManager};
@@ -7,7 +8,9 @@ use tauri::State;
 
 /// Return the list of all known tasks (queued, running, and finished).
 #[tauri::command]
-pub async fn get_tasks(task_manager: State<'_, Arc<TaskManager>>) -> Result<Vec<TaskInfo>, String> {
+pub async fn get_tasks(
+    task_manager: State<'_, Arc<TaskManager>>,
+) -> Result<Vec<TaskInfo>, IpcError> {
     Ok(task_manager.list_tasks().await)
 }
 
@@ -18,11 +21,11 @@ pub async fn get_tasks(task_manager: State<'_, Arc<TaskManager>>) -> Result<Vec<
 pub async fn get_task_output(
     task_id: TaskId,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<Vec<OutputLine>, String> {
+) -> Result<Vec<OutputLine>, IpcError> {
     task_manager
         .get_output(task_id)
         .await
-        .ok_or_else(|| format!("task {task_id} not found"))
+        .ok_or_else(|| IpcError::from(format!("task {task_id} not found")))
 }
 
 /// Request cancellation of a running task.
@@ -32,11 +35,12 @@ pub async fn get_task_output(
 pub async fn cancel_task(
     task_id: TaskId,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     task_manager
         .cancel(task_id)
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Cancel a running task by its string id.
@@ -54,9 +58,12 @@ pub async fn cancel_task(
 pub async fn task_cancel(
     id: String,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let parsed: TaskId = id.parse().map_err(|_| format!("invalid task id: {id:?}"))?;
-    task_manager.cancel(parsed).await.map_err(|e| e.to_string())
+    task_manager
+        .cancel(parsed)
+        .await
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
