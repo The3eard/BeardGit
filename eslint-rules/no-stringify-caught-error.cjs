@@ -19,6 +19,19 @@
  * `Error` instances), so it is always the right call. `firstErrorLine`
  * wraps it for single-line toasts.
  *
+ * Three spellings, because a first version of this rule only knew one and
+ * the sweep that went with it had the same blind spot:
+ *
+ *   String(err)              — the obvious one
+ *   String(outcome.err)      — a member expression rooted on the binding
+ *   `failed: ${err}`         — template interpolation, same coercion
+ *
+ * The second is not academic: `taskRunner.complete()` took `outcome.err`
+ * and was reported as fixed while it was not, which put "[object Object]"
+ * in the Tasks popover for every tracked mutation — push, pull, fetch,
+ * merge, rebase, clone. The third accounted for six more sites, one of
+ * them the only command in the app with bespoke error codes.
+ *
  * Escape hatch, for the rare case where the value genuinely is not a
  * rejection — a caught `SyntaxError` from `JSON.parse` of local input,
  * say — put the marker on the line above:
@@ -42,32 +55,55 @@ function hasAllowMarker(context, node) {
 }
 
 /**
- * Names bound by an enclosing `catch (x)`, plus the conventional error
- * parameter names of a `.catch(x => …)` callback. Scoped deliberately: a
- * `String(count)` elsewhere is none of this rule's business.
+ * Names bound by an enclosing `catch (x)`, plus the parameter of a
+ * `.catch(x => …)` callback.
+ *
+ * Scoped deliberately: `String(count)` elsewhere is none of this rule's
+ * business, and neither is `items.map((e) => String(e))` — an earlier
+ * version matched any single-parameter arrow whose parameter happened to
+ * be named `e`, which would have reported that.
  */
 function caughtNames(context, node) {
   const source = context.sourceCode ?? context.getSourceCode();
   const names = new Set();
-  let current = source.getAncestors ? node : node;
   const ancestors = source.getAncestors
     ? source.getAncestors(node)
     : context.getAncestors();
-  for (const a of ancestors) {
+  for (let i = 0; i < ancestors.length; i++) {
+    const a = ancestors[i];
     if (a.type === "CatchClause" && a.param && a.param.type === "Identifier") {
       names.add(a.param.name);
+      continue;
     }
+    // A `.catch(cb)` callback: the function must be the sole argument of a
+    // call whose callee is a `.catch` member access.
+    if (a.type !== "ArrowFunctionExpression" && a.type !== "FunctionExpression") continue;
+    if (a.params.length !== 1 || a.params[0].type !== "Identifier") continue;
+    const parent = ancestors[i - 1];
     if (
-      (a.type === "ArrowFunctionExpression" || a.type === "FunctionExpression") &&
-      a.params.length === 1 &&
-      a.params[0].type === "Identifier" &&
-      /^(e|err|error|ex)$/.test(a.params[0].name)
+      parent &&
+      parent.type === "CallExpression" &&
+      parent.arguments.length === 1 &&
+      parent.arguments[0] === a &&
+      parent.callee.type === "MemberExpression" &&
+      parent.callee.property.type === "Identifier" &&
+      parent.callee.property.name === "catch"
     ) {
       names.add(a.params[0].name);
     }
   }
-  void current;
   return names;
+}
+
+/**
+ * The identifier an expression is rooted on, so `outcome.err` reports
+ * under `outcome` and `err.cause.message` under `err`. Anything that is
+ * not a plain identifier or member chain yields `null`.
+ */
+function rootName(node) {
+  let cur = node;
+  while (cur.type === "MemberExpression") cur = cur.object;
+  return cur.type === "Identifier" ? cur.name : null;
 }
 
 module.exports = {
@@ -80,21 +116,35 @@ module.exports = {
     schema: [],
     messages: {
       stringified:
-        "`String({{name}})` renders a structured IpcError as \"[object Object]\". " +
-        "Use `getErrorMessage({{name}})` from $lib/api/errors (or `firstErrorLine` for a toast).",
+        "Stringifying `{{name}}` renders a structured IpcError as \"[object Object]\". " +
+        "Use `getErrorMessage(...)` from $lib/api/errors (or `firstErrorLine` for a toast).",
     },
   },
 
   create(context) {
+    /** Report `expr` if it is rooted on a caught binding. */
+    function check(node, expr) {
+      const root = rootName(expr);
+      if (!root) return;
+      if (!caughtNames(context, node).has(root)) return;
+      if (hasAllowMarker(context, node)) return;
+      const source = context.sourceCode ?? context.getSourceCode();
+      context.report({
+        node,
+        messageId: "stringified",
+        data: { name: source.getText(expr) },
+      });
+    }
+
     return {
       CallExpression(node) {
         if (node.callee.type !== "Identifier" || node.callee.name !== "String") return;
         if (node.arguments.length !== 1) return;
-        const arg = node.arguments[0];
-        if (arg.type !== "Identifier") return;
-        if (!caughtNames(context, node).has(arg.name)) return;
-        if (hasAllowMarker(context, node)) return;
-        context.report({ node, messageId: "stringified", data: { name: arg.name } });
+        check(node, node.arguments[0]);
+      },
+      // `` `failed: ${err}` `` coerces exactly the same way.
+      TemplateLiteral(node) {
+        for (const expr of node.expressions) check(node, expr);
       },
     };
   },

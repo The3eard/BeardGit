@@ -102,8 +102,9 @@ pub struct RemoteInfo {
 /// family can be raised as [`IpcError::expected`] — those are routine, not
 /// failures, and routing them through the logging constructor turned every
 /// read command dispatched against a background tab into an ERROR line.
-/// `String` satisfies the bound through `Display`, so the handful of
-/// callers still on `Result<_, String>` are unaffected.
+/// The closures that still work in plain `String` errors satisfy the bound
+/// through `impl From<IpcError> for String`, which keeps the message and
+/// drops the code — which is what those callers were doing by hand anyway.
 pub(super) fn with_active_repo<F, R, E>(state: &State<'_, AppState>, f: F) -> Result<R, E>
 where
     F: FnOnce(&git_engine::Repository) -> Result<R, E>,
@@ -119,10 +120,7 @@ where
         .lock()
         .map_err(|e| IpcError::new("error", e.to_string()))?;
     let idx = active.ok_or_else(no_active_project)?;
-    let slot = projects.get(idx).ok_or_else(|| {
-        tracing::debug!(index = idx, "with_active_repo: index out of bounds");
-        IpcError::expected("no_active_project", "Active project index out of bounds")
-    })?;
+    let slot = projects.get(idx).ok_or_else(index_out_of_bounds)?;
     // Debug-only: a command running against a background tab (heavy state
     // is `None` there) is the shape behind most "nothing happened" reports,
     // and the resolved index tells you which tab it actually hit. It is
@@ -151,14 +149,31 @@ fn no_active_project() -> IpcError {
 }
 
 /// Get the filesystem path of the active project.
-pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<PathBuf, String> {
-    let projects = state.projects.lock().map_err(|e| e.to_string())?;
-    let active = state.active_index.lock().map_err(|e| e.to_string())?;
-    let idx = active.ok_or_else(|| String::from(no_active_project()))?;
-    let slot = projects
-        .get(idx)
-        .ok_or_else(|| "Active project index out of bounds".to_string())?;
+///
+/// Returns [`IpcError`] rather than `String` so "no active project" keeps
+/// its code and its DEBUG-only logging all the way out. Returning a bare
+/// message meant the caller's `?` re-wrapped it through the logging
+/// constructor, so the quiet path was quiet for exactly as long as nobody
+/// used it.
+pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<PathBuf, IpcError> {
+    let projects = state
+        .projects
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?;
+    let active = state
+        .active_index
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?;
+    let idx = active.ok_or_else(no_active_project)?;
+    let slot = projects.get(idx).ok_or_else(index_out_of_bounds)?;
     Ok(PathBuf::from(&slot.path))
+}
+
+/// `active_index` pointing past `projects` is state corruption, not a
+/// routine condition — the one arm in this family that does mean something
+/// went wrong. It logs, and it does not borrow `no_active_project`'s code.
+fn index_out_of_bounds() -> IpcError {
+    IpcError::new("error", "Active project index out of bounds")
 }
 
 /// Run `f` inside a [`MutationGuard`] scope, emitting `project-mutated`
@@ -178,7 +193,7 @@ pub(super) fn with_mutation_guard<F, R, E>(
 ) -> Result<R, E>
 where
     F: FnOnce() -> Result<R, E>,
-    E: From<String>,
+    E: From<IpcError>,
 {
     let path = get_active_project_path(state)?;
     let guard = MutationGuard::enter(&path).ok();
@@ -204,7 +219,7 @@ pub(super) async fn with_mutation_guard_async<F, Fut, R, E>(
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<R, E>>,
-    E: From<String>,
+    E: From<IpcError>,
 {
     let path = get_active_project_path(state)?;
     let guard = MutationGuard::enter(&path).ok();
