@@ -21,6 +21,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Soft cap on workdir reads. Files larger than this return
@@ -66,13 +67,13 @@ pub enum ReadWorkdirFileResult {
 pub fn read_workdir_file(
     path: String,
     state: State<'_, AppState>,
-) -> Result<ReadWorkdirFileResult, String> {
+) -> Result<ReadWorkdirFileResult, IpcError> {
     with_active_repo(&state, |repo| {
         let full = git_engine::file_content::validate_repo_relative_path(repo.path(), &path)
             .map_err(|e| e.to_string())?;
         let meta = std::fs::metadata(&full).map_err(|e| e.to_string())?;
         if !meta.is_file() {
-            return Err(format!("not a regular file: {path}"));
+            return Err(format!("not a regular file: {path}").into());
         }
         let size = meta.len();
         if size > MAX_READ_BYTES {
@@ -115,11 +116,11 @@ pub fn write_workdir_file(
     content: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
             repo.write_file_workdir(&path, &content)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
     })
 }
@@ -135,7 +136,7 @@ pub fn list_workdir_tree(
     max_entries: u32,
     respect_gitignore: bool,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::WorkdirTreeEntry>, String> {
+) -> Result<Vec<git_engine::WorkdirTreeEntry>, IpcError> {
     with_active_repo(&state, |repo| {
         let entries = repo
             .list_workdir_tree(prefix.as_deref(), max_entries as usize, respect_gitignore)
@@ -171,7 +172,7 @@ pub fn search_workdir_files(
     limit: u32,
     respect_gitignore: bool,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::WorkdirTreeEntry>, String> {
+) -> Result<Vec<git_engine::WorkdirTreeEntry>, IpcError> {
     with_active_repo(&state, |repo| {
         let hits = repo
             .search_workdir_files(&query, limit as usize, respect_gitignore)
@@ -193,11 +194,11 @@ pub fn create_workdir_path(
     is_directory: bool,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
             repo.create_workdir_path(&path, is_directory)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
     })
 }
@@ -212,11 +213,11 @@ pub fn rename_workdir_path(
     to_path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
             repo.rename_workdir_path(&from_path, &to_path)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
     })
 }
@@ -229,10 +230,10 @@ pub fn delete_workdir_path(
     path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.delete_workdir_path(&path).map_err(|e| e.to_string())
+            repo.delete_workdir_path(&path).map_err(IpcError::from)
         })
     })
 }

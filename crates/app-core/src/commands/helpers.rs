@@ -90,12 +90,20 @@ pub struct RemoteInfo {
 /// Execute a function with a reference to the active project's repository.
 ///
 /// Locks `projects` and `active_index`, resolves the active [`ProjectSlot`],
-/// and calls `f` with the loaded [`git_engine::Repository`]. Returns an error
-/// string if no project is active, the index is out of bounds, or no repository
-/// is loaded in the slot.
-pub(super) fn with_active_repo<F, R>(state: &State<'_, AppState>, f: F) -> Result<R, String>
+/// and calls `f` with the loaded [`git_engine::Repository`]. Errors when no
+/// project is active, the index is out of bounds, or no repository is loaded
+/// in the slot.
+///
+/// Generic over the error type rather than fixed to `String`, so a command
+/// returning [`IpcError`](crate::ipc_error::IpcError) can use this as its
+/// tail expression without a conversion at every callsite. The bound is
+/// `From<String>` because the failures raised here are prose; `String`
+/// itself satisfies it, so the commands still on `Result<_, String>` are
+/// unaffected.
+pub(super) fn with_active_repo<F, R, E>(state: &State<'_, AppState>, f: F) -> Result<R, E>
 where
-    F: FnOnce(&git_engine::Repository) -> Result<R, String>,
+    F: FnOnce(&git_engine::Repository) -> Result<R, E>,
+    E: From<String>,
 {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let active = state.active_index.lock().map_err(|e| e.to_string())?;
@@ -137,14 +145,15 @@ pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<Pat
 /// `f`, re-snapshots afterward, and only emits when the closure returned
 /// `Ok`. Emit failures are logged via `tracing::warn!` but do not
 /// clobber the original success value returned from `f`.
-pub(super) fn with_mutation_guard<F, R>(
+pub(super) fn with_mutation_guard<F, R, E>(
     state: &State<'_, AppState>,
     app: &AppHandle,
     kind: MutationKind,
     f: F,
-) -> Result<R, String>
+) -> Result<R, E>
 where
-    F: FnOnce() -> Result<R, String>,
+    F: FnOnce() -> Result<R, E>,
+    E: From<String>,
 {
     let path = get_active_project_path(state)?;
     let guard = MutationGuard::enter(&path).ok();
