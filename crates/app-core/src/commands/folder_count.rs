@@ -1,6 +1,7 @@
 //! Folder content counter used by the init-repo dialog to preview
 //! how many files would be staged for the initial commit.
 
+use crate::ipc_error::IpcError;
 use std::path::Path;
 
 #[derive(Debug, serde::Serialize, PartialEq, Eq)]
@@ -80,7 +81,7 @@ pub fn walk(path: &Path) -> FolderCount {
 /// Tauri command: count files + bytes in a folder for the init-repo preview.
 #[tauri::command]
 #[tracing::instrument(name = "cmd::folder_count")]
-pub fn count_folder_contents(path: String) -> Result<FolderCount, String> {
+pub fn count_folder_contents(path: String) -> Result<FolderCount, IpcError> {
     Ok(walk(Path::new(&path)))
 }
 
