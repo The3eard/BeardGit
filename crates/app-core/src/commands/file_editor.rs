@@ -167,22 +167,29 @@ pub fn list_workdir_tree(
     fields(limit, respect_gitignore),
     name = "cmd::file_editor::search_workdir_files"
 )]
-pub fn search_workdir_files(
+pub async fn search_workdir_files(
     query: String,
     limit: u32,
     respect_gitignore: bool,
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::WorkdirTreeEntry>, IpcError> {
-    with_active_repo(&state, |repo| {
+    // `async` matters more here than anywhere else in this file: the search
+    // walks the whole working tree (16–30 ms on this repo) and the UI calls it
+    // per keystroke. As a non-async command that walk ran on the main thread,
+    // so every character typed cost a frame.
+    let repo_path = get_active_project_path(&state)?;
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
         let hits = repo
             .search_workdir_files(&query, limit as usize, respect_gitignore)
-            .map_err(|e| e.to_string())?;
+            .map_err(IpcError::from)?;
         // `skip_all` plus explicit fields above: the query is user prose and
         // has no business in a span field, and neither do the paths it
         // matched. The count is the useful part.
         tracing::debug!(matched = hits.len(), "workdir search");
         Ok(hits)
     })
+    .await
 }
 
 /// Create a new file or directory at `path`. Errors if `path` already
