@@ -229,6 +229,74 @@ export async function refreshTree(respectGitignore: boolean): Promise<void> {
   await Promise.all(open.map((p) => loadDirectory(p, respectGitignore)));
 }
 
+/**
+ * Re-list only the directories a path change can have affected.
+ *
+ * This is what the CRUD wrappers use instead of {@link refreshTree}. A full
+ * refresh empties `treeChildren` before re-listing, and emptying it is a
+ * visible blank frame — one the user sees for nothing, because
+ * `project-mutated` has usually already refreshed the tree by the time the
+ * wrapper's own refresh lands. Re-listing the parent leaves every other
+ * directory's cache alone, so there is nothing to blank.
+ *
+ * `prefixes` are the *parent* directories to re-list; `""` is the root.
+ * `removed`, when given, is a path that no longer exists — its cached
+ * subtree is dropped, since a partial refresh no longer clears it wholesale.
+ * Without that, deleting `src/old/` and later creating a directory of the
+ * same name would show the dead listing.
+ *
+ * Note this does **not** replace the wrappers' need to refresh at all: the
+ * `project-mutated` listener filters on `status_changed`, which is blind to
+ * a new empty directory, the second file in an untracked directory, and
+ * anything gitignored. See `file-editor/CLAUDE.md`.
+ */
+export async function refreshTreePaths(
+  prefixes: string[],
+  respectGitignore: boolean,
+  removed?: string,
+): Promise<void> {
+  if (removed !== undefined) {
+    const isUnder = (p: string) => p === removed || p.startsWith(`${removed}/`);
+    const dropKeys = <T>(map: Map<string, T>) => {
+      const next = new Map(map);
+      for (const key of map.keys()) if (isUnder(key)) next.delete(key);
+      return next;
+    };
+    const dropFlags = (set: Set<string>) => {
+      const next = new Set(set);
+      for (const key of set) if (isUnder(key)) next.delete(key);
+      return next;
+    };
+    treeChildren.update(dropKeys);
+    expandedDirs.update(dropFlags);
+    failedDirs.update(dropFlags);
+    // `loadingDirs` is deliberately left alone: an in-flight listing has to
+    // clear its own flag in its `finally`, and dropping the key here would
+    // leave that write to re-add it with nothing to clear it afterwards.
+  }
+
+  const seq = treeSeq;
+  // Deduped: a rename within one directory names the same parent twice, and
+  // listing it twice would race two writes for the same key.
+  await Promise.all(
+    [...new Set(prefixes)].map((p) => loadDirectory(p, respectGitignore)),
+  );
+  // Same guard as `refreshTree`: a project switch or gitignore toggle while
+  // these were in flight means the answers belong to a tree that is gone.
+  if (seq !== treeSeq) return;
+}
+
+/**
+ * Parent directory of a repo-relative path, or `""` for a top-level entry.
+ *
+ * Forward slashes only — paths crossing the IPC boundary are normalised, per
+ * `git-engine`'s path contract.
+ */
+export function parentDir(path: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx === -1 ? "" : path.slice(0, idx);
+}
+
 /** Drop all tree state — used when switching to a different project. */
 export function resetTree(): void {
   treeSeq++;
@@ -729,7 +797,7 @@ export async function createPath(
     invoke: () => apiCreatePath(path, isDirectory),
     failureToastPrefix: isDirectory ? "Create folder failed" : "Create file failed",
   });
-  await refreshTree(respectGitignore);
+  await refreshTreePaths([parentDir(path)], respectGitignore);
   if (!isDirectory) {
     await openTab(path);
   }
@@ -750,7 +818,14 @@ export async function renamePath(
     failureToastPrefix: "Rename failed",
   });
   renameOpenTab(fromPath, toPath);
-  await refreshTree(respectGitignore);
+  // Both ends: a move between directories changes two listings. `fromPath`
+  // is also passed as `removed` — if it was a directory, its cached subtree
+  // is now under the new name and the old keys are dead.
+  await refreshTreePaths(
+    [parentDir(fromPath), parentDir(toPath)],
+    respectGitignore,
+    fromPath,
+  );
 }
 
 /**
@@ -768,7 +843,7 @@ export async function deletePath(
     failureToastPrefix: "Delete failed",
   });
   closeTabsUnder(path);
-  await refreshTree(respectGitignore);
+  await refreshTreePaths([parentDir(path)], respectGitignore, path);
 }
 
 /**
