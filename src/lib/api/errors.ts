@@ -83,10 +83,10 @@ export function firstErrorLine(e: unknown): string {
  *   @unmapped invalid_url invalid_destination destination_exists invalid_path
  *   @unmapped invalid_argument invalid_log_level
  *
- * - Step-level failures of a multi-step flow (clone, init, log config). The
- *   step name is in the code and the cause is in the message; a generic
+ * - Step-level failures of a multi-step flow (init, log config). The step
+ *   name is in the code and the cause is in the message; a generic
  *   sentence per step would say only what the code already says:
- *   @unmapped clone_failed open_failed init_failed gitignore_failed
+ *   @unmapped open_failed init_failed gitignore_failed
  *   @unmapped commit_failed create_remote_failed add_origin_failed
  *   @unmapped push_failed log_level_failed
  *

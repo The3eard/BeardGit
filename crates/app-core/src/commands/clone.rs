@@ -1,48 +1,80 @@
-//! `clone_repo` — clones a remote git repository into a local parent
-//! directory and returns the absolute path of the resulting working tree.
+//! `clone_repo` — validates a clone request and hands the actual clone to
+//! the [`TaskManager`], returning where the repo will land plus the id of
+//! the task doing the work.
 //!
-//! Mirrors the shape of [`super::init`]: a small typed payload, a pure
-//! pipeline that does the actual work (`run_clone_pipeline`), and a thin
-//! Tauri wrapper that the frontend invokes from `CloneRepoDialog`.
-//!
-//! The pipeline shells out to `git clone <url> <target>` so cred-helpers
+//! The clone shells out to `git clone <url> <target>` so cred-helpers
 //! (`gh auth`, `glab auth`, `osxkeychain`, …) and SSH agents Just Work the
 //! same way they do everywhere else in BeardGit. We intentionally do not
 //! use `git2`'s built-in clone here: libgit2 cannot reuse the user's
 //! configured credential helpers, which would give us a worse UX than the
 //! status quo (where the user runs `git clone` in a terminal).
 //!
-//! Each step is independently fallible. The error enum is tagged so the
-//! dialog banner can branch on the failure mode without parsing free
-//! text — same convention as [`super::init::InitRepoError`].
+//! Validation stays in this command and stays synchronous — it is pure
+//! string and `stat` work, and the dialog wants those failures back in its
+//! banner before it closes. The clone itself does not: it used to run
+//! inline in a non-async command, which Tauri executes on the main thread,
+//! so the window was frozen for however long the clone took, with no
+//! progress and no way to cancel. It now goes through `TaskManager` like
+//! fetch / pull / push, which is also what finally gives
+//! [`task_runner::TaskKind::GitClone`] a producer — the whole drawer path
+//! for it (allowlist, wire kind, row, detail panel, i18n) already existed
+//! and nothing ever created the task.
+//!
+//! The validation errors stay tagged so the dialog banner can branch on the
+//! failure mode without parsing free text — same convention as
+//! [`super::init::InitRepoError`]. A failure of the clone itself is no
+//! longer one of them: it arrives as a failed task.
+//!
+//! The task is spawned `cancellable`, which is new — an unwanted clone of a
+//! huge repo used to be unstoppable. One consequence: `git clone` cleans up
+//! its target after failing on its own, but not after being killed, so a
+//! cancelled clone leaves a partial checkout behind. Retrying then trips
+//! `DestinationExists`, whose message already tells the user to remove it or
+//! pick another folder. We deliberately do not delete it for them — silently
+//! removing a directory the user did not name is its own class of bug.
 
-use std::path::Path;
-use std::process::Command;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
+use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
+use tauri::State;
 
 use crate::ipc_error::IpcError;
 
-/// Options accepted by [`clone_repo`] (and `run_clone_pipeline`).
+/// Options accepted by [`clone_repo`] (and [`validate_clone_request`]).
 #[derive(Debug, Deserialize)]
 pub struct CloneRepoOptions {
     /// Clone URL — HTTPS, SSH, or `git@` shorthand.
     pub url: String,
     /// Absolute path to the *parent* folder where the repo should land.
-    /// The pipeline derives the final folder name from `url` and creates
-    /// it as a subdirectory of `parent_dir`.
+    /// The final folder name is derived from `url` and created as a
+    /// subdirectory of `parent_dir`.
     pub parent_dir: String,
 }
 
-/// Successful pipeline outcome.
+/// Accepted clone request: the work is now running as a task.
 #[derive(Debug, Serialize)]
 pub struct CloneRepoSuccess {
-    /// Absolute path of the freshly cloned working tree. The frontend
-    /// hands this straight back to `open_project` to mount it as a tab.
+    /// Id of the `TaskKind::GitClone` task running the clone. The frontend
+    /// watches this in the tasks store to know when the repo is ready.
+    pub task_id: TaskId,
+    /// Absolute path the clone is landing in. Computed during validation,
+    /// so it is known before the clone finishes; the frontend hands it to
+    /// `open_project` once the task succeeds.
     pub path: String,
     /// Final folder name (basename of `path`). Convenient for toast
     /// messages so the FE does not have to re-parse the path.
     pub name: String,
+}
+
+/// A clone request that passed validation. Carries what the spawn needs.
+#[derive(Debug)]
+pub(crate) struct ValidatedClone {
+    /// Absolute path the clone will create.
+    pub(crate) target: PathBuf,
+    /// Basename of `target`.
+    pub(crate) name: String,
 }
 
 /// Tagged error so the FE can highlight which pipeline step failed.
@@ -68,20 +100,14 @@ pub enum CloneRepoError {
         /// they can either delete it or pick a different parent.
         path: String,
     },
-    /// `git clone` itself failed (network error, auth rejected, repository
-    /// not found, …). `message` carries the captured stderr.
-    Clone {
-        /// stderr from the failing `git clone` invocation, trimmed.
-        message: String,
-    },
 }
 
-/// Pure pipeline (no `AppState`). [`clone_repo`] wraps this with the
-/// `#[tauri::command]` attribute; tests drive it directly so no IPC is
-/// required.
-pub(crate) fn run_clone_pipeline(
+/// Pure validation (no `AppState`, no I/O beyond `stat`). [`clone_repo`]
+/// calls this before spawning the task; tests drive it directly so no IPC
+/// is required.
+pub(crate) fn validate_clone_request(
     opts: &CloneRepoOptions,
-) -> Result<CloneRepoSuccess, CloneRepoError> {
+) -> Result<ValidatedClone, CloneRepoError> {
     let url = opts.url.trim();
     if url.is_empty() {
         return Err(CloneRepoError::InvalidUrl {
@@ -124,34 +150,7 @@ pub(crate) fn run_clone_pipeline(
         });
     }
 
-    // The `--` separator stops `git` from interpreting a URL that begins with
-    // `--` (or any unknown clone-url shape we add later) as a CLI flag. Belt-
-    // and-suspenders next to `looks_like_clone_url`.
-    let output = Command::new("git")
-        .arg("clone")
-        .arg("--")
-        .arg(url)
-        .arg(&target)
-        .output()
-        .map_err(|e| CloneRepoError::Clone {
-            message: format!("failed to spawn git: {e}"),
-        })?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(CloneRepoError::Clone {
-            message: if stderr.is_empty() {
-                format!("git clone exited with status {}", output.status)
-            } else {
-                stderr
-            },
-        });
-    }
-
-    Ok(CloneRepoSuccess {
-        path: target.to_string_lossy().into_owned(),
-        name,
-    })
+    Ok(ValidatedClone { target, name })
 }
 
 /// Returns true iff `url` matches one of the prefixes the FE also
@@ -189,24 +188,68 @@ fn derive_repo_name(url: &str) -> Option<String> {
     }
 }
 
-/// Tauri command. Thin wrapper around [`run_clone_pipeline`] — kept
-/// trivial so all the testable logic lives in the pure function above.
+/// Tauri command. Validates, then spawns the clone as a task and returns
+/// immediately with its id.
 ///
-/// The pure pipeline keeps its typed [`CloneRepoError`] (so its tests can
-/// match on the failing step); the command boundary folds it into the shared
+/// Validation keeps its typed [`CloneRepoError`] (so its tests can match on
+/// the failing step); the command boundary folds it into the shared
 /// [`IpcError`] envelope, mapping each step to a stable `code`
-/// (`invalid_url`, `destination_exists`, `clone_failed`, …).
+/// (`invalid_url`, `invalid_destination`, `destination_exists`). A failure of
+/// the clone itself is not an `IpcError` at all any more — it surfaces as a
+/// failed task, with git's stderr in the task's output.
 #[tauri::command]
 // `skip_all`: `CloneRepoOptions` holds the source URL, which names a
 // possibly-private repo. The destination is enough to follow the flow.
 #[tracing::instrument(skip_all, fields(parent_dir = %options.parent_dir), name = "cmd::clone_repo")]
-pub fn clone_repo(options: CloneRepoOptions) -> Result<CloneRepoSuccess, IpcError> {
-    run_clone_pipeline(&options).map_err(IpcError::from)
+pub async fn clone_repo(
+    options: CloneRepoOptions,
+    task_manager: State<'_, Arc<TaskManager>>,
+) -> Result<CloneRepoSuccess, IpcError> {
+    spawn_clone(&task_manager, &options)
+        .await
+        .map_err(IpcError::from)
+}
+
+/// Validate, then hand the clone to `task_manager`. Split out of
+/// [`clone_repo`] so tests can drive the real spawn path without
+/// constructing a Tauri `State`.
+pub(crate) async fn spawn_clone(
+    task_manager: &Arc<TaskManager>,
+    options: &CloneRepoOptions,
+) -> Result<CloneRepoSuccess, CloneRepoError> {
+    let validated = validate_clone_request(options)?;
+
+    let url = options.url.trim().to_string();
+    let target = validated.target.to_string_lossy().into_owned();
+    // Validation already established that this is an existing directory.
+    let cwd = Path::new(options.parent_dir.trim());
+
+    // The `--` separator stops `git` from interpreting a URL that begins with
+    // `--` (or any unknown clone-url shape we add later) as a CLI flag. Belt-
+    // and-suspenders next to `looks_like_clone_url`.
+    let task_id = task_manager
+        .spawn_with_options(SpawnOptions {
+            label: format!("Clone {}", validated.name),
+            command: "git",
+            args: &["clone", "--", &url, &target],
+            cwd,
+            cancellable: true,
+            kind: TaskKind::GitClone,
+            stdin: None,
+        })
+        .await;
+
+    Ok(CloneRepoSuccess {
+        task_id,
+        path: target,
+        name: validated.name,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
 
     #[test]
     fn rejects_url_with_newline() {
@@ -214,7 +257,7 @@ mod tests {
             url: "https://example.com/repo.git\nrm -rf /".into(),
             parent_dir: ".".into(),
         };
-        let err = run_clone_pipeline(&opts).unwrap_err();
+        let err = validate_clone_request(&opts).unwrap_err();
         assert!(
             matches!(err, CloneRepoError::InvalidUrl { ref message } if message.contains("control")),
             "got {err:?}"
@@ -227,7 +270,7 @@ mod tests {
             url: "https://example.com/repo .git".into(),
             parent_dir: ".".into(),
         };
-        let err = run_clone_pipeline(&opts).unwrap_err();
+        let err = validate_clone_request(&opts).unwrap_err();
         assert!(matches!(err, CloneRepoError::InvalidUrl { .. }));
     }
 
@@ -237,7 +280,7 @@ mod tests {
             url: "https://example.com/repo\u{0}/x.git".into(),
             parent_dir: ".".into(),
         };
-        let err = run_clone_pipeline(&opts).unwrap_err();
+        let err = validate_clone_request(&opts).unwrap_err();
         assert!(matches!(err, CloneRepoError::InvalidUrl { .. }));
     }
 
@@ -317,7 +360,7 @@ mod tests {
 
     #[test]
     fn pipeline_rejects_empty_url() {
-        let err = run_clone_pipeline(&CloneRepoOptions {
+        let err = validate_clone_request(&CloneRepoOptions {
             url: "  ".into(),
             parent_dir: ".".into(),
         })
@@ -327,7 +370,7 @@ mod tests {
 
     #[test]
     fn pipeline_rejects_unrecognised_url_shape() {
-        let err = run_clone_pipeline(&CloneRepoOptions {
+        let err = validate_clone_request(&CloneRepoOptions {
             url: "ftp://example.com/x".into(),
             parent_dir: ".".into(),
         })
@@ -337,7 +380,7 @@ mod tests {
 
     #[test]
     fn pipeline_rejects_missing_parent_dir() {
-        let err = run_clone_pipeline(&CloneRepoOptions {
+        let err = validate_clone_request(&CloneRepoOptions {
             url: "https://example.com/x.git".into(),
             parent_dir: "/definitely/not/a/real/path/here".into(),
         })
@@ -346,12 +389,12 @@ mod tests {
     }
 
     #[test]
-    fn pipeline_refuses_to_overwrite_existing_target() {
+    fn validation_refuses_to_overwrite_existing_target() {
         let tmp = tempfile::tempdir().unwrap();
         // Pre-create the target subdir so the pipeline trips on its existence
         // check before it ever invokes `git`.
         std::fs::create_dir(tmp.path().join("repo")).unwrap();
-        let err = run_clone_pipeline(&CloneRepoOptions {
+        let err = validate_clone_request(&CloneRepoOptions {
             url: "https://example.com/me/repo.git".into(),
             parent_dir: tmp.path().to_string_lossy().into_owned(),
         })
@@ -364,11 +407,15 @@ mod tests {
         }
     }
 
-    #[test]
-    fn pipeline_clones_a_local_bare_repo() {
+    /// End-to-end smoke test: build a tiny bare repo on disk, then point the
+    /// real spawn path at it via a `file://` URL. Avoids hitting the network.
+    ///
+    /// Drives `spawn_clone` + `wait_for_terminal` rather than running `git
+    /// clone` directly, so it covers what production actually does: the args
+    /// this module builds, executed by `TaskManager`.
+    #[tokio::test]
+    async fn spawn_clone_clones_a_local_bare_repo() {
         use std::path::PathBuf;
-        // End-to-end smoke test: build a tiny bare repo on disk, then point
-        // the pipeline at it via a `file://` URL. Avoids hitting the network.
         let src = tempfile::tempdir().unwrap();
         let bare = src.path().join("origin.git");
         let init_status = Command::new("git")
@@ -400,15 +447,46 @@ mod tests {
         } else {
             format!("file:///{bare_url_path}")
         };
-        let success = run_clone_pipeline(&CloneRepoOptions {
-            url: bare_url,
-            parent_dir: dest.path().to_string_lossy().into_owned(),
-        })
+        let manager = Arc::new(TaskManager::new(Arc::new(NoopSink)));
+        let success = spawn_clone(
+            &manager,
+            &CloneRepoOptions {
+                url: bare_url,
+                parent_dir: dest.path().to_string_lossy().into_owned(),
+            },
+        )
+        .await
         .unwrap();
         assert_eq!(success.name, "origin");
+
+        let status = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            manager.wait_for_terminal(success.task_id),
+        )
+        .await
+        .expect("clone task should finish promptly")
+        .expect("task should be in the registry");
+        assert!(
+            matches!(status, task_runner::TaskStatus::Completed),
+            "expected Completed, got {status:?}"
+        );
+
         let cloned: PathBuf = success.path.into();
         assert!(cloned.join(".git").is_dir());
         assert!(cloned.join("README.md").is_file());
+    }
+
+    /// Minimal sink: the clone path emits through `TaskEmitter`, not this,
+    /// so the test only needs the trait satisfied.
+    struct NoopSink;
+
+    #[async_trait::async_trait]
+    impl task_runner::TaskEventSink for NoopSink {
+        async fn on_task_started(&self, _info: task_runner::TaskInfo) {}
+        async fn on_task_output(&self, _task_id: TaskId, _line: task_runner::OutputLine) {}
+        async fn on_task_completed(&self, _info: task_runner::TaskInfo) {}
+        async fn on_task_failed(&self, _info: task_runner::TaskInfo) {}
+        async fn on_task_cancelled(&self, _info: task_runner::TaskInfo) {}
     }
 
     fn run_git(dir: &tempfile::TempDir, args: &[&str]) {
