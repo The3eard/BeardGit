@@ -82,7 +82,6 @@ pub async fn checkout_detached(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Delete a local branch by name.
@@ -117,7 +116,6 @@ pub async fn delete_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// List local branches that are candidates for cleanup, classified into
@@ -185,7 +183,6 @@ pub async fn delete_branches(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Switch the working tree to an existing local branch.
@@ -216,7 +213,6 @@ pub async fn checkout_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Merge a branch into the current branch via the git CLI.
@@ -252,7 +248,6 @@ pub async fn merge_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Rebase the current branch onto another branch or commit via the git CLI.
@@ -288,7 +283,6 @@ pub async fn rebase_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Rename a local branch.
@@ -321,7 +315,6 @@ pub async fn rename_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 #[cfg(test)]

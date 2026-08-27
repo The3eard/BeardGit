@@ -105,7 +105,6 @@ pub async fn create_tag(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Delete a local tag by name.
@@ -135,7 +134,6 @@ pub async fn delete_tag(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Push a tag to a remote as a background task.
