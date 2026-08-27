@@ -60,7 +60,45 @@ pub fn config_files(repo_path: &Path) -> Vec<AiConfigFile> {
     files
 }
 
+/// How deep below the repo root to look for nested `CLAUDE.md` files.
+///
+/// Claude Code itself reads the nearest `CLAUDE.md` walking up from the file
+/// being edited, so they live wherever a subsystem lives — and in this repo
+/// that is `src/lib/components/file-editor/`, four levels down. Six covers
+/// that with room to spare without turning discovery into a full-tree walk.
+const MAX_INSTRUCTION_DEPTH: usize = 6;
+
+/// Cap on how many instruction files one repo can contribute, so a monorepo
+/// with hundreds cannot stall the panel.
+const MAX_INSTRUCTION_FILES: usize = 200;
+
+/// Directories never worth descending into: build output, vendored deps, and
+/// VCS metadata. Skipping them is what keeps the walk cheap.
+const SKIP_DIRS: &[&str] = &[
+    ".git",
+    ".next",
+    ".svelte-kit",
+    ".venv",
+    "__pycache__",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "target",
+    "vendor",
+];
+
 /// Discover CLAUDE.md instruction files across all scopes.
+///
+/// Walks the repo rather than probing a fixed list of subdirectory names.
+/// The list used to be `["crates", "src", "src-tauri", "packages", "apps"]`,
+/// checked one level deep, which found 2 of this repo's own 12 `CLAUDE.md`
+/// files: everything under `crates/<crate>/` and `src/lib/**` was invisible,
+/// and a project keeping its instructions anywhere else showed none at all.
+///
+/// Deliberately ignores `.gitignore`. `**/CLAUDE.md` is gitignored in this
+/// very repo, and a file the user cannot see in the panel is a file they
+/// cannot edit there.
 pub fn instruction_files(repo_path: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
     let home = dirs::home_dir().unwrap_or_default();
@@ -71,21 +109,50 @@ pub fn instruction_files(repo_path: &Path) -> Vec<PathBuf> {
         files.push(user_md);
     }
 
-    // Project root
+    // Project root, then everything below it.
     let project_md = repo_path.join("CLAUDE.md");
     if project_md.is_file() {
         files.push(project_md);
     }
-
-    // Subdirectory CLAUDE.md files (scan known patterns)
-    for subdir in ["crates", "src", "src-tauri", "packages", "apps"] {
-        let sub_md = repo_path.join(subdir).join("CLAUDE.md");
-        if sub_md.is_file() {
-            files.push(sub_md);
-        }
-    }
+    let mut nested = Vec::new();
+    collect_instruction_files(repo_path, 0, &mut nested);
+    // Sorted so the tree order is stable across runs; `read_dir` is not.
+    nested.sort();
+    files.extend(nested);
 
     files
+}
+
+/// Recursive half of [`instruction_files`], collecting nested matches only.
+fn collect_instruction_files(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
+    if depth >= MAX_INSTRUCTION_DEPTH || out.len() >= MAX_INSTRUCTION_FILES {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        if out.len() >= MAX_INSTRUCTION_FILES {
+            return;
+        }
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        // `file_type` rather than `is_dir`, so a symlinked directory is not
+        // followed — a link back up the tree would recurse until the depth
+        // cap, reporting the same files under a second path.
+        let Ok(ft) = entry.file_type() else { continue };
+        let path = entry.path();
+        if ft.is_dir() {
+            if SKIP_DIRS.contains(&name) {
+                continue;
+            }
+            collect_instruction_files(&path, depth + 1, out);
+        } else if ft.is_file() && name == "CLAUDE.md" && depth > 0 {
+            // `depth > 0`: the root one is pushed by the caller, in the order
+            // the panel wants it (before the nested ones).
+            out.push(path);
+        }
+    }
 }
 
 /// Scan a directory for `.md` agent definition files and push them.
@@ -208,6 +275,102 @@ mod tests {
 
         let files = instruction_files(dir.path());
         assert!(files.len() >= 2);
+    }
+
+    /// The shape that was broken: instructions nested deeper than one level,
+    /// and under directory names the old fixed list never mentioned.
+    ///
+    /// The old implementation probed `["crates", "src", "src-tauri",
+    /// "packages", "apps"]` exactly one level down, which found 2 of this
+    /// repo's own 12 CLAUDE.md files.
+    #[test]
+    fn discovers_nested_instruction_files_at_any_depth() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("CLAUDE.md"), "# Root").unwrap();
+
+        // Two levels under a listed name — missed before.
+        let deep_crate = root.join("crates/git-engine");
+        fs::create_dir_all(&deep_crate).unwrap();
+        fs::write(deep_crate.join("CLAUDE.md"), "# git-engine").unwrap();
+
+        // Four levels down, under names the old list did not contain.
+        let deep_component = root.join("src/lib/components/file-editor");
+        fs::create_dir_all(&deep_component).unwrap();
+        fs::write(deep_component.join("CLAUDE.md"), "# file-editor").unwrap();
+
+        // A directory name the old list never had at all.
+        let backend = root.join("backend");
+        fs::create_dir_all(&backend).unwrap();
+        fs::write(backend.join("CLAUDE.md"), "# backend").unwrap();
+
+        let files = instruction_files(root);
+        let found: Vec<String> = files
+            .iter()
+            .filter(|p| p.starts_with(root))
+            .map(|p| {
+                p.strip_prefix(root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+
+        assert!(found.contains(&"CLAUDE.md".to_string()), "{found:?}");
+        assert!(
+            found.contains(&"crates/git-engine/CLAUDE.md".to_string()),
+            "two levels under a known name must be found: {found:?}"
+        );
+        assert!(
+            found.contains(&"src/lib/components/file-editor/CLAUDE.md".to_string()),
+            "four levels down must be found: {found:?}"
+        );
+        assert!(
+            found.contains(&"backend/CLAUDE.md".to_string()),
+            "an unlisted directory name must be found: {found:?}"
+        );
+        // The root one comes first, so the panel lists it above the nested ones.
+        assert_eq!(found.first().map(String::as_str), Some("CLAUDE.md"));
+    }
+
+    /// Build output must not be walked — it is both pointless and slow, and a
+    /// vendored copy of another project would report its CLAUDE.md as ours.
+    #[test]
+    fn instruction_scan_skips_build_and_vendor_directories() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        for skipped in ["node_modules", "target", ".git", "dist"] {
+            let d = root.join(skipped).join("nested");
+            fs::create_dir_all(&d).unwrap();
+            fs::write(d.join("CLAUDE.md"), "# should not appear").unwrap();
+        }
+        fs::write(root.join("CLAUDE.md"), "# Root").unwrap();
+
+        let files = instruction_files(root);
+        let under_root: Vec<_> = files.iter().filter(|p| p.starts_with(root)).collect();
+        assert_eq!(
+            under_root.len(),
+            1,
+            "only the root CLAUDE.md may be reported: {under_root:?}"
+        );
+    }
+
+    /// A symlink pointing back up the tree must not be followed, or the same
+    /// file is reported twice under two paths.
+    #[test]
+    fn instruction_scan_does_not_follow_directory_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let sub = root.join("sub");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join("CLAUDE.md"), "# Sub").unwrap();
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(root, sub.join("loop")).unwrap();
+
+        let files = instruction_files(root);
+        let under_root: Vec<_> = files.iter().filter(|p| p.starts_with(root)).collect();
+        assert_eq!(under_root.len(), 1, "{under_root:?}");
     }
 
     #[test]
