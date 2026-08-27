@@ -81,3 +81,8 @@ src-tauri/binaries/
 
 # CodeGraph MCP local index
 .codegraph/
+
+# Personal task notes + bug evidence (local working files, not shared)
+tasks.md
+bug_images/
+bug_videos/

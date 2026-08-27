@@ -142,5 +142,10 @@
     justify-content: flex-end;
     gap: 6px;
     padding: 6px 10px;
+    /* The shared panel-header height, so this row's bottom border lines up
+       with the file column's across the divider. It happened to be 36px
+       from its own content; declaring it stops that being luck. */
+    min-height: var(--panel-header-height);
+    box-sizing: border-box;
   }
 </style>
