@@ -133,10 +133,12 @@ impl TaskManager {
     ///
     /// Gating policy: surface git ops and one-shot headless AI tasks
     /// (commit-message, code-review, …) directly through this emitter.
-    /// `AiBackground` / `AiInteractive` and `AppUpdate` flow through
-    /// their own frontend bridges (`aiBackgroundRuns`, `autoUpdateTask`),
-    /// so emitting them here would duplicate rows in the drawer; they
-    /// stay off the allowlist on purpose. `Generic` is excluded so
+    /// `AiBackground` and `AppUpdate` flow through their own frontend
+    /// bridges (`aiBackgroundRuns`, `autoUpdateTask`), so emitting them
+    /// here would duplicate rows in the drawer; they stay off the
+    /// allowlist on purpose. Interactive AI sessions are not a task kind
+    /// at all — they are PTYs owned by `TerminalManager`, surfaced by the
+    /// `aiActiveTerminals` store. `Generic` is excluded so
     /// shell tasks the drawer doesn't care about (e.g. ad-hoc internal
     /// commands) don't leak in.
     pub(crate) fn should_emit(kind: &TaskKind) -> bool {

@@ -50,7 +50,6 @@
       case "app_update":
         return "\uF019"; // fa-download
       case "ai_background":
-      case "ai_interactive":
       case "ai_headless":
       default:
         // fa-lightbulb-o — same glyph the Changes toolbar uses for
@@ -76,9 +75,7 @@
 
   function isAiKind(kind: TaskKind): boolean {
     return (
-      kind === "ai_background" ||
-      kind === "ai_interactive" ||
-      kind === "ai_headless"
+      kind === "ai_background" || kind === "ai_headless"
     );
   }
 
@@ -94,8 +91,6 @@
     switch (entry.kind) {
       case "ai_background":
         return m.tasks_kind_ai_background();
-      case "ai_interactive":
-        return m.tasks_kind_ai_interactive();
       case "ai_headless":
         return m.tasks_kind_ai_headless();
       case "git_fetch":
