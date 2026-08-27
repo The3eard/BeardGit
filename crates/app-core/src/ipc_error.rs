@@ -211,7 +211,6 @@ impl From<CloneRepoError> for IpcError {
             // The path that already exists is the actionable detail — carry it
             // as the message so the dialog can echo it.
             CloneRepoError::DestinationExists { path } => Self::new("destination_exists", path),
-            CloneRepoError::Clone { message } => Self::new("clone_failed", message),
         }
     }
 }
@@ -305,13 +304,8 @@ mod tests {
         });
         assert_eq!(dest.code, "destination_exists");
         assert_eq!(dest.message, "/tmp/x");
-        assert_eq!(
-            IpcError::from(CloneRepoError::Clone {
-                message: "net".into()
-            })
-            .code,
-            "clone_failed",
-        );
+        // No arm for a failing `git clone`: the clone runs as a task now, so
+        // its failure arrives as a failed task, not as an `IpcError`.
     }
 
     #[test]
