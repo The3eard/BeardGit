@@ -2074,11 +2074,14 @@ export interface CloneRepoOptions {
 }
 
 /**
- * Successful return shape of `clone_repo`. `path` is the absolute path
- * of the freshly cloned working tree (same shape the snake-case wire
- * payload uses — see `CloneRepoSuccess` in the Rust side).
+ * Accepted return shape of `clone_repo`: validation passed and the clone
+ * is now running as a task. `path` is where the working tree *will* be —
+ * it is derived during validation, so it is known before the clone
+ * finishes. Wait for `task_id` to reach a terminal state before opening
+ * it. (Snake-case wire payload — see `CloneRepoSuccess` on the Rust side.)
  */
 export interface CloneRepoSuccess {
+  task_id: number;
   path: string;
   name: string;
 }
@@ -2087,17 +2090,21 @@ export interface CloneRepoSuccess {
  * Tagged error returned by `clone_repo`. The `step` field lets the
  * dialog banner branch on the failure mode without parsing free text;
  * the same convention as `InitRepoError`.
+ *
+ * All three are validation failures. A failure of the clone itself is not
+ * here any more: the clone runs as a task, so it surfaces as a failed task
+ * with git's stderr in the task output.
  */
 export type CloneRepoError =
   | { step: "invalid_url"; message: string }
   | { step: "invalid_destination"; message: string }
-  | { step: "destination_exists"; path: string }
-  | { step: "clone"; message: string };
+  | { step: "destination_exists"; path: string };
 
 /**
- * Clone a remote repository into `parentDir`. The backend shells out to
- * `git clone`, so credential helpers and SSH agents Just Work. Returns
- * the absolute path of the cloned working tree on success.
+ * Validate a clone request and start it as a background task. The backend
+ * shells out to `git clone`, so credential helpers and SSH agents Just
+ * Work. Rejects synchronously on a validation failure; otherwise returns
+ * immediately with the task id and the path the clone is landing in.
  */
 export async function cloneRepo(
   options: CloneRepoOptions,
