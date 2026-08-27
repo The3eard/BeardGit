@@ -23,27 +23,71 @@ pub struct HunkSelection {
 }
 
 impl Repository {
+    /// Re-derive the diff the caller was looking at.
+    ///
+    /// `context_lines` has to match what produced the selection, because a
+    /// [`HunkSelection`] is *positional*: hunk 2, lines 5–7 of the array the
+    /// UI rendered. Change the context and libgit2 cuts the file into
+    /// different hunks with different line arrays, so the same indices name
+    /// different lines — and the patch applies cleanly to the wrong ones.
+    ///
+    /// This used to call `diff_workdir()` / `diff_index()`, which are fixed
+    /// at libgit2's default of 3. That agreed with the UI right up until the
+    /// UI could ask for the whole file as one hunk, at which point staging a
+    /// line under "show whole file" staged a different line and said it had
+    /// succeeded.
+    fn diff_for_selection(
+        &self,
+        path: &str,
+        staged: bool,
+        context_lines: Option<u32>,
+    ) -> Result<FileDiff, GitError> {
+        self.diff_single_file(path, staged, context_lines)?
+            .ok_or_else(|| {
+                GitError::Git(git2::Error::from_str(&format!(
+                    "No diff found for file: {path}"
+                )))
+            })
+    }
+
     /// Stage selected hunks/lines from the working directory.
-    pub fn stage_hunks(&self, path: &str, selections: &[HunkSelection]) -> Result<(), GitError> {
-        let diffs = self.diff_workdir()?;
-        let file_diff = find_file_diff(&diffs, path)?;
-        let patch = build_patch(path, file_diff, selections)?;
+    ///
+    /// `context_lines` must be the value the displayed diff was fetched
+    /// with — see [`Repository::diff_for_selection`].
+    pub fn stage_hunks(
+        &self,
+        path: &str,
+        selections: &[HunkSelection],
+        context_lines: Option<u32>,
+    ) -> Result<(), GitError> {
+        let file_diff = self.diff_for_selection(path, false, context_lines)?;
+        let patch = build_patch(path, &file_diff, selections)?;
         self.apply_patch(&patch, &["--cached"])
     }
 
-    /// Unstage selected hunks/lines from the index.
-    pub fn unstage_hunks(&self, path: &str, selections: &[HunkSelection]) -> Result<(), GitError> {
-        let diffs = self.diff_index()?;
-        let file_diff = find_file_diff(&diffs, path)?;
-        let patch = build_patch(path, file_diff, selections)?;
+    /// Unstage selected hunks/lines from the index. See
+    /// [`Repository::stage_hunks`] for `context_lines`.
+    pub fn unstage_hunks(
+        &self,
+        path: &str,
+        selections: &[HunkSelection],
+        context_lines: Option<u32>,
+    ) -> Result<(), GitError> {
+        let file_diff = self.diff_for_selection(path, true, context_lines)?;
+        let patch = build_patch(path, &file_diff, selections)?;
         self.apply_patch(&patch, &["--cached", "--reverse"])
     }
 
-    /// Discard selected hunks/lines from the working directory.
-    pub fn discard_hunks(&self, path: &str, selections: &[HunkSelection]) -> Result<(), GitError> {
-        let diffs = self.diff_workdir()?;
-        let file_diff = find_file_diff(&diffs, path)?;
-        let patch = build_patch(path, file_diff, selections)?;
+    /// Discard selected hunks/lines from the working directory. See
+    /// [`Repository::stage_hunks`] for `context_lines`.
+    pub fn discard_hunks(
+        &self,
+        path: &str,
+        selections: &[HunkSelection],
+        context_lines: Option<u32>,
+    ) -> Result<(), GitError> {
+        let file_diff = self.diff_for_selection(path, false, context_lines)?;
+        let patch = build_patch(path, &file_diff, selections)?;
         self.apply_patch(&patch, &["--reverse"])
     }
 
@@ -90,14 +134,6 @@ fn push_patch_line(patch: &mut String, line: &DiffLineInfo) {
         patch.push('\n');
         patch.push_str("\\ No newline at end of file\n");
     }
-}
-
-/// Find the [`FileDiff`] for a specific path within a list of diffs.
-fn find_file_diff<'a>(diffs: &'a [FileDiff], path: &str) -> Result<&'a FileDiff, GitError> {
-    diffs
-        .iter()
-        .find(|d| d.path == path)
-        .ok_or_else(|| GitError::InvalidArgument(format!("No diff found for: {path}")))
 }
 
 /// Build a valid unified diff patch from selected hunks/lines.
@@ -380,6 +416,94 @@ mod tests {
         assert!(result.is_err());
     }
 
+    /// **The bug: a selection is positional, so both sides have to agree on
+    /// how the file was cut into hunks.**
+    ///
+    /// The UI can ask for the whole file as one hunk ("show whole file").
+    /// Staging then re-derived its own diff at libgit2's default context of
+    /// 3, which cuts the same file into several hunks with different line
+    /// arrays — so "line 15 of hunk 0" named a different line on each side.
+    /// The patch applied cleanly to the wrong one and reported success.
+    #[test]
+    fn test_stage_hunks_honours_the_context_the_selection_was_made_with() {
+        let (dir, repo) = create_repo_with_file();
+
+        // A file long enough that two distant edits are separate hunks at
+        // the default context but one hunk when the whole file is asked for.
+        let original: String = (1..=60).map(|i| format!("line {i}\n")).collect();
+        let long = dir.path().join("long.txt");
+        fs::write(&long, &original).unwrap();
+        let git_repo = git2::Repository::open(dir.path()).unwrap();
+        let sig = git2::Signature::now("Test", "test@test.com").unwrap();
+        let mut index = git_repo.index().unwrap();
+        index.add_path(Path::new("long.txt")).unwrap();
+        index.write().unwrap();
+        let tree = git_repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let parent = git_repo.head().unwrap().peel_to_commit().unwrap();
+        git_repo
+            .commit(Some("HEAD"), &sig, &sig, "add long", &tree, &[&parent])
+            .unwrap();
+
+        let edited = original
+            .replace("line 10\n", "CHANGED 10\n")
+            .replace("line 50\n", "CHANGED 50\n");
+        fs::write(&long, &edited).unwrap();
+
+        let expanded = repo
+            .diff_single_file("long.txt", false, Some(crate::diff::FULL_FILE_CONTEXT))
+            .unwrap()
+            .expect("the edits must produce a diff");
+        assert_eq!(
+            expanded.hunks.len(),
+            1,
+            "full context must collapse the file into one hunk, or this proves nothing"
+        );
+        let default_ctx = repo
+            .diff_single_file("long.txt", false, None)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            default_ctx.hunks.len(),
+            2,
+            "the default context must split it, or the two sides cannot disagree"
+        );
+
+        // Select the whole (single) hunk exactly as the expanded UI would.
+        repo.stage_hunks(
+            "long.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: None,
+            }],
+            Some(crate::diff::FULL_FILE_CONTEXT),
+        )
+        .expect("staging a full-context selection must apply");
+
+        // Both edits staged, and nothing left unstaged.
+        let staged = repo
+            .diff_single_file("long.txt", true, None)
+            .unwrap()
+            .expect("the staged side must carry the change");
+        let staged_adds: Vec<&str> = staged
+            .hunks
+            .iter()
+            .flat_map(|h| h.lines.iter())
+            .filter(|l| l.origin == '+')
+            .map(|l| l.content.trim())
+            .collect();
+        assert_eq!(
+            staged_adds,
+            ["CHANGED 10", "CHANGED 50"],
+            "the lines the user selected are the lines that must be staged"
+        );
+        assert!(
+            repo.diff_single_file("long.txt", false, None)
+                .unwrap()
+                .is_none(),
+            "nothing may be left behind in the working tree"
+        );
+    }
+
     /// Helper to create a repo with an initial committed file.
     fn create_repo_with_file() -> (tempfile::TempDir, Repository) {
         let dir = tempfile::tempdir().unwrap();
@@ -444,7 +568,7 @@ mod tests {
             hunk_index: 0,
             line_ranges: None,
         }];
-        repo.stage_hunks("test.txt", &selections).unwrap();
+        repo.stage_hunks("test.txt", &selections, None).unwrap();
 
         // After staging the first hunk, the index should have staged changes.
         let index_diffs = repo.diff_index().unwrap();
@@ -549,6 +673,7 @@ mod tests {
                 hunk_index: 0,
                 line_ranges: None,
             }],
+            None,
         )
         .expect("staging the last hunk of a no-EOF-newline file should succeed");
 

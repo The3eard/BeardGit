@@ -153,6 +153,10 @@ export async function setStagingDiffExpanded(expanded: boolean): Promise<void> {
 export function closeStagingDiff(): void {
   openStagingFile.set(null);
   openStagingDiff.set(null);
+  // The context describes the *currently open* diff, so leaving it at full
+  // file with nothing open makes that description false — and the next
+  // reader of this store would believe it.
+  stagingDiffContext.set(DEFAULT_DIFF_CONTEXT);
 }
 
 /** Truncate a commit message for the success-toast body. */

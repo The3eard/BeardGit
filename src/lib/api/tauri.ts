@@ -169,19 +169,45 @@ export async function unstageAll(): Promise<void> {
   return invoke("unstage_all");
 }
 
-/** Stage selected hunks or individual lines from the working directory. */
-export async function stageHunks(path: string, selections: HunkSelection[]): Promise<void> {
-  return invoke<void>("stage_hunks", { path, selections });
+/**
+ * Stage selected hunks or individual lines from the working directory.
+ *
+ * `contextLines` must be the value the displayed diff was fetched with.
+ * A `HunkSelection` is positional — hunk 2, lines 5–7 of the array the UI
+ * rendered — and a different context cuts the file into different hunks, so
+ * the same indices name different lines. Omitting it means libgit2's
+ * default of 3, which is right only when the pane is not expanded.
+ */
+export async function stageHunks(
+  path: string,
+  selections: HunkSelection[],
+  contextLines?: number,
+): Promise<void> {
+  return invoke<void>("stage_hunks", { path, selections, contextLines: contextLines ?? null });
 }
 
-/** Unstage selected hunks or individual lines from the index. */
-export async function unstageHunks(path: string, selections: HunkSelection[]): Promise<void> {
-  return invoke<void>("unstage_hunks", { path, selections });
+/**
+ * Unstage selected hunks or individual lines from the index.
+ *
+ * `contextLines` must be what the displayed diff was fetched with — a
+ * selection is positional, so the backend has to cut the file into the same
+ * hunks the user was looking at. See {@link stageHunks}.
+ */
+export async function unstageHunks(
+  path: string,
+  selections: HunkSelection[],
+  contextLines?: number,
+): Promise<void> {
+  return invoke<void>("unstage_hunks", { path, selections, contextLines: contextLines ?? null });
 }
 
 /** Discard selected hunks or individual lines from the working directory. */
-export async function discardHunks(path: string, selections: HunkSelection[]): Promise<void> {
-  return invoke<void>("discard_hunks", { path, selections });
+export async function discardHunks(
+  path: string,
+  selections: HunkSelection[],
+  contextLines?: number,
+): Promise<void> {
+  return invoke<void>("discard_hunks", { path, selections, contextLines: contextLines ?? null });
 }
 
 /**
