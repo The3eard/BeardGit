@@ -20,6 +20,21 @@
   import type { WorkdirTreeEntry } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
   import { fileGlyphFor } from "./file-icons";
+
+  /**
+   * The folder glyphs, as escapes rather than literal private-use
+   * characters.
+   *
+   * This file is why `scripts/check-icon-glyphs.mjs` exists: a scripted
+   * edit replaced all three of these with empty strings, and the whole
+   * gate plus a re-rendered screenshot went green over it, because a
+   * literal PUA character is invisible in a diff and in most terminals.
+   * An escape is not — you can see it go missing, and you can see it
+   * change. Named, so the markup says which icon it means.
+   */
+  const GLYPH_SPINNER = "\uF110";
+  const GLYPH_FOLDER_OPEN = "\uF07C";
+  const GLYPH_FOLDER_CLOSED = "\uF07B";
   // Self-import rather than `<svelte:self>`, which Svelte 5 deprecates.
   import WorkdirTree from "./WorkdirTree.svelte";
   import {
@@ -97,7 +112,7 @@
   >
     <span class="glyph" aria-hidden="true">
       {#if entry.is_directory}
-        {#if $loadingDirs.has(entry.path)}{:else}{open ? "" : ""}{/if}
+        {#if $loadingDirs.has(entry.path)}{GLYPH_SPINNER}{:else}{open ? GLYPH_FOLDER_OPEN : GLYPH_FOLDER_CLOSED}{/if}
       {:else}
         {fileGlyphFor(entry.name)}
       {/if}
