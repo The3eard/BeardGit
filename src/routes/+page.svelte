@@ -342,12 +342,18 @@
         label: m.editor_open_in_editor(),
         category: "Editor",
         // Whatever file the Changes view currently has open in its diff
-        // pane. The same action the row button and the context-menu item
-        // run — there was no keyboard route to it at all before.
+        // pane. The command palette could already *navigate* to the editor;
+        // what had no keyboard route was opening the file you were looking
+        // at, which is the thing you want when your hands are on the diff.
         action: () => {
           const open = get(openStagingFile);
           if (!open) return;
-          activeView = "editor";
+          // `tryChangeView`, not a bare assignment: it is what runs
+          // `closeStagingDiff` on the way out of Changes. Assigning
+          // `activeView` directly leaves `openStagingFile` set, so every
+          // later mutation re-fetches the diff of a pane nobody is looking
+          // at — at full context if the user had expanded it.
+          tryChangeView("editor");
           void openEditorTab(open.path);
         },
       },

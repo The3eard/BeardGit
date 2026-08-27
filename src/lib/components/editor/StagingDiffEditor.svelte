@@ -235,7 +235,10 @@
     try {
       await runMutation({
         kind: "stage",
-        invoke: () => stageHunks(filename, buildSelections()),
+        // The context goes with the selection: it is a set of positional
+        // indices into the hunks *this pane is showing*, and the backend has
+        // to cut the file the same way to resolve them to the same lines.
+        invoke: () => stageHunks(filename, buildSelections(), $stagingDiffContext),
         failureToastPrefix: "Stage failed",
       });
       afterAction();
@@ -252,7 +255,7 @@
     try {
       await runMutation({
         kind: "unstage",
-        invoke: () => unstageHunks(filename, buildSelections()),
+        invoke: () => unstageHunks(filename, buildSelections(), $stagingDiffContext),
         failureToastPrefix: "Unstage failed",
       });
       afterAction();
@@ -274,7 +277,7 @@
     try {
       await runMutation({
         kind: "discard",
-        invoke: () => discardHunks(filename, buildSelections()),
+        invoke: () => discardHunks(filename, buildSelections(), $stagingDiffContext),
         failureToastPrefix: "Discard failed",
       });
       afterAction();
@@ -309,20 +312,30 @@
           {m.staging_lines_selected({ count: String(selectedLineCount) })}
         </span>
       {/if}
-      <IconButton
-        icon={fileExpanded ? "\uF066" : "\uF065"}
-        description={fileExpanded ? m.staging_collapse_file() : m.staging_expand_file()}
-        size="sm"
-        onclick={toggleFileExpanded}
-      />
-      <IconButton
-        icon={allCollapsed ? "\uF078" : "\uF077"}
-        description={allCollapsed
-          ? m.staging_expand_all_hunks()
-          : m.staging_collapse_all_hunks()}
-        size="sm"
-        onclick={toggleAllCollapsed}
-      />
+      <!-- Shown while expanded even with no hunks to show: expanding a big
+           enough file trips the line cap and comes back `truncated`, which
+           empties the hunks and replaces the pane with a placeholder. Hiding
+           the control there would leave the user with no way back to the
+           view they had. -->
+      {#if diff.hunks.length > 0 || fileExpanded}
+        <IconButton
+          icon={fileExpanded ? "\uF066" : "\uF065"}
+          description={fileExpanded ? m.staging_collapse_file() : m.staging_expand_file()}
+          size="sm"
+          onclick={toggleFileExpanded}
+        />
+      {/if}
+      <!-- Collapse-all has nothing to act on without hunks. -->
+      {#if diff.hunks.length > 0}
+        <IconButton
+          icon={allCollapsed ? "\uF078" : "\uF077"}
+          description={allCollapsed
+            ? m.staging_expand_all_hunks()
+            : m.staging_collapse_all_hunks()}
+          size="sm"
+          onclick={toggleAllCollapsed}
+        />
+      {/if}
       <Button variant="neutral" size="sm" onclick={selectAll} description={m.staging_select_all()}>
         {m.staging_select_all()}
       </Button>

@@ -102,6 +102,10 @@ pub async fn unstage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(
 /// # Parameters
 /// - `path` – Workspace-relative file path.
 /// - `selections` – Which hunks/lines to stage.
+/// - `context_lines` – The context the displayed diff was fetched with. A
+///   selection is positional, so the backend has to cut the file into the
+///   same hunks the user was looking at; `null` means libgit2's default of
+///   3. See [`git_engine::Repository::stage_hunks`].
 ///
 /// Runs on a blocking thread — building and applying the patch must not block
 /// the Tauri async runtime / freeze the UI.
@@ -110,6 +114,7 @@ pub async fn unstage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(
 pub async fn stage_hunks(
     path: String,
     selections: Vec<git_engine::HunkSelection>,
+    context_lines: Option<u32>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
@@ -117,7 +122,7 @@ pub async fn stage_hunks(
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.stage_hunks(&path, &selections)
+            repo.stage_hunks(&path, &selections, context_lines)
                 .map_err(|e| e.to_string())
         })
         .await
@@ -131,6 +136,10 @@ pub async fn stage_hunks(
 /// # Parameters
 /// - `path` – Workspace-relative file path.
 /// - `selections` – Which hunks/lines to unstage.
+/// - `context_lines` – The context the displayed diff was fetched with. A
+///   selection is positional, so the backend has to cut the file into the
+///   same hunks the user was looking at; `null` means libgit2's default of
+///   3. See [`git_engine::Repository::stage_hunks`].
 ///
 /// Runs on a blocking thread — building and applying the patch must not block
 /// the Tauri async runtime / freeze the UI.
@@ -139,6 +148,7 @@ pub async fn stage_hunks(
 pub async fn unstage_hunks(
     path: String,
     selections: Vec<git_engine::HunkSelection>,
+    context_lines: Option<u32>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
@@ -146,7 +156,7 @@ pub async fn unstage_hunks(
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.unstage_hunks(&path, &selections)
+            repo.unstage_hunks(&path, &selections, context_lines)
                 .map_err(|e| e.to_string())
         })
         .await
@@ -190,6 +200,10 @@ pub async fn discard_files(
 /// # Parameters
 /// - `path` – Workspace-relative file path.
 /// - `selections` – Which hunks/lines to discard.
+/// - `context_lines` – The context the displayed diff was fetched with. A
+///   selection is positional, so the backend has to cut the file into the
+///   same hunks the user was looking at; `null` means libgit2's default of
+///   3. See [`git_engine::Repository::stage_hunks`].
 ///
 /// Runs on a blocking thread — building and applying the patch to the working
 /// tree must not block the Tauri async runtime / freeze the UI.
@@ -198,6 +212,7 @@ pub async fn discard_files(
 pub async fn discard_hunks(
     path: String,
     selections: Vec<git_engine::HunkSelection>,
+    context_lines: Option<u32>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
@@ -205,7 +220,7 @@ pub async fn discard_hunks(
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.discard_hunks(&path, &selections)
+            repo.discard_hunks(&path, &selections, context_lines)
                 .map_err(|e| e.to_string())
         })
         .await
@@ -297,7 +312,7 @@ mod tests {
         // git-engine's own tests.
         let (_tmp, path) = create_repo_with_n_commits(1);
         let repo = Repository::open(&path).unwrap();
-        let err = repo.stage_hunks("missing.txt", &[]).err();
+        let err = repo.stage_hunks("missing.txt", &[], None).err();
         assert!(err.is_some(), "stage_hunks on a missing file should error");
     }
 }
