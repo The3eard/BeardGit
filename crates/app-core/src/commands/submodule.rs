@@ -52,7 +52,19 @@ pub fn deinit_submodule(
     })
 }
 
-/// Add a new submodule to the repository.
+/// Add a new submodule to the repository, as a background task.
+///
+/// `git submodule add` **clones** the submodule, so this can run for as long
+/// as the remote takes. It used to be a non-async command, which Tauri runs on
+/// the main thread — the same freeze `clone_repo` had before it moved to the
+/// task manager, and the last one left.
+///
+/// No mutation guard: the task outlives the command, so a guard here would
+/// diff and emit before the clone had done anything. `.gitmodules` and the
+/// submodule's working tree land inside the repo, so the watcher observes them
+/// and emits `project-mutated` with `status_changed`, which `mutations.ts`
+/// already maps to `refreshSubmodules`. That is the pattern
+/// `commands/remote.rs` uses for push / pull / fetch.
 ///
 /// # Parameters
 /// - `url` – Remote URL of the submodule repository.
@@ -60,17 +72,27 @@ pub fn deinit_submodule(
 #[tauri::command]
 // `url` can embed credentials — log only the destination path.
 #[instrument(skip_all, fields(path = %path), name = "cmd::submodule::add")]
-pub fn add_submodule(
+pub async fn add_submodule(
     url: String,
     path: String,
     state: State<'_, AppState>,
-    app: AppHandle,
-) -> Result<(), IpcError> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
-            repo.add_submodule(&url, &path).map_err(IpcError::from)
+    task_manager: State<'_, Arc<TaskManager>>,
+) -> Result<TaskId, IpcError> {
+    let cwd = get_active_project_path(&state)?;
+
+    let id = task_manager
+        .spawn_with_options(SpawnOptions {
+            label: format!("Add submodule: {path}"),
+            command: "git",
+            args: &["submodule", "add", "--", &url, &path],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
         })
-    })
+        .await;
+
+    Ok(id)
 }
 
 /// Remove a submodule completely (deinit + rm).
