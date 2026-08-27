@@ -3,10 +3,13 @@
 //! [`RepoWatcher`] watches a git repository working tree for changes and,
 //! after a brief quiet period, emits a `project-mutated` Tauri event with
 //! [`MutationKind::External`] whenever the on-disk state actually changed
-//! (per the [`Snapshot`] diff). Most events inside `.git/` are filtered
-//! out to avoid spurious refreshes, but changes to `.git/refs/` and
-//! `.git/HEAD` are allowed through so that external commits and branch
-//! switches are detected.
+//! (per the [`Snapshot`] diff). Most events inside the git directory are
+//! filtered out to avoid spurious refreshes, but changes to `refs/` and
+//! `HEAD` are allowed through so that external commits and branch switches
+//! are detected.
+//!
+//! For a linked worktree the git directory is not under the working tree at
+//! all, so it gets a watch of its own — see [`GitDirs`].
 //!
 //! [`AiSessionWatcher`] watches AI provider transcript / rollout
 //! directories (e.g. `~/.claude/projects/`, `~/.codex/sessions/`) and
@@ -24,15 +27,90 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 use tauri::AppHandle;
 
+/// The git directories that belong to one open repository.
+///
+/// For a normal repo that is just `<repo>/.git`, which the recursive
+/// working-tree watch already covers. For a **linked worktree** — and for a
+/// submodule — `.git` is a *file* pointing elsewhere, and the state the UI
+/// cares about is split in two, both outside the working tree:
+///
+///  - `HEAD`, `index`, `ORIG_HEAD` … in the per-worktree git dir
+///    (`<main>/.git/worktrees/<name>/`)
+///  - `refs/**`, `packed-refs` … in the shared common dir (`<main>/.git/`)
+///
+/// So a `git commit` made in a worktree from another terminal touches nothing
+/// under the working tree at all. Watching only the working tree meant those
+/// commits produced no events and the graph never refreshed.
+#[derive(Debug, Clone)]
+struct GitDirs {
+    /// Prefixes to classify against, **most specific first**.
+    dirs: Vec<PathBuf>,
+    /// Directories that need a watch of their own because they sit outside
+    /// the working tree. Empty for a normal repo.
+    extra_watches: Vec<PathBuf>,
+}
+
+/// Resolve the git directories for `repo_path`.
+///
+/// The normal case deliberately does *not* go through `git2`: `Repository::
+/// path()` returns a canonicalized path, and on macOS `/var` is a symlink to
+/// `/private/var`, so the canonical prefix would not match the paths `notify`
+/// reports for a watch registered under the non-canonical one. Every `.git/`
+/// event would then be misclassified as a working-tree path — including
+/// `objects/**`, which is exactly the churn the allowlist exists to drop.
+/// Joining `.git` keeps the same prefix the watch uses.
+fn resolve_git_dirs(repo_path: &Path) -> GitDirs {
+    let plain = repo_path.join(".git");
+    if plain.is_dir() {
+        return GitDirs {
+            dirs: vec![plain],
+            extra_watches: Vec::new(),
+        };
+    }
+
+    // `.git` is a file (or missing): linked worktree, or submodule. Here the
+    // canonical paths from `git2` *are* the right ones, because we register
+    // the extra watch with them ourselves.
+    match git2::Repository::open(repo_path) {
+        Ok(repo) => {
+            let git_dir = repo.path().to_path_buf();
+            let common = repo.commondir().to_path_buf();
+
+            let mut dirs = vec![git_dir.clone()];
+            if common != git_dir {
+                dirs.push(common.clone());
+            }
+            // Most specific first. The per-worktree dir is nested *inside* the
+            // common dir, so testing the common dir first would see
+            // `<common>/worktrees/<name>/index` as `worktrees/…` and drop it.
+            dirs.sort_by_key(|p| std::cmp::Reverse(p.as_os_str().len()));
+
+            // Watching the common dir also covers the per-worktree dir nested
+            // in it, so one watch is enough when they differ.
+            let extra_watches = vec![if common == git_dir { git_dir } else { common }];
+            GitDirs {
+                dirs,
+                extra_watches,
+            }
+        }
+        // Mid-init, or not a repo. Fall back to the plain join and keep the
+        // pre-existing behaviour rather than watching nothing.
+        Err(_) => GitDirs {
+            dirs: vec![plain],
+            extra_watches: Vec::new(),
+        },
+    }
+}
+
 /// Whether a path is relevant for UI refresh based on its location alone.
 ///
-/// Working-tree changes (outside `.git/`) pass this classifier; the git-ignore
-/// filter that drops `target/`・`node_modules/` churn is applied separately in
-/// [`classify_batch`], which needs a repo handle. Inside `.git/`, only entries
-/// that change on real repo mutations are relevant:
+/// Working-tree changes (outside the git dirs) pass this classifier; the
+/// git-ignore filter that drops `target/`・`node_modules/` churn is applied
+/// separately in [`classify_batch`], which needs a repo handle. Inside a git
+/// dir, only entries that change on real repo mutations are relevant:
 ///  - `refs/**`, `HEAD`: commits, branch create/delete, checkout
 ///  - `packed-refs`: refs packed by gc / fetch / branch -d of a packed ref
-///  - `index`: external stage/unstage/reset (writes `.git/index` only — the
+///  - `index`: external stage/unstage/reset (writes the index only — the
 ///    working tree is untouched, so nothing else in the batch is relevant)
 ///  - `FETCH_HEAD` / `MERGE_HEAD` / `ORIG_HEAD`: fetch / merge / rebase flows
 ///  - `info/exclude`: repo-local ignore rules — a change can alter which
@@ -40,25 +118,20 @@ use tauri::AppHandle;
 ///
 /// Kept as a pure classifier so the allowlist can be unit-tested without
 /// constructing a `DebouncedEvent`.
-fn path_is_relevant(path: &Path) -> bool {
-    let components: Vec<_> = path.components().collect();
-
-    // Find the .git component index
-    let git_idx = components.iter().position(|c| c.as_os_str() == ".git");
-
-    let Some(idx) = git_idx else {
-        // Not inside .git/ — a working-tree path. The git-ignore decision is
-        // made by `classify_batch` (it needs a repo handle), not here.
+fn path_is_relevant(path: &Path, git_dirs: &[PathBuf]) -> bool {
+    let Some(rel) = relative_to_git_dir(path, git_dirs) else {
+        // Not inside a git dir — a working-tree path. The git-ignore decision
+        // is made by `classify_batch` (it needs a repo handle), not here.
         return true;
     };
 
-    let after_git: Vec<_> = components[idx + 1..].iter().collect();
-    let first = after_git.first().and_then(|c| c.as_os_str().to_str());
+    let mut components = rel.components();
+    let first = components.next().and_then(|c| c.as_os_str().to_str());
 
-    // `.git/info/exclude` holds repo-local ignore rules; only that one file
-    // under `.git/info/` matters (attributes, dumb-HTTP `refs`, etc. do not).
+    // `info/exclude` holds repo-local ignore rules; only that one file under
+    // `info/` matters (attributes, dumb-HTTP `refs`, etc. do not).
     if first == Some("info") {
-        return after_git.get(1).and_then(|c| c.as_os_str().to_str()) == Some("exclude");
+        return components.next().and_then(|c| c.as_os_str().to_str()) == Some("exclude");
     }
 
     matches!(
@@ -67,9 +140,16 @@ fn path_is_relevant(path: &Path) -> bool {
     )
 }
 
-/// Whether any component of `path` is a `.git` directory.
-fn is_under_git_dir(path: &Path) -> bool {
-    path.components().any(|c| c.as_os_str() == ".git")
+/// `path` relative to whichever of `git_dirs` contains it, or `None` for a
+/// working-tree path. `git_dirs` is ordered most-specific-first by
+/// [`resolve_git_dirs`], and this returns the first match.
+fn relative_to_git_dir<'p>(path: &'p Path, git_dirs: &[PathBuf]) -> Option<&'p Path> {
+    git_dirs.iter().find_map(|dir| path.strip_prefix(dir).ok())
+}
+
+/// Whether `path` lives in one of the repo's git directories.
+fn is_under_git_dir(path: &Path, git_dirs: &[PathBuf]) -> bool {
+    relative_to_git_dir(path, git_dirs).is_some()
 }
 
 /// Whether git ignores `path` (given as the absolute path the watcher
@@ -105,11 +185,15 @@ struct BatchClassification {
 /// including nested `.gitignore` files. A touched (non-ignored) `.gitignore`
 /// or `.git/info/exclude` naturally survives as relevant, so editing ignore
 /// rules still refreshes the UI.
-fn classify_batch(paths: &[PathBuf], repo_root: &Path) -> BatchClassification {
+fn classify_batch(
+    paths: &[PathBuf],
+    repo_root: &Path,
+    git_dirs: &[PathBuf],
+) -> BatchClassification {
     let total = paths.len();
 
     // Only open the repo if a working-tree path actually needs an ignore check.
-    let needs_repo = paths.iter().any(|p| !is_under_git_dir(p));
+    let needs_repo = paths.iter().any(|p| !is_under_git_dir(p, git_dirs));
     let repo = if needs_repo {
         git2::Repository::open(repo_root).ok()
     } else {
@@ -118,13 +202,13 @@ fn classify_batch(paths: &[PathBuf], repo_root: &Path) -> BatchClassification {
 
     let mut kept = 0usize;
     for path in paths {
-        if !path_is_relevant(path) {
-            continue; // filtered .git/ noise (objects, logs, COMMIT_EDITMSG …)
+        if !path_is_relevant(path, git_dirs) {
+            continue; // filtered git-dir noise (objects, logs, COMMIT_EDITMSG …)
         }
         // A surviving working-tree path is dropped only if git ignores it. If
         // the repo failed to open (e.g. mid-init), keep the path — the
         // pre-ignore-filter behaviour — rather than risk missing a refresh.
-        if !is_under_git_dir(path)
+        if !is_under_git_dir(path, git_dirs)
             && let Some(repo) = &repo
             && path_is_ignored(repo, repo_root, path)
         {
@@ -155,8 +239,13 @@ enum BatchOutcome {
 /// cached snapshot. Split out of the debounce thread so tests can drive the
 /// exact hot path and observe that an all-ignored batch performs **zero**
 /// captures (returns [`BatchOutcome::Skipped`]).
-fn evaluate_batch(paths: &[PathBuf], repo_root: &Path, cached: &Mutex<Snapshot>) -> BatchOutcome {
-    let class = classify_batch(paths, repo_root);
+fn evaluate_batch(
+    paths: &[PathBuf],
+    repo_root: &Path,
+    cached: &Mutex<Snapshot>,
+    git_dirs: &[PathBuf],
+) -> BatchOutcome {
+    let class = classify_batch(paths, repo_root, git_dirs);
     if class.kept != class.total {
         // Field-debugging aid: surfaces build/install churn being filtered.
         tracing::debug!(
@@ -240,15 +329,36 @@ impl RepoWatcher {
         let cb_path = repo_path.clone();
         let (tx, rx) = mpsc::channel();
 
+        let git_dirs = resolve_git_dirs(&repo_path);
+
         let mut debouncer = new_debouncer(Duration::from_millis(500), tx)?;
         debouncer
             .watcher()
             .watch(&repo_path, notify::RecursiveMode::Recursive)?;
 
+        // A linked worktree keeps its HEAD/index and its refs outside the
+        // working tree, so they need their own watch or an external commit
+        // there produces no events at all. Failing to add it degrades to
+        // working-tree-only watching rather than failing the whole start.
+        for dir in &git_dirs.extra_watches {
+            match debouncer
+                .watcher()
+                .watch(dir, notify::RecursiveMode::Recursive)
+            {
+                Ok(()) => tracing::info!(dir = %dir.display(), "watching out-of-tree git dir"),
+                Err(err) => tracing::warn!(
+                    ?err,
+                    dir = %dir.display(),
+                    "could not watch git dir — external ref changes will be missed"
+                ),
+            }
+        }
+
         // Its absence is the diagnosis for "external changes don't show up",
         // so record the successful start too, not just the failure.
         tracing::info!(path = %repo_path.display(), "repo watcher started");
 
+        let thread_git_dirs = git_dirs.dirs.clone();
         std::thread::spawn(move || {
             while let Ok(result) = rx.recv() {
                 let Ok(events) = result else { continue };
@@ -257,7 +367,7 @@ impl RepoWatcher {
                 // survive) captures + diffs against the cache — so an
                 // all-ignored build/install burst never pays the snapshot walk.
                 if let BatchOutcome::Mutated(flags) =
-                    evaluate_batch(&paths, &cb_path, &cached_for_thread)
+                    evaluate_batch(&paths, &cb_path, &cached_for_thread, &thread_git_dirs)
                     && let Err(err) = emit_mutation(&app, MutationKind::External, flags, &cb_path)
                 {
                     tracing::warn!(?err, "watcher emit failed");
@@ -334,44 +444,175 @@ mod emit_tests {
 
 #[cfg(test)]
 mod filter_tests {
-    use super::path_is_relevant;
-    use std::path::Path;
+    use super::{path_is_relevant, resolve_git_dirs};
+    use std::path::{Path, PathBuf};
+
+    /// The classifier now takes the repo's git dirs as a prefix list instead of
+    /// looking for a component literally named `.git`. This is the normal-repo
+    /// list, which is what these cases were always written against.
+    fn plain() -> Vec<PathBuf> {
+        vec![PathBuf::from("/repo/.git")]
+    }
 
     #[test]
     fn working_tree_changes_are_relevant() {
-        assert!(path_is_relevant(Path::new("/repo/src/main.rs")));
-        assert!(path_is_relevant(Path::new("/repo/README.md")));
+        assert!(path_is_relevant(Path::new("/repo/src/main.rs"), &plain()));
+        assert!(path_is_relevant(Path::new("/repo/README.md"), &plain()));
     }
 
     #[test]
     fn git_internal_allowlist() {
         // Allowed git-internal entries (incl. the newly-added ones).
-        assert!(path_is_relevant(Path::new("/repo/.git/HEAD")));
-        assert!(path_is_relevant(Path::new("/repo/.git/refs/heads/main")));
-        assert!(path_is_relevant(Path::new("/repo/.git/packed-refs")));
-        assert!(path_is_relevant(Path::new("/repo/.git/index")));
-        assert!(path_is_relevant(Path::new("/repo/.git/FETCH_HEAD")));
-        assert!(path_is_relevant(Path::new("/repo/.git/MERGE_HEAD")));
-        assert!(path_is_relevant(Path::new("/repo/.git/ORIG_HEAD")));
+        assert!(path_is_relevant(Path::new("/repo/.git/HEAD"), &plain()));
+        assert!(path_is_relevant(
+            Path::new("/repo/.git/refs/heads/main"),
+            &plain()
+        ));
+        assert!(path_is_relevant(
+            Path::new("/repo/.git/packed-refs"),
+            &plain()
+        ));
+        assert!(path_is_relevant(Path::new("/repo/.git/index"), &plain()));
+        assert!(path_is_relevant(
+            Path::new("/repo/.git/FETCH_HEAD"),
+            &plain()
+        ));
+        assert!(path_is_relevant(
+            Path::new("/repo/.git/MERGE_HEAD"),
+            &plain()
+        ));
+        assert!(path_is_relevant(
+            Path::new("/repo/.git/ORIG_HEAD"),
+            &plain()
+        ));
         // Repo-local ignore rules — a change alters what's ignored.
-        assert!(path_is_relevant(Path::new("/repo/.git/info/exclude")));
+        assert!(path_is_relevant(
+            Path::new("/repo/.git/info/exclude"),
+            &plain()
+        ));
     }
 
     #[test]
     fn git_internal_noise_is_filtered() {
-        assert!(!path_is_relevant(Path::new("/repo/.git/objects/ab/cdef")));
-        assert!(!path_is_relevant(Path::new("/repo/.git/logs/HEAD")));
-        assert!(!path_is_relevant(Path::new("/repo/.git/COMMIT_EDITMSG")));
+        assert!(!path_is_relevant(
+            Path::new("/repo/.git/objects/ab/cdef"),
+            &plain()
+        ));
+        assert!(!path_is_relevant(
+            Path::new("/repo/.git/logs/HEAD"),
+            &plain()
+        ));
+        assert!(!path_is_relevant(
+            Path::new("/repo/.git/COMMIT_EDITMSG"),
+            &plain()
+        ));
         // Other `.git/info/` files are not ignore rules → filtered.
-        assert!(!path_is_relevant(Path::new("/repo/.git/info/attributes")));
+        assert!(!path_is_relevant(
+            Path::new("/repo/.git/info/attributes"),
+            &plain()
+        ));
+    }
+
+    #[test]
+    fn a_normal_repo_needs_no_extra_watch() {
+        let tmp = tempfile::tempdir().unwrap();
+        git2::Repository::init(tmp.path()).unwrap();
+        let resolved = resolve_git_dirs(tmp.path());
+        assert_eq!(resolved.dirs, vec![tmp.path().join(".git")]);
+        assert!(
+            resolved.extra_watches.is_empty(),
+            "the recursive working-tree watch already covers <repo>/.git"
+        );
+    }
+
+    /// The case the classifier was blind to. A commit made inside a linked
+    /// worktree writes `index` to the per-worktree git dir and the branch ref
+    /// to the shared common dir — neither is under the working tree, and both
+    /// have to survive filtering.
+    #[test]
+    fn worktree_git_dirs_are_classified_and_watched() {
+        let tmp = tempfile::tempdir().unwrap();
+        let main = tmp.path().join("main");
+        std::fs::create_dir(&main).unwrap();
+        let git = |dir: &Path, args: &[&str]| {
+            let out = std::process::Command::new("git")
+                .current_dir(dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                out.status.success(),
+                "git {args:?}: {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+        };
+        git(&main, &["init", "-q", "-b", "main", "."]);
+        git(&main, &["config", "user.email", "t@t"]);
+        git(&main, &["config", "user.name", "T"]);
+        std::fs::write(main.join("f.txt"), "1\n").unwrap();
+        git(&main, &["add", "-A"]);
+        git(&main, &["commit", "-qm", "c0"]);
+
+        let wt = tmp.path().join("wt");
+        git(
+            &main,
+            &["worktree", "add", "-q", wt.to_str().unwrap(), "-b", "side"],
+        );
+
+        let resolved = resolve_git_dirs(&wt);
+        assert_eq!(
+            resolved.extra_watches.len(),
+            1,
+            "the out-of-tree git dir needs its own watch"
+        );
+
+        let repo = git2::Repository::open(&wt).unwrap();
+        let git_dir = repo.path();
+        let common = repo.commondir();
+
+        // Per-worktree state.
+        assert!(path_is_relevant(&git_dir.join("index"), &resolved.dirs));
+        assert!(path_is_relevant(&git_dir.join("HEAD"), &resolved.dirs));
+        // Shared refs — these live in the common dir, not the worktree's.
+        assert!(path_is_relevant(
+            &common.join("refs/heads/side"),
+            &resolved.dirs
+        ));
+        assert!(path_is_relevant(
+            &common.join("packed-refs"),
+            &resolved.dirs
+        ));
+        // Noise still filtered, from either dir.
+        assert!(!path_is_relevant(
+            &common.join("objects/ab/cdef"),
+            &resolved.dirs
+        ));
+        assert!(!path_is_relevant(
+            &git_dir.join("COMMIT_EDITMSG"),
+            &resolved.dirs
+        ));
+        // Another worktree's state is not ours: relative to the common dir it
+        // starts with `worktrees`, which is not on the allowlist.
+        assert!(!path_is_relevant(
+            &common.join("worktrees/other/index"),
+            &resolved.dirs
+        ));
+        // And a working-tree path is still a working-tree path.
+        assert!(path_is_relevant(&wt.join("f.txt"), &resolved.dirs));
     }
 }
 
 #[cfg(test)]
 mod ignore_tests {
-    use super::{BatchOutcome, Snapshot, classify_batch, evaluate_batch};
+    use super::{BatchOutcome, Snapshot, classify_batch, evaluate_batch, resolve_git_dirs};
     use std::path::{Path, PathBuf};
     use std::sync::Mutex;
+
+    /// The git dirs the classifier tests against, resolved the same way the
+    /// live watcher resolves them.
+    fn dirs(root: &Path) -> Vec<PathBuf> {
+        resolve_git_dirs(root).dirs
+    }
 
     /// Init a bare-committed repo and return its `TempDir` (kept alive) + root.
     fn init_repo() -> (tempfile::TempDir, PathBuf) {
@@ -412,7 +653,7 @@ mod ignore_tests {
         std::fs::write(root.join(".gitignore"), "target/\n").unwrap();
         let p = root.join("target/debug/foo.o");
         touch(&p);
-        let class = classify_batch(&[p], &root);
+        let class = classify_batch(&[p], &root, &dirs(&root));
         assert!(!class.relevant, "a target/ artifact must be filtered out");
         assert_eq!(class.kept, 0);
         assert_eq!(class.total, 1);
@@ -421,7 +662,7 @@ mod ignore_tests {
     #[test]
     fn tracked_working_tree_path_survives() {
         let (_tmp, root) = init_repo();
-        let class = classify_batch(&[root.join("src/main.rs")], &root);
+        let class = classify_batch(&[root.join("src/main.rs")], &root, &dirs(&root));
         assert!(class.relevant);
         assert_eq!(class.kept, 1);
     }
@@ -433,7 +674,7 @@ mod ignore_tests {
         let ignored = root.join("target/foo.o");
         touch(&ignored);
         let real = root.join("src/lib.rs");
-        let class = classify_batch(&[ignored, real], &root);
+        let class = classify_batch(&[ignored, real], &root, &dirs(&root));
         assert!(class.relevant);
         assert_eq!(class.kept, 1);
         assert_eq!(class.total, 2);
@@ -445,21 +686,21 @@ mod ignore_tests {
         std::fs::write(root.join(".gitignore"), "target/\n").unwrap();
         // The `.gitignore` itself is not ignored → survives as relevant, so an
         // edit to the ignore rules still refreshes the UI.
-        let class = classify_batch(&[root.join(".gitignore")], &root);
+        let class = classify_batch(&[root.join(".gitignore")], &root, &dirs(&root));
         assert!(class.relevant);
     }
 
     #[test]
     fn git_info_exclude_is_relevant() {
         let (_tmp, root) = init_repo();
-        let class = classify_batch(&[root.join(".git/info/exclude")], &root);
+        let class = classify_batch(&[root.join(".git/info/exclude")], &root, &dirs(&root));
         assert!(class.relevant, "info/exclude changes ignore rules");
     }
 
     #[test]
     fn git_object_noise_is_dropped() {
         let (_tmp, root) = init_repo();
-        let class = classify_batch(&[root.join(".git/objects/ab/cdef")], &root);
+        let class = classify_batch(&[root.join(".git/objects/ab/cdef")], &root, &dirs(&root));
         assert!(!class.relevant);
     }
 
@@ -475,10 +716,10 @@ mod ignore_tests {
         touch(&keep);
         touch(&drop);
 
-        let kept = classify_batch(&[keep], &root);
+        let kept = classify_batch(&[keep], &root, &dirs(&root));
         assert!(kept.relevant, "!build/keep.me must survive filtering");
 
-        let dropped = classify_batch(&[drop], &root);
+        let dropped = classify_batch(&[drop], &root, &dirs(&root));
         assert!(!dropped.relevant, "build/other.log stays ignored");
     }
 
@@ -495,11 +736,11 @@ mod ignore_tests {
         touch(&visible);
 
         assert!(
-            !classify_batch(&[secret], &root).relevant,
+            !classify_batch(&[secret], &root, &dirs(&root)).relevant,
             "nested .gitignore must ignore sub/secret.txt"
         );
         assert!(
-            classify_batch(&[visible], &root).relevant,
+            classify_batch(&[visible], &root, &dirs(&root)).relevant,
             "sub/visible.txt is not matched by any rule"
         );
     }
@@ -510,7 +751,7 @@ mod ignore_tests {
         // rather than silently dropping a change we can't classify.
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().to_path_buf();
-        let class = classify_batch(&[root.join("some/file.rs")], &root);
+        let class = classify_batch(&[root.join("some/file.rs")], &root, &dirs(&root));
         assert!(class.relevant);
     }
 
@@ -531,7 +772,7 @@ mod ignore_tests {
             paths.push(p);
         }
 
-        let outcome = evaluate_batch(&paths, &root, &cached);
+        let outcome = evaluate_batch(&paths, &root, &cached, &dirs(&root));
         assert!(
             matches!(outcome, BatchOutcome::Skipped),
             "an all-ignored batch must perform zero captures"
@@ -545,7 +786,7 @@ mod ignore_tests {
         // Modify the committed tracked file mid-"build".
         std::fs::write(root.join("tracked.txt"), "v2\n").unwrap();
 
-        let outcome = evaluate_batch(&[root.join("tracked.txt")], &root, &cached);
+        let outcome = evaluate_batch(&[root.join("tracked.txt")], &root, &cached, &dirs(&root));
         match outcome {
             BatchOutcome::Mutated(flags) => assert!(flags.status_changed),
             other => panic!("expected Mutated, got {other:?}"),
@@ -569,7 +810,7 @@ mod ignore_tests {
         }
 
         assert!(matches!(
-            evaluate_batch(&paths, &root, &cached),
+            evaluate_batch(&paths, &root, &cached, &dirs(&root)),
             BatchOutcome::Mutated(_)
         ));
     }
