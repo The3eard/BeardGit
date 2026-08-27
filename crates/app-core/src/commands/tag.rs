@@ -13,7 +13,7 @@ use crate::state::AppState;
 
 /// Return all tags in the active repository, sorted newest-version-first.
 #[tauri::command]
-pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<git_engine::TagInfo>, String> {
+pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<git_engine::TagInfo>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -21,6 +21,7 @@ pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<git_engine::Tag
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// List tags with pagination, sorted newest-version-first.
@@ -29,7 +30,7 @@ pub async fn list_tags_paginated(
     per_page: u32,
     page: u32,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::TagInfo>, String> {
+) -> Result<Vec<git_engine::TagInfo>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -38,6 +39,7 @@ pub async fn list_tags_paginated(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Search all tags by name substring (case-insensitive).
@@ -45,7 +47,7 @@ pub async fn list_tags_paginated(
 pub async fn search_tags(
     query: String,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::TagInfo>, String> {
+) -> Result<Vec<git_engine::TagInfo>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -53,6 +55,7 @@ pub async fn search_tags(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Create a new tag in the active repository.
@@ -102,6 +105,7 @@ pub async fn create_tag(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Delete a local tag by name.
@@ -131,6 +135,7 @@ pub async fn delete_tag(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Push a tag to a remote as a background task.
@@ -141,7 +146,7 @@ pub async fn push_tag(
     remote: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let remote = if remote.is_empty() {
         "origin".to_string()

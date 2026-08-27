@@ -14,6 +14,7 @@ use terminal::{SessionId, TerminalConfig, TerminalManager};
 
 use super::helpers::get_active_project_path;
 use crate::ai_background::{AiBackgroundCoordinator, StartArgs};
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 // ─── Argument & return types ─────────────────────────────────────────────────
@@ -94,7 +95,7 @@ fn coordinator(state: &State<'_, AppState>) -> Result<Arc<AiBackgroundCoordinato
 pub async fn ai_start_background_run(
     request: StartBackgroundRunRequest,
     state: State<'_, AppState>,
-) -> Result<StartBackgroundRunResponse, String> {
+) -> Result<StartBackgroundRunResponse, IpcError> {
     let repo_root = get_active_project_path(&state)?;
     let kind = parse_kind(&request.provider)?;
 
@@ -159,14 +160,18 @@ pub async fn ai_start_background_run(
 pub async fn ai_cancel_background_run(
     session_id: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let coord = coordinator(&state)?;
-    coord.cancel(&session_id).map_err(|e| e.to_string())
+    coord
+        .cancel(&session_id)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Return all known background runs (queued, running, terminal).
 #[tauri::command]
-pub async fn ai_list_background_runs(state: State<'_, AppState>) -> Result<Vec<AiSession>, String> {
+pub async fn ai_list_background_runs(
+    state: State<'_, AppState>,
+) -> Result<Vec<AiSession>, IpcError> {
     let coord = coordinator(&state)?;
     Ok(coord.list())
 }
@@ -176,7 +181,7 @@ pub async fn ai_list_background_runs(state: State<'_, AppState>) -> Result<Vec<A
 pub async fn ai_get_background_run(
     session_id: String,
     state: State<'_, AppState>,
-) -> Result<Option<AiSession>, String> {
+) -> Result<Option<AiSession>, IpcError> {
     let coord = coordinator(&state)?;
     Ok(coord.get(&session_id))
 }
@@ -190,7 +195,7 @@ pub async fn ai_get_background_run(
 pub async fn ai_get_background_report(
     session_id: String,
     state: State<'_, AppState>,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, IpcError> {
     let repo_root = get_active_project_path(&state)?;
     let path = crate::ai_background::report_path_for(&repo_root, &session_id);
     tokio::task::spawn_blocking(move || match std::fs::read_to_string(&path) {
@@ -200,6 +205,7 @@ pub async fn ai_get_background_report(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Remove the worktree for a terminal-state run and scrub the session
@@ -208,12 +214,13 @@ pub async fn ai_get_background_report(
 pub async fn ai_discard_background_run_worktree(
     session_id: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let coord = coordinator(&state)?;
     tokio::task::spawn_blocking(move || coord.discard_worktree(&session_id))
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Attach a new PTY terminal to the worktree of a background run.
@@ -226,7 +233,7 @@ pub fn ai_open_background_terminal(
     session_id: String,
     state: State<'_, AppState>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
-) -> Result<SessionId, String> {
+) -> Result<SessionId, IpcError> {
     let coord = coordinator(&state)?;
     let session = coord
         .get(&session_id)
@@ -263,6 +270,7 @@ pub fn ai_open_background_terminal(
     terminal_manager
         .spawn_program(&program, &args, config)
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 #[cfg(test)]

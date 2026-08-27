@@ -47,8 +47,7 @@ pub fn deinit_submodule(
 ) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.deinit_submodule(&path, force)
-                .map_err(IpcError::from)
+            repo.deinit_submodule(&path, force).map_err(IpcError::from)
         })
     })
 }

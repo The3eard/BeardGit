@@ -26,8 +26,7 @@ pub fn set_config(
     state: State<'_, AppState>,
 ) -> Result<(), IpcError> {
     with_active_repo(&state, |repo| {
-        repo.set_config(scope, &key, &value)
-            .map_err(IpcError::from)
+        repo.set_config(scope, &key, &value).map_err(IpcError::from)
     })
 }
 
@@ -52,8 +51,7 @@ pub fn add_config(
     state: State<'_, AppState>,
 ) -> Result<(), IpcError> {
     with_active_repo(&state, |repo| {
-        repo.add_config(scope, &key, &value)
-            .map_err(IpcError::from)
+        repo.add_config(scope, &key, &value).map_err(IpcError::from)
     })
 }
 

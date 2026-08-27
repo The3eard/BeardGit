@@ -11,9 +11,7 @@ use crate::state::AppState;
 /// Returns an empty string if the file does not exist.
 #[tauri::command]
 pub fn read_gitignore(state: State<'_, AppState>) -> Result<String, IpcError> {
-    with_active_repo(&state, |repo| {
-        repo.read_gitignore().map_err(IpcError::from)
-    })
+    with_active_repo(&state, |repo| repo.read_gitignore().map_err(IpcError::from))
 }
 
 /// Write the full content of the repository's `.gitignore` file.
@@ -32,8 +30,7 @@ pub fn write_gitignore(content: String, state: State<'_, AppState>) -> Result<()
 #[tauri::command]
 pub fn add_gitignore_pattern(pattern: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     with_active_repo(&state, |repo| {
-        repo.add_gitignore_pattern(&pattern)
-            .map_err(IpcError::from)
+        repo.add_gitignore_pattern(&pattern).map_err(IpcError::from)
     })
 }
 

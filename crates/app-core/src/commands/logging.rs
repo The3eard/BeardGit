@@ -40,8 +40,7 @@ pub fn get_log_path() -> String {
 #[tauri::command]
 pub fn open_log_directory() -> Result<(), IpcError> {
     let path = storage::logging::log_directory();
-    open::that(&path)
-        .map_err(|e| IpcError::from(format!("failed to open log directory: {e}")))
+    open::that(&path).map_err(|e| IpcError::from(format!("failed to open log directory: {e}")))
 }
 
 /// Return the effective file-log verbosity (`"error"` / `"info"` / `"debug"`).
