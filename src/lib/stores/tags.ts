@@ -204,8 +204,26 @@ export async function doDeleteTag(name: string) {
   await refreshTags();
 }
 
+/**
+ * Push one tag (or all tags, when `tagName` is null) to `remote`.
+ *
+ * Goes through `runMutation` for the failure toast. It used to be a bare
+ * `return apiPushTag(...)`, and its two callers invoked it from an `onclick`
+ * without awaiting — so a rejected push (no permission, tag already on the
+ * remote, no network) produced nothing at all. There was no row in the tasks
+ * drawer either: the task spawned as `Generic`, which `should_emit` drops.
+ *
+ * No success toast: the push runs as a `GitPush` task, so the drawer row
+ * reaching a terminal state already says it landed.
+ */
 export async function doPushTag(tagName: string | null, remote: string) {
-  return apiPushTag(tagName, remote);
+  return runMutation({
+    kind: "tag_push",
+    invoke: () => apiPushTag(tagName, remote),
+    failureToastPrefix: tagName
+      ? `Push tag ${tagName} failed`
+      : "Push tags failed",
+  });
 }
 
 /** Reset all tag selection/detail state. Called on repo switch. */

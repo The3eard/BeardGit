@@ -155,6 +155,8 @@
         return m.tasks_kind_git_clone();
       case "app_update":
         return m.tasks_kind_app_update();
+      case "background":
+        return m.tasks_kind_background();
     }
   });
 

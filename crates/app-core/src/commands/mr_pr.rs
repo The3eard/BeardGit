@@ -12,7 +12,9 @@ use forge_provider::{
     MrPrDetail, MrPrDiffFile, MrPrFilter, MrPrState,
 };
 use mutation_events::MutationKind;
-use task_runner::{OutputLine, Stream as TaskStream, TaskId, TaskManager, TaskStatus};
+use task_runner::{
+    OutputLine, SpawnOptions, Stream as TaskStream, TaskId, TaskKind, TaskManager, TaskStatus,
+};
 use tauri::{AppHandle, Emitter, State};
 use tracing::instrument;
 
@@ -466,11 +468,22 @@ pub async fn checkout_mr_pr_locally(
     let num_str = number.to_string();
     let args: Vec<&str> = vec![subcmd, "checkout", &num_str];
 
-    let label = format!("Checkout MR/PR #{number}");
     let binary_str = binary.to_string_lossy().to_string();
 
+    // Explicit `Background`, not the bare `spawn`: that one tags `Generic`,
+    // which `should_emit` drops — so the doc-comment promise on
+    // `checkoutMrPrLocally` ("progress streams to the task popover") was never
+    // kept, because no `task://update` was ever emitted for it.
     let id = task_manager
-        .spawn(label, &binary_str, &args, &cwd, true)
+        .spawn_with_options(SpawnOptions {
+            label: format!("Checkout MR/PR #{number}"),
+            command: &binary_str,
+            args: &args,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
+        })
         .await;
 
     // Spawn a listener that parses task output on completion and emits events.
