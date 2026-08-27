@@ -90,7 +90,13 @@ export const taskRunner = {
       ...found,
       status: outcome.ok ? "success" : "error",
       finishedAt: Date.now(),
-      errorMessage: outcome.err ? String(outcome.err) : undefined,
+      // `getErrorMessage`, not `String`: this is the *tracked* half of
+      // `runMutation` — push, pull, fetch, merge, rebase, clone — and an
+      // `IpcError` stringifies to "[object Object]" in the popover's
+      // "See details" row. The lint rule cannot see this one: `outcome`
+      // is a parameter, not a caught binding, so the value's origin is a
+      // function call away.
+      errorMessage: outcome.err ? getErrorMessage(outcome.err) : undefined,
     });
   },
 
