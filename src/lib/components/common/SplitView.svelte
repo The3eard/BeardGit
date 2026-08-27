@@ -14,7 +14,7 @@
     refreshFn,
     left,
     right,
-    defaultWidth = 300,
+    defaultWidth = 304,
   }: {
     refreshFn: () => void | Promise<void>;
     left: Snippet;
@@ -68,10 +68,12 @@
   });
 </script>
 
-<div class="split-view">
+<div class="split-view" style="--split-x: {sidebarWidth}px">
   <div class="split-sidebar" style="width: {sidebarWidth}px">
     {@render left()}
   </div>
+  <!-- The handle is positioned over the seam rather than laid out in it —
+       see `.resize-handle` below and lib/styles/resize-handle.css. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="resize-handle" onmousedown={startResize}></div>
   <div class="split-main">
@@ -82,9 +84,27 @@
 <style>
   .split-view {
     display: flex;
+    /* Anchor for the absolutely-positioned resize handle. */
+    position: relative;
     width: 100%;
     height: 100%;
     overflow: hidden;
+  }
+
+  /* Straddles the seam instead of sitting in it. Laid out in the flex row,
+     this was a 4px band between the two panels that had to be *some*
+     colour, and no colour was right: the neighbouring surface differs per
+     view. Out of flow, the panels meet at the sidebar's own 1px border and
+     the grab zone floats over it. Same approach as `DiffEditor`'s inner
+     split, which already did this. */
+  .resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--split-x);
+    width: 8px;
+    margin-left: -4px;
+    z-index: 2;
   }
 
   .split-sidebar {
