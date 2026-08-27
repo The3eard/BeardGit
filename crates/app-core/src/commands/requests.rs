@@ -24,6 +24,7 @@ use requests_store::HistoryEntry;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Build the namespaced "instance URL" key under which a Requests-panel
@@ -91,7 +92,7 @@ pub struct TreeNode {
 /// Best-effort: filesystem failures are ignored so a read-only mount
 /// still returns the tree.
 #[tauri::command]
-pub fn requests_list_project(project_path: String) -> Result<Vec<TreeNode>, String> {
+pub fn requests_list_project(project_path: String) -> Result<Vec<TreeNode>, IpcError> {
     let root = Path::new(&project_path).join(".beardgit").join("requests");
     // If the project hasn't opted into requests yet (`.beardgit/requests/`
     // missing), this is a no-op — never silently materialise the directory
@@ -195,7 +196,7 @@ fn walk(root: &Path, dir: &Path) -> Vec<TreeNode> {
 /// Loose items (no parent collection) are returned as top-level files.
 /// Each collection becomes a folder containing its items.
 #[tauri::command]
-pub fn requests_list_global(state: tauri::State<'_, AppState>) -> Result<Vec<TreeNode>, String> {
+pub fn requests_list_global(state: tauri::State<'_, AppState>) -> Result<Vec<TreeNode>, IpcError> {
     let db = state.requests_db.lock().map_err(|_| "db poisoned")?;
     let cols = db.list_global_collections().map_err(|e| e.to_string())?;
     let mut roots: Vec<TreeNode> = vec![];
@@ -265,9 +266,9 @@ pub fn requests_load(
     source_kind: String,
     source_path: String,
     project_path: Option<String>,
-) -> Result<Vec<ParsedRequest>, String> {
+) -> Result<Vec<ParsedRequest>, IpcError> {
     let content = read_source(&state, &source_kind, &source_path, project_path.as_deref())?;
-    parse_http_file(&content).map_err(|e| e.to_string())
+    parse_http_file(&content).map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Resolve a project-scoped requests path, rejecting any `rel` that escapes
@@ -297,7 +298,7 @@ pub fn requests_save(
     source_path: String,
     project_path: Option<String>,
     content: String,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     match source_kind.as_str() {
         "project" => {
             let root = project_path.ok_or("project_path required")?;
@@ -317,9 +318,9 @@ pub fn requests_save(
             let now = chrono::Utc::now().timestamp();
             let db = state.requests_db.lock().map_err(|_| "db poisoned")?;
             db.update_global_item(id, &content, now)
-                .map_err(|e| e.to_string())
+                .map_err(|e| IpcError::from(e.to_string()))
         }
-        other => Err(format!("unknown source_kind: {other}")),
+        other => Err(IpcError::from(format!("unknown source_kind: {other}"))),
     }
 }
 
@@ -380,11 +381,12 @@ pub fn requests_create_global_item(
     name: String,
     collection_id: Option<i64>,
     http_content: String,
-) -> Result<i64, String> {
+) -> Result<i64, IpcError> {
     let now = chrono::Utc::now().timestamp();
     let db = state.requests_db.lock().map_err(|_| "db poisoned")?;
     db.create_global_item(collection_id, &name, &http_content, now)
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Delete a request from either the project tree or the global library.
@@ -400,7 +402,7 @@ pub fn requests_delete(
     source_kind: String,
     source_path: String,
     project_path: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     match source_kind.as_str() {
         "project" => {
             let root = project_path.ok_or("project_path required")?;
@@ -424,9 +426,10 @@ pub fn requests_delete(
                 .parse()
                 .map_err(|_| "invalid global id")?;
             let db = state.requests_db.lock().map_err(|_| "db poisoned")?;
-            db.delete_global_item(id).map_err(|e| e.to_string())
+            db.delete_global_item(id)
+                .map_err(|e| IpcError::from(e.to_string()))
         }
-        other => Err(format!("unknown source_kind: {other}")),
+        other => Err(IpcError::from(format!("unknown source_kind: {other}"))),
     }
 }
 
@@ -448,7 +451,7 @@ pub fn requests_rename(
     from_path: String,
     to_path: String,
     project_path: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     match source_kind.as_str() {
         "project" => {
             let root = project_path.ok_or("project_path required")?;
@@ -469,9 +472,9 @@ pub fn requests_rename(
             // The new name is the to_path string verbatim (no `global/` prefix).
             let db = state.requests_db.lock().map_err(|_| "db poisoned")?;
             db.rename_global_item(id, &to_path)
-                .map_err(|e| e.to_string())
+                .map_err(|e| IpcError::from(e.to_string()))
         }
-        other => Err(format!("unknown source_kind: {other}")),
+        other => Err(IpcError::from(format!("unknown source_kind: {other}"))),
     }
 }
 
@@ -491,7 +494,7 @@ pub fn requests_duplicate(
     source_kind: String,
     source_path: String,
     project_path: Option<String>,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     match source_kind.as_str() {
         "project" => {
             let root = project_path.ok_or("project_path required")?;
@@ -541,7 +544,7 @@ pub fn requests_duplicate(
                 .map_err(|e| e.to_string())?;
             Ok(format!("global/{new_id}"))
         }
-        other => Err(format!("unknown source_kind: {other}")),
+        other => Err(IpcError::from(format!("unknown source_kind: {other}"))),
     }
 }
 
@@ -588,7 +591,7 @@ pub struct EnvSummary {
 /// List all environment files in a project's `_env/` directory along with
 /// a summary of variables and secret names declared in each.
 #[tauri::command]
-pub fn requests_get_envs(project_path: String) -> Result<Vec<EnvSummary>, String> {
+pub fn requests_get_envs(project_path: String) -> Result<Vec<EnvSummary>, IpcError> {
     let root = Path::new(&project_path);
     // Always ensure the default env exists, even on a fresh project
     // where `.beardgit/requests/` hasn't been created yet. Mirrors the
@@ -616,8 +619,8 @@ pub fn requests_get_envs(project_path: String) -> Result<Vec<EnvSummary>, String
 /// via [`requests_set_secret`]). Used by the Manage envs dialog to populate
 /// its editable form.
 #[tauri::command]
-pub fn requests_load_env(project_path: String, env_name: String) -> Result<EnvFile, String> {
-    load_env(Path::new(&project_path), &env_name).map_err(|e| e.to_string())
+pub fn requests_load_env(project_path: String, env_name: String) -> Result<EnvFile, IpcError> {
+    load_env(Path::new(&project_path), &env_name).map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Save (or create) an environment file at
@@ -631,8 +634,9 @@ pub fn requests_save_env(
     project_path: String,
     env_name: String,
     env: EnvFile,
-) -> Result<(), String> {
-    save_env_file(Path::new(&project_path), &env_name, &env).map_err(|e| e.to_string())
+) -> Result<(), IpcError> {
+    save_env_file(Path::new(&project_path), &env_name, &env)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Delete an environment file. Idempotent: missing files are not an error.
@@ -641,7 +645,7 @@ pub fn requests_save_env(
 /// credential store — those keys are namespaced by env name and would have
 /// to be cleaned up explicitly. Acceptable v1 limitation.
 #[tauri::command]
-pub fn requests_delete_env(project_path: String, env_name: String) -> Result<(), String> {
+pub fn requests_delete_env(project_path: String, env_name: String) -> Result<(), IpcError> {
     let path = Path::new(&project_path)
         .join(".beardgit")
         .join("requests")
@@ -662,7 +666,7 @@ pub fn requests_set_env(
     state: tauri::State<'_, AppState>,
     project_path: String,
     env_name: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let now = chrono::Utc::now().timestamp();
     let db = state.requests_db.lock().map_err(|_| "db poisoned")?;
     let mut s = db
@@ -672,7 +676,8 @@ pub fn requests_set_env(
     s.project_path = project_path;
     s.active_env = env_name;
     s.updated_at = now;
-    db.upsert_project_state(&s).map_err(|e| e.to_string())
+    db.upsert_project_state(&s)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Store a Requests-panel secret value in the encrypted credential store.
@@ -687,7 +692,7 @@ pub fn requests_set_secret(
     env_name: String,
     secret_name: String,
     value: String,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let key = requests_secret_key(&env_name, &secret_name);
     let credential = Credential {
         token: value,
@@ -699,6 +704,7 @@ pub fn requests_set_secret(
         .credential_store
         .store_credential(&key, &credential)
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Look up a Requests-panel secret value previously stored via
@@ -795,7 +801,7 @@ impl Drop for CleanupGuard<'_> {
 pub async fn requests_run(
     state: tauri::State<'_, AppState>,
     args: RunRequestArgs,
-) -> Result<RunResult, String> {
+) -> Result<RunResult, IpcError> {
     // Register the cancellation token *before* any await so a concurrent
     // requests_cancel never races past us.
     let cancel = CancellationToken::new();
@@ -877,7 +883,10 @@ pub async fn requests_run(
 /// completed and removed its entry, which is not an error from the
 /// frontend's perspective (the UI just stops awaiting the response).
 #[tauri::command]
-pub fn requests_cancel(state: tauri::State<'_, AppState>, ticket_id: String) -> Result<(), String> {
+pub fn requests_cancel(
+    state: tauri::State<'_, AppState>,
+    ticket_id: String,
+) -> Result<(), IpcError> {
     let map = state
         .requests_cancellations
         .lock()
@@ -914,7 +923,7 @@ pub fn requests_history(
     source_kind: String,
     source_path: String,
     limit: i64,
-) -> Result<Vec<HistoryRow>, String> {
+) -> Result<Vec<HistoryRow>, IpcError> {
     let db = state.requests_db.lock().map_err(|_| "db poisoned")?;
     let rows = db
         .list_history(&source_kind, &source_path, limit)
@@ -952,7 +961,7 @@ pub fn requests_diff_responses(
     state: tauri::State<'_, AppState>,
     history_id_a: i64,
     history_id_b: i64,
-) -> Result<DiffPayload, String> {
+) -> Result<DiffPayload, IpcError> {
     let db = state.requests_db.lock().map_err(|_| "db poisoned")?;
     let a = db
         .get_history_by_id(history_id_a)
@@ -991,15 +1000,15 @@ pub fn requests_diff_responses(
 /// Returns the list of relative paths that were written, in order.
 /// Existing user-customised `_env/default.json` files are preserved.
 #[tauri::command]
-pub fn requests_seed_quickstart(project_path: String) -> Result<Vec<String>, String> {
-    seed_quickstart_pack(Path::new(&project_path)).map_err(|e| e.to_string())
+pub fn requests_seed_quickstart(project_path: String) -> Result<Vec<String>, IpcError> {
+    seed_quickstart_pack(Path::new(&project_path)).map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Parse a `curl` shell command string into a [`ParsedRequest`] suitable
 /// for direct loading in the editor (Paste cURL flow).
 #[tauri::command]
-pub fn requests_paste_curl(curl_string: String) -> Result<ParsedRequest, String> {
-    import_curl(&curl_string).map_err(|e| e.to_string())
+pub fn requests_paste_curl(curl_string: String) -> Result<ParsedRequest, IpcError> {
+    import_curl(&curl_string).map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Arguments for [`requests_copy_as`].
@@ -1030,14 +1039,14 @@ pub fn requests_open_in_editor(
     source_kind: String,
     source_path: String,
     project_path: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     if source_kind != "project" {
         return Err("only project items can be opened in an external editor".into());
     }
     let root = project_path.ok_or("project_path required")?;
     let p = resolve_project_request_path(&root, &source_path)?;
     if !p.exists() {
-        return Err(format!("file not found: {}", p.display()));
+        return Err(IpcError::from(format!("file not found: {}", p.display())));
     }
     #[cfg(target_os = "macos")]
     let res = std::process::Command::new("open").arg(&p).status();
@@ -1058,7 +1067,7 @@ pub fn requests_open_in_editor(
 pub fn requests_copy_as(
     state: tauri::State<'_, AppState>,
     args: CopyAsArgs,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     let content = read_source(
         &state,
         &args.source_kind,
@@ -1094,7 +1103,7 @@ pub fn requests_copy_as(
         "fetch" => CodegenTarget::Fetch,
         "httpie" => CodegenTarget::Httpie,
         "wget" => CodegenTarget::Wget,
-        other => return Err(format!("unknown target: {other}")),
+        other => return Err(IpcError::from(format!("unknown target: {other}"))),
     };
     Ok(copy_as(&resolved, target))
 }
