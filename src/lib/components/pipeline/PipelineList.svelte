@@ -6,6 +6,7 @@
   row template, polling lifecycle, context menu, and trigger dialog.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import { ciRuns, loadCiRuns, loadMoreCiRuns, loadCiRunDetail, selectedCiRunId, startCiRunListPolling, stopCiRunListPolling, hasMoreCiRuns, hasActiveProvider, retryCiRun, cancelCiRun } from "../../stores/provider";
   import type { CiRun } from "../../types";
@@ -65,12 +66,12 @@
   async function retryFromMenu(run: CiRun) {
     closeCtxMenu();
     try { await retryCiRun(run.id); await fetchPipelines(); }
-    catch (e) { ctxError = m.pipeline_retry_error({ error: String(e) }); }
+    catch (e) { ctxError = m.pipeline_retry_error({ error: getErrorMessage(e) }); }
   }
   async function cancelFromMenu(run: CiRun) {
     closeCtxMenu();
     try { await cancelCiRun(run.id); await fetchPipelines(); }
-    catch (e) { ctxError = m.pipeline_cancel_error({ error: String(e) }); }
+    catch (e) { ctxError = m.pipeline_cancel_error({ error: getErrorMessage(e) }); }
   }
   async function openInBrowser(run: CiRun) {
     closeCtxMenu();
@@ -126,7 +127,7 @@
         } catch { /* ignore */ }
       });
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       loading = false;
     }
@@ -149,14 +150,14 @@
       const { branch, status, source } = extractApiParams(searchTags);
       await loadMoreCiRuns(branch, source, status);
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       loadingMore = false;
     }
   }
 
   async function selectCiRun(run: CiRun) {
-    try { await loadCiRunDetail(run.id); } catch (e) { error = String(e); }
+    try { await loadCiRunDetail(run.id); } catch (e) { error = getErrorMessage(e); }
   }
 
   function shortSha(sha: string): string { return sha.substring(0, 8); }

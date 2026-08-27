@@ -11,6 +11,7 @@
  * functions, and live entirely in this file.
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { linter, type Diagnostic } from "@codemirror/lint";
 import type { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
@@ -55,7 +56,7 @@ export function lintBuffer(doc: string, filename: string | null): Diagnostic[] {
   try {
     parsed = JSON.parse(doc);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     const [from, to] = locateParseError(doc, message);
     diagnostics.push({
       from,

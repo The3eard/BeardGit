@@ -1,5 +1,6 @@
 //! Tauri commands for terminal session management.
 
+use crate::ipc_error::IpcError;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -14,7 +15,7 @@ pub fn terminal_spawn(
     cols: u16,
     rows: u16,
     terminal_manager: State<'_, Arc<TerminalManager>>,
-) -> Result<SessionId, String> {
+) -> Result<SessionId, IpcError> {
     let config = TerminalConfig {
         cwd: PathBuf::from(cwd),
         shell: None,
@@ -23,7 +24,9 @@ pub fn terminal_spawn(
         cols,
         rows,
     };
-    terminal_manager.spawn(config).map_err(|e| e.to_string())
+    terminal_manager
+        .spawn(config)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Write input bytes to a terminal session (base64-encoded from frontend).
@@ -32,7 +35,7 @@ pub fn terminal_write(
     id: SessionId,
     data: String,
     terminal_manager: State<'_, Arc<TerminalManager>>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     use base64::Engine as _;
     use base64::engine::general_purpose::STANDARD as BASE64;
 
@@ -40,6 +43,7 @@ pub fn terminal_write(
     terminal_manager
         .write(id, &bytes)
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Resize a terminal session.
@@ -49,10 +53,11 @@ pub fn terminal_resize(
     cols: u16,
     rows: u16,
     terminal_manager: State<'_, Arc<TerminalManager>>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     terminal_manager
         .resize(id, cols, rows)
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Kill a terminal session.
@@ -60,8 +65,10 @@ pub fn terminal_resize(
 pub fn terminal_kill(
     id: SessionId,
     terminal_manager: State<'_, Arc<TerminalManager>>,
-) -> Result<(), String> {
-    terminal_manager.kill(id).map_err(|e| e.to_string())
+) -> Result<(), IpcError> {
+    terminal_manager
+        .kill(id)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Set which terminal session is currently visible.
@@ -73,7 +80,7 @@ pub fn terminal_kill(
 pub fn terminal_set_active(
     id: Option<SessionId>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     terminal_manager.set_active_session(id);
     Ok(())
 }

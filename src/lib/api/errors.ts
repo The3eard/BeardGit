@@ -7,8 +7,17 @@
  *      `code` lets the frontend branch on error kind (`not_a_repo`,
  *      `auth_required`, `not_fast_forward`, …) instead of matching free text.
  *
- * Both shapes coexist during the incremental migration, so every helper here
- * degrades gracefully: string errors simply have no `code`.
+ * Every Tauri command now rejects with shape 2. Shape 1 survives for
+ * non-command rejections — a thrown `Error`, a plugin, a `JSON.parse` — so
+ * every helper here still degrades gracefully: string errors simply have
+ * no `code`.
+ *
+ * **Use these rather than `String(e)`.** An `IpcError` is an object, so
+ * `String(e)` renders it as the literal text `"[object Object]"`; that
+ * broke 97 callsites across 38 files the day the last commands migrated,
+ * including three that compared the result against known text to decide
+ * what to do next. `eslint-rules/no-stringify-caught-error.cjs` blocks the
+ * regression.
  */
 
 /**

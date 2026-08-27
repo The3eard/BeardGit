@@ -28,6 +28,7 @@ use task_runner::{TaskId, TaskManager};
 use tauri::{AppHandle, State};
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List releases for the current repository, newest first.
@@ -35,10 +36,15 @@ use crate::state::AppState;
 pub async fn list_releases(
     limit: Option<u32>,
     state: State<'_, AppState>,
-) -> Result<Vec<Release>, String> {
+) -> Result<Vec<Release>, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let limit = limit.unwrap_or(30);
-    run_blocking(move || provider.list_releases(limit).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .list_releases(limit)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Fetch full detail (body + assets) for a single release by tag.
@@ -46,9 +52,14 @@ pub async fn list_releases(
 pub async fn get_release_detail(
     tag: String,
     state: State<'_, AppState>,
-) -> Result<ReleaseDetail, String> {
+) -> Result<ReleaseDetail, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.get_release(&tag).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .get_release(&tag)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// List just the asset records for a release.
@@ -56,7 +67,7 @@ pub async fn get_release_detail(
 pub async fn list_release_assets(
     tag: String,
     state: State<'_, AppState>,
-) -> Result<Vec<ReleaseAsset>, String> {
+) -> Result<Vec<ReleaseAsset>, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -64,6 +75,7 @@ pub async fn list_release_assets(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Create a new release.
@@ -76,9 +88,14 @@ pub async fn list_release_assets(
 pub async fn create_release(
     input: CreateReleaseInput,
     state: State<'_, AppState>,
-) -> Result<Release, String> {
+) -> Result<Release, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.create_release(input).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .create_release(input)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Edit a release's title, body, and/or draft/prerelease flags.
@@ -87,7 +104,7 @@ pub async fn edit_release(
     tag: String,
     patch: EditReleasePatch,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -95,13 +112,19 @@ pub async fn edit_release(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Delete a release. The underlying tag is not removed.
 #[tauri::command]
-pub async fn delete_release(tag: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn delete_release(tag: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.delete_release(&tag).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .delete_release(&tag)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Publish a draft release. GitHub only — GitLab returns a NotSupported error.
@@ -115,10 +138,15 @@ pub async fn publish_release(
     tag: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::TagCreate, || async move {
-        run_blocking(move || provider.publish_release(&tag).map_err(|e| e.to_string())).await
+        run_blocking(move || {
+            provider
+                .publish_release(&tag)
+                .map_err(|e| IpcError::from(e.to_string()))
+        })
+        .await
     })
     .await
 }
@@ -129,7 +157,7 @@ pub async fn delete_release_asset(
     tag: String,
     asset_id: u64,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -137,6 +165,7 @@ pub async fn delete_release_asset(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Upload a binary asset to a release.
@@ -156,7 +185,7 @@ pub async fn upload_release_asset(
     label: Option<String>,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     // Resolve which CLI we're speaking to and the upload argv shape.
@@ -237,7 +266,7 @@ pub async fn create_tag_and_release(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
     app_handle: tauri::AppHandle,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
 

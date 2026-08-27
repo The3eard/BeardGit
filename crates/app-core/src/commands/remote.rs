@@ -134,7 +134,7 @@ pub async fn delete_remote_branch(
     branch: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     let label = format!("Delete {}/{}", remote, branch);
@@ -163,7 +163,7 @@ pub async fn rename_remote(
     old_name: String,
     new_name: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -172,6 +172,7 @@ pub async fn rename_remote(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Removes a remote from the active repository.
@@ -188,7 +189,7 @@ pub async fn remove_remote(
     name: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::RemoteRemove, || async move {
         tokio::task::spawn_blocking(move || {
@@ -199,6 +200,7 @@ pub async fn remove_remote(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Ensures a commit SHA is present in the local object database.
@@ -221,7 +223,7 @@ pub async fn ensure_commit_local(
     remote_url: Option<String>,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let cwd = get_active_project_path(&state)?;
     if commit_exists_locally(&cwd, &sha) {
         return Ok(());
@@ -251,9 +253,9 @@ pub async fn ensure_commit_local(
         .map_err(|e| e.to_string())?;
 
     if !commit_exists_locally(&cwd, &sha) {
-        return Err(format!(
+        return Err(IpcError::from(format!(
             "commit {short} not found after fetching from {remote}"
-        ));
+        )));
     }
     Ok(())
 }

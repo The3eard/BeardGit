@@ -3,6 +3,7 @@
   are required; labels, assignees, and milestone are optional.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import { Button, IconButton } from "$lib/components/ui";
   import {
@@ -67,7 +68,7 @@
       await createIssue(titleInput.trim(), bodyInput, labels, assignees, milestoneId);
       onClose();
     } catch (e) {
-      errorMsg = m.issues_create_failed({ error: String(e) });
+      errorMsg = m.issues_create_failed({ error: getErrorMessage(e) });
     } finally {
       submitting = false;
     }

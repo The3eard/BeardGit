@@ -3,25 +3,24 @@
 use tauri::State;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Read the content of the repository's root `.gitignore` file.
 ///
 /// Returns an empty string if the file does not exist.
 #[tauri::command]
-pub fn read_gitignore(state: State<'_, AppState>) -> Result<String, String> {
-    with_active_repo(&state, |repo| {
-        repo.read_gitignore().map_err(|e| e.to_string())
-    })
+pub fn read_gitignore(state: State<'_, AppState>) -> Result<String, IpcError> {
+    with_active_repo(&state, |repo| repo.read_gitignore().map_err(IpcError::from))
 }
 
 /// Write the full content of the repository's `.gitignore` file.
 ///
 /// Creates the file if it does not exist.
 #[tauri::command]
-pub fn write_gitignore(content: String, state: State<'_, AppState>) -> Result<(), String> {
+pub fn write_gitignore(content: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     with_active_repo(&state, |repo| {
-        repo.write_gitignore(&content).map_err(|e| e.to_string())
+        repo.write_gitignore(&content).map_err(IpcError::from)
     })
 }
 
@@ -29,10 +28,9 @@ pub fn write_gitignore(content: String, state: State<'_, AppState>) -> Result<()
 ///
 /// Checks for duplicates before appending. Creates the file if needed.
 #[tauri::command]
-pub fn add_gitignore_pattern(pattern: String, state: State<'_, AppState>) -> Result<(), String> {
+pub fn add_gitignore_pattern(pattern: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     with_active_repo(&state, |repo| {
-        repo.add_gitignore_pattern(&pattern)
-            .map_err(|e| e.to_string())
+        repo.add_gitignore_pattern(&pattern).map_err(IpcError::from)
     })
 }
 

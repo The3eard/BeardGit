@@ -7,6 +7,7 @@ use tauri::State;
 use tracing::instrument;
 
 use super::helpers::get_active_project_path;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Start a bisect session, optionally providing the initial bad and good commits.
@@ -16,13 +17,14 @@ pub async fn bisect_start(
     bad: Option<String>,
     good: Option<String>,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     let cwd = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         git_engine::bisect::bisect_start(&cwd, bad.as_deref(), good.as_deref())
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Mark a commit (or current HEAD) as good.
@@ -31,11 +33,12 @@ pub async fn bisect_start(
 pub async fn bisect_good(
     commit: Option<String>,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     let cwd = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || git_engine::bisect::bisect_good(&cwd, commit.as_deref()))
         .await
         .map_err(|e| e.to_string())?
+        .map_err(IpcError::from)
 }
 
 /// Mark a commit (or current HEAD) as bad.
@@ -44,51 +47,56 @@ pub async fn bisect_good(
 pub async fn bisect_bad(
     commit: Option<String>,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     let cwd = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || git_engine::bisect::bisect_bad(&cwd, commit.as_deref()))
         .await
         .map_err(|e| e.to_string())?
+        .map_err(IpcError::from)
 }
 
 /// Skip the current commit.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::bisect::skip")]
-pub async fn bisect_skip(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn bisect_skip(state: State<'_, AppState>) -> Result<String, IpcError> {
     let cwd = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || git_engine::bisect::bisect_skip(&cwd))
         .await
         .map_err(|e| e.to_string())?
+        .map_err(IpcError::from)
 }
 
 /// Reset (end) the bisect session.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::bisect::reset")]
-pub async fn bisect_reset(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn bisect_reset(state: State<'_, AppState>) -> Result<String, IpcError> {
     let cwd = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || git_engine::bisect::bisect_reset(&cwd))
         .await
         .map_err(|e| e.to_string())?
+        .map_err(IpcError::from)
 }
 
 /// Get the current bisect session state.
 #[tauri::command]
 pub async fn bisect_get_state(
     state: State<'_, AppState>,
-) -> Result<git_engine::BisectState, String> {
+) -> Result<git_engine::BisectState, IpcError> {
     let cwd = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || git_engine::bisect::bisect_state(&cwd))
         .await
         .map_err(|e| e.to_string())?
+        .map_err(IpcError::from)
 }
 
 /// Get the bisect log.
 #[tauri::command]
-pub async fn bisect_get_log(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn bisect_get_log(state: State<'_, AppState>) -> Result<String, IpcError> {
     let cwd = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || git_engine::bisect::bisect_log(&cwd))
         .await
         .map_err(|e| e.to_string())?
+        .map_err(IpcError::from)
 }
 
 /// Run an automated bisect with a test command (background task, returns TaskId).
@@ -105,7 +113,7 @@ pub async fn bisect_run_auto(
     test_command: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     // Mirror `git_engine::bisect::bisect_run`: split on whitespace and pass

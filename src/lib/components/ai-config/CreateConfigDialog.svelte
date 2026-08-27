@@ -6,6 +6,7 @@
   creating.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { createConfigFile } from "../../stores/aiConfig";
   import * as m from "$lib/paraglide/messages";
   import Button from "$lib/components/ui/Button.svelte";
@@ -46,7 +47,7 @@
       await createConfigFile(kind, scope, trimmed);
       onClose();
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       creating = false;
     }

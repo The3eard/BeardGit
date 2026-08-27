@@ -18,6 +18,7 @@
     refreshSelectedDetail,
     completeUpload,
   } from "../../stores/releases";
+  import { getErrorMessage } from "$lib/api/errors";
   import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
   import { Button, IconButton } from "$lib/components/ui";
   import { activeProvider } from "../../stores/provider";
@@ -90,7 +91,7 @@
       }
       errorMsg = "";
     } catch (e) {
-      errorMsg = String(e);
+      errorMsg = getErrorMessage(e);
     }
   }
 
@@ -109,7 +110,7 @@
       errorMsg = "";
       await doDeleteRelease(detail.summary.tag);
     } catch (e) {
-      errorMsg = String(e);
+      errorMsg = getErrorMessage(e);
     }
   }
 
@@ -119,7 +120,7 @@
       errorMsg = "";
       await doPublishRelease(detail.summary.tag);
     } catch (e) {
-      errorMsg = String(e);
+      errorMsg = getErrorMessage(e);
     }
   }
 
@@ -131,7 +132,7 @@
       errorMsg = "";
       await doDeleteAsset(detail.summary.tag, id);
     } catch (e) {
-      errorMsg = String(e);
+      errorMsg = getErrorMessage(e);
     }
   }
 

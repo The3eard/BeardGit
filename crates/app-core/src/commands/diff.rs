@@ -4,6 +4,7 @@ use tauri::State;
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List files changed by a commit, including their change status and patch.
@@ -15,7 +16,7 @@ use crate::state::AppState;
 pub async fn get_commit_files(
     oid: String,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::CommitFileChange>, String> {
+) -> Result<Vec<git_engine::CommitFileChange>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -23,6 +24,7 @@ pub async fn get_commit_files(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Return files changed between two arbitrary commits.
@@ -36,7 +38,7 @@ pub async fn get_diff_between_commits(
     from_oid: String,
     to_oid: String,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::CommitFileChange>, String> {
+) -> Result<Vec<git_engine::CommitFileChange>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -45,6 +47,7 @@ pub async fn get_diff_between_commits(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Return the merge base (best common ancestor) of two revisions, or `null`
@@ -59,7 +62,7 @@ pub async fn get_merge_base(
     a: String,
     b: String,
     state: State<'_, AppState>,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -67,6 +70,7 @@ pub async fn get_merge_base(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Return the commits in `from..to` (reachable from `to`, not from `from`),
@@ -87,7 +91,7 @@ pub async fn get_commits_between(
     limit: Option<usize>,
     anchor: Option<String>,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::CommitInfo>, String> {
+) -> Result<Vec<git_engine::CommitInfo>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -96,6 +100,7 @@ pub async fn get_commits_between(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Return the full diff (hunks + lines) for a single file in a commit.
@@ -105,7 +110,7 @@ pub async fn get_commit_file_diff(
     oid: String,
     path: String,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::FileDiff>, String> {
+) -> Result<Vec<git_engine::FileDiff>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -114,6 +119,7 @@ pub async fn get_commit_file_diff(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Return the structured diff for **every** file in a commit in a single
@@ -124,7 +130,7 @@ pub async fn get_commit_file_diff(
 pub async fn get_commit_full_diff(
     oid: String,
     state: State<'_, AppState>,
-) -> Result<std::collections::HashMap<String, git_engine::FileDiff>, String> {
+) -> Result<std::collections::HashMap<String, git_engine::FileDiff>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -132,6 +138,7 @@ pub async fn get_commit_full_diff(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Structured result for [`get_file_at_commit`].
@@ -176,7 +183,7 @@ pub async fn get_file_at_commit(
     oid: String,
     path: String,
     state: State<'_, AppState>,
-) -> Result<FileAtCommitResult, String> {
+) -> Result<FileAtCommitResult, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -191,6 +198,7 @@ pub async fn get_file_at_commit(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 #[cfg(test)]
@@ -260,7 +268,7 @@ fn tag_file_content(
 pub async fn get_file_workdir(
     path: String,
     state: State<'_, AppState>,
-) -> Result<FileContentResult, String> {
+) -> Result<FileContentResult, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -268,6 +276,7 @@ pub async fn get_file_workdir(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Returns raw file content from the index (staged version), or a tagged
@@ -282,7 +291,7 @@ pub async fn get_file_workdir(
 pub async fn get_file_index(
     path: String,
     state: State<'_, AppState>,
-) -> Result<FileContentResult, String> {
+) -> Result<FileContentResult, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -290,6 +299,7 @@ pub async fn get_file_index(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Return the unstaged diff between the working tree and the index.
@@ -305,16 +315,19 @@ pub async fn get_file_index(
 #[tauri::command]
 pub async fn get_diff_workdir(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::FileDiff>, String> {
+) -> Result<Vec<git_engine::FileDiff>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let mut files = repo.diff_workdir().map_err(|e| e.to_string())?;
         git_engine::enforce_response_budget(&mut files, git_engine::MAX_DIFF_RESPONSE_BYTES);
-        Ok(files)
+        // Annotated because the tail's `IpcError::from` accepts several
+        // source types, so nothing else pins what this closure fails with.
+        Ok::<_, String>(files)
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Return the staged diff between the index and HEAD.
@@ -327,16 +340,19 @@ pub async fn get_diff_workdir(
 #[tauri::command]
 pub async fn get_diff_index(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::FileDiff>, String> {
+) -> Result<Vec<git_engine::FileDiff>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
         let mut files = repo.diff_index().map_err(|e| e.to_string())?;
         git_engine::enforce_response_budget(&mut files, git_engine::MAX_DIFF_RESPONSE_BYTES);
-        Ok(files)
+        // Annotated because the tail's `IpcError::from` accepts several
+        // source types, so nothing else pins what this closure fails with.
+        Ok::<_, String>(files)
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Full hunks/lines diff for a single file, fetched lazily when the user
@@ -359,7 +375,7 @@ pub async fn get_diff_file(
     staged: bool,
     context_lines: Option<u32>,
     state: State<'_, AppState>,
-) -> Result<Option<git_engine::FileDiff>, String> {
+) -> Result<Option<git_engine::FileDiff>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -368,6 +384,7 @@ pub async fn get_diff_file(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Cheap per-file change stats (name/status + add/del counts, no hunks) for
@@ -379,7 +396,7 @@ pub async fn get_diff_file(
 #[tauri::command]
 pub async fn get_diff_stats_workdir(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::FileDiffStat>, String> {
+) -> Result<Vec<git_engine::FileDiffStat>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -387,6 +404,7 @@ pub async fn get_diff_stats_workdir(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Cheap per-file change stats for the index (staged changes) vs HEAD.
@@ -397,7 +415,7 @@ pub async fn get_diff_stats_workdir(
 #[tauri::command]
 pub async fn get_diff_stats_index(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::FileDiffStat>, String> {
+) -> Result<Vec<git_engine::FileDiffStat>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -405,6 +423,7 @@ pub async fn get_diff_stats_index(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 #[cfg(test)]

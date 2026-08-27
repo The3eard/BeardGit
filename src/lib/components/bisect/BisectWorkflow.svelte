@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount, onDestroy } from "svelte";
   import {
     bisectState,
@@ -42,7 +43,7 @@
       badCommit = "";
       goodCommit = "";
     } catch (e) {
-      addToast({ message: String(e), type: "error" });
+      addToast({ message: getErrorMessage(e), type: "error" });
     }
   }
 
@@ -50,7 +51,7 @@
     try {
       lastResult = await markGood();
     } catch (e) {
-      addToast({ message: String(e), type: "error" });
+      addToast({ message: getErrorMessage(e), type: "error" });
     }
   }
 
@@ -58,7 +59,7 @@
     try {
       lastResult = await markBad();
     } catch (e) {
-      addToast({ message: String(e), type: "error" });
+      addToast({ message: getErrorMessage(e), type: "error" });
     }
   }
 
@@ -66,7 +67,7 @@
     try {
       lastResult = await skipCommit();
     } catch (e) {
-      addToast({ message: String(e), type: "error" });
+      addToast({ message: getErrorMessage(e), type: "error" });
     }
   }
 
@@ -75,7 +76,7 @@
       lastResult = "";
       await resetBisect();
     } catch (e) {
-      addToast({ message: String(e), type: "error" });
+      addToast({ message: getErrorMessage(e), type: "error" });
     }
   }
 
@@ -85,7 +86,7 @@
     try {
       await runAutoBisect(testCommand);
     } catch (e) {
-      addToast({ message: String(e), type: "error" });
+      addToast({ message: getErrorMessage(e), type: "error" });
     }
   }
 
@@ -93,7 +94,7 @@
     try {
       await cancelAutoBisect();
     } catch (e) {
-      addToast({ message: String(e), type: "error" });
+      addToast({ message: getErrorMessage(e), type: "error" });
     }
   }
 

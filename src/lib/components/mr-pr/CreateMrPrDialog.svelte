@@ -5,6 +5,7 @@
   draft toggle, labels, and reviewers. Calls createMrPr from the store on submit.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import { Checkbox } from "$lib/components/ui";
@@ -67,7 +68,7 @@
       );
       onClose();
     } catch (e) {
-      errorMsg = m.mrpr_create_failed({ error: String(e) });
+      errorMsg = m.mrpr_create_failed({ error: getErrorMessage(e) });
     } finally {
       submitting = false;
     }

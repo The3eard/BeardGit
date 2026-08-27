@@ -19,6 +19,7 @@
   `FormRow` + `Button` primitives.
 -->
 <script module lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import type { SettingDescriptor } from "./settings-index";
 
   export const settingsIndex: SettingDescriptor[] = [
@@ -191,7 +192,7 @@
       // Revert so the selector never claims a level the backend rejected.
       logLevel = previous;
       addToast({
-        message: `${m.settings_advanced_log_level_failed()}: ${e}`,
+        message: `${m.settings_advanced_log_level_failed()}: ${getErrorMessage(e)}`,
         type: "error",
       });
     } finally {
@@ -246,7 +247,7 @@
       });
     } catch (e) {
       addToast({
-        message: `${m.settings_advanced_clear_cache_failed()}: ${e}`,
+        message: `${m.settings_advanced_clear_cache_failed()}: ${getErrorMessage(e)}`,
         type: "error",
       });
     } finally {
@@ -260,7 +261,7 @@
       await openLogDirectory();
     } catch (e) {
       addToast({
-        message: `${m.settings_advanced_log_directory_failed()}: ${e}`,
+        message: `${m.settings_advanced_log_directory_failed()}: ${getErrorMessage(e)}`,
         type: "error",
       });
     } finally {

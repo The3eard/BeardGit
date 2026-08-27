@@ -9,6 +9,7 @@
  * Mirrors the pattern used by `issues.ts` and `mr-pr.ts`.
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { writable, derived, get } from "svelte/store";
 import type {
   Release,
@@ -106,7 +107,7 @@ export function selectRelease(tag: string): void {
     })
     .catch((err) => {
       if (get(selectedReleaseTag) !== expected) return;
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = getErrorMessage(err);
       releaseDetail.set(null);
       releaseDetailError.set(msg);
       addToast({
@@ -139,7 +140,7 @@ export async function refreshSelectedDetail(): Promise<void> {
     }
   } catch (err) {
     if (get(selectedReleaseTag) !== tag) return;
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = getErrorMessage(err);
     releaseDetailError.set(msg);
     /* no toast — this is an auto-refresh path. */
   }

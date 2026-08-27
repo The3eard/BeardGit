@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { doCreateTag } from "../../stores/tags";
@@ -35,7 +36,7 @@
       await doCreateTag(name.trim(), target.trim() || "HEAD", annotated ? message.trim() : null);
       onClose();
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       creating = false;
     }
