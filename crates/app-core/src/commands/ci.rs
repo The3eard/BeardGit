@@ -4,6 +4,7 @@ use tauri::State;
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Fetch a paginated list of CI runs for the detected project.
@@ -19,7 +20,7 @@ pub async fn list_ci_runs(
     per_page: Option<u32>,
     page: Option<u32>,
     state: State<'_, AppState>,
-) -> Result<Vec<provider::CiRun>, String> {
+) -> Result<Vec<provider::CiRun>, IpcError> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     let filters = provider::CiFilters {
         branch,
@@ -35,6 +36,7 @@ pub async fn list_ci_runs(
         )
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Fetch full detail for a single CI run, including its stages and jobs.
@@ -43,23 +45,25 @@ pub async fn list_ci_runs(
 pub async fn get_ci_run_detail(
     run_id: u64,
     state: State<'_, AppState>,
-) -> Result<provider::CiRunDetail, String> {
+) -> Result<provider::CiRunDetail, IpcError> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     ci_provider
         .get_ci_run_detail(&project_ref, run_id)
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Fetch the raw log output for a single CI job.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::ci::job_log")]
-pub async fn get_job_log(job_id: u64, state: State<'_, AppState>) -> Result<String, String> {
+pub async fn get_job_log(job_id: u64, state: State<'_, AppState>) -> Result<String, IpcError> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     ci_provider
         .get_job_log(&project_ref, job_id)
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Preprocess a raw CI job log, stripping provider-specific noise.
@@ -68,11 +72,15 @@ pub async fn get_job_log(job_id: u64, state: State<'_, AppState>) -> Result<Stri
 /// timestamps, stream codes, section markers, and adds line numbers. ANSI
 /// color/style codes are preserved for the frontend renderer.
 #[tauri::command]
-pub fn preprocess_job_log(raw_text: String, provider_kind: String) -> Result<String, String> {
+pub fn preprocess_job_log(raw_text: String, provider_kind: String) -> Result<String, IpcError> {
     let kind = match provider_kind.as_str() {
         "gitlab" => provider::ProviderKind::GitLab,
         "github" => provider::ProviderKind::GitHub,
-        _ => return Err(format!("Unknown provider kind: {}", provider_kind)),
+        _ => {
+            return Err(IpcError::from(format!(
+                "Unknown provider kind: {provider_kind}"
+            )));
+        }
     };
     Ok(provider::log_preprocessor::preprocess_ci_log(
         &raw_text, kind,
@@ -93,7 +101,7 @@ pub async fn trigger_workflow(
     git_ref: String,
     inputs: std::collections::HashMap<String, String>,
     state: State<'_, AppState>,
-) -> Result<provider::TriggerResult, String> {
+) -> Result<provider::TriggerResult, IpcError> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     let input = provider::TriggerWorkflowInput {
         workflow_id,
@@ -104,16 +112,18 @@ pub async fn trigger_workflow(
         .trigger_workflow(&project_ref, &input)
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Re-run all jobs in a previously completed run.
 #[tauri::command]
-pub async fn retry_ci_run(run_id: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn retry_ci_run(run_id: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     ci_provider
         .retry_run(&project_ref, &run_id)
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Re-run only failed jobs of a completed run.
@@ -121,32 +131,35 @@ pub async fn retry_ci_run(run_id: String, state: State<'_, AppState>) -> Result<
 pub async fn retry_ci_failed_jobs(
     run_id: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     ci_provider
         .retry_failed_jobs(&project_ref, &run_id)
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Re-run a specific job.
 #[tauri::command]
-pub async fn retry_ci_job(job_id: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn retry_ci_job(job_id: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     ci_provider
         .retry_job(&project_ref, &job_id)
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Cancel an in-progress run.
 #[tauri::command]
-pub async fn cancel_ci_run(run_id: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn cancel_ci_run(run_id: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     ci_provider
         .cancel_run(&project_ref, &run_id)
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// List workflow definitions for the active project.
@@ -156,12 +169,13 @@ pub async fn cancel_ci_run(run_id: String, state: State<'_, AppState>) -> Result
 #[tauri::command]
 pub async fn list_ci_workflows(
     state: State<'_, AppState>,
-) -> Result<Vec<provider::Workflow>, String> {
+) -> Result<Vec<provider::Workflow>, IpcError> {
     let (ci_provider, project_ref) = get_active_provider_and_project(&state)?;
     ci_provider
         .list_workflows(&project_ref)
         .await
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 #[cfg(test)]

@@ -2,6 +2,7 @@
 
 use tauri::State;
 
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Return the persisted UI locale tag (e.g. `"en-US"`).
@@ -13,10 +14,12 @@ pub fn get_locale(state: State<'_, AppState>) -> String {
 
 /// Change the persisted UI locale tag.
 #[tauri::command]
-pub fn set_locale(locale: String, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_locale(locale: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     let mut config = state.config.lock().unwrap();
     config.locale = locale;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Return the current UI scale percentage (80-150).
@@ -36,10 +39,12 @@ pub(crate) fn clamp_ui_scale(scale: u32) -> u32 {
 
 /// Set the UI scale percentage and persist. Clamped to 80-150.
 #[tauri::command]
-pub fn set_ui_scale(scale: u32, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_ui_scale(scale: u32, state: State<'_, AppState>) -> Result<(), IpcError> {
     let mut config = state.config.lock().unwrap();
     config.ui_scale = clamp_ui_scale(scale);
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Return the persisted graph column configuration.
@@ -54,25 +59,29 @@ pub fn get_graph_columns(state: State<'_, AppState>) -> Vec<storage::GraphColumn
 pub fn set_graph_columns(
     columns: Vec<storage::GraphColumnConfig>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let mut config = state.config.lock().unwrap();
     config.graph_columns = columns;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Get the persisted sidebar collapsed state.
 #[tauri::command]
-pub fn get_sidebar_collapsed(state: State<'_, AppState>) -> Result<bool, String> {
+pub fn get_sidebar_collapsed(state: State<'_, AppState>) -> Result<bool, IpcError> {
     let config = state.config.lock().map_err(|e| e.to_string())?;
     Ok(config.sidebar_collapsed)
 }
 
 /// Persist sidebar collapsed state.
 #[tauri::command]
-pub fn set_sidebar_collapsed(collapsed: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_sidebar_collapsed(collapsed: bool, state: State<'_, AppState>) -> Result<(), IpcError> {
     let mut config = state.config.lock().map_err(|e| e.to_string())?;
     config.sidebar_collapsed = collapsed;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Return whether the app should silently probe for updates on startup.
@@ -81,7 +90,7 @@ pub fn set_sidebar_collapsed(collapsed: bool, state: State<'_, AppState>) -> Res
 /// `runStartupCheck()` in `autoUpdate.ts` can short-circuit when the
 /// user has opted out.
 #[tauri::command]
-pub fn get_auto_check_updates(state: State<'_, AppState>) -> Result<bool, String> {
+pub fn get_auto_check_updates(state: State<'_, AppState>) -> Result<bool, IpcError> {
     let config = state.config.lock().map_err(|e| e.to_string())?;
     Ok(config.auto_check_updates)
 }
@@ -89,10 +98,12 @@ pub fn get_auto_check_updates(state: State<'_, AppState>) -> Result<bool, String
 /// Persist the `auto_check_updates` preference. The startup toast
 /// behaviour flips on the next cold-start.
 #[tauri::command]
-pub fn set_auto_check_updates(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_auto_check_updates(enabled: bool, state: State<'_, AppState>) -> Result<(), IpcError> {
     let mut config = state.config.lock().map_err(|e| e.to_string())?;
     config.auto_check_updates = enabled;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Return whether the diff viewer should render whitespace glyphs.
@@ -102,7 +113,7 @@ pub fn set_auto_check_updates(enabled: bool, state: State<'_, AppState>) -> Resu
 /// as `→` and spaces as `·` — useful for spotting whitespace-only
 /// changes.
 #[tauri::command]
-pub fn get_diff_show_whitespace(state: State<'_, AppState>) -> Result<bool, String> {
+pub fn get_diff_show_whitespace(state: State<'_, AppState>) -> Result<bool, IpcError> {
     let config = state.config.lock().map_err(|e| e.to_string())?;
     Ok(config.diff_show_whitespace)
 }
@@ -111,10 +122,12 @@ pub fn get_diff_show_whitespace(state: State<'_, AppState>) -> Result<bool, Stri
 /// effect on the next diff render — the FE store fires a refresh of
 /// open `DiffEditor` instances.
 #[tauri::command]
-pub fn set_diff_show_whitespace(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_diff_show_whitespace(enabled: bool, state: State<'_, AppState>) -> Result<(), IpcError> {
     let mut config = state.config.lock().map_err(|e| e.to_string())?;
     config.diff_show_whitespace = enabled;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Return whether diff views should soft-wrap long lines.
@@ -124,7 +137,7 @@ pub fn set_diff_show_whitespace(enabled: bool, state: State<'_, AppState>) -> Re
 /// viewport width. When disabled, lines render with `white-space: pre`
 /// and the surrounding container exposes a horizontal scrollbar.
 #[tauri::command]
-pub fn get_diff_line_wrapping(state: State<'_, AppState>) -> Result<bool, String> {
+pub fn get_diff_line_wrapping(state: State<'_, AppState>) -> Result<bool, IpcError> {
     let config = state.config.lock().map_err(|e| e.to_string())?;
     Ok(config.diff_line_wrapping)
 }
@@ -133,10 +146,12 @@ pub fn get_diff_line_wrapping(state: State<'_, AppState>) -> Result<bool, String
 /// on the next diff render — the FE store fires a re-render of any open
 /// diff view so the wrap toggle is applied immediately.
 #[tauri::command]
-pub fn set_diff_line_wrapping(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_diff_line_wrapping(enabled: bool, state: State<'_, AppState>) -> Result<(), IpcError> {
     let mut config = state.config.lock().map_err(|e| e.to_string())?;
     config.diff_line_wrapping = enabled;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 // ─── Sidebar nav layout (Phase 11) ───────────────────────────────────
@@ -157,7 +172,7 @@ pub struct SidebarNavLayout {
 
 /// Read the current Navigation sidebar layout.
 #[tauri::command]
-pub fn get_sidebar_nav_layout(state: State<'_, AppState>) -> Result<SidebarNavLayout, String> {
+pub fn get_sidebar_nav_layout(state: State<'_, AppState>) -> Result<SidebarNavLayout, IpcError> {
     let config = state.config.lock().map_err(|e| e.to_string())?;
     Ok(SidebarNavLayout {
         order: config.sidebar_nav_order.clone(),
@@ -172,11 +187,13 @@ pub fn get_sidebar_nav_layout(state: State<'_, AppState>) -> Result<SidebarNavLa
 pub fn set_sidebar_nav_layout(
     layout: SidebarNavLayout,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let mut config = state.config.lock().map_err(|e| e.to_string())?;
     config.sidebar_nav_order = layout.order;
     config.sidebar_nav_hidden = layout.hidden;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 // ─── AI background settings (Phase 10) ───────────────────────────────────
@@ -196,7 +213,7 @@ pub struct AiBackgroundSettings {
 #[tauri::command]
 pub fn ai_background_get_settings(
     state: State<'_, AppState>,
-) -> Result<AiBackgroundSettings, String> {
+) -> Result<AiBackgroundSettings, IpcError> {
     let config = state.config.lock().map_err(|e| e.to_string())?;
     Ok(AiBackgroundSettings {
         worktree_root: config.ai_worktree_root.clone(),
@@ -224,12 +241,14 @@ pub(crate) fn clamp_concurrency_cap(cap: u32) -> u32 {
 pub fn ai_background_set_settings(
     settings: AiBackgroundSettings,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let mut config = state.config.lock().map_err(|e| e.to_string())?;
     config.ai_worktree_root = normalize_worktree_root(settings.worktree_root);
     config.ai_background_concurrency_cap = clamp_concurrency_cap(settings.concurrency_cap);
     config.ai_prompt_auto_accept = settings.auto_accept_permissions;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 // ─── Editor preferences (PR2) ────────────────────────────────────────
@@ -262,29 +281,33 @@ pub fn get_editor_preferences(state: State<'_, AppState>) -> storage::EditorPref
 pub fn set_editor_preferences(
     prefs: storage::EditorPreferences,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let clamped = clamp_editor_preferences(prefs);
     let mut config = state.config.lock().map_err(|e| e.to_string())?;
     config.editor_preferences = clamped;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Load a project's cached snapshot for instant UI display.
 #[tauri::command]
-pub fn get_project_snapshot(path: String) -> Result<Option<storage::ProjectSnapshot>, String> {
+pub fn get_project_snapshot(path: String) -> Result<Option<storage::ProjectSnapshot>, IpcError> {
     let config_dir = dirs::config_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join("beardgit");
-    storage::project_cache::load_snapshot(&config_dir, &path).map_err(|e| e.to_string())
+    storage::project_cache::load_snapshot(&config_dir, &path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Save a project's snapshot to the cache.
 #[tauri::command]
-pub fn save_project_snapshot(snapshot: storage::ProjectSnapshot) -> Result<(), String> {
+pub fn save_project_snapshot(snapshot: storage::ProjectSnapshot) -> Result<(), IpcError> {
     let config_dir = dirs::config_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join("beardgit");
-    storage::project_cache::save_snapshot(&config_dir, &snapshot).map_err(|e| e.to_string())
+    storage::project_cache::save_snapshot(&config_dir, &snapshot)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Compute a fresh [`storage::ProjectSnapshot`] for `path` *without*
@@ -299,7 +322,7 @@ pub fn save_project_snapshot(snapshot: storage::ProjectSnapshot) -> Result<(), S
 /// always `None` from this path — it depends on FE viewport state
 /// that this command doesn't have, and the strip doesn't read it.
 #[tauri::command]
-pub fn compute_project_snapshot(path: String) -> Result<storage::ProjectSnapshot, String> {
+pub fn compute_project_snapshot(path: String) -> Result<storage::ProjectSnapshot, IpcError> {
     let repo = git_engine::Repository::open(&path).map_err(|e| e.to_string())?;
     let summary = repo.status_summary().map_err(|e| e.to_string())?;
     let status = repo.status().map_err(|e| e.to_string())?;

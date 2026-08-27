@@ -29,6 +29,7 @@
  *   `update.downloadAndInstall(...)` may never run on Windows.
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { writable, type Readable, derived } from "svelte/store";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { addToast, updateToast, removeToast } from "./toast";
@@ -167,7 +168,7 @@ export async function checkForUpdates(): Promise<UpdateStatus> {
     });
     return "available";
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     autoUpdateState.set({
       status: "error",
       error: message,
@@ -233,7 +234,7 @@ export async function downloadAndInstall(): Promise<UpdateStatus> {
 
     return "ready";
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     autoUpdateState.set({ status: "error", error: message });
     return "error";
   }

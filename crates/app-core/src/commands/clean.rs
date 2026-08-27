@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Preview untracked/ignored files that would be removed by `git clean`.
@@ -15,10 +16,10 @@ pub fn clean_dry_run(
     include_ignored: bool,
     only_ignored: bool,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::CleanItem>, String> {
+) -> Result<Vec<git_engine::CleanItem>, IpcError> {
     with_active_repo(&state, |repo| {
         repo.clean_dry_run(include_directories, include_ignored, only_ignored)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
@@ -33,10 +34,10 @@ pub fn clean_paths(
     paths: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<u32, String> {
+) -> Result<u32, IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.clean_paths(&paths).map_err(|e| e.to_string())
+            repo.clean_paths(&paths).map_err(IpcError::from)
         })
     })
 }

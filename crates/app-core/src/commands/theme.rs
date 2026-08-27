@@ -7,6 +7,7 @@
 
 use tauri::{AppHandle, State};
 
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List all available themes (built-in + user-installed).
@@ -47,11 +48,12 @@ pub fn check_theme_contrast(
 
 /// Set the active theme name and emit a `theme-changed` event with the resolved theme.
 #[tauri::command]
-pub fn set_theme(name: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_theme(name: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), IpcError> {
     {
         let mut cfg = state.config.lock().unwrap();
         cfg.theme = name.clone();
-        cfg.save(&state.config_path).map_err(|e| e.to_string())?;
+        cfg.save(&state.config_path)
+            .map_err(|e| IpcError::from(e.to_string()))?;
     }
 
     let themes_dir = state.config_dir.join("themes");
@@ -77,10 +79,11 @@ pub fn get_theme_auto(state: State<'_, AppState>) -> bool {
 
 /// Set the `theme_auto` preference and persist to config.
 #[tauri::command]
-pub fn set_theme_auto(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_theme_auto(enabled: bool, state: State<'_, AppState>) -> Result<(), IpcError> {
     let mut cfg = state.config.lock().unwrap();
     cfg.theme_auto = enabled;
-    cfg.save(&state.config_path).map_err(|e| e.to_string())
+    cfg.save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Resolve the startup theme, respecting the `theme_auto` setting and OS dark/light mode.

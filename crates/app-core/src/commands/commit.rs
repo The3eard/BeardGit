@@ -36,7 +36,7 @@ pub async fn create_commit(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     // Snapshot repo state before the mutation (guard emits on drop/exit).
     let guard = MutationGuard::enter(&repo_path).ok();
     let commit_path = repo_path.clone();
@@ -73,7 +73,7 @@ pub async fn amend_commit(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     let guard = MutationGuard::enter(&repo_path).ok();
     let amend_path = repo_path.clone();
     tokio::task::spawn_blocking(move || {
@@ -98,9 +98,9 @@ pub async fn amend_commit(
 /// The raw commit message string, or an error string if HEAD cannot be
 /// resolved.
 #[tauri::command]
-pub fn get_head_message(state: State<'_, AppState>) -> Result<String, String> {
+pub fn get_head_message(state: State<'_, AppState>) -> Result<String, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.get_head_message().map_err(|e| e.to_string())
+        repo.get_head_message().map_err(IpcError::from)
     })
 }
 

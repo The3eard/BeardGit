@@ -8,15 +8,16 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List all submodules in the active repository.
 #[tauri::command]
 pub fn list_submodules(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::SubmoduleInfo>, String> {
+) -> Result<Vec<git_engine::SubmoduleInfo>, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.list_submodules().map_err(|e| e.to_string())
+        repo.list_submodules().map_err(IpcError::from)
     })
 }
 
@@ -27,10 +28,10 @@ pub fn init_submodule(
     path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.init_submodule(&path).map_err(|e| e.to_string())
+            repo.init_submodule(&path).map_err(IpcError::from)
         })
     })
 }
@@ -43,11 +44,10 @@ pub fn deinit_submodule(
     force: bool,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.deinit_submodule(&path, force)
-                .map_err(|e| e.to_string())
+            repo.deinit_submodule(&path, force).map_err(IpcError::from)
         })
     })
 }
@@ -65,10 +65,10 @@ pub fn add_submodule(
     path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.add_submodule(&url, &path).map_err(|e| e.to_string())
+            repo.add_submodule(&url, &path).map_err(IpcError::from)
         })
     })
 }
@@ -83,10 +83,10 @@ pub fn remove_submodule(
     path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.remove_submodule(&path).map_err(|e| e.to_string())
+            repo.remove_submodule(&path).map_err(IpcError::from)
         })
     })
 }
@@ -96,10 +96,10 @@ pub fn remove_submodule(
 pub fn submodule_abs_path(
     submodule_path: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     with_active_repo(&state, |repo| {
         repo.submodule_abs_path(&submodule_path)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
@@ -110,7 +110,7 @@ pub async fn update_submodule(
     path: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     let label = format!("Submodule update: {path}");
@@ -133,7 +133,7 @@ pub async fn update_submodule(
 pub async fn update_all_submodules(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     let label = "Submodule update: all".to_string();

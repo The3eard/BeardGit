@@ -13,6 +13,7 @@
   `; echo PWNED`.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { Button, Card, Dialog, Field, FormRow } from "$lib/components/ui";
   import { repoConfigStore, updateCurrent } from "$lib/stores/repoConfig";
   import type { RepoConfigLabel } from "$lib/types/repoConfig";
@@ -94,8 +95,8 @@
       }
       editorOpen = false;
     } catch (e) {
-      editorError = String(e);
-      addToast({ message: String(e), type: "error" });
+      editorError = getErrorMessage(e);
+      addToast({ message: getErrorMessage(e), type: "error" });
     } finally {
       saving = false;
     }
@@ -116,7 +117,7 @@
       });
       addToast({ message: `Label ${name} deleted`, type: "success" });
     } catch (e) {
-      addToast({ message: String(e), type: "error" });
+      addToast({ message: getErrorMessage(e), type: "error" });
     } finally {
       deleteConfirmOpen = false;
       deleteTarget = null;

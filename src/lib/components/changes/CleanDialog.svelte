@@ -6,6 +6,7 @@
   deletion with a destructive action button.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { cleanDryRun, cleanPaths } from "$lib/api/tauri";
@@ -98,7 +99,7 @@
       });
       onClose();
     } catch (err) {
-      errorMessage = String(err);
+      errorMessage = getErrorMessage(err);
     }
   }
 

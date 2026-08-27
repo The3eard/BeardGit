@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List all worktrees for the active repository, including the main worktree.
@@ -14,7 +15,7 @@ use crate::state::AppState;
 #[tauri::command]
 pub async fn list_worktrees(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::WorktreeInfo>, String> {
+) -> Result<Vec<git_engine::WorktreeInfo>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -22,6 +23,7 @@ pub async fn list_worktrees(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Create a new linked worktree at `path` on `branch`.
@@ -39,7 +41,7 @@ pub async fn create_worktree(
     create_branch: bool,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::WorktreeCreate, || async move {
         tokio::task::spawn_blocking(move || {
@@ -51,6 +53,7 @@ pub async fn create_worktree(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Remove a linked worktree at `path`.
@@ -66,7 +69,7 @@ pub async fn remove_worktree(
     force: bool,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::WorktreeRemove, || async move {
         tokio::task::spawn_blocking(move || {
@@ -78,6 +81,7 @@ pub async fn remove_worktree(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Lock a linked worktree, preventing accidental removal.
@@ -90,7 +94,7 @@ pub async fn worktree_lock(
     path: String,
     reason: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -99,6 +103,7 @@ pub async fn worktree_lock(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Unlock a previously locked worktree.
@@ -106,7 +111,7 @@ pub async fn worktree_lock(
 /// # Parameters
 /// - `path` – Absolute filesystem path to the worktree directory.
 #[tauri::command]
-pub async fn worktree_unlock(path: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn worktree_unlock(path: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -114,6 +119,7 @@ pub async fn worktree_unlock(path: String, state: State<'_, AppState>) -> Result
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 #[cfg(test)]

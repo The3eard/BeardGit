@@ -3,6 +3,7 @@
 use tauri::State;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Return the HEAD reflog entries, limited to the given count (default 100).
@@ -10,7 +11,7 @@ use crate::state::AppState;
 pub async fn get_reflog(
     limit: Option<usize>,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::ReflogEntry>, String> {
+) -> Result<Vec<git_engine::ReflogEntry>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -19,6 +20,7 @@ pub async fn get_reflog(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 #[cfg(test)]

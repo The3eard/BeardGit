@@ -24,6 +24,7 @@
     discardAiBackgroundRunWorktree,
     selectedBackgroundSession,
   } from "$lib/stores/aiBackground";
+  import { getErrorMessage } from "$lib/api/errors";
   import { aiGetBackgroundReport } from "$lib/api/tauri";
   import { renderMarkdown } from "$lib/utils/markdown";
   import {
@@ -161,7 +162,7 @@
       await resumeConversation(conversation);
     } catch (err) {
       addToast({
-        message: m.ai_sessions_resume_error({ error: String(err) }),
+        message: m.ai_sessions_resume_error({ error: getErrorMessage(err) }),
         type: "error",
       });
     }

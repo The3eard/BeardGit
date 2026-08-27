@@ -4,6 +4,7 @@ use tauri::State;
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Connect to a git hosting provider using a Personal Access Token (PAT).
@@ -36,7 +37,7 @@ pub async fn connect_provider(
     instance_url: String,
     token: String,
     state: State<'_, AppState>,
-) -> Result<provider::ProviderUser, String> {
+) -> Result<provider::ProviderUser, IpcError> {
     // 1. Validate token
     let user = match kind {
         provider::ProviderKind::GitLab => auth::validate_gitlab_pat(&instance_url, &token).await,
@@ -136,7 +137,7 @@ pub async fn connect_provider(
 pub async fn disconnect_provider(
     instance_url: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     // Capture kind before retain() drops the entry, so we can run the CLI
     // logout as a background task after unwinding the in-memory state.
     let kind_for_cli: Option<provider::ProviderKind> = {
@@ -211,7 +212,7 @@ pub async fn disconnect_provider(
 #[instrument(skip(state), name = "cmd::provider::auto_connect")]
 pub async fn try_auto_connect(
     state: State<'_, AppState>,
-) -> Result<Vec<provider::ProviderUser>, String> {
+) -> Result<Vec<provider::ProviderUser>, IpcError> {
     // Read saved providers from config
     let saved_providers = {
         let config = state.config.lock().unwrap();
@@ -303,7 +304,7 @@ pub fn get_provider_status(state: State<'_, AppState>) -> provider::ProviderStat
 /// so the CI panel automatically scopes to the correct project.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::provider::detect_project")]
-pub async fn detect_project(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn detect_project(state: State<'_, AppState>) -> Result<(), IpcError> {
     detect_active_provider(&state).await;
     Ok(())
 }

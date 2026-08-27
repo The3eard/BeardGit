@@ -4,6 +4,7 @@ use tauri::State;
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Check authentication status for both `gh` and `glab` CLIs.
@@ -15,7 +16,7 @@ use crate::state::AppState;
 #[instrument(skip(state), name = "cmd::cli_auth::check_status")]
 pub async fn cli_check_auth_status(
     state: State<'_, AppState>,
-) -> Result<Vec<cli_provider::auth::CliAuthStatus>, String> {
+) -> Result<Vec<cli_provider::auth::CliAuthStatus>, IpcError> {
     let gh_path = resolve_cli_binary(&state, provider::ProviderKind::GitHub).ok();
     let glab_path = resolve_cli_binary(&state, provider::ProviderKind::GitLab).ok();
 
@@ -28,10 +29,11 @@ pub async fn cli_check_auth_status(
             Some(path) => cli_provider::auth::check_glab_auth_status(&path),
             None => cli_provider::auth::not_installed_status("glab"),
         };
-        Ok(vec![gh, glab])
+        Ok::<_, String>(vec![gh, glab])
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Get the shell command string to launch an interactive auth flow in a
@@ -41,22 +43,22 @@ pub async fn cli_check_auth_status(
 /// a terminal tab and writes this command.
 #[tauri::command]
 #[instrument(name = "cmd::cli_auth::get_auth_command")]
-pub fn cli_get_auth_command(tool: String) -> Result<String, String> {
+pub fn cli_get_auth_command(tool: String) -> Result<String, IpcError> {
     match tool.as_str() {
         "gh" => Ok("gh auth login".to_string()),
         "glab" => Ok("glab auth login".to_string()),
-        _ => Err(format!("Unknown CLI tool: {tool}")),
+        _ => Err(IpcError::from(format!("Unknown CLI tool: {tool}"))),
     }
 }
 
 /// Get the shell command to log out of a CLI tool.
 #[tauri::command]
 #[instrument(name = "cmd::cli_auth::get_logout_command")]
-pub fn cli_get_logout_command(tool: String) -> Result<String, String> {
+pub fn cli_get_logout_command(tool: String) -> Result<String, IpcError> {
     match tool.as_str() {
         "gh" => Ok("gh auth logout".to_string()),
         "glab" => Ok("glab auth logout".to_string()),
-        _ => Err(format!("Unknown CLI tool: {tool}")),
+        _ => Err(IpcError::from(format!("Unknown CLI tool: {tool}"))),
     }
 }
 
@@ -66,18 +68,19 @@ pub fn cli_get_logout_command(tool: String) -> Result<String, String> {
 pub async fn is_cli_authenticated(
     kind: String,
     state: State<'_, AppState>,
-) -> Result<bool, String> {
+) -> Result<bool, IpcError> {
     let provider_kind = provider::ProviderKind::from_config_str(&kind)
         .ok_or_else(|| format!("Unknown provider: {kind}"))?;
     let binary = resolve_cli_binary(&state, provider_kind)?;
     tokio::task::spawn_blocking(move || {
-        Ok(cli_provider::auth::is_cli_authenticated(
+        Ok::<_, String>(cli_provider::auth::is_cli_authenticated(
             &binary,
             provider_kind,
         ))
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 #[cfg(test)]

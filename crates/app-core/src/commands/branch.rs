@@ -22,10 +22,10 @@ pub fn create_branch(
     name: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::BranchCreate, || {
         with_active_repo(&state, |repo| {
-            repo.create_branch(&name).map_err(|e| e.to_string())
+            repo.create_branch(&name).map_err(IpcError::from)
         })
     })
 }
@@ -46,11 +46,10 @@ pub fn create_branch_at(
     oid: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::BranchCreate, || {
         with_active_repo(&state, |repo| {
-            repo.create_branch_at(&name, &oid)
-                .map_err(|e| e.to_string())
+            repo.create_branch_at(&name, &oid).map_err(IpcError::from)
         })
     })
 }
@@ -73,7 +72,7 @@ pub async fn checkout_detached(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::Checkout, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -107,7 +106,7 @@ pub async fn delete_branch(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::BranchDelete, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -137,7 +136,7 @@ pub async fn delete_branch(
 pub async fn list_branch_cleanup_candidates(
     into: Option<String>,
     state: State<'_, AppState>,
-) -> Result<git_engine::BranchCleanupList, String> {
+) -> Result<git_engine::BranchCleanupList, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -146,6 +145,7 @@ pub async fn list_branch_cleanup_candidates(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Delete a batch of local branches in one shot.
@@ -173,11 +173,11 @@ pub async fn delete_branches(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<git_engine::BatchDeleteResult, IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::BranchDelete, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
-            Ok(repo.delete_branches(&names, &force))
+            Ok::<_, IpcError>(repo.delete_branches(&names, &force))
         })
         .await
         .map_err(|e| IpcError::new("internal", e.to_string()))?
@@ -203,7 +203,7 @@ pub async fn checkout_branch(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::Checkout, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -233,7 +233,7 @@ pub async fn merge_branch(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::Merge, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -268,7 +268,7 @@ pub async fn rebase_branch(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::Rebase, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -304,7 +304,7 @@ pub async fn rename_branch(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::BranchRename, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
