@@ -206,15 +206,17 @@ pub fn get_repo_info(state: State<'_, AppState>) -> Result<RepoInfo, IpcError> {
 /// List all configured remotes for the active repository.
 #[tauri::command]
 pub fn get_remotes(state: State<'_, AppState>) -> Result<Vec<RemoteInfo>, IpcError> {
-    with_active_repo(&state, collect_remotes).map_err(IpcError::from)
+    with_active_repo(&state, collect_remotes)
 }
 
 /// Collect `RemoteInfo` for every configured remote of `repo`.
 ///
 /// Extracted so it can be tested without the Tauri `State` plumbing.
-pub(super) fn collect_remotes(repo: &git_engine::Repository) -> Result<Vec<RemoteInfo>, String> {
+pub(super) fn collect_remotes(repo: &git_engine::Repository) -> Result<Vec<RemoteInfo>, IpcError> {
     let git_repo = repo.inner();
-    let remotes = git_repo.remotes().map_err(|e| e.to_string())?;
+    let remotes = git_repo
+        .remotes()
+        .map_err(|e| IpcError::new("git", e.to_string()))?;
     let mut result = Vec::new();
     for name in remotes.iter().flatten() {
         let url = git_repo
