@@ -87,6 +87,26 @@ pub struct ProjectSlot {
 /// Holds the list of open project slots, the currently active slot index,
 /// the SQLite database, user configuration, credential store, and all
 /// authenticated provider connections.
+///
+/// # Lock ordering
+///
+/// Several fields are independent `Mutex`es, and a handful of commands hold
+/// two or three at once — `get_graph_viewport`, `get_commit_row` and
+/// `refresh_graph_layout` take `projects` + `active_index` together to read
+/// the active slot's layout, and `get_branches` adds `ahead_behind_cache` on
+/// top. A guard is never held across an `await`; the expensive work happens
+/// after the snapshot, off-thread.
+///
+/// **When more than one is needed, acquire in declaration order:**
+/// `projects` → `active_index` → `db` → `requests_db` → `config` →
+/// `providers` → `active_provider_index` → `cli_binary_cache` →
+/// `forge_provider_cache` → `ai_providers` → … → `ahead_behind_cache`.
+///
+/// Every current call site already does, which is why there is no deadlock;
+/// what was missing was anything that said so. An earlier note here claimed
+/// no path ever holds two at once, which stopped being true without anyone
+/// noticing — and "nobody holds two" is a rule that cannot be checked by
+/// reading one function, whereas "acquire in this order" can.
 pub struct AppState {
     /// All open project slots (one per tab).
     pub projects: Mutex<Vec<ProjectSlot>>,

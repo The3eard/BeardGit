@@ -171,12 +171,22 @@ pub fn kind_from_runtime(kind: &RuntimeTaskKind) -> Option<TaskKind> {
 
 /// Project a runtime [`TaskInfo`] into a wire [`TaskEvent`].
 ///
+/// Fallible on purpose: a runtime kind with no wire representation —
+/// [`RuntimeTaskKind::Generic`] — has no honest answer, and the previous
+/// `unwrap_or(TaskKind::GitFetch)` gave it a dishonest one. A generic shell
+/// task would have reached the drawer labelled "Fetch", with a fetch icon and
+/// a fetch cancel route. Unreachable today, because `should_emit` drops
+/// `Generic` before this runs, but "unreachable" and "silently wrong if it
+/// ever is" are not the same guarantee.
+///
 /// `started_at_ms` defaults to `0` if the handle didn't capture a wall-clock
 /// timestamp (shouldn't happen in practice since `spawn_with_options` always
 /// sets it, but the type system allows it).
-impl From<&TaskInfo> for TaskEvent {
-    fn from(info: &TaskInfo) -> Self {
-        let kind = kind_from_runtime(&info.task_kind).unwrap_or(TaskKind::GitFetch);
+impl TryFrom<&TaskInfo> for TaskEvent {
+    type Error = ();
+
+    fn try_from(info: &TaskInfo) -> Result<Self, Self::Error> {
+        let kind = kind_from_runtime(&info.task_kind).ok_or(())?;
 
         let (status, error_message) = match &info.status {
             RuntimeTaskStatus::Queued | RuntimeTaskStatus::Running => (TaskStatus::Running, None),
@@ -197,7 +207,7 @@ impl From<&TaskInfo> for TaskEvent {
             TaskStatus::Running => None,
         };
 
-        Self {
+        Ok(Self {
             id: info.id.to_string(),
             kind,
             title: info.label.clone(),
@@ -207,7 +217,7 @@ impl From<&TaskInfo> for TaskEvent {
             status,
             progress: None,
             error_message,
-        }
+        })
     }
 }
 
@@ -238,7 +248,16 @@ impl TauriEmitter {
 
 impl TaskEmitter for TauriEmitter {
     fn emit(&self, info: &TaskInfo) {
-        let event: TaskEvent = info.into();
+        let Ok(event) = TaskEvent::try_from(info) else {
+            // `should_emit` gates `Generic` out upstream, so this means that
+            // allowlist and `kind_from_runtime` have drifted apart. Loud,
+            // because the alternative is a row mislabelled as something else.
+            tracing::error!(
+                task_id = info.id,
+                "task kind has no wire representation — not emitted"
+            );
+            return;
+        };
         // Best-effort: emit errors (e.g. serialization failure or app
         // shutdown) are swallowed — the drawer will reconcile on the next
         // lifecycle transition.
@@ -362,7 +381,7 @@ mod tests {
             task_kind: RuntimeTaskKind::GitFetch,
         };
 
-        let event: TaskEvent = (&info).into();
+        let event = TaskEvent::try_from(&info).expect("kind has a wire form");
         assert_eq!(event.id, "9");
         assert_eq!(event.kind, TaskKind::GitFetch);
         assert_eq!(event.title, "Fetch origin");
@@ -389,7 +408,7 @@ mod tests {
             task_kind: RuntimeTaskKind::GitPush,
         };
 
-        let event: TaskEvent = (&info).into();
+        let event = TaskEvent::try_from(&info).expect("kind has a wire form");
         assert_eq!(event.status, TaskStatus::Error);
         assert_eq!(event.error_message.as_deref(), Some("remote rejected"));
         assert_eq!(event.finished_at_ms, Some(1_700_000_000_250));
@@ -410,7 +429,7 @@ mod tests {
             task_kind: RuntimeTaskKind::GitFetch,
         };
 
-        let event: TaskEvent = (&info).into();
+        let event = TaskEvent::try_from(&info).expect("kind has a wire form");
         assert_eq!(event.status, TaskStatus::Success);
         assert_eq!(event.finished_at_ms, Some(1_700_000_000_500));
     }
@@ -435,7 +454,7 @@ mod tests {
             },
         };
 
-        let event: TaskEvent = (&info).into();
+        let event = TaskEvent::try_from(&info).expect("kind has a wire form");
         assert_eq!(event.kind, TaskKind::AiBackground);
     }
 }
