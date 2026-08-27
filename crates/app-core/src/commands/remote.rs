@@ -165,14 +165,12 @@ pub async fn rename_remote(
     state: State<'_, AppState>,
 ) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
         repo.rename_remote(&old_name, &new_name)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
     .await
-    .map_err(|e| e.to_string())?
-    .map_err(IpcError::from)
 }
 
 /// Removes a remote from the active repository.
@@ -192,15 +190,13 @@ pub async fn remove_remote(
 ) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::RemoteRemove, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.remove_remote(&name).map_err(|e| e.to_string())
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
+            repo.remove_remote(&name).map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
-    .map_err(IpcError::from)
 }
 
 /// Ensures a commit SHA is present in the local object database.

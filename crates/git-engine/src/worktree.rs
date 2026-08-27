@@ -35,7 +35,7 @@ impl Repository {
         if result.success {
             Ok(parse_worktree_list(&result.stdout))
         } else {
-            Err(GitError::RepoNotFound(result.stderr))
+            Err(GitError::CliError(result.stderr))
         }
     }
 
@@ -60,7 +60,7 @@ impl Repository {
         if result.success {
             Ok(())
         } else {
-            Err(GitError::RepoNotFound(result.stderr))
+            Err(GitError::CliError(result.stderr))
         }
     }
 
@@ -99,7 +99,7 @@ impl Repository {
         if result.success {
             Ok(())
         } else {
-            Err(GitError::RepoNotFound(result.stderr))
+            Err(GitError::CliError(result.stderr))
         }
     }
 

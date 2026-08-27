@@ -102,9 +102,10 @@ pub struct RemoteInfo {
 /// family can be raised as [`IpcError::expected`] — those are routine, not
 /// failures, and routing them through the logging constructor turned every
 /// read command dispatched against a background tab into an ERROR line.
-/// The closures that still work in plain `String` errors satisfy the bound
-/// through `impl From<IpcError> for String`, which keeps the message and
-/// drops the code — which is what those callers were doing by hand anyway.
+/// Closures passed here must therefore work in `IpcError`. They used to be
+/// able to work in `String`, via an `impl From<IpcError> for String` that no
+/// longer exists — it was silently flattening git error codes, see the note
+/// where it used to live in `ipc_error.rs`.
 pub(super) fn with_active_repo<F, R, E>(state: &State<'_, AppState>, f: F) -> Result<R, E>
 where
     F: FnOnce(&git_engine::Repository) -> Result<R, E>,
@@ -235,11 +236,30 @@ where
 
 /// Run a blocking closure on a dedicated thread, propagating its error type.
 ///
+/// **Prefer this over a bare `tokio::task::spawn_blocking` in a command.**
 /// The current span is carried across the thread boundary. Tracing's
 /// current span is thread-local and `spawn_blocking` moves the closure to
 /// a pool thread, so without this the `#[instrument(name = "cmd::…")]`
 /// span is lost and any error logged from inside `f` has no indication of
 /// which command produced it.
+///
+/// That is not theoretical. Once `IpcError` construction moved *into* those
+/// closures — which is what stops the error code being flattened — the
+/// `tracing::error!` inside `IpcError::new` started firing on a pool
+/// thread, and 14 commands began logging `ipc command failed` with no
+/// `cmd::…` to attribute it to. Routing them through here fixes both at
+/// once.
+/// The `From<String>` bound is wide enough for both kinds of caller: a
+/// closure already working in `IpcError` satisfies it through
+/// `From<String> for IpcError`, and the ~30 commands whose closures still
+/// yield `String` keep compiling untouched. Narrowing it to
+/// `From<IpcError>` breaks every one of the latter, so don't.
+///
+/// The cost of that width: a panicked task becomes the generic `error`
+/// rather than something like `internal`. Fixing that means migrating those
+/// ~30 closures off `String` first, so it is left alone here — and it is
+/// the same code the ~30 sites that hand-roll
+/// `IpcError::new("internal", …)` for their own JoinError would unify on.
 pub(super) async fn run_blocking<T, F, E>(f: F) -> Result<T, E>
 where
     T: Send + 'static,

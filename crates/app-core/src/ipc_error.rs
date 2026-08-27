@@ -113,23 +113,63 @@ impl From<&str> for IpcError {
     }
 }
 
-/// The reverse direction, for the few helper closures that still work in
-/// plain `String` errors. Keeps the message and drops the code, which is
-/// what those callers were doing by hand.
-///
-/// **It exists to satisfy a closure's error bound, and nothing else.**
-/// Because it makes `IpcError: Into<String>` hold, an
-/// `IpcError::new("internal", some_ipc_error)` compiles silently — and
-/// that double conversion drops the original code *and* logs a second
-/// time under the wrong one. Nineteen callsites did exactly that, left
-/// over from when `get_active_project_path` returned a `String`. If you
-/// find yourself converting an `IpcError` into a `String`, a bare `?` is
-/// almost certainly what you want.
-impl From<IpcError> for String {
-    fn from(err: IpcError) -> Self {
-        err.message
-    }
-}
+// There is deliberately no `impl From<IpcError> for String`.
+//
+// One existed, to satisfy the `E: From<IpcError>` bound on
+// `with_mutation_guard_async` for command bodies whose inner
+// `spawn_blocking` closure worked in `String`. It cost more than it saved,
+// in two ways.
+//
+// It made `IpcError: Into<String>` hold, so an
+// `IpcError::new("internal", some_ipc_error)` compiled silently — dropping
+// the original code and logging a second time under the wrong one.
+// Nineteen callsites did exactly that.
+//
+// Worse, and only found later: those `String`-typed closures were
+// *actively* flattening error codes. `map_err(|e| e.to_string())` on a
+// `GitError` throws the variant away, and the trailing
+// `.map_err(IpcError::from)` then rebuilt it as the generic `"error"`. 24
+// functions across staging, worktree, remote, config, advanced and
+// repository did that; they now let `?` carry the code.
+//
+// Be precise about what that bought, because the obvious claim is wrong.
+// The codes those sites can actually emit are `not_a_repo` (from
+// `Repository::open`) plus `git` / `cli_error` / `io_error` /
+// `invalid_argument`, and all but the first are `@unmapped` in
+// `errors.ts`, so they render as the raw message either way. The gain is
+// log fidelity and an honest envelope, *not* better toast text. In
+// particular `would_lose_changes` and `not_fully_merged` were never
+// affected: their only producers are `delete_branch`, `checkout_branch`
+// and `checkout_detached`, reached from `branch.rs`, which already used
+// the correct idiom.
+//
+// One case did change the toast, in the wrong direction, and is worth
+// remembering as the general hazard: `worktree.rs` in `git-engine` was
+// using `GitError::RepoNotFound` as a catch-all for any failed `git
+// worktree` invocation. Recovering the code turned "…already exists" into
+// the mapped sentence "Not a git repository". Fixed at the source
+// (`CliError`, like its neighbours) — but the lesson is that recovering a
+// code is only an improvement if the code is *right*, and `errorCodeMessage`
+// replaces the message rather than adding to it.
+//
+// The absence of this impl is narrower enforcement than it looks. It stops
+// `IpcError → String → IpcError`: that no longer compiles, wherever a
+// `String`-typed closure meets `with_mutation_guard_async` or
+// `with_active_repo`. It does **not** stop `GitError → String →
+// IpcError`, because `From<String> for IpcError` above still exists — and
+// roughly 37 commands still do exactly that (`diff.rs` has 14, `tag.rs`,
+// `stash.rs`, `file_editor.rs` and `graph.rs` three each, and so on). Not
+// a blind sweep waiting to happen: each site's `GitError` variant has to
+// be checked against `errorCodeMessage` first, for the reason above.
+//
+// So: do not add this impl back. If a closure needs to yield `IpcError`,
+// let `?` do the work via the `From` impls below, and reach for
+// `helpers::run_blocking` rather than a bare `spawn_blocking` so the
+// command's tracing span survives the thread hop — moving `IpcError`
+// construction into a closure moves its `tracing::error!` onto a pool
+// thread, where `#[instrument(name = "cmd::…")]` is not in scope. If a
+// probe's failure should not be logged, that is what `IpcError::expected`
+// is for.
 
 impl From<git_engine::GitError> for IpcError {
     fn from(err: git_engine::GitError) -> Self {
