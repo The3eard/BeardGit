@@ -63,6 +63,11 @@ import {
   openTab,
   persistTabsForProject,
   refreshTree,
+  refreshTreePaths,
+  parentDir,
+  createPath,
+  deletePath,
+  renamePath,
   reloadActive,
   renameOpenTab,
   restoreTabsForProject,
@@ -481,6 +486,131 @@ describe("fileEditor store", () => {
       await inFlight;
 
       expect(get(treeChildren).has("old-project-dir")).toBe(false);
+    });
+  });
+
+  describe("partial tree refresh after a path mutation", () => {
+    /**
+     * These pin the difference between `refreshTree` and
+     * `refreshTreePaths`, and they are written to fail if the CRUD wrappers
+     * go back to the full refresh. That matters because the whole 1151-test
+     * suite passed either way before they existed — the change is invisible
+     * to every other assertion.
+     *
+     * What the full refresh did wrong was not the re-listing; it was
+     * `treeChildren.set(new Map())` first. Emptying the map is a blank frame
+     * the user sees for nothing, since `project-mutated` has usually already
+     * refreshed the tree by the time the wrapper's own refresh lands.
+     */
+    it("re-lists only the parent, leaving sibling directories cached", async () => {
+      // Two directories listed and cached.
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("src"), dir("docs")]);
+      await loadDirectory("", true);
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("src/a.ts")]);
+      await loadDirectory("src", true);
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("docs/x.md")]);
+      await loadDirectory("docs", true);
+      mocks.listWorkdirTree.mockClear();
+
+      mocks.listWorkdirTree.mockResolvedValueOnce([
+        file("src/a.ts"),
+        file("src/new.ts"),
+      ]);
+      await createPath("src/new.ts", false, true);
+
+      // Exactly one listing, for the parent — not the root, not the sibling.
+      const prefixes = mocks.listWorkdirTree.mock.calls.map((c) => c[0]);
+      expect(prefixes).toEqual(["src"]);
+
+      // And the sibling's cache is untouched, which is what a full refresh
+      // would have dropped.
+      expect(get(treeChildren).get("docs")).toEqual([file("docs/x.md")]);
+      expect(get(treeChildren).get("src")).toEqual([
+        file("src/a.ts"),
+        file("src/new.ts"),
+      ]);
+    });
+
+    it("treats a top-level path as living in the root", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("a.ts")]);
+      await loadDirectory("", true);
+      mocks.listWorkdirTree.mockClear();
+
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("a.ts"), file("b.ts")]);
+      await createPath("b.ts", false, true);
+
+      // `null` is how the root is addressed over IPC.
+      expect(mocks.listWorkdirTree.mock.calls.map((c) => c[0])).toEqual([null]);
+    });
+
+    it("drops the cached subtree of a deleted directory", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("src")]);
+      await loadDirectory("", true);
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("src/old")]);
+      await loadDirectory("src", true);
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("src/old/stale.ts")]);
+      await loadDirectory("src/old", true);
+      await toggleDirectory("src/old", true);
+      expect(get(treeChildren).has("src/old")).toBe(true);
+      mocks.listWorkdirTree.mockClear();
+
+      mocks.listWorkdirTree.mockResolvedValueOnce([]);
+      await deletePath("src/old", true);
+
+      // Without the purge, re-creating `src/old` later would show
+      // `stale.ts` — the partial refresh no longer clears it wholesale.
+      expect(get(treeChildren).has("src/old")).toBe(false);
+      expect(get(expandedDirs).has("src/old")).toBe(false);
+      // The parent survives, re-listed.
+      expect(get(treeChildren).get("src")).toEqual([]);
+    });
+
+    it("re-lists both ends of a cross-directory rename", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("a"), dir("b")]);
+      await loadDirectory("", true);
+      mocks.listWorkdirTree.mockClear();
+      mocks.listWorkdirTree.mockResolvedValue([]);
+
+      await renamePath("a/f.ts", "b/f.ts", true);
+
+      const prefixes = mocks.listWorkdirTree.mock.calls.map((c) => c[0]).sort();
+      expect(prefixes).toEqual(["a", "b"]);
+    });
+
+    it("lists a same-directory rename's parent once, not twice", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("src")]);
+      await loadDirectory("", true);
+      mocks.listWorkdirTree.mockClear();
+      mocks.listWorkdirTree.mockResolvedValue([]);
+
+      await renamePath("src/old.ts", "src/new.ts", true);
+
+      // Deduped: two listings for one key would race two writes for it.
+      expect(mocks.listWorkdirTree.mock.calls.map((c) => c[0])).toEqual(["src"]);
+    });
+
+    it("refreshTreePaths keeps every other listing, unlike refreshTree", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("keep"), dir("touch")]);
+      await loadDirectory("", true);
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("keep/k.ts")]);
+      await loadDirectory("keep", true);
+      mocks.listWorkdirTree.mockClear();
+
+      mocks.listWorkdirTree.mockResolvedValueOnce([file("touch/t.ts")]);
+      await refreshTreePaths(["touch"], true);
+      expect(get(treeChildren).get("keep")).toEqual([file("keep/k.ts")]);
+
+      // For contrast: the full refresh empties the map first, which is the
+      // blank frame this replaced.
+      mocks.listWorkdirTree.mockResolvedValue([]);
+      await refreshTree(true);
+      expect(get(treeChildren).get("keep")).toBeUndefined();
+    });
+
+    it("parentDir handles nesting, top level, and trailing segments", () => {
+      expect(parentDir("a/b/c.ts")).toBe("a/b");
+      expect(parentDir("a.ts")).toBe("");
+      expect(parentDir("a/b")).toBe("a");
     });
   });
 
