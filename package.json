@@ -24,6 +24,8 @@
     "check:instrument": "node scripts/check-instrument-fields.mjs",
     "check:specs": "playwright test --list",
     "check:glyphs": "node scripts/check-icon-glyphs.mjs",
+    "check:toolchain": "node scripts/check-toolchain-pin.mjs",
+    "gate": "bash scripts/gate.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
