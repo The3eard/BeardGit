@@ -11,6 +11,24 @@ use crate::diff::{DiffHunkInfo, DiffLineInfo, FileDiff};
 use crate::error::GitError;
 use crate::repository::Repository;
 
+/// Which direction the patch we are about to build will be applied in.
+///
+/// This is the axis a partial (line-level) selection turns on, because it
+/// decides which side of the patch has to match the target: forward, the old
+/// side must match; in reverse, the *new* side must.
+///
+/// **Not** index-vs-worktree, which is the tempting way to model it and is
+/// wrong: `unstage_hunks` targets the index and still applies in reverse, so a
+/// `{ Index, Worktree }` enum picks the forward polarity for it and unstaging a
+/// single line stays broken.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ApplyDirection {
+    /// `git apply [--cached]` — staging.
+    Forward,
+    /// `git apply --reverse [--cached]` — discarding and unstaging.
+    Reverse,
+}
+
 /// Describes which hunks/lines the user selected for staging/unstaging.
 #[derive(Debug, Clone, Deserialize)]
 pub struct HunkSelection {
@@ -61,7 +79,7 @@ impl Repository {
         context_lines: Option<u32>,
     ) -> Result<(), GitError> {
         let file_diff = self.diff_for_selection(path, false, context_lines)?;
-        let patch = build_patch(path, &file_diff, selections)?;
+        let patch = build_patch(path, &file_diff, selections, ApplyDirection::Forward)?;
         self.apply_patch(&patch, &["--cached"])
     }
 
@@ -74,7 +92,7 @@ impl Repository {
         context_lines: Option<u32>,
     ) -> Result<(), GitError> {
         let file_diff = self.diff_for_selection(path, true, context_lines)?;
-        let patch = build_patch(path, &file_diff, selections)?;
+        let patch = build_patch(path, &file_diff, selections, ApplyDirection::Reverse)?;
         self.apply_patch(&patch, &["--cached", "--reverse"])
     }
 
@@ -87,7 +105,7 @@ impl Repository {
         context_lines: Option<u32>,
     ) -> Result<(), GitError> {
         let file_diff = self.diff_for_selection(path, false, context_lines)?;
-        let patch = build_patch(path, &file_diff, selections)?;
+        let patch = build_patch(path, &file_diff, selections, ApplyDirection::Reverse)?;
         self.apply_patch(&patch, &["--reverse"])
     }
 
@@ -151,6 +169,7 @@ fn build_patch(
     path: &str,
     diff: &FileDiff,
     selections: &[HunkSelection],
+    direction: ApplyDirection,
 ) -> Result<String, GitError> {
     let mut patch = String::new();
 
@@ -179,7 +198,7 @@ fn build_patch(
             }
             Some(ranges) => {
                 // Partial line selection within the hunk.
-                let filtered = filter_hunk_lines(hunk, ranges);
+                let filtered = filter_hunk_lines(hunk, ranges, direction);
                 if filtered.is_empty() {
                     continue;
                 }
@@ -219,36 +238,66 @@ fn format_hunk_header(hunk: &DiffHunkInfo) -> String {
 
 /// Filter hunk lines to include only selected changed lines plus all context.
 ///
-/// Non-selected additions are omitted entirely.
-/// Non-selected deletions become context lines (preserving the old content).
-fn filter_hunk_lines(hunk: &DiffHunkInfo, ranges: &[(usize, usize)]) -> Vec<DiffLineInfo> {
+/// A non-selected changed line has to be rewritten so that the side of the
+/// patch which must match the target still describes the target exactly. Which
+/// side that is depends on the direction — see [`ApplyDirection`]:
+///
+/// | non-selected line | `Forward` | `Reverse` |
+/// |---|---|---|
+/// | `+` | omitted (not in the target yet) | context (already in the target) |
+/// | `-` | context (still in the target) | omitted (already gone from the target) |
+///
+/// Context lines are always kept, in both directions.
+///
+/// Getting this backwards does not corrupt anything: the generated patch
+/// describes a state the target is not in, `git apply` rejects it, and the
+/// caller gets an error with the target untouched. It does make the operation
+/// impossible, which is what it did for both reverse paths until this
+/// parameter existed.
+fn filter_hunk_lines(
+    hunk: &DiffHunkInfo,
+    ranges: &[(usize, usize)],
+    direction: ApplyDirection,
+) -> Vec<DiffLineInfo> {
     let mut result = Vec::new();
 
     for (i, line) in hunk.lines.iter().enumerate() {
         let is_selected = ranges.iter().any(|(start, end)| i >= *start && i <= *end);
 
-        match line.origin {
-            ' ' => {
-                // Context lines are always included.
+        // Context lines are always included; selected changed lines are kept
+        // verbatim, since they are the edit being applied or reverted.
+        if line.origin == ' ' || is_selected {
+            if matches!(line.origin, ' ' | '+' | '-') {
                 result.push(line.clone());
             }
-            // Selected additions are kept; non-selected additions are omitted.
-            '+' if is_selected => {
-                result.push(line.clone());
-            }
-            '-' => {
-                if is_selected {
-                    result.push(line.clone());
-                } else {
-                    // Non-selected deletions become context lines.
-                    result.push(DiffLineInfo {
-                        origin: ' ',
-                        content: line.content.clone(),
-                        old_lineno: line.old_lineno,
-                        new_lineno: line.old_lineno,
-                    });
-                }
-            }
+            continue;
+        }
+
+        match (line.origin, direction) {
+            // Not in the target yet, so it cannot be described at all.
+            ('+', ApplyDirection::Forward) => {}
+            // Already in the target: carry it as context. Both line numbers
+            // are set from `new_lineno` because that is the only one an
+            // addition has — the opposite-side number is synthetic, and the
+            // `-` arm below is synthetic in the mirror way. Nothing reads
+            // them: `push_patch_line` emits only `origin` and `content`, and
+            // the header counts come from counting origins. If a caller ever
+            // starts trusting these numbers, both arms need revisiting.
+            ('+', ApplyDirection::Reverse) => result.push(DiffLineInfo {
+                origin: ' ',
+                content: line.content.clone(),
+                old_lineno: line.new_lineno,
+                new_lineno: line.new_lineno,
+            }),
+            // Still in the target: carry it as context.
+            ('-', ApplyDirection::Forward) => result.push(DiffLineInfo {
+                origin: ' ',
+                content: line.content.clone(),
+                old_lineno: line.old_lineno,
+                new_lineno: line.old_lineno,
+            }),
+            // Already gone from the target, so it cannot be described.
+            ('-', ApplyDirection::Reverse) => {}
             _ => {}
         }
     }
@@ -321,7 +370,7 @@ mod tests {
             line_ranges: None,
         }];
 
-        let patch = build_patch("test.txt", &diff, &selections).unwrap();
+        let patch = build_patch("test.txt", &diff, &selections, ApplyDirection::Forward).unwrap();
 
         assert!(patch.starts_with("--- a/test.txt\n+++ b/test.txt\n"));
         assert!(patch.contains("@@ -1,3 +1,3 @@\n"));
@@ -340,14 +389,63 @@ mod tests {
             line_ranges: Some(vec![(2, 2)]),
         }];
 
-        let patch = build_patch("test.txt", &diff, &selections).unwrap();
+        let patch = build_patch("test.txt", &diff, &selections, ApplyDirection::Forward).unwrap();
 
         // The deletion at index 1 is not selected, so it becomes a context line.
         // old_count = 3 (context line1 + context-from-delete line2 + context line3)
         // new_count = 4 (context line1 + context-from-delete line2 + add + context line3)
+        //
+        // Assert the header, not just the bodies. The counts are the only part
+        // of the hunk header `build_patch` *derives* rather than copies, and
+        // they were previously spelled out in this comment and checked
+        // nowhere — leaving `git apply`'s own consistency check as the only
+        // thing standing between a miscount and a silent wrong patch.
+        assert!(
+            patch.contains("@@ -1,3 +1,4 @@\n"),
+            "recomputed counts must match the filtered lines:\n{patch}"
+        );
         assert!(patch.contains("+modified line 2\n"));
         // The non-selected deletion should become a context line.
         assert!(patch.contains(" line 2\n"));
+    }
+
+    /// The reverse polarity at unit level. It is covered end to end by the
+    /// discard and unstage tests, but those go through `git apply`, so a
+    /// failure there does not say whether the patch or the application was
+    /// wrong. This pins the patch side on its own.
+    #[test]
+    fn test_filter_hunk_lines_reverse_inverts_both_polarities() {
+        let diff = make_file_diff();
+        let hunk = &diff.hunks[0];
+
+        // Select the addition (index 2); the deletion at index 1 is not
+        // selected. Reverse is the mirror of `Forward`: the unselected
+        // deletion is already gone from the target so it is dropped, where
+        // Forward would have kept it as context.
+        let filtered = filter_hunk_lines(hunk, &[(2, 2)], ApplyDirection::Reverse);
+        let shape: Vec<String> = filtered
+            .iter()
+            .map(|l| format!("{}{}", l.origin, l.content.trim()))
+            .collect();
+        assert_eq!(
+            shape,
+            [" line 1", "+modified line 2", " line 3"],
+            "reverse must drop the unselected deletion, not turn it into context"
+        );
+
+        // And the other way round: select the deletion, leave the addition
+        // unselected. Reverse keeps it as context because it *is* in the
+        // target, where Forward would have omitted it.
+        let filtered = filter_hunk_lines(hunk, &[(1, 1)], ApplyDirection::Reverse);
+        let shape: Vec<String> = filtered
+            .iter()
+            .map(|l| format!("{}{}", l.origin, l.content.trim()))
+            .collect();
+        assert_eq!(
+            shape,
+            [" line 1", "-line 2", " modified line 2", " line 3"],
+            "reverse must keep the unselected addition as context, not omit it"
+        );
     }
 
     #[test]
@@ -356,7 +454,7 @@ mod tests {
         let hunk = &diff.hunks[0];
 
         // Select the added line (index 2).
-        let filtered = filter_hunk_lines(hunk, &[(2, 2)]);
+        let filtered = filter_hunk_lines(hunk, &[(2, 2)], ApplyDirection::Forward);
 
         let add_lines: Vec<_> = filtered.iter().filter(|l| l.origin == '+').collect();
         assert_eq!(add_lines.len(), 1);
@@ -369,7 +467,7 @@ mod tests {
         let hunk = &diff.hunks[0];
 
         // Select only the deletion (index 1), not the addition (index 2).
-        let filtered = filter_hunk_lines(hunk, &[(1, 1)]);
+        let filtered = filter_hunk_lines(hunk, &[(1, 1)], ApplyDirection::Forward);
 
         let add_lines: Vec<_> = filtered.iter().filter(|l| l.origin == '+').collect();
         assert!(
@@ -384,7 +482,7 @@ mod tests {
         let hunk = &diff.hunks[0];
 
         // Select only the addition (index 2), not the deletion (index 1).
-        let filtered = filter_hunk_lines(hunk, &[(2, 2)]);
+        let filtered = filter_hunk_lines(hunk, &[(2, 2)], ApplyDirection::Forward);
 
         // The deletion should have become a context line.
         let del_lines: Vec<_> = filtered.iter().filter(|l| l.origin == '-').collect();
@@ -412,7 +510,7 @@ mod tests {
             line_ranges: None,
         }];
 
-        let result = build_patch("test.txt", &diff, &selections);
+        let result = build_patch("test.txt", &diff, &selections, ApplyDirection::Forward);
         assert!(result.is_err());
     }
 
@@ -721,7 +819,7 @@ mod tests {
             hunk_index: 0,
             line_ranges: None,
         }];
-        let patch = build_patch("f.txt", &diff, &selections).unwrap();
+        let patch = build_patch("f.txt", &diff, &selections, ApplyDirection::Forward).unwrap();
 
         // Both changed lines lack a newline, so each is followed by the marker.
         assert_eq!(
@@ -939,6 +1037,288 @@ mod tests {
             fs::read_to_string(dir.path().join("f.txt")).unwrap(),
             MIXED_COMMITTED,
             "discarding the whole hunk must restore the committed content"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // The bug: the two reverse-applied paths
+    //
+    // `filter_hunk_lines` was written for a forward patch, where a
+    // non-selected `+` is not yet in the target (omit it) and a non-selected
+    // `-` still is (keep it as context). Both `discard_hunks` (`--reverse`)
+    // and `unstage_hunks` (`--cached --reverse`) apply in reverse, where the
+    // polarity is the other way round: the non-selected `+` *is* in the target
+    // and the non-selected `-` is not. The patch then describes a state the
+    // target is not in, and `git apply` rejects it.
+    //
+    // It fails safely — nothing is written and the caller sees an error — but
+    // the action is unusable.
+    //
+    // The last two cases use hunks of a single sign. They matter because they
+    // prove each polarity is wrong *on its own*, not through interaction: a
+    // fix that only inverts the handling of `-` still fails on an
+    // additions-only hunk.
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn discarding_one_added_line_reverts_only_that_line() {
+        let (dir, repo) = repo_committed_then_worktree(MIXED_COMMITTED, MIXED_WORKTREE);
+
+        let diff = repo
+            .diff_single_file("f.txt", false, None)
+            .unwrap()
+            .unwrap();
+        let x = line_at(&diff, '+', "X");
+
+        repo.discard_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(x, x)]),
+            }],
+            None,
+        )
+        .expect("discarding a single added line must apply");
+
+        // X was added and is being discarded, so it goes. Y was also added but
+        // was not selected, so it stays. b and c were deleted and not
+        // selected, so they stay deleted.
+        assert_eq!(
+            fs::read_to_string(dir.path().join("f.txt")).unwrap(),
+            "a\nY\nd\ne\n",
+            "discarding +X must remove X and leave everything else alone"
+        );
+    }
+
+    #[test]
+    fn discarding_one_deleted_line_restores_only_that_line() {
+        let (dir, repo) = repo_committed_then_worktree(MIXED_COMMITTED, MIXED_WORKTREE);
+
+        let diff = repo
+            .diff_single_file("f.txt", false, None)
+            .unwrap()
+            .unwrap();
+        let b = line_at(&diff, '-', "b");
+
+        repo.discard_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(b, b)]),
+            }],
+            None,
+        )
+        .expect("discarding a single deleted line must apply");
+
+        // b comes back. c stays deleted, and both additions survive.
+        assert_eq!(
+            fs::read_to_string(dir.path().join("f.txt")).unwrap(),
+            "a\nb\nX\nY\nd\ne\n",
+            "discarding -b must restore b and leave everything else alone"
+        );
+    }
+
+    #[test]
+    fn unstaging_one_added_line_unstages_only_that_line() {
+        let (dir, repo) = repo_committed_then_staged(MIXED_COMMITTED, MIXED_WORKTREE);
+
+        let diff = repo
+            .diff_single_file("f.txt", true, None)
+            .unwrap()
+            .expect("the staged change must produce a diff");
+        let x = line_at(&diff, '+', "X");
+
+        repo.unstage_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(x, x)]),
+            }],
+            None,
+        )
+        .expect("unstaging a single added line must apply");
+
+        // Same shape as discarding +X, against the index instead of the tree.
+        assert_eq!(
+            index_content(dir.path()),
+            "a\nY\nd\ne\n",
+            "unstaging +X must remove X from the index and leave the rest staged"
+        );
+    }
+
+    #[test]
+    fn unstaging_one_deleted_line_restores_only_that_line() {
+        let (dir, repo) = repo_committed_then_staged(MIXED_COMMITTED, MIXED_WORKTREE);
+
+        let diff = repo.diff_single_file("f.txt", true, None).unwrap().unwrap();
+        let b = line_at(&diff, '-', "b");
+
+        repo.unstage_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(b, b)]),
+            }],
+            None,
+        )
+        .expect("unstaging a single deleted line must apply");
+
+        assert_eq!(
+            index_content(dir.path()),
+            "a\nb\nX\nY\nd\ne\n",
+            "unstaging -b must put b back in the index and leave the rest staged"
+        );
+    }
+
+    /// An additions-only hunk: no `-` line anywhere, so only the `+` polarity
+    /// can be at fault. A fix that inverts just the deletion branch still
+    /// fails here.
+    #[test]
+    fn discarding_one_line_of_an_additions_only_hunk_reverts_only_that_line() {
+        let (dir, repo) = repo_committed_then_worktree("a\nb\nc\n", "a\nX\nY\nb\nc\n");
+
+        let diff = repo
+            .diff_single_file("f.txt", false, None)
+            .unwrap()
+            .unwrap();
+        assert!(
+            diff.hunks[0].lines.iter().all(|l| l.origin != '-'),
+            "this fixture must produce an additions-only hunk, or it proves nothing"
+        );
+        let x = line_at(&diff, '+', "X");
+
+        repo.discard_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(x, x)]),
+            }],
+            None,
+        )
+        .expect("discarding one line of an additions-only hunk must apply");
+
+        assert_eq!(
+            fs::read_to_string(dir.path().join("f.txt")).unwrap(),
+            "a\nY\nb\nc\n",
+            "only X may be reverted; the unselected addition Y must survive"
+        );
+    }
+
+    /// A deletions-only hunk: the mirror of the case above, isolating the `-`
+    /// polarity.
+    #[test]
+    fn discarding_one_line_of_a_deletions_only_hunk_restores_only_that_line() {
+        let (dir, repo) = repo_committed_then_worktree("a\nb\nc\nd\n", "a\nd\n");
+
+        let diff = repo
+            .diff_single_file("f.txt", false, None)
+            .unwrap()
+            .unwrap();
+        assert!(
+            diff.hunks[0].lines.iter().all(|l| l.origin != '+'),
+            "this fixture must produce a deletions-only hunk, or it proves nothing"
+        );
+        let b = line_at(&diff, '-', "b");
+
+        repo.discard_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(b, b)]),
+            }],
+            None,
+        )
+        .expect("discarding one line of a deletions-only hunk must apply");
+
+        assert_eq!(
+            fs::read_to_string(dir.path().join("f.txt")).unwrap(),
+            "a\nb\nd\n",
+            "only b may come back; the unselected deletion c must stay deleted"
+        );
+    }
+
+    /// Where the two known hazards in this file cross: a partial selection in
+    /// reverse *and* a file with no EOF newline.
+    ///
+    /// Each half was handled separately — `push_patch_line` re-emits the
+    /// `\ No newline at end of file` marker, and the polarity fix above makes
+    /// reverse selections describe the target correctly — but the combination
+    /// could not be reached before, because the selection failed on polarity
+    /// long before the marker mattered. It is reachable now.
+    ///
+    /// The subtlety: the unselected `+Y` becomes a context line, and it is the
+    /// final line of a file with no trailing newline, so the marker has to
+    /// survive that rewrite. Dropping it silently appends a newline that was
+    /// never in the file.
+    #[test]
+    fn discarding_one_added_line_keeps_a_missing_eof_newline_missing() {
+        let (dir, repo) = repo_committed_then_worktree("a\nb\nc", "a\nX\nY");
+
+        let diff = repo
+            .diff_single_file("f.txt", false, None)
+            .unwrap()
+            .unwrap();
+        let x = line_at(&diff, '+', "X");
+
+        repo.discard_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(x, x)]),
+            }],
+            None,
+        )
+        .expect("discarding one line of a file with no EOF newline must apply");
+
+        let after = fs::read_to_string(dir.path().join("f.txt")).unwrap();
+        assert_eq!(
+            after, "a\nY",
+            "X reverted, Y kept, and the missing EOF newline still missing"
+        );
+        assert!(
+            !after.ends_with('\n'),
+            "a newline the file never had must not be fabricated"
+        );
+    }
+
+    /// The mirror: discard the *last* line of a no-EOF-newline file, so the
+    /// selected line is itself the one carrying the marker.
+    ///
+    /// Note what the trailing newline does here, because it is easy to assert
+    /// the wrong thing. The working tree is `a\nX\nY` with no final newline —
+    /// which means `X` **does** end in a newline, since Y follows it. Reverting
+    /// only Y therefore yields `a\nX\n`: a file that now ends in a newline
+    /// where the previous state did not.
+    ///
+    /// That is correct rather than a leak. The patch's old side describes X
+    /// exactly as the file holds it, and the only way to produce `a\nX` instead
+    /// would be to also rewrite X's line ending — editing a line the user did
+    /// not select. `git apply --reverse` behaves the same way on an
+    /// equivalent hand-written patch.
+    #[test]
+    fn discarding_the_last_added_line_of_a_file_without_eof_newline() {
+        let (dir, repo) = repo_committed_then_worktree("a\nb\nc", "a\nX\nY");
+
+        let diff = repo
+            .diff_single_file("f.txt", false, None)
+            .unwrap()
+            .unwrap();
+        let y = line_at(&diff, '+', "Y");
+
+        repo.discard_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(y, y)]),
+            }],
+            None,
+        )
+        .expect("discarding the final line of a no-EOF-newline file must apply");
+
+        assert_eq!(
+            fs::read_to_string(dir.path().join("f.txt")).unwrap(),
+            "a\nX\n",
+            "only Y may be reverted; X keeps the newline it already had"
         );
     }
 
