@@ -195,6 +195,7 @@ impl From<git_engine::GitError> for IpcError {
             G::WouldLoseChanges(_) => "would_lose_changes",
             G::NotFullyMerged(_) => "not_fully_merged",
             G::BranchAlreadyExists(_) => "branch_exists",
+            G::DiscardFailed { .. } => "discard_failed",
         };
         Self::new(code, err.to_string())
     }

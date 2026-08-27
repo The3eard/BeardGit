@@ -100,6 +100,11 @@ export function firstErrorLine(e: unknown): string {
  *   placeholder instead of text:
  *   @unmapped binary_file file_too_large
  *
+ * - Partial failures whose whole value is the list of paths that survived.
+ *   A fixed sentence would drop exactly the part the user needs in order to
+ *   know what is still on disk:
+ *   @unmapped discard_failed
+ *
  * Kept as an alias for a code Rust no longer emits:
  * @legacy-code repo_not_found
  */
