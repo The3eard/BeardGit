@@ -44,12 +44,19 @@ impl IpcError {
     /// impls below — so this is also the single place that logs IPC
     /// failures.
     ///
-    /// **Coverage is now every command.** It was 27 of ~310 while the
-    /// migration off `Result<_, String>` was in progress: a module still on
-    /// the old signature failed silently, so the user got a toast and the
-    /// log got nothing. That was the argument for finishing the migration
-    /// rather than leaving it perpetually last, and it is why the hook
-    /// lives here rather than in each command body.
+    /// **Coverage is all 311 registered commands** — the 281 in
+    /// `commands/` plus `ai_commands`, `terminal_commands` and
+    /// `task_commands`, which are registered from their own modules and
+    /// were missed by a first count that only looked at `commands/`.
+    ///
+    /// It was 27 while the migration off `Result<_, String>` was in
+    /// progress: a command still on the old signature failed silently, so
+    /// the user got a toast and the log got nothing. That was the argument
+    /// for finishing it rather than leaving it perpetually last, and it is
+    /// why the hook lives here rather than in each command body.
+    ///
+    /// Use [`IpcError::expected`] for conditions that are routine rather
+    /// than wrong — see its docs.
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
         let message = message.into();
         // `detail`, not `message`: tracing reserves `message` for the
@@ -60,6 +67,23 @@ impl IpcError {
             "ipc command failed"
         );
         Self { code, message }
+    }
+
+    /// Build an [`IpcError`] **without** logging it.
+    ///
+    /// For conditions that are expected rather than wrong. "No active
+    /// project" and "no repository open" are the shape behind most
+    /// "nothing happened" reports and were deliberately logged at DEBUG,
+    /// but the migration routed them through `new` — which meant every
+    /// read command dispatched against a background tab (heavy state is
+    /// `None` there, by the active-tab invariant) wrote an ERROR line.
+    /// Logging every genuine failure is the point of this type; drowning
+    /// it in routine ones is not.
+    pub fn expected(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
     }
 }
 
@@ -86,6 +110,15 @@ impl From<String> for IpcError {
 impl From<&str> for IpcError {
     fn from(message: &str) -> Self {
         Self::new("error", message)
+    }
+}
+
+/// The reverse direction, for the few helper closures that still work in
+/// plain `String` errors. Keeps the message and drops the code, which is
+/// what those callers were doing by hand.
+impl From<IpcError> for String {
+    fn from(err: IpcError) -> Self {
+        err.message
     }
 }
 

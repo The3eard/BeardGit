@@ -24,6 +24,31 @@ describe("getErrorCode", () => {
   });
 });
 
+/**
+ * The regression that made this suite matter: every Tauri command now
+ * rejects with `{ code, message }`, and `String()` on an object is the
+ * literal text "[object Object]". Three callsites compared the result
+ * against known text to decide what to do next, so the damage was control
+ * flow, not just a bad-looking toast.
+ */
+describe("an IpcError is not usefully stringifiable", () => {
+  const rejection = { code: "error", message: "canceled" };
+
+  it("String() on it loses the message entirely", () => {
+    expect(String(rejection)).toBe("[object Object]");
+  });
+
+  it("getErrorMessage keeps it, so a text comparison still works", () => {
+    expect(getErrorMessage(rejection)).toBe("canceled");
+    expect(getErrorMessage(rejection).includes("canceled")).toBe(true);
+  });
+
+  it("and still works on the shapes that are not commands", () => {
+    expect(getErrorMessage("canceled")).toBe("canceled");
+    expect(getErrorMessage(new Error("canceled"))).toBe("canceled");
+  });
+});
+
 describe("getErrorMessage", () => {
   it("passes plain strings through", () => {
     expect(getErrorMessage("boom")).toBe("boom");

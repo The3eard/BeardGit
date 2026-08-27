@@ -19,6 +19,7 @@ use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use terminal::{SessionId, TerminalConfig, TerminalManager};
 
 use crate::commands::get_active_project_path;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 // ─── Provider factory ────────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ pub fn ai_get_providers(state: State<'_, AppState>) -> Vec<AvailableAiProvider> 
 /// - Whether the repo root has provider-specific config files
 /// - How many sessions and worktrees are known
 #[tauri::command]
-pub fn ai_get_repo_status(state: State<'_, AppState>) -> Result<Vec<RepoAiStatus>, String> {
+pub fn ai_get_repo_status(state: State<'_, AppState>) -> Result<Vec<RepoAiStatus>, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     let providers = state
@@ -144,7 +145,7 @@ pub fn ai_get_repo_status(state: State<'_, AppState>) -> Result<Vec<RepoAiStatus
 pub async fn ai_refresh_detection(
     app_handle: AppHandle,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let detected = tokio::task::spawn_blocking(|| {
         let kinds = [
             AiProviderKind::ClaudeCode,
@@ -220,7 +221,7 @@ pub async fn ai_generate_commit_message(
     provider: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -255,7 +256,7 @@ pub async fn ai_analyze_code(
     question: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -286,7 +287,7 @@ pub async fn ai_generate_pr_description(
     provider: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -320,7 +321,7 @@ pub async fn ai_review_code(
     diff: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -356,7 +357,7 @@ pub async fn ai_review_pr(
     diff: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -409,7 +410,7 @@ pub struct SaveAiReviewResult {
 pub fn save_ai_review(
     content: String,
     state: State<'_, AppState>,
-) -> Result<SaveAiReviewResult, String> {
+) -> Result<SaveAiReviewResult, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let dir = cwd.join(".beardgit").join("reviews");
     std::fs::create_dir_all(&dir).map_err(|e| format!("create reviews dir: {e}"))?;
@@ -460,7 +461,7 @@ pub fn ai_launch_interactive(
     provider: String,
     state: State<'_, AppState>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
-) -> Result<SessionId, String> {
+) -> Result<SessionId, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -480,6 +481,7 @@ pub fn ai_launch_interactive(
     terminal_manager
         .spawn_program(&program, &args, config)
         .map_err(|e| e.to_string())
+        .map_err(IpcError::from)
 }
 
 /// Launch an AI session with worktree isolation.
@@ -493,7 +495,7 @@ pub fn ai_launch_worktree(
     name: Option<String>,
     state: State<'_, AppState>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
-) -> Result<Option<SessionId>, String> {
+) -> Result<Option<SessionId>, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -529,7 +531,7 @@ pub fn ai_resume_conversation(
     conversation_id: String,
     state: State<'_, AppState>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
-) -> Result<Option<SessionId>, String> {
+) -> Result<Option<SessionId>, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -593,7 +595,7 @@ fn verify_executable(path: &str) -> Result<(), String> {
 #[tauri::command]
 pub async fn ai_list_conversations(
     state: State<'_, AppState>,
-) -> Result<Vec<AiConversation>, String> {
+) -> Result<Vec<AiConversation>, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let providers = state
         .ai_providers
@@ -611,15 +613,16 @@ pub async fn ai_list_conversations(
                 conversations.append(&mut c);
             }
         }
-        Ok(conversations)
+        Ok::<_, String>(conversations)
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// List AI-created worktrees for all detected providers in the current repository.
 #[tauri::command]
-pub fn ai_list_worktrees(state: State<'_, AppState>) -> Result<Vec<AiWorktree>, String> {
+pub fn ai_list_worktrees(state: State<'_, AppState>) -> Result<Vec<AiWorktree>, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let providers = state
         .ai_providers
@@ -648,7 +651,7 @@ pub fn ai_cleanup_worktree(
     provider: String,
     worktree_path: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -661,7 +664,8 @@ pub fn ai_cleanup_worktree(
         .find(|w| w.path == target_path)
         .ok_or_else(|| format!("worktree not found: {worktree_path}"))?;
 
-    p.cleanup_worktree(worktree).map_err(|e| e.to_string())
+    p.cleanup_worktree(worktree)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 // ─── Provider Preference ─────────────────────────────────────────────────────
@@ -678,10 +682,12 @@ pub fn ai_get_preferred_provider(state: State<'_, AppState>) -> Option<String> {
 pub fn ai_set_preferred_provider(
     provider: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let mut config = state.config.lock().unwrap();
     config.preferred_ai_provider = provider;
-    config.save(&state.config_path).map_err(|e| e.to_string())
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Start watching AI config directories for the active project.
@@ -693,7 +699,7 @@ pub fn ai_set_preferred_provider(
 pub fn ai_watch_config_dirs(
     app_handle: AppHandle,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let cwd = get_active_project_path(&state)?;
     let handle = app_handle.clone();
 
@@ -708,7 +714,7 @@ pub fn ai_watch_config_dirs(
 
 /// Stop the AI config directory watcher.
 #[tauri::command]
-pub fn ai_stop_config_watcher(state: State<'_, AppState>) -> Result<(), String> {
+pub fn ai_stop_config_watcher(state: State<'_, AppState>) -> Result<(), IpcError> {
     let mut guard = state.ai_config_watcher.lock().map_err(|e| e.to_string())?;
     *guard = None;
     Ok(())
@@ -716,7 +722,7 @@ pub fn ai_stop_config_watcher(state: State<'_, AppState>) -> Result<(), String> 
 
 /// List AI configuration files for all detected providers in the current repository.
 #[tauri::command]
-pub fn ai_get_config_files(state: State<'_, AppState>) -> Result<Vec<AiConfigFile>, String> {
+pub fn ai_get_config_files(state: State<'_, AppState>) -> Result<Vec<AiConfigFile>, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let providers = state
         .ai_providers
@@ -739,7 +745,7 @@ pub fn ai_get_config_files(state: State<'_, AppState>) -> Result<Vec<AiConfigFil
 /// Validate that a config file path is within allowed boundaries.
 ///
 /// Allowed: project repo root (and children) or `~/.claude/` (and children).
-fn validate_config_path(path: &str, repo_root: &Path) -> Result<PathBuf, String> {
+fn validate_config_path(path: &str, repo_root: &Path) -> Result<PathBuf, IpcError> {
     // Resolve `.`/`..` lexically FIRST (so a `..` can't later defeat the
     // `starts_with` scope check, which is component-based and would otherwise
     // accept `<repo>/../../etc/passwd`), then canonicalize the longest existing
@@ -764,7 +770,9 @@ fn validate_config_path(path: &str, repo_root: &Path) -> Result<PathBuf, String>
         }
     }
 
-    Err(format!("path outside allowed scope: {path}"))
+    Err(IpcError::from(format!(
+        "path outside allowed scope: {path}"
+    )))
 }
 
 /// Lexically resolve `.` and `..` components without touching the filesystem.
@@ -833,11 +841,11 @@ fn resolve_new_config_path(
 pub async fn ai_read_config_file(
     path: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     let validated = validate_config_path(&path, &repo_path)?;
     std::fs::read_to_string(&validated)
-        .map_err(|e| format!("failed to read {}: {e}", validated.display()))
+        .map_err(|e| IpcError::from(format!("failed to read {}: {e}", validated.display())))
 }
 
 /// Write content to an AI configuration file.
@@ -849,7 +857,7 @@ pub async fn ai_write_config_file(
     path: String,
     content: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     let validated = validate_config_path(&path, &repo_path)?;
     if let Some(parent) = validated.parent() {
@@ -857,7 +865,7 @@ pub async fn ai_write_config_file(
             .map_err(|e| format!("failed to create directories: {e}"))?;
     }
     std::fs::write(&validated, content)
-        .map_err(|e| format!("failed to write {}: {e}", validated.display()))
+        .map_err(|e| IpcError::from(format!("failed to write {}: {e}", validated.display())))
 }
 
 /// Create a new AI configuration file from a template.
@@ -871,12 +879,15 @@ pub async fn ai_create_config_file(
     scope: String,
     name: String,
     state: State<'_, AppState>,
-) -> Result<AiConfigFile, String> {
+) -> Result<AiConfigFile, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     let file_path = resolve_new_config_path(&kind, &scope, &name, &repo_path)?;
 
     if file_path.exists() {
-        return Err(format!("file already exists: {}", file_path.display()));
+        return Err(IpcError::from(format!(
+            "file already exists: {}",
+            file_path.display()
+        )));
     }
 
     if let Some(parent) = file_path.parent() {

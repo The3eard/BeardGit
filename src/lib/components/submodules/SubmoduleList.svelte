@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import {
     submodules,
@@ -57,7 +58,7 @@
       addUrl = "";
       addPath = "";
     } catch (err) {
-      addError = String(err);
+      addError = getErrorMessage(err);
     } finally {
       adding = false;
     }
@@ -105,7 +106,7 @@
       const absPath = await getSubmoduleAbsPath(sub.path);
       await openProjectTab(absPath);
     } catch (err) {
-      alert(String(err));
+      alert(getErrorMessage(err));
     }
   }
 
@@ -128,7 +129,7 @@
           try {
             await initSubmodule(sub.path);
           } catch (err) {
-            alert(m.submodule_init_failed({ error: String(err) }));
+            alert(m.submodule_init_failed({ error: getErrorMessage(err) }));
           }
         },
       });
@@ -153,7 +154,7 @@
               try {
                 await deinitSubmodule(sub.path, false);
               } catch (err) {
-                alert(m.submodule_deinit_failed({ error: String(err) }));
+                alert(m.submodule_deinit_failed({ error: getErrorMessage(err) }));
               }
               confirmProps = null;
             },
@@ -170,7 +171,7 @@
               try {
                 await deinitSubmodule(sub.path, true);
               } catch (err) {
-                alert(m.submodule_deinit_failed({ error: String(err) }));
+                alert(m.submodule_deinit_failed({ error: getErrorMessage(err) }));
               }
               confirmProps = null;
             },
@@ -190,7 +191,7 @@
             try {
               await removeSubmodule(sub.path);
             } catch (err) {
-              alert(m.submodule_remove_failed({ error: String(err) }));
+              alert(m.submodule_remove_failed({ error: getErrorMessage(err) }));
             }
             confirmProps = null;
           },

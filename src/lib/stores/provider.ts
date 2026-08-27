@@ -10,6 +10,7 @@
  * - Job log: 3 s (auto-stops when job status is terminal)
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { writable, derived, get } from "svelte/store";
 import type { ProviderStatusResponse, CiRun, CiRunDetail, ProviderKind } from "../types";
 import * as api from "../api/tauri";
@@ -202,7 +203,7 @@ export async function connect(kind: ProviderKind, instanceUrl: string, token: st
     await api.connectProvider(kind, instanceUrl, token);
     await checkStatus();
   } catch (e) {
-    providerError.set(String(e));
+    providerError.set(getErrorMessage(e));
     throw e;
   } finally {
     isConnecting.set(false);

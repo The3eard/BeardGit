@@ -6,6 +6,7 @@
   flags (draft, prerelease, generate_notes) are hidden for GitLab.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import { Checkbox } from "$lib/components/ui";
@@ -101,7 +102,7 @@
       }
       onClose();
     } catch (e) {
-      errorMsg = String(e);
+      errorMsg = getErrorMessage(e);
     } finally {
       submitting = false;
     }

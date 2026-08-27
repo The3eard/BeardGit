@@ -20,6 +20,7 @@
  * whatever `app-core` considers the active project, so the store never
  * needs to thread a project handle.
  */
+import { getErrorMessage } from "$lib/api/errors";
 import { derived, get, writable } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
@@ -347,7 +348,7 @@ function applyReadResult(
 
 /** Mark a single tab's `status` / `error` after a load failure. */
 function markLoadError(path: string, err: unknown): void {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = getErrorMessage(err);
   tabs.update((list) => {
     const idx = list.findIndex((t) => t.path === path);
     if (idx < 0) return list;

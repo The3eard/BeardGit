@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import { listCiWorkflows, triggerWorkflow, activeProvider } from "../../stores/provider";
   import { repoInfo } from "../../stores/repo";
@@ -45,7 +46,7 @@
       }
       gitRef = $repoInfo?.head_branch ?? "";
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       loading = false;
     }
@@ -73,7 +74,7 @@
       await triggerWorkflow(selectedWorkflowId, gitRef, inputs);
       onClose();
     } catch (e) {
-      error = m.pipeline_trigger_error({ error: String(e) });
+      error = m.pipeline_trigger_error({ error: getErrorMessage(e) });
     } finally {
       submitting = false;
     }
