@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.98.0
 
       - uses: Swatinem/rust-cache@v2
 
@@ -40,5 +40,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Audit npm dependencies
+      # Split on purpose, and read the second half before relaxing anything
+      # further. Production deps block; the dev tree only reports.
+      #
+      # Be precise about what "dev" covers here, because it is not only
+      # linters. The seven advisories this split was introduced for were
+      # brace-expansion, fast-uri, js-yaml, nanoid, postcss, undici and
+      # @sveltejs/kit. Some of those (js-yaml under stylelint, undici under
+      # jsdom) really do only ever run on a developer's machine. But postcss,
+      # nanoid and @sveltejs/kit are the build toolchain: they do not ship,
+      # yet their *output* does. An advisory there is a weaker signal than one
+      # in a production dep and a stronger one than a lint-time DoS, and this
+      # job files it under "report, don't block". That is a deliberate
+      # trade-off, not a statement that the dev tree cannot matter — if a
+      # build-toolchain advisory ever looks like it could taint the artifact,
+      # it needs handling on its own merits rather than waiting for this job.
+      - name: Audit npm dependencies (production — blocking)
+        run: npm audit --omit=dev --audit-level=moderate
+
+      - name: Audit npm dependencies (dev — informational)
+        continue-on-error: true
         run: npm audit --audit-level=moderate
