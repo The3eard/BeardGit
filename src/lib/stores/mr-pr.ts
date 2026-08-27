@@ -490,8 +490,10 @@ export async function replyToReviewComment(
 /**
  * Kick off a MR/PR local checkout.
  *
- * Returns the task ID immediately — progress streams to the task popover
- * and the final `CheckoutResult` arrives via a `mr-pr-checked-out` event.
+ * Returns the task ID immediately. Progress streams to the tasks popover —
+ * true since the task carries an explicit `Background` kind; while it spawned
+ * as `Generic`, `should_emit` dropped it and this sentence was aspirational.
+ * The final `CheckoutResult` arrives via a `mr-pr-checked-out` event.
  */
 export async function checkoutMrPrLocally(number: number): Promise<TaskId> {
   return apiCheckoutLocally(number);

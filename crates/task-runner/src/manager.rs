@@ -131,8 +131,10 @@ impl TaskManager {
     /// Returns `true` when tasks of this kind should stream snapshots to the
     /// unified tasks drawer.
     ///
-    /// Gating policy: surface git ops and one-shot headless AI tasks
-    /// (commit-message, code-review, …) directly through this emitter.
+    /// Gating policy: surface git ops, one-shot headless AI tasks
+    /// (commit-message, code-review, …) and `Background` — the catch-all for
+    /// user-started long operations without a category — directly through this
+    /// emitter.
     /// `AiBackground` and `AppUpdate` flow through their own frontend
     /// bridges (`aiBackgroundRuns`, `autoUpdateTask`), so emitting them
     /// here would duplicate rows in the drawer; they stay off the
@@ -149,6 +151,7 @@ impl TaskManager {
                 | TaskKind::GitPush
                 | TaskKind::GitClone
                 | TaskKind::AiHeadless
+                | TaskKind::Background
         )
     }
 

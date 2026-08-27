@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use mutation_events::MutationKind;
-use task_runner::{TaskId, TaskManager};
+use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use tauri::{AppHandle, State};
 use tracing::instrument;
 
@@ -113,15 +113,20 @@ pub async fn update_submodule(
 ) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
-    let label = format!("Submodule update: {path}");
+    // Explicit `Background` kind, not the bare `spawn`: that one tags
+    // `Generic`, which `should_emit` drops, so a submodule update — which
+    // clones over the network and can run for minutes — produced no row in
+    // the drawer and no spinner anywhere.
     let id = task_manager
-        .spawn(
-            label,
-            "git",
-            &["submodule", "update", "--init", "--recursive", "--", &path],
-            &cwd,
-            true,
-        )
+        .spawn_with_options(SpawnOptions {
+            label: format!("Submodule update: {path}"),
+            command: "git",
+            args: &["submodule", "update", "--init", "--recursive", "--", &path],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
+        })
         .await;
 
     Ok(id)
@@ -136,15 +141,16 @@ pub async fn update_all_submodules(
 ) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
-    let label = "Submodule update: all".to_string();
     let id = task_manager
-        .spawn(
-            label,
-            "git",
-            &["submodule", "update", "--init", "--recursive"],
-            &cwd,
-            true,
-        )
+        .spawn_with_options(SpawnOptions {
+            label: "Submodule update: all".to_string(),
+            command: "git",
+            args: &["submodule", "update", "--init", "--recursive"],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
+        })
         .await;
 
     Ok(id)

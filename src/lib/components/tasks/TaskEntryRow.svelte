@@ -49,6 +49,8 @@
         return "\uE725"; // nf-dev-git_branch
       case "app_update":
         return "\uF019"; // fa-download
+      case "background":
+        return "\uF085"; // fa-cogs — user-started work with no closer category
       case "ai_background":
       case "ai_headless":
       default:
@@ -103,6 +105,8 @@
         return m.tasks_kind_git_clone();
       case "app_update":
         return m.tasks_kind_app_update();
+      case "background":
+        return m.tasks_kind_background();
     }
   });
 </script>

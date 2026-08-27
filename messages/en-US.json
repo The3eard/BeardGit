@@ -313,6 +313,7 @@
   "tasks_kind_git_push": "Push",
   "tasks_kind_git_clone": "Clone",
   "tasks_kind_app_update": "Update",
+  "tasks_kind_background": "Background",
   "tab_close": "Close tab",
   "tab_add_open_folder": "Open folder...",
   "tab_add_recent": "Recent",
