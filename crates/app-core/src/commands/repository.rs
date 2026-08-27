@@ -172,11 +172,24 @@ pub fn get_branch_commits(
 /// Return the working-tree and index status for every changed file.
 ///
 /// Used to populate the staging area panel in the UI.
+///
+/// `async` on purpose. Tauri runs a non-async command on the main thread, and
+/// this one is the most expensive read in the app *and* the most frequent: it
+/// fires on every `project-mutated`. Measured on this repo it takes ~27 ms,
+/// and ~99 ms on a tree with 30k untracked files — `status` has to walk
+/// ignored directories to know they are ignored, so the cost tracks the
+/// working tree, not the number of changes. Re-opening the repo inside the
+/// blocking task costs ~0.2 ms, which is the price of not blocking paint.
 #[tauri::command]
-pub fn get_file_statuses(
+pub async fn get_file_statuses(
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::FileStatus>, IpcError> {
-    with_active_repo(&state, |repo| repo.file_statuses().map_err(IpcError::from))
+    let repo_path = get_active_project_path(&state)?;
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
+        repo.file_statuses().map_err(IpcError::from)
+    })
+    .await
 }
 
 /// Starship-style status summary for the title bar.
