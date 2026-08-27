@@ -1064,7 +1064,7 @@
         </div>
       {:else if $repoInfo}
         {#if activeView === "changes"}
-          <div class="changes-layout">
+          <div class="changes-layout" style="--split-x: {changesSidebarWidth}px">
             <div class="changes-sidebar" style="width: {changesSidebarWidth}px">
               <StagingArea onFileClick={handleFileClick} onNavigate={handleNavigate} selectedFile={selectedStagingFile} />
             </div>
@@ -1492,10 +1492,27 @@
     display: flex;
     flex: 1;
     overflow: hidden;
+    /* Anchor for the absolutely-positioned resize handle. */
+    position: relative;
+  }
+
+  /* Straddles the seam rather than sitting in it — see SplitView and
+     lib/styles/resize-handle.css for why. */
+  .changes-layout .resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--split-x);
+    width: 8px;
+    margin-left: -4px;
+    z-index: 2;
   }
 
   .changes-sidebar {
     flex-shrink: 0;
+    /* The separator line lives on the panel, like every other split in the
+       app — the handle overlaps this border rather than drawing its own. */
+    border-right: 1px solid var(--border);
     overflow: hidden;
   }
 

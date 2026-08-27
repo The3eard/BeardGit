@@ -176,7 +176,7 @@
   </div>
 {:else}
   <div class="file-editor">
-    <SplitView refreshFn={() => {}} defaultWidth={280}>
+    <SplitView refreshFn={() => {}} defaultWidth={284}>
       {#snippet left()}
         <FileTreeView
           {respectGitignore}

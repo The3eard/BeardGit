@@ -175,7 +175,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="ai-config-editor">
-  <SplitView refreshFn={() => {}} defaultWidth={240}>
+  <SplitView refreshFn={() => {}} defaultWidth={244}>
     {#snippet left()}
     <!-- Left panel: file tree -->
     <div class="file-tree-panel">
@@ -307,7 +307,12 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 12px;
+    /* Shared panel-header height — see `--panel-header-height` in app.css.
+       Derived from padding alone, this landed at a different height than
+       the file column's header and the divider line broke between them. */
+    min-height: var(--panel-header-height);
+    box-sizing: border-box;
+    padding: 0 12px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
     flex-shrink: 0;

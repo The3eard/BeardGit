@@ -40,26 +40,69 @@
 .resize-handle {
   flex-shrink: 0;
   width: 4px;
+  /* No colour, and no space in the layout: each split positions this
+     absolutely over the seam (see SplitView). A handle laid out *in* the
+     row is a band between the panes, and a band has to be some colour —
+     and none is right, because the neighbouring surface differs per view.
+     `transparent` showed whichever ancestor was behind it; painting it
+     `--bg-secondary` matched AI config's column and clashed in the Editor,
+     whose tree is lighter. Out of flow, the panels meet at the sidebar's
+     own 1px border and this floats over it. */
   cursor: col-resize;
   background: transparent;
   transition: background 0.15s ease;
 }
 
+/*
+ * Hover and drag draw a solid line down the middle, not a wash over the
+ * whole strip.
+ *
+ * A translucent background was the obvious choice and it broke on the
+ * seam: the strip straddles two panels, so the tint composited over one
+ * surface on its left half and a different one on its right, and wherever
+ * the left panel changed colour — a sticky section header in the AI
+ * sessions list — the highlight visibly stepped. A solid 2px rule is the
+ * same colour whatever it crosses.
+ */
 .resize-handle:hover,
-.resize-handle:focus-visible {
-  background: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+.resize-handle:focus-visible,
+.resize-handle.is-dragging {
   outline: none;
 }
 
-/* Stronger than hover on purpose — see the note above about the pointer
-   leaving the strip. */
-.resize-handle.is-dragging {
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
   background: var(--accent-primary);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
 }
 
-/** The handle owns the separator line (Changes). */
+.resize-handle:hover::after,
+.resize-handle:focus-visible::after {
+  opacity: 0.55;
+}
+
+/* Full strength while dragging: by then the pointer is usually off the
+   strip, so hover alone would leave it unlit mid-drag. */
+.resize-handle.is-dragging::after {
+  opacity: 1;
+}
+
+/**
+ * Kept as a no-op so the Changes markup does not need editing: the handle
+ * no longer draws the separator line under any variant, because it no
+ * longer occupies the space the line would sit in. The panel's own border
+ * is the line now, in every view.
+ */
 .resize-handle--bordered {
-  border-left: 1px solid var(--border);
+  /* intentionally empty */
 }
 
 /**
@@ -71,4 +114,12 @@
  */
 .resize-handle--overlay {
   width: 7px;
+  /* No negative margin here: this variant is already `position: absolute`
+     in its own component, so it never took part in a flex row. */
+  margin-left: 0;
+}
+
+.resize-handle--overlay:hover,
+.resize-handle--overlay:focus-visible {
+  background: color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
