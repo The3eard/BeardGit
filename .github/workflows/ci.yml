@@ -57,6 +57,14 @@ jobs:
         # this job installs no Rust — it is a text comparison.
         run: node scripts/check-toolchain-pin.mjs
 
+      - name: IPC error-code coverage check
+        # Every code Rust can emit must be either given a written message in
+        # errorCodeMessage or listed as deliberately unmapped. The gap was
+        # not "some codes lack a message" — that is fine — but that nothing
+        # noticed a *new* code, so the question of whether the UI should say
+        # something better than the raw message never got asked.
+        run: node scripts/check-ipc-codes.mjs
+
       - name: Playwright spec collection check
         # Collection only (--list): no browsers, no app build, ~2s. One
         # unloadable module aborts collection for the WHOLE project, so a

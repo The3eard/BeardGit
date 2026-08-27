@@ -25,6 +25,7 @@
     "check:specs": "playwright test --list",
     "check:glyphs": "node scripts/check-icon-glyphs.mjs",
     "check:toolchain": "node scripts/check-toolchain-pin.mjs",
+    "check:codes": "node scripts/check-ipc-codes.mjs",
     "gate": "bash scripts/gate.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
