@@ -101,6 +101,28 @@ describe("StagingDiffEditor sends the diff's context with the selection", () => 
     );
   });
 
+  it("picks up an expansion that happens while the pane stays mounted", async () => {
+    // The pane is not remounted when the user expands: `setStagingDiffExpanded`
+    // sets the store and then swaps the diff, and `+page.svelte`'s
+    // `{#if $openStagingDiff && $openStagingFile}` guard never goes false in
+    // between. A component that read the context once at mount would show
+    // the whole-file diff and stage against context 3 — the original bug,
+    // which every other case here passes straight through.
+    render(StagingDiffEditor, {
+      props: { diff: makeFileDiff({ path: "src/a.ts" }), isStaged: false, filename: "src/a.ts" },
+    });
+    stagingDiffContext.set(FULL_FILE_CONTEXT);
+
+    await selectAllLines();
+    await fireEvent.click(screen.getByRole("button", { name: "Stage selected" }));
+
+    expect(mocks.stageHunks).toHaveBeenCalledWith(
+      "src/a.ts",
+      expect.any(Array),
+      FULL_FILE_CONTEXT,
+    );
+  });
+
   it("unstages with the context", async () => {
     stagingDiffContext.set(FULL_FILE_CONTEXT);
     render(StagingDiffEditor, {

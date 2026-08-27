@@ -570,11 +570,108 @@ mod tests {
         }];
         repo.stage_hunks("test.txt", &selections, None).unwrap();
 
-        // After staging the first hunk, the index should have staged changes.
-        let index_diffs = repo.diff_index().unwrap();
+        // *Which* lines landed, not merely that something did. "The index is
+        // non-empty" is true whether one hunk or both were staged, so it
+        // passes a backend that re-cuts the file into a single whole-file
+        // hunk and stages everything — the same context mismatch as
+        // `test_stage_hunks_honours_the_context_the_selection_was_made_with`,
+        // in mirror image and on the common path rather than the expanded one.
+        let staged = repo
+            .diff_single_file("test.txt", true, None)
+            .unwrap()
+            .expect("the index must carry the first hunk");
+        let staged_adds: Vec<&str> = staged
+            .hunks
+            .iter()
+            .flat_map(|h| h.lines.iter())
+            .filter(|l| l.origin == '+')
+            .map(|l| l.content.trim())
+            .collect();
+        assert_eq!(
+            staged_adds,
+            ["CHANGED TOP"],
+            "only the selected hunk may be staged"
+        );
+
+        let left = repo
+            .diff_single_file("test.txt", false, None)
+            .unwrap()
+            .expect("the second hunk must still be unstaged");
         assert!(
-            !index_diffs.is_empty(),
-            "index should have staged changes from hunk"
+            left.hunks
+                .iter()
+                .flat_map(|h| h.lines.iter())
+                .any(|l| l.content.trim() == "CHANGED BOTTOM"),
+            "the hunk the user did not select must be left in the working tree"
+        );
+    }
+
+    /// The wrong-data half of the same bug: a *partial* selection.
+    ///
+    /// `line_ranges` indexes into the hunk's line array, so a backend that
+    /// cut the file differently resolves "line 15 of hunk 0" to some other
+    /// line and stages that instead — cleanly, and reporting success.
+    #[test]
+    fn test_stage_hunks_partial_selection_stages_the_selected_line() {
+        let (dir, repo) = create_repo_with_file();
+
+        let original: String = (1..=60).map(|i| format!("line {i}\n")).collect();
+        let long = dir.path().join("long.txt");
+        fs::write(&long, &original).unwrap();
+        let git_repo = git2::Repository::open(dir.path()).unwrap();
+        let sig = git2::Signature::now("Test", "test@test.com").unwrap();
+        let mut index = git_repo.index().unwrap();
+        index.add_path(Path::new("long.txt")).unwrap();
+        index.write().unwrap();
+        let tree = git_repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let parent = git_repo.head().unwrap().peel_to_commit().unwrap();
+        git_repo
+            .commit(Some("HEAD"), &sig, &sig, "add long", &tree, &[&parent])
+            .unwrap();
+
+        let edited = original
+            .replace("line 10\n", "line 10\nADDED A\n")
+            .replace("line 50\n", "line 50\nADDED B\n");
+        fs::write(&long, &edited).unwrap();
+
+        // Pick "ADDED B" out of the expanded single-hunk view, the way the UI
+        // does: by its index in that hunk's line array.
+        let expanded = repo
+            .diff_single_file("long.txt", false, Some(crate::diff::FULL_FILE_CONTEXT))
+            .unwrap()
+            .unwrap();
+        assert_eq!(expanded.hunks.len(), 1);
+        let idx = expanded.hunks[0]
+            .lines
+            .iter()
+            .position(|l| l.content.trim() == "ADDED B")
+            .expect("the added line must be in the expanded view");
+
+        repo.stage_hunks(
+            "long.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(idx, idx)]),
+            }],
+            Some(crate::diff::FULL_FILE_CONTEXT),
+        )
+        .expect("staging one line of a full-context selection must apply");
+
+        let staged = repo
+            .diff_single_file("long.txt", true, None)
+            .unwrap()
+            .expect("something must be staged");
+        let staged_adds: Vec<&str> = staged
+            .hunks
+            .iter()
+            .flat_map(|h| h.lines.iter())
+            .filter(|l| l.origin == '+')
+            .map(|l| l.content.trim())
+            .collect();
+        assert_eq!(
+            staged_adds,
+            ["ADDED B"],
+            "the line the user ticked is the line that must be staged"
         );
     }
 
