@@ -3,6 +3,13 @@
 use crate::client::{ApiError, GitLabClient};
 use crate::types::{Job, Pipeline, PipelineDetail, Stage};
 
+/// Jobs requested per page. GitLab's documented maximum.
+const JOBS_PER_PAGE: u32 = 100;
+
+/// Safety bound on job pagination, so a misbehaving endpoint cannot spin
+/// forever. Reaching it is logged, never silent.
+const MAX_JOB_PAGES: u32 = 20;
+
 impl GitLabClient {
     /// List pipelines for a project with optional server-side filters and pagination.
     ///
@@ -49,16 +56,55 @@ impl GitLabClient {
             .await
     }
 
-    /// List all jobs belonging to a pipeline (up to 100 per request).
+    /// List **all** jobs belonging to a pipeline, following pagination.
+    ///
+    /// Takes the project as an already-formatted path segment so both callers
+    /// can use it: `provider.rs` has a URL-encoded `group/project`, this
+    /// module's other callers have a numeric id.
+    ///
+    /// This used to be a single `?per_page=100` with no paging, so a pipeline
+    /// with more than 100 jobs — a wide CI matrix — showed the first 100 and
+    /// said nothing. GitLab returns a bare array with no total, so the end is
+    /// a short page.
+    pub async fn list_pipeline_jobs_by_ref(
+        &self,
+        project: &str,
+        pipeline_id: u64,
+    ) -> Result<Vec<Job>, ApiError> {
+        let mut all: Vec<Job> = Vec::new();
+
+        for page in 1..=MAX_JOB_PAGES {
+            let batch: Vec<Job> = self
+                .get(&format!(
+                    "/projects/{project}/pipelines/{pipeline_id}/jobs?per_page={JOBS_PER_PAGE}&page={page}"
+                ))
+                .await?;
+            let short_page = batch.len() < JOBS_PER_PAGE as usize;
+            all.extend(batch);
+            if short_page {
+                return Ok(all);
+            }
+        }
+
+        // Hit the safety bound. Say so rather than returning a silently
+        // truncated list — `MAX_JOB_PAGES * JOBS_PER_PAGE` jobs in one
+        // pipeline is not something we expect to see.
+        tracing::warn!(
+            pipeline_id,
+            fetched = all.len(),
+            "stopped paginating pipeline jobs at the page cap — the list may be incomplete"
+        );
+        Ok(all)
+    }
+
+    /// List all jobs belonging to a pipeline, by numeric project id.
     pub async fn list_pipeline_jobs(
         &self,
         project_id: u64,
         pipeline_id: u64,
     ) -> Result<Vec<Job>, ApiError> {
-        self.get(&format!(
-            "/projects/{project_id}/pipelines/{pipeline_id}/jobs?per_page=100"
-        ))
-        .await
+        self.list_pipeline_jobs_by_ref(&project_id.to_string(), pipeline_id)
+            .await
     }
 
     /// Fetch all jobs for a pipeline and group them by stage, preserving order.
