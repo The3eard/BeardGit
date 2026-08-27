@@ -111,6 +111,10 @@ where
     F: FnOnce(&git_engine::Repository) -> Result<R, E>,
     E: From<IpcError>,
 {
+    // Holds `projects` and `active_index` together — the reference case for
+    // the lock order documented on `AppState`. Anything acquiring more than
+    // one of its mutexes follows that order.
+    //
     // A poisoned mutex is a real failure and logs like one.
     let projects = state
         .projects
