@@ -113,12 +113,12 @@ impl CiProvider for GitLabProvider {
             .await
             .map_err(into_provider_error)?;
 
-        // Fetch jobs and group by stage
+        // Fetch jobs and group by stage. Goes through the paginating helper —
+        // this used to be a single `?per_page=100`, which silently dropped
+        // everything past the first hundred jobs.
         let jobs: Vec<types::Job> = self
             .client
-            .get(&format!(
-                "/projects/{encoded}/pipelines/{run_id}/jobs?per_page=100"
-            ))
+            .list_pipeline_jobs_by_ref(&encoded, run_id)
             .await
             .map_err(into_provider_error)?;
 
