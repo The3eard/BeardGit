@@ -9,18 +9,25 @@ use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Preview untracked/ignored files that would be removed by `git clean`.
+///
+/// `async` because it shells out to `git clean -n` over the whole working
+/// tree — ~17 ms on this repo, and it grows with the tree. A non-async
+/// command would spend that on the main thread.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::clean::dry_run")]
-pub fn clean_dry_run(
+pub async fn clean_dry_run(
     include_directories: bool,
     include_ignored: bool,
     only_ignored: bool,
     state: State<'_, AppState>,
 ) -> Result<Vec<git_engine::CleanItem>, IpcError> {
-    with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
         repo.clean_dry_run(include_directories, include_ignored, only_ignored)
             .map_err(IpcError::from)
     })
+    .await
 }
 
 /// Permanently remove the specified paths from the working directory.
@@ -28,18 +35,25 @@ pub fn clean_dry_run(
 /// Returns the number of items successfully deleted. Wraps the work inside a
 /// [`MutationGuard`][mutation_events::MutationGuard] scope so that on success
 /// a `project-mutated` event with [`MutationKind::StagingChange`] is emitted.
+///
+/// `async` for the same reason as [`clean_dry_run`]: it shells out, and the
+/// time it takes is proportional to how much it deletes.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::clean::paths")]
-pub fn clean_paths(
+pub async fn clean_paths(
     paths: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<u32, IpcError> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
             repo.clean_paths(&paths).map_err(IpcError::from)
         })
+        .await
     })
+    .await
 }
 
 #[cfg(test)]

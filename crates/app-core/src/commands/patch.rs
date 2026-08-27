@@ -63,19 +63,26 @@ pub fn save_patch_to_file(path: String, content: String) -> Result<(), IpcError>
 /// Wraps the work inside a [`MutationGuard`][mutation_events::MutationGuard]
 /// scope so that on success a `project-mutated` event with
 /// [`MutationKind::StagingChange`] is emitted — index/worktree only.
+///
+/// `async`: `git apply` is a subprocess writing across the working tree, so
+/// its cost scales with the size of the patch, not with anything bounded.
 #[tauri::command]
-pub fn apply_patch(
+pub async fn apply_patch(
     path: String,
     three_way: bool,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, IpcError> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
             repo.apply_patch_file(&path, three_way)
                 .map_err(IpcError::from)
         })
+        .await
     })
+    .await
 }
 
 #[cfg(test)]
