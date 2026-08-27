@@ -307,7 +307,6 @@
   "tasks_action_dismiss": "Dismiss",
   "tasks_action_open_output": "Open output",
   "tasks_kind_ai_background": "AI background",
-  "tasks_kind_ai_interactive": "AI interactive",
   "tasks_kind_ai_headless": "AI headless",
   "tasks_kind_git_fetch": "Fetch",
   "tasks_kind_git_pull": "Pull",

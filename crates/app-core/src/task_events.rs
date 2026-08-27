@@ -10,7 +10,7 @@
 //!   finished_at, output, command, started_at_ms, exit_code, kind. No progress
 //!   emission exists yet.
 //! - `task_runner::TaskKind` previously only had `Generic` / `AiBackground`;
-//!   the `GitFetch`/`Pull`/`Push`/`Clone`, `AiInteractive`, `AppUpdate` variants
+//!   the `GitFetch`/`Pull`/`Push`/`Clone`, `AppUpdate` variants
 //!   were added alongside this module so callers can tag git operations.
 //! - AI background runs flow through `aiBackgroundRuns`; auto-update state lives
 //!   in `src/lib/stores/autoUpdate.ts` with its own `updateTask` derived
@@ -36,8 +36,6 @@ use task_runner::{
 pub enum TaskKind {
     /// Headless AI background run.
     AiBackground,
-    /// Interactive AI PTY session (Claude Code, Codex, OpenCode).
-    AiInteractive,
     /// One-shot AI command (commit message, code review, PR review,
     /// analyze). Surfaced in the drawer alongside the other AI kinds.
     AiHeadless,
@@ -159,7 +157,6 @@ pub fn kind_from_runtime(kind: &RuntimeTaskKind) -> Option<TaskKind> {
     match kind {
         RuntimeTaskKind::Generic => None,
         RuntimeTaskKind::AiBackground { .. } => Some(TaskKind::AiBackground),
-        RuntimeTaskKind::AiInteractive => Some(TaskKind::AiInteractive),
         RuntimeTaskKind::AiHeadless => Some(TaskKind::AiHeadless),
         RuntimeTaskKind::GitFetch => Some(TaskKind::GitFetch),
         RuntimeTaskKind::GitPull => Some(TaskKind::GitPull),

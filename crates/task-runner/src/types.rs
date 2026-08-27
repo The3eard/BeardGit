@@ -44,11 +44,6 @@ pub enum TaskKind {
         provider: String,
         worktree_path: String,
     },
-    /// Interactive AI PTY session (Claude Code, Codex, OpenCode).
-    ///
-    /// Surfaced in the unified tasks drawer so users can see and cancel
-    /// running interactive sessions alongside background runs.
-    AiInteractive,
     /// Headless one-shot AI command — commit-message generation, staged
     /// code review, PR review, ad-hoc analyze. The output streams via
     /// `taskOutput` and the row appears in the unified drawer with the
