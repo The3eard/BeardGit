@@ -52,6 +52,19 @@
     $configFiles.filter((f) => f.scope === "user"),
   );
 
+  /**
+   * Whether the project has any CLAUDE.md at all.
+   *
+   * The empty state used to key on `projectFiles.length === 0` while its text
+   * said "No CLAUDE.md found" — two different claims. A repo with a
+   * `.claude/` directory full of agents rendered a tree with no instructions
+   * in it and no banner; a repo whose only config *was* a CLAUDE.md showed
+   * the banner. Now the banner answers the question it asks.
+   */
+  let hasProjectInstructions = $derived(
+    projectFiles.some((f) => f.kind === "instructions"),
+  );
+
   // ─── Tree building ───
 
   /**
@@ -185,11 +198,14 @@
   </div>
 
   {#if !projectCollapsed}
-    {#if projectFiles.length === 0}
+    {#if !hasProjectInstructions}
       <div class="no-claude-banner">
         <span class="banner-icon nf">{"\uF449"}</span>
         <span class="banner-text">{m.ai_config_no_claude_md()}</span>
       </div>
+    {/if}
+    {#if projectFiles.length === 0}
+      <div class="empty-scope">{m.ai_config_no_project_files()}</div>
     {:else}
       {#each projectTree as node (node.path)}
         {@render treeNode(node, 0)}
@@ -349,6 +365,12 @@
   }
 
   /* ─── No CLAUDE.md banner ─── */
+
+  .empty-scope {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
 
   .no-claude-banner {
     display: flex;

@@ -736,7 +736,34 @@ pub fn ai_get_config_files(state: State<'_, AppState>) -> Result<Vec<AiConfigFil
             continue;
         };
         files.extend(provider.config_files(&cwd));
+
+        // Instruction files (CLAUDE.md and friends) are a separate provider
+        // call, and this command used not to make it — so the panel listed
+        // settings, agents and skills but *never* a CLAUDE.md, while its
+        // empty state said "No CLAUDE.md found". A repo with a `.claude/`
+        // directory showed a tree with no instructions in it; a repo without
+        // one showed the banner even when its CLAUDE.md was right there.
+        let home_owned = dirs::home_dir();
+        for path in provider.instruction_files(&cwd) {
+            // Scope by location, not by provider: `~/.claude/CLAUDE.md` is
+            // the user's, anything under the repo is the project's.
+            let scope = match &home_owned {
+                Some(home) if path.starts_with(home.join(".claude")) => ConfigScope::User,
+                _ => ConfigScope::Project,
+            };
+            files.push(AiConfigFile {
+                path,
+                kind: ConfigKind::Instructions,
+                scope,
+            });
+        }
     }
+
+    // Two providers can report the same instruction file (a CLAUDE.md is
+    // Claude Code's, but nothing stops another provider listing it), and the
+    // tree keys on path.
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+    files.dedup_by(|a, b| a.path == b.path);
     Ok(files)
 }
 
