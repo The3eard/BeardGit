@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use mutation_events::MutationKind;
-use task_runner::{TaskId, TaskManager};
+use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use tauri::{AppHandle, State};
 use tracing::instrument;
 
@@ -151,19 +151,38 @@ pub async fn push_tag(
     } else {
         remote
     };
+    // `spawn_with_options` with an explicit `GitPush`, not the bare `spawn`:
+    // that one tags `Generic`, which `should_emit` drops, so pushing a tag
+    // produced no row in the drawer and no spinner on the statusbar icon.
+    // These are literally `git push`, so the existing kind is exact.
     match tag_name {
         Some(name) => {
             let label = format!("Push tag {}", name);
             let tag_ref = format!("refs/tags/{}", name);
             let id = task_manager
-                .spawn(label, "git", &["push", &remote, &tag_ref], &cwd, true)
+                .spawn_with_options(SpawnOptions {
+                    label,
+                    command: "git",
+                    args: &["push", &remote, &tag_ref],
+                    cwd: &cwd,
+                    cancellable: true,
+                    kind: TaskKind::GitPush,
+                    stdin: None,
+                })
                 .await;
             Ok(id)
         }
         None => {
-            let label = "Push all tags".to_string();
             let id = task_manager
-                .spawn(label, "git", &["push", &remote, "--tags"], &cwd, true)
+                .spawn_with_options(SpawnOptions {
+                    label: "Push all tags".to_string(),
+                    command: "git",
+                    args: &["push", &remote, "--tags"],
+                    cwd: &cwd,
+                    cancellable: true,
+                    kind: TaskKind::GitPush,
+                    stdin: None,
+                })
                 .await;
             Ok(id)
         }

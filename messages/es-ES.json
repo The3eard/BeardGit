@@ -313,6 +313,7 @@
   "tasks_kind_git_push": "Push",
   "tasks_kind_git_clone": "Clone",
   "tasks_kind_app_update": "Actualización",
+  "tasks_kind_background": "En segundo plano",
   "tab_close": "Cerrar pestaña",
   "tab_add_open_folder": "Abrir carpeta...",
   "tab_add_recent": "Recientes",

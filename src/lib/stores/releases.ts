@@ -168,7 +168,9 @@ export async function doCreateTagAndRelease(
   input: CreateReleaseInput,
 ): Promise<TaskId> {
   // Long-running task — progress + completion are reported by the
-  // Rust-side TaskManager, which already fires its own task entries.
+  // Rust-side TaskManager, which fires its own task entries. That needed an
+  // explicit `Background` kind to be true: as a `Generic` task it was dropped
+  // by `should_emit` and no entry was ever fired.
   // Toast policy still runs through runMutation so a provider-CLI
   // failure (e.g. `gh` not installed) surfaces a sticky error.
   return runMutation({

@@ -49,6 +49,9 @@ pub enum TaskKind {
     GitClone,
     /// Auto-update download driven by `tauri-plugin-updater`.
     AppUpdate,
+    /// User-started long operation without a category of its own — submodule
+    /// update, MR/PR checkout, release publish, automated bisect.
+    Background,
 }
 
 /// Lifecycle phase of a task as seen by the drawer.
@@ -163,6 +166,7 @@ pub fn kind_from_runtime(kind: &RuntimeTaskKind) -> Option<TaskKind> {
         RuntimeTaskKind::GitPush => Some(TaskKind::GitPush),
         RuntimeTaskKind::GitClone => Some(TaskKind::GitClone),
         RuntimeTaskKind::AppUpdate => Some(TaskKind::AppUpdate),
+        RuntimeTaskKind::Background => Some(TaskKind::Background),
     }
 }
 

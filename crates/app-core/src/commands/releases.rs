@@ -24,7 +24,7 @@ use forge_provider::{
     CreateReleaseInput, EditReleasePatch, ForgeProvider, Release, ReleaseAsset, ReleaseDetail,
 };
 use mutation_events::MutationKind;
-use task_runner::{TaskId, TaskManager};
+use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use tauri::{AppHandle, State};
 
 use super::helpers::*;
@@ -230,8 +230,20 @@ pub async fn upload_release_asset(
     let args_ref: Vec<&str> = args.iter().map(String::as_str).collect();
     let binary_str = binary.to_string_lossy().to_string();
 
+    // Explicit `Background`: the bare `spawn` tags `Generic`, which
+    // `should_emit` drops, so the upload never reached the drawer. It has its
+    // own `AssetUploadProgress` surface, but the drawer is where the user
+    // looks for "what is running", and a large upload belongs there too.
     let id = task_manager
-        .spawn(task_label, &binary_str, &args_ref, &cwd, true)
+        .spawn_with_options(SpawnOptions {
+            label: task_label,
+            command: &binary_str,
+            args: &args_ref,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
+        })
         .await;
     Ok(id)
 }
@@ -288,9 +300,20 @@ pub async fn create_tag_and_release(
     };
     let args = [flag, combined.as_str()];
 
-    let task_label = format!("Create tag + release: {tag}");
+    // Explicit `Background`: with the bare `spawn`'s `Generic` kind, the
+    // doc-comment on `doCreateTagAndRelease` ("progress + completion are
+    // reported by the Rust-side TaskManager, which already fires its own task
+    // entries") was not true — `should_emit` dropped every one of them.
     let id = task_manager
-        .spawn(task_label, shell, &args, &cwd, true)
+        .spawn_with_options(SpawnOptions {
+            label: format!("Create tag + release: {tag}"),
+            command: shell,
+            args: &args,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
+        })
         .await;
 
     // Spawn a listener that, on success, invokes `create_release` and emits
