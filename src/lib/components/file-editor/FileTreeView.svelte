@@ -270,7 +270,13 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 10px;
+    /* Fixed to the shared header height rather than derived from the
+       search input plus padding, which made this 46px against the content
+       pane's 36px — a 10px step that broke the divider line in two. The
+       input centres itself in what is left. */
+    height: var(--panel-header-height);
+    box-sizing: border-box;
+    padding: 0 10px;
     border-bottom: 1px solid var(--border);
   }
   .tree-header .search {

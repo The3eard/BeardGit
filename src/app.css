@@ -65,6 +65,14 @@
    * panel; `--shadow-modal` lifts dialogs / palettes above everything. */
   --shadow-overlay: 0 4px 12px rgba(0, 0, 0, 0.35);
   --shadow-modal: 0 12px 32px rgba(0, 0, 0, 0.45);
+  /* Height of a panel header — the row at the top of a list column or a
+     content pane. Both sides of a split have to use it, or their bottom
+     borders land at different heights and the line visibly breaks at the
+     divider. That is what happened: `tree-header` came out 46px from its
+     padding plus a search input while `editor-toolbar` came out 36px from
+     its own content, so the two never met. Neither declared a height; they
+     agreed by accident in some views and not in others. */
+  --panel-header-height: 36px;
   --overlay-accent-blue: rgba(111, 177, 204, 0.12);
   --overlay-accent-green: rgba(143, 188, 98, 0.12);
   --overlay-accent-orange: rgba(224, 164, 88, 0.15);
