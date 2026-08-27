@@ -810,6 +810,15 @@ fn canonicalize_existing_prefix(p: &Path) -> Result<PathBuf, String> {
     let tail = p
         .strip_prefix(existing)
         .map_err(|e| format!("invalid path: {e}"))?;
+    // When `p` itself exists — the common case, since this validates paths for
+    // reading and saving existing files — the loop above never runs, `existing`
+    // *is* `p`, and the tail is empty. `PathBuf::join("")` appends a separator,
+    // so returning `canon_base.join(tail)` unconditionally handed back
+    // `…/settings.json/` and every read and write of an existing config file
+    // failed with `Not a directory (os error 20)`.
+    if tail.as_os_str().is_empty() {
+        return Ok(canon_base);
+    }
     Ok(canon_base.join(tail))
 }
 
@@ -936,6 +945,65 @@ mod tests {
         let path = claude_dir.join("settings.json");
         std::fs::write(&path, "{}").unwrap();
         assert!(validate_config_path(path.to_str().unwrap(), repo).is_ok());
+    }
+
+    /// The bug the existing `accepts_project_scope` test could not see: it
+    /// asserted `is_ok()`, and validation *did* return `Ok` — with a path
+    /// that had a trailing separator glued on. Assert the path itself.
+    #[test]
+    fn validate_path_of_existing_file_has_no_trailing_separator() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path();
+        let claude_dir = repo.join(".claude");
+        std::fs::create_dir_all(&claude_dir).unwrap();
+        let path = claude_dir.join("settings.json");
+        std::fs::write(&path, "{}").unwrap();
+
+        let validated = validate_config_path(path.to_str().unwrap(), repo).unwrap();
+        let shown = validated.display().to_string();
+        assert!(
+            !shown.ends_with(std::path::MAIN_SEPARATOR),
+            "a file path must not come back with a trailing separator: {shown}"
+        );
+        // The real consequence, end to end: with the separator this was
+        // `Not a directory (os error 20)` for every existing config file.
+        assert_eq!(std::fs::read_to_string(&validated).unwrap(), "{}");
+    }
+
+    /// Saving was broken the same way, and is worth its own case because it
+    /// fails at a different call (`fs::write`, after `create_dir_all` on a
+    /// parent that `Path::parent()` resolves differently).
+    #[test]
+    fn existing_config_file_round_trips_through_validation() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path();
+        let claude_dir = repo.join(".claude");
+        std::fs::create_dir_all(&claude_dir).unwrap();
+        let path = claude_dir.join("agents/reviewer.md");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "before").unwrap();
+
+        let validated = validate_config_path(path.to_str().unwrap(), repo).unwrap();
+        std::fs::write(&validated, "after").expect("writing an existing file must work");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "after");
+    }
+
+    /// The path this function was actually written for — a file that does not
+    /// exist yet — must keep working, and keep not creating anything. This is
+    /// the half that was never broken, so it is the guard against fixing the
+    /// empty-tail case by breaking the non-empty one.
+    #[test]
+    fn validate_path_still_resolves_a_nonexistent_tail() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path();
+        let target = repo.join(".claude/new/deep/file.json");
+
+        let validated = validate_config_path(target.to_str().unwrap(), repo).unwrap();
+        assert!(
+            validated.ends_with(".claude/new/deep/file.json"),
+            "{validated:?}"
+        );
+        assert!(!repo.join(".claude/new").exists());
     }
 
     #[test]
