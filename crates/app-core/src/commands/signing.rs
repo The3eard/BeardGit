@@ -16,10 +16,10 @@ use crate::state::AppState;
 /// settings: `{ enabled, format, key_present }`. `key_present` is diagnostic
 /// only and never blocks committing.
 #[tauri::command]
-pub fn get_signing_config(state: State<'_, AppState>) -> Result<git_engine::SigningStatus, IpcError> {
-    with_active_repo(&state, |repo| {
-        repo.signing_status().map_err(IpcError::from)
-    })
+pub fn get_signing_config(
+    state: State<'_, AppState>,
+) -> Result<git_engine::SigningStatus, IpcError> {
+    with_active_repo(&state, |repo| repo.signing_status().map_err(IpcError::from))
 }
 
 /// Presence (not validity) of a commit's embedded signature via `git2`.

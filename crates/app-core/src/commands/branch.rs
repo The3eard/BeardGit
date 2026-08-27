@@ -22,10 +22,10 @@ pub fn create_branch(
     name: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::BranchCreate, || {
         with_active_repo(&state, |repo| {
-            repo.create_branch(&name).map_err(|e| e.to_string())
+            repo.create_branch(&name).map_err(IpcError::from)
         })
     })
 }
@@ -46,11 +46,10 @@ pub fn create_branch_at(
     oid: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::BranchCreate, || {
         with_active_repo(&state, |repo| {
-            repo.create_branch_at(&name, &oid)
-                .map_err(|e| e.to_string())
+            repo.create_branch_at(&name, &oid).map_err(IpcError::from)
         })
     })
 }
@@ -83,6 +82,7 @@ pub async fn checkout_detached(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Delete a local branch by name.
@@ -117,6 +117,7 @@ pub async fn delete_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// List local branches that are candidates for cleanup, classified into
@@ -137,7 +138,7 @@ pub async fn delete_branch(
 pub async fn list_branch_cleanup_candidates(
     into: Option<String>,
     state: State<'_, AppState>,
-) -> Result<git_engine::BranchCleanupList, String> {
+) -> Result<git_engine::BranchCleanupList, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -146,6 +147,7 @@ pub async fn list_branch_cleanup_candidates(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Delete a batch of local branches in one shot.
@@ -177,12 +179,13 @@ pub async fn delete_branches(
     with_mutation_guard_async(&state, &app, MutationKind::BranchDelete, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
-            Ok(repo.delete_branches(&names, &force))
+            Ok::<_, IpcError>(repo.delete_branches(&names, &force))
         })
         .await
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Switch the working tree to an existing local branch.
@@ -213,6 +216,7 @@ pub async fn checkout_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Merge a branch into the current branch via the git CLI.
@@ -248,6 +252,7 @@ pub async fn merge_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Rebase the current branch onto another branch or commit via the git CLI.
@@ -283,6 +288,7 @@ pub async fn rebase_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Rename a local branch.
@@ -315,6 +321,7 @@ pub async fn rename_branch(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 #[cfg(test)]

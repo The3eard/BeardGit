@@ -53,7 +53,7 @@ pub fn set_theme(name: String, app: AppHandle, state: State<'_, AppState>) -> Re
         let mut cfg = state.config.lock().unwrap();
         cfg.theme = name.clone();
         cfg.save(&state.config_path)
-        .map_err(|e| IpcError::from(e.to_string()))?;
+            .map_err(|e| IpcError::from(e.to_string()))?;
     }
 
     let themes_dir = state.config_dir.join("themes");

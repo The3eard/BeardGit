@@ -98,9 +98,9 @@ pub async fn amend_commit(
 /// The raw commit message string, or an error string if HEAD cannot be
 /// resolved.
 #[tauri::command]
-pub fn get_head_message(state: State<'_, AppState>) -> Result<String, String> {
+pub fn get_head_message(state: State<'_, AppState>) -> Result<String, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.get_head_message().map_err(|e| e.to_string())
+        repo.get_head_message().map_err(IpcError::from)
     })
 }
 

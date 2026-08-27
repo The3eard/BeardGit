@@ -20,6 +20,7 @@ use tauri::State;
 use tracing::instrument;
 
 use super::helpers::extract_origin_url;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ pub fn detect_forge_with_host(repo: &Repository) -> Option<(ForgeKind, String)> 
 pub async fn load_remote_repo_config(
     repo_path: String,
     _state: State<'_, AppState>,
-) -> Result<RemoteRepoConfig, String> {
+) -> Result<RemoteRepoConfig, IpcError> {
     let path = std::path::PathBuf::from(&repo_path);
 
     tokio::task::spawn_blocking(move || {
@@ -73,6 +74,7 @@ pub async fn load_remote_repo_config(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Tauri command: apply a `RemoteRepoConfigPatch` to the remote repo at
@@ -85,7 +87,7 @@ pub async fn apply_remote_repo_config(
     repo_path: String,
     patch: RemoteRepoConfigPatch,
     _state: State<'_, AppState>,
-) -> Result<cli_provider::repo_config::ApplyResult, String> {
+) -> Result<cli_provider::repo_config::ApplyResult, IpcError> {
     let path = std::path::PathBuf::from(&repo_path);
 
     tokio::task::spawn_blocking(move || {
@@ -100,10 +102,11 @@ pub async fn apply_remote_repo_config(
             Vec::new()
         };
 
-        Ok(cfg.apply(&path, &patch, &current_topics))
+        Ok::<_, String>(cfg.apply(&path, &patch, &current_topics))
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Tauri command: create a new label on the remote repo.
@@ -113,7 +116,7 @@ pub async fn create_label(
     repo_path: String,
     label: Label,
     _state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let path = std::path::PathBuf::from(&repo_path);
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&path).map_err(|e| e.to_string())?;
@@ -124,6 +127,7 @@ pub async fn create_label(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Tauri command: update an existing label on the remote repo.
@@ -138,7 +142,7 @@ pub async fn update_label(
     old_name: String,
     label: Label,
     _state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let path = std::path::PathBuf::from(&repo_path);
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&path).map_err(|e| e.to_string())?;
@@ -150,6 +154,7 @@ pub async fn update_label(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Tauri command: delete a label by name.
@@ -159,7 +164,7 @@ pub async fn delete_label(
     repo_path: String,
     name: String,
     _state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let path = std::path::PathBuf::from(&repo_path);
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&path).map_err(|e| e.to_string())?;
@@ -170,6 +175,7 @@ pub async fn delete_label(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Tauri command: load GitHub branch-protection rules for a branch.
@@ -187,7 +193,7 @@ pub async fn get_branch_protection(
     repo_path: String,
     branch: String,
     _state: State<'_, AppState>,
-) -> Result<Option<BranchProtection>, String> {
+) -> Result<Option<BranchProtection>, IpcError> {
     let path = std::path::PathBuf::from(&repo_path);
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&path).map_err(|e| e.to_string())?;
@@ -206,6 +212,7 @@ pub async fn get_branch_protection(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Tauri command: write GitHub branch-protection rules for a branch.
@@ -220,7 +227,7 @@ pub async fn set_branch_protection(
     branch: String,
     rules: BranchProtection,
     _state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let path = std::path::PathBuf::from(&repo_path);
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&path).map_err(|e| e.to_string())?;
@@ -239,6 +246,7 @@ pub async fn set_branch_protection(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Tauri command: probe the forge CLI availability + auth state for the repo
@@ -250,7 +258,7 @@ pub async fn set_branch_protection(
 pub async fn probe_forge_cli_status(
     repo_path: String,
     _state: State<'_, AppState>,
-) -> Result<ForgeCliStatus, String> {
+) -> Result<ForgeCliStatus, IpcError> {
     let path = std::path::PathBuf::from(&repo_path);
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&path).map_err(|e| e.to_string())?;
@@ -260,12 +268,13 @@ pub async fn probe_forge_cli_status(
             None => (None, None),
         };
         let runner = SystemRunner::new();
-        Ok(repo_config::probe_forge_cli_status_with(
+        Ok::<_, String>(repo_config::probe_forge_cli_status_with(
             &runner, forge, host, &path,
         ))
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 // ───────────────────────────────────────────────────────────────────────────

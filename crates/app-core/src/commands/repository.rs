@@ -138,7 +138,7 @@ const AHEAD_BEHIND_CACHE_CAP: usize = 8_192;
 /// the last call skips the `graph_ahead_behind` walk entirely — this command
 /// fires on every `head_changed || refs_changed`, and most refs don't move.
 #[tauri::command]
-pub fn get_branches(state: State<'_, AppState>) -> Result<Vec<git_engine::BranchInfo>, String> {
+pub fn get_branches(state: State<'_, AppState>) -> Result<Vec<git_engine::BranchInfo>, IpcError> {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let active = state.active_index.lock().map_err(|e| e.to_string())?;
     let idx = active.ok_or_else(|| "No active project".to_string())?;
@@ -153,7 +153,7 @@ pub fn get_branches(state: State<'_, AppState>) -> Result<Vec<git_engine::Branch
     if cache.len() > AHEAD_BEHIND_CACHE_CAP {
         cache.clear();
     }
-    repo.branches_cached(&mut cache).map_err(|e| e.to_string())
+    repo.branches_cached(&mut cache).map_err(IpcError::from)
 }
 
 /// Return the last N commits on a specific branch.
@@ -162,10 +162,10 @@ pub fn get_branch_commits(
     branch_name: String,
     limit: u32,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::CommitInfo>, String> {
+) -> Result<Vec<git_engine::CommitInfo>, IpcError> {
     with_active_repo(&state, |repo| {
         repo.branch_commits(&branch_name, limit as usize)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
@@ -175,25 +175,23 @@ pub fn get_branch_commits(
 #[tauri::command]
 pub fn get_file_statuses(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::FileStatus>, String> {
-    with_active_repo(&state, |repo| {
-        repo.file_statuses().map_err(|e| e.to_string())
-    })
+) -> Result<Vec<git_engine::FileStatus>, IpcError> {
+    with_active_repo(&state, |repo| repo.file_statuses().map_err(IpcError::from))
 }
 
 /// Starship-style status summary for the title bar.
 #[tauri::command]
-pub fn get_status_summary(state: State<'_, AppState>) -> Result<git_engine::StatusSummary, String> {
-    with_active_repo(&state, |repo| {
-        repo.status_summary().map_err(|e| e.to_string())
-    })
+pub fn get_status_summary(
+    state: State<'_, AppState>,
+) -> Result<git_engine::StatusSummary, IpcError> {
+    with_active_repo(&state, |repo| repo.status_summary().map_err(IpcError::from))
 }
 
 /// Return [`RepoInfo`] (path + HEAD branch/OID + branch count) for the active
 /// repository. Lets the mutation pipeline refresh `repoInfo` after a HEAD move
 /// (e.g. a checkout to an existing branch) without re-opening the repo.
 #[tauri::command]
-pub fn get_repo_info(state: State<'_, AppState>) -> Result<RepoInfo, String> {
+pub fn get_repo_info(state: State<'_, AppState>) -> Result<RepoInfo, IpcError> {
     with_active_repo(&state, |repo| {
         let status = repo.status().map_err(|e| e.to_string())?;
         Ok(RepoInfo {
@@ -207,8 +205,8 @@ pub fn get_repo_info(state: State<'_, AppState>) -> Result<RepoInfo, String> {
 
 /// List all configured remotes for the active repository.
 #[tauri::command]
-pub fn get_remotes(state: State<'_, AppState>) -> Result<Vec<RemoteInfo>, String> {
-    with_active_repo(&state, collect_remotes)
+pub fn get_remotes(state: State<'_, AppState>) -> Result<Vec<RemoteInfo>, IpcError> {
+    with_active_repo(&state, collect_remotes).map_err(IpcError::from)
 }
 
 /// Collect `RemoteInfo` for every configured remote of `repo`.

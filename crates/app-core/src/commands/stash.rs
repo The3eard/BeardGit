@@ -50,6 +50,7 @@ pub async fn stash_push(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Pop (apply and drop) a stash entry.
@@ -81,13 +82,14 @@ pub async fn stash_pop(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Return a list of stash entry descriptions (one per stash entry).
 ///
 /// Each string corresponds to a line from `git stash list`.
 #[tauri::command]
-pub async fn stash_list(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+pub async fn stash_list(state: State<'_, AppState>) -> Result<Vec<String>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -95,6 +97,7 @@ pub async fn stash_list(state: State<'_, AppState>) -> Result<Vec<String>, Strin
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Apply a stash entry without removing it.
@@ -128,6 +131,7 @@ pub async fn stash_apply(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Restore a single file from a stash entry into the working directory.
@@ -164,6 +168,7 @@ pub async fn stash_apply_file(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Drop a stash entry without applying it.
@@ -195,6 +200,7 @@ pub async fn stash_drop(
         .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Return structured stash entries with parsed metadata.
@@ -203,7 +209,7 @@ pub async fn stash_drop(
 #[tauri::command]
 pub async fn stash_entries(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::StashEntry>, String> {
+) -> Result<Vec<git_engine::StashEntry>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -211,6 +217,7 @@ pub async fn stash_entries(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Return the diff of a stash entry as structured `FileDiff` objects.
@@ -221,7 +228,7 @@ pub async fn stash_entries(
 pub async fn stash_show_parsed(
     index: Option<usize>,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::FileDiff>, String> {
+) -> Result<Vec<git_engine::FileDiff>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -229,6 +236,7 @@ pub async fn stash_show_parsed(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 #[cfg(test)]
