@@ -1139,9 +1139,13 @@ export async function deinitSubmodule(path: string, force: boolean): Promise<voi
   return invoke<void>("deinit_submodule", { path, force });
 }
 
-/** Add a new submodule to the repository. */
-export async function addSubmodule(url: string, path: string): Promise<void> {
-  return invoke<void>("add_submodule", { url, path });
+/**
+ * Add a new submodule, as a background task. Returns the task id
+ * immediately — `git submodule add` clones, so this can run for minutes.
+ * The submodule list refreshes through the watcher's `project-mutated`.
+ */
+export async function addSubmodule(url: string, path: string): Promise<TaskId> {
+  return invoke<TaskId>("add_submodule", { url, path });
 }
 
 /** Remove a submodule completely (deinit + rm). */
