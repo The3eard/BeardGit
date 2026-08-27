@@ -734,6 +734,214 @@ mod tests {
         assert!(patch.contains("+CHANGED\n\\ No newline at end of file\n"));
     }
 
+    // -----------------------------------------------------------------------
+    // Line-level polarity
+    //
+    // `filter_hunk_lines` decides what happens to a *non-selected* changed
+    // line, and the right answer depends on whether the patch will be applied
+    // forward or in reverse. The four tests immediately below are
+    // **characterisation** tests of the forward path, which was always
+    // correct. They are here so that inverting the wrong sign shows up
+    // immediately: any fix must leave them green.
+    //
+    // Fixtures use one line per letter so a whole file fits in an assertion,
+    // and a fresh repo per case — see `repo_committed_then_worktree`.
+    // -----------------------------------------------------------------------
+
+    /// Commit `committed` as `f.txt`, then leave `worktree` in the working
+    /// tree. The index matches the commit.
+    ///
+    /// A fresh repo per case, deliberately. `discard_hunks` diffs the working
+    /// tree against the **index**, so a `stage_hunks` earlier in the same repo
+    /// moves the index and silently changes what the next assertion is
+    /// measuring. Reusing one repo across cases already produced one false
+    /// diagnosis — that discarding a whole hunk corrupted data, which it does
+    /// not.
+    fn repo_committed_then_worktree(
+        committed: &str,
+        worktree: &str,
+    ) -> (tempfile::TempDir, Repository) {
+        let dir = tempfile::tempdir().unwrap();
+        let git_repo = git2::Repository::init(dir.path()).unwrap();
+        let sig = git2::Signature::now("Test", "test@test.com").unwrap();
+
+        fs::write(dir.path().join("f.txt"), committed).unwrap();
+        let mut index = git_repo.index().unwrap();
+        index.add_path(Path::new("f.txt")).unwrap();
+        index.write().unwrap();
+        let tree = git_repo.find_tree(index.write_tree().unwrap()).unwrap();
+        git_repo
+            .commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .unwrap();
+
+        fs::write(dir.path().join("f.txt"), worktree).unwrap();
+        let repo = Repository::open(dir.path()).unwrap();
+        (dir, repo)
+    }
+
+    /// Commit `committed`, then stage `staged`, so the change lives in the
+    /// index and the working tree agrees with it. This is the state
+    /// `unstage_hunks` operates on.
+    fn repo_committed_then_staged(
+        committed: &str,
+        staged: &str,
+    ) -> (tempfile::TempDir, Repository) {
+        let (dir, repo) = repo_committed_then_worktree(committed, staged);
+        let git_repo = git2::Repository::open(dir.path()).unwrap();
+        let mut index = git_repo.index().unwrap();
+        index.add_path(Path::new("f.txt")).unwrap();
+        index.write().unwrap();
+        (dir, repo)
+    }
+
+    /// Read `f.txt` out of the index, reopening the repo to do it.
+    ///
+    /// **The reopen is the point.** These operations shell out to `git apply
+    /// --cached`, which writes the index from another process, while the
+    /// `git2::Repository` held by our `Repository` keeps its own in-memory
+    /// index snapshot and goes on answering with the pre-apply content. A test
+    /// that reads the index through the same handle it staged with measures
+    /// nothing at all — it reports the committed content whether the staging
+    /// worked, staged the wrong lines, or never happened.
+    fn index_content(dir: &Path) -> String {
+        Repository::open(dir)
+            .unwrap()
+            .get_file_index("f.txt")
+            .unwrap()
+    }
+
+    /// Position of the line carrying this origin and content within hunk 0.
+    ///
+    /// Selections are positional, so the tests must look the index up rather
+    /// than hardcode it — a hardcoded index silently names a different line if
+    /// libgit2 ever cuts the hunk differently.
+    fn line_at(diff: &FileDiff, origin: char, content: &str) -> usize {
+        diff.hunks[0]
+            .lines
+            .iter()
+            .position(|l| l.origin == origin && l.content.trim() == content)
+            .unwrap_or_else(|| {
+                panic!(
+                    "no `{origin}{content}` line in hunk 0; lines were {:?}",
+                    diff.hunks[0]
+                        .lines
+                        .iter()
+                        .map(|l| format!("{}{}", l.origin, l.content.trim()))
+                        .collect::<Vec<_>>()
+                )
+            })
+    }
+
+    /// The mixed hunk the whole polarity story is told with: two deletions and
+    /// two additions in one hunk.
+    ///
+    /// ```text
+    /// [0] ' ' a
+    /// [1] '-' b
+    /// [2] '-' c
+    /// [3] '+' X
+    /// [4] '+' Y
+    /// [5] ' ' d
+    /// [6] ' ' e
+    /// ```
+    const MIXED_COMMITTED: &str = "a\nb\nc\nd\ne\n";
+    const MIXED_WORKTREE: &str = "a\nX\nY\nd\ne\n";
+
+    #[test]
+    fn staging_one_added_line_stages_exactly_that_line() {
+        let (dir, repo) = repo_committed_then_worktree(MIXED_COMMITTED, MIXED_WORKTREE);
+
+        let diff = repo
+            .diff_single_file("f.txt", false, None)
+            .unwrap()
+            .expect("the edit must produce a diff");
+        let x = line_at(&diff, '+', "X");
+
+        repo.stage_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(x, x)]),
+            }],
+            None,
+        )
+        .expect("staging a single added line already worked and must keep working");
+
+        // Only the addition is staged: the two deletions were not selected, so
+        // b and c survive in the index.
+        assert_eq!(
+            index_content(dir.path()),
+            "a\nb\nc\nX\nd\ne\n",
+            "staging +X may not carry the unselected deletions with it"
+        );
+    }
+
+    #[test]
+    fn staging_one_deleted_line_stages_exactly_that_line() {
+        let (dir, repo) = repo_committed_then_worktree(MIXED_COMMITTED, MIXED_WORKTREE);
+
+        let diff = repo
+            .diff_single_file("f.txt", false, None)
+            .unwrap()
+            .unwrap();
+        let b = line_at(&diff, '-', "b");
+
+        repo.stage_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: Some(vec![(b, b)]),
+            }],
+            None,
+        )
+        .expect("staging a single deleted line already worked and must keep working");
+
+        // Only b goes. c stays, and neither addition is staged.
+        assert_eq!(
+            index_content(dir.path()),
+            "a\nc\nd\ne\n",
+            "staging -b may not carry the unselected additions with it"
+        );
+    }
+
+    #[test]
+    fn staging_a_whole_mixed_hunk_stages_all_of_it() {
+        let (dir, repo) = repo_committed_then_worktree(MIXED_COMMITTED, MIXED_WORKTREE);
+
+        repo.stage_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: None,
+            }],
+            None,
+        )
+        .expect("staging a whole hunk must apply");
+
+        assert_eq!(index_content(dir.path()), MIXED_WORKTREE);
+    }
+
+    #[test]
+    fn discarding_a_whole_mixed_hunk_restores_the_committed_content() {
+        let (dir, repo) = repo_committed_then_worktree(MIXED_COMMITTED, MIXED_WORKTREE);
+
+        repo.discard_hunks(
+            "f.txt",
+            &[HunkSelection {
+                hunk_index: 0,
+                line_ranges: None,
+            }],
+            None,
+        )
+        .expect("discarding a whole hunk must apply");
+
+        assert_eq!(
+            fs::read_to_string(dir.path().join("f.txt")).unwrap(),
+            MIXED_COMMITTED,
+            "discarding the whole hunk must restore the committed content"
+        );
+    }
+
     /// End-to-end regression: staging the last hunk of a file that has no
     /// trailing EOF newline must succeed. Before the fix, `build_patch`
     /// fabricated a `\n` and `git apply --cached` rejected the patch.
