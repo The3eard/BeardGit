@@ -143,8 +143,6 @@
     switch (entry.kind) {
       case "ai_background":
         return m.tasks_kind_ai_background();
-      case "ai_interactive":
-        return m.tasks_kind_ai_interactive();
       case "ai_headless":
         return m.tasks_kind_ai_headless();
       case "git_fetch":

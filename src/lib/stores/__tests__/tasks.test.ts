@@ -26,7 +26,6 @@ type TaskEventPayload = {
   id: string;
   kind:
     | "ai_background"
-    | "ai_interactive"
     | "git_fetch"
     | "git_pull"
     | "git_push"
@@ -331,23 +330,6 @@ describe("tasks aggregator store", () => {
     expect(aiBackgroundCancelMock).toHaveBeenCalledWith("sess-42");
     expect(taskCancelMock).not.toHaveBeenCalled();
     expect(terminalKillMock).not.toHaveBeenCalled();
-  });
-
-  it("cancelTaskById routes ai_interactive → terminalKill", async () => {
-    const mod = await import("../tasks");
-    await mod.initTasksStore();
-
-    triggerUpdate(
-      makeEvent({
-        id: "77",
-        kind: "ai_interactive",
-        title: "Claude interactive",
-      }),
-    );
-    await mod.cancelTaskById("77");
-
-    expect(terminalKillMock).toHaveBeenCalledWith(77);
-    expect(taskCancelMock).not.toHaveBeenCalled();
   });
 
   it("cancelTaskById routes app_update → autoUpdate.cancelUpdateDownload", async () => {

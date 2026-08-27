@@ -26,7 +26,6 @@
  */
 export type TaskKind =
   | "ai_background"
-  | "ai_interactive"
   | "ai_headless"
   | "git_fetch"
   | "git_pull"

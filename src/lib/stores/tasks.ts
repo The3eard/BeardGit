@@ -496,7 +496,6 @@ export function clearFinished(): void {
  * Route a cancel action back to the source producer.
  *
  * - `ai_background` → `ai_cancel_background_run`
- * - `ai_interactive` → `terminal_kill`
  * - `git_*` → `task_cancel`
  * - `app_update` → `cancelUpdateDownload()`
  *
@@ -513,13 +512,6 @@ export async function cancelTaskById(id: string): Promise<void> {
         ? id.slice(AI_BACKGROUND_PREFIX.length)
         : id;
       await api.aiCancelBackgroundRun(sessionId);
-      return;
-    }
-    case "ai_interactive": {
-      const terminalId = Number.parseInt(id, 10);
-      if (Number.isFinite(terminalId)) {
-        await api.terminalKill(terminalId);
-      }
       return;
     }
     case "git_fetch":
