@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Stage a specific list of files by path (equivalent to `git add <paths>`).
@@ -20,7 +21,7 @@ pub async fn stage_files(
     paths: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
@@ -31,6 +32,7 @@ pub async fn stage_files(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Unstage a specific list of files (equivalent to `git restore --staged <paths>`).
@@ -46,7 +48,7 @@ pub async fn unstage_files(
     paths: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
@@ -57,6 +59,7 @@ pub async fn unstage_files(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Stage all modified and untracked files (equivalent to `git add -A`).
@@ -65,7 +68,7 @@ pub async fn unstage_files(
 /// must not block the Tauri async runtime / freeze the UI on a large repo.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::stage_all")]
-pub async fn stage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
+pub async fn stage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
@@ -76,6 +79,7 @@ pub async fn stage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(),
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Unstage all staged changes (equivalent to `git restore --staged .`).
@@ -84,7 +88,7 @@ pub async fn stage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(),
 /// block the Tauri async runtime / freeze the UI.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::staging::unstage_all")]
-pub async fn unstage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
+pub async fn unstage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
@@ -95,6 +99,7 @@ pub async fn unstage_all(state: State<'_, AppState>, app: AppHandle) -> Result<(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Stage selected hunks or individual lines from the working directory.
@@ -117,7 +122,7 @@ pub async fn stage_hunks(
     context_lines: Option<u32>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
@@ -129,6 +134,7 @@ pub async fn stage_hunks(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Unstage selected hunks or individual lines from the index.
@@ -151,7 +157,7 @@ pub async fn unstage_hunks(
     context_lines: Option<u32>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
@@ -163,6 +169,7 @@ pub async fn unstage_hunks(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Discard unstaged changes for whole files.
@@ -182,7 +189,7 @@ pub async fn discard_files(
     paths: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
@@ -193,6 +200,7 @@ pub async fn discard_files(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Discard selected hunks or individual lines from the working directory.
@@ -215,7 +223,7 @@ pub async fn discard_hunks(
     context_lines: Option<u32>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
         tokio::task::spawn_blocking(move || {
@@ -227,6 +235,7 @@ pub async fn discard_hunks(
         .map_err(|e| e.to_string())?
     })
     .await
+    .map_err(IpcError::from)
 }
 
 #[cfg(test)]
