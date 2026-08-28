@@ -153,7 +153,12 @@ impl Repository {
         // Create a command that copies our todo file over git's todo file.
         // Git invokes: $GIT_SEQUENCE_EDITOR <rebase-todo-path>
         let editor_cmd = if cfg!(target_os = "windows") {
-            format!("copy /Y \"{}\" ", todo_path.replace('/', "\\"))
+            // Git for Windows runs the sequence editor through its bundled
+            // MSYS `sh`, not through `cmd.exe` — so `copy` is not a program
+            // it can find, it is a cmd builtin, and every interactive rebase
+            // died with "line 1: copy: command not found". `cp` is in that
+            // shell, and it wants forward slashes.
+            format!("cp '{}' ", todo_path.replace('\\', "/"))
         } else {
             format!("cp '{}' ", todo_path)
         };
