@@ -349,6 +349,20 @@ pub struct IssueDetail {
     pub body: String,
     /// Comments/notes on the issue.
     pub comments: Vec<Comment>,
+    /// `true` when the comments could not be fetched, so `comments` is empty
+    /// for a reason other than the issue having none.
+    ///
+    /// Only GitLab can set this: `glab` returns notes from a separate `api`
+    /// call, which fails on its own (a token without the right scope is the
+    /// usual cause). GitHub asks for `comments` in the same `--json` as the
+    /// issue, so if the issue parsed, its comments came with it.
+    ///
+    /// Exists because an empty list and a failed fetch are different facts and
+    /// the UI hid both the same way — no comments section at all — while the
+    /// issue list next to it still showed the real count from
+    /// `user_notes_count`.
+    #[serde(default)]
+    pub comments_unavailable: bool,
 }
 
 /// Filter criteria for listing issues. All fields optional — AND-composed.
