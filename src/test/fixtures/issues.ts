@@ -109,6 +109,7 @@ export function makeIssueDetail(
         created_at: "2026-05-04T09:00:00Z",
       }),
     ],
+    comments_unavailable: false,
     ...overrides,
   };
 }

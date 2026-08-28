@@ -746,6 +746,7 @@
   "issues_milestone_label": "Milestone",
   "issues_no_milestone": "No milestone",
   "issues_comments": "Comments ({count})",
+  "issues_comments_unavailable": "Comments could not be loaded — the token may lack the required scope.",
   "issues_comment_placeholder": "Write a comment...",
   "issues_add_comment": "Add Comment",
   "issues_open_browser": "Open in Browser",
