@@ -443,6 +443,9 @@ pub fn parse_github_issue_detail(json: &str) -> Result<IssueDetail, CliError> {
         summary,
         body,
         comments,
+        // `gh issue view` asks for `comments` in the same `--json` as the
+        // issue, so a parsed issue always brought its comments with it.
+        comments_unavailable: false,
     })
 }
 

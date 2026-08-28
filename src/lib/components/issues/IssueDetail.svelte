@@ -221,7 +221,15 @@
       </div>
     </div>
 
-    {#if detail.comments.length > 0}
+    {#if detail.comments_unavailable}
+      <!-- An empty comment list and a failed fetch used to look identical
+           here: no section at all. The issue list beside this one shows the
+           real count from the forge, so hiding the section made the two
+           disagree with no explanation. -->
+      <div class="section">
+        <p class="comments-unavailable">{m.issues_comments_unavailable()}</p>
+      </div>
+    {:else if detail.comments.length > 0}
       <div class="section">
         <h4 class="section-title">
           {m.issues_comments({ count: detail.comments.length.toString() })}
@@ -365,6 +373,14 @@
     font-size: var(--font-size-sm);
   }
   .section { margin-bottom: 16px; }
+  /* Muted, not an error toast: the issue still loaded, only its comments
+     didn't, and the user may not need them. */
+  .comments-unavailable {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    font-style: italic;
+  }
   .section-head {
     display: flex;
     align-items: center;
