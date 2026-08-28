@@ -1,0 +1,33 @@
+# Kanagawa Wave.
+# ANSI palette from mbadolato/iTerm2-Color-Schemes (alacritty), the
+# canonical 16-colour rendering of the upstream palette.
+
+[meta]
+id = "kanagawa"
+name = "Kanagawa"
+mode = "dark"
+
+[colors]
+background = "#1f1f28"
+foreground = "#dcd7ba"
+black = "#090618"
+red = "#c34043"
+green = "#76946a"
+yellow = "#c0a36e"
+blue = "#7e9cd8"
+magenta = "#957fb8"
+cyan = "#6a9589"
+white = "#c8c093"
+bright-black = "#727169"
+bright-red = "#e82424"
+bright-green = "#98bb6c"
+bright-yellow = "#e6c384"
+bright-blue = "#7fb4ca"
+bright-magenta = "#938aa9"
+bright-cyan = "#7aa89f"
+bright-white = "#dcd7ba"
+
+[accents]
+primary = "blue"
+secondary = "magenta"
+tertiary = "cyan"

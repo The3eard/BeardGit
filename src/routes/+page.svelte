@@ -68,6 +68,7 @@
   import {
     persistTabsForProject as persistEditorTabs,
     startFileEditorListeners,
+    openTab as openEditorTab,
   } from "$lib/stores/fileEditor";
   import { initRepoConfigRouteSync } from "$lib/stores/repoConfigRoute";
   import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
@@ -336,6 +337,26 @@
         action: () => handleToggleSidebar(),
       },
       {
+        id: "editor.openSelected",
+        keys: { mod: true, key: "e" },
+        label: m.editor_open_in_editor(),
+        category: "Editor",
+        // Whatever file the Changes view currently has open in its diff
+        // pane. The command palette could already *navigate* to the editor;
+        // what had no keyboard route was opening the file you were looking
+        // at, which is the thing you want when your hands are on the diff.
+        action: () => {
+          const open = get(openStagingFile);
+          if (!open) return;
+          // `tryChangeView`, not a bare assignment: it is what runs
+          // `closeStagingDiff` on the way out of Changes. Assigning
+          // `activeView` directly leaves `openStagingFile` set, so every
+          // later mutation re-fetches the diff of a pane nobody is looking
+          // at — at full context if the user had expanded it.
+          tryChangeView("editor", () => void openEditorTab(open.path));
+        },
+      },
+      {
         id: "tab.newTerminal",
         keys: { mod: true, key: "t" },
         label: m.tab_terminal_here(),
@@ -601,13 +622,18 @@
    * and has unsaved edits in the active section. Outside that view the
    * assignment runs straight through.
    */
-  function tryChangeView(nextView: string): void {
+  function tryChangeView(nextView: string, then?: () => void): void {
     const apply = () => {
       activeView = nextView;
       // Leaving the Changes view resets the open file/diff so re-entering
       // lands on the empty diff panel. The checkbox selection persists via
       // the changesSelection store.
       if (nextView !== "changes") closeStagingDiff();
+      // Anything the caller wants done *because* the view changed goes
+      // here, not after the call: on a dirty repo-config page the
+      // navigation is deferred behind a guard dialog, and work queued
+      // outside would run against a view that never switched.
+      then?.();
     };
     if (activeView === "repo-config" && repoConfigPageRef) {
       repoConfigPageRef.requestGuardedNavigation(apply);
@@ -927,7 +953,6 @@
                 newContent={$branchFileDiff.newContent}
                 filename={$branchFileDiff.filename}
                 placeholder={$branchFileDiff.placeholder}
-                editorTheme={$activeTheme?.editor}
                 isDark={$activeTheme?.meta.mode !== 'light'}
                 onClose={() => branchFileDiff.set(null)}
               />
@@ -955,7 +980,6 @@
                 newContent={$reflogFileDiff.newContent}
                 filename={$reflogFileDiff.filename}
                 placeholder={$reflogFileDiff.placeholder}
-                editorTheme={$activeTheme?.editor}
                 isDark={$activeTheme?.meta.mode !== 'light'}
                 onClose={() => reflogFileDiff.set(null)}
               />
@@ -998,7 +1022,6 @@
                   oldContent={$prFileDiff.oldContent}
                   newContent={$prFileDiff.newContent}
                   filename={$prFileDiff.filename}
-                  editorTheme={$activeTheme?.editor}
                   isDark={$activeTheme?.meta.mode !== 'light'}
                   placeholder={$prFileDiff.binary ? m.diff_binary_file() : undefined}
                   commentsLayer={commentsLayerFor($prFileDiff.filename)}
@@ -1041,14 +1064,14 @@
         </div>
       {:else if $repoInfo}
         {#if activeView === "changes"}
-          <div class="changes-layout">
+          <div class="changes-layout" style="--split-x: {changesSidebarWidth}px">
             <div class="changes-sidebar" style="width: {changesSidebarWidth}px">
               <StagingArea onFileClick={handleFileClick} onNavigate={handleNavigate} selectedFile={selectedStagingFile} />
             </div>
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
             <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-            <div class="changes-resize-handle" class:is-dragging={isDraggingChanges} role="separator" aria-orientation="vertical" aria-label={m.resize_changes_sidebar()} tabindex="0" onmousedown={startChangesSidebarResize} ondblclick={resetChangesSidebarWidth} onkeydown={handleChangesResizeKeys}></div>
+            <div class="resize-handle resize-handle--bordered" class:is-dragging={isDraggingChanges} role="separator" aria-orientation="vertical" aria-label={m.resize_changes_sidebar()} tabindex="0" onmousedown={startChangesSidebarResize} ondblclick={resetChangesSidebarWidth} onkeydown={handleChangesResizeKeys}></div>
             <div class="changes-diff">
               {#if $openStagingDiff && $openStagingFile}
                 <StagingDiffEditor
@@ -1075,7 +1098,6 @@
                   newContent={$fileDiffPanel.newContent}
                   filename={$fileDiffPanel.filename}
                   placeholder={$fileDiffPanel.placeholder}
-                  editorTheme={$activeTheme?.editor}
                   isDark={$activeTheme?.meta.mode !== 'light'}
                   onClose={closeFileDiff}
                 />
@@ -1470,29 +1492,34 @@
     display: flex;
     flex: 1;
     overflow: hidden;
+    /* Anchor for the absolutely-positioned resize handle. */
+    position: relative;
+  }
+
+  /* Straddles the seam rather than sitting in it — see SplitView and
+     lib/styles/resize-handle.css for why. */
+  .changes-layout .resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--split-x);
+    width: 8px;
+    margin-left: -4px;
+    z-index: 2;
   }
 
   .changes-sidebar {
     flex-shrink: 0;
+    /* The separator line lives on the panel, like every other split in the
+       app — the handle overlaps this border rather than drawing its own. */
+    border-right: 1px solid var(--border);
     overflow: hidden;
   }
 
-  .changes-resize-handle {
-    width: 4px;
-    cursor: col-resize;
-    background: transparent;
-    transition: background 0.15s;
-    flex-shrink: 0;
-    border-left: 1px solid var(--border);
-  }
-
-  .changes-resize-handle:hover {
-    background: var(--overlay-accent-blue);
-  }
-
-  .changes-resize-handle.is-dragging {
-    background: var(--accent-primary);
-  }
+  /* Colours, width and hover/drag states come from the shared
+     `.resize-handle` rules in lib/styles/resize-handle.css. This one used
+     `--overlay-accent-blue`, the theme accent at 10% — a token meant for
+     selected-row backgrounds, too faint to register on a 5px strip. */
 
   .changes-diff {
     flex: 1;

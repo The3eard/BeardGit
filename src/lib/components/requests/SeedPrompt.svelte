@@ -20,6 +20,7 @@
   (`quickstart/jsonplaceholder/list-posts.http`).
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { requestsSeedQuickstart } from "$lib/api/tauri";
   import { activeProject } from "$lib/stores/projects";
   import { Button, Card } from "$lib/components/ui";
@@ -57,7 +58,7 @@
         currentSource.set({ kind: "project", path: written[0] });
       }
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       busy = false;
     }

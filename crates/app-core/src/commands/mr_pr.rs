@@ -12,11 +12,14 @@ use forge_provider::{
     MrPrDetail, MrPrDiffFile, MrPrFilter, MrPrState,
 };
 use mutation_events::MutationKind;
-use task_runner::{OutputLine, Stream as TaskStream, TaskId, TaskManager, TaskStatus};
+use task_runner::{
+    OutputLine, SpawnOptions, Stream as TaskStream, TaskId, TaskKind, TaskManager, TaskStatus,
+};
 use tauri::{AppHandle, Emitter, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List merge requests / pull requests.
@@ -26,7 +29,7 @@ pub async fn list_mr_prs(
     state_filter: Option<MrPrState>,
     limit: Option<u32>,
     state: State<'_, AppState>,
-) -> Result<Vec<MrPr>, String> {
+) -> Result<Vec<MrPr>, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let filter = MrPrFilter {
         state: state_filter,
@@ -38,6 +41,7 @@ pub async fn list_mr_prs(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Get detailed info about a single MR/PR.
@@ -46,9 +50,14 @@ pub async fn list_mr_prs(
 pub async fn get_mr_pr_detail(
     number: u64,
     state: State<'_, AppState>,
-) -> Result<MrPrDetail, String> {
+) -> Result<MrPrDetail, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.get_mr_pr(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .get_mr_pr(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Get the changed files in a MR/PR.
@@ -57,9 +66,14 @@ pub async fn get_mr_pr_detail(
 pub async fn get_mr_pr_diff(
     number: u64,
     state: State<'_, AppState>,
-) -> Result<Vec<MrPrDiffFile>, String> {
+) -> Result<Vec<MrPrDiffFile>, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.get_mr_pr_diff(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .get_mr_pr_diff(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Create a new MR/PR.
@@ -71,7 +85,13 @@ pub async fn get_mr_pr_diff(
 /// remote, so downstream consumers refresh as if a push happened.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip(state, body, app), name = "cmd::mr_pr::create")]
+// `skip_all`: `title` is the user's prose, and `labels`/`reviewers` name
+// people and process. Branch names are the useful diagnostic.
+#[instrument(
+    skip_all,
+    fields(source = %source, target = %target, draft),
+    name = "cmd::mr_pr::create"
+)]
 pub async fn create_mr_pr(
     source: String,
     target: String,
@@ -82,7 +102,7 @@ pub async fn create_mr_pr(
     reviewers: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<MrPr, String> {
+) -> Result<MrPr, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let input = CreateMrPrInput {
         source,
@@ -94,20 +114,25 @@ pub async fn create_mr_pr(
         reviewers,
     };
     with_mutation_guard_async(&state, &app, MutationKind::Push, || async move {
-        run_blocking(move || provider.create_mr_pr(input).map_err(|e| e.to_string())).await
+        run_blocking(move || {
+            provider
+                .create_mr_pr(input)
+                .map_err(|e| IpcError::from(e.to_string()))
+        })
+        .await
     })
     .await
 }
 
 /// Edit a MR/PR's title and/or description.
 #[tauri::command]
-#[instrument(skip(state, body), name = "cmd::mr_pr::edit")]
+#[instrument(skip_all, fields(number), name = "cmd::mr_pr::edit")]
 pub async fn edit_mr_pr(
     number: u64,
     title: Option<String>,
     body: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let patch = EditMrPrPatch {
         title,
@@ -120,6 +145,7 @@ pub async fn edit_mr_pr(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Merge a MR/PR with the given strategy.
@@ -129,7 +155,7 @@ pub async fn merge_mr_pr(
     number: u64,
     strategy: MergeStrategy,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -137,22 +163,33 @@ pub async fn merge_mr_pr(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Close a MR/PR without merging.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::mr_pr::close")]
-pub async fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn close_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.close_mr_pr(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .close_mr_pr(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Approve a MR/PR.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::mr_pr::approve")]
-pub async fn approve_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn approve_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.approve_mr_pr(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .approve_mr_pr(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Request changes on a MR/PR with a comment body.
@@ -162,7 +199,7 @@ pub async fn request_changes_mr_pr(
     number: u64,
     body: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -170,6 +207,7 @@ pub async fn request_changes_mr_pr(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Add a general comment to a MR/PR.
@@ -179,7 +217,7 @@ pub async fn add_mr_pr_comment(
     number: u64,
     body: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -187,6 +225,7 @@ pub async fn add_mr_pr_comment(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Add an inline comment on a specific file and line of a MR/PR diff.
@@ -203,7 +242,7 @@ pub async fn add_mr_pr_inline_comment(
     base_sha: String,
     head_sha: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -211,6 +250,7 @@ pub async fn add_mr_pr_inline_comment(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 // ─── Phase 8.2: MR/PR enhancements ─────────────────────────────────────
@@ -221,7 +261,7 @@ pub async fn add_mr_pr_labels(
     number: u64,
     labels: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -229,6 +269,7 @@ pub async fn add_mr_pr_labels(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Remove labels from an existing MR/PR.
@@ -237,7 +278,7 @@ pub async fn remove_mr_pr_labels(
     number: u64,
     labels: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -245,6 +286,7 @@ pub async fn remove_mr_pr_labels(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Add reviewers to an existing MR/PR.
@@ -253,7 +295,7 @@ pub async fn add_mr_pr_reviewers(
     number: u64,
     reviewers: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -261,6 +303,7 @@ pub async fn add_mr_pr_reviewers(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Remove reviewers from an existing MR/PR.
@@ -269,7 +312,7 @@ pub async fn remove_mr_pr_reviewers(
     number: u64,
     reviewers: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -277,27 +320,43 @@ pub async fn remove_mr_pr_reviewers(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Mark a draft MR/PR as ready for review.
 #[tauri::command]
-pub async fn mark_mr_pr_ready(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn mark_mr_pr_ready(number: u64, state: State<'_, AppState>) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.mark_mr_pr_ready(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .mark_mr_pr_ready(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Convert a ready MR/PR back to draft.
 #[tauri::command]
-pub async fn mark_mr_pr_draft(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn mark_mr_pr_draft(number: u64, state: State<'_, AppState>) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.mark_mr_pr_draft(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .mark_mr_pr_draft(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Reopen a previously closed MR/PR.
 #[tauri::command]
-pub async fn reopen_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn reopen_mr_pr(number: u64, state: State<'_, AppState>) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.reopen_mr_pr(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .reopen_mr_pr(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Mark a GitLab discussion thread as resolved. GitHub returns `NotSupported`.
@@ -306,7 +365,7 @@ pub async fn resolve_discussion(
     number: u64,
     discussion_id: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -314,6 +373,7 @@ pub async fn resolve_discussion(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Mark a GitLab discussion thread as unresolved. GitHub returns `NotSupported`.
@@ -322,7 +382,7 @@ pub async fn unresolve_discussion(
     number: u64,
     discussion_id: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -330,6 +390,7 @@ pub async fn unresolve_discussion(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Reply to an existing review-comment thread on a MR/PR.
@@ -344,7 +405,7 @@ pub async fn reply_to_review_comment(
     thread_id: String,
     body: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -352,13 +413,19 @@ pub async fn reply_to_review_comment(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// List all repository labels for populating the label picker UI.
 #[tauri::command]
-pub async fn list_labels(state: State<'_, AppState>) -> Result<Vec<Label>, String> {
+pub async fn list_labels(state: State<'_, AppState>) -> Result<Vec<Label>, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.list_labels().map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .list_labels()
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Check out a MR/PR branch locally as a background task.
@@ -373,7 +440,7 @@ pub async fn checkout_mr_pr_locally(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
     app_handle: AppHandle,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     // Determine which CLI to invoke based on the active provider kind.
@@ -401,11 +468,22 @@ pub async fn checkout_mr_pr_locally(
     let num_str = number.to_string();
     let args: Vec<&str> = vec![subcmd, "checkout", &num_str];
 
-    let label = format!("Checkout MR/PR #{number}");
     let binary_str = binary.to_string_lossy().to_string();
 
+    // Explicit `Background`, not the bare `spawn`: that one tags `Generic`,
+    // which `should_emit` drops — so the doc-comment promise on
+    // `checkoutMrPrLocally` ("progress streams to the task popover") was never
+    // kept, because no `task://update` was ever emitted for it.
     let id = task_manager
-        .spawn(label, &binary_str, &args, &cwd, true)
+        .spawn_with_options(SpawnOptions {
+            label: format!("Checkout MR/PR #{number}"),
+            command: &binary_str,
+            args: &args,
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
+        })
         .await;
 
     // Spawn a listener that parses task output on completion and emits events.

@@ -3,6 +3,7 @@
   are required; labels, assignees, and milestone are optional.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import { Button, IconButton } from "$lib/components/ui";
   import {
@@ -67,7 +68,7 @@
       await createIssue(titleInput.trim(), bodyInput, labels, assignees, milestoneId);
       onClose();
     } catch (e) {
-      errorMsg = m.issues_create_failed({ error: String(e) });
+      errorMsg = m.issues_create_failed({ error: getErrorMessage(e) });
     } finally {
       submitting = false;
     }
@@ -167,6 +168,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     background: rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 99;
     border: none;
@@ -213,7 +215,7 @@
   .form-field textarea {
     padding: 6px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: var(--font-size-md);

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { doCreateTag } from "../../stores/tags";
@@ -35,7 +36,7 @@
       await doCreateTag(name.trim(), target.trim() || "HEAD", annotated ? message.trim() : null);
       onClose();
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       creating = false;
     }
@@ -131,6 +132,7 @@
   .dialog-backdrop {
     position: fixed;
     inset: 0;
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     background: rgba(0, 0, 0, 0.6); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 999;
     display: flex;
@@ -180,7 +182,7 @@
   .field-input {
     padding: 6px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 5px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);
@@ -205,7 +207,7 @@
   .field-textarea {
     padding: 6px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 5px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);

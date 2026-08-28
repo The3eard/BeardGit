@@ -34,6 +34,7 @@
     loadRepoLabels,
     selectedPrFilePath,
   } from "../../stores/mr-pr";
+  import { getErrorMessage } from "$lib/api/errors";
   import ForgeDetailShell from "../common/ForgeDetailShell.svelte";
   import { Button, IconButton } from "$lib/components/ui";
   import { activeProvider } from "../../stores/provider";
@@ -119,7 +120,7 @@
       actionError = "";
       await mergeMrPr(detail.summary.number, mergeStrategy);
     } catch (e) {
-      actionError = m.mrpr_merge_failed({ error: String(e) });
+      actionError = m.mrpr_merge_failed({ error: getErrorMessage(e) });
     }
     showMergeConfirm = false;
   }
@@ -131,7 +132,7 @@
       actionError = "";
       await closeMrPr(detail.summary.number);
     } catch (e) {
-      actionError = m.mrpr_close_failed({ error: String(e) });
+      actionError = m.mrpr_close_failed({ error: getErrorMessage(e) });
     }
     showCloseConfirm = false;
   }
@@ -143,7 +144,7 @@
       actionError = "";
       await approveMrPr(detail.summary.number);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
   }
 
@@ -155,7 +156,7 @@
       await requestChangesMrPr(detail.summary.number, commentBody.trim());
       commentBody = "";
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
   }
 
@@ -168,7 +169,7 @@
       await addMrPrComment(detail.summary.number, commentBody.trim());
       commentBody = "";
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     } finally {
       commentSubmitting = false;
     }
@@ -185,7 +186,7 @@
       if (added.length > 0) await addMrPrLabels(detail.summary.number, added);
       if (removed.length > 0) await removeMrPrLabels(detail.summary.number, removed);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
     showLabelPicker = false;
   }
@@ -197,7 +198,7 @@
       actionError = "";
       await removeMrPrLabels(detail.summary.number, [label]);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
   }
 
@@ -211,7 +212,7 @@
       actionError = "";
       await addMrPrReviewers(detail.summary.number, added);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
     showReviewerPicker = false;
   }
@@ -223,7 +224,7 @@
       actionError = "";
       await removeMrPrReviewers(detail.summary.number, [reviewer]);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
   }
 
@@ -238,7 +239,7 @@
         await markMrPrDraft(detail.summary.number);
       }
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
   }
 
@@ -249,7 +250,7 @@
       actionError = "";
       await reopenMrPr(detail.summary.number);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
     showReopenConfirm = false;
   }
@@ -265,7 +266,7 @@
         await resolveDiscussion(detail.summary.number, discussionId);
       }
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
   }
 
@@ -276,7 +277,7 @@
       actionError = "";
       checkoutTaskId = await checkoutMrPrLocally(detail.summary.number);
     } catch (e) {
-      actionError = String(e);
+      actionError = getErrorMessage(e);
     }
     showCheckoutConfirm = false;
   }
@@ -1015,7 +1016,7 @@
     width: 100%;
     padding: 8px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: var(--font-size-md);

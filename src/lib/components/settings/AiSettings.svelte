@@ -12,6 +12,7 @@
   doesn't map cleanly to `FormRow`.
 -->
 <script module lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import type { SettingDescriptor } from "./settings-index";
 
   export const settingsIndex: SettingDescriptor[] = [
@@ -102,7 +103,7 @@
       try {
         bgSettings = await aiBackgroundGetSettings();
       } catch (e) {
-        bgError = String(e);
+        bgError = getErrorMessage(e);
       }
     })();
   });
@@ -120,7 +121,7 @@
         auto_accept_permissions: bgSettings.auto_accept_permissions,
       });
     } catch (e) {
-      bgError = String(e);
+      bgError = getErrorMessage(e);
     } finally {
       bgSaving = false;
     }
@@ -281,7 +282,7 @@
     gap: 12px;
     padding: 10px 12px;
     border-radius: 6px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     background: var(--bg-primary);
     cursor: pointer;
     transition:
@@ -377,7 +378,7 @@
   .field-input {
     padding: 6px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);

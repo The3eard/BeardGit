@@ -9,6 +9,7 @@
   import type { Snippet } from "svelte";
   import { debounce } from "../../utils/debounce";
   import { IconButton, Skeleton } from "$lib/components/ui";
+  import { computeVirtualWindow } from "../../utils/virtualWindow";
   import * as m from "$lib/paraglide/messages";
 
   interface Props {
@@ -123,25 +124,28 @@
   // scroll container's `scrollTop` + measured viewport height and slice
   // a [start, end) range out of `filteredItems` with a small overscan
   // so fast scrolls don't reveal blank rows.
-  const OVERSCAN = 6;
+  //
+  // The arithmetic lives in `utils/virtualWindow` so the lists that can't
+  // consume this component — the changes list, the workdir tree — share
+  // the behaviour without inheriting the panel layout.
   let scrollTop = $state(0);
   let viewportHeight = $state(0);
 
-  let isVirtualized = $derived(
-    rowHeight !== undefined && filteredItems.length > virtualizeOver,
+  let computedWindow = $derived(
+    computeVirtualWindow({
+      count: filteredItems.length,
+      rowHeight,
+      scrollTop,
+      viewportHeight,
+      threshold: virtualizeOver,
+    }),
   );
 
-  let virtualWindow = $derived.by(() => {
-    if (!isVirtualized || rowHeight === undefined) {
-      return { start: 0, end: filteredItems.length, totalHeight: 0 };
-    }
-    const total = filteredItems.length * rowHeight;
-    const visible = Math.ceil((viewportHeight || 600) / rowHeight) + OVERSCAN * 2;
-    const rawStart = Math.floor(scrollTop / rowHeight) - OVERSCAN;
-    const start = Math.max(0, rawStart);
-    const end = Math.min(filteredItems.length, start + visible);
-    return { start, end, totalHeight: total };
-  });
+  let isVirtualized = $derived(computedWindow !== null);
+
+  let virtualWindow = $derived(
+    computedWindow ?? { start: 0, end: filteredItems.length, totalHeight: 0 },
+  );
 
   function handleScroll(e: Event) {
     if (!isVirtualized) return;
@@ -159,8 +163,8 @@
   // We avoid `bind:clientHeight` because Svelte 5 implements it via
   // ResizeObserver, which JSDOM does not provide and which would crash
   // every `List`-using test that doesn't shim it. The fallback in
-  // `virtualWindow` (`viewportHeight || 600`) keeps the first paint
-  // sane until either this measurement or the first real scroll runs.
+  // `computeVirtualWindow` (its assumed viewport height) keeps the first
+  // paint sane until either this measurement or the first real scroll runs.
   $effect(() => {
     if (!isVirtualized || !listEl) return;
     if (viewportHeight === 0 && listEl.clientHeight > 0) {

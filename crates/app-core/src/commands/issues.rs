@@ -14,6 +14,7 @@ use forge_provider::{
 use tauri::State;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Parse the `state_filter` string from the IPC layer into an optional
@@ -46,7 +47,7 @@ pub async fn list_issues(
     text: Option<String>,
     limit: Option<u32>,
     state: State<'_, AppState>,
-) -> Result<Vec<Issue>, String> {
+) -> Result<Vec<Issue>, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let filter = IssueFilter {
         state: parse_issue_state_filter(state_filter.as_deref()),
@@ -63,13 +64,19 @@ pub async fn list_issues(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Fetch full detail (body + comments) for a single issue.
 #[tauri::command]
-pub async fn get_issue(number: u64, state: State<'_, AppState>) -> Result<IssueDetail, String> {
+pub async fn get_issue(number: u64, state: State<'_, AppState>) -> Result<IssueDetail, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.get_issue(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .get_issue(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Create a new issue.
@@ -81,7 +88,7 @@ pub async fn create_issue(
     assignees: Vec<String>,
     milestone: Option<u64>,
     state: State<'_, AppState>,
-) -> Result<Issue, String> {
+) -> Result<Issue, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let input = CreateIssueInput {
         title,
@@ -90,7 +97,12 @@ pub async fn create_issue(
         assignees,
         milestone,
     };
-    run_blocking(move || provider.create_issue(input).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .create_issue(input)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Edit an issue's title and/or body.
@@ -100,7 +112,7 @@ pub async fn edit_issue(
     title: Option<String>,
     body: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     let patch = EditIssuePatch { title, body };
     run_blocking(move || {
@@ -109,20 +121,31 @@ pub async fn edit_issue(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Close an open issue.
 #[tauri::command]
-pub async fn close_issue(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn close_issue(number: u64, state: State<'_, AppState>) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.close_issue(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .close_issue(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Reopen a closed issue.
 #[tauri::command]
-pub async fn reopen_issue(number: u64, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn reopen_issue(number: u64, state: State<'_, AppState>) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.reopen_issue(number).map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .reopen_issue(number)
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 /// Post a general comment on an issue.
@@ -131,7 +154,7 @@ pub async fn add_issue_comment(
     number: u64,
     body: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -139,6 +162,7 @@ pub async fn add_issue_comment(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Add labels to an issue.
@@ -147,7 +171,7 @@ pub async fn add_issue_labels(
     number: u64,
     labels: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -155,6 +179,7 @@ pub async fn add_issue_labels(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Remove labels from an issue.
@@ -163,7 +188,7 @@ pub async fn remove_issue_labels(
     number: u64,
     labels: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -171,6 +196,7 @@ pub async fn remove_issue_labels(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Add assignees to an issue.
@@ -179,7 +205,7 @@ pub async fn add_issue_assignees(
     number: u64,
     assignees: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -187,6 +213,7 @@ pub async fn add_issue_assignees(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Remove assignees from an issue.
@@ -195,7 +222,7 @@ pub async fn remove_issue_assignees(
     number: u64,
     assignees: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -203,6 +230,7 @@ pub async fn remove_issue_assignees(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// Set (or clear with `None`) the milestone on an issue.
@@ -211,7 +239,7 @@ pub async fn set_issue_milestone(
     number: u64,
     milestone_id: Option<u64>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
     run_blocking(move || {
         provider
@@ -219,13 +247,19 @@ pub async fn set_issue_milestone(
             .map_err(|e| e.to_string())
     })
     .await
+    .map_err(IpcError::from)
 }
 
 /// List all milestones for the current repo (for picker UIs).
 #[tauri::command]
-pub async fn list_milestones(state: State<'_, AppState>) -> Result<Vec<Milestone>, String> {
+pub async fn list_milestones(state: State<'_, AppState>) -> Result<Vec<Milestone>, IpcError> {
     let provider: Arc<dyn ForgeProvider> = build_forge_provider(&state)?;
-    run_blocking(move || provider.list_milestones().map_err(|e| e.to_string())).await
+    run_blocking(move || {
+        provider
+            .list_milestones()
+            .map_err(|e| IpcError::from(e.to_string()))
+    })
+    .await
 }
 
 #[cfg(test)]

@@ -196,6 +196,7 @@
   .cp-backdrop {
     position: fixed;
     inset: 0;
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 1000;
     display: flex;
@@ -231,7 +232,7 @@
     padding: 8px 12px;
     background: var(--bg-primary);
     color: var(--text-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     font: inherit;
     font-size: var(--font-size-lg);

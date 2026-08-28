@@ -60,7 +60,6 @@
     /** Filename used for language detection and display. */
     filename: string;
     /** CodeMirror theme data from the TOML theme system. */
-    editorTheme?: ThemeEditorData | null;
     /** Whether the UI is in dark mode. */
     isDark?: boolean;
     /** Called with the resolved file content when the user clicks "Mark Resolved". */
@@ -74,7 +73,6 @@
     theirs,
     base,
     filename,
-    editorTheme = null,
     isDark = true,
     onResolve,
     onCancel,
@@ -570,7 +568,7 @@
     // a new effect run that destroyed the editors).
     if (!theirsEl || !resultEl || !oursEl) return;
 
-    const theme = createCodemirrorTheme(editorTheme, isDark);
+    const theme = createCodemirrorTheme(isDark);
 
     // --- Theirs (Incoming) --- readonly side panel
     const lineNumExt = showLineNumbers ? lineNumbers() : [];
@@ -800,7 +798,6 @@
     // theme, but they intentionally do NOT trigger a rebuild on their own (see
     // the guard below). Live theme updates in an open merge are sacrificed to
     // preserve the in-progress resolution.
-    void editorTheme;
     void isDark;
     // DOM refs must be reactive so the effect re-runs after mount.
     const _thEl = theirsEl;

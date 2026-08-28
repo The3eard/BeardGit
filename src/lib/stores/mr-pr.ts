@@ -23,6 +23,7 @@
  *      state so a slow diff fetch can't gate the metadata render.
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { derived, get } from "svelte/store";
 import type { Label, MrPr, MrPrDetail, MrPrDiffFile, MrPrState, TaskId } from "../types";
 import {
@@ -150,7 +151,7 @@ export async function refreshMrPrList() {
     slice.listError.set(null);
   } catch (err) {
     slice.list.set([]);
-    slice.listError.set(err instanceof Error ? err.message : String(err));
+    slice.listError.set(getErrorMessage(err));
   } finally {
     slice.listLoading.set(false);
   }
@@ -189,7 +190,7 @@ async function loadMrPrDetailMeta(slice: MrPrSlice, number: number): Promise<voi
     const detail = await withTimeout(apiDetail(number), DETAIL_TIMEOUT_MS);
     slice.detail.set(detail);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = getErrorMessage(err);
     slice.detail.set(null);
     slice.detailError.set(msg);
     addToast({
@@ -208,7 +209,7 @@ async function loadMrPrDetailDiff(slice: MrPrSlice, number: number): Promise<voi
     const diff = await withTimeout(apiDiff(number), DETAIL_TIMEOUT_MS);
     slice.diffFiles.set(diff);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = getErrorMessage(err);
     slice.diffFiles.set([]);
     slice.diffError.set(msg);
   } finally {
@@ -489,8 +490,10 @@ export async function replyToReviewComment(
 /**
  * Kick off a MR/PR local checkout.
  *
- * Returns the task ID immediately — progress streams to the task popover
- * and the final `CheckoutResult` arrives via a `mr-pr-checked-out` event.
+ * Returns the task ID immediately. Progress streams to the tasks popover —
+ * true since the task carries an explicit `Background` kind; while it spawned
+ * as `Generic`, `should_emit` dropped it and this sentence was aspirational.
+ * The final `CheckoutResult` arrives via a `mr-pr-checked-out` event.
  */
 export async function checkoutMrPrLocally(number: number): Promise<TaskId> {
   return apiCheckoutLocally(number);
@@ -590,7 +593,7 @@ export async function loadPrFileDiff(detail: MrPrDetail, path: string): Promise<
     });
   } catch (e) {
     if (requestId !== slice.prFileDiffRequestId) return;
-    slice.prFileDiffError.set(e instanceof Error ? e.message : String(e));
+    slice.prFileDiffError.set(getErrorMessage(e));
   } finally {
     if (requestId === slice.prFileDiffRequestId) slice.loadingPrFileDiff.set(false);
   }

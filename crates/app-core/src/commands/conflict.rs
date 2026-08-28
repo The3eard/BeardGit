@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Return the current conflict state and list of conflicted file paths.
@@ -12,9 +13,9 @@ use crate::state::AppState;
 #[instrument(skip(state), name = "cmd::conflict::get_status")]
 pub fn get_conflict_status(
     state: State<'_, AppState>,
-) -> Result<git_engine::ConflictStatus, String> {
+) -> Result<git_engine::ConflictStatus, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.conflict_status().map_err(|e| e.to_string())
+        repo.conflict_status().map_err(IpcError::from)
     })
 }
 
@@ -24,10 +25,10 @@ pub fn get_conflict_status(
 pub fn get_conflict_file_contents(
     path: String,
     state: State<'_, AppState>,
-) -> Result<git_engine::ConflictFileContents, String> {
+) -> Result<git_engine::ConflictFileContents, IpcError> {
     with_active_repo(&state, |repo| {
         repo.get_conflict_file_contents(&path)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
@@ -43,11 +44,11 @@ pub fn write_resolved_file(
     content: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
             repo.write_resolved_file(&path, &content)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
     })
 }
@@ -55,7 +56,7 @@ pub fn write_resolved_file(
 /// Abort the current mid-operation git state (merge/rebase/cherry-pick/revert).
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::conflict::abort")]
-pub async fn abort_operation(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn abort_operation(state: State<'_, AppState>) -> Result<String, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -83,12 +84,13 @@ pub async fn abort_operation(state: State<'_, AppState>) -> Result<String, Strin
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Continue the current mid-operation git state after conflicts are resolved.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::conflict::continue")]
-pub async fn continue_operation(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn continue_operation(state: State<'_, AppState>) -> Result<String, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -122,6 +124,7 @@ pub async fn continue_operation(state: State<'_, AppState>) -> Result<String, St
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 #[cfg(test)]

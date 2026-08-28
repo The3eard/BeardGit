@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use mutation_events::MutationKind;
-use task_runner::{TaskId, TaskManager};
+use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use tauri::{AppHandle, State};
 use tracing::instrument;
 
@@ -13,7 +13,7 @@ use crate::state::AppState;
 
 /// Return all tags in the active repository, sorted newest-version-first.
 #[tauri::command]
-pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<git_engine::TagInfo>, String> {
+pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<git_engine::TagInfo>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -21,6 +21,7 @@ pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<git_engine::Tag
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// List tags with pagination, sorted newest-version-first.
@@ -29,7 +30,7 @@ pub async fn list_tags_paginated(
     per_page: u32,
     page: u32,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::TagInfo>, String> {
+) -> Result<Vec<git_engine::TagInfo>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -38,6 +39,7 @@ pub async fn list_tags_paginated(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Search all tags by name substring (case-insensitive).
@@ -45,7 +47,7 @@ pub async fn list_tags_paginated(
 pub async fn search_tags(
     query: String,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::TagInfo>, String> {
+) -> Result<Vec<git_engine::TagInfo>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
@@ -53,6 +55,7 @@ pub async fn search_tags(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Create a new tag in the active repository.
@@ -65,7 +68,9 @@ pub async fn search_tags(
 /// scope so that on success a `project-mutated` event with
 /// [`MutationKind::TagCreate`] is emitted.
 #[tauri::command]
-#[instrument(skip(state, app), name = "cmd::tag::create")]
+// `skip_all` keeps the annotation `message` out; name and target are
+// refs, which are safe and are the useful part.
+#[instrument(skip_all, fields(tag = %name, target = %target), name = "cmd::tag::create")]
 pub async fn create_tag(
     name: String,
     target: String,
@@ -73,7 +78,7 @@ pub async fn create_tag(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::TagCreate, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -114,7 +119,7 @@ pub async fn delete_tag(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::TagDelete, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -139,26 +144,45 @@ pub async fn push_tag(
     remote: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
     let remote = if remote.is_empty() {
         "origin".to_string()
     } else {
         remote
     };
+    // `spawn_with_options` with an explicit `GitPush`, not the bare `spawn`:
+    // that one tags `Generic`, which `should_emit` drops, so pushing a tag
+    // produced no row in the drawer and no spinner on the statusbar icon.
+    // These are literally `git push`, so the existing kind is exact.
     match tag_name {
         Some(name) => {
             let label = format!("Push tag {}", name);
             let tag_ref = format!("refs/tags/{}", name);
             let id = task_manager
-                .spawn(label, "git", &["push", &remote, &tag_ref], &cwd, true)
+                .spawn_with_options(SpawnOptions {
+                    label,
+                    command: "git",
+                    args: &["push", &remote, &tag_ref],
+                    cwd: &cwd,
+                    cancellable: true,
+                    kind: TaskKind::GitPush,
+                    stdin: None,
+                })
                 .await;
             Ok(id)
         }
         None => {
-            let label = "Push all tags".to_string();
             let id = task_manager
-                .spawn(label, "git", &["push", &remote, "--tags"], &cwd, true)
+                .spawn_with_options(SpawnOptions {
+                    label: "Push all tags".to_string(),
+                    command: "git",
+                    args: &["push", &remote, "--tags"],
+                    cwd: &cwd,
+                    cancellable: true,
+                    kind: TaskKind::GitPush,
+                    stdin: None,
+                })
                 .await;
             Ok(id)
         }

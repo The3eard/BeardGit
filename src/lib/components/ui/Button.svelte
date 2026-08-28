@@ -137,7 +137,7 @@
     justify-content: center;
     gap: 6px;
     border-radius: 6px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     cursor: pointer;
     font-family: inherit;
     /* Match the natural glyph metrics so the label sits at the optical

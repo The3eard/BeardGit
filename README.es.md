@@ -109,7 +109,7 @@ Edita archivos del repo sin salir de BeardGit. CodeMirror 6 con snippets por len
 
 - **Pestañas multi-repo.** El estado pesado (repo, layout, watcher) solo carga para la pestaña activa. Una docena de repos abiertos cuesta lo mismo que uno. `⌘1…⌘9` para saltar.
 - **Terminales de verdad.** xterm.js + WebGL alimentado por un PTY nativo en Rust. OSC 7 enlaza la terminal con la pestaña del proyecto. Detección por proceso en primer plano: cuando arranca `claude` / `codex` / `opencode`, la pestaña se actualiza al vuelo.
-- **Temas e i18n.** Claro, oscuro y temas custom en JSON — cada acento sale de tokens CSS, también en el grafo. Inglés y español de serie vía [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs); añadir un idioma es un JSON.
+- **Temas e i18n.** 31 temas de serie, claros y oscuros, más los tuyos en un archivo TOML — cada acento sale de tokens CSS, también en el grafo. Los tres niveles de texto de todos los temas incluidos cumplen WCAG AA, con un test que lo garantiza; un tema que escribas tú se mide y se te reporta, nunca se reescribe. Inglés y español de serie vía [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs); añadir un idioma es un JSON.
 - **Tu sidebar.** Reordena entradas, oculta lo que no usas, restaura el orden por defecto. La disposición persiste en toda la app.
 - **Auto-actualización.** Updater de Tauri en el canal estable con diagnóstico del endpoint y el último check — distingues un 404 de un fallo de DNS sin salir de la app.
 - **Logs solo locales.** `tracing` con rotación diaria y purgado a 7 días en una ruta por plataforma. La ruta del log aparece en el diálogo de error in-app; compartirla es decisión tuya, jamás de la app.

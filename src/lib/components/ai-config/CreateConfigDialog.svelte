@@ -6,6 +6,7 @@
   creating.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { createConfigFile } from "../../stores/aiConfig";
   import * as m from "$lib/paraglide/messages";
   import Button from "$lib/components/ui/Button.svelte";
@@ -46,7 +47,7 @@
       await createConfigFile(kind, scope, trimmed);
       onClose();
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       creating = false;
     }
@@ -144,7 +145,7 @@
     width: 100%;
     padding: 7px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: var(--font-size-md);
@@ -160,7 +161,7 @@
   .toggle-group {
     display: flex;
     gap: 0;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     overflow: hidden;
   }

@@ -70,4 +70,14 @@ pub enum GitError {
     /// pick a different name — so it carries a stable code across IPC.
     #[error("a branch with that name already exists: {0}")]
     BranchAlreadyExists(String),
+    /// One or more untracked paths survived a discard: the delete failed
+    /// (permissions, a file held open by another process) or the path
+    /// resolved outside the working tree. Carries the repo-relative paths
+    /// that are still on disk, because the alternative — reporting success
+    /// — tells the user their working tree is clean when it is not.
+    #[error("could not discard: {}", paths.join(", "))]
+    DiscardFailed {
+        /// Repo-relative paths that could not be deleted.
+        paths: Vec<String>,
+    },
 }

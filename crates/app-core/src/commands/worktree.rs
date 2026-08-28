@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List all worktrees for the active repository, including the main worktree.
@@ -14,14 +15,13 @@ use crate::state::AppState;
 #[tauri::command]
 pub async fn list_worktrees(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::WorktreeInfo>, String> {
+) -> Result<Vec<git_engine::WorktreeInfo>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.list_worktrees().map_err(|e| e.to_string())
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
+        repo.list_worktrees().map_err(IpcError::from)
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Create a new linked worktree at `path` on `branch`.
@@ -39,16 +39,15 @@ pub async fn create_worktree(
     create_branch: bool,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::WorktreeCreate, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
             repo.create_worktree(&path, &branch, create_branch)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
 }
@@ -66,16 +65,14 @@ pub async fn remove_worktree(
     force: bool,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::WorktreeRemove, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.remove_worktree(&path, force)
-                .map_err(|e| e.to_string())
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
+            repo.remove_worktree(&path, force).map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
 }
@@ -90,15 +87,14 @@ pub async fn worktree_lock(
     path: String,
     reason: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
         repo.lock_worktree(&path, reason.as_deref())
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Unlock a previously locked worktree.
@@ -106,14 +102,13 @@ pub async fn worktree_lock(
 /// # Parameters
 /// - `path` – Absolute filesystem path to the worktree directory.
 #[tauri::command]
-pub async fn worktree_unlock(path: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn worktree_unlock(path: String, state: State<'_, AppState>) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.unlock_worktree(&path).map_err(|e| e.to_string())
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
+        repo.unlock_worktree(&path).map_err(IpcError::from)
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]

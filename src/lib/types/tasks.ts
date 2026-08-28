@@ -26,13 +26,13 @@
  */
 export type TaskKind =
   | "ai_background"
-  | "ai_interactive"
   | "ai_headless"
   | "git_fetch"
   | "git_pull"
   | "git_push"
   | "git_clone"
-  | "app_update";
+  | "app_update"
+  | "background";
 
 /**
  * Lifecycle phase of a task as surfaced to the drawer.

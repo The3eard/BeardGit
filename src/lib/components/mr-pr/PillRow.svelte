@@ -120,7 +120,7 @@
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    border: 1px dashed var(--border);
+    border: 1px dashed var(--border-strong);
     background: none;
     color: var(--text-secondary);
     font-family: var(--font-icons);

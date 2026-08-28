@@ -37,6 +37,7 @@
   Project list re-fetches whenever the active project path changes.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import {
     requestsListProject,
@@ -249,12 +250,13 @@
         overrides: {},
       });
     } catch (err) {
-      addToast({ message: `Copy as cURL failed: ${err}`, type: "error" });
+      addToast({ message: `Copy as cURL failed: ${getErrorMessage(err)}`, type: "error" });
       return;
     }
     try {
       await navigator.clipboard.writeText(out);
     } catch (err) {
+      // beardgit:allow-string-error: clipboard rejects with a DOMException, not an IpcError
       addToast({ message: `Clipboard write failed: ${err}`, type: "error" });
       return;
     }
@@ -371,7 +373,7 @@
     try {
       await requestsOpenInEditor("project", node.rel_path, projectPath);
     } catch (err) {
-      addToast({ message: `Open failed: ${err}`, type: "error" });
+      addToast({ message: `Open failed: ${getErrorMessage(err)}`, type: "error" });
     }
   }
 

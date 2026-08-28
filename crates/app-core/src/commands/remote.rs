@@ -134,7 +134,7 @@ pub async fn delete_remote_branch(
     branch: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
     let label = format!("Delete {}/{}", remote, branch);
@@ -163,15 +163,14 @@ pub async fn rename_remote(
     old_name: String,
     new_name: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
         repo.rename_remote(&old_name, &new_name)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Removes a remote from the active repository.
@@ -188,15 +187,14 @@ pub async fn remove_remote(
     name: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::RemoteRemove, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-            repo.remove_remote(&name).map_err(|e| e.to_string())
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
+            repo.remove_remote(&name).map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
 }
@@ -213,13 +211,15 @@ pub async fn remove_remote(
 /// Returns `Ok(())` on presence (no task spawned) or after the fetch
 /// completes; returns `Err` with a human-readable message otherwise.
 #[tauri::command]
-#[instrument(skip(state, task_manager), name = "cmd::remote::ensure_commit_local")]
+// `remote_url` can embed credentials (`https://<token>@host`), so it is
+// skipped rather than relying on the writer's redaction patterns.
+#[instrument(skip_all, fields(sha = %sha), name = "cmd::remote::ensure_commit_local")]
 pub async fn ensure_commit_local(
     sha: String,
     remote_url: Option<String>,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let cwd = get_active_project_path(&state)?;
     if commit_exists_locally(&cwd, &sha) {
         return Ok(());
@@ -249,9 +249,9 @@ pub async fn ensure_commit_local(
         .map_err(|e| e.to_string())?;
 
     if !commit_exists_locally(&cwd, &sha) {
-        return Err(format!(
+        return Err(IpcError::from(format!(
             "commit {short} not found after fetching from {remote}"
-        ));
+        )));
     }
     Ok(())
 }

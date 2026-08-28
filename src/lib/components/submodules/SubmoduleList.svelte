@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import {
     submodules,
@@ -52,12 +53,16 @@
     adding = true;
     addError = null;
     try {
+      // Resolves once the task is accepted, not once the submodule is cloned.
+      // `addError` therefore only ever shows a failure to *start* it; a clone
+      // that fails surfaces as a failed row in the tasks drawer, the same way
+      // a failed clone or push does. The list fills in via the watcher.
       await addSubmodule(addUrl.trim(), addPath.trim());
       showAddForm = false;
       addUrl = "";
       addPath = "";
     } catch (err) {
-      addError = String(err);
+      addError = getErrorMessage(err);
     } finally {
       adding = false;
     }
@@ -105,7 +110,7 @@
       const absPath = await getSubmoduleAbsPath(sub.path);
       await openProjectTab(absPath);
     } catch (err) {
-      alert(String(err));
+      alert(getErrorMessage(err));
     }
   }
 
@@ -128,7 +133,7 @@
           try {
             await initSubmodule(sub.path);
           } catch (err) {
-            alert(m.submodule_init_failed({ error: String(err) }));
+            alert(m.submodule_init_failed({ error: getErrorMessage(err) }));
           }
         },
       });
@@ -153,7 +158,7 @@
               try {
                 await deinitSubmodule(sub.path, false);
               } catch (err) {
-                alert(m.submodule_deinit_failed({ error: String(err) }));
+                alert(m.submodule_deinit_failed({ error: getErrorMessage(err) }));
               }
               confirmProps = null;
             },
@@ -170,7 +175,7 @@
               try {
                 await deinitSubmodule(sub.path, true);
               } catch (err) {
-                alert(m.submodule_deinit_failed({ error: String(err) }));
+                alert(m.submodule_deinit_failed({ error: getErrorMessage(err) }));
               }
               confirmProps = null;
             },
@@ -190,7 +195,7 @@
             try {
               await removeSubmodule(sub.path);
             } catch (err) {
-              alert(m.submodule_remove_failed({ error: String(err) }));
+              alert(m.submodule_remove_failed({ error: getErrorMessage(err) }));
             }
             confirmProps = null;
           },
@@ -336,7 +341,7 @@
 
   .add-input {
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     padding: 6px 10px;
     font-size: var(--font-size-sm);

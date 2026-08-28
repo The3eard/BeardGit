@@ -48,7 +48,6 @@
               newContent={contents.newContent}
               filename={diff.path}
               placeholder={diff.truncated ? "Diff too large to display." : undefined}
-              editorTheme={$activeTheme?.editor}
               isDark={$activeTheme?.meta.mode !== 'light'}
             />
           </div>
@@ -127,7 +126,7 @@
   .apply-file-btn {
     padding: 2px 8px;
     background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     color: var(--text-primary);
     border-radius: 4px;
     font-size: var(--font-size-2xs);

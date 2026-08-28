@@ -20,6 +20,10 @@ import {
   refreshStatuses,
   refreshDiffs,
   loadStagingDiff,
+  DEFAULT_DIFF_CONTEXT,
+  FULL_FILE_CONTEXT,
+  stagingDiffContext,
+  setStagingDiffExpanded,
   closeStagingDiff,
   stageFiles,
   unstageFiles,
@@ -138,7 +142,11 @@ describe("staging and commit workflow", () => {
 
     const call = invokeMock.mock.calls.find((c) => c[0] === "get_diff_file");
     expect(call).toBeDefined();
-    expect(call?.[1]).toEqual({ path: "src/app.ts", staged: false });
+    expect(call?.[1]).toEqual({
+      path: "src/app.ts",
+      staged: false,
+      contextLines: DEFAULT_DIFF_CONTEXT,
+    });
     expect(get(openStagingFile)).toEqual({ path: "src/app.ts", isStaged: false });
     expect(get(openStagingDiff)?.hunks).toHaveLength(1);
   });
@@ -156,7 +164,57 @@ describe("staging and commit workflow", () => {
     // Stats fetched AND the open file re-fetched (so the pane stays live).
     expect(invokeMock.mock.calls.some((c) => c[0] === "get_diff_stats_workdir")).toBe(true);
     const fileCall = invokeMock.mock.calls.find((c) => c[0] === "get_diff_file");
-    expect(fileCall?.[1]).toEqual({ path: "src/app.ts", staged: false });
+    expect(fileCall?.[1]).toEqual({
+      path: "src/app.ts",
+      staged: false,
+      contextLines: DEFAULT_DIFF_CONTEXT,
+    });
+  });
+
+  it("refreshDiffs keeps a file the user expanded expanded", async () => {
+    // The surrounding lines only exist in the payload because they were
+    // asked for, so a refresh that forgot the context would silently
+    // collapse the file back to three lines under the user.
+    mockInvokeResponse("get_diff_stats_workdir", MOCK_WORKDIR_STATS);
+    mockInvokeResponse("get_diff_stats_index", MOCK_INDEX_STATS);
+    mockInvokeResponse("get_diff_file", MOCK_FILE_DIFF);
+
+    await loadStagingDiff("src/app.ts", false);
+    await setStagingDiffExpanded(true);
+    expect(get(stagingDiffContext)).toBe(FULL_FILE_CONTEXT);
+    invokeMock.mockClear();
+
+    await refreshDiffs();
+
+    const fileCall = invokeMock.mock.calls.find((c) => c[0] === "get_diff_file");
+    expect(fileCall?.[1]).toEqual({
+      path: "src/app.ts",
+      staged: false,
+      contextLines: FULL_FILE_CONTEXT,
+    });
+    expect(get(stagingDiffContext)).toBe(FULL_FILE_CONTEXT);
+  });
+
+  it("setStagingDiffExpanded round-trips between full file and the default", async () => {
+    mockInvokeResponse("get_diff_file", MOCK_FILE_DIFF);
+    await loadStagingDiff("src/app.ts", false);
+
+    await setStagingDiffExpanded(true);
+    expect(get(stagingDiffContext)).toBe(FULL_FILE_CONTEXT);
+
+    await setStagingDiffExpanded(false);
+    expect(get(stagingDiffContext)).toBe(DEFAULT_DIFF_CONTEXT);
+    const last = invokeMock.mock.calls.filter((c) => c[0] === "get_diff_file").at(-1);
+    expect(last?.[1]).toMatchObject({ contextLines: DEFAULT_DIFF_CONTEXT });
+  });
+
+  it("setStagingDiffExpanded does nothing when no file is open", async () => {
+    closeStagingDiff();
+    invokeMock.mockClear();
+
+    await setStagingDiffExpanded(true);
+
+    expect(invokeMock.mock.calls.some((c) => c[0] === "get_diff_file")).toBe(false);
   });
 
   it("closeStagingDiff clears the open file and diff", async () => {

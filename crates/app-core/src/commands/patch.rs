@@ -4,6 +4,7 @@ use mutation_events::MutationKind;
 use tauri::{AppHandle, State};
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Create patch files from one or more commits.
@@ -14,10 +15,10 @@ pub fn create_commit_patches(
     oids: Vec<String>,
     output_dir: String,
     state: State<'_, AppState>,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, IpcError> {
     with_active_repo(&state, |repo| {
         repo.create_commit_patches(&oids, &output_dir)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
@@ -29,10 +30,10 @@ pub fn create_commit_patches(
 pub fn create_working_tree_patch(
     staged_only: bool,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     with_active_repo(&state, |repo| {
         repo.create_working_tree_patch(staged_only)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
@@ -41,9 +42,9 @@ pub fn create_working_tree_patch(
 pub fn preview_patch(
     path: String,
     state: State<'_, AppState>,
-) -> Result<git_engine::PatchPreview, String> {
+) -> Result<git_engine::PatchPreview, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.preview_patch(&path).map_err(|e| e.to_string())
+        repo.preview_patch(&path).map_err(IpcError::from)
     })
 }
 
@@ -52,8 +53,8 @@ pub fn preview_patch(
 /// Used by the frontend to write working-tree patches after the user
 /// chooses a save location via the native dialog.
 #[tauri::command]
-pub fn save_patch_to_file(path: String, content: String) -> Result<(), String> {
-    std::fs::write(&path, content).map_err(|e| e.to_string())
+pub fn save_patch_to_file(path: String, content: String) -> Result<(), IpcError> {
+    std::fs::write(&path, content).map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Apply a patch file to the working tree.
@@ -62,19 +63,26 @@ pub fn save_patch_to_file(path: String, content: String) -> Result<(), String> {
 /// Wraps the work inside a [`MutationGuard`][mutation_events::MutationGuard]
 /// scope so that on success a `project-mutated` event with
 /// [`MutationKind::StagingChange`] is emitted — index/worktree only.
+///
+/// `async`: `git apply` is a subprocess writing across the working tree, so
+/// its cost scales with the size of the patch, not with anything bounded.
 #[tauri::command]
-pub fn apply_patch(
+pub async fn apply_patch(
     path: String,
     three_way: bool,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<String, String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
+) -> Result<String, IpcError> {
+    let repo_path = get_active_project_path(&state)?;
+    with_mutation_guard_async(&state, &app, MutationKind::StagingChange, || async move {
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
             repo.apply_patch_file(&path, three_way)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
+        .await
     })
+    .await
 }
 
 #[cfg(test)]

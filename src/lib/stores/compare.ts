@@ -14,6 +14,7 @@
  * the repo — the view is read-only, so there is no `runMutation`/MutationGuard.
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { get } from "svelte/store";
 import type { CommitInfo, CommitFileChange } from "../types";
 import type { RawDiffContent } from "./graph";
@@ -91,7 +92,7 @@ export async function runCompare(): Promise<void> {
     slice.behindCount.set(behind.length);
   } catch (e) {
     if (requestId !== slice.requestId) return;
-    slice.error.set(e instanceof Error ? e.message : String(e));
+    slice.error.set(getErrorMessage(e));
     slice.files.set([]);
     slice.commits.set([]);
   } finally {
@@ -192,7 +193,7 @@ export async function openCompareFileDiff(path: string): Promise<void> {
     slice.openDiff.set(diff);
   } catch (e) {
     if (requestId !== slice.diffRequestId) return;
-    slice.diffError.set(e instanceof Error ? e.message : String(e));
+    slice.diffError.set(getErrorMessage(e));
   } finally {
     if (requestId === slice.diffRequestId) slice.loadingDiff.set(false);
   }

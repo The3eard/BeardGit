@@ -138,7 +138,7 @@ const AHEAD_BEHIND_CACHE_CAP: usize = 8_192;
 /// the last call skips the `graph_ahead_behind` walk entirely — this command
 /// fires on every `head_changed || refs_changed`, and most refs don't move.
 #[tauri::command]
-pub fn get_branches(state: State<'_, AppState>) -> Result<Vec<git_engine::BranchInfo>, String> {
+pub fn get_branches(state: State<'_, AppState>) -> Result<Vec<git_engine::BranchInfo>, IpcError> {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let active = state.active_index.lock().map_err(|e| e.to_string())?;
     let idx = active.ok_or_else(|| "No active project".to_string())?;
@@ -153,7 +153,7 @@ pub fn get_branches(state: State<'_, AppState>) -> Result<Vec<git_engine::Branch
     if cache.len() > AHEAD_BEHIND_CACHE_CAP {
         cache.clear();
     }
-    repo.branches_cached(&mut cache).map_err(|e| e.to_string())
+    repo.branches_cached(&mut cache).map_err(IpcError::from)
 }
 
 /// Return the last N commits on a specific branch.
@@ -162,38 +162,49 @@ pub fn get_branch_commits(
     branch_name: String,
     limit: u32,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::CommitInfo>, String> {
+) -> Result<Vec<git_engine::CommitInfo>, IpcError> {
     with_active_repo(&state, |repo| {
         repo.branch_commits(&branch_name, limit as usize)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
 /// Return the working-tree and index status for every changed file.
 ///
 /// Used to populate the staging area panel in the UI.
+///
+/// `async` on purpose. Tauri runs a non-async command on the main thread, and
+/// this one is the most expensive read in the app *and* the most frequent: it
+/// fires on every `project-mutated`. Measured on this repo it takes ~27 ms,
+/// and ~99 ms on a tree with 30k untracked files — `status` has to walk
+/// ignored directories to know they are ignored, so the cost tracks the
+/// working tree, not the number of changes. Re-opening the repo inside the
+/// blocking task costs ~0.2 ms, which is the price of not blocking paint.
 #[tauri::command]
-pub fn get_file_statuses(
+pub async fn get_file_statuses(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::FileStatus>, String> {
-    with_active_repo(&state, |repo| {
-        repo.file_statuses().map_err(|e| e.to_string())
+) -> Result<Vec<git_engine::FileStatus>, IpcError> {
+    let repo_path = get_active_project_path(&state)?;
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
+        repo.file_statuses().map_err(IpcError::from)
     })
+    .await
 }
 
 /// Starship-style status summary for the title bar.
 #[tauri::command]
-pub fn get_status_summary(state: State<'_, AppState>) -> Result<git_engine::StatusSummary, String> {
-    with_active_repo(&state, |repo| {
-        repo.status_summary().map_err(|e| e.to_string())
-    })
+pub fn get_status_summary(
+    state: State<'_, AppState>,
+) -> Result<git_engine::StatusSummary, IpcError> {
+    with_active_repo(&state, |repo| repo.status_summary().map_err(IpcError::from))
 }
 
 /// Return [`RepoInfo`] (path + HEAD branch/OID + branch count) for the active
 /// repository. Lets the mutation pipeline refresh `repoInfo` after a HEAD move
 /// (e.g. a checkout to an existing branch) without re-opening the repo.
 #[tauri::command]
-pub fn get_repo_info(state: State<'_, AppState>) -> Result<RepoInfo, String> {
+pub fn get_repo_info(state: State<'_, AppState>) -> Result<RepoInfo, IpcError> {
     with_active_repo(&state, |repo| {
         let status = repo.status().map_err(|e| e.to_string())?;
         Ok(RepoInfo {
@@ -207,16 +218,18 @@ pub fn get_repo_info(state: State<'_, AppState>) -> Result<RepoInfo, String> {
 
 /// List all configured remotes for the active repository.
 #[tauri::command]
-pub fn get_remotes(state: State<'_, AppState>) -> Result<Vec<RemoteInfo>, String> {
+pub fn get_remotes(state: State<'_, AppState>) -> Result<Vec<RemoteInfo>, IpcError> {
     with_active_repo(&state, collect_remotes)
 }
 
 /// Collect `RemoteInfo` for every configured remote of `repo`.
 ///
 /// Extracted so it can be tested without the Tauri `State` plumbing.
-pub(super) fn collect_remotes(repo: &git_engine::Repository) -> Result<Vec<RemoteInfo>, String> {
+pub(super) fn collect_remotes(repo: &git_engine::Repository) -> Result<Vec<RemoteInfo>, IpcError> {
     let git_repo = repo.inner();
-    let remotes = git_repo.remotes().map_err(|e| e.to_string())?;
+    let remotes = git_repo
+        .remotes()
+        .map_err(|e| IpcError::new("git", e.to_string()))?;
     let mut result = Vec::new();
     for name in remotes.iter().flatten() {
         let url = git_repo

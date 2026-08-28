@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use mutation_events::{MutationGuard, MutationKind};
 use tauri::{AppHandle, State};
 
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 // ─── Serializable response types ────────────────────────────────────────────
@@ -90,35 +91,94 @@ pub struct RemoteInfo {
 /// Execute a function with a reference to the active project's repository.
 ///
 /// Locks `projects` and `active_index`, resolves the active [`ProjectSlot`],
-/// and calls `f` with the loaded [`git_engine::Repository`]. Returns an error
-/// string if no project is active, the index is out of bounds, or no repository
-/// is loaded in the slot.
-pub(super) fn with_active_repo<F, R>(state: &State<'_, AppState>, f: F) -> Result<R, String>
+/// and calls `f` with the loaded [`git_engine::Repository`]. Errors when no
+/// project is active, the index is out of bounds, or no repository is loaded
+/// in the slot.
+///
+/// Generic over the error type rather than fixed to `String`, so a command
+/// returning [`IpcError`](crate::ipc_error::IpcError) can use this as its
+/// tail expression without a conversion at every callsite. The bound is
+/// `From<IpcError>` rather than `From<String>` so the "no active project"
+/// family can be raised as [`IpcError::expected`] — those are routine, not
+/// failures, and routing them through the logging constructor turned every
+/// read command dispatched against a background tab into an ERROR line.
+/// Closures passed here must therefore work in `IpcError`. They used to be
+/// able to work in `String`, via an `impl From<IpcError> for String` that no
+/// longer exists — it was silently flattening git error codes, see the note
+/// where it used to live in `ipc_error.rs`.
+pub(super) fn with_active_repo<F, R, E>(state: &State<'_, AppState>, f: F) -> Result<R, E>
 where
-    F: FnOnce(&git_engine::Repository) -> Result<R, String>,
+    F: FnOnce(&git_engine::Repository) -> Result<R, E>,
+    E: From<IpcError>,
 {
-    let projects = state.projects.lock().map_err(|e| e.to_string())?;
-    let active = state.active_index.lock().map_err(|e| e.to_string())?;
-    let idx = active.ok_or_else(|| "No active project".to_string())?;
-    let slot = projects
-        .get(idx)
-        .ok_or_else(|| "Active project index out of bounds".to_string())?;
-    let repo = slot
-        .repo
-        .as_ref()
-        .ok_or_else(|| "No repository open".to_string())?;
+    // Holds `projects` and `active_index` together — the reference case for
+    // the lock order documented on `AppState`. Anything acquiring more than
+    // one of its mutexes follows that order.
+    //
+    // A poisoned mutex is a real failure and logs like one.
+    let projects = state
+        .projects
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?;
+    let active = state
+        .active_index
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?;
+    let idx = active.ok_or_else(no_active_project)?;
+    let slot = projects.get(idx).ok_or_else(index_out_of_bounds)?;
+    // Debug-only: a command running against a background tab (heavy state
+    // is `None` there) is the shape behind most "nothing happened" reports,
+    // and the resolved index tells you which tab it actually hit. It is
+    // also *routine* — see `no_active_project`.
+    let repo = slot.repo.as_ref().ok_or_else(|| {
+        tracing::debug!(
+            index = idx,
+            "with_active_repo: slot has no repository loaded"
+        );
+        IpcError::expected("no_repository_open", "No repository open")
+    })?;
+    tracing::debug!(index = idx, path = %slot.path, "with_active_repo: resolved");
     f(repo)
 }
 
+/// The "there is nothing to act on" message, logged at DEBUG rather than
+/// ERROR.
+///
+/// Every view issues its reads on mount, and a background tab has no
+/// repository loaded by the active-tab invariant, so this fires constantly
+/// in normal use. It is the one failure in the IPC surface that says
+/// nothing went wrong.
+fn no_active_project() -> IpcError {
+    tracing::debug!("no active project");
+    IpcError::expected("no_active_project", "No active project")
+}
+
 /// Get the filesystem path of the active project.
-pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<PathBuf, String> {
-    let projects = state.projects.lock().map_err(|e| e.to_string())?;
-    let active = state.active_index.lock().map_err(|e| e.to_string())?;
-    let idx = active.ok_or_else(|| "No active project".to_string())?;
-    let slot = projects
-        .get(idx)
-        .ok_or_else(|| "Active project index out of bounds".to_string())?;
+///
+/// Returns [`IpcError`] rather than `String` so "no active project" keeps
+/// its code and its DEBUG-only logging all the way out. Returning a bare
+/// message meant the caller's `?` re-wrapped it through the logging
+/// constructor, so the quiet path was quiet for exactly as long as nobody
+/// used it.
+pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<PathBuf, IpcError> {
+    let projects = state
+        .projects
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?;
+    let active = state
+        .active_index
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?;
+    let idx = active.ok_or_else(no_active_project)?;
+    let slot = projects.get(idx).ok_or_else(index_out_of_bounds)?;
     Ok(PathBuf::from(&slot.path))
+}
+
+/// `active_index` pointing past `projects` is state corruption, not a
+/// routine condition — the one arm in this family that does mean something
+/// went wrong. It logs, and it does not borrow `no_active_project`'s code.
+fn index_out_of_bounds() -> IpcError {
+    IpcError::new("error", "Active project index out of bounds")
 }
 
 /// Run `f` inside a [`MutationGuard`] scope, emitting `project-mutated`
@@ -130,14 +190,15 @@ pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<Pat
 /// `f`, re-snapshots afterward, and only emits when the closure returned
 /// `Ok`. Emit failures are logged via `tracing::warn!` but do not
 /// clobber the original success value returned from `f`.
-pub(super) fn with_mutation_guard<F, R>(
+pub(super) fn with_mutation_guard<F, R, E>(
     state: &State<'_, AppState>,
     app: &AppHandle,
     kind: MutationKind,
     f: F,
-) -> Result<R, String>
+) -> Result<R, E>
 where
-    F: FnOnce() -> Result<R, String>,
+    F: FnOnce() -> Result<R, E>,
+    E: From<IpcError>,
 {
     let path = get_active_project_path(state)?;
     let guard = MutationGuard::enter(&path).ok();
@@ -163,7 +224,7 @@ pub(super) async fn with_mutation_guard_async<F, Fut, R, E>(
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<R, E>>,
-    E: From<String>,
+    E: From<IpcError>,
 {
     let path = get_active_project_path(state)?;
     let guard = MutationGuard::enter(&path).ok();
@@ -177,13 +238,40 @@ where
     result
 }
 
-/// Run a blocking closure on a dedicated thread and map errors to `String`.
-pub(super) async fn run_blocking<T, F>(f: F) -> Result<T, String>
+/// Run a blocking closure on a dedicated thread, propagating its error type.
+///
+/// **Prefer this over a bare `tokio::task::spawn_blocking` in a command.**
+/// The current span is carried across the thread boundary. Tracing's
+/// current span is thread-local and `spawn_blocking` moves the closure to
+/// a pool thread, so without this the `#[instrument(name = "cmd::…")]`
+/// span is lost and any error logged from inside `f` has no indication of
+/// which command produced it.
+///
+/// That is not theoretical. Once `IpcError` construction moved *into* those
+/// closures — which is what stops the error code being flattened — the
+/// `tracing::error!` inside `IpcError::new` started firing on a pool
+/// thread, and 14 commands began logging `ipc command failed` with no
+/// `cmd::…` to attribute it to. Routing them through here fixes both at
+/// once.
+/// The `From<String>` bound is wide enough for both kinds of caller: a
+/// closure already working in `IpcError` satisfies it through
+/// `From<String> for IpcError`, and the ~30 commands whose closures still
+/// yield `String` keep compiling untouched. Narrowing it to
+/// `From<IpcError>` breaks every one of the latter, so don't.
+///
+/// The cost of that width: a panicked task becomes the generic `error`
+/// rather than something like `internal`. Fixing that means migrating those
+/// ~30 closures off `String` first, so it is left alone here — and it is
+/// the same code the ~30 sites that hand-roll
+/// `IpcError::new("internal", …)` for their own JoinError would unify on.
+pub(super) async fn run_blocking<T, F, E>(f: F) -> Result<T, E>
 where
     T: Send + 'static,
-    F: FnOnce() -> Result<T, String> + Send + 'static,
+    E: Send + 'static + From<String>,
+    F: FnOnce() -> Result<T, E> + Send + 'static,
 {
-    tokio::task::spawn_blocking(f)
+    let span = tracing::Span::current();
+    tokio::task::spawn_blocking(move || span.in_scope(f))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -535,7 +623,12 @@ pub(super) fn build_forge_provider_for_index(
             .kind
     };
 
-    let cwd = get_active_project_path(state).unwrap_or_default();
+    // Discarded on purpose: the forge provider works without a project
+    // path (it falls back to the empty path), so "no active project" is not
+    // a failure here. `ok()` rather than `unwrap_or_default()` on the
+    // Result so it is obvious the error is being dropped rather than
+    // defaulted past.
+    let cwd = get_active_project_path(state).ok().unwrap_or_default();
 
     // Cache hit?
     if let Ok(cache) = state.forge_provider_cache.lock()

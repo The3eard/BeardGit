@@ -6,6 +6,7 @@
  * the user can switch between "blame" and "history" tabs.
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { writable } from 'svelte/store';
 import { blameFile, fileHistory } from '$lib/api/tauri';
 import type { BlameLine, FileHistoryEntry } from '$lib/types';
@@ -49,7 +50,7 @@ export async function loadBlame(path: string, oid?: string): Promise<void> {
     const lines = await blameFile(path, oid);
     blameLines.set(lines);
   } catch (e) {
-    blameError.set(String(e));
+    blameError.set(getErrorMessage(e));
     blameLines.set([]);
   } finally {
     blameLoading.set(false);

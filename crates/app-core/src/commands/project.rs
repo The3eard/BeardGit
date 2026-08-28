@@ -79,6 +79,7 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
 
     // Check if already open
     if let Some(existing) = projects.iter().find(|p| p.path == path) {
+        tracing::debug!(path = %path, "open_project: tab already open, reusing");
         return Ok(ProjectInfo {
             path: existing.path.clone(),
             name: existing.name.clone(),
@@ -116,9 +117,18 @@ pub fn open_project(path: String, state: State<'_, AppState>) -> Result<ProjectI
     };
 
     projects.push(slot);
+    let tab_count = projects.len();
     // Release the `projects` lock before taking `config` — AppState's
     // one-mutex-at-a-time invariant (see CLAUDE.md) forbids holding two.
     drop(projects);
+
+    tracing::info!(
+        path = %path,
+        tab_count,
+        change_count,
+        is_worktree,
+        "project opened"
+    );
 
     // Persist to config
     {
@@ -209,7 +219,7 @@ pub(super) fn adjust_active_after_move(
 /// - `to` – Destination zero-based index.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::project::reorder")]
-pub fn reorder_project(from: usize, to: usize, state: State<'_, AppState>) -> Result<(), String> {
+pub fn reorder_project(from: usize, to: usize, state: State<'_, AppState>) -> Result<(), IpcError> {
     if from == to {
         return Ok(());
     }
@@ -218,7 +228,7 @@ pub fn reorder_project(from: usize, to: usize, state: State<'_, AppState>) -> Re
     {
         let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
         if from >= projects.len() || to >= projects.len() {
-            return Err("Project index out of bounds".to_string());
+            return Err(IpcError::from("Project index out of bounds"));
         }
         let slot = projects.remove(from);
         projects.insert(to, slot);
@@ -254,7 +264,7 @@ pub fn reorder_project(from: usize, to: usize, state: State<'_, AppState>) -> Re
 /// - `index` – Zero-based index of the tab to close.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::project::close")]
-pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), String> {
+pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), IpcError> {
     // Each AppState mutex is taken in its own scope so that no two are ever
     // held simultaneously — the `with_active_repo` chain is the only reason
     // the lock ordering elsewhere is deadlock-safe, and any divergence here
@@ -264,11 +274,17 @@ pub fn close_project(index: usize, state: State<'_, AppState>) -> Result<(), Str
     let (closed_path, prior_len) = {
         let mut projects = state.projects.lock().map_err(|e| e.to_string())?;
         if index >= projects.len() {
-            return Err("Project index out of bounds".to_string());
+            return Err(IpcError::from("Project index out of bounds"));
         }
         let closed_path = projects[index].path.clone();
         let prior_len = projects.len();
         projects.remove(index);
+        tracing::info!(
+            path = %closed_path,
+            index,
+            tab_count = projects.len(),
+            "project closed"
+        );
         (closed_path, prior_len)
     };
 
@@ -311,7 +327,7 @@ pub async fn switch_project(
     index: usize,
     state: State<'_, AppState>,
     app_handle: AppHandle,
-) -> Result<RepoInfo, String> {
+) -> Result<RepoInfo, IpcError> {
     // 1. Read the previous active index. We DON'T unload it yet — unloading
     //    before the target finishes loading would strand the previous tab with
     //    `repo = None` if the load fails (active_index would still point at it).
@@ -361,6 +377,8 @@ pub async fn switch_project(
             tracing::warn!(?err, path = %path, "repo watcher failed to start — real-time refresh disabled for this repo");
         })
         .ok();
+    // Captured before `new_watcher` is moved into the slot below.
+    let watcher_started = new_watcher.is_some();
 
     let change_count = repo.file_statuses().map(|s| s.len()).unwrap_or(0);
 
@@ -398,6 +416,16 @@ pub async fn switch_project(
         let mut active = state.active_index.lock().map_err(|e| e.to_string())?;
         *active = Some(index);
     }
+
+    // Heavy state (`repo`, `layout`, `watcher`) is only ever loaded for the
+    // active tab, so this line marks exactly where that moved.
+    tracing::info!(
+        index,
+        path = %path,
+        change_count,
+        watcher_started = watcher_started,
+        "active project switched"
+    );
     state.store_layout_ref_snapshot(&path, ref_snap);
 
     // 6. Persist active index
@@ -420,7 +448,7 @@ pub async fn switch_project(
 
 /// Return lightweight metadata for all open tabs.
 #[tauri::command]
-pub fn get_open_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, String> {
+pub fn get_open_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, IpcError> {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     Ok(projects
         .iter()
@@ -436,7 +464,7 @@ pub fn get_open_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>,
 
 /// Return the index of the currently active project.
 #[tauri::command]
-pub fn get_active_project_index(state: State<'_, AppState>) -> Result<Option<usize>, String> {
+pub fn get_active_project_index(state: State<'_, AppState>) -> Result<Option<usize>, IpcError> {
     Ok(*state.active_index.lock().map_err(|e| e.to_string())?)
 }
 
@@ -449,7 +477,7 @@ pub fn get_active_project_index(state: State<'_, AppState>) -> Result<Option<usi
 /// # Returns
 /// A [`Vec<ProjectInfo>`] of all successfully restored projects.
 #[tauri::command]
-pub fn restore_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, String> {
+pub fn restore_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, IpcError> {
     // Extract the paths from config then drop the lock immediately.
     let paths = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
@@ -530,7 +558,7 @@ pub fn restore_projects(state: State<'_, AppState>) -> Result<Vec<ProjectInfo>, 
 
 /// Return recent repos filtered to exclude already-open paths.
 #[tauri::command]
-pub fn get_recent_repos(state: State<'_, AppState>) -> Result<Vec<RecentRepo>, String> {
+pub fn get_recent_repos(state: State<'_, AppState>) -> Result<Vec<RecentRepo>, IpcError> {
     // Snapshot the open paths under the `projects` lock, drop it, then take
     // `config` separately. Holding both locks at once would break the no-two-
     // locks-simultaneously invariant that the rest of `app-core` relies on.

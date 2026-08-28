@@ -137,7 +137,14 @@
             <Button
               variant="primary"
               size="sm"
-              onclick={(e: MouseEvent) => { e.stopPropagation(); doPushTag(item.name, "origin"); }}
+              onclick={async (e: MouseEvent) => {
+                e.stopPropagation();
+                try {
+                  await doPushTag(item.name, "origin");
+                } catch {
+                  // runMutation already surfaced the failure toast.
+                }
+              }}
             >{m.tags_action_push()}</Button>
             <Button
               variant="danger"
@@ -159,7 +166,17 @@
         </Button>
       {/if}
 
-      <Button variant="primary" size="sm" onclick={() => doPushTag(null, "origin")}>
+      <Button
+        variant="primary"
+        size="sm"
+        onclick={async () => {
+          try {
+            await doPushTag(null, "origin");
+          } catch {
+            // runMutation already surfaced the failure toast.
+          }
+        }}
+      >
         {m.tags_push_all_button()}
       </Button>
     </div>

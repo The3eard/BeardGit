@@ -6,6 +6,7 @@
   flags (draft, prerelease, generate_notes) are hidden for GitLab.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import { Checkbox } from "$lib/components/ui";
@@ -101,7 +102,7 @@
       }
       onClose();
     } catch (e) {
-      errorMsg = String(e);
+      errorMsg = getErrorMessage(e);
     } finally {
       submitting = false;
     }
@@ -235,6 +236,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 100;
     border: none;
@@ -294,7 +296,7 @@
     width: 100%;
     padding: 6px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: var(--font-size-md);

@@ -49,8 +49,9 @@
         return "\uE725"; // nf-dev-git_branch
       case "app_update":
         return "\uF019"; // fa-download
+      case "background":
+        return "\uF085"; // fa-cogs — user-started work with no closer category
       case "ai_background":
-      case "ai_interactive":
       case "ai_headless":
       default:
         // fa-lightbulb-o — same glyph the Changes toolbar uses for
@@ -76,9 +77,7 @@
 
   function isAiKind(kind: TaskKind): boolean {
     return (
-      kind === "ai_background" ||
-      kind === "ai_interactive" ||
-      kind === "ai_headless"
+      kind === "ai_background" || kind === "ai_headless"
     );
   }
 
@@ -94,8 +93,6 @@
     switch (entry.kind) {
       case "ai_background":
         return m.tasks_kind_ai_background();
-      case "ai_interactive":
-        return m.tasks_kind_ai_interactive();
       case "ai_headless":
         return m.tasks_kind_ai_headless();
       case "git_fetch":
@@ -108,6 +105,8 @@
         return m.tasks_kind_git_clone();
       case "app_update":
         return m.tasks_kind_app_update();
+      case "background":
+        return m.tasks_kind_background();
     }
   });
 </script>

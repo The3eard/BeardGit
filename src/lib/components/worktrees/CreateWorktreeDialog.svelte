@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import { addWorktree } from "../../stores/worktrees";
   import * as m from "$lib/paraglide/messages";
@@ -43,7 +44,7 @@
       await addWorktree(effectivePath.trim(), branch.trim(), createNewBranch);
       onClose();
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       submitting = false;
     }
@@ -148,7 +149,7 @@
     width: 100%;
     padding: 6px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);

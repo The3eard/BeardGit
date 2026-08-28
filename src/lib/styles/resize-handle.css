@@ -1,0 +1,125 @@
+/**
+ * The vertical resize handle between a list column and its content pane.
+ *
+ * One definition, because there were four. Changes, the file editor, the
+ * diff's inner split and the AI config panel each drew this divider their
+ * own way, and side by side the differences showed:
+ *
+ *   - Changes hovered to `--overlay-accent-blue`: the theme's accent at
+ *     **10%** (`theme.ts` derives it per theme; the value in `app.css` is
+ *     only the pre-theme fallback). That token is for selected-row
+ *     backgrounds, where a whisper is right. On a 4px strip it is so faint
+ *     it reads as grime rather than as a highlight.
+ *   - The file editor hovered to `--accent-primary` at **full strength** — a
+ *     solid blue bar, the opposite problem.
+ *   - The diff's handle used the accent at **35%**, the only one of the three
+ *     that looked deliberate.
+ *   - AI config had no handle at all and could not be resized.
+ *
+ * So there is now one hover intensity, near the diff's 35%, mixed from
+ * `--accent-primary` here rather than borrowing a token scaled for another
+ * job. And one drag state, which every handle needs: by the time a pane has
+ * moved the pointer is usually off the 4px strip, so hover alone leaves the
+ * divider unlit mid-drag.
+ *
+ * ── On geometry, deliberately left alone ──────────────────────────────────
+ *
+ * The 1px separator line sits on different elements in different views: on
+ * the sidebar's `border-right` under SplitView, on the handle's
+ * `border-left` in Changes. Tidying that up is a one-line change and it was
+ * tried; `app.css` sets `box-sizing: border-box` globally, so moving the
+ * border off a sidebar of `width: N` widens its content box by 1px and
+ * shifts what is inside it. That moved 40 of the 98 visual baselines for a
+ * difference nobody can see — both arrangements render as a 1px line with a
+ * grab strip beside it, differing only in whether that strip is 3px or 4px.
+ *
+ * Colour was the visible defect; position was not. Use `--bordered` where
+ * the handle owns the line, plain where the sidebar does.
+ */
+
+.resize-handle {
+  flex-shrink: 0;
+  width: 4px;
+  /* No colour, and no space in the layout: each split positions this
+     absolutely over the seam (see SplitView). A handle laid out *in* the
+     row is a band between the panes, and a band has to be some colour —
+     and none is right, because the neighbouring surface differs per view.
+     `transparent` showed whichever ancestor was behind it; painting it
+     `--bg-secondary` matched AI config's column and clashed in the Editor,
+     whose tree is lighter. Out of flow, the panels meet at the sidebar's
+     own 1px border and this floats over it. */
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+/*
+ * Hover and drag draw a solid line down the middle, not a wash over the
+ * whole strip.
+ *
+ * A translucent background was the obvious choice and it broke on the
+ * seam: the strip straddles two panels, so the tint composited over one
+ * surface on its left half and a different one on its right, and wherever
+ * the left panel changed colour — a sticky section header in the AI
+ * sessions list — the highlight visibly stepped. A solid 2px rule is the
+ * same colour whatever it crosses.
+ */
+.resize-handle:hover,
+.resize-handle:focus-visible,
+.resize-handle.is-dragging {
+  outline: none;
+}
+
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent-primary);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.resize-handle:hover::after,
+.resize-handle:focus-visible::after {
+  opacity: 0.55;
+}
+
+/* Full strength while dragging: by then the pointer is usually off the
+   strip, so hover alone would leave it unlit mid-drag. */
+.resize-handle.is-dragging::after {
+  opacity: 1;
+}
+
+/**
+ * Kept as a no-op so the Changes markup does not need editing: the handle
+ * no longer draws the separator line under any variant, because it no
+ * longer occupies the space the line would sit in. The panel's own border
+ * is the line now, in every view.
+ */
+.resize-handle--bordered {
+  /* intentionally empty */
+}
+
+/**
+ * Overlay variant: positioned over content rather than laid out between two
+ * panes — the diff's inner split, which floats above CodeMirror at an
+ * absolute offset. Wider, since it has no adjacent padding to borrow from,
+ * and never bordered: the two editors already have a gutter between them,
+ * and a second line beside it reads as a mistake.
+ */
+.resize-handle--overlay {
+  width: 7px;
+  /* No negative margin here: this variant is already `position: absolute`
+     in its own component, so it never took part in a flex row. */
+  margin-left: 0;
+}
+
+.resize-handle--overlay:hover,
+.resize-handle--overlay:focus-visible {
+  background: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}

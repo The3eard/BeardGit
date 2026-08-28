@@ -22,9 +22,9 @@ pub async fn cherry_pick(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::CherryPick, || async move {
-        tokio::task::spawn_blocking(move || {
+        run_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
             let result = repo.cherry_pick(&oid).map_err(IpcError::from)?;
             if result.success {
@@ -34,7 +34,6 @@ pub async fn cherry_pick(
             }
         })
         .await
-        .map_err(|e| IpcError::new("internal", e.to_string()))?
     })
     .await
 }
@@ -53,7 +52,7 @@ pub async fn revert_commit(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::Revert, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -87,7 +86,7 @@ pub async fn reset_to_commit(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    let repo_path = get_active_project_path(&state).map_err(|e| IpcError::new("internal", e))?;
+    let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::Reset, || async move {
         tokio::task::spawn_blocking(move || {
             let repo = git_engine::Repository::open(repo_path).map_err(IpcError::from)?;
@@ -109,15 +108,14 @@ pub async fn blame_file(
     path: String,
     oid: Option<String>,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::BlameLine>, String> {
+) -> Result<Vec<git_engine::BlameLine>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
         repo.blame_file(&path, oid.as_deref())
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Get the commit history for a specific file with rename tracking.
@@ -130,14 +128,13 @@ pub async fn file_history(
     path: String,
     limit: Option<u32>,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::FileHistoryEntry>, String> {
+) -> Result<Vec<git_engine::FileHistoryEntry>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.file_history(&path, limit).map_err(|e| e.to_string())
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
+        repo.file_history(&path, limit).map_err(IpcError::from)
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Get the commits between `base_oid` (exclusive) and HEAD in rebase order.
@@ -148,15 +145,13 @@ pub async fn file_history(
 pub async fn get_rebase_commits(
     base_oid: String,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::RebaseCommit>, String> {
+) -> Result<Vec<git_engine::RebaseCommit>, IpcError> {
     let repo_path = get_active_project_path(&state)?;
-    tokio::task::spawn_blocking(move || {
-        let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.get_rebase_commits(&base_oid)
-            .map_err(|e| e.to_string())
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
+        repo.get_rebase_commits(&base_oid).map_err(IpcError::from)
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Start an interactive rebase with pre-defined actions.
@@ -171,16 +166,15 @@ pub async fn start_interactive_rebase(
     actions: Vec<git_engine::RebaseAction>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     let repo_path = get_active_project_path(&state)?;
     with_mutation_guard_async(&state, &app, MutationKind::Rebase, || async move {
-        tokio::task::spawn_blocking(move || {
-            let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
+        run_blocking(move || {
+            let repo = git_engine::Repository::open(repo_path)?;
             repo.start_interactive_rebase(&base_oid, &actions)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
         .await
-        .map_err(|e| e.to_string())?
     })
     .await
 }
@@ -203,9 +197,10 @@ pub async fn start_interactive_rebase(
 /// the UI copy doesn't use it yet but tests assert on it).
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::advanced::clear_layout_cache")]
-pub async fn clear_layout_cache(state: State<'_, AppState>) -> Result<u32, String> {
+pub async fn clear_layout_cache(state: State<'_, AppState>) -> Result<u32, IpcError> {
     let dir = state.config_dir.join("layouts");
-    tokio::task::spawn_blocking(move || {
+    run_blocking(move || {
+        let io = |e: std::io::Error| IpcError::new("io_error", e.to_string());
         let mut removed: u32 = 0;
         match std::fs::read_dir(&dir) {
             Ok(entries) => {
@@ -214,18 +209,17 @@ pub async fn clear_layout_cache(state: State<'_, AppState>) -> Result<u32, Strin
                     if path.is_file() {
                         match std::fs::remove_file(&path) {
                             Ok(()) => removed = removed.saturating_add(1),
-                            Err(e) => return Err(e.to_string()),
+                            Err(e) => return Err(io(e)),
                         }
                     }
                 }
                 Ok(removed)
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(0),
-            Err(e) => Err(e.to_string()),
+            Err(e) => Err(io(e)),
         }
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]
@@ -247,21 +241,22 @@ mod tests {
     /// Re-implements the body of `clear_layout_cache` so the test can
     /// exercise it without a Tauri runtime. Any change to the real
     /// command MUST mirror here or the tests stop being load-bearing.
-    fn clear_layouts_in(dir: &std::path::Path) -> Result<u32, String> {
+    fn clear_layouts_in(dir: &std::path::Path) -> Result<u32, crate::ipc_error::IpcError> {
+        let io = |e: std::io::Error| crate::ipc_error::IpcError::new("io_error", e.to_string());
         match fs::read_dir(dir) {
             Ok(entries) => {
                 let mut removed: u32 = 0;
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if path.is_file() {
-                        fs::remove_file(&path).map_err(|e| e.to_string())?;
+                        fs::remove_file(&path).map_err(io)?;
                         removed = removed.saturating_add(1);
                     }
                 }
                 Ok(removed)
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(0),
-            Err(e) => Err(e.to_string()),
+            Err(e) => Err(io(e)),
         }
     }
 

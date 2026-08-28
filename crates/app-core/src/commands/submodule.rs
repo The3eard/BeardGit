@@ -3,20 +3,21 @@
 use std::sync::Arc;
 
 use mutation_events::MutationKind;
-use task_runner::{TaskId, TaskManager};
+use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List all submodules in the active repository.
 #[tauri::command]
 pub fn list_submodules(
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::SubmoduleInfo>, String> {
+) -> Result<Vec<git_engine::SubmoduleInfo>, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.list_submodules().map_err(|e| e.to_string())
+        repo.list_submodules().map_err(IpcError::from)
     })
 }
 
@@ -27,10 +28,10 @@ pub fn init_submodule(
     path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.init_submodule(&path).map_err(|e| e.to_string())
+            repo.init_submodule(&path).map_err(IpcError::from)
         })
     })
 }
@@ -43,33 +44,55 @@ pub fn deinit_submodule(
     force: bool,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.deinit_submodule(&path, force)
-                .map_err(|e| e.to_string())
+            repo.deinit_submodule(&path, force).map_err(IpcError::from)
         })
     })
 }
 
-/// Add a new submodule to the repository.
+/// Add a new submodule to the repository, as a background task.
+///
+/// `git submodule add` **clones** the submodule, so this can run for as long
+/// as the remote takes. It used to be a non-async command, which Tauri runs on
+/// the main thread — the same freeze `clone_repo` had before it moved to the
+/// task manager, and the last one left.
+///
+/// No mutation guard: the task outlives the command, so a guard here would
+/// diff and emit before the clone had done anything. `.gitmodules` and the
+/// submodule's working tree land inside the repo, so the watcher observes them
+/// and emits `project-mutated` with `status_changed`, which `mutations.ts`
+/// already maps to `refreshSubmodules`. That is the pattern
+/// `commands/remote.rs` uses for push / pull / fetch.
 ///
 /// # Parameters
 /// - `url` – Remote URL of the submodule repository.
 /// - `path` – Relative path where the submodule will be placed.
 #[tauri::command]
-#[instrument(skip(state, app), name = "cmd::submodule::add")]
-pub fn add_submodule(
+// `url` can embed credentials — log only the destination path.
+#[instrument(skip_all, fields(path = %path), name = "cmd::submodule::add")]
+pub async fn add_submodule(
     url: String,
     path: String,
     state: State<'_, AppState>,
-    app: AppHandle,
-) -> Result<(), String> {
-    with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
-        with_active_repo(&state, |repo| {
-            repo.add_submodule(&url, &path).map_err(|e| e.to_string())
+    task_manager: State<'_, Arc<TaskManager>>,
+) -> Result<TaskId, IpcError> {
+    let cwd = get_active_project_path(&state)?;
+
+    let id = task_manager
+        .spawn_with_options(SpawnOptions {
+            label: format!("Add submodule: {path}"),
+            command: "git",
+            args: &["submodule", "add", "--", &url, &path],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
         })
-    })
+        .await;
+
+    Ok(id)
 }
 
 /// Remove a submodule completely (deinit + rm).
@@ -82,10 +105,10 @@ pub fn remove_submodule(
     path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.remove_submodule(&path).map_err(|e| e.to_string())
+            repo.remove_submodule(&path).map_err(IpcError::from)
         })
     })
 }
@@ -95,10 +118,10 @@ pub fn remove_submodule(
 pub fn submodule_abs_path(
     submodule_path: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     with_active_repo(&state, |repo| {
         repo.submodule_abs_path(&submodule_path)
-            .map_err(|e| e.to_string())
+            .map_err(IpcError::from)
     })
 }
 
@@ -109,18 +132,23 @@ pub async fn update_submodule(
     path: String,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
-    let label = format!("Submodule update: {path}");
+    // Explicit `Background` kind, not the bare `spawn`: that one tags
+    // `Generic`, which `should_emit` drops, so a submodule update — which
+    // clones over the network and can run for minutes — produced no row in
+    // the drawer and no spinner anywhere.
     let id = task_manager
-        .spawn(
-            label,
-            "git",
-            &["submodule", "update", "--init", "--recursive", "--", &path],
-            &cwd,
-            true,
-        )
+        .spawn_with_options(SpawnOptions {
+            label: format!("Submodule update: {path}"),
+            command: "git",
+            args: &["submodule", "update", "--init", "--recursive", "--", &path],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
+        })
         .await;
 
     Ok(id)
@@ -132,18 +160,19 @@ pub async fn update_submodule(
 pub async fn update_all_submodules(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
-) -> Result<TaskId, String> {
+) -> Result<TaskId, IpcError> {
     let cwd = get_active_project_path(&state)?;
 
-    let label = "Submodule update: all".to_string();
     let id = task_manager
-        .spawn(
-            label,
-            "git",
-            &["submodule", "update", "--init", "--recursive"],
-            &cwd,
-            true,
-        )
+        .spawn_with_options(SpawnOptions {
+            label: "Submodule update: all".to_string(),
+            command: "git",
+            args: &["submodule", "update", "--init", "--recursive"],
+            cwd: &cwd,
+            cancellable: true,
+            kind: TaskKind::Background,
+            stdin: None,
+        })
         .await;
 
     Ok(id)
