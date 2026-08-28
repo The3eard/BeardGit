@@ -109,7 +109,7 @@ Edit repo files without leaving BeardGit. CodeMirror 6 with per-language snippet
 
 - **Multi-repo tabs.** Heavy state (repo, layout, watcher) loads only for the active tab. A dozen open repos cost the same as one. `⌘1…⌘9` jumps between them.
 - **Real terminals.** xterm.js + WebGL fed by a native Rust PTY. OSC 7 auto-links a terminal to the matching project tab. Foreground process polling detects when `claude` / `codex` / `opencode` start and updates the tab on the fly.
-- **Themes and i18n.** Light, dark, and custom JSON themes — every accent flows from CSS tokens, including the graph. English and Spanish ship via [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs); adding a locale is a JSON file.
+- **Themes and i18n.** 31 built-in themes, light and dark, plus your own as a TOML file — every accent flows from CSS tokens, including the graph. All three text rungs of every bundled theme clear WCAG AA, enforced by a test; a theme you write yourself is measured and reported, never rewritten. English and Spanish ship via [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs); adding a locale is a JSON file.
 - **A sidebar that's yours.** Reorder navigation items, hide what you don't use, reset to the default. Layout persists app-wide.
 - **Auto-update.** Tauri updater on the stable channel with diagnostics for endpoint and last-check timestamp — so you can tell a 404 apart from a DNS hiccup without leaving the app.
 - **Local-only logs.** `tracing` with daily rotation and 7-day auto-purge to a per-platform path. The log path is included in the in-app error dialog; sharing a file is your call, never the app's.
