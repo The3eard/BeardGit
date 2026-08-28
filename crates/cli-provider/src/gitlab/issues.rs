@@ -66,17 +66,20 @@ impl GitLabCli {
         // said none, which reads as "nobody replied" rather than "could not
         // load the replies".
         let mut summary = summary;
-        let comments = match comments {
+        let (comments, comments_unavailable) = match comments {
             Some(fetched) => {
                 summary.comments_count = fetched.len() as u64;
-                fetched
+                (fetched, false)
             }
-            None => Vec::new(),
+            // Keep the count and say the list is missing, so the UI can tell
+            // "could not load these" from "there are none".
+            None => (Vec::new(), true),
         };
         Ok(IssueDetail {
             summary,
             body,
             comments,
+            comments_unavailable,
         })
     }
 
@@ -462,6 +465,11 @@ esac
                 detail.summary.comments_count, 5,
                 "but the count glab already gave us has to survive"
             );
+            assert!(
+                detail.comments_unavailable,
+                "and the UI has to be told why the list is empty, or it hides \
+                 the section and silently disagrees with that count"
+            );
         }
 
         #[test]
@@ -473,6 +481,10 @@ esac
             assert_eq!(
                 detail.summary.comments_count, 0,
                 "a fetch that worked and returned nothing means zero"
+            );
+            assert!(
+                !detail.comments_unavailable,
+                "nothing was unavailable — there are genuinely no comments"
             );
         }
     }

@@ -746,6 +746,7 @@
   "issues_milestone_label": "Hito",
   "issues_no_milestone": "Sin hito",
   "issues_comments": "Comentarios ({count})",
+  "issues_comments_unavailable": "No se pudieron cargar los comentarios: puede que al token le falte el permiso necesario.",
   "issues_comment_placeholder": "Escribe un comentario...",
   "issues_add_comment": "Añadir comentario",
   "issues_open_browser": "Abrir en el navegador",

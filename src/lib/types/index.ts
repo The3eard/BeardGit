@@ -977,6 +977,12 @@ export interface IssueDetail {
   body: string;
   /** Reuses the existing ForgeComment shape — structurally identical. */
   comments: ForgeComment[];
+  /**
+   * `true` when the comments could not be fetched, so `comments` being empty
+   * is not a statement about the issue. GitLab-only: `glab` fetches notes in
+   * a separate call that can fail on its own. See the Rust `IssueDetail`.
+   */
+  comments_unavailable: boolean;
 }
 
 /** Filter for [`listIssues`]. */
