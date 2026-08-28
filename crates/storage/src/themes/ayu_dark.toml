@@ -1,0 +1,34 @@
+# Ayu Dark.
+# ANSI palette from mbadolato/iTerm2-Color-Schemes (alacritty), the
+# canonical 16-colour rendering of the upstream palette.
+
+[meta]
+id = "ayu-dark"
+name = "Ayu Dark"
+mode = "dark"
+complementary = "ayu-light"
+
+[colors]
+background = "#0b0e14"
+foreground = "#bfbdb6"
+black = "#11151c"
+red = "#ea6c73"
+green = "#7fd962"
+yellow = "#f9af4f"
+blue = "#53bdfa"
+magenta = "#cda1fa"
+cyan = "#90e1c6"
+white = "#c7c7c7"
+bright-black = "#686868"
+bright-red = "#f07178"
+bright-green = "#aad94c"
+bright-yellow = "#ffb454"
+bright-blue = "#59c2ff"
+bright-magenta = "#d2a6ff"
+bright-cyan = "#95e6cb"
+bright-white = "#ffffff"
+
+[accents]
+primary = "yellow"
+secondary = "blue"
+tertiary = "green"

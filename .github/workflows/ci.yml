@@ -32,6 +32,48 @@ jobs:
         # versa (spec 05). Pure node source parsing — no build needed.
         run: node scripts/check-ipc-contract.mjs
 
+      - name: Instrument field-leak check
+        # Verifies no #[instrument] records a sensitive argument as a span
+        # field. Span fields are re-rendered on every event inside the span,
+        # so this is how user content reaches the log file. Pure node source
+        # parsing — no build needed.
+        run: node scripts/check-instrument-fields.mjs
+
+      - name: Icon glyph check
+        # Verifies no file lost a Nerd Font icon. They are private-use
+        # codepoints written literally into .svelte files: invisible in a
+        # diff, and an edit that drops them leaves markup that is valid,
+        # typechecks, lints and passes every test while the icon column
+        # renders blank. A scripted edit did exactly that and the whole
+        # gate went green over it.
+        run: node scripts/check-icon-glyphs.mjs
+
+      - name: Toolchain pin consistency check
+        # The Rust version lives in six places: `channel` in
+        # rust-toolchain.toml and one action ref in each of the five
+        # workflows. Nothing but this script makes them agree, and when they
+        # did not, CI ran a newer clippy than any local gate could and beta
+        # was red for eight straight merges. Cheap to run here even though
+        # this job installs no Rust — it is a text comparison.
+        run: node scripts/check-toolchain-pin.mjs
+
+      - name: IPC error-code coverage check
+        # Every code Rust can emit must be either given a written message in
+        # errorCodeMessage or listed as deliberately unmapped. The gap was
+        # not "some codes lack a message" — that is fine — but that nothing
+        # noticed a *new* code, so the question of whether the UI should say
+        # something better than the raw message never got asked.
+        run: node scripts/check-ipc-codes.mjs
+
+      - name: Playwright spec collection check
+        # Collection only (--list): no browsers, no app build, ~2s. One
+        # unloadable module aborts collection for the WHOLE project, so a
+        # bad import in a shared fixture silently zeroes every visual
+        # baseline. svelte-check cannot see it — the effective `module` is
+        # esnext, under which tsc never applies Node's runtime JSON import
+        # attribute rule.
+        run: npx playwright test --list
+
       - name: Svelte check
         run: npm run check
 
@@ -142,7 +184,15 @@ jobs:
             patchelf \
             libssl-dev
 
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned, and must match rust-toolchain.toml. On @stable this job ran a
+      # newer clippy than any developer had locally, so a new lint failed here
+      # while the local gate stayed green. Bump both together: raise the version
+      # here and in rust-toolchain.toml, run the full gate, fix what the newer
+      # clippy reports. Note that 1.98.0 is not preinstalled on the runner image
+      # the way `stable` is — the `components` list in rust-toolchain.toml is
+      # what makes clippy and rustfmt exist at all here, since this action
+      # installs with `--profile minimal`.
+      - uses: dtolnay/rust-toolchain@1.98.0
 
       - uses: Swatinem/rust-cache@v2
 
@@ -196,8 +246,12 @@ jobs:
           echo "OK: trait crates are runtime-dep free."
 
       - name: Clippy
+        # Linux-only, like formatting above — so a lint regression can only ever
+        # surface on this leg, never on the macOS or Windows ones.
+        # `--all-targets` matches the local gate in CLAUDE.md; without it CI
+        # skipped tests and benches and lint drift could land there unseen.
         if: matrix.os == 'ubuntu-latest'
-        run: cargo clippy --workspace -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Neutralize Windows CRLF conversion for tests
         # The Windows runner image sets core.autocrlf=true globally; the

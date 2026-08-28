@@ -20,6 +20,7 @@
   semantics, and `addToast` for the success toast.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { initRepoRequest, closeInitRepoDialog } from "$lib/stores/initRepoDialog";
   import { providerStatus } from "$lib/stores/provider";
   import { initRepo, countFolderContents } from "$lib/api/tauri";
@@ -226,7 +227,7 @@
       }
       return e.message;
     }
-    return String(err);
+    return getErrorMessage(err);
   }
 
   function formatBytes(b: number): string {
@@ -455,7 +456,7 @@
   select {
     padding: 6px 8px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);

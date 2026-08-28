@@ -92,9 +92,7 @@ pub fn load_remote_repo_config_github<R: CommandRunner + ?Sized>(
 
     let labels = load_labels_github(runner, repo_path)?;
 
-    let homepage = view
-        .homepage_url
-        .and_then(|v| if v.is_empty() { None } else { Some(v) });
+    let homepage = view.homepage_url.filter(|v| !v.is_empty());
 
     Ok(RemoteRepoConfig {
         description: view.description.unwrap_or_default(),

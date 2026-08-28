@@ -1,4 +1,4 @@
-//! Debug info and log file commands.
+//! Debug info, log file, and log-level commands.
 //!
 //! ## Integration checklist (src-tauri/src/lib.rs)
 //!
@@ -7,12 +7,20 @@
 //!    app_core::commands::get_debug_info,
 //!    app_core::commands::get_log_path,
 //!    app_core::commands::open_log_directory,
+//!    app_core::commands::get_log_level,
+//!    app_core::commands::set_log_level,
 //!    ```
 //!
-//! 2. Add logging init at the top of the `.setup()` closure:
+//! 2. Add logging init at the top of the `.setup()` closure, seeded with
+//!    the persisted level from `AppState::config`:
 //!    ```text
-//!    storage::logging::init_logging().ok();
+//!    storage::logging::init_logging(&level).ok();
 //!    ```
+
+use tauri::State;
+
+use crate::ipc_error::IpcError;
+use crate::state::AppState;
 
 /// Get debug information for error reports.
 #[tauri::command]
@@ -30,9 +38,45 @@ pub fn get_log_path() -> String {
 
 /// Open the log directory in the system file manager.
 #[tauri::command]
-pub fn open_log_directory() -> Result<(), String> {
+pub fn open_log_directory() -> Result<(), IpcError> {
     let path = storage::logging::log_directory();
-    open::that(&path).map_err(|e| format!("failed to open log directory: {e}"))
+    open::that(&path).map_err(|e| IpcError::from(format!("failed to open log directory: {e}")))
+}
+
+/// Return the effective file-log verbosity (`"error"` / `"info"` / `"debug"`).
+///
+/// Reads the in-memory `AppConfig` rather than the live subscriber: the
+/// two only diverge when `RUST_LOG` overrode the startup filter, and the
+/// selector should reflect the user's own choice.
+///
+/// Normalized on the way out, because `AppConfig::log_level` is a plain
+/// `String` that nothing validates on load. A hand-edited `"DEBUG"` is
+/// what `init_logging` actually applied, so returning it verbatim would
+/// make the selector show `Info` while the app logged at debug.
+#[tauri::command]
+pub fn get_log_level(state: State<'_, AppState>) -> Result<String, IpcError> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(storage::logging::normalize_level(&config.log_level)
+        .unwrap_or("info")
+        .to_string())
+}
+
+/// Persist a new file-log verbosity and apply it to the running subscriber.
+///
+/// Validation happens first, then the live swap, and only then the write
+/// to disk — so a rejected level never lands in `settings.json`, and a
+/// persisted level is always one that actually took effect.
+#[tauri::command]
+pub fn set_log_level(level: String, state: State<'_, AppState>) -> Result<(), IpcError> {
+    let normalized = storage::logging::normalize_level(&level)
+        .ok_or_else(|| IpcError::new("invalid_log_level", format!("unknown log level: {level}")))?;
+
+    storage::logging::set_level(normalized).map_err(|e| IpcError::new("log_level_failed", e))?;
+
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.log_level = normalized.to_string();
+    config.save(&state.config_path).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[cfg(test)]

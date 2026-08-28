@@ -40,6 +40,7 @@ import type {
   WorkdirTreeEntry,
   WorktreeInfo,
 } from "../../../src/lib/types";
+import { byArg, type ByArgResponse } from "../helpers";
 import {
   makeCiRunDetail,
   makeForgeComment,
@@ -86,12 +87,18 @@ export function branchList(): BranchInfo[] {
 /** Real working-tree changes — a believable mid-edit state for the tasklog crate. */
 export function fileStatusList(): FileStatus[] {
   return [
-    { path: "src/store.rs", status: "M", is_staged: true },
-    { path: "src/recurrence.rs", status: "A", is_staged: true },
-    { path: "src/cli.rs", status: "M", is_staged: false },
-    { path: "src/main.rs", status: "M", is_staged: false },
-    { path: "tests/recurrence.rs", status: "A", is_staged: false },
-    { path: "README.md", status: "M", is_staged: false },
+    // Staging vocabulary: `"new" | "modified" | "deleted" | "renamed"`.
+    // Not `"added"` — that is the diff channel's word. Both normalise to
+    // the same green `A` badge, but `StagingArea.svelte` and
+    // `ChangesList.svelte` branch on the raw string to decide whether a
+    // discard deletes the file or resets it to the index, so the wrong
+    // word makes those paths unreachable from a fixture.
+    { path: "src/store.rs", status: "modified", is_staged: true },
+    { path: "src/recurrence.rs", status: "new", is_staged: true },
+    { path: "src/cli.rs", status: "modified", is_staged: false },
+    { path: "src/main.rs", status: "modified", is_staged: false },
+    { path: "tests/recurrence.rs", status: "new", is_staged: false },
+    { path: "README.md", status: "modified", is_staged: false },
   ];
 }
 
@@ -238,10 +245,10 @@ export function prDetail(): MrPrDetail {
 
 export function prDiff(): MrPrDiffFile[] {
   return [
-    { path: "src/recurrence.rs", old_path: null, status: "A", additions: 96, deletions: 0, patch: null },
-    { path: "src/store.rs", old_path: null, status: "M", additions: 31, deletions: 9, patch: null },
-    { path: "src/cli.rs", old_path: null, status: "M", additions: 12, deletions: 0, patch: null },
-    { path: "tests/recurrence.rs", old_path: null, status: "A", additions: 75, deletions: 0, patch: null },
+    { path: "src/recurrence.rs", old_path: null, status: "added", additions: 96, deletions: 0, patch: null },
+    { path: "src/store.rs", old_path: null, status: "modified", additions: 31, deletions: 9, patch: null },
+    { path: "src/cli.rs", old_path: null, status: "modified", additions: 12, deletions: 0, patch: null },
+    { path: "tests/recurrence.rs", old_path: null, status: "added", additions: 75, deletions: 0, patch: null },
   ];
 }
 
@@ -395,22 +402,50 @@ export function aiConversationList(): AiConversation[] {
 }
 
 /** A small, believable file tree for the editor view. */
-export function workdirTree(): WorkdirTreeEntry[] {
-  const f = (path: string, size: number): WorkdirTreeEntry => ({ path, name: path.split("/").pop()!, is_directory: false, size });
-  const d = (path: string): WorkdirTreeEntry => ({ path, name: path.split("/").pop()!, is_directory: true, size: null });
-  return [
-    d("src"),
-    f("src/main.rs", 1840),
-    f("src/cli.rs", 4210),
-    f("src/store.rs", 6320),
-    f("src/recurrence.rs", 2980),
-    f("src/task.rs", 3110),
-    d("tests"),
-    f("tests/recurrence.rs", 2440),
-    f("Cargo.toml", 612),
-    f("README.md", 3870),
-    f("CHANGELOG.md", 2150),
-  ];
+const f = (path: string, size: number): WorkdirTreeEntry => ({
+  path,
+  name: path.split("/").pop()!,
+  is_directory: false,
+  size,
+});
+const d = (path: string): WorkdirTreeEntry => ({
+  path,
+  name: path.split("/").pop()!,
+  is_directory: true,
+  size: null,
+});
+
+/**
+ * The editor tree, keyed by directory.
+ *
+ * One array per level rather than one flat list, because the tree lists a
+ * directory at a time — a single canned answer would hand `src`'s children
+ * to every folder that was opened, `src` included.
+ */
+export function workdirTree(): ByArgResponse {
+  return byArg(
+    "prefix",
+    {
+      src: [
+        f("src/cli.rs", 4210),
+        f("src/main.rs", 1840),
+        f("src/recurrence.rs", 2980),
+        f("src/store.rs", 6320),
+        f("src/task.rs", 3110),
+      ],
+      tests: [f("tests/recurrence.rs", 2440)],
+    },
+    // Directories first, then files, each group by lowercased path — the
+    // order `list_workdir_tree` really returns, so the baseline depicts a
+    // listing the app can actually produce.
+    [
+      d("src"),
+      d("tests"),
+      f("Cargo.toml", 612),
+      f("CHANGELOG.md", 2150),
+      f("README.md", 3870),
+    ],
+  );
 }
 
 export function readFileResult(): ReadWorkdirFileResult {

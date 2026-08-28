@@ -22,6 +22,12 @@ fn default_diff_line_wrapping() -> bool {
     true
 }
 
+/// Default file-log verbosity. See [`crate::logging::LOG_LEVELS`] for the
+/// accepted values.
+fn default_log_level() -> String {
+    "info".to_string()
+}
+
 fn default_locale() -> String {
     "en-US".to_string()
 }
@@ -80,9 +86,20 @@ fn default_indent_guides() -> bool {
 ///
 /// All extension toggles default to the values most users expect from a
 /// modern code editor (most ON; rectangular-selection / crosshair OFF
-/// because they're niche). `respect_gitignore_in_tree` defaults to `false`
-/// per the product brief — the file tree shows `.gitignore`d files unless
-/// the user opts into hiding them.
+/// because they're niche). `respect_gitignore_in_tree` defaults to `true`,
+/// which is a tidier first listing rather than a fix for anything: the
+/// tree used to walk the whole working directory under a cap, so build
+/// output really did crowd it out, but it now lists one level at a time
+/// and there is no budget left to crowd. The toggle is one click away in
+/// Settings → Editor for the case where the file being edited is itself
+/// gitignored.
+///
+/// The flip reaches new installs only. This field carries no
+/// `#[serde(default)]`, and `AppConfig::editor_preferences` has a
+/// struct-level default, so any `settings.json` that already has an
+/// `editor_preferences` object keeps its stored `false`. That is
+/// deliberate: a stored value is indistinguishable from a deliberate
+/// choice, and this is not worth overriding one.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EditorPreferences {
     // --- Toggleable CodeMirror extensions ---
@@ -132,7 +149,7 @@ pub struct EditorPreferences {
     pub tab_size: u8,
     /// When true, the editor inserts tab characters; otherwise spaces.
     pub indent_with_tabs: bool,
-    /// When true, the file tree hides paths matched by `.gitignore`. Default `false`.
+    /// When true, the file tree hides paths matched by `.gitignore`. Default `true`.
     pub respect_gitignore_in_tree: bool,
     /// File-size threshold (KB) above which the editor warns before opening. Clamped 1..=2048.
     pub large_file_warning_kb: u32,
@@ -158,7 +175,7 @@ impl Default for EditorPreferences {
             color_picker: default_color_picker(),
             tab_size: 2,
             indent_with_tabs: false,
-            respect_gitignore_in_tree: false,
+            respect_gitignore_in_tree: true,
             large_file_warning_kb: 256,
         }
     }
@@ -329,18 +346,12 @@ pub struct AppConfig {
     #[serde(default = "default_editor_preferences")]
     pub editor_preferences: EditorPreferences,
 
-    /// Whether the user has dismissed the macOS Gatekeeper re-authorization
-    /// notice. When `true`, the install flow skips the apology dialog on
-    /// macOS. Independent from the Windows flag below — users might
-    /// dismiss one while still wanting the other.
-    #[serde(default)]
-    pub auto_update_reauth_notice_dismissed_macos: bool,
-
-    /// Whether the user has dismissed the Windows SmartScreen re-authorization
-    /// notice. When `true`, the install flow skips the apology dialog on
-    /// Windows.
-    #[serde(default)]
-    pub auto_update_reauth_notice_dismissed_windows: bool,
+    /// File-log verbosity: `"error"`, `"info"` (default), or `"debug"`.
+    /// Applied at startup and changed live from Settings → Advanced;
+    /// an unrecognized value falls back to `"info"` rather than failing
+    /// to load the whole config.
+    #[serde(default = "default_log_level")]
+    pub log_level: String,
 
     // -- Legacy fields (read during migration, never written) --
     /// Legacy Plan 5 field. Migrated to `providers` vec.
@@ -379,9 +390,8 @@ impl Default for AppConfig {
             auto_check_updates: default_auto_check_updates(),
             diff_show_whitespace: false,
             diff_line_wrapping: default_diff_line_wrapping(),
-            auto_update_reauth_notice_dismissed_macos: false,
-            auto_update_reauth_notice_dismissed_windows: false,
             editor_preferences: EditorPreferences::default(),
+            log_level: default_log_level(),
             provider_kind: None,
             provider_instance_url: None,
             gitlab_instance_url: None,
@@ -691,41 +701,49 @@ mod tests {
     }
 
     #[test]
-    fn test_reauth_dismissal_defaults_false() {
-        let config = AppConfig::default();
-        assert!(!config.auto_update_reauth_notice_dismissed_macos);
-        assert!(!config.auto_update_reauth_notice_dismissed_windows);
-    }
-
-    #[test]
-    fn test_reauth_dismissal_persists_per_os() {
+    fn test_log_level_defaults_to_info_and_roundtrips() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
 
+        assert_eq!(AppConfig::default().log_level, "info");
+
         let config = AppConfig {
-            auto_update_reauth_notice_dismissed_macos: true,
-            auto_update_reauth_notice_dismissed_windows: false,
+            log_level: "debug".to_string(),
             ..AppConfig::default()
         };
         config.save(&path).unwrap();
-
-        let loaded = AppConfig::load(&path).unwrap();
-        assert!(loaded.auto_update_reauth_notice_dismissed_macos);
-        assert!(!loaded.auto_update_reauth_notice_dismissed_windows);
+        assert_eq!(AppConfig::load(&path).unwrap().log_level, "debug");
     }
 
     #[test]
-    fn test_legacy_config_defaults_reauth_flags_false() {
-        // Existing configs (written before the reauth flags existed) must
-        // still load without error — flags fall back to `false`.
+    fn test_legacy_config_defaults_log_level_to_info() {
+        // Configs written before the field existed must load with the
+        // documented default rather than an empty string, which would make
+        // `normalize_level` reject it on every startup.
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
-        let json = r#"{"theme": "github-dark"}"#;
+        std::fs::write(&path, r#"{"theme": "github-dark"}"#).unwrap();
+
+        assert_eq!(AppConfig::load(&path).unwrap().log_level, "info");
+    }
+
+    #[test]
+    fn test_config_with_retired_reauth_keys_still_loads() {
+        // The `auto_update_reauth_notice_dismissed_*` flags were dropped
+        // along with the re-auth gate. `AppConfig` has no
+        // `deny_unknown_fields`, so configs written by older builds must
+        // still load — this pins that so nobody adds it later.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{
+            "theme": "github-dark",
+            "auto_update_reauth_notice_dismissed_macos": true,
+            "auto_update_reauth_notice_dismissed_windows": true
+        }"#;
         std::fs::write(&path, json).unwrap();
 
         let config = AppConfig::load(&path).unwrap();
-        assert!(!config.auto_update_reauth_notice_dismissed_macos);
-        assert!(!config.auto_update_reauth_notice_dismissed_windows);
+        assert_eq!(config.theme, "github-dark");
     }
 
     #[test]

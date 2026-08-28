@@ -13,6 +13,7 @@
   `; echo PWNED`.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { Button, Card, Dialog, Field, FormRow } from "$lib/components/ui";
   import { repoConfigStore, updateCurrent } from "$lib/stores/repoConfig";
   import type { RepoConfigLabel } from "$lib/types/repoConfig";
@@ -94,8 +95,8 @@
       }
       editorOpen = false;
     } catch (e) {
-      editorError = String(e);
-      addToast({ message: String(e), type: "error" });
+      editorError = getErrorMessage(e);
+      addToast({ message: getErrorMessage(e), type: "error" });
     } finally {
       saving = false;
     }
@@ -116,7 +117,7 @@
       });
       addToast({ message: `Label ${name} deleted`, type: "success" });
     } catch (e) {
-      addToast({ message: String(e), type: "error" });
+      addToast({ message: getErrorMessage(e), type: "error" });
     } finally {
       deleteConfirmOpen = false;
       deleteTarget = null;
@@ -301,6 +302,7 @@
     width: 14px;
     height: 14px;
     border-radius: 7px;
+    /* stylelint-disable-next-line function-disallowed-list -- color-swatch border always needs dark outline regardless of theme */
     border: 1px solid rgba(0, 0, 0, 0.2); /* beardgit:allow-hex: color-swatch border always needs dark outline regardless of theme */
   }
 
@@ -353,7 +355,7 @@
     padding: 6px 10px;
     background: var(--bg-input);
     color: var(--text-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     font-family: inherit;
     font-size: var(--font-size-sm);

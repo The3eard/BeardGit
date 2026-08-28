@@ -17,6 +17,18 @@ use crate::types::{
     OutputLine, Stream, TaskError, TaskHandle, TaskId, TaskInfo, TaskKind, TaskStatus,
 };
 
+/// The bare binary name of `command`, for logging.
+///
+/// Callers pass absolute paths for resolved sidecars and AI CLIs
+/// (`/Users/…/.bun/bin/claude`), and the interesting part is which tool
+/// ran, not where it lives.
+fn program_name(command: &str) -> &str {
+    Path::new(command)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(command)
+}
+
 /// Minimum gap between two progress emissions for the same task.
 ///
 /// 200 ms ⇒ max 5 emissions / second / task, matching the spec's event-storm
@@ -119,12 +131,16 @@ impl TaskManager {
     /// Returns `true` when tasks of this kind should stream snapshots to the
     /// unified tasks drawer.
     ///
-    /// Gating policy: surface git ops and one-shot headless AI tasks
-    /// (commit-message, code-review, …) directly through this emitter.
-    /// `AiBackground` / `AiInteractive` and `AppUpdate` flow through
-    /// their own frontend bridges (`aiBackgroundRuns`, `autoUpdateTask`),
-    /// so emitting them here would duplicate rows in the drawer; they
-    /// stay off the allowlist on purpose. `Generic` is excluded so
+    /// Gating policy: surface git ops, one-shot headless AI tasks
+    /// (commit-message, code-review, …) and `Background` — the catch-all for
+    /// user-started long operations without a category — directly through this
+    /// emitter.
+    /// `AiBackground` and `AppUpdate` flow through their own frontend
+    /// bridges (`aiBackgroundRuns`, `autoUpdateTask`), so emitting them
+    /// here would duplicate rows in the drawer; they stay off the
+    /// allowlist on purpose. Interactive AI sessions are not a task kind
+    /// at all — they are PTYs owned by `TerminalManager`, surfaced by the
+    /// `aiActiveTerminals` store. `Generic` is excluded so
     /// shell tasks the drawer doesn't care about (e.g. ad-hoc internal
     /// commands) don't leak in.
     pub(crate) fn should_emit(kind: &TaskKind) -> bool {
@@ -135,6 +151,7 @@ impl TaskManager {
                 | TaskKind::GitPush
                 | TaskKind::GitClone
                 | TaskKind::AiHeadless
+                | TaskKind::Background
         )
     }
 
@@ -245,6 +262,23 @@ impl TaskManager {
             .duration_since(SystemTime::UNIX_EPOCH)
             .ok()
             .map(|d| d.as_millis() as u64);
+
+        // Program name and arg *count* only — never the argv.
+        //
+        // The AI commands put their whole prompt in argv (`claude --print
+        // <prompt>`, `codex -p <prompt>`), and those prompts embed the
+        // staged diff or the contents of the file under review. Logging
+        // the joined argv here would write user code to disk at the
+        // default level. `command_str` still reaches the tasks drawer for
+        // display; it just doesn't reach the log.
+        tracing::info!(
+            task_id = id,
+            label = %label,
+            kind = ?kind,
+            program = %program_name(command),
+            arg_count = args.len(),
+            "task started"
+        );
 
         let handle = TaskHandle {
             id,
@@ -542,6 +576,25 @@ impl TaskManager {
             }
         };
 
+        // One line per task completion. Fetch/pull/push are the ops users
+        // most often report as "it just didn't do anything", and the exit
+        // code plus the outcome is what distinguishes a network failure
+        // from a cancel from a clean no-op.
+        tracing::info!(
+            task_id,
+            label = %info.label,
+            kind = ?info.task_kind,
+            exit_code = ?info.exit_code,
+            elapsed_secs = ?info.elapsed_secs,
+            outcome = match &status {
+                TaskStatus::Completed => "completed",
+                TaskStatus::Failed { .. } => "failed",
+                TaskStatus::Cancelled => "cancelled",
+                _ => "running",
+            },
+            "task finished"
+        );
+
         // Lifecycle transition — push a snapshot through the drawer
         // emitter before the existing sink callbacks so the drawer sees
         // the terminal state first.
@@ -694,6 +747,134 @@ mod tests {
     }
 
     // ── 1 ─────────────────────────────────────────────────────────────────────
+
+    // ── argv must never reach the log ─────────────────────────────────────
+
+    /// In-memory sink for the scoped subscriber below.
+    #[derive(Clone, Default)]
+    struct LogBuffer(Arc<StdMutex<Vec<u8>>>);
+
+    impl LogBuffer {
+        fn contents(&self) -> String {
+            String::from_utf8_lossy(&self.0.lock().expect("log buffer poisoned")).into_owned()
+        }
+    }
+
+    impl std::io::Write for LogBuffer {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0
+                .lock()
+                .expect("log buffer poisoned")
+                .extend_from_slice(buf);
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for LogBuffer {
+        type Writer = LogBuffer;
+        fn make_writer(&'a self) -> Self::Writer {
+            self.clone()
+        }
+    }
+
+    /// The one shared log buffer for this test binary.
+    ///
+    /// **Global, not thread-scoped, and that is load-bearing.**
+    /// `tracing::subscriber::set_default` installs a *thread-local*
+    /// default, and `finish_task` runs from a spawned task that does not
+    /// reliably land on the test's thread — so a scoped subscriber caught
+    /// `task started` but dropped `task finished` intermittently. Tests
+    /// key on a unique label instead of on buffer isolation.
+    fn shared_log_buffer() -> &'static LogBuffer {
+        static BUFFER: std::sync::OnceLock<LogBuffer> = std::sync::OnceLock::new();
+        BUFFER.get_or_init(|| {
+            let buffer = LogBuffer::default();
+            let subscriber = tracing_subscriber::fmt()
+                .with_writer(buffer.clone())
+                .with_ansi(false)
+                .finish();
+            // Another test may have won the race; either way a subscriber
+            // writing to this buffer is now installed.
+            let _ = tracing::subscriber::set_global_default(subscriber);
+            buffer
+        })
+    }
+
+    /// The AI commands pass their whole prompt as a single argv element,
+    /// and those prompts embed the staged diff or the file under review.
+    /// Logging the joined argv wrote user code to disk at the *default*
+    /// level, so this pins that only the program name and arg count go out.
+    #[tokio::test]
+    async fn spawn_does_not_log_argv() {
+        let buffer = shared_log_buffer();
+        // Unique to this test, so its lines are identifiable in a buffer
+        // shared with every other test in the binary.
+        let label = "argv-probe-AI-commit-message";
+
+        let (manager, events) = new_manager();
+        let cwd = std::env::temp_dir();
+        // Stands in for an AI prompt carrying a staged diff.
+        let secret_payload = "SENSITIVE_DIFF_BODY_do_not_log";
+
+        manager
+            .spawn(label.into(), "echo", &[secret_payload], &cwd, false)
+            .await;
+
+        wait_for(&events, |ev| {
+            ev.iter().any(|e| matches!(e, TaskEvent::Completed(_)))
+        })
+        .await;
+
+        let mine: Vec<String> = buffer
+            .contents()
+            .lines()
+            .filter(|l| l.contains(label))
+            .map(str::to_string)
+            .collect();
+        let mine = mine.join("\n");
+
+        // Positive anchors: the lifecycle lines really were captured, so the
+        // absence assertion below can't pass by capturing nothing.
+        assert!(
+            mine.contains("task started"),
+            "expected the start event in the log, got: {mine}"
+        );
+        assert!(
+            mine.contains("task finished"),
+            "expected the finish event in the log, got: {mine}"
+        );
+        assert!(
+            mine.contains("program=echo"),
+            "the program name is the useful part and must survive, got: {mine}"
+        );
+        assert!(
+            mine.contains("arg_count=1"),
+            "the arg count replaces the argv and must be present, got: {mine}"
+        );
+        // Deliberately the WHOLE buffer, not the label-filtered slice: the
+        // filter is needed for the positive anchors, but narrowing the leak
+        // check would miss exactly what this test exists to catch — a new,
+        // unexpected log site that emits argv without a `label` field. The
+        // sentinel is unique to this test, so there is no false-positive
+        // risk in checking everything.
+        assert!(
+            !buffer.contents().contains(secret_payload),
+            "argv leaked into the log: {}",
+            buffer.contents()
+        );
+    }
+
+    #[test]
+    fn program_name_strips_the_directory() {
+        assert_eq!(program_name("/Users/x/.bun/bin/claude"), "claude");
+        assert_eq!(program_name("git"), "git");
+        // A trailing separator has no file name — fall back to the input
+        // rather than logging an empty field.
+        assert_eq!(program_name("/tmp/"), "tmp");
+    }
 
     #[tokio::test]
     async fn test_spawn_and_complete() {

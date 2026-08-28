@@ -7,6 +7,7 @@
 
 use tauri::{AppHandle, State};
 
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// List all available themes (built-in + user-installed).
@@ -24,17 +25,47 @@ pub fn get_theme(name: String, state: State<'_, AppState>) -> storage::Theme {
     storage::theme::resolve_theme(&name, &themes_dir)
 }
 
+/// Audit a theme's text contrast against its own background.
+///
+/// Advisory only, and deliberately so: a user theme in
+/// `~/.config/beardgit/themes` is never modified to meet a floor. Their
+/// colours are theirs. The Settings UI surfaces the report as a
+/// non-blocking notice next to the theme picker so an unreadable palette
+/// is diagnosable rather than mysterious.
+///
+/// Bundled themes always return an empty `warnings` list — that is
+/// enforced by `test_all_builtin_themes_meet_contrast_floors`, so a
+/// non-empty report here means the user's own theme.
+#[tauri::command]
+pub fn check_theme_contrast(
+    name: String,
+    state: State<'_, AppState>,
+) -> storage::theme::ThemeContrastReport {
+    let themes_dir = state.config_dir.join("themes");
+    let theme = storage::theme::resolve_theme(&name, &themes_dir);
+    storage::theme::check_theme_contrast(&theme)
+}
+
 /// Set the active theme name and emit a `theme-changed` event with the resolved theme.
 #[tauri::command]
-pub fn set_theme(name: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_theme(name: String, app: AppHandle, state: State<'_, AppState>) -> Result<(), IpcError> {
     {
         let mut cfg = state.config.lock().unwrap();
         cfg.theme = name.clone();
-        cfg.save(&state.config_path).map_err(|e| e.to_string())?;
+        cfg.save(&state.config_path)
+            .map_err(|e| IpcError::from(e.to_string()))?;
     }
 
     let themes_dir = state.config_dir.join("themes");
     let theme = storage::theme::resolve_theme(&name, &themes_dir);
+    // A theme id, and whether it resolved to something else (a user theme
+    // that failed to load falls back). Colour-rendering reports are hard to
+    // read without knowing which theme was actually active.
+    tracing::info!(
+        requested = %name,
+        resolved = %theme.meta.id,
+        "theme changed"
+    );
     use tauri::Emitter as _;
     let _ = app.emit("theme-changed", &theme);
     Ok(())
@@ -48,10 +79,11 @@ pub fn get_theme_auto(state: State<'_, AppState>) -> bool {
 
 /// Set the `theme_auto` preference and persist to config.
 #[tauri::command]
-pub fn set_theme_auto(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+pub fn set_theme_auto(enabled: bool, state: State<'_, AppState>) -> Result<(), IpcError> {
     let mut cfg = state.config.lock().unwrap();
     cfg.theme_auto = enabled;
-    cfg.save(&state.config_path).map_err(|e| e.to_string())
+    cfg.save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
 }
 
 /// Resolve the startup theme, respecting the `theme_auto` setting and OS dark/light mode.

@@ -111,7 +111,7 @@
     gap: 4px;
     padding: 3px 6px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     min-height: 28px;
     cursor: text;

@@ -33,6 +33,17 @@ const SOLARIZED_DARK_TOML: &str = include_str!("themes/solarized_dark.toml");
 const SOLARIZED_LIGHT_TOML: &str = include_str!("themes/solarized_light.toml");
 const GRUVBOX_DARK_TOML: &str = include_str!("themes/gruvbox_dark.toml");
 const MONOKAI_PRO_TOML: &str = include_str!("themes/monokai_pro.toml");
+const ROSE_PINE_MOON_TOML: &str = include_str!("themes/rose_pine_moon.toml");
+const ROSE_PINE_DAWN_TOML: &str = include_str!("themes/rose_pine_dawn.toml");
+const EVERFOREST_DARK_TOML: &str = include_str!("themes/everforest_dark.toml");
+const EVERFOREST_LIGHT_TOML: &str = include_str!("themes/everforest_light.toml");
+const KANAGAWA_TOML: &str = include_str!("themes/kanagawa.toml");
+const AYU_DARK_TOML: &str = include_str!("themes/ayu_dark.toml");
+const AYU_MIRAGE_TOML: &str = include_str!("themes/ayu_mirage.toml");
+const AYU_LIGHT_TOML: &str = include_str!("themes/ayu_light.toml");
+const MATERIAL_TOML: &str = include_str!("themes/material.toml");
+const ZENBURN_TOML: &str = include_str!("themes/zenburn.toml");
+const OXOCARBON_TOML: &str = include_str!("themes/oxocarbon.toml");
 
 /// The default theme used when the requested theme is not found.
 pub const DEFAULT_THEME_ID: &str = "beardgit-dark";
@@ -92,10 +103,19 @@ UI colors are derived automatically:
 
 ## Optional Overrides
 
-To tweak specific derived values, add a partial `[graph]` or `[editor]` section.
-Only the fields you include are overridden — everything else keeps the derived value.
+To tweak specific derived values, add a partial `[accents]`, `[derived]`,
+`[graph]` or `[editor]` section. Only the fields you include are overridden —
+everything else keeps the derived value.
 
 ```toml
+[accents]
+primary = "cyan"              # an ANSI colour name, or a literal hex
+secondary = "#c678dd"
+
+[derived]
+text-secondary = "#969ead"    # UI text tokens, when the derived ones are too dim
+text-muted = "#78808e"
+
 [graph]
 lane-colors = ["#7aa2f7", "#9ece6a", "#ff9e64"]  # custom lane palette
 node-radius = 5.0                                   # bigger commit dots
@@ -107,6 +127,37 @@ removed-bg = "#3c1e22"        # custom diff removed background
 syntax-keyword = "#ff7b72"    # override keyword color
 syntax-string = "#a5d6ff"     # override string color
 ```
+
+### Accent fields
+- `primary`, `secondary`, `tertiary` — the signature accents. Each takes an
+  ANSI colour name (`"cyan"`, `"bright_magenta"`, …) or a literal hex.
+
+### Derived fields — fixing low-contrast text
+
+`text-secondary` is derived from `bright-black`, and `text-muted` from that
+blended toward the page. In a palette whose `bright-black` sits close to the
+background, that lands below the readable threshold — and BeardGit will tell
+you so in Settings → General rather than changing your colours for you.
+
+Raising `bright-black` itself would also change your terminal's ANSI palette,
+so pin the UI text tokens here instead:
+
+- `text-primary`, `text-secondary`, `text-muted` — the three text rungs
+- `border` — panel separators (accepts `#RRGGBBAA`)
+- `border-strong` — outlines around inputs, selects and buttons
+
+All three text rungs want at least 4.5:1 (WCAG AA for normal text), and
+`border-strong` 3:1. Not against `background` alone: the check measures
+each token against every surface it is drawn on, and reports the worst.
+That means the page, the panels *and* the toolbar for `text-primary`,
+`text-secondary` and both borders — a colour solved for the page alone can
+be a full point dimmer up there. `text-muted` is the one exception, page
+and panels only, because nothing in the UI draws it on the toolbar.
+`border` takes a lower 2:1, being a divider rather than something you have
+to read.
+
+Every bundled theme is checked against those floors; yours is only
+reported.
 
 ### Graph fields
 - `lane-colors` — array of hex colors for commit graph lanes (min 2)
@@ -255,7 +306,8 @@ pub struct DerivedColors {
     /// A third, dimmer text step for de-emphasised metadata (timestamps,
     /// paths, counts). Sits between `text_secondary` and the surface so
     /// the type hierarchy has three rungs instead of two. Derived per
-    /// mode and kept above the large-text contrast floor.
+    /// mode and held at WCAG AA for normal text — it renders at 10px, so
+    /// the large-text allowance it used to claim never applied.
     pub text_muted: String,
     pub accent_blue: String,
     pub accent_green: String,
@@ -270,7 +322,19 @@ pub struct DerivedColors {
     pub accent_primary: String,
     pub accent_secondary: String,
     pub accent_tertiary: String,
+    /// Panel and card separators. Held to a lower floor than
+    /// [`Self::border_strong`] because separation is carried mainly by the
+    /// elevation ramp; the line only refines it.
     pub border: String,
+    /// Outline for interactive controls — inputs, selects, textareas,
+    /// buttons.
+    ///
+    /// Split out from [`Self::border`] because one token was doing two
+    /// jobs with opposite requirements. WCAG 1.4.11 asks 3:1 for anything
+    /// that *identifies* a control, and a control whose outline is
+    /// invisible has no perceivable boundary — but applying 3:1 to every
+    /// panel divider draws hard lines across the whole UI.
+    pub border_strong: String,
     pub selection: String,
 }
 
@@ -305,49 +369,49 @@ pub struct ThemeEditor {
     /// Text selection background color.
     pub selection: String,
     /// Active line highlight background.
-    #[serde(rename = "line-highlight")]
+    #[serde(alias = "line-highlight")]
     pub line_highlight: String,
     /// Gutter background color.
-    #[serde(rename = "gutter-bg")]
+    #[serde(alias = "gutter-bg")]
     pub gutter_bg: String,
     /// Gutter foreground (line numbers) color.
-    #[serde(rename = "gutter-fg")]
+    #[serde(alias = "gutter-fg")]
     pub gutter_fg: String,
     /// Added line background in diff view.
-    #[serde(rename = "added-bg")]
+    #[serde(alias = "added-bg")]
     pub added_bg: String,
     /// Removed line background in diff view.
-    #[serde(rename = "removed-bg")]
+    #[serde(alias = "removed-bg")]
     pub removed_bg: String,
     /// Added line text color in diff view.
-    #[serde(rename = "added-text")]
+    #[serde(alias = "added-text")]
     pub added_text: String,
     /// Removed line text color in diff view.
-    #[serde(rename = "removed-text")]
+    #[serde(alias = "removed-text")]
     pub removed_text: String,
     /// Syntax: keyword color.
-    #[serde(default, rename = "syntax-keyword")]
+    #[serde(default, alias = "syntax-keyword")]
     pub syntax_keyword: Option<String>,
     /// Syntax: string literal color.
-    #[serde(default, rename = "syntax-string")]
+    #[serde(default, alias = "syntax-string")]
     pub syntax_string: Option<String>,
     /// Syntax: comment color.
-    #[serde(default, rename = "syntax-comment")]
+    #[serde(default, alias = "syntax-comment")]
     pub syntax_comment: Option<String>,
     /// Syntax: function/method name color.
-    #[serde(default, rename = "syntax-function")]
+    #[serde(default, alias = "syntax-function")]
     pub syntax_function: Option<String>,
     /// Syntax: type/class name color.
-    #[serde(default, rename = "syntax-type")]
+    #[serde(default, alias = "syntax-type")]
     pub syntax_type: Option<String>,
     /// Syntax: number literal color.
-    #[serde(default, rename = "syntax-number")]
+    #[serde(default, alias = "syntax-number")]
     pub syntax_number: Option<String>,
     /// Syntax: operator color.
-    #[serde(default, rename = "syntax-operator")]
+    #[serde(default, alias = "syntax-operator")]
     pub syntax_operator: Option<String>,
     /// Syntax: property/attribute color.
-    #[serde(default, rename = "syntax-property")]
+    #[serde(default, alias = "syntax-property")]
     pub syntax_property: Option<String>,
 }
 
@@ -445,6 +509,447 @@ fn darken_hex(hex: &str, amount: f64) -> String {
     format!("#{:02x}{:02x}{:02x}", dr as u8, dg as u8, db as u8)
 }
 
+// ─── WCAG contrast ───────────────────────────────────────────────────────
+
+/// Parse `#RRGGBB` or `#RRGGBBAA` into linear-light sRGB components.
+///
+/// Alpha is ignored here rather than composited. Callers that may be
+/// handed a translucent value flatten it first with `composite_over` —
+/// which the border tokens do, since they are audited against every
+/// surface they are drawn on.
+fn srgb_channels(hex: &str) -> Option<[f64; 3]> {
+    // Expand `#abc` to `#aabbcc` first — the short form is legal CSS and a
+    // user theme may well use it, and silently failing to parse it means
+    // silently not auditing it.
+    let expanded = match hex.strip_prefix('#') {
+        Some(short) if short.len() == 3 => {
+            let mut out = String::with_capacity(7);
+            out.push('#');
+            for c in short.chars() {
+                out.push(c);
+                out.push(c);
+            }
+            out
+        }
+        _ => hex.to_string(),
+    };
+    let hex = expanded.as_str();
+    if !hex.starts_with('#') || (hex.len() != 7 && hex.len() != 9) {
+        return None;
+    }
+    let channel = |i: usize| -> Option<f64> {
+        let raw = u8::from_str_radix(hex.get(i..i + 2)?, 16).ok()? as f64 / 255.0;
+        // sRGB → linear light, per WCAG 2.x relative-luminance definition.
+        Some(if raw <= 0.040_45 {
+            raw / 12.92
+        } else {
+            ((raw + 0.055) / 1.055).powf(2.4)
+        })
+    };
+    Some([channel(1)?, channel(3)?, channel(5)?])
+}
+
+/// WCAG 2.x relative luminance of an opaque `#RRGGBB` color.
+fn relative_luminance(hex: &str) -> Option<f64> {
+    let [r, g, b] = srgb_channels(hex)?;
+    Some(0.2126 * r + 0.7152 * g + 0.0722 * b)
+}
+
+/// WCAG contrast ratio between two colors, from 1.0 (identical) to 21.0
+/// (black on white). Returns `None` if either color isn't parseable hex.
+///
+/// Order-independent: the lighter color is always the numerator.
+pub fn contrast_ratio(a: &str, b: &str) -> Option<f64> {
+    let (la, lb) = (relative_luminance(a)?, relative_luminance(b)?);
+    let (lighter, darker) = if la >= lb { (la, lb) } else { (lb, la) };
+    Some((lighter + 0.05) / (darker + 0.05))
+}
+
+/// The minimum contrast ratio a token must reach on every surface it is
+/// drawn on. See [`audit_surfaces`] for which surfaces those are.
+///
+/// All three text rungs take the WCAG AA normal-text floor of 4.5:1.
+/// `text_muted` used to sit at 3:1 on a large-text exemption it never
+/// qualified for — it renders at 10px (`--font-size-2xs`) in the staging
+/// area and sidebar, where the allowance needs ≥18.66px bold or ≥24px.
+///
+/// The two border tokens are split because one token was serving panel
+/// separators and control outlines, whose requirements diverge:
+///
+/// - `border_strong` outlines interactive controls, which WCAG 1.4.11
+///   covers, so it takes the full 3:1.
+/// - `border` draws separators and takes 2.0:1 — a *safety floor*, not a
+///   design target. It marks the point below which the line is simply not
+///   there (the previous translucent derivation reached 1.27:1 on
+///   gruvbox-dark), and it exists for user themes, which are reported and
+///   never modified. It deliberately does not describe what the bundled
+///   themes do: `derive_semantic_colors` solves `border` against
+///   `bg_toolbar`, the most elevated surface it is drawn on, which lands
+///   it at 2.76–3.45:1 on the page — above 1.4.11's 3:1 on every dark
+///   theme. That is the accepted trade: a divider that is always visible,
+///   including on the toolbar, is worth more than one tuned to be barely
+///   perceptible on the page and invisible above it.
+///
+/// `selection` stays unaudited: it overlays arbitrary content — text, diff
+/// rows, graph lanes — so there is no single pair to measure.
+pub fn contrast_floor(token: &str) -> Option<f64> {
+    match token {
+        "text_primary" | "text_secondary" | "text_muted" => Some(4.5),
+        // A safety floor for user themes, not a design target — the
+        // bundled derivation lands well above it. See the doc comment.
+        "border" => Some(2.0),
+        // Control outlines DO identify a component, so these take the
+        // full 1.4.11 requirement.
+        "border_strong" => Some(3.0),
+        // `selection` carries alpha over arbitrary content — text, diff
+        // rows, graph lanes — so there is no single pair to measure.
+        _ => None,
+    }
+}
+
+/// The surfaces a token has to clear its floor on.
+///
+/// Auditing everything against `bg_primary` alone reported ratios the eye
+/// never sees: an opaque border solved for the page measured 1.42:1 on the
+/// toolbar, and `text_muted` solved for the page measured 3.60:1 on a
+/// panel. A token is only legible if it is legible everywhere it is drawn,
+/// so each one is measured against its own surface set and reported at its
+/// worst.
+///
+/// `text_muted` is the one token that does not take all three. Its four
+/// callsites — `StagingArea.svelte` `.commit-hint`, `Sidebar.svelte`
+/// `.group-label`, `FileStatusBadge.svelte` `.is-unknown`, and
+/// `+page.svelte` `.welcome-dropzone` — sit on `--bg-primary` or
+/// `--bg-secondary`; none is inside a toolbar-rooted component. Including
+/// `bg_toolbar` anyway is not free: muted would have to clear 4.5:1 there,
+/// which pushes it past where `text_secondary` sits today, and holding the
+/// three rungs apart from that point washes all 31 palettes toward white
+/// (`text_primary` at 7.5:1 on the toolbar is 11.6:1 on the page). So the
+/// set follows the callsites.
+///
+/// **These are claims about CSS that Rust cannot verify**, and they have
+/// two failure modes, only one of which is obvious:
+///
+/// - A token gets used on a surface that is not in its set. Putting
+///   `--text-muted` on a `--bg-toolbar` surface would land it at ~3.7:1
+///   with nothing failing here. Add `bg_toolbar` to its set if that
+///   happens.
+/// - A component *invents* a surface out of the token itself. That is not
+///   hypothetical: `FileStatusBadge` paints
+///   `background: color-mix(var(--st) 18%, transparent)` under a letter
+///   coloured by the same `--st`, and its `.is-unknown` kind took
+///   `--text-muted` — 4.04:1 on the page and 3.37:1 on a panel, both
+///   under the floor this function reports as met. No token dimmer than
+///   `text_primary` survives being drawn on a tint of itself
+///   (`text_secondary` bottoms out at 3.82), so the rule is that audited
+///   text tokens do not get self-tinted fills, guarded by
+///   `FileStatusBadge.test.ts`.
+fn audit_surfaces<'a>(token: &str, d: &'a DerivedColors) -> Vec<&'a String> {
+    match token {
+        "text_muted" => vec![&d.bg_primary, &d.bg_secondary],
+        _ => vec![&d.bg_primary, &d.bg_secondary, &d.bg_toolbar],
+    }
+}
+
+/// Flatten `#RRGGBBAA` over an opaque background.
+///
+/// The audited tokens are opaque as derived, but `[derived]` accepts an
+/// 8-digit value, so a user-pinned translucent border has to be measured
+/// as it renders rather than as it is written.
+fn composite_over(foreground: &str, background: &str) -> String {
+    let (Some(fg), Some(bg)) = (foreground.strip_prefix('#'), background.strip_prefix('#')) else {
+        return foreground.to_string();
+    };
+    if fg.len() != 8 {
+        return foreground.to_string();
+    }
+    let byte = |s: &str, i: usize| u8::from_str_radix(&s[i..i + 2], 16).unwrap_or(0) as f64;
+    let alpha = byte(fg, 6) / 255.0;
+    let channel = |i: usize| (byte(fg, i) * alpha + byte(bg, i) * (1.0 - alpha)) as u8;
+    format!("#{:02x}{:02x}{:02x}", channel(0), channel(2), channel(4))
+}
+
+/// One token that falls below its contrast floor on at least one of the
+/// surfaces it is drawn on.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ContrastWarning {
+    /// The `DerivedColors` field name, e.g. `"text_secondary"`.
+    pub token: String,
+    /// The token's resolved color.
+    pub foreground: String,
+    /// The worst surface it was measured against — the one this ratio is
+    /// from, not necessarily the page.
+    pub background: String,
+    /// Measured WCAG ratio, rounded to two decimals.
+    pub ratio: f64,
+    /// The floor this token was required to meet.
+    pub required: f64,
+}
+
+/// Accessibility report for one theme.
+///
+/// Empty `warnings` means every audited token clears its floor. This is
+/// advisory only: user themes are never modified, they are only reported.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ThemeContrastReport {
+    /// The theme this describes.
+    pub theme_id: String,
+    /// Tokens below their floor. Empty when the theme passes.
+    pub warnings: Vec<ContrastWarning>,
+    /// Tokens whose colour could not be parsed as hex, so no ratio could
+    /// be computed.
+    ///
+    /// Reported rather than dropped: `validate_color` accepts `rgba(…)`,
+    /// so a theme written that way would otherwise come back looking clean
+    /// no matter how illegible it is — a silent pass is the one outcome an
+    /// accessibility check must never produce.
+    pub unaudited: Vec<String>,
+}
+
+impl ThemeContrastReport {
+    /// `true` when every audited token clears its floor **and** every token
+    /// could actually be measured. An unparseable colour is not a pass.
+    pub fn passes(&self) -> bool {
+        self.warnings.is_empty() && self.unaudited.is_empty()
+    }
+}
+
+/// Audit a theme's text and border tokens against every surface they are
+/// drawn on.
+///
+/// Each token is measured against its own surface set (see
+/// [`audit_surfaces`]) and reported at its worst: a token only counts as
+/// legible if it is legible everywhere it appears.
+pub fn check_theme_contrast(theme: &Theme) -> ThemeContrastReport {
+    let d = &theme.derived;
+
+    let mut warnings = Vec::new();
+    let mut unaudited = Vec::new();
+
+    for (token, foreground) in [
+        ("text_primary", &d.text_primary),
+        ("text_secondary", &d.text_secondary),
+        ("text_muted", &d.text_muted),
+        ("border", &d.border),
+        ("border_strong", &d.border_strong),
+    ] {
+        let Some(required) = contrast_floor(token) else {
+            continue;
+        };
+        let against = audit_surfaces(token, d);
+        // Worst surface wins.
+        let mut worst: Option<(f64, &String)> = None;
+        let mut parse_failed = false;
+        for surface in against {
+            let flattened = composite_over(foreground, surface);
+            match contrast_ratio(&flattened, surface) {
+                Some(r) if worst.is_none_or(|(w, _)| r < w) => worst = Some((r, surface)),
+                Some(_) => {}
+                None => {
+                    parse_failed = true;
+                    break;
+                }
+            }
+        }
+        if parse_failed {
+            unaudited.push(token.to_string());
+            continue;
+        }
+        let Some((ratio, background)) = worst else {
+            unaudited.push(token.to_string());
+            continue;
+        };
+        if ratio < required {
+            warnings.push(ContrastWarning {
+                token: token.to_string(),
+                foreground: foreground.clone(),
+                background: background.clone(),
+                ratio: (ratio * 100.0).round() / 100.0,
+                required,
+            });
+        }
+    }
+
+    ThemeContrastReport {
+        theme_id: theme.meta.id.clone(),
+        warnings,
+        unaudited,
+    }
+}
+
+/// Blend `from` toward `toward` until the result clears `target` contrast
+/// against `background`.
+///
+/// Returns `from` unchanged when it already clears the target, so a theme
+/// whose own colours are legible keeps them verbatim. Steps in 0.5%
+/// increments, which is finer than any perceivable difference and keeps
+/// the result close to the palette's own hue line.
+///
+/// This is the mechanism that makes the accessibility floors hold for
+/// *user* themes as well as bundled ones. Clamping here is legitimate
+/// where clamping a declared colour would not be: these tokens are
+/// derived, never authored — a theme file declares 18 ANSI colours, and
+/// anything it does declare explicitly in `[derived]` still wins, because
+/// that merge runs after this.
+fn blend_to_contrast(from: &str, toward: &str, background: &str, target: f64) -> String {
+    if contrast_ratio(from, background).is_some_and(|r| r >= target) {
+        return from.to_string();
+    }
+    for step in 0..=200 {
+        let candidate = mix_hex(from, toward, step as f64 / 200.0);
+        if contrast_ratio(&candidate, background).is_some_and(|r| r >= target) {
+            return candidate;
+        }
+    }
+    // Unreachable for any parseable palette: `toward` is pure black or
+    // white, which is 21:1 against anything. Fall back to the input.
+    from.to_string()
+}
+
+/// Reach `target` while giving up as little of the palette's colour as
+/// possible.
+///
+/// Tries `preferred` first — normally the theme's own foreground, which
+/// keeps the result on a line between two of its real colours — and only
+/// falls back to `last_resort` (pure white or black) when the preferred
+/// anchor cannot get there, which happens when the foreground's own
+/// contrast is below the target.
+///
+/// The two-stage form exists because blending straight to an extreme
+/// desaturates: gruvbox-dark's `text_secondary` went from chroma 36 to 6,
+/// turning its tan into near-neutral grey. Preferring the foreground keeps
+/// the hue for the themes whose foreground is bright enough.
+fn blend_preferring(
+    from: &str,
+    preferred: &str,
+    last_resort: &str,
+    background: &str,
+    target: f64,
+) -> String {
+    let via_preferred = blend_to_contrast(from, preferred, background, target);
+    if contrast_ratio(&via_preferred, background).is_some_and(|r| r >= target) {
+        return via_preferred;
+    }
+    blend_to_contrast(from, last_resort, background, target)
+}
+
+/// Blend `from` toward `toward`, keeping the dimmest value that still
+/// clears `target` against `measured_against`.
+///
+/// Used for `text_muted`, which has to sit *below* `text_secondary` while
+/// staying legible. Solving upward from the palette would land it on the
+/// same value as secondary in themes whose `bright_black` already clears
+/// the higher floor.
+///
+/// `toward` and `measured_against` differ because muted is dimmed toward
+/// the page but has to stay legible on the *panel*, which is the worst
+/// surface it is drawn on. Dimming and measuring against the same surface
+/// would leave it at 3.60:1 where it actually renders.
+fn dim_to_contrast(from: &str, toward: &str, measured_against: &str, target: f64) -> String {
+    let mut dimmest = from.to_string();
+    for step in 0..=200 {
+        let candidate = mix_hex(from, toward, step as f64 / 200.0);
+        match contrast_ratio(&candidate, measured_against) {
+            Some(r) if r >= target => dimmest = candidate,
+            _ => break,
+        }
+    }
+    dimmest
+}
+
+/// CIE L\*, the perceptual lightness of a color. Returns `None` for
+/// anything that isn't parseable hex.
+///
+/// Contrast ratios are the wrong unit for spacing the text ramp: they are
+/// a legibility measure, not a perceptual scale, and two rungs 1.2× apart
+/// in ratio can be indistinguishable. L\* is roughly uniform, with a
+/// just-noticeable difference around 1–2.
+fn lstar(hex: &str) -> Option<f64> {
+    let l = relative_luminance(hex)?;
+    Some(if l > 0.008856 {
+        116.0 * l.cbrt() - 16.0
+    } else {
+        903.3 * l
+    })
+}
+
+/// Push `from` toward `toward` until it is at least `min_delta` L\* *past*
+/// `below`, in the direction of `toward`, so the two read as distinct
+/// rungs of one ramp.
+///
+/// The contrast floors alone no longer guarantee this. Once each rung is
+/// raised to clear WCAG AA on the worst surface it is drawn on, the
+/// low-contrast palettes bunch up: one-dark's secondary landed 1.8 L\*
+/// from its primary, which is at the edge of being noticeable at all.
+///
+/// Signed, not `abs()`. A rung that is already `min_delta` away on the
+/// *wrong* side is an inverted ramp, and an absolute-distance test would
+/// hand it back as if it were fine — the one input where this function is
+/// the last thing standing between a user theme and a nonsense hierarchy.
+fn separate_above(from: &str, below: &str, toward: &str, min_delta: f64) -> String {
+    let (Some(anchor), Some(target)) = (lstar(below), lstar(toward)) else {
+        return from.to_string();
+    };
+    // `toward` is pure white or black, so its own lightness gives the
+    // direction the ramp climbs in this mode.
+    let sign = if target >= anchor { 1.0 } else { -1.0 };
+    for step in 0..=200 {
+        let candidate = mix_hex(from, toward, step as f64 / 200.0);
+        if lstar(&candidate).is_some_and(|l| (l - anchor) * sign >= min_delta) {
+            return candidate;
+        }
+    }
+    // Unreachable for a parseable palette: `toward` is an extreme, so the
+    // last step is 100 L* from anything. Fall back to the input.
+    from.to_string()
+}
+
+/// Where the text ramp *starts*, before the two guarantees below are
+/// applied: contrast against the page, which is what gives each rung its
+/// place in the hierarchy.
+///
+/// `primary` is only raised when a theme's own foreground falls below its
+/// floor — 24 of the 31 bundled themes keep theirs verbatim. The 7 that
+/// change (one-dark, catppuccin-latte, solarized dark/light,
+/// rose-pine-dawn, everforest-light, ayu-light) are low-contrast-by-design
+/// palettes, and this trades some of that identity for legibility. In
+/// solarized-dark's case it also fixes an inverted ramp: its foreground
+/// was 4.75:1 while its `bright_black` was 2.79:1, so secondary was
+/// *darker* than primary.
+///
+/// `FLOOR_TEXT_SECONDARY` is dominated by [`FLOOR_TEXT_AA`] plus
+/// [`MIN_TEXT_STEP_LSTAR`] in all 31 bundled themes — every one of them
+/// ends up above 6.0:1 on the page anyway. It is kept because it anchors
+/// the rung to the page independently of the elevation ramp: change how
+/// far `bg_toolbar` sits from the page and this is what still holds.
+const FLOOR_TEXT_PRIMARY: f64 = 7.5;
+const FLOOR_TEXT_SECONDARY: f64 = 6.0;
+/// WCAG AA for normal text, with a hair of margin over the 4.5:1 the audit
+/// enforces, applied on the worst surface each rung is drawn on.
+///
+/// This is the floor that actually binds. Solved against the page alone,
+/// `text_secondary` measured 3.88:1 on the toolbar and `text_muted`
+/// 3.60:1 on a panel — both below AA on surfaces where they really render.
+const FLOOR_TEXT_AA: f64 = 4.6;
+/// Minimum perceptual distance between adjacent text rungs, in L\*.
+///
+/// Set at the bottom of the range the ramp used to reach on its own
+/// (secondary→muted was 6.9–10.4 before the AA pass existed) — so the
+/// hierarchy is now *guaranteed* where it used to be emergent, but it is
+/// also, honestly, a little tighter than before: raising muted to AA
+/// pulls it up toward secondary, and 28 of the 31 bundled themes now land
+/// at a secondary→muted gap of 6.0–7.4 with nine sitting exactly on this
+/// floor. That is the trade taken deliberately — legibility on every
+/// surface over a wider ramp — and 6.0 L\* is still 3–6× the
+/// just-noticeable difference, so the three rungs remain plainly distinct.
+const MIN_TEXT_STEP_LSTAR: f64 = 6.0;
+/// A safety floor for user themes, below which a divider is simply not
+/// there — see [`contrast_floor`]. The derivation targets the toolbar and
+/// lands well above it.
+const FLOOR_BORDER: f64 = 2.2;
+/// Control outlines take 1.4.11's 3:1, with margin.
+const FLOOR_BORDER_STRONG: f64 = 3.2;
+
 /// Derive semantic UI colors from the 18 base colors.
 fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors {
     // Elevation ramp. The previous steps (dark +5/+8 %, light −3/−5 %) sat
@@ -464,17 +969,94 @@ fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors 
         darken_hex(&colors.background, 0.10)
     };
 
-    // Third text rung — blend the secondary toward the page so de-emphasised
-    // metadata reads dimmer than secondary without dropping below the
-    // large-text contrast floor (verified per theme by the contrast check).
-    let text_muted = mix_hex(&colors.bright_black, &colors.background, 0.22);
+    // Text ramp, solved in three passes rather than taken verbatim:
+    // place each rung against the page, raise it to clear WCAG AA on the
+    // worst surface it is actually drawn on, then re-separate the rungs
+    // that the second pass pulled together.
+    //
+    // `text_secondary` used to be `bright_black` as-is, and `text_muted`
+    // that blended 22 % toward the page. An 18-slot ANSI palette has no
+    // mid-neutral — it jumps from `foreground` straight to `bright_black` —
+    // so on a dozen bundled palettes that landed far below readable
+    // (nord 1.69:1, gruvbox-dark 1.67:1). Solving toward the edge of the
+    // range instead keeps each rung on the palette's own hue line while
+    // guaranteeing the floor.
+    //
+    // The blend target is pure white or black, not the palette's
+    // `bright_white` / `black` slots: those are arbitrary ANSI colours
+    // (Catppuccin Latte's `black` is #5c5f77, *lighter* than its
+    // foreground), so blending toward them can move away from the edge.
+    let extreme = if is_dark { "#ffffff" } else { "#000000" };
+    let bg = &colors.background;
+
+    // ── 1. Hierarchy: solve each rung against the page ───────────────
+    let text_primary = blend_to_contrast(&colors.foreground, extreme, bg, FLOOR_TEXT_PRIMARY);
+    // `primary` starts from the foreground, so the extreme is its only
+    // anchor. `secondary` prefers the foreground and reaches for the
+    // extreme only when that cannot get it to the floor.
+    let text_secondary = blend_preferring(
+        &colors.bright_black,
+        &colors.foreground,
+        extreme,
+        bg,
+        FLOOR_TEXT_SECONDARY,
+    );
+
+    // ── 2. Legibility: clear AA on the worst surface each rung is
+    //       drawn on, not just on the page ─────────────────────────────
+    //
+    // Solved for the page alone, `secondary` rendered at 3.88:1 on the
+    // toolbar in the dark themes — and the toolbar, status bar, tab bar
+    // and context menus are full of it. `muted` never reaches the
+    // toolbar (see `audit_surfaces`), so the panel is its worst surface.
+    let text_secondary = blend_preferring(
+        &text_secondary,
+        &colors.foreground,
+        extreme,
+        &bg_toolbar,
+        FLOOR_TEXT_AA,
+    );
+    // Step *down* from secondary, so muted reads dimmer rather than
+    // landing on the same value in themes whose `bright_black` already
+    // clears the higher floor. Dimmed toward the page, measured on the
+    // panel.
+    let text_muted = dim_to_contrast(&text_secondary, bg, &bg_secondary, FLOOR_TEXT_AA);
+
+    // ── 3. Hierarchy again: the AA pass compresses the ramp ───────────
+    //
+    // Raising the lower rungs to clear AA pulls them toward the ones
+    // above. Unchecked, one-dark's secondary landed 1.8 L* under its
+    // primary. Bottom-up, so raising a rung never eats the gap below it.
+    let text_secondary = separate_above(&text_secondary, &text_muted, extreme, MIN_TEXT_STEP_LSTAR);
+    let text_primary = blend_to_contrast(&text_primary, extreme, &bg_toolbar, FLOOR_TEXT_AA);
+    let text_primary = separate_above(&text_primary, &text_secondary, extreme, MIN_TEXT_STEP_LSTAR);
+
+    // Solved against `bg_toolbar`, the most elevated surface these lines
+    // are drawn on, rather than against the page. Solved against
+    // `bg_primary` alone, an opaque border measured 2.2:1 there and as
+    // little as 1.42:1 on the toolbar — below the floor on a surface where
+    // plenty of these dividers actually live, and on 11 themes worse than
+    // the translucent version it replaced.
+    // `blend_preferring`, not `blend_to_contrast`: mixing the page toward
+    // the foreground caps at the foreground's own contrast, and on
+    // solarized-dark (fg 4.75:1) that cannot reach the control floor
+    // against the toolbar — `blend_to_contrast` would silently hand back
+    // the background itself, an invisible border reported as derived.
+    let border = blend_preferring(bg, &colors.foreground, extreme, &bg_toolbar, FLOOR_BORDER);
+    let border_strong = blend_preferring(
+        bg,
+        &colors.foreground,
+        extreme,
+        &bg_toolbar,
+        FLOOR_BORDER_STRONG,
+    );
 
     DerivedColors {
         bg_primary: colors.background.clone(),
         bg_secondary,
         bg_toolbar,
-        text_primary: colors.foreground.clone(),
-        text_secondary: colors.bright_black.clone(),
+        text_primary,
+        text_secondary,
         text_muted,
         accent_blue: colors.blue.clone(),
         accent_green: colors.green.clone(),
@@ -484,7 +1066,12 @@ fn derive_semantic_colors(colors: &ThemeColors, is_dark: bool) -> DerivedColors 
         accent_primary: colors.blue.clone(),
         accent_secondary: colors.magenta.clone(),
         accent_tertiary: colors.green.clone(),
-        border: with_alpha(&colors.bright_black, "80"),
+        // Solved outward from the page rather than `bright_black` at 50 %
+        // alpha, which composited to as little as 1.27:1 (gruvbox-dark) —
+        // an invisible line. Opaque, so the audited ratio is the ratio the
+        // eye sees rather than one that depends on what it overlays.
+        border,
+        border_strong,
         selection: with_alpha(&colors.blue, "40"),
     }
 }
@@ -677,35 +1264,35 @@ struct RawEditorOverride {
     foreground: Option<String>,
     cursor: Option<String>,
     selection: Option<String>,
-    #[serde(rename = "line-highlight")]
+    #[serde(alias = "line-highlight")]
     line_highlight: Option<String>,
-    #[serde(rename = "gutter-bg")]
+    #[serde(alias = "gutter-bg")]
     gutter_bg: Option<String>,
-    #[serde(rename = "gutter-fg")]
+    #[serde(alias = "gutter-fg")]
     gutter_fg: Option<String>,
-    #[serde(rename = "added-bg")]
+    #[serde(alias = "added-bg")]
     added_bg: Option<String>,
-    #[serde(rename = "removed-bg")]
+    #[serde(alias = "removed-bg")]
     removed_bg: Option<String>,
-    #[serde(rename = "added-text")]
+    #[serde(alias = "added-text")]
     added_text: Option<String>,
-    #[serde(rename = "removed-text")]
+    #[serde(alias = "removed-text")]
     removed_text: Option<String>,
-    #[serde(rename = "syntax-keyword")]
+    #[serde(alias = "syntax-keyword")]
     syntax_keyword: Option<String>,
-    #[serde(rename = "syntax-string")]
+    #[serde(alias = "syntax-string")]
     syntax_string: Option<String>,
-    #[serde(rename = "syntax-comment")]
+    #[serde(alias = "syntax-comment")]
     syntax_comment: Option<String>,
-    #[serde(rename = "syntax-function")]
+    #[serde(alias = "syntax-function")]
     syntax_function: Option<String>,
-    #[serde(rename = "syntax-type")]
+    #[serde(alias = "syntax-type")]
     syntax_type: Option<String>,
-    #[serde(rename = "syntax-number")]
+    #[serde(alias = "syntax-number")]
     syntax_number: Option<String>,
-    #[serde(rename = "syntax-operator")]
+    #[serde(alias = "syntax-operator")]
     syntax_operator: Option<String>,
-    #[serde(rename = "syntax-property")]
+    #[serde(alias = "syntax-property")]
     syntax_property: Option<String>,
 }
 
@@ -750,7 +1337,79 @@ struct RawTheme {
     colors: Option<ThemeColors>,
     graph: Option<RawGraphOverride>,
     editor: Option<RawEditorOverride>,
+    derived: Option<RawDerivedOverride>,
     accents: Option<ThemeAccents>,
+}
+
+/// The `[derived]` section — per-theme overrides for the semantic UI
+/// tokens that `derive_semantic_colors` computes from the base palette.
+///
+/// **Note the policy this reflects, which changed.** The contrast floors
+/// are now enforced in `derive_semantic_colors` itself, so a user theme
+/// declaring only `[colors]` *does* get its derived text and border tokens
+/// adjusted. That is deliberate: those tokens were never authored — a
+/// theme file declares 18 ANSI colours — and the audit can otherwise only
+/// warn about a palette it is not allowed to help.
+///
+/// What is still never touched is a value the author wrote down. This
+/// section merges after the derivation, so an explicit pin always wins,
+/// including one that fails its floor: failing pins are reported, never
+/// corrected.
+///
+/// Raising `colors.bright_black` would not have worked as a fix — it also
+/// feeds the terminal's ANSI palette, so a legible Nord would stop being
+/// Nord in the terminal.
+#[derive(Debug, Clone, Default, Deserialize)]
+struct RawDerivedOverride {
+    #[serde(default, alias = "text-primary")]
+    text_primary: Option<String>,
+    #[serde(default, alias = "text-secondary")]
+    text_secondary: Option<String>,
+    #[serde(default, alias = "text-muted")]
+    text_muted: Option<String>,
+    #[serde(default)]
+    border: Option<String>,
+    /// Audited like `border`, so it has to be pinnable too — otherwise a
+    /// user whose control outlines are reported as failing has no
+    /// supported way to fix them.
+    #[serde(default, alias = "border-strong")]
+    border_strong: Option<String>,
+}
+
+/// Apply partial overrides from a `[derived]` section onto the computed
+/// `DerivedColors`.
+///
+/// A pin always wins. The one piece of derivation that survives is
+/// `text_muted` when the theme pins `text_secondary` without pinning
+/// muted: muted is defined as a step down from secondary, and leaving it
+/// computed from the value the pin just discarded breaks that. Harmless
+/// with the four bundled pins, which are all brighter than the derived
+/// value — but a theme pinning a *dimmer* secondary would invert the ramp
+/// with nothing to catch it, since the audit only checks floors.
+fn merge_derived_overrides(base: &mut DerivedColors, overrides: RawDerivedOverride) {
+    if let Some(v) = overrides.text_primary {
+        base.text_primary = v;
+    }
+    let pinned_secondary = overrides.text_secondary.is_some();
+    if let Some(v) = overrides.text_secondary {
+        base.text_secondary = v;
+    }
+    if let Some(v) = overrides.text_muted {
+        base.text_muted = v;
+    } else if pinned_secondary {
+        base.text_muted = dim_to_contrast(
+            &base.text_secondary,
+            &base.bg_primary,
+            &base.bg_secondary,
+            FLOOR_TEXT_AA,
+        );
+    }
+    if let Some(v) = overrides.border {
+        base.border = v;
+    }
+    if let Some(v) = overrides.border_strong {
+        base.border_strong = v;
+    }
 }
 
 /// Resolve an `accent` slot to a concrete `#RRGGBB` value. Accepts any
@@ -948,6 +1607,25 @@ pub fn parse_theme(toml_str: &str) -> Result<Theme, ThemeError> {
     if let Some(accents) = raw.accents.as_ref() {
         apply_accent_overrides(&mut derived, &colors, accents);
     }
+    // Last, so an explicit `[derived]` value wins over both the palette
+    // derivation and the accent overrides.
+    if let Some(overrides) = raw.derived {
+        for (field, value) in [
+            ("derived.text_primary", overrides.text_primary.as_deref()),
+            (
+                "derived.text_secondary",
+                overrides.text_secondary.as_deref(),
+            ),
+            ("derived.text_muted", overrides.text_muted.as_deref()),
+            ("derived.border", overrides.border.as_deref()),
+            ("derived.border_strong", overrides.border_strong.as_deref()),
+        ] {
+            if let Some(v) = value {
+                validate_color(field, v)?;
+            }
+        }
+        merge_derived_overrides(&mut derived, overrides);
+    }
 
     // Derive graph from base palette + derived, then merge overrides
     let mut graph = derive_graph(&colors, &derived);
@@ -1037,6 +1715,17 @@ pub fn load_builtin_themes() -> Vec<Theme> {
         SOLARIZED_LIGHT_TOML,
         GRUVBOX_DARK_TOML,
         MONOKAI_PRO_TOML,
+        ROSE_PINE_MOON_TOML,
+        ROSE_PINE_DAWN_TOML,
+        EVERFOREST_DARK_TOML,
+        EVERFOREST_LIGHT_TOML,
+        KANAGAWA_TOML,
+        AYU_DARK_TOML,
+        AYU_MIRAGE_TOML,
+        AYU_LIGHT_TOML,
+        MATERIAL_TOML,
+        ZENBURN_TOML,
+        OXOCARBON_TOML,
     ]
     .iter()
     .filter_map(|src| parse_theme(src).ok())
@@ -1391,7 +2080,828 @@ lane-colors = ["#0000ff"]
     #[test]
     fn test_load_builtin_themes() {
         let themes = load_builtin_themes();
-        assert_eq!(themes.len(), 20);
+        assert_eq!(themes.len(), 31);
+    }
+
+    // ── WCAG contrast ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_contrast_ratio_known_extremes() {
+        // The two endpoints of the WCAG scale, to catch a wrong luminance
+        // coefficient or a missing sRGB linearisation.
+        let black_on_white = contrast_ratio("#000000", "#ffffff").unwrap();
+        assert!(
+            (black_on_white - 21.0).abs() < 0.01,
+            "expected 21:1, got {black_on_white}"
+        );
+        let same = contrast_ratio("#7f7f7f", "#7f7f7f").unwrap();
+        assert!((same - 1.0).abs() < 0.001, "expected 1:1, got {same}");
+    }
+
+    #[test]
+    fn test_contrast_ratio_is_order_independent() {
+        let a = contrast_ratio("#1e1e1e", "#d4d4d4").unwrap();
+        let b = contrast_ratio("#d4d4d4", "#1e1e1e").unwrap();
+        assert!((a - b).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_contrast_ratio_matches_a_published_value() {
+        // #767676 on white is the canonical "exactly AA for normal text"
+        // example — 4.54:1. A naive (non-linearised) implementation gets
+        // this visibly wrong, so it pins the gamma step specifically.
+        let ratio = contrast_ratio("#767676", "#ffffff").unwrap();
+        assert!(
+            (4.5..4.6).contains(&ratio),
+            "expected ~4.54:1 for #767676 on white, got {ratio}"
+        );
+    }
+
+    #[test]
+    fn test_contrast_ratio_rejects_non_hex() {
+        // `rgba(…)` is accepted by `validate_color` but carries alpha over
+        // an unknown backdrop, so there is no single ratio to report. It is
+        // surfaced as `unaudited` rather than silently skipped.
+        assert!(contrast_ratio("rgba(0,0,0,0.5)", "#ffffff").is_none());
+        assert!(contrast_ratio("", "#000000").is_none());
+        assert!(contrast_ratio("#12345", "#000000").is_none());
+    }
+
+    #[test]
+    fn test_contrast_ratio_expands_three_digit_hex() {
+        // `#fff` is legal CSS and a user theme may use it. Failing to parse
+        // it would mean silently not auditing the token.
+        let short = contrast_ratio("#fff", "#000").unwrap();
+        let long = contrast_ratio("#ffffff", "#000000").unwrap();
+        assert!((short - long).abs() < 1e-9, "{short} vs {long}");
+        assert!((short - 21.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_unparseable_token_is_reported_not_dropped() {
+        // A silent pass is the one outcome an accessibility check must never
+        // produce: before this, an `rgba()` token made the theme look clean.
+        let mut theme = builtin("beardgit-dark");
+        theme.derived.text_secondary = "rgba(255, 255, 255, 0.2)".to_string();
+
+        let report = check_theme_contrast(&theme);
+
+        assert!(!report.passes());
+        assert_eq!(report.unaudited, vec!["text_secondary".to_string()]);
+        assert!(report.warnings.is_empty(), "no ratio means no warning");
+    }
+
+    #[test]
+    fn test_contrast_ratio_accepts_eight_digit_hex() {
+        // `#RRGGBBAA` parses (alpha ignored) so callers passing a derived
+        // token with alpha get a number rather than `None`.
+        assert!(contrast_ratio("#000000ff", "#ffffff").is_some());
+    }
+
+    #[test]
+    fn test_contrast_floor_only_covers_audited_tokens() {
+        // All three text rungs take the WCAG AA normal-text floor. `muted`
+        // used to sit at 3:1 on a large-text exemption it never qualified
+        // for — it renders at 10px.
+        assert_eq!(contrast_floor("text_primary"), Some(4.5));
+        assert_eq!(contrast_floor("text_secondary"), Some(4.5));
+        assert_eq!(contrast_floor("text_muted"), Some(4.5));
+        // Control outlines identify a component, so they take WCAG
+        // 1.4.11's 3:1; plain separators only refine the elevation ramp.
+        assert_eq!(contrast_floor("border_strong"), Some(3.0));
+        assert_eq!(contrast_floor("border"), Some(2.0));
+        // `selection` overlays arbitrary content, so there is no single
+        // pair to measure.
+        assert_eq!(contrast_floor("selection"), None);
+    }
+
+    #[test]
+    fn test_composite_over_flattens_alpha() {
+        // 50 % black over white is mid-grey; a fully opaque value and a
+        // non-hex value pass through untouched.
+        assert_eq!(composite_over("#00000080", "#ffffff"), "#7f7f7f");
+        assert_eq!(composite_over("#123456", "#ffffff"), "#123456");
+        assert_eq!(
+            composite_over("rgba(0,0,0,0.5)", "#ffffff"),
+            "rgba(0,0,0,0.5)"
+        );
+    }
+
+    #[test]
+    fn test_blend_to_contrast_leaves_a_passing_colour_alone() {
+        // A theme whose own colour is already legible keeps it verbatim —
+        // the derivation is a floor, not a normaliser.
+        assert_eq!(
+            blend_to_contrast("#ffffff", "#ffffff", "#000000", 7.5),
+            "#ffffff"
+        );
+    }
+
+    #[test]
+    fn test_blend_to_contrast_raises_a_failing_colour() {
+        let raised = blend_to_contrast("#111111", "#ffffff", "#000000", 7.5);
+        assert_ne!(raised, "#111111");
+        assert!(contrast_ratio(&raised, "#000000").unwrap() >= 7.5);
+    }
+
+    #[test]
+    fn test_dim_to_contrast_steps_below_its_input() {
+        // `muted` has to read dimmer than `secondary` while staying above
+        // its own floor, so this must move *and* stay legible.
+        let secondary = "#98928a";
+        let page = "#151312";
+        let muted = dim_to_contrast(secondary, page, page, 4.6);
+        let rs = contrast_ratio(secondary, page).unwrap();
+        let rm = contrast_ratio(&muted, page).unwrap();
+        assert!(rm >= 4.6, "muted fell below its floor: {rm}");
+        assert!(rm < rs, "muted must be dimmer than secondary: {rm} vs {rs}");
+    }
+
+    #[test]
+    fn test_dim_to_contrast_holds_the_floor_on_the_measured_surface() {
+        // The regression this signature exists for: dimming toward the
+        // page while measuring on the page leaves the colour below its
+        // floor on the panel, which is where it actually renders.
+        let secondary = "#98928a";
+        let page = "#151312";
+        let panel = "#2a2724";
+
+        let page_only = dim_to_contrast(secondary, page, page, 4.6);
+        assert!(
+            contrast_ratio(&page_only, panel).unwrap() < 4.6,
+            "the old behaviour has to be reproducible, or this guard is vacuous"
+        );
+
+        let panel_aware = dim_to_contrast(secondary, page, panel, 4.6);
+        assert!(contrast_ratio(&panel_aware, panel).unwrap() >= 4.6);
+        // Still dimmed, just not as far.
+        assert_ne!(panel_aware, secondary);
+    }
+
+    #[test]
+    fn test_separate_above_opens_a_gap_and_leaves_a_wide_one_alone() {
+        let below = "#606060";
+        let touching = separate_above("#666666", below, "#ffffff", 6.0);
+        let gap = lstar(&touching).unwrap() - lstar(below).unwrap();
+        assert!(gap >= 6.0, "gap not opened: {gap}");
+
+        let already_apart = "#e0e0e0";
+        assert_eq!(
+            separate_above(already_apart, below, "#ffffff", 6.0),
+            already_apart,
+            "a rung already far enough away must be kept verbatim"
+        );
+    }
+
+    #[test]
+    fn test_separate_above_corrects_an_inverted_rung() {
+        // Far enough away, but on the wrong side: darker than the rung it
+        // is supposed to sit above. An absolute-distance check would call
+        // this separated and hand back the inversion.
+        let below = "#909090";
+        let inverted = "#404040";
+        assert!(
+            (lstar(inverted).unwrap() - lstar(below).unwrap()).abs() >= 6.0,
+            "the setup must already clear the gap in absolute terms, or this proves nothing"
+        );
+
+        let fixed = separate_above(inverted, below, "#ffffff", 6.0);
+        assert!(
+            lstar(&fixed).unwrap() - lstar(below).unwrap() >= 6.0,
+            "must end up above, not merely far: {fixed}"
+        );
+
+        // Same, mirrored, for light mode: the ramp climbs toward black.
+        let fixed_light = separate_above("#d0d0d0", below, "#000000", 6.0);
+        assert!(
+            lstar(below).unwrap() - lstar(&fixed_light).unwrap() >= 6.0,
+            "light mode must separate downward: {fixed_light}"
+        );
+    }
+
+    /// **Every bundled theme must be legible.** This is the audit the
+    /// `derive_semantic_colors` comment already claimed existed ("verified
+    /// per theme by the contrast check") before one did.
+    ///
+    /// A failure here means the derivation regressed, since it solves for
+    /// these floors — so the fix is normally in `derive_semantic_colors`,
+    /// not in a TOML. A `[derived]` pin is the right answer only when a
+    /// theme's own palette has a slot that beats the derived value on
+    /// *every* surface the token is drawn on, which three of them do. It
+    /// can also be the cause: a pin wins over the derivation, so a pin
+    /// chosen against the page alone can hold a token below AA on the
+    /// toolbar — which is how gitlab-dark's lost its pin.
+    #[test]
+    fn test_all_builtin_themes_meet_contrast_floors() {
+        let failures: Vec<String> = load_builtin_themes()
+            .iter()
+            .map(check_theme_contrast)
+            .filter(|report| !report.passes())
+            .flat_map(|report| {
+                // Both vectors, not just `warnings`. `passes()` also requires
+                // `unaudited` to be empty, so filtering on `!passes()` and
+                // then only listing warnings would let a theme with an
+                // unparseable colour produce zero failure strings — the
+                // assertion below would hold and the guard would pass
+                // vacuously on exactly the silent-pass case it exists for.
+                let mut lines: Vec<String> = report
+                    .warnings
+                    .iter()
+                    .map(|w| {
+                        format!(
+                            "{}: {} {} on {} = {:.2}:1 (needs {:.1}:1)",
+                            report.theme_id,
+                            w.token,
+                            w.foreground,
+                            w.background,
+                            w.ratio,
+                            w.required
+                        )
+                    })
+                    .collect();
+                lines.extend(report.unaudited.iter().map(|token| {
+                    format!(
+                        "{}: {token} could not be parsed as hex, so it was never measured",
+                        report.theme_id
+                    )
+                }));
+                lines
+            })
+            .collect();
+
+        assert!(
+            failures.is_empty(),
+            "{} bundled theme token(s) below the contrast floor:\n  {}",
+            failures.len(),
+            failures.join("\n  ")
+        );
+    }
+
+    #[test]
+    fn test_check_theme_contrast_flags_a_deliberately_bad_theme() {
+        // Guards the audit itself: a `check_theme_contrast` that always
+        // returned an empty report would make the test above vacuous.
+        let mut theme = builtin("beardgit-dark");
+        theme.derived.text_secondary = theme.derived.bg_primary.clone();
+
+        let report = check_theme_contrast(&theme);
+
+        assert!(!report.passes());
+        let warning = report
+            .warnings
+            .iter()
+            .find(|w| w.token == "text_secondary")
+            .expect("text_secondary must be flagged");
+        assert!(
+            (warning.ratio - 1.0).abs() < 0.01,
+            "identical colors are 1:1, got {}",
+            warning.ratio
+        );
+        assert_eq!(warning.required, 4.5);
+    }
+
+    /// The whole point of the surface axis: a token can clear its floor on
+    /// the page and still be illegible where it is drawn.
+    #[test]
+    fn test_a_token_that_only_fails_off_the_page_is_flagged() {
+        let mut theme = builtin("beardgit-dark");
+        // Solve secondary to exactly AA against the page, which leaves it
+        // short on the two elevated surfaces.
+        theme.derived.text_secondary = dim_to_contrast(
+            &theme.derived.text_primary,
+            &theme.derived.bg_primary,
+            &theme.derived.bg_primary,
+            4.5,
+        );
+
+        assert!(
+            contrast_ratio(&theme.derived.text_secondary, &theme.derived.bg_primary).unwrap()
+                >= 4.5,
+            "the setup must pass on the page, or this proves nothing"
+        );
+
+        let warning = check_theme_contrast(&theme)
+            .warnings
+            .into_iter()
+            .find(|w| w.token == "text_secondary")
+            .expect("a token below AA on the toolbar must be flagged");
+        assert_eq!(
+            warning.background, theme.derived.bg_toolbar,
+            "the report must name the surface that actually failed"
+        );
+    }
+
+    /// `text_muted` is audited on the page and the panel but not the
+    /// toolbar. That set is a claim about CSS, so pin it: a change to
+    /// `audit_surfaces` should have to be deliberate.
+    #[test]
+    fn test_audit_surface_sets_match_where_tokens_are_drawn() {
+        let d = &builtin("beardgit-dark").derived;
+        assert_eq!(
+            audit_surfaces("text_muted", d),
+            vec![&d.bg_primary, &d.bg_secondary],
+            "no --text-muted callsite sits on a toolbar-rooted component"
+        );
+        for token in ["text_primary", "text_secondary", "border", "border_strong"] {
+            assert_eq!(
+                audit_surfaces(token, d),
+                vec![&d.bg_primary, &d.bg_secondary, &d.bg_toolbar],
+                "{token} is drawn on every surface"
+            );
+        }
+    }
+
+    /// The three rungs have to read as a hierarchy, not as three shades of
+    /// the same grey. Contrast floors alone stopped guaranteeing this once
+    /// the AA pass started raising the lower rungs.
+    #[test]
+    fn test_text_ramp_stays_perceptually_separated() {
+        let failures: Vec<String> = load_builtin_themes()
+            .iter()
+            .filter_map(|t| {
+                let d = &t.derived;
+                let (p, s, m) = (
+                    lstar(&d.text_primary)?,
+                    lstar(&d.text_secondary)?,
+                    lstar(&d.text_muted)?,
+                );
+                // Ordering as well as spacing: an inverted ramp would clear
+                // an abs() gap check while reading as nonsense.
+                let ordered = if t.meta.mode == "dark" {
+                    p > s && s > m
+                } else {
+                    p < s && s < m
+                };
+                let ps = (p - s).abs();
+                let sm = (s - m).abs();
+                (!ordered || ps < MIN_TEXT_STEP_LSTAR || sm < MIN_TEXT_STEP_LSTAR).then(|| {
+                    format!(
+                        "{}: L* {p:.1}/{s:.1}/{m:.1} — gaps {ps:.1}, {sm:.1} (need {MIN_TEXT_STEP_LSTAR})",
+                        t.meta.id
+                    )
+                })
+            })
+            .collect();
+
+        assert!(
+            failures.is_empty(),
+            "{} theme(s) with a collapsed or inverted text ramp:\n  {}",
+            failures.len(),
+            failures.join("\n  ")
+        );
+    }
+
+    /// A pinned `text_secondary` has to drag `text_muted` with it, or the
+    /// documented "one step down from secondary" invariant is computed
+    /// against a value the theme discarded.
+    #[test]
+    fn test_pinned_secondary_redirives_muted() {
+        let base = builtin("beardgit-dark");
+        // Dimmer than the derived value and off its hue line — the
+        // direction the three bundled pins never exercise, and the one
+        // that inverts the ramp when muted is left computed from the
+        // pre-pin value.
+        let dim_pin = "#8b93a8";
+        assert!(
+            lstar(dim_pin).unwrap() < lstar(&base.derived.text_secondary).unwrap(),
+            "the pin has to actually be dimmer for this to test anything"
+        );
+
+        let mut derived = base.derived.clone();
+        merge_derived_overrides(
+            &mut derived,
+            RawDerivedOverride {
+                text_secondary: Some(dim_pin.into()),
+                ..Default::default()
+            },
+        );
+
+        assert_eq!(derived.text_secondary, dim_pin, "the pin must win");
+        let s = lstar(&derived.text_secondary).unwrap();
+        let m = lstar(&derived.text_muted).unwrap();
+        // `<=`, not `<`: a pin already sitting on the AA floor for the
+        // panel leaves nowhere dimmer to go, and the two rungs collapse
+        // onto one value. That is the correct outcome — the alternative is
+        // a muted rung below AA — and it is still a fix, because before
+        // this muted was computed from the pre-pin value and came out
+        // *brighter* than the secondary the theme actually asked for.
+        assert!(
+            m <= s,
+            "muted must never end up brighter than the pinned secondary: {m} vs {s}"
+        );
+        assert_ne!(
+            derived.text_muted, base.derived.text_muted,
+            "muted has to follow the pin, not the value the pin replaced"
+        );
+        assert!(
+            contrast_ratio(&derived.text_muted, &derived.bg_secondary).unwrap() >= 4.5,
+            "the re-derived muted still has to clear AA on the panel"
+        );
+    }
+
+    /// The same fix where the pin leaves room: muted lands strictly below.
+    #[test]
+    fn test_pinned_secondary_still_leaves_muted_a_step_down() {
+        let base = builtin("beardgit-dark");
+        // Brighter than derived, like the three bundled pins — muted has
+        // room to step down and must actually use it.
+        let bright_pin = "#e8e6e3";
+        let mut derived = base.derived.clone();
+        merge_derived_overrides(
+            &mut derived,
+            RawDerivedOverride {
+                text_secondary: Some(bright_pin.into()),
+                ..Default::default()
+            },
+        );
+
+        let s = lstar(bright_pin).unwrap();
+        let m = lstar(&derived.text_muted).unwrap();
+        assert!(m < s, "muted must read dimmer than secondary: {m} vs {s}");
+        assert!(contrast_ratio(&derived.text_muted, &derived.bg_secondary).unwrap() >= 4.5);
+    }
+
+    /// An explicit `text_muted` pin is never touched, even alongside a
+    /// `text_secondary` pin.
+    #[test]
+    fn test_pinned_muted_wins_over_the_rederivation() {
+        let mut derived = builtin("beardgit-dark").derived.clone();
+        merge_derived_overrides(
+            &mut derived,
+            RawDerivedOverride {
+                text_secondary: Some("#c0c0c0".into()),
+                text_muted: Some("#909090".into()),
+                ..Default::default()
+            },
+        );
+        assert_eq!(derived.text_muted, "#909090");
+    }
+
+    // ── Serde contract with the TypeScript mirror ─────────────────────────
+    //
+    // `src/lib/types/index.ts` declares these shapes by hand and the
+    // frontend reads the fields by name. `#[serde(rename = "…")]` changes
+    // *serialization* as well as deserialization, so a kebab-case rename
+    // here silently makes every TS read `undefined` — no compile error, no
+    // runtime error, just tokens that never apply. `#[serde(alias)]` is the
+    // correct attribute for accepting kebab-case TOML input.
+
+    /// Fetch one built-in theme by id.
+    fn builtin(id: &str) -> Theme {
+        load_builtin_themes()
+            .into_iter()
+            .find(|t| t.meta.id == id)
+            .unwrap_or_else(|| panic!("built-in theme `{id}` not found"))
+    }
+
+    /// Serialize a theme and return the sorted keys of one section.
+    fn serialized_keys(theme: &Theme, section: &str) -> Vec<String> {
+        let value = serde_json::to_value(theme).expect("theme must serialize");
+        let mut keys: Vec<String> = value
+            .get(section)
+            .unwrap_or_else(|| panic!("missing `{section}` section"))
+            .as_object()
+            .unwrap_or_else(|| panic!("`{section}` must be an object"))
+            .keys()
+            .cloned()
+            .collect();
+        keys.sort();
+        keys
+    }
+
+    fn sorted(items: &[&str]) -> Vec<String> {
+        let mut v: Vec<String> = items.iter().map(|s| (*s).to_string()).collect();
+        v.sort();
+        v
+    }
+
+    #[test]
+    fn test_serialized_editor_keys_are_snake_case() {
+        assert_eq!(
+            serialized_keys(&builtin("beardgit-dark"), "editor"),
+            sorted(&[
+                "background",
+                "foreground",
+                "cursor",
+                "selection",
+                "line_highlight",
+                "gutter_bg",
+                "gutter_fg",
+                "added_bg",
+                "removed_bg",
+                "added_text",
+                "removed_text",
+                "syntax_keyword",
+                "syntax_string",
+                "syntax_comment",
+                "syntax_function",
+                "syntax_type",
+                "syntax_number",
+                "syntax_operator",
+                "syntax_property",
+            ]),
+            "the `editor` keys the frontend receives must match \
+             `ThemeEditorData` in src/lib/types/index.ts exactly"
+        );
+    }
+
+    #[test]
+    fn test_serialized_graph_keys_are_snake_case() {
+        assert_eq!(
+            serialized_keys(&builtin("beardgit-dark"), "graph"),
+            sorted(&[
+                "lane_colors",
+                "background",
+                "foreground",
+                "text_primary",
+                "text_secondary",
+                "text_sha",
+                "selection",
+                "head_lane_tint",
+                "selection_highlight",
+                "dim_opacity",
+                "node_radius",
+                "merge_radius",
+                "ref_branch",
+                "ref_remote",
+                "ref_tag",
+                "ref_head",
+            ])
+        );
+    }
+
+    #[test]
+    fn test_no_serialized_key_is_kebab_case() {
+        // Belt and braces across every section of every built-in theme: a
+        // `rename` added to any future field fails here even if nobody
+        // remembers to extend the two key lists above.
+        for theme in load_builtin_themes() {
+            let value = serde_json::to_value(&theme).expect("theme must serialize");
+            for (section, contents) in value.as_object().expect("theme is an object") {
+                let Some(fields) = contents.as_object() else {
+                    continue;
+                };
+                for key in fields.keys() {
+                    assert!(
+                        !key.contains('-'),
+                        "theme `{}` serializes `{section}.{key}` in kebab-case; \
+                         use #[serde(alias = \"…\")] instead of rename so the \
+                         TypeScript mirror keeps matching",
+                        theme.meta.id
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_editor_section_still_deserializes_kebab_case_toml() {
+        // The bundled TOML files use kebab-case, and so do user themes in
+        // `~/.config/beardgit/themes`. Switching rename→alias must not
+        // break reading them.
+        let toml = r##"
+[meta]
+id = "probe"
+name = "Probe"
+mode = "dark"
+
+[colors]
+background = "#000000"
+foreground = "#ffffff"
+black = "#000000"
+red = "#ff0000"
+green = "#00ff00"
+yellow = "#ffff00"
+blue = "#0000ff"
+magenta = "#ff00ff"
+cyan = "#00ffff"
+white = "#ffffff"
+bright_black = "#444444"
+bright_red = "#ff4444"
+bright_green = "#44ff44"
+bright_yellow = "#ffff44"
+bright_blue = "#4444ff"
+bright_magenta = "#ff44ff"
+bright_cyan = "#44ffff"
+bright_white = "#ffffff"
+
+[editor]
+background = "#111111"
+foreground = "#eeeeee"
+cursor = "#ffffff"
+selection = "#333333"
+line-highlight = "#222222"
+gutter-bg = "#101010"
+gutter-fg = "#888888"
+added-bg = "#0a2a0a"
+removed-bg = "#2a0a0a"
+added-text = "#44ff44"
+removed-text = "#ff4444"
+syntax-keyword = "#ff00ff"
+"##;
+        let theme = parse_theme(toml).expect("kebab-case [editor] must parse");
+        let editor = theme.editor.expect("editor section present");
+        assert_eq!(editor.added_bg, "#0a2a0a");
+        assert_eq!(editor.removed_bg, "#2a0a0a");
+        assert_eq!(editor.line_highlight, "#222222");
+        assert_eq!(editor.gutter_fg, "#888888");
+        assert_eq!(editor.syntax_keyword.as_deref(), Some("#ff00ff"));
+    }
+
+    // ── The fixture the frontend test suite consumes ──────────────────────
+
+    /// Every generated theme fixture the frontend consumes: output path and
+    /// the theme ids it holds.
+    ///
+    /// One generator, several outputs. Before this existed, each consumer
+    /// hand-dumped its own copy — `theme.test.ts` wrote snake_case by hand
+    /// (so it tested the TS type against itself) while
+    /// `tests/visual/fixtures/theme-data.ts` held a kebab-case dump taken
+    /// from the buggy serialization. Two hand-maintained copies of a shape
+    /// is how the mismatch survived; generating them all from here is what
+    /// makes it impossible to reintroduce in one place only.
+    const FIXTURES: &[(&str, &[&str])] = &[
+        // Unit tests for `applyTheme`'s token mapping.
+        //
+        // `beardgit-light` is the light-mode default, where the bug showed
+        // up as dark diff backgrounds. It distinguishes a working read
+        // from a broken one on one field only (`syntax_property`, which
+        // `derive_editor` maps to `colors.cyan` while the frontend falls
+        // back to `accent_blue`). `github-light` is the only light theme
+        // shipping a pinned `[editor]` block and differs on four
+        // (`syntax_string`, `_type`, `_number`, `_property`), which is
+        // what gives the syntax assertions real signal.
+        //
+        // `beardgit-dark` is here so `src/test/fixtures/theme.ts` can build
+        // the visual suite's theme pair from generated data. That file used
+        // to hand-mirror the derivation, which meant every screenshot
+        // baseline was rendered against a copy that drifted the moment the
+        // derivation changed — and so could never catch a theme regression.
+        (
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../src/lib/stores/__fixtures__/themes.json"
+            ),
+            &["beardgit-dark", "beardgit-light", "github-light"],
+        ),
+        // Playwright marketing screenshots (`marketing.spec.ts` feeds these
+        // to `resolve_startup_theme` / `get_theme`).
+        (
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/visual/fixtures/theme-data.json"
+            ),
+            &[
+                "beardgit-dark",
+                "beardgit-light",
+                "fjord-dark",
+                "fjord-light",
+                "nebula-dark",
+                "nebula-light",
+            ],
+        ),
+    ];
+
+    fn fixture_value(ids: &[&str]) -> serde_json::Value {
+        let mut map = serde_json::Map::new();
+        for id in ids {
+            map.insert(
+                (*id).to_string(),
+                serde_json::to_value(builtin(id)).expect("theme must serialize"),
+            );
+        }
+        serde_json::Value::Object(map)
+    }
+
+    /// The fixtures the frontend consumes must be byte-for-byte what this
+    /// crate actually serializes.
+    ///
+    /// This is the cross-language half of the contract, and the reason the
+    /// original bug was invisible: with hand-written fixtures, both test
+    /// suites agreed with the TypeScript types by construction and neither
+    /// ever saw what serde emitted.
+    #[test]
+    fn test_theme_fixtures_match_live_serialization() {
+        for (path, ids) in FIXTURES {
+            let committed: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(path)
+                    .unwrap_or_else(|e| panic!("fixture {path} must exist: {e}")),
+            )
+            .unwrap_or_else(|e| panic!("fixture {path} must be valid JSON: {e}"));
+
+            let live = fixture_value(ids);
+
+            // Report the key-set difference before the value comparison:
+            // `assert_eq!` on two multi-kilobyte `Value`s prints two
+            // unreadable single-line dumps, and a kebab/snake mismatch is
+            // exactly the case where you want to see the key names.
+            if committed != live {
+                let keys = |v: &serde_json::Value| -> Vec<String> {
+                    v.as_object()
+                        .map(|themes| {
+                            let mut out: Vec<String> = themes
+                                .iter()
+                                .flat_map(|(id, theme)| {
+                                    theme.as_object().into_iter().flat_map(move |sections| {
+                                        sections.iter().flat_map(move |(section, fields)| {
+                                            fields.as_object().into_iter().flat_map(
+                                                move |f| -> Vec<String> {
+                                                    f.keys()
+                                                        .map(|k| format!("{id}.{section}.{k}"))
+                                                        .collect()
+                                                },
+                                            )
+                                        })
+                                    })
+                                })
+                                .collect();
+                            out.sort();
+                            out
+                        })
+                        .unwrap_or_default()
+                };
+                let committed_keys = keys(&committed);
+                let live_keys = keys(&live);
+                let only_committed: Vec<_> = committed_keys
+                    .iter()
+                    .filter(|k| !live_keys.contains(k))
+                    .collect();
+                let only_live: Vec<_> = live_keys
+                    .iter()
+                    .filter(|k| !committed_keys.contains(k))
+                    .collect();
+
+                panic!(
+                    "{path} is stale.\n\
+                     keys only in the committed fixture: {only_committed:?}\n\
+                     keys only in live serialization:    {only_live:?}\n\
+                     (empty on both sides means the keys match and only \
+                     values differ)\n\
+                     Regenerate with: \
+                     cargo test -p storage regenerate_theme_fixtures -- --ignored"
+                );
+            }
+        }
+    }
+
+    /// Rewrite the committed fixtures. Ignored by default; run explicitly
+    /// after an intentional shape change.
+    #[test]
+    #[ignore = "writes fixture files; run explicitly after a shape change"]
+    fn regenerate_theme_fixtures() {
+        for (path, ids) in FIXTURES {
+            let json = serde_json::to_string_pretty(&fixture_value(ids)).unwrap();
+            std::fs::write(path, format!("{json}\n")).expect("fixture must be writable");
+            println!("rewrote {path}");
+        }
+    }
+
+    /// Every `complementary` must point at a real bundled theme, point
+    /// back, and cross modes. Structural only — it does not exercise
+    /// `resolve_theme_for_mode` itself, which has its own tests.
+    ///
+    /// `resolve_theme_for_mode` follows this link when the user has
+    /// follow-system-theme on. A one-way link means switching to dark
+    /// finds the pair but switching back does not, so the app appears to
+    /// get stuck on one variant.
+    #[test]
+    fn test_complementary_links_are_symmetric_and_reference_real_themes() {
+        let themes = load_builtin_themes();
+        let by_id: std::collections::HashMap<&str, &Theme> =
+            themes.iter().map(|t| (t.meta.id.as_str(), t)).collect();
+
+        let mut problems = Vec::new();
+        for theme in &themes {
+            let Some(comp_id) = theme.meta.complementary.as_deref() else {
+                continue;
+            };
+            let Some(other) = by_id.get(comp_id) else {
+                problems.push(format!(
+                    "{} → `{comp_id}`, which is not a bundled theme",
+                    theme.meta.id
+                ));
+                continue;
+            };
+            if other.meta.complementary.as_deref() != Some(theme.meta.id.as_str()) {
+                problems.push(format!(
+                    "{} → {comp_id}, but {comp_id} → {:?} (must point back)",
+                    theme.meta.id, other.meta.complementary
+                ));
+            }
+            if other.meta.mode == theme.meta.mode {
+                problems.push(format!(
+                    "{} and {comp_id} are both `{}` — a complement must be the other mode",
+                    theme.meta.id, theme.meta.mode
+                ));
+            }
+        }
+
+        assert!(
+            problems.is_empty(),
+            "{} broken complementary link(s):\n  {}",
+            problems.len(),
+            problems.join("\n  ")
+        );
     }
 
     #[test]
@@ -1399,8 +2909,8 @@ lane-colors = ["#0000ff"]
         let themes = load_builtin_themes();
         let dark_count = themes.iter().filter(|t| t.meta.mode == "dark").count();
         let light_count = themes.iter().filter(|t| t.meta.mode == "light").count();
-        assert_eq!(dark_count, 13);
-        assert_eq!(light_count, 7);
+        assert_eq!(dark_count, 21);
+        assert_eq!(light_count, 10);
     }
 
     #[test]

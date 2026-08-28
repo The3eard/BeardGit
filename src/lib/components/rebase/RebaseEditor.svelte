@@ -9,6 +9,7 @@
   (same order as `git rebase -i`).
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { getRebaseCommits, startInteractiveRebase } from "../../api/tauri";
   import type { RebaseCommit, RebaseAction } from "../../types";
   import * as m from "$lib/paraglide/messages";
@@ -83,7 +84,7 @@
         loading = false;
       })
       .catch((err) => {
-        error = String(err);
+        error = getErrorMessage(err);
         loading = false;
       });
   });
@@ -149,7 +150,7 @@
       await startInteractiveRebase(baseOid, actions);
       onComplete();
     } catch (err) {
-      error = String(err);
+      error = getErrorMessage(err);
     } finally {
       submitting = false;
     }
@@ -251,6 +252,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     background: rgba(0, 0, 0, 0.6); /* beardgit:allow-hex: modal backdrop neutral */
     backdrop-filter: blur(4px);
   }
@@ -362,7 +364,7 @@
 
   .action-select {
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: var(--font-size-xs);

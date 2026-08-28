@@ -18,6 +18,7 @@
   bar matches every other input row in the app.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { requestsSave, requestsRun, requestsCancel } from "$lib/api/tauri";
   import { get } from "svelte/store";
   import { EditorView } from "@codemirror/view";
@@ -156,7 +157,7 @@
       // "canceled" (the Display impl of RequestsError::Canceled).
       // Distinguish that from real errors so the UI can show a neutral
       // "canceled" state instead of an error banner.
-      const msg = String(e);
+      const msg = getErrorMessage(e);
       if (msg === "canceled" || msg.includes("canceled")) {
         runState.set("canceled");
       } else {
@@ -247,7 +248,7 @@
     padding: 0 10px;
     background: var(--bg-primary);
     color: var(--text-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     font-family: var(--font-mono);
     font-size: var(--font-size-sm);

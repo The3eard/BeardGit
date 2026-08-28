@@ -8,6 +8,12 @@
  * - The diff path (`git-engine::diff`, used by commit/stash/tag detail and
  *   the MR/PR diff) emits `"added" | "deleted" | "modified" | "renamed" |
  *   "copied" | "untracked"`.
+ * - GitHub's own vocabulary, passed through verbatim by
+ *   `cli-provider::github::mr_pr` (`f["status"]`), which agrees with the
+ *   diff path except that a deleted file is `"removed"` and a rewritten
+ *   one is `"changed"`. Both used to land on the dim `?`, so every
+ *   deleted file in a GitHub PR rendered as unrecognised. GitLab is
+ *   unaffected: it maps to the diff words on the Rust side.
  *
  * Before this helper each view hand-rolled its own switch, so the diff
  * vocabulary partly fell through to a bare "?" glyph. `normalizeFileStatus`
@@ -37,8 +43,12 @@ const STATUS_MAP: Record<string, FileStatusInfo> = {
   // Diff vocabulary.
   added: { kind: "added", letter: "A" },
   modified: { kind: "modified", letter: "M" },
+  // GitHub's word for a file rewritten beyond recognition.
+  changed: { kind: "modified", letter: "M" },
   typechange: { kind: "modified", letter: "T" },
   deleted: { kind: "deleted", letter: "D" },
+  // GitHub says "removed" where the diff path says "deleted".
+  removed: { kind: "deleted", letter: "D" },
   renamed: { kind: "renamed", letter: "R" },
   copied: { kind: "copied", letter: "C" },
   untracked: { kind: "untracked", letter: "U" },

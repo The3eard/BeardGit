@@ -16,6 +16,7 @@ import {
   installBootstrapMocks,
   THEME_MODES,
   waitForAppReady,
+  waitForGraphPainted,
 } from "../helpers";
 import {
   makeCommitFileChange,
@@ -28,23 +29,19 @@ import {
 
 const PROJECT = makeProjectInfo();
 const TARGET_OID = "1".repeat(40);
+/** Node count of the viewport this test mocks, for the paint wait. */
+const GRAPH_COMMITS = 12;
 
 for (const mode of THEME_MODES) {
   test.describe(`commit-detail — ${mode}`, () => {
-    test("graph default (no selection)", async ({ page }) => {
-      await installBootstrapMocks(page, {
-        mode,
-        activeProject: PROJECT,
-        extra: { get_graph_viewport: makeGraphViewport({ count: 12 }) },
-      });
-      await page.goto("/");
-      await applyTheme(page, mode);
-      await waitForAppReady(page);
-      await clickNav(page, "Graph");
-      await expect(page).toHaveScreenshot(`${mode}-no-selection.png`, {
-        animations: "disabled",
-      });
-    });
+    // No "graph default (no selection)" case here. It rendered the same
+    // 12-commit viewport as `graph — single-lane` with the same mocks and
+    // produced a byte-identical baseline, so it added no coverage — and
+    // being the heaviest canvas in a spec that runs late in the schedule,
+    // it was the one screenshot in the suite that still disagreed with
+    // itself (~4,655px, roughly one run in ten) once everything else had
+    // been made deterministic. The unselected graph stays covered by
+    // `graph.spec.ts`; what this spec is actually for is the detail pane.
 
     test("commit selected with file list", async ({ page }) => {
       await installBootstrapMocks(page, {
@@ -65,9 +62,9 @@ for (const mode of THEME_MODES) {
             refs: ["HEAD", "refs/heads/feat/visual-tests"],
           }),
           get_commit_files: [
-            makeCommitFileChange({ path: "tests/visual/components/commit-detail.spec.ts", status: "A" }),
-            makeCommitFileChange({ path: "src/test/fixtures/commits.ts", status: "M" }),
-            makeCommitFileChange({ path: "tests/visual/helpers/index.ts", status: "M" }),
+            makeCommitFileChange({ path: "tests/visual/components/commit-detail.spec.ts", status: "added" }),
+            makeCommitFileChange({ path: "src/test/fixtures/commits.ts", status: "modified" }),
+            makeCommitFileChange({ path: "tests/visual/helpers/index.ts", status: "modified" }),
           ],
           get_commit_full_diff: {
             "src/test/fixtures/commits.ts": makeFileDiff({
@@ -87,20 +84,28 @@ for (const mode of THEME_MODES) {
       await applyTheme(page, mode);
       await waitForAppReady(page);
       await clickNav(page, "Graph");
+      await waitForGraphPainted(page, GRAPH_COMMITS);
 
-      // Drive selection through the store directly — the canvas-based
-      // commit list can't be clicked from Playwright reliably.
-      await page.evaluate((oid) => {
-        // Two-step: triggers the same fetches that a click does.
-        return Promise.all([
-          window.__TAURI_INTERNALS__!.invoke("get_commit_detail", { oid }),
-          window.__TAURI_INTERNALS__!.invoke("get_commit_files", { oid }),
-        ]);
-      }, TARGET_OID);
-      await page.waitForTimeout(300);
+      // Click the first row of the canvas. `graphHitTest` resolves a click
+      // to `Math.floor(y / ROW_HEIGHT) + offset` and treats a hit anywhere
+      // in the text area as a node hit, so row 0 is (any x past the lanes,
+      // ROW_HEIGHT / 2) — deterministic, and it runs the real
+      // `selectCommit` path.
+      //
+      // What it replaced called `invoke("get_commit_detail")` straight
+      // through the mock, which resolves a canned value to nobody and left
+      // the app in exactly the unselected state the sibling test captures.
+      // Both baselines came out byte-identical, so this one could never
+      // fail for the reason it exists.
+      await page.locator("canvas").first().click({ position: { x: 300, y: 14 } });
+      await page.locator(".graph-detail-sidebar").waitFor({ timeout: 10_000 });
+      await expect(page.getByText("feat(visual): add commit detail screenshots")).toBeVisible();
 
       await expect(page).toHaveScreenshot(`${mode}-selected.png`, {
         animations: "disabled",
+        // The detail pane is the subject; the graph is behind it. Masked
+        // for the same reason as the route baselines.
+        mask: [page.locator("canvas")],
       });
     });
   });

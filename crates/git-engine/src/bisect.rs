@@ -80,9 +80,22 @@ pub fn bisect_reset(repo_path: &Path) -> Result<String, String> {
     run_git(cmd)
 }
 
-/// Query the current bisect state by checking `.git/BISECT_START` and the bisect log.
+/// Query the current bisect state by checking `BISECT_START` in the
+/// repository's git directory, plus the bisect log.
+///
+/// The git directory is resolved through `git2` rather than joined as
+/// `<repo>/.git`. In a linked worktree (and in a submodule) `.git` is a
+/// *file* pointing elsewhere, so the naive join names a path that never
+/// exists — which reported `active: false` with a bisect actually running,
+/// and the bisect UI simply never appeared. `Repository::path()` is the
+/// per-worktree git dir, which is where `BISECT_START` lives; `commondir()`
+/// is the shared one and would be wrong, since bisect state is per-worktree.
 pub fn bisect_state(repo_path: &Path) -> Result<BisectState, String> {
-    let bisect_start_file = repo_path.join(".git").join("BISECT_START");
+    let git_dir = git2::Repository::open(repo_path)
+        .map_err(|e| format!("could not open repository: {}", e.message()))?
+        .path()
+        .to_path_buf();
+    let bisect_start_file = git_dir.join("BISECT_START");
     if !bisect_start_file.exists() {
         return Ok(BisectState {
             active: false,
@@ -100,10 +113,13 @@ pub fn bisect_state(repo_path: &Path) -> Result<BisectState, String> {
         .args(["rev-parse", "--short", "HEAD"]);
     let head = run_git(head_cmd)?;
 
-    // Parse the bisect log for marked commits
+    // Parse the bisect log for marked commits. Propagate a failure instead of
+    // defaulting to empty: `BISECT_START` exists, so a session *is* running,
+    // and empty good/bad lists render as "no commits marked yet" — which is a
+    // different claim from "the log could not be read".
     let mut log_cmd = Command::new("git");
     log_cmd.current_dir(repo_path).args(["bisect", "log"]);
-    let log_output = run_git(log_cmd).unwrap_or_default();
+    let log_output = run_git(log_cmd)?;
 
     let mut good = vec![];
     let mut bad = vec![];
@@ -138,7 +154,9 @@ pub fn bisect_log(repo_path: &Path) -> Result<String, String> {
 /// Run an automated bisect with a test command.
 ///
 /// The test command is split on whitespace and passed to `git bisect run`.
-#[instrument(fields(repo = %repo_path.display()))]
+// `skip_all`: see `cmd::bisect::run_auto` — the test command is
+// user-typed and can carry inline secrets.
+#[instrument(skip_all, fields(repo = %repo_path.display()))]
 pub fn bisect_run(repo_path: &Path, test_command: &str) -> Result<String, String> {
     let parts: Vec<&str> = test_command.split_whitespace().collect();
     if parts.is_empty() {
@@ -176,14 +194,84 @@ fn run_git(mut cmd: Command) -> Result<String, String> {
 mod tests {
     use super::*;
 
+    /// Run `git` in `dir`, asserting success.
+    fn git(dir: &Path, args: &[&str]) {
+        let out = Command::new("git")
+            .current_dir(dir)
+            .args(args)
+            .output()
+            .expect("spawn git");
+        assert!(
+            out.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    /// A repo with `n` commits on `main`, identity pinned so the fixture
+    /// doesn't inherit the machine's `~/.gitconfig`.
+    fn repo_with_commits(dir: &Path, n: usize) {
+        git(dir, &["init", "-q", "-b", "main", "."]);
+        git(dir, &["config", "user.email", "test@example.com"]);
+        git(dir, &["config", "user.name", "Test"]);
+        git(dir, &["config", "commit.gpgsign", "false"]);
+        for i in 0..n {
+            std::fs::write(dir.join("f.txt"), format!("{i}\n")).unwrap();
+            git(dir, &["add", "-A"]);
+            git(dir, &["commit", "-qm", &format!("c{i}")]);
+        }
+    }
+
     #[test]
-    fn bisect_state_inactive_when_no_file() {
+    fn bisect_state_inactive_when_no_bisect_running() {
         let tmp = tempfile::tempdir().unwrap();
-        std::fs::create_dir(tmp.path().join(".git")).unwrap();
+        repo_with_commits(tmp.path(), 1);
         let state = bisect_state(tmp.path()).unwrap();
         assert!(!state.active);
         assert!(state.current_commit.is_none());
         assert!(state.good_commits.is_empty());
         assert!(state.bad_commits.is_empty());
+    }
+
+    #[test]
+    fn bisect_state_active_in_the_main_worktree() {
+        let tmp = tempfile::tempdir().unwrap();
+        repo_with_commits(tmp.path(), 4);
+        git(tmp.path(), &["bisect", "start", "HEAD", "HEAD~2"]);
+
+        let state = bisect_state(tmp.path()).unwrap();
+        assert!(state.active);
+        assert!(state.current_commit.is_some());
+    }
+
+    /// The reason this module can't build the path itself. In a linked
+    /// worktree `<wt>/.git` is a *file* pointing at
+    /// `<main>/.git/worktrees/<name>/`, and that is where `BISECT_START`
+    /// lives — bisect state is per-worktree, so `commondir()` is the wrong
+    /// answer here even though it looks like the right one.
+    #[test]
+    fn bisect_state_active_inside_a_linked_worktree() {
+        let tmp = tempfile::tempdir().unwrap();
+        let main = tmp.path().join("main");
+        std::fs::create_dir(&main).unwrap();
+        repo_with_commits(&main, 4);
+
+        let wt = tmp.path().join("wt");
+        git(
+            &main,
+            &["worktree", "add", "-q", wt.to_str().unwrap(), "-b", "side"],
+        );
+        git(&wt, &["bisect", "start", "HEAD", "HEAD~2"]);
+
+        assert!(wt.join(".git").is_file(), "fixture: .git should be a file");
+        let state = bisect_state(&wt).unwrap();
+        assert!(
+            state.active,
+            "a bisect running in this worktree has to be visible from it"
+        );
+
+        // And the main worktree, which has no bisect of its own, still reads
+        // as inactive — the state must not leak across worktrees.
+        assert!(!bisect_state(&main).unwrap().active);
     }
 }

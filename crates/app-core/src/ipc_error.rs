@@ -22,9 +22,64 @@ pub struct IpcError {
     pub message: String,
 }
 
+/// Cap on the error detail written to the log.
+///
+/// The detail is usually our own prose, but for `cli_error` / `signing_failed`
+/// it is raw stderr from git — or from a user's git hook, which can print
+/// anything, including a diff. Capping bounds that exposure while keeping
+/// enough of the message to identify the failure.
+const LOG_DETAIL_MAX: usize = 300;
+
+fn truncate_detail(detail: &str) -> String {
+    match detail.char_indices().nth(LOG_DETAIL_MAX) {
+        Some((idx, _)) => format!("{}… (truncated)", &detail[..idx]),
+        None => detail.to_string(),
+    }
+}
+
 impl IpcError {
     /// Construct an [`IpcError`] from a static code and any string-like message.
+    ///
+    /// Every construction path funnels through here — including the `From`
+    /// impls below — so this is also the single place that logs IPC
+    /// failures.
+    ///
+    /// **Coverage is all 311 registered commands** — the 281 in
+    /// `commands/` plus `ai_commands`, `terminal_commands` and
+    /// `task_commands`, which are registered from their own modules and
+    /// were missed by a first count that only looked at `commands/`.
+    ///
+    /// It was 27 while the migration off `Result<_, String>` was in
+    /// progress: a command still on the old signature failed silently, so
+    /// the user got a toast and the log got nothing. That was the argument
+    /// for finishing it rather than leaving it perpetually last, and it is
+    /// why the hook lives here rather than in each command body.
+    ///
+    /// Use [`IpcError::expected`] for conditions that are routine rather
+    /// than wrong — see its docs.
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
+        let message = message.into();
+        // `detail`, not `message`: tracing reserves `message` for the
+        // event's own text, so a field by that name renders unlabelled.
+        tracing::error!(
+            code,
+            detail = %truncate_detail(&message),
+            "ipc command failed"
+        );
+        Self { code, message }
+    }
+
+    /// Build an [`IpcError`] **without** logging it.
+    ///
+    /// For conditions that are expected rather than wrong. "No active
+    /// project" and "no repository open" are the shape behind most
+    /// "nothing happened" reports and were deliberately logged at DEBUG,
+    /// but the migration routed them through `new` — which meant every
+    /// read command dispatched against a background tab (heavy state is
+    /// `None` there, by the active-tab invariant) wrote an ERROR line.
+    /// Logging every genuine failure is the point of this type; drowning
+    /// it in routine ones is not.
+    pub fn expected(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             code,
             message: message.into(),
@@ -45,12 +100,76 @@ impl std::error::Error for IpcError {}
 /// `"error"` code so the function compiles without rewriting every arm.
 impl From<String> for IpcError {
     fn from(message: String) -> Self {
-        Self {
-            code: "error",
-            message,
-        }
+        Self::new("error", message)
     }
 }
+
+/// Same fallback for a string literal. Command bodies raise plenty of
+/// `Err("no active project")`-shaped failures, and without this every one
+/// of them needs a `.to_string()` before it can flow into the envelope.
+impl From<&str> for IpcError {
+    fn from(message: &str) -> Self {
+        Self::new("error", message)
+    }
+}
+
+// There is deliberately no `impl From<IpcError> for String`.
+//
+// One existed, to satisfy the `E: From<IpcError>` bound on
+// `with_mutation_guard_async` for command bodies whose inner
+// `spawn_blocking` closure worked in `String`. It cost more than it saved,
+// in two ways.
+//
+// It made `IpcError: Into<String>` hold, so an
+// `IpcError::new("internal", some_ipc_error)` compiled silently — dropping
+// the original code and logging a second time under the wrong one.
+// Nineteen callsites did exactly that.
+//
+// Worse, and only found later: those `String`-typed closures were
+// *actively* flattening error codes. `map_err(|e| e.to_string())` on a
+// `GitError` throws the variant away, and the trailing
+// `.map_err(IpcError::from)` then rebuilt it as the generic `"error"`. 24
+// functions across staging, worktree, remote, config, advanced and
+// repository did that; they now let `?` carry the code.
+//
+// Be precise about what that bought, because the obvious claim is wrong.
+// The codes those sites can actually emit are `not_a_repo` (from
+// `Repository::open`) plus `git` / `cli_error` / `io_error` /
+// `invalid_argument`, and all but the first are `@unmapped` in
+// `errors.ts`, so they render as the raw message either way. The gain is
+// log fidelity and an honest envelope, *not* better toast text. In
+// particular `would_lose_changes` and `not_fully_merged` were never
+// affected: their only producers are `delete_branch`, `checkout_branch`
+// and `checkout_detached`, reached from `branch.rs`, which already used
+// the correct idiom.
+//
+// One case did change the toast, in the wrong direction, and is worth
+// remembering as the general hazard: `worktree.rs` in `git-engine` was
+// using `GitError::RepoNotFound` as a catch-all for any failed `git
+// worktree` invocation. Recovering the code turned "…already exists" into
+// the mapped sentence "Not a git repository". Fixed at the source
+// (`CliError`, like its neighbours) — but the lesson is that recovering a
+// code is only an improvement if the code is *right*, and `errorCodeMessage`
+// replaces the message rather than adding to it.
+//
+// The absence of this impl is narrower enforcement than it looks. It stops
+// `IpcError → String → IpcError`: that no longer compiles, wherever a
+// `String`-typed closure meets `with_mutation_guard_async` or
+// `with_active_repo`. It does **not** stop `GitError → String →
+// IpcError`, because `From<String> for IpcError` above still exists — and
+// roughly 37 commands still do exactly that (`diff.rs` has 14, `tag.rs`,
+// `stash.rs`, `file_editor.rs` and `graph.rs` three each, and so on). Not
+// a blind sweep waiting to happen: each site's `GitError` variant has to
+// be checked against `errorCodeMessage` first, for the reason above.
+//
+// So: do not add this impl back. If a closure needs to yield `IpcError`,
+// let `?` do the work via the `From` impls below, and reach for
+// `helpers::run_blocking` rather than a bare `spawn_blocking` so the
+// command's tracing span survives the thread hop — moving `IpcError`
+// construction into a closure moves its `tracing::error!` onto a pool
+// thread, where `#[instrument(name = "cmd::…")]` is not in scope. If a
+// probe's failure should not be logged, that is what `IpcError::expected`
+// is for.
 
 impl From<git_engine::GitError> for IpcError {
     fn from(err: git_engine::GitError) -> Self {
@@ -76,11 +195,9 @@ impl From<git_engine::GitError> for IpcError {
             G::WouldLoseChanges(_) => "would_lose_changes",
             G::NotFullyMerged(_) => "not_fully_merged",
             G::BranchAlreadyExists(_) => "branch_exists",
+            G::DiscardFailed { .. } => "discard_failed",
         };
-        Self {
-            code,
-            message: err.to_string(),
-        }
+        Self::new(code, err.to_string())
     }
 }
 
@@ -94,7 +211,6 @@ impl From<CloneRepoError> for IpcError {
             // The path that already exists is the actionable detail — carry it
             // as the message so the dialog can echo it.
             CloneRepoError::DestinationExists { path } => Self::new("destination_exists", path),
-            CloneRepoError::Clone { message } => Self::new("clone_failed", message),
         }
     }
 }
@@ -188,13 +304,8 @@ mod tests {
         });
         assert_eq!(dest.code, "destination_exists");
         assert_eq!(dest.message, "/tmp/x");
-        assert_eq!(
-            IpcError::from(CloneRepoError::Clone {
-                message: "net".into()
-            })
-            .code,
-            "clone_failed",
-        );
+        // No arm for a failing `git clone`: the clone runs as a task now, so
+        // its failure arrives as a failed task, not as an `IpcError`.
     }
 
     #[test]

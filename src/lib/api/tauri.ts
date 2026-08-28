@@ -21,7 +21,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, BranchCleanupList, BatchDeleteResult, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, SigningStatus, CommitSignature, SignatureVerification, SigningTestResult, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
+import type { RepoInfo, GraphViewport, GraphViewOptions, CommitInfo, CommitFileChange, BranchInfo, BranchCleanupList, BatchDeleteResult, FileStatus, FileDiff, ProviderUser, ProviderStatusResponse, CiRun, CiRunDetail, TaskInfo, TaskId, TaskOutputLine, ProjectInfo, RecentRepo, RemoteInfo, StatusSummary, StashEntry, TagInfo, CommitStats, ConflictStatus, ConflictFileContents, ThemeMeta, ThemeData, ThemeContrastReport, WorktreeInfo, HunkSelection, BlameLine, FileHistoryEntry, RebaseCommit, RebaseAction, GraphColumnConfig, ReflogEntry, CleanItem, ConfigEntry, ConfigScope, SigningStatus, CommitSignature, SignatureVerification, SigningTestResult, PatchPreview, SubmoduleInfo, MrPr, MrPrDetail, MrPrDiffFile, Label, ProjectSnapshot, AvailableAiProvider, RepoAiStatus, AiSession, AiConversation, AiWorktree, AiConfigFile, BisectState, CliAuthStatus, DebugInfo, Issue, IssueDetail, IssueState, Milestone, Workflow, TriggerResult, Release, ReleaseAsset, ReleaseDetail, CreateReleaseInput, EditReleasePatch, StartBackgroundRunRequest, StartBackgroundRunResponse, AiBackgroundSettings, EditorPreferences, SidebarNavLayout, ReadWorkdirFileResult, WorkdirTreeEntry, FileDiffStat, FileContentResult } from "../types";
 import type { RemoteRepoConfig, RemoteRepoConfigPatch, ApplyResult, RepoConfigLabel, BranchProtection, ForgeCliStatus } from "../types/repoConfig";
 import type { RequestTreeNode, ParsedRequest, RequestEnvFile, RequestEnvSummary, RunRequestArgs, RunResult, CopyAsArgs, RequestHistoryRow, RequestDiffPayload } from "../types/requests";
 
@@ -169,19 +169,45 @@ export async function unstageAll(): Promise<void> {
   return invoke("unstage_all");
 }
 
-/** Stage selected hunks or individual lines from the working directory. */
-export async function stageHunks(path: string, selections: HunkSelection[]): Promise<void> {
-  return invoke<void>("stage_hunks", { path, selections });
+/**
+ * Stage selected hunks or individual lines from the working directory.
+ *
+ * `contextLines` must be the value the displayed diff was fetched with.
+ * A `HunkSelection` is positional — hunk 2, lines 5–7 of the array the UI
+ * rendered — and a different context cuts the file into different hunks, so
+ * the same indices name different lines. Omitting it means libgit2's
+ * default of 3, which is right only when the pane is not expanded.
+ */
+export async function stageHunks(
+  path: string,
+  selections: HunkSelection[],
+  contextLines?: number,
+): Promise<void> {
+  return invoke<void>("stage_hunks", { path, selections, contextLines: contextLines ?? null });
 }
 
-/** Unstage selected hunks or individual lines from the index. */
-export async function unstageHunks(path: string, selections: HunkSelection[]): Promise<void> {
-  return invoke<void>("unstage_hunks", { path, selections });
+/**
+ * Unstage selected hunks or individual lines from the index.
+ *
+ * `contextLines` must be what the displayed diff was fetched with — a
+ * selection is positional, so the backend has to cut the file into the same
+ * hunks the user was looking at. See {@link stageHunks}.
+ */
+export async function unstageHunks(
+  path: string,
+  selections: HunkSelection[],
+  contextLines?: number,
+): Promise<void> {
+  return invoke<void>("unstage_hunks", { path, selections, contextLines: contextLines ?? null });
 }
 
 /** Discard selected hunks or individual lines from the working directory. */
-export async function discardHunks(path: string, selections: HunkSelection[]): Promise<void> {
-  return invoke<void>("discard_hunks", { path, selections });
+export async function discardHunks(
+  path: string,
+  selections: HunkSelection[],
+  contextLines?: number,
+): Promise<void> {
+  return invoke<void>("discard_hunks", { path, selections, contextLines: contextLines ?? null });
 }
 
 /**
@@ -255,9 +281,22 @@ export async function getDiffIndex(): Promise<FileDiff[]> {
  * opens it in the Changes view. `staged` picks the index-vs-HEAD diff
  * (`true`) or the workdir-vs-index diff (`false`). Resolves to `null` when
  * the file has no change on that side.
+ *
+ * `contextLines` is how much unchanged code to keep around each change;
+ * omit it for libgit2's default of 3. The unchanged lines are simply not in
+ * the response until asked for, so "show me the rest of the file" is a
+ * re-fetch, not a client-side expansion.
  */
-export async function getDiffFile(path: string, staged: boolean): Promise<FileDiff | null> {
-  return invoke<FileDiff | null>("get_diff_file", { path, staged });
+export async function getDiffFile(
+  path: string,
+  staged: boolean,
+  contextLines?: number,
+): Promise<FileDiff | null> {
+  return invoke<FileDiff | null>("get_diff_file", {
+    path,
+    staged,
+    contextLines: contextLines ?? null,
+  });
 }
 
 /** Cheap per-file change stats (name/status + counts, no hunks) for the working tree. */
@@ -641,6 +680,19 @@ export async function getTheme(name: string): Promise<ThemeData> {
   return invoke<ThemeData>("get_theme", { name });
 }
 
+/**
+ * Audit a theme's text contrast against its own background.
+ *
+ * Advisory only — a user theme is never modified to meet a floor. Bundled
+ * themes always come back with an empty `warnings` list (enforced by a
+ * Rust test), so anything reported here belongs to a theme the user wrote.
+ */
+export async function checkThemeContrast(
+  name: string,
+): Promise<ThemeContrastReport> {
+  return invoke<ThemeContrastReport>("check_theme_contrast", { name });
+}
+
 export async function setTheme(name: string): Promise<void> {
   return invoke<void>("set_theme", { name });
 }
@@ -728,22 +780,6 @@ export async function setEditorPreferences(prefs: EditorPreferences): Promise<vo
   return invoke<void>("set_editor_preferences", { prefs });
 }
 
-/**
- * Return whether the per-OS re-authorization notice has been dismissed.
- * `os` must be `"macos"` or `"windows"` — Linux never shows the dialog.
- */
-export async function getReauthDismissed(os: string): Promise<boolean> {
-  return invoke<boolean>("get_reauth_dismissed", { os });
-}
-
-/** Persist the re-authorization-notice dismissal for a single OS. */
-export async function setReauthDismissed(
-  os: string,
-  dismissed: boolean,
-): Promise<void> {
-  return invoke<void>("set_reauth_dismissed", { os, dismissed });
-}
-
 export async function getGraphColumns(): Promise<GraphColumnConfig[]> {
   return invoke<GraphColumnConfig[]>("get_graph_columns");
 }
@@ -820,12 +856,15 @@ export async function writeWorkdirFile(path: string, content: string): Promise<v
  * List entries from the working directory.
  *
  * Pass `prefix` to list only the immediate children of a sub-directory
- * (one level), or `null` for a full recursive walk. Results are
- * truncated at `maxEntries` without erroring; compare `result.length`
- * against the cap to detect truncation. `respectGitignore` filters
- * entries through the repo's gitignore patterns.
+ * (one level), or `null` for the repo root — also one level. Callers
+ * expand one folder at a time; there is no recursive mode.
  *
- * Always skipped: `.git/`, `node_modules/`, `target/`,
+ * `maxEntries` guards against a single pathological directory rather than
+ * budgeting a tree walk. `respectGitignore` filters entries through the
+ * repo's gitignore patterns.
+ *
+ * Always skipped: `.git/`, `node_modules/`, `target/`, tool caches
+ * (`.gradle`, `.venv`, `__pycache__`, `.next`, `.turbo`, `DerivedData`),
  * `.beardgit/ai-worktrees/`, and symlinks.
  */
 export async function listWorkdirTree(
@@ -836,6 +875,26 @@ export async function listWorkdirTree(
   return invoke<WorkdirTreeEntry[]>("list_workdir_tree", {
     prefix,
     maxEntries,
+    respectGitignore,
+  });
+}
+
+/**
+ * Find files whose repo-relative path contains `query`, case-insensitively.
+ *
+ * The tree only ever holds the levels the user has expanded, so filtering
+ * it in the browser cannot find a file that has not been reached yet. This
+ * walks the working directory server-side and returns files only, ranked
+ * shallowest-first and truncated to `limit`.
+ */
+export async function searchWorkdirFiles(
+  query: string,
+  limit: number,
+  respectGitignore: boolean,
+): Promise<WorkdirTreeEntry[]> {
+  return invoke<WorkdirTreeEntry[]>("search_workdir_files", {
+    query,
+    limit,
     respectGitignore,
   });
 }
@@ -1080,9 +1139,13 @@ export async function deinitSubmodule(path: string, force: boolean): Promise<voi
   return invoke<void>("deinit_submodule", { path, force });
 }
 
-/** Add a new submodule to the repository. */
-export async function addSubmodule(url: string, path: string): Promise<void> {
-  return invoke<void>("add_submodule", { url, path });
+/**
+ * Add a new submodule, as a background task. Returns the task id
+ * immediately — `git submodule add` clones, so this can run for minutes.
+ * The submodule list refreshes through the watcher's `project-mutated`.
+ */
+export async function addSubmodule(url: string, path: string): Promise<TaskId> {
+  return invoke<TaskId>("add_submodule", { url, path });
 }
 
 /** Remove a submodule completely (deinit + rm). */
@@ -1772,6 +1835,27 @@ export async function openLogDirectory(): Promise<void> {
   return invoke<void>("open_log_directory");
 }
 
+/** Log verbosity levels offered by Settings → Advanced, coarsest first. */
+export const LOG_LEVELS = ["error", "info", "debug"] as const;
+
+/** One of {@link LOG_LEVELS}. */
+export type LogLevel = (typeof LOG_LEVELS)[number];
+
+/** Get the persisted file-log verbosity. */
+export async function getLogLevel(): Promise<string> {
+  return invoke<string>("get_log_level");
+}
+
+/**
+ * Persist a new file-log verbosity and apply it to the running app.
+ *
+ * Takes effect immediately — no restart. Rejects with
+ * `code = "invalid_log_level"` for anything outside {@link LOG_LEVELS}.
+ */
+export async function setLogLevel(level: LogLevel): Promise<void> {
+  return invoke<void>("set_log_level", { level });
+}
+
 // ---------------------------------------------------------------------------
 // Remote repo configuration (gh/glab)
 // ---------------------------------------------------------------------------
@@ -1994,11 +2078,14 @@ export interface CloneRepoOptions {
 }
 
 /**
- * Successful return shape of `clone_repo`. `path` is the absolute path
- * of the freshly cloned working tree (same shape the snake-case wire
- * payload uses — see `CloneRepoSuccess` in the Rust side).
+ * Accepted return shape of `clone_repo`: validation passed and the clone
+ * is now running as a task. `path` is where the working tree *will* be —
+ * it is derived during validation, so it is known before the clone
+ * finishes. Wait for `task_id` to reach a terminal state before opening
+ * it. (Snake-case wire payload — see `CloneRepoSuccess` on the Rust side.)
  */
 export interface CloneRepoSuccess {
+  task_id: number;
   path: string;
   name: string;
 }
@@ -2007,17 +2094,21 @@ export interface CloneRepoSuccess {
  * Tagged error returned by `clone_repo`. The `step` field lets the
  * dialog banner branch on the failure mode without parsing free text;
  * the same convention as `InitRepoError`.
+ *
+ * All three are validation failures. A failure of the clone itself is not
+ * here any more: the clone runs as a task, so it surfaces as a failed task
+ * with git's stderr in the task output.
  */
 export type CloneRepoError =
   | { step: "invalid_url"; message: string }
   | { step: "invalid_destination"; message: string }
-  | { step: "destination_exists"; path: string }
-  | { step: "clone"; message: string };
+  | { step: "destination_exists"; path: string };
 
 /**
- * Clone a remote repository into `parentDir`. The backend shells out to
- * `git clone`, so credential helpers and SSH agents Just Work. Returns
- * the absolute path of the cloned working tree on success.
+ * Validate a clone request and start it as a background task. The backend
+ * shells out to `git clone`, so credential helpers and SSH agents Just
+ * Work. Rejects synchronously on a validation failure; otherwise returns
+ * immediately with the task id and the path the clone is landing in.
  */
 export async function cloneRepo(
   options: CloneRepoOptions,

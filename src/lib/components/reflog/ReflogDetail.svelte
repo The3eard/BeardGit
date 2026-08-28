@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import type { CommitInfo, CommitFileChange, ReflogEntry } from "../../types";
   import CommitDetail from "../detail/CommitDetail.svelte";
   import * as m from "$lib/paraglide/messages";
@@ -43,7 +44,7 @@
       commit = c;
       files = f;
     } catch (e) {
-      loadError = String(e);
+      loadError = getErrorMessage(e);
       commit = null;
       files = [];
     }

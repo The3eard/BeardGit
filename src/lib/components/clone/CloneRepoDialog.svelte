@@ -4,10 +4,13 @@
   focus-trap, store-driven visibility, addToast on success), but the
   pipeline is much smaller: paste a URL, pick a parent folder, hit Clone.
 
-  Submits through the `clone_repo` Tauri command. Errors are typed
-  (`{ step: "invalid_url" | "invalid_destination" | "destination_exists"
-   | "clone", ... }`) and translated into localised banner text via
-  `formatStepError`.
+  Submits through the `clone_repo` Tauri command, which validates and then
+  runs the clone as a background task. Validation errors are typed
+  (`{ step: "invalid_url" | "invalid_destination" | "destination_exists" }`)
+  and translated into localised banner text via `formatStepError`; the
+  dialog stays open for those. Everything after validation — including a
+  failing clone — happens once the dialog has closed, and is watched by
+  `stores/clone.ts`.
 -->
 <script lang="ts">
   import { open as openFolderPicker } from "@tauri-apps/plugin-dialog";
@@ -15,7 +18,7 @@
   import { cloneDialogOpen, closeCloneDialog } from "$lib/stores/cloneDialog";
   import { cloneRepo } from "$lib/api/tauri";
   import { getErrorCode, getErrorMessage } from "$lib/api/errors";
-  import { openProjectTab } from "$lib/stores/projects";
+  import { watchCloneTask } from "$lib/stores/clone";
   import { addToast } from "$lib/stores/toast";
   import { Button, Dialog } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
@@ -104,16 +107,18 @@
     currentStep = m.clone_dialog_step_cloning({ url: trimmedUrl });
 
     try {
+      // Resolves as soon as validation passes — the clone itself runs as a
+      // task. Only validation failures land in the banner below; a failing
+      // clone surfaces as a failed task row, handled by `watchCloneTask`.
       const out = await cloneRepo({ url: trimmedUrl, parentDir: trimmedParent });
+      watchCloneTask(out.task_id, out.path, out.name);
       closeCloneDialog();
+      // The dialog is the only thing that was on screen, so say where the
+      // work went. The task row in the drawer carries it from here.
       addToast({
-        type: "success",
-        message: m.clone_dialog_success_toast({
-          name: out.name,
-          path: out.path,
-        }),
+        type: "info",
+        message: m.clone_dialog_step_cloning({ url: trimmedUrl }),
       });
-      await openProjectTab(out.path);
     } catch (err: unknown) {
       bannerMessage = formatStepError(err);
     } finally {
@@ -123,9 +128,10 @@
   }
 
   function formatStepError(err: unknown): string {
-    // `clone_repo` now rejects with an IpcError `{ code, message }`; each
-    // clone-pipeline step maps to a stable code. For `destination_exists`
-    // the offending path is carried in `message`.
+    // `clone_repo` rejects with an IpcError `{ code, message }`; each
+    // validation step maps to a stable code. For `destination_exists`
+    // the offending path is carried in `message`. There is no arm for a
+    // failing clone: that is a failed task now, not a rejection here.
     const message = getErrorMessage(err);
     switch (getErrorCode(err)) {
       case "invalid_url":
@@ -134,8 +140,6 @@
         return m.clone_dialog_error_invalid_destination({ message });
       case "destination_exists":
         return m.clone_dialog_error_destination_exists({ path: message });
-      case "clone_failed":
-        return m.clone_dialog_error_clone({ message });
       default:
         return message;
     }
@@ -258,7 +262,7 @@
   input[type="text"] {
     padding: 6px 8px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);

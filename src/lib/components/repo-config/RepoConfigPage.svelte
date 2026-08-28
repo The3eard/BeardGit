@@ -14,6 +14,7 @@
   parent `bind:this` reference.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { Button, Card, CategoryNav, Skeleton } from "$lib/components/ui";
@@ -135,7 +136,7 @@
       const config = await loadConfig(repoPath);
       setLoadedConfig(repoPath, config);
     } catch (e) {
-      const msg = String(e);
+      const msg = getErrorMessage(e);
       // Match the structured `RepoConfigError::NotAuthenticated` Display
       // prefix produced by the Rust side. A bare /auth/i substring match
       // fires on unrelated error text (e.g. "author"), which historically
@@ -195,7 +196,7 @@
       return result.failures.length === 0;
     } catch (e) {
       reportApplyResult(
-        { fields_updated: [], failures: [{ field: "*", message: String(e) }] },
+        { fields_updated: [], failures: [{ field: "*", message: getErrorMessage(e) }] },
         activeSectionLabel,
       );
       return false;

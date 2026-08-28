@@ -8,6 +8,7 @@ use tracing::instrument;
 
 use super::graph_cache::{GraphLayoutOptions, load_or_build_layout, persist_layout, ref_snapshot};
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::{AppState, RefSnapshot};
 
 /// Ceiling on how far the incremental-refresh fast path walks a first-parent
@@ -54,7 +55,7 @@ pub async fn get_graph_viewport(
     branch: Option<String>,
     max_lanes: Option<u8>,
     state: State<'_, AppState>,
-) -> Result<GraphViewport, String> {
+) -> Result<GraphViewport, IpcError> {
     let options = GraphLayoutOptions {
         first_parent: first_parent.unwrap_or(false),
         branch,
@@ -70,8 +71,11 @@ pub async fn get_graph_viewport(
         let idx = active.ok_or_else(|| "No active project".to_string())?;
         let slot = projects
             .get(idx)
-            .ok_or("Active project index out of bounds")?;
-        let layout = slot.layout.as_ref().ok_or("No repository open")?;
+            .ok_or_else(|| "Active project index out of bounds".to_string())?;
+        let layout = slot
+            .layout
+            .as_ref()
+            .ok_or_else(|| "No repository open".to_string())?;
         if slot.layout_options == options {
             SlotProbe::Sliced(Box::new(layout.viewport(offset, limit)))
         } else {
@@ -139,14 +143,17 @@ pub async fn get_graph_viewport(
 /// This is used by the frontend to scroll the graph viewport to a specific
 /// commit (e.g. when navigating from a clickable parent OID).
 #[tauri::command]
-pub fn get_commit_row(oid: String, state: State<'_, AppState>) -> Result<Option<usize>, String> {
+pub fn get_commit_row(oid: String, state: State<'_, AppState>) -> Result<Option<usize>, IpcError> {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let active = state.active_index.lock().map_err(|e| e.to_string())?;
     let idx = active.ok_or_else(|| "No active project".to_string())?;
     let slot = projects
         .get(idx)
-        .ok_or("Active project index out of bounds")?;
-    let layout = slot.layout.as_ref().ok_or("No repository open")?;
+        .ok_or_else(|| "Active project index out of bounds".to_string())?;
+    let layout = slot
+        .layout
+        .as_ref()
+        .ok_or_else(|| "No repository open".to_string())?;
     Ok(layout.nodes.iter().find(|n| n.oid == oid).map(|n| n.row))
 }
 
@@ -170,7 +177,7 @@ pub async fn search_commits(
     sha: Option<String>,
     max_count: Option<usize>,
     state: State<'_, AppState>,
-) -> Result<GraphViewport, String> {
+) -> Result<GraphViewport, IpcError> {
     let repo_path = get_active_project_path(&state)?;
 
     tokio::task::spawn_blocking(move || {
@@ -206,7 +213,7 @@ pub async fn search_commits(
         let layout = GraphLayout::compute(dag);
         let vp = layout.viewport(0, total_commits);
 
-        Ok(GraphViewport {
+        Ok::<_, String>(GraphViewport {
             nodes: vp.nodes,
             lane_segments: vp.lane_segments,
             merge_curves: vp.merge_curves,
@@ -222,6 +229,7 @@ pub async fn search_commits(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Fetch full metadata for a single commit by its OID.
@@ -235,10 +243,8 @@ pub async fn search_commits(
 pub fn get_commit_detail(
     oid: String,
     state: State<'_, AppState>,
-) -> Result<git_engine::CommitInfo, String> {
-    with_active_repo(&state, |repo| {
-        repo.get_commit(&oid).map_err(|e| e.to_string())
-    })
+) -> Result<git_engine::CommitInfo, IpcError> {
+    with_active_repo(&state, |repo| repo.get_commit(&oid).map_err(IpcError::from))
 }
 
 /// Return diff statistics for a single commit.
@@ -246,11 +252,11 @@ pub fn get_commit_detail(
 pub async fn get_commit_stats(
     oid: String,
     state: State<'_, AppState>,
-) -> Result<git_engine::CommitStats, String> {
+) -> Result<git_engine::CommitStats, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     tokio::task::spawn_blocking(move || {
         let repo = git_engine::Repository::open(repo_path).map_err(|e| e.to_string())?;
-        repo.commit_stats(&oid).map_err(|e| e.to_string())
+        repo.commit_stats(&oid).map_err(IpcError::from)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -381,7 +387,7 @@ pub async fn load_graph_chunk(
     max_lanes: Option<u8>,
     anchor: Option<String>,
     state: State<'_, AppState>,
-) -> Result<GraphViewport, String> {
+) -> Result<GraphViewport, IpcError> {
     let repo_path = get_active_project_path(&state)?;
     let options = GraphLayoutOptions {
         first_parent: first_parent.unwrap_or(false),
@@ -395,6 +401,7 @@ pub async fn load_graph_chunk(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map_err(IpcError::from)
 }
 
 /// Core of [`refresh_graph_layout`]: open the repo at `path`, consult
@@ -578,7 +585,7 @@ fn try_incremental_advance(state: &State<'_, AppState>) -> Result<bool, String> 
 /// project is active / no repository is loaded in the active slot.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::graph::refresh_layout")]
-pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn refresh_graph_layout(state: State<'_, AppState>) -> Result<(), IpcError> {
     // Fast path: a plain commit / amend / fast-forward moves exactly one branch
     // forward on top of the current tip. Detect that and patch the cached
     // layout in place (O(new rows)) instead of re-walking up to 20K commits.

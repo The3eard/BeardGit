@@ -183,7 +183,6 @@
             newContent={fileDiff.newContent}
             filename={fileDiff.filename}
             placeholder={fileDiff.placeholder}
-            editorTheme={$activeTheme?.editor}
             isDark={$activeTheme?.meta.mode !== 'light'}
             onClose={() => { fileDiff = null; }}
           />
@@ -220,7 +219,13 @@
 
     <!-- Actions footer -->
     <div class="detail-actions">
-      <Button variant="primary" size="sm" onclick={() => doPushTag($selectedTagInfo!.name, "origin")}>
+      <Button variant="primary" size="sm" onclick={async () => {
+          try {
+            await doPushTag($selectedTagInfo!.name, "origin");
+          } catch {
+            // runMutation already surfaced the failure toast.
+          }
+        }}>
         {m.tags_action_push()}
       </Button>
       <Button variant="danger" size="sm" onclick={() => (confirmDelete = true)}>

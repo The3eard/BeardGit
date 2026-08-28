@@ -5,8 +5,11 @@
  * Composition:
  *  - `tabs`         — open buffer list (one per file).
  *  - `activeTabPath` — which tab is currently visible.
- *  - `treeEntries`   — last `list_workdir_tree` result for the file tree.
- *  - `treeLoading` / `treeTruncated` — UI flags for the tree pane.
+ *  - `treeChildren`  — one `list_workdir_tree` result per expanded
+ *    directory, keyed by prefix (`""` is the repo root).
+ *  - `expandedDirs` / `loadingDirs` / `treeLoading` — tree pane UI state.
+ *  - `searchResults` / `searchLoading` — server-side file search, which is
+ *    how the filter reaches files no expanded directory contains.
  *
  * All mutations go through `runMutation` so failures surface a sticky
  * toast with the standard "See details" affordance.
@@ -17,7 +20,8 @@
  * whatever `app-core` considers the active project, so the store never
  * needs to thread a project handle.
  */
-import { get, writable } from "svelte/store";
+import { getErrorMessage } from "$lib/api/errors";
+import { derived, get, writable } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   createWorkdirPath as apiCreatePath,
@@ -25,6 +29,7 @@ import {
   listWorkdirTree as apiListTree,
   readWorkdirFile as apiReadFile,
   renameWorkdirPath as apiRenamePath,
+  searchWorkdirFiles as apiSearchFiles,
   stageFiles as apiStageFiles,
   writeWorkdirFile as apiWriteFile,
 } from "$lib/api/tauri";
@@ -35,8 +40,20 @@ import type {
 } from "$lib/types";
 import type { MutationEvent } from "$lib/stores/mutations";
 
-/** Maximum entries we ask the backend to return per tree refresh. */
-export const TREE_ENTRY_CAP = 10_000;
+/**
+ * Cap on a single directory listing.
+ *
+ * A guard against one pathological directory, not a budget for the tree.
+ * The tree used to ask for the whole working directory at once with a cap
+ * of 10,000 — applied to a depth-first walk that stopped wherever it was,
+ * so entire folders arrived empty and the ones past the cutoff never
+ * arrived at all. Nothing recursive happens on this path any more: opening
+ * a folder reads that folder.
+ */
+export const DIRECTORY_ENTRY_CAP = 5_000;
+
+/** Cap on how many search hits the backend returns for one query. */
+export const SEARCH_RESULT_CAP = 300;
 
 /** localStorage key prefix used for per-project tab persistence. */
 const STORAGE_PREFIX = "beardgit:editor-tabs:";
@@ -82,29 +99,266 @@ export interface EditorTab {
 export const tabs = writable<EditorTab[]>([]);
 /** Path of the currently active tab, or `null` when no tab is open. */
 export const activeTabPath = writable<string | null>(null);
-/** Last `list_workdir_tree` result — `[]` until the first refresh. */
-export const treeEntries = writable<WorkdirTreeEntry[]>([]);
-/** `true` while a tree refresh is in flight. */
+/**
+ * Children of every directory listed so far, keyed by repo-relative
+ * prefix. `""` is the repo root, which is loaded on project open; the rest
+ * appear as the user expands them.
+ */
+export const treeChildren = writable<Map<string, WorkdirTreeEntry[]>>(new Map());
+/** Prefixes the user has expanded, so the tree can render them open. */
+export const expandedDirs = writable<Set<string>>(new Set());
+/** Prefixes with a listing in flight — the row shows a spinner. */
+export const loadingDirs = writable<Set<string>>(new Set());
+/** Prefixes whose last listing failed, so the row can say so. */
+export const failedDirs = writable<Set<string>>(new Set());
+/** `true` while the root listing is in flight. */
 export const treeLoading = writable(false);
-/** `true` when the last tree result hit the entry cap. */
-export const treeTruncated = writable(false);
+
+/** Matches for the current filter query, or `[]` when not searching. */
+export const searchResults = writable<WorkdirTreeEntry[]>([]);
+/** `true` while a search is in flight. */
+export const searchLoading = writable(false);
+/** `true` when the last search came back at {@link SEARCH_RESULT_CAP}. */
+export const searchTruncated = writable(false);
+
+/** Flat view of everything listed so far — path → entry. */
+export const knownEntries = derived(treeChildren, ($children) => {
+  const map = new Map<string, WorkdirTreeEntry>();
+  for (const entries of $children.values()) {
+    for (const e of entries) map.set(e.path, e);
+  }
+  return map;
+});
+
+function withFlag(set: Set<string>, key: string, on: boolean): Set<string> {
+  const next = new Set(set);
+  if (on) next.add(key);
+  else next.delete(key);
+  return next;
+}
 
 /**
- * Refresh the file tree for the active project, respecting the user's
- * gitignore preference. Errors are non-fatal — the store keeps the prior
- * entries and clears the loading flag.
+ * List one directory and store its children. `""` is the repo root.
+ *
+ * Errors leave the previous children in place and mark the directory in
+ * `failedDirs`, so the row can say the listing failed rather than
+ * silently reading as an empty folder.
+ */
+export async function loadDirectory(
+  prefix: string,
+  respectGitignore: boolean,
+): Promise<void> {
+  const seq = treeSeq;
+  if (prefix === "") treeLoading.set(true);
+  loadingDirs.update((s) => withFlag(s, prefix, true));
+  try {
+    const entries = await apiListTree(
+      prefix === "" ? null : prefix,
+      DIRECTORY_ENTRY_CAP,
+      respectGitignore,
+    );
+    // The tree may have been reset or refreshed while this was in flight —
+    // a project switch, or the gitignore toggle firing a second root load.
+    // Writing now would put another repository's paths, or the answer to
+    // the opposite question, into the tree the user is looking at.
+    if (seq !== treeSeq) return;
+    treeChildren.update((map) => new Map(map).set(prefix, entries));
+    failedDirs.update((s) => withFlag(s, prefix, false));
+  } catch {
+    if (seq !== treeSeq) return;
+    failedDirs.update((s) => withFlag(s, prefix, true));
+  } finally {
+    // Unconditionally: this flag records that *this* call is in flight, so
+    // a stale answer still has to clear its own. Guarding it left a
+    // directory that was collapsed mid-listing marked as loading forever —
+    // and since it was no longer expanded, no refresh would ever re-list it
+    // and clear the mark.
+    loadingDirs.update((s) => withFlag(s, prefix, false));
+    if (seq === treeSeq && prefix === "") treeLoading.set(false);
+  }
+}
+
+/**
+ * Expand or collapse a directory, listing it on first expand.
+ *
+ * Collapsing keeps the children cached: re-opening a folder the user just
+ * closed should not go back to the disk. That cache is only valid until
+ * the next refresh, which is why {@link refreshTree} drops it rather than
+ * skipping over it — see the note there.
+ */
+export async function toggleDirectory(
+  prefix: string,
+  respectGitignore: boolean,
+): Promise<void> {
+  const open = get(expandedDirs).has(prefix);
+  expandedDirs.update((s) => withFlag(s, prefix, !open));
+  if (!open && !get(treeChildren).has(prefix)) {
+    await loadDirectory(prefix, respectGitignore);
+  }
+}
+
+/**
+ * Reload what is on screen and forget the rest.
+ *
+ * The eviction is the important half. Reloading only the open directories
+ * and leaving the collapsed ones cached made content unreachable: create a
+ * file inside a folder you had opened and then closed, and the refresh
+ * that follows the mutation skips that folder — it is not expanded — while
+ * re-expanding it skips the listing, because it is still cached. The file
+ * exists, the tree cannot show it, and no button in the UI fixes it.
+ * Renaming was worse: the tree kept offering the old name, which opens an
+ * error.
+ *
+ * So a refresh drops every cached listing and re-lists the root plus
+ * whatever is currently open. Collapsed folders re-list when the user next
+ * opens them. The "don't re-list on collapse and re-open" saving still
+ * holds between refreshes, which is where it was worth having.
  */
 export async function refreshTree(respectGitignore: boolean): Promise<void> {
-  treeLoading.set(true);
+  const seq = ++treeSeq;
+  const open = [...get(expandedDirs)];
+  treeChildren.set(new Map());
+  failedDirs.set(new Set());
+  await loadDirectory("", respectGitignore);
+  // The child listings are launched *after* an await, so without this they
+  // would capture whatever `treeSeq` had become and sail through the guard
+  // that just discarded this refresh's own root listing. Two refreshes with
+  // different `respectGitignore` — the toggle, clicked twice — could then
+  // race, and the loser's children could land last.
+  if (seq !== treeSeq) return;
+  await Promise.all(open.map((p) => loadDirectory(p, respectGitignore)));
+}
+
+/**
+ * Re-list only the directories a path change can have affected.
+ *
+ * This is what the CRUD wrappers use instead of {@link refreshTree}. A full
+ * refresh empties `treeChildren` before re-listing, and emptying it is a
+ * visible blank frame — one the user sees for nothing, because
+ * `project-mutated` has usually already refreshed the tree by the time the
+ * wrapper's own refresh lands. Re-listing the parent leaves every other
+ * directory's cache alone, so there is nothing to blank.
+ *
+ * `prefixes` are the *parent* directories to re-list; `""` is the root.
+ * `removed`, when given, is a path that no longer exists — its cached
+ * subtree is dropped, since a partial refresh no longer clears it wholesale.
+ * Without that, deleting `src/old/` and later creating a directory of the
+ * same name would show the dead listing.
+ *
+ * Note this does **not** replace the wrappers' need to refresh at all: the
+ * `project-mutated` listener filters on `status_changed`, which is blind to
+ * a new empty directory, the second file in an untracked directory, and
+ * anything gitignored. See `file-editor/CLAUDE.md`.
+ */
+export async function refreshTreePaths(
+  prefixes: string[],
+  respectGitignore: boolean,
+  removed?: string,
+): Promise<void> {
+  if (removed !== undefined) {
+    const isUnder = (p: string) => p === removed || p.startsWith(`${removed}/`);
+    const dropKeys = <T>(map: Map<string, T>) => {
+      const next = new Map(map);
+      for (const key of map.keys()) if (isUnder(key)) next.delete(key);
+      return next;
+    };
+    const dropFlags = (set: Set<string>) => {
+      const next = new Set(set);
+      for (const key of set) if (isUnder(key)) next.delete(key);
+      return next;
+    };
+    treeChildren.update(dropKeys);
+    expandedDirs.update(dropFlags);
+    failedDirs.update(dropFlags);
+    // `loadingDirs` is deliberately left alone: an in-flight listing has to
+    // clear its own flag in its `finally`, and dropping the key here would
+    // leave that write to re-add it with nothing to clear it afterwards.
+  }
+
+  const seq = treeSeq;
+  // Deduped: a rename within one directory names the same parent twice, and
+  // listing it twice would race two writes for the same key.
+  await Promise.all(
+    [...new Set(prefixes)].map((p) => loadDirectory(p, respectGitignore)),
+  );
+  // Same guard as `refreshTree`: a project switch or gitignore toggle while
+  // these were in flight means the answers belong to a tree that is gone.
+  if (seq !== treeSeq) return;
+}
+
+/**
+ * Parent directory of a repo-relative path, or `""` for a top-level entry.
+ *
+ * Forward slashes only — paths crossing the IPC boundary are normalised, per
+ * `git-engine`'s path contract.
+ */
+export function parentDir(path: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx === -1 ? "" : path.slice(0, idx);
+}
+
+/** Drop all tree state — used when switching to a different project. */
+export function resetTree(): void {
+  treeSeq++;
+  treeChildren.set(new Map());
+  expandedDirs.set(new Set());
+  loadingDirs.set(new Set());
+  failedDirs.set(new Set());
+  searchResults.set([]);
+  searchTruncated.set(false);
+}
+
+/**
+ * Monotonic id for tree listings, bumped by every reset and refresh.
+ *
+ * Same reasoning as {@link searchTree}'s: a listing that was in flight when
+ * the user switched project, or when the gitignore toggle fired a second
+ * root load, must not land on top of the newer state.
+ */
+let treeSeq = 0;
+
+/**
+ * Monotonic id for search requests. Typing produces overlapping in-flight
+ * searches and they do not necessarily come back in order, so a late
+ * answer to an earlier query must not overwrite a newer one.
+ */
+let searchSeq = 0;
+
+/**
+ * Search the working directory for `query`, server-side.
+ *
+ * An empty query clears the results and leaves the tree showing. The old
+ * filter ran in the browser over the truncated tree, so a file that was
+ * really there but had not survived the walk simply could not be found —
+ * and the footer's advice to "refine the filter to see more" asked the
+ * backend for nothing at all.
+ */
+export async function searchTree(
+  query: string,
+  respectGitignore: boolean,
+): Promise<void> {
+  const seq = ++searchSeq;
+  const trimmed = query.trim();
+  if (trimmed === "") {
+    searchResults.set([]);
+    searchTruncated.set(false);
+    searchLoading.set(false);
+    return;
+  }
+  searchLoading.set(true);
   try {
-    const result = await apiListTree(null, TREE_ENTRY_CAP, respectGitignore);
-    treeEntries.set(result);
-    treeTruncated.set(result.length >= TREE_ENTRY_CAP);
+    const hits = await apiSearchFiles(trimmed, SEARCH_RESULT_CAP, respectGitignore);
+    if (seq !== searchSeq) return;
+    searchResults.set(hits);
+    searchTruncated.set(hits.length >= SEARCH_RESULT_CAP);
   } catch {
-    // Leave existing entries in place; the toolbar reload button is
-    // always available so the user can retry manually.
+    if (seq !== searchSeq) return;
+    searchResults.set([]);
+    // Or the pane reads "No files match." with "narrow the query to see
+    // the rest" underneath it.
+    searchTruncated.set(false);
   } finally {
-    treeLoading.set(false);
+    if (seq === searchSeq) searchLoading.set(false);
   }
 }
 
@@ -162,7 +416,7 @@ function applyReadResult(
 
 /** Mark a single tab's `status` / `error` after a load failure. */
 function markLoadError(path: string, err: unknown): void {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = getErrorMessage(err);
   tabs.update((list) => {
     const idx = list.findIndex((t) => t.path === path);
     if (idx < 0) return list;
@@ -458,9 +712,9 @@ export async function restoreTabsForProject(
 export function clearAll(): void {
   tabs.set([]);
   activeTabPath.set(null);
-  treeEntries.set([]);
-  treeTruncated.set(false);
+  resetTree();
   treeLoading.set(false);
+  searchLoading.set(false);
 }
 
 let externalListenerPromise: Promise<UnlistenFn> | null = null;
@@ -475,6 +729,37 @@ let externalListenerPromise: Promise<UnlistenFn> | null = null;
  * either clicks "Reload" / activates the tab (which lazily re-reads)
  * or "Keep my version" (which just clears the flag).
  */
+/**
+ * How an external change refreshes the tree.
+ *
+ * A callback rather than a direct `refreshTree(...)` call because the
+ * gitignore preference lives in another store, and reaching for it from
+ * here would tie the editor store to the settings store for one boolean.
+ * `FileEditorPanel` installs it with the value it is already deriving, and
+ * clears it on destroy — so when the editor is not mounted this is a no-op
+ * rather than a listing nobody is looking at.
+ */
+let treeRefreshHook: (() => Promise<void>) | null = null;
+
+/** Install (or clear, with `null`) the tree refresh used on external changes. */
+export function setTreeRefreshHook(fn: (() => Promise<void>) | null): void {
+  treeRefreshHook = fn;
+}
+
+/**
+ * Called by `mutations.ts` — the single fan-out point for
+ * `project-mutated` — when the working tree changed.
+ *
+ * Deliberately not a second `project-mutated` listener in this module.
+ * That is what this started as, and it bypassed the dispatcher's rAF
+ * coalescing (so a burst re-listed the tree once per event, blanking the
+ * pane each time) and its project scoping (so a mutation in a background
+ * tab refreshed the active tab's tree).
+ */
+export function refreshFileEditorTree(): void {
+  if (treeRefreshHook) void treeRefreshHook();
+}
+
 export function startFileEditorListeners(): () => void {
   // `??=` is synchronous, so two calls racing before the first `listen()`
   // resolves reuse the SAME promise rather than each registering a listener
@@ -512,7 +797,7 @@ export async function createPath(
     invoke: () => apiCreatePath(path, isDirectory),
     failureToastPrefix: isDirectory ? "Create folder failed" : "Create file failed",
   });
-  await refreshTree(respectGitignore);
+  await refreshTreePaths([parentDir(path)], respectGitignore);
   if (!isDirectory) {
     await openTab(path);
   }
@@ -533,7 +818,14 @@ export async function renamePath(
     failureToastPrefix: "Rename failed",
   });
   renameOpenTab(fromPath, toPath);
-  await refreshTree(respectGitignore);
+  // Both ends: a move between directories changes two listings. `fromPath`
+  // is also passed as `removed` — if it was a directory, its cached subtree
+  // is now under the new name and the old keys are dead.
+  await refreshTreePaths(
+    [parentDir(fromPath), parentDir(toPath)],
+    respectGitignore,
+    fromPath,
+  );
 }
 
 /**
@@ -551,7 +843,7 @@ export async function deletePath(
     failureToastPrefix: "Delete failed",
   });
   closeTabsUnder(path);
-  await refreshTree(respectGitignore);
+  await refreshTreePaths([parentDir(path)], respectGitignore, path);
 }
 
 /**
@@ -561,8 +853,8 @@ export async function deletePath(
 export function __resetForTests(): void {
   tabs.set([]);
   activeTabPath.set(null);
-  treeEntries.set([]);
+  resetTree();
   treeLoading.set(false);
-  treeTruncated.set(false);
+  searchLoading.set(false);
   stopFileEditorListeners();
 }

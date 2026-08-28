@@ -9,6 +9,7 @@
  * Mirrors the pattern used by `issues.ts` and `mr-pr.ts`.
  */
 
+import { getErrorMessage } from "$lib/api/errors";
 import { writable, derived, get } from "svelte/store";
 import type {
   Release,
@@ -106,7 +107,7 @@ export function selectRelease(tag: string): void {
     })
     .catch((err) => {
       if (get(selectedReleaseTag) !== expected) return;
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = getErrorMessage(err);
       releaseDetail.set(null);
       releaseDetailError.set(msg);
       addToast({
@@ -139,7 +140,7 @@ export async function refreshSelectedDetail(): Promise<void> {
     }
   } catch (err) {
     if (get(selectedReleaseTag) !== tag) return;
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = getErrorMessage(err);
     releaseDetailError.set(msg);
     /* no toast — this is an auto-refresh path. */
   }
@@ -167,7 +168,9 @@ export async function doCreateTagAndRelease(
   input: CreateReleaseInput,
 ): Promise<TaskId> {
   // Long-running task — progress + completion are reported by the
-  // Rust-side TaskManager, which already fires its own task entries.
+  // Rust-side TaskManager, which fires its own task entries. That needed an
+  // explicit `Background` kind to be true: as a `Generic` task it was dropped
+  // by `should_emit` and no entry was ever fired.
   // Toast policy still runs through runMutation so a provider-CLI
   // failure (e.g. `gh` not installed) surfaces a sticky error.
   return runMutation({

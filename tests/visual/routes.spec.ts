@@ -13,6 +13,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   applyTheme,
+  clickNav,
   installBootstrapMocks,
   THEME_MODES,
   waitForAppReady,
@@ -46,7 +47,10 @@ function fixtureBundle(): IpcResponses {
   return {
     // Repo
     open_repo: makeRepoInfo({ path: ACTIVE_PROJECT.path, head_branch: "feat/example" }),
-    get_status_summary: makeStatusSummary({ ahead: 2, staged: 2, unstaged: 2, untracked: 0 }),
+    // Must match `makeFileStatusList()` below, which is 3 staged, 3
+    // unstaged and 2 untracked. It said 2/2/0, so the status bar in all 32
+    // route baselines contradicted the file list right next to it.
+    get_status_summary: makeStatusSummary({ ahead: 2, staged: 3, unstaged: 3, untracked: 2 }),
     get_branches: makeBranchList(),
     get_remotes: [
       { name: "origin", url: "git@github.com:adolfofuentes/sample.git" },
@@ -74,18 +78,48 @@ function fixtureBundle(): IpcResponses {
 
     // Lists that should render empty-state for now
     list_tags: [],
-    list_stashes: [],
+    stash_entries: [],
     list_worktrees: [],
     get_reflog: [],
     list_submodules: [],
     list_releases: [],
-    list_workflows: [],
-    list_ai_sessions: [],
+    list_ci_workflows: [],
+    ai_list_conversations: [],
 
-    // Repo config / blame / file editor
-    get_repo_config_labels: [],
-    get_branch_protections: [],
-    get_remote_repo_config: null,
+    // Repo config / blame / file editor.
+    //
+    // `load_remote_repo_config` is the command the Repo settings view
+    // actually calls, and it has to return a real `RemoteRepoConfig`:
+    // `cloneConfig(undefined)` throws and the page renders a "Failed to
+    // load" card. It did, and that card was this view's baseline —
+    // recorded, committed, and passing, because the key was spelled
+    // `get_remote_repo_config`. Two invented siblings
+    // (`get_repo_config_labels`, `get_branch_protections`) were removed:
+    // the sections read both out of this payload.
+    load_remote_repo_config: {
+      description: "Native desktop Git client",
+      homepage: "https://beardgit.dev",
+      topics: ["git", "tauri", "svelte"],
+      visibility: "public",
+      default_branch: "main",
+      issues_enabled: true,
+      wiki_enabled: false,
+      archived: false,
+      branch_protection: {
+        require_pull_request: true,
+        required_approvals: 1,
+        require_status_checks: true,
+        status_check_contexts: ["ci/build", "ci/test"],
+        require_up_to_date: true,
+        require_conversation_resolution: false,
+        enforce_admins: false,
+      },
+      labels: [
+        { name: "bug", color: "d73a4a", description: "Something isn't working" },
+        { name: "enhancement", color: "a2eeef", description: "New feature or request" },
+        { name: "documentation", color: "0075ca", description: null },
+      ],
+    },
     list_workdir_tree: [],
   };
 }
@@ -125,18 +159,20 @@ for (const mode of THEME_MODES) {
 
     for (const [id, label] of VIEWS) {
       test(`${id}`, async ({ page }) => {
-        // `Settings` lives outside the <nav> in Sidebar.svelte but uses
-        // the same `.nav-item` class — we target by label match on the
-        // nav-label span so a single selector hits every sidebar entry.
-        await page
-          .locator(
-            `button.nav-item:has(.nav-label:text-is("${label}"))`,
-          )
-          .first()
-          .click();
+        // Via the shared helper, which waits for the view to be there.
+        // Clicking and screenshotting straight away recorded three of
+        // these baselines against a `LazyComponent` spinner — see
+        // `helpers/nav.ts` for why that passed forever.
+        await clickNav(page, label);
         await expect(page).toHaveScreenshot(`${mode}-${id}.png`, {
           fullPage: false,
           animations: "disabled",
+          // What a route baseline is for is the chrome — sidebar, toolbar,
+          // panels, status bar. The graph canvas behind it disagrees with
+          // itself run to run (see `GRAPH_CANVAS_PIXEL_BUDGET`), so it is
+          // masked rather than paid for: masking says "not covered here",
+          // a budget would say "covered" and mean it less each year.
+          mask: [page.locator("canvas")],
         });
       });
     }

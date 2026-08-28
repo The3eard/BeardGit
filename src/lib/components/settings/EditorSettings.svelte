@@ -416,7 +416,7 @@
         >
           <Switch
             id="editor-respect-gitignore-toggle"
-            checked={$editorPrefs?.respect_gitignore_in_tree ?? false}
+            checked={$editorPrefs?.respect_gitignore_in_tree ?? true}
             disabled={loading}
             onchange={(e) => handleToggle("respect_gitignore_in_tree", e)}
           />
@@ -455,7 +455,7 @@
   .bg-select {
     padding: 5px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);
@@ -479,7 +479,7 @@
     width: 96px;
     padding: 5px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: var(--font-size-sm);

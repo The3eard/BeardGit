@@ -28,3 +28,10 @@ bright-white = "#a6adc8"
 primary = "magenta"
 secondary = "blue"
 tertiary = "green"
+
+# Palette pins. The derivation guarantees the contrast floors on its own;
+# these are kept because the theme's *own* palette has a slot that clears
+# them by a wider margin, so pinning is strictly better than blending.
+# `[derived]` merges after the derivation, so it wins.
+[derived]
+text-secondary = "#a6adc8"  # 7.37:1 — palette `bright-white` (Mocha subtext0), above the derived 6.02:1.

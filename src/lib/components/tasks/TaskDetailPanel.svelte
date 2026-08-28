@@ -143,8 +143,6 @@
     switch (entry.kind) {
       case "ai_background":
         return m.tasks_kind_ai_background();
-      case "ai_interactive":
-        return m.tasks_kind_ai_interactive();
       case "ai_headless":
         return m.tasks_kind_ai_headless();
       case "git_fetch":
@@ -157,6 +155,8 @@
         return m.tasks_kind_git_clone();
       case "app_update":
         return m.tasks_kind_app_update();
+      case "background":
+        return m.tasks_kind_background();
     }
   });
 

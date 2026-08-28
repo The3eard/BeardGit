@@ -21,6 +21,7 @@ use tauri::{AppHandle, State};
 use tracing::instrument;
 
 use super::helpers::*;
+use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
 /// Soft cap on workdir reads. Files larger than this return
@@ -66,13 +67,13 @@ pub enum ReadWorkdirFileResult {
 pub fn read_workdir_file(
     path: String,
     state: State<'_, AppState>,
-) -> Result<ReadWorkdirFileResult, String> {
+) -> Result<ReadWorkdirFileResult, IpcError> {
     with_active_repo(&state, |repo| {
         let full = git_engine::file_content::validate_repo_relative_path(repo.path(), &path)
             .map_err(|e| e.to_string())?;
         let meta = std::fs::metadata(&full).map_err(|e| e.to_string())?;
         if !meta.is_file() {
-            return Err(format!("not a regular file: {path}"));
+            return Err(format!("not a regular file: {path}").into());
         }
         let size = meta.len();
         if size > MAX_READ_BYTES {
@@ -115,19 +116,19 @@ pub fn write_workdir_file(
     content: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
             repo.write_file_workdir(&path, &content)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
     })
 }
 
-/// List entries from the working directory.
+/// List one level of the working directory.
 ///
 /// See [`git_engine::Repository::list_workdir_tree`] for full semantics.
-/// `prefix` is repo-relative; pass `None` for a full recursive walk.
+/// `prefix` is repo-relative; `None` lists the repo root.
 #[tauri::command]
 #[instrument(skip(state), name = "cmd::file_editor::list_workdir_tree")]
 pub fn list_workdir_tree(
@@ -135,11 +136,60 @@ pub fn list_workdir_tree(
     max_entries: u32,
     respect_gitignore: bool,
     state: State<'_, AppState>,
-) -> Result<Vec<git_engine::WorkdirTreeEntry>, String> {
+) -> Result<Vec<git_engine::WorkdirTreeEntry>, IpcError> {
     with_active_repo(&state, |repo| {
-        repo.list_workdir_tree(prefix.as_deref(), max_entries as usize, respect_gitignore)
-            .map_err(|e| e.to_string())
+        let entries = repo
+            .list_workdir_tree(prefix.as_deref(), max_entries as usize, respect_gitignore)
+            .map_err(|e| e.to_string())?;
+        // Reaching the cap now means one directory holds more children than
+        // it, not that the tree was cut short. Log the counts either way,
+        // never the entry paths.
+        tracing::debug!(
+            prefix = prefix.as_deref().unwrap_or(""),
+            max_entries,
+            respect_gitignore,
+            returned = entries.len(),
+            capped = entries.len() >= max_entries as usize,
+            "workdir tree listed"
+        );
+        Ok(entries)
     })
+}
+
+/// Find files anywhere in the working directory whose path contains `query`.
+///
+/// The tree lists one level at a time, so a filter that only looked at what
+/// had been expanded could not see the file the user is typing the name of.
+/// See [`git_engine::Repository::search_workdir_files`].
+#[tauri::command]
+#[instrument(
+    skip_all,
+    fields(limit, respect_gitignore),
+    name = "cmd::file_editor::search_workdir_files"
+)]
+pub async fn search_workdir_files(
+    query: String,
+    limit: u32,
+    respect_gitignore: bool,
+    state: State<'_, AppState>,
+) -> Result<Vec<git_engine::WorkdirTreeEntry>, IpcError> {
+    // `async` matters more here than anywhere else in this file: the search
+    // walks the whole working tree (16–30 ms on this repo) and the UI calls it
+    // per keystroke. As a non-async command that walk ran on the main thread,
+    // so every character typed cost a frame.
+    let repo_path = get_active_project_path(&state)?;
+    run_blocking(move || {
+        let repo = git_engine::Repository::open(repo_path)?;
+        let hits = repo
+            .search_workdir_files(&query, limit as usize, respect_gitignore)
+            .map_err(IpcError::from)?;
+        // `skip_all` plus explicit fields above: the query is user prose and
+        // has no business in a span field, and neither do the paths it
+        // matched. The count is the useful part.
+        tracing::debug!(matched = hits.len(), "workdir search");
+        Ok(hits)
+    })
+    .await
 }
 
 /// Create a new file or directory at `path`. Errors if `path` already
@@ -151,11 +201,11 @@ pub fn create_workdir_path(
     is_directory: bool,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
             repo.create_workdir_path(&path, is_directory)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
     })
 }
@@ -170,11 +220,11 @@ pub fn rename_workdir_path(
     to_path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
             repo.rename_workdir_path(&from_path, &to_path)
-                .map_err(|e| e.to_string())
+                .map_err(IpcError::from)
         })
     })
 }
@@ -187,10 +237,10 @@ pub fn delete_workdir_path(
     path: String,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.delete_workdir_path(&path).map_err(|e| e.to_string())
+            repo.delete_workdir_path(&path).map_err(IpcError::from)
         })
     })
 }

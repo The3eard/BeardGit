@@ -104,6 +104,7 @@
   .overlay {
     position: fixed;
     inset: 0;
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     background: rgba(0, 0, 0, 0.4); /* beardgit:allow-hex: modal backdrop neutral */
     z-index: 99;
     border: none;
@@ -129,7 +130,7 @@
     margin: 12px;
     padding: 6px 10px;
     background: var(--bg-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: var(--font-size-md);

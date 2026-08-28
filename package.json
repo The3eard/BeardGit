@@ -1,6 +1,6 @@
 {
   "name": "beardgit",
-  "version": "26.7.1",
+  "version": "26.8.0",
   "description": "",
   "type": "module",
   "scripts": {
@@ -20,6 +20,13 @@
     "lint:style": "stylelint \"src/**/*.{css,svelte}\"",
     "lint:js": "eslint \"src/**/*.{ts,svelte}\"",
     "lint": "npm run lint:style && npm run lint:js",
+    "check:ipc": "node scripts/check-ipc-contract.mjs",
+    "check:instrument": "node scripts/check-instrument-fields.mjs",
+    "check:specs": "playwright test --list",
+    "check:glyphs": "node scripts/check-icon-glyphs.mjs",
+    "check:toolchain": "node scripts/check-toolchain-pin.mjs",
+    "check:codes": "node scripts/check-ipc-codes.mjs",
+    "gate": "bash scripts/gate.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

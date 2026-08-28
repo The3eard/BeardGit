@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { activeProject, activeRepoStatus } from "$lib/stores/projects";
   import { repoInfo } from "$lib/stores/repo";
   import { fetchRemote, pullRemote, pushRemote, previewPatch, applyPatch } from "$lib/api/tauri";
@@ -114,7 +115,7 @@
       patchPath = filePath;
       patchPreview = await previewPatch(filePath);
     } catch (err) {
-      alert(m.patch_apply_failed({ error: String(err) }));
+      alert(m.patch_apply_failed({ error: getErrorMessage(err) }));
     }
   }
 

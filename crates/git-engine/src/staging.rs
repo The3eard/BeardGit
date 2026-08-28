@@ -138,12 +138,21 @@ impl Repository {
     /// the working-tree copy is reset to match the index — i.e. `git checkout -- <path>`
     /// semantics. Staged content is preserved.
     ///
-    /// For untracked files (status `"new"` and not staged) the file is deleted
-    /// from disk. Each path is canonicalized and verified to be inside the repo
-    /// root before deletion to guard against path traversal.
+    /// For untracked files (status `"new"` and not staged) the entry is deleted
+    /// from disk. The path's *parent* is canonicalized and verified to be inside
+    /// the repo root before deletion, to guard against path traversal without
+    /// resolving a trailing symlink — an untracked symlink is removed as a link,
+    /// never followed to its target.
     ///
     /// Paths that match neither category (e.g. unknown / already clean) are
-    /// silently ignored.
+    /// silently ignored, as is a path whose entry is already gone. A delete that
+    /// is *attempted and fails* is not: the surviving paths come back as
+    /// [`GitError::DiscardFailed`].
+    ///
+    /// Note that a directory is never one of these paths in practice —
+    /// `status_file` rejects one as an ambiguous path, and `file_statuses`
+    /// recurses untracked directories, so callers only ever see files. The
+    /// recursive branch stays for a real directory that reaches here anyway.
     ///
     /// # Safety
     /// This permanently destroys uncommitted work. Callers must confirm with
@@ -188,20 +197,49 @@ impl Repository {
 
         if !untracked.is_empty() {
             let repo_root = self.path().canonicalize().map_err(GitError::Io)?;
+            let mut failed: Vec<String> = Vec::new();
+
             for p in untracked {
                 let full = repo_root.join(p);
-                let canonical = match full.canonicalize() {
-                    Ok(c) => c,
-                    Err(_) => continue,
+
+                // Canonicalize the PARENT, never the path itself. Resolving the
+                // full path follows a trailing symlink, and the delete then
+                // lands on whatever the link points at — which is how
+                // discarding an untracked link to a tracked directory used to
+                // erase committed content. The parent still has to resolve for
+                // the containment check below to mean anything.
+                let (Some(parent), Some(name)) = (full.parent(), full.file_name()) else {
+                    failed.push(p.clone());
+                    continue;
                 };
-                if !canonical.starts_with(&repo_root) {
+                let Ok(parent) = parent.canonicalize() else {
+                    // Parent is gone, so there is nothing left at this path.
+                    continue;
+                };
+                if !parent.starts_with(&repo_root) {
+                    failed.push(p.clone());
                     continue;
                 }
-                if canonical.is_dir() {
-                    let _ = std::fs::remove_dir_all(&canonical);
+                let target = parent.join(name);
+
+                // `symlink_metadata` does not follow the link, so a symlink is
+                // classified as a symlink regardless of its target. Only a real
+                // directory takes the recursive delete.
+                let Ok(meta) = std::fs::symlink_metadata(&target) else {
+                    continue; // already gone
+                };
+                let removed = if meta.file_type().is_dir() {
+                    std::fs::remove_dir_all(&target)
                 } else {
-                    let _ = std::fs::remove_file(&canonical);
+                    std::fs::remove_file(&target)
+                };
+                if removed.is_err() {
+                    failed.push(p.clone());
                 }
+            }
+
+            if !failed.is_empty() {
+                return Err(GitError::DiscardFailed { paths: failed });
             }
         }
 
@@ -376,5 +414,148 @@ mod tests {
             "all files should be unstaged after unstage_all"
         );
         assert_eq!(statuses.len(), 2, "should still have 2 changed files");
+    }
+
+    // ── Discarding untracked symlinks ─────────────────────────────────────
+    //
+    // `git status` reports an untracked symlink as `WT_NEW`, so discarding
+    // one lands in the delete branch. The link is what the user asked to
+    // remove; whatever it points at is not part of the request. These tests
+    // exist because resolving the link before deciding what to delete once
+    // destroyed committed content — see `discard_files`.
+    //
+    // Unix-gated: creating a symlink on Windows needs elevation, so these
+    // would fail for an unrelated reason on the CI matrix's third leg.
+
+    #[cfg(unix)]
+    #[test]
+    fn test_discard_untracked_symlink_keeps_target_dir() {
+        let (dir, repo) = create_repo_with_committed_file();
+        fs::create_dir(dir.path().join("tracked_dir")).unwrap();
+        fs::write(dir.path().join("tracked_dir/important.txt"), "keep me\n").unwrap();
+        repo.stage_files(&["tracked_dir/important.txt".to_string()])
+            .unwrap();
+
+        std::os::unix::fs::symlink("tracked_dir", dir.path().join("link")).unwrap();
+        repo.discard_files(&["link".to_string()]).unwrap();
+
+        assert!(
+            dir.path().join("tracked_dir/important.txt").exists(),
+            "discarding the link must not delete the directory it points at"
+        );
+        assert!(
+            fs::symlink_metadata(dir.path().join("link")).is_err(),
+            "the link itself should be gone"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_discard_untracked_symlink_keeps_target_file() {
+        let (dir, repo) = create_repo_with_committed_file();
+        std::os::unix::fs::symlink("existing.txt", dir.path().join("link.txt")).unwrap();
+
+        repo.discard_files(&["link.txt".to_string()]).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(dir.path().join("existing.txt")).unwrap(),
+            "original content\n",
+            "discarding the link must leave the file it points at untouched"
+        );
+        assert!(fs::symlink_metadata(dir.path().join("link.txt")).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_discard_untracked_symlink_pointing_outside_repo() {
+        let (dir, repo) = create_repo_with_committed_file();
+        let outside = tempfile::tempdir().unwrap();
+        let outside_file = outside.path().join("untouchable.txt");
+        fs::write(&outside_file, "not ours\n").unwrap();
+
+        std::os::unix::fs::symlink(&outside_file, dir.path().join("escape")).unwrap();
+        repo.discard_files(&["escape".to_string()]).unwrap();
+
+        assert!(
+            outside_file.exists(),
+            "a link out of the repo must not delete anything outside it"
+        );
+        assert!(
+            fs::symlink_metadata(dir.path().join("escape")).is_err(),
+            "the link is inside the repo, so removing it is exactly what was asked"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_discard_untracked_broken_symlink() {
+        let (dir, repo) = create_repo_with_committed_file();
+        std::os::unix::fs::symlink("nowhere.txt", dir.path().join("dangling")).unwrap();
+
+        repo.discard_files(&["dangling".to_string()]).unwrap();
+
+        assert!(
+            fs::symlink_metadata(dir.path().join("dangling")).is_err(),
+            "a dangling link has no target to canonicalize, and still has to go"
+        );
+    }
+
+    #[test]
+    fn test_discard_untracked_directory_path_is_a_no_op() {
+        // Pins the reason the recursive-delete branch is unreachable for real
+        // directories: `status_file` refuses a directory ("ambiguous path"), so
+        // the path is skipped before any delete. `file_statuses` recurses
+        // untracked directories, so the UI only ever sends the files inside.
+        // Worth a test because the alternative reading — "directories are
+        // deleted recursively" — is what made the symlink bug above dangerous.
+        let (dir, repo) = create_repo_with_committed_file();
+        fs::create_dir_all(dir.path().join("scratch/nested")).unwrap();
+        fs::write(dir.path().join("scratch/nested/a.txt"), "temp\n").unwrap();
+
+        repo.discard_files(&["scratch".to_string()]).unwrap();
+        assert!(dir.path().join("scratch/nested/a.txt").exists());
+
+        // The file path, which is what the UI actually reports, does delete.
+        repo.discard_files(&["scratch/nested/a.txt".to_string()])
+            .unwrap();
+        assert!(!dir.path().join("scratch/nested/a.txt").exists());
+    }
+
+    /// A discard that cannot delete has to say so — reporting success tells the
+    /// user their working tree is clean while the file is still on disk.
+    ///
+    /// Unix-gated: the unwritable-directory trick is a POSIX mode bit, and on
+    /// Windows the delete would simply succeed.
+    #[cfg(unix)]
+    #[test]
+    fn test_discard_reports_paths_it_could_not_delete() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let (dir, repo) = create_repo_with_committed_file();
+        let locked = dir.path().join("locked");
+        fs::create_dir(&locked).unwrap();
+        fs::write(locked.join("stuck.txt"), "can't touch this\n").unwrap();
+
+        // Read + execute only: the entry is visible but cannot be unlinked.
+        fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o500)).unwrap();
+
+        // Mode bits don't apply to root, which would make the delete succeed
+        // and this assertion a false red. Probe before asserting.
+        let unwritable = fs::write(locked.join("probe.txt"), "x").is_err();
+
+        let result = repo.discard_files(&["locked/stuck.txt".to_string()]);
+
+        // Restore write permission so the TempDir can clean itself up.
+        fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o700)).unwrap();
+
+        if !unwritable {
+            return; // running as root — nothing to assert
+        }
+        match result.unwrap_err() {
+            GitError::DiscardFailed { paths } => {
+                assert_eq!(paths, vec!["locked/stuck.txt".to_string()]);
+            }
+            other => panic!("expected DiscardFailed, got {other:?}"),
+        }
     }
 }

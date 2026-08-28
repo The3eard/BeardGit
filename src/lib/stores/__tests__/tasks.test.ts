@@ -26,12 +26,12 @@ type TaskEventPayload = {
   id: string;
   kind:
     | "ai_background"
-    | "ai_interactive"
     | "git_fetch"
     | "git_pull"
     | "git_push"
     | "git_clone"
-    | "app_update";
+    | "app_update"
+    | "background";
   title: string;
   subtitle?: string;
   started_at_ms: number;
@@ -333,21 +333,29 @@ describe("tasks aggregator store", () => {
     expect(terminalKillMock).not.toHaveBeenCalled();
   });
 
-  it("cancelTaskById routes ai_interactive → terminalKill", async () => {
+  it("ingests a background task and routes its cancel to task_cancel", async () => {
+    // The `background` kind exists because eight user-started operations
+    // spawned as `Generic`, which `should_emit` drops — no row, no spinner.
+    // This pins both halves: the row arrives, and cancelling it goes to the
+    // TaskManager rather than to a PTY or the updater.
     const mod = await import("../tasks");
     await mod.initTasksStore();
 
     triggerUpdate(
       makeEvent({
-        id: "77",
-        kind: "ai_interactive",
-        title: "Claude interactive",
+        id: "501",
+        kind: "background",
+        title: "Submodule update: docs",
       }),
     );
-    await mod.cancelTaskById("77");
 
-    expect(terminalKillMock).toHaveBeenCalledWith(77);
-    expect(taskCancelMock).not.toHaveBeenCalled();
+    const entry = get(mod.tasksStore).find((t) => t.id === "501");
+    expect(entry, "a background task has to reach the drawer").toBeDefined();
+    expect(entry!.kind).toBe("background");
+
+    await mod.cancelTaskById("501");
+    expect(taskCancelMock).toHaveBeenCalledWith("501");
+    expect(terminalKillMock).not.toHaveBeenCalled();
   });
 
   it("cancelTaskById routes app_update → autoUpdate.cancelUpdateDownload", async () => {

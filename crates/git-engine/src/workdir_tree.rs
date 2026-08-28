@@ -17,11 +17,47 @@ use crate::error::GitError;
 use crate::file_content::validate_repo_relative_path;
 use crate::repository::Repository;
 
-/// Directory entries with these names are always skipped during listing,
-/// regardless of `respect_gitignore`. The set is short on purpose:
-/// `.git/` is mandatory; the others are common enough that loading their
-/// trees would dwarf any "useful" file in the listing.
-const ALWAYS_SKIP_DIR_NAMES: &[&str] = &[".git", "node_modules", "target"];
+/// Directory entries with these names are always skipped, regardless of
+/// `respect_gitignore`.
+///
+/// Deliberately short, and shorter than it is tempting to make it. This
+/// list wins over the repo's own `.gitignore`, so anything on it is
+/// unreachable in the editor — a tracked file inside a skipped directory
+/// simply does not exist as far as the user is concerned. That is only
+/// acceptable for names that are never hand-authored source.
+///
+/// Which is why `build`, `dist`, `out`, `bin`, `obj`, `vendor` and `Pods`
+/// are **not** here despite being the usual suspects: `bin/` routinely
+/// holds committed scripts, Go's `vendor/` is committed dependency
+/// *source*, checking `Pods/` in is a mainstream CocoaPods workflow and it
+/// is dependency source by the same argument, and plenty of projects keep
+/// real files in `build/`. When those directories
+/// are genuinely build output the repo ignores them, and `respect_gitignore`
+/// — now on by default — takes care of it with an escape hatch the user
+/// controls. The names below have no such ambiguity.
+const ALWAYS_SKIP_DIR_NAMES: &[&str] = &[
+    ".git",
+    "node_modules",
+    "target",
+    // Tool caches and virtualenvs. None is ever authored by hand, and all
+    // of them are large enough to make a directory listing useless.
+    ".gradle",
+    ".venv",
+    "__pycache__",
+    ".next",
+    ".turbo",
+    "DerivedData",
+];
+
+/// How many directory entries [`Repository::search_workdir_files`] will
+/// look at before giving up on the rest of the tree.
+///
+/// A bound on work, not on the answer. Reaching it on a real repository
+/// means something enormous and unignored is in the way; because the walk
+/// is breadth-first, what has been examined by then is the shallow part of
+/// the tree, whose matches are the ones that would have ranked first
+/// anyway.
+const SEARCH_SCAN_CEILING: usize = 50_000;
 
 /// One entry in the working-directory listing returned by
 /// [`Repository::list_workdir_tree`].
@@ -39,9 +75,9 @@ pub struct WorkdirTreeEntry {
 
 /// Internal: should this directory entry be skipped wholesale?
 ///
-/// Covers `.git/`, `node_modules/`, `target/`, and the ai-worktree
-/// subdir under `.beardgit/`. Symlinks are skipped here too — a code repo
-/// rarely has them and resolving them safely is its own can of worms.
+/// Covers [`ALWAYS_SKIP_DIR_NAMES`] and the ai-worktree subdir under
+/// `.beardgit/`. Symlinks are skipped here too — a code repo rarely has
+/// them and resolving them safely is its own can of worms.
 fn should_skip_entry(rel_path: &str, file_type: &std::fs::FileType, name: &str) -> bool {
     if file_type.is_symlink() {
         return true;
@@ -81,25 +117,32 @@ fn rel_forward_slash(repo_root: &Path, full: &Path) -> Option<String> {
 impl Repository {
     /// List entries from the working directory.
     ///
+    /// Always one level. `None` lists the repo root, `Some(dir)` lists that
+    /// directory's immediate children — the caller expands one folder at a
+    /// time.
+    ///
+    /// It used to walk the whole tree when `prefix` was `None`, capped at a
+    /// caller-supplied maximum. The cap ran against a depth-first walk and
+    /// stopped it dead wherever it happened to be, so directories came back
+    /// listed but childless and the frontend drew folders that expanded to
+    /// nothing — "I can't open the `main` folder, it isn't listed". There
+    /// is no budget to spend now: a level is a level.
+    ///
     /// # Parameters
-    /// - `prefix` – When `Some`, list only the immediate children of that
-    ///   sub-directory (one level only). When `None`, walk the entire
-    ///   working tree recursively.
-    /// - `max_entries` – Soft cap. The walk stops once this many entries
-    ///   have been collected; the result is returned truncated. Callers
-    ///   compare the returned length against the cap to decide whether to
-    ///   show a "results truncated" hint — listing never errors on
-    ///   overflow.
+    /// - `prefix` – Directory to list. `None` or `""` means the repo root.
+    /// - `max_entries` – Guard against a single pathological directory, not
+    ///   a tree budget. One directory with more children than this is
+    ///   returned truncated; nothing else is affected.
     /// - `respect_gitignore` – When `true`, entries that match the repo's
     ///   gitignore patterns (via
     ///   [`git2::Repository::status_should_ignore`]) are filtered out.
     ///
-    /// Always skipped, regardless of `respect_gitignore`:
-    /// `.git/`, `node_modules/`, `target/`, `.beardgit/ai-worktrees/`.
+    /// Always skipped, regardless of `respect_gitignore`: see
+    /// [`ALWAYS_SKIP_DIR_NAMES`], plus `.beardgit/ai-worktrees/`.
     /// Symlinks are skipped silently.
     ///
     /// Sort order: directories first, then files; within each group,
-    /// alphabetical case-insensitive by `name`.
+    /// alphabetical case-insensitive.
     pub fn list_workdir_tree(
         &self,
         prefix: Option<&str>,
@@ -124,71 +167,117 @@ impl Repository {
             )));
         }
 
-        if prefix.is_some() {
-            // Single-level listing.
-            let mut stack: Vec<PathBuf> = Vec::new();
-            stack.push(start);
-            while let Some(dir) = stack.pop() {
-                let read = match std::fs::read_dir(&dir) {
-                    Ok(r) => r,
-                    Err(_) => continue,
-                };
-                for entry in read.flatten() {
-                    if out.len() >= max_entries {
-                        break;
-                    }
-                    push_entry(
-                        &repo_root,
-                        respect_gitignore,
-                        self.inner(),
-                        &entry,
-                        &mut out,
-                        false, // single-level walk: never recurse
-                        &mut Vec::new(),
-                    );
-                }
-            }
-        } else {
-            // Recursive walk.
-            let mut stack: Vec<PathBuf> = Vec::new();
-            stack.push(repo_root.clone());
-            while let Some(dir) = stack.pop() {
+        if let Ok(read) = std::fs::read_dir(&start) {
+            for entry in read.flatten() {
                 if out.len() >= max_entries {
                     break;
                 }
-                let read = match std::fs::read_dir(&dir) {
-                    Ok(r) => r,
-                    Err(_) => continue,
-                };
-                for entry in read.flatten() {
-                    if out.len() >= max_entries {
-                        break;
-                    }
-                    push_entry(
-                        &repo_root,
-                        respect_gitignore,
-                        self.inner(),
-                        &entry,
-                        &mut out,
-                        true,
-                        &mut stack,
-                    );
-                }
+                push_entry(
+                    &repo_root,
+                    respect_gitignore,
+                    self.inner(),
+                    &entry,
+                    &mut out,
+                );
             }
         }
 
-        // Directories first, then files. Within each group sort by full
-        // *path* (case-insensitive) rather than `name`, so a recursive
-        // walk groups siblings under the same parent together — sorting
-        // by `name` alone interleaves files at different depths and
-        // produces a chaotic root order once the frontend builds a tree
-        // from the leaf paths.
+        // Directories first, then files, each group case-insensitive by
+        // path. Sorting by path rather than `name` costs nothing within one
+        // level and keeps the comparison identical to the search results,
+        // which do span directories.
         out.sort_by(|a, b| match (a.is_directory, b.is_directory) {
             (true, false) => std::cmp::Ordering::Less,
             (false, true) => std::cmp::Ordering::Greater,
             _ => a.path.to_lowercase().cmp(&b.path.to_lowercase()),
         });
 
+        Ok(out)
+    }
+
+    /// Find files whose repo-relative path contains `query`, case-insensitively.
+    ///
+    /// This is the other half of dropping the recursive listing. The tree
+    /// filter used to run in the browser over whatever the truncated walk
+    /// had returned, so typing a name that existed but had not survived the
+    /// cap found nothing — and the footer told the user to "refine the
+    /// filter to see more", which asked the backend for exactly nothing.
+    /// Refining a filter has to be able to reach files the tree has not
+    /// expanded, so the walk lives here.
+    ///
+    /// Files only: a directory is not something the user is searching *for*
+    /// in a file finder, and returning both makes the result list read as
+    /// two interleaved things.
+    ///
+    /// `limit` caps the *result*, not the walk. Stopping the walk at the
+    /// first `limit` matches would repeat the mistake this method exists to
+    /// undo, one level down: the matches you get would be whichever
+    /// directory the walk entered first, and a file two levels from the
+    /// root would be hidden behind thirty in one deep folder. The walk
+    /// collects everything, ranks it, and then truncates — bounded by
+    /// [`SEARCH_SCAN_CEILING`] entries examined, which is about the walk's
+    /// cost rather than about the answer.
+    pub fn search_workdir_files(
+        &self,
+        query: &str,
+        limit: usize,
+        respect_gitignore: bool,
+    ) -> Result<Vec<WorkdirTreeEntry>, GitError> {
+        let needle = query.trim().to_lowercase();
+        let mut out: Vec<WorkdirTreeEntry> = Vec::new();
+        if needle.is_empty() || limit == 0 {
+            return Ok(out);
+        }
+
+        let repo_root = self.path().to_path_buf();
+        // Breadth-first: if the ceiling is ever reached, what has been
+        // examined is the shallow part of the tree, which is also the part
+        // whose matches rank highest.
+        let mut queue: Vec<PathBuf> = vec![repo_root.clone()];
+        let mut head = 0usize;
+        let mut examined = 0usize;
+
+        while head < queue.len() && examined < SEARCH_SCAN_CEILING {
+            let dir = queue[head].clone();
+            head += 1;
+
+            let read = match std::fs::read_dir(&dir) {
+                Ok(r) => r,
+                Err(_) => continue,
+            };
+            for entry in read.flatten() {
+                if examined >= SEARCH_SCAN_CEILING {
+                    break;
+                }
+                examined += 1;
+                let mut one: Vec<WorkdirTreeEntry> = Vec::new();
+                push_entry(
+                    &repo_root,
+                    respect_gitignore,
+                    self.inner(),
+                    &entry,
+                    &mut one,
+                );
+                let Some(found) = one.pop() else { continue };
+                if found.is_directory {
+                    queue.push(entry.path());
+                } else if found.path.to_lowercase().contains(&needle) {
+                    out.push(found);
+                }
+            }
+        }
+
+        // Shallowest first: a match on `src/a.ts` is almost always more
+        // interesting than one on `src/very/deep/nested/a.ts`, and ordering
+        // by path alone buries the former under whatever sorts earlier.
+        out.sort_by(|a, b| {
+            a.path
+                .matches('/')
+                .count()
+                .cmp(&b.path.matches('/').count())
+                .then_with(|| a.path.to_lowercase().cmp(&b.path.to_lowercase()))
+        });
+        out.truncate(limit);
         Ok(out)
     }
 
@@ -278,8 +367,6 @@ fn push_entry(
     git_repo: &git2::Repository,
     entry: &std::fs::DirEntry,
     out: &mut Vec<WorkdirTreeEntry>,
-    recurse: bool,
-    stack: &mut Vec<PathBuf>,
 ) {
     let file_type = match entry.file_type() {
         Ok(t) => t,
@@ -305,14 +392,11 @@ fn push_entry(
 
     if file_type.is_dir() {
         out.push(WorkdirTreeEntry {
-            path: rel.clone(),
+            path: rel,
             name,
             is_directory: true,
             size: None,
         });
-        if recurse {
-            stack.push(full);
-        }
     } else if file_type.is_file() {
         let size = entry.metadata().ok().map(|m| m.len());
         out.push(WorkdirTreeEntry {
@@ -343,7 +427,164 @@ mod tests {
         let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
         assert!(names.contains(&"a.txt"));
         assert!(names.contains(&"sub"));
-        assert!(names.contains(&"b.txt"));
+        // One level: `sub`'s contents are `sub`'s business.
+        assert!(!names.contains(&"b.txt"));
+    }
+
+    /// Acceptance criterion for the lazy tree: expanding a folder reads
+    /// that folder and stops.
+    ///
+    /// This started life with a wall-clock bound and that was theatre. On
+    /// this fixture the one-level listing measures ~5ms and the recursive
+    /// walk it replaced ~14ms — 2.8× slower and still 36× inside the 500ms
+    /// the assertion allowed, so it could not tell the fix from the bug.
+    /// The count can: 1,001 is this directory, and any descent adds the
+    /// 1,200 files below it. Gitignore stays on because the per-entry
+    /// `status_should_ignore` call is the expensive one, and measuring the
+    /// cheap configuration would be its own kind of theatre.
+    #[test]
+    fn list_workdir_tree_does_not_descend_into_subdirectories() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let big = path.join("big");
+        fs::create_dir_all(&big).unwrap();
+        for i in 0..1_000 {
+            fs::write(big.join(format!("f{i:04}.ts")), "x").unwrap();
+        }
+        // Depth the walk would have to cross if it ever recursed again.
+        let mut deep = path.join("big");
+        for level in 0..6 {
+            deep = deep.join(format!("level{level}"));
+            fs::create_dir_all(&deep).unwrap();
+            for i in 0..200 {
+                fs::write(deep.join(format!("n{i:03}.ts")), "x").unwrap();
+            }
+        }
+
+        let repo = Repository::open(&path).unwrap();
+        let entries = repo.list_workdir_tree(Some("big"), 5_000, true).unwrap();
+
+        assert_eq!(
+            entries.len(),
+            1_001,
+            "1000 files plus the `level0` directory — anything more means the \
+             interactive path walked the subtree"
+        );
+        assert!(
+            entries.iter().all(|e| !e.path.contains("level0/")),
+            "a descendant of `level0` reached a one-level listing"
+        );
+    }
+
+    #[test]
+    fn search_workdir_files_reaches_files_the_tree_has_not_expanded() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        fs::create_dir_all(path.join("src/deeply/nested/place")).unwrap();
+        fs::write(path.join("src/deeply/nested/place/needle.ts"), "x").unwrap();
+        fs::write(path.join("unrelated.ts"), "x").unwrap();
+
+        let repo = Repository::open(&path).unwrap();
+        let hits = repo.search_workdir_files("needle", 50, false).unwrap();
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "src/deeply/nested/place/needle.ts");
+        assert!(!hits[0].is_directory);
+    }
+
+    #[test]
+    fn search_workdir_files_matches_on_the_whole_path_case_insensitively() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        fs::create_dir_all(path.join("Components")).unwrap();
+        fs::write(path.join("Components/button.ts"), "x").unwrap();
+        fs::write(path.join("readme.md"), "x").unwrap();
+
+        let repo = Repository::open(&path).unwrap();
+
+        // Matches a directory segment, not just the file name.
+        let by_dir = repo.search_workdir_files("components/", 50, false).unwrap();
+        assert_eq!(by_dir.len(), 1);
+        assert_eq!(by_dir[0].name, "button.ts");
+
+        assert_eq!(
+            repo.search_workdir_files("BUTTON", 50, false)
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn search_workdir_files_returns_shallowest_matches_first() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        fs::create_dir_all(path.join("a/b/c")).unwrap();
+        fs::write(path.join("target.ts"), "x").unwrap();
+        fs::write(path.join("a/target.ts"), "x").unwrap();
+        fs::write(path.join("a/b/c/target.ts"), "x").unwrap();
+
+        let repo = Repository::open(&path).unwrap();
+        let hits = repo.search_workdir_files("target.ts", 50, false).unwrap();
+
+        let paths: Vec<&str> = hits.iter().map(|e| e.path.as_str()).collect();
+        assert_eq!(paths, ["target.ts", "a/target.ts", "a/b/c/target.ts"]);
+    }
+
+    #[test]
+    fn search_workdir_files_honours_skips_gitignore_and_the_empty_query() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        fs::write(path.join(".gitignore"), "secret.key\n").unwrap();
+        fs::write(path.join("secret.key"), "x").unwrap();
+        fs::create_dir_all(path.join("node_modules/pkg")).unwrap();
+        fs::write(path.join("node_modules/pkg/secret.key"), "x").unwrap();
+
+        let repo = Repository::open(&path).unwrap();
+
+        // The skip list wins even with gitignore off.
+        let all = repo.search_workdir_files("secret", 50, false).unwrap();
+        assert_eq!(all.len(), 1, "node_modules must never be walked");
+        assert_eq!(all[0].path, "secret.key");
+
+        assert!(
+            repo.search_workdir_files("secret", 50, true)
+                .unwrap()
+                .is_empty()
+        );
+        // An empty query is not "match everything".
+        assert!(
+            repo.search_workdir_files("   ", 50, false)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            repo.search_workdir_files("secret", 0, false)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    /// The cap truncates a *ranked* list, it does not stop the walk.
+    ///
+    /// Stopping early would repeat, one level down, the bug the tree
+    /// listing was just rescued from: the results you get would be
+    /// whichever directory happened to be read first. Here one directory
+    /// holds far more matches than the cap, and the single match sitting at
+    /// the repo root still has to come back — it outranks all of them.
+    #[test]
+    fn search_workdir_files_cap_truncates_by_rank_not_by_walk_order() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        let noisy = path.join("aaa_first_alphabetically");
+        fs::create_dir_all(&noisy).unwrap();
+        for f in 0..40 {
+            fs::write(noisy.join(format!("hit{f:02}.ts")), "x").unwrap();
+        }
+        fs::write(path.join("hit-at-the-root.ts"), "x").unwrap();
+
+        let repo = Repository::open(&path).unwrap();
+        let hits = repo.search_workdir_files("hit", 5, false).unwrap();
+
+        assert_eq!(hits.len(), 5, "the cap must be honoured");
+        assert_eq!(
+            hits[0].path, "hit-at-the-root.ts",
+            "the shallowest match must survive a directory with 40 of its own"
+        );
     }
 
     #[test]
@@ -400,6 +641,59 @@ mod tests {
         let repo = Repository::open(&path).unwrap();
         let entries = repo.list_workdir_tree(None, 3, false).unwrap();
         assert!(entries.len() <= 3);
+    }
+
+    /// **The bug behind "I can't open the `main` folder, it isn't listed".**
+    ///
+    /// The listing used to walk the whole tree depth-first and stop dead at
+    /// `max_entries`, so the cap did not trim evenly — it stopped wherever
+    /// the walk happened to be, and whole directories came back present but
+    /// childless. The frontend then drew a folder that expanded to nothing.
+    /// With five directories of fifty files and a cap of sixty, three of
+    /// the five used to arrive empty.
+    ///
+    /// One level at a time, the shape cannot happen: the root listing
+    /// returns directories without claiming to know their contents, and
+    /// each one answers for itself in full.
+    #[test]
+    fn list_workdir_tree_never_returns_a_childless_directory() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        for d in 0..5 {
+            let dir = path.join(format!("dir{d}"));
+            fs::create_dir_all(&dir).unwrap();
+            for f in 0..50 {
+                fs::write(dir.join(format!("f{f}.txt")), "x").unwrap();
+            }
+        }
+
+        let repo = Repository::open(&path).unwrap();
+        let root = repo.list_workdir_tree(None, 60, false).unwrap();
+
+        // Every directory is present, and none of them carries children:
+        // the root level does not speak for what is inside.
+        for d in 0..5 {
+            let name = format!("dir{d}");
+            assert!(
+                root.iter().any(|e| e.path == name && e.is_directory),
+                "{name} missing from the root listing"
+            );
+            assert!(
+                !root.iter().any(|e| e.path.starts_with(&format!("{name}/"))),
+                "{name} leaked descendants into a one-level listing"
+            );
+        }
+
+        // And each one answers in full when asked, cap or no cap.
+        for d in 0..5 {
+            let name = format!("dir{d}");
+            let children = repo.list_workdir_tree(Some(&name), 1_000, false).unwrap();
+            assert_eq!(
+                children.len(),
+                50,
+                "{name} returned {} of its 50 files",
+                children.len()
+            );
+        }
     }
 
     #[test]

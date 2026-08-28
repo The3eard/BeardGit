@@ -21,6 +21,7 @@
     handler) and Escape closes for keyboard parity.
 -->
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount, onDestroy } from "svelte";
   import { requestsCopyAs } from "$lib/api/tauri";
   import { Button } from "$lib/components/ui";
@@ -94,12 +95,13 @@
         overrides: {},
       });
     } catch (err) {
-      addToast({ message: `Copy as ${target} failed: ${err}`, type: "error" });
+      addToast({ message: `Copy as ${target} failed: ${getErrorMessage(err)}`, type: "error" });
       return;
     }
     try {
       await navigator.clipboard.writeText(result);
     } catch (err) {
+      // beardgit:allow-string-error: clipboard rejects with a DOMException, not an IpcError
       addToast({ message: `Clipboard write failed: ${err}`, type: "error" });
       return;
     }

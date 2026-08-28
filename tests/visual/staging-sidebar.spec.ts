@@ -68,8 +68,8 @@ async function emitEventTargeted(
 function changesFixture(): IpcResponses {
   return {
     get_file_statuses: [
-      makeFileStatus({ path: "src/a.ts", status: "M", is_staged: false }),
-      makeFileStatus({ path: "src/staged.ts", status: "M", is_staged: true }),
+      makeFileStatus({ path: "src/a.ts", status: "modified", is_staged: false }),
+      makeFileStatus({ path: "src/staged.ts", status: "modified", is_staged: true }),
     ],
     get_status_summary: makeStatusSummary({ staged: 1, unstaged: 1 }),
     // The Changes lists are driven by the lightweight per-file stats; the
@@ -131,9 +131,9 @@ test.describe("changes view", () => {
     // project-mutated with status_changed.
     await patchMockResponses(page, {
       get_file_statuses: [
-        makeFileStatus({ path: "src/a.ts", status: "M", is_staged: false }),
-        makeFileStatus({ path: "src/b.ts", status: "M", is_staged: false }),
-        makeFileStatus({ path: "src/staged.ts", status: "M", is_staged: true }),
+        makeFileStatus({ path: "src/a.ts", status: "modified", is_staged: false }),
+        makeFileStatus({ path: "src/b.ts", status: "modified", is_staged: false }),
+        makeFileStatus({ path: "src/staged.ts", status: "modified", is_staged: true }),
       ],
       get_diff_stats_workdir: [
         makeFileDiffStat({ path: "src/a.ts" }),

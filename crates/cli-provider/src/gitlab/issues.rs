@@ -55,15 +55,31 @@ impl GitLabCli {
         // return an IssueDetail with an empty comment list.
         let notes_path = format!("projects/:id/issues/{number}/notes");
         let comments = match self.run(&["api", &notes_path, "--paginate"]) {
-            Ok(json) => parse_gitlab_notes(&json).unwrap_or_default(),
-            Err(_) => Vec::new(),
+            Ok(json) => parse_gitlab_notes(&json).ok(),
+            Err(_) => None,
         };
+
+        // Only derive the count from the fetched notes when the fetch actually
+        // worked. `summary` already carries glab's own `user_notes_count`, and
+        // overwriting it with `0` on a failed fetch replaced a true count with
+        // a false one: the issue list said "5 comments" and the detail pane
+        // said none, which reads as "nobody replied" rather than "could not
+        // load the replies".
         let mut summary = summary;
-        summary.comments_count = comments.len() as u64;
+        let (comments, comments_unavailable) = match comments {
+            Some(fetched) => {
+                summary.comments_count = fetched.len() as u64;
+                (fetched, false)
+            }
+            // Keep the count and say the list is missing, so the UI can tell
+            // "could not load these" from "there are none".
+            None => (Vec::new(), true),
+        };
         Ok(IssueDetail {
             summary,
             body,
             comments,
+            comments_unavailable,
         })
     }
 
@@ -340,5 +356,136 @@ mod tests {
         let args = build_glab_edit_issue_args(7, &patch);
         assert!(args.windows(2).any(|w| w == ["--title", "new"]));
         assert!(!args.contains(&"--description".to_string()));
+    }
+
+    /// The count in the detail pane must not be derived from a notes fetch
+    /// that failed.
+    ///
+    /// `parse_gitlab_issue_view` already fills `comments_count` from glab's own
+    /// `user_notes_count`. Deriving it from the fetched notes unconditionally
+    /// replaced a true count with `0` whenever the notes call failed — the
+    /// exact case its own comment names, a token without the right scope — so
+    /// the list said "5 comments" and the detail said none.
+    ///
+    /// Unix-only: the fake `glab` is a shell script.
+    #[cfg(unix)]
+    mod comment_count {
+        use super::super::GitLabCli;
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        use std::path::PathBuf;
+
+        /// A fake `glab` that answers `issue view` with `user_notes_count: 5`
+        /// and fails every `api .../notes` call.
+        fn fake_glab(dir: &tempfile::TempDir, notes_exit: i32) -> PathBuf {
+            let path = dir.path().join("glab");
+            let script = format!(
+                r#"#!/bin/sh
+case "$*" in
+  *"issue view"*)
+    printf '%s' '{{"iid":7,"title":"t","state":"opened","author":{{"username":"u"}},"labels":[],"assignees":[],"milestone":null,"user_notes_count":5,"created_at":"","updated_at":"","web_url":"","description":"body"}}'
+    exit 0 ;;
+  *notes*)
+    if [ {notes_exit} -eq 0 ]; then printf '[]'; else printf 'forbidden' >&2; fi
+    exit {notes_exit} ;;
+  *)
+    printf '[]'
+    exit 0 ;;
+esac
+"#
+            );
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o755)
+                .open(&path)
+                .expect("open fake glab");
+            f.write_all(script.as_bytes()).expect("write");
+            f.sync_all().expect("sync");
+            // Close before exec: a file still open for writing gives ETXTBSY.
+            drop(f);
+            wait_for_exec_ready(&path);
+            path
+        }
+
+        /// Probe the freshly-written script until exec stops returning
+        /// `ETXTBSY`, stdio to `/dev/null` so the probe run has no visible
+        /// effect. Same guard `auth.rs::mock_cli` needs, and for the same
+        /// reason — writing a script and immediately exec'ing it races with
+        /// the kernel dropping the write reference. Without it the `cargo
+        /// test --workspace` in the gate failed once here and could not be
+        /// reproduced in ten reruns, which is the signature of exactly this.
+        fn wait_for_exec_ready(path: &std::path::Path) {
+            use std::io::ErrorKind;
+            use std::process::{Command, Stdio};
+            use std::time::{Duration, Instant};
+
+            let started = Instant::now();
+            loop {
+                match Command::new(path)
+                    .arg("--probe")
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status()
+                {
+                    Ok(_) => return,
+                    Err(e) if e.kind() == ErrorKind::ExecutableFileBusy => {
+                        assert!(
+                            started.elapsed() <= Duration::from_millis(1500),
+                            "ETXTBSY persisted >1.5s waiting for exec on {}",
+                            path.display(),
+                        );
+                        std::thread::sleep(Duration::from_millis(20));
+                    }
+                    Err(e) => panic!("probe failed on {}: {e}", path.display()),
+                }
+            }
+        }
+
+        fn cli(dir: &tempfile::TempDir, notes_exit: i32) -> GitLabCli {
+            GitLabCli {
+                binary_path: fake_glab(dir, notes_exit),
+                repo_path: dir.path().to_path_buf(),
+                label_cache: std::sync::Mutex::new(None),
+            }
+        }
+
+        #[test]
+        fn a_failed_notes_fetch_keeps_glabs_own_count() {
+            let dir = tempfile::tempdir().unwrap();
+            let detail = cli(&dir, 1).get_issue_impl(7).expect("detail still loads");
+
+            assert!(
+                detail.comments.is_empty(),
+                "the notes could not be fetched, so there are none to show"
+            );
+            assert_eq!(
+                detail.summary.comments_count, 5,
+                "but the count glab already gave us has to survive"
+            );
+            assert!(
+                detail.comments_unavailable,
+                "and the UI has to be told why the list is empty, or it hides \
+                 the section and silently disagrees with that count"
+            );
+        }
+
+        #[test]
+        fn a_successful_notes_fetch_still_derives_the_count() {
+            let dir = tempfile::tempdir().unwrap();
+            // exit 0 on the notes path answers `[]` — an empty but
+            // *successful* fetch, which legitimately means zero.
+            let detail = cli(&dir, 0).get_issue_impl(7).expect("detail loads");
+            assert_eq!(
+                detail.summary.comments_count, 0,
+                "a fetch that worked and returned nothing means zero"
+            );
+            assert!(
+                !detail.comments_unavailable,
+                "nothing was unavailable — there are genuinely no comments"
+            );
+        }
     }
 }

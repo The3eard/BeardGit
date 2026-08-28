@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getErrorMessage } from "$lib/api/errors";
   import { onMount } from "svelte";
   import { listCiWorkflows, triggerWorkflow, activeProvider } from "../../stores/provider";
   import { repoInfo } from "../../stores/repo";
@@ -45,7 +46,7 @@
       }
       gitRef = $repoInfo?.head_branch ?? "";
     } catch (e) {
-      error = String(e);
+      error = getErrorMessage(e);
     } finally {
       loading = false;
     }
@@ -73,7 +74,7 @@
       await triggerWorkflow(selectedWorkflowId, gitRef, inputs);
       onClose();
     } catch (e) {
-      error = m.pipeline_trigger_error({ error: String(e) });
+      error = m.pipeline_trigger_error({ error: getErrorMessage(e) });
     } finally {
       submitting = false;
     }
@@ -179,6 +180,7 @@
 
 <style>
   .dialog-overlay {
+    /* stylelint-disable-next-line function-disallowed-list -- modal backdrop neutral */
     position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); /* beardgit:allow-hex: modal backdrop neutral */
     display: flex; align-items: center; justify-content: center; z-index: 1000;
   }
@@ -196,7 +198,7 @@
   .dialog-body label { display: flex; flex-direction: column; font-size: var(--font-size-sm); color: var(--text-secondary); gap: 4px; }
   .dialog-body input, .dialog-body select {
     background: var(--bg-secondary); color: var(--text-primary);
-    border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: var(--font-size-sm);
+    border: 1px solid var(--border-strong); border-radius: 4px; padding: 6px 8px; font-size: var(--font-size-sm);
   }
   fieldset {
     border: 1px solid var(--border); border-radius: 4px; padding: 8px; margin: 0;

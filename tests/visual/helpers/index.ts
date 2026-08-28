@@ -1,10 +1,12 @@
 export {
+  byArg,
   installMockIPC,
   setMockResponses,
   patchMockResponses,
   emitMockEvent,
   getMockCalls,
   clearMockCalls,
+  type ByArgResponse,
   type IpcResponses,
   type MockCall,
 } from "./mock-ipc";
@@ -16,3 +18,5 @@ export {
   type BootstrapOpts,
 } from "./bootstrap";
 export { clickNav } from "./nav";
+export { waitForGraphPainted, GRAPH_CANVAS_PIXEL_BUDGET } from "./graph";
+export { waitForSyntaxHighlighted } from "./editor";
