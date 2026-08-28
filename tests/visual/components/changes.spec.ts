@@ -25,6 +25,7 @@ import {
   THEME_MODES,
   waitForAppReady,
   type IpcResponses,
+  waitForSyntaxHighlighted,
 } from "../helpers";
 import {
   makeFileDiff,
@@ -149,6 +150,9 @@ for (const mode of THEME_MODES) {
           const testId = `file-row-${scenario.select.replace(/\//g, "-")}`;
           await page.getByTestId(testId).locator(".file-btn").click();
           await expect(page.locator(".staging-diff-editor")).toBeVisible();
+          // Visible is not highlighted: the grammar arrives as a separate
+          // chunk, so the document paints as plain text first.
+          await waitForSyntaxHighlighted(page);
         }
         if (scenario.collapseHunks) {
           await page
