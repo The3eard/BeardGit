@@ -369,17 +369,20 @@ export function renderGraph(
   const curveDepartsTo = new Set<string>();
   const curveArrivesAt = new Set<string>();
   for (const curve of mergeCurves) {
-    curveDepartsTo.add(`${curve.to_lane},${curve.from_row}`);
+    if (curve.opens_lane) curveDepartsTo.add(`${curve.to_lane},${curve.from_row}`);
     curveArrivesAt.add(`${curve.to_lane},${curve.to_row}`);
   }
-  // Rows where a lane's segment opens. A curve whose target lane opens at
-  // the curve's own row is a merge pulling a parent into a fresh lane: it
-  // bends at the top, into that lane, and the lane's line takes over.
-  // Every other curve bends at the bottom, into a line that already exists.
+  // A curve flagged `opens_lane` is a merge pulling a parent into a fresh
+  // lane: it bends at the top, into that lane, and the lane's segment —
+  // the one starting at (to_lane, from_row) — takes over. Every other
+  // curve bends at the bottom, into a line that already exists. The flag
+  // comes from the layout; inferring it here from "a segment starts there"
+  // misfired when a merge's two parents shared a lane.
   const segmentStartsAt = new Map<string, LaneSegment>();
   for (const seg of laneSegments) segmentStartsAt.set(`${seg.lane},${seg.start_row}`, seg);
-  /** The segment a top-bending curve hands off to, if this curve is one. */
-  const openedSegment = (c: MergeCurve) => segmentStartsAt.get(`${c.to_lane},${c.from_row}`);
+  /** The segment a lane-opening curve hands off to. */
+  const openedSegment = (c: MergeCurve) =>
+    c.opens_lane ? segmentStartsAt.get(`${c.to_lane},${c.from_row}`) : undefined;
   /**
    * Curves whose line this segment carries and which then leave it: they
    * depart from this lane at or above the segment's end and land below it.
@@ -459,7 +462,7 @@ export function renderGraph(
     let drawY1 = y1;
     if (hasCurveAtStart) {
       const curve = mergeCurves.find(
-        (c) => c.to_lane === seg.lane && c.from_row === seg.start_row
+        (c) => c.opens_lane && c.to_lane === seg.lane && c.from_row === seg.start_row
       );
       if (curve) {
         const cy1 = rowY(curve.from_row, offset);

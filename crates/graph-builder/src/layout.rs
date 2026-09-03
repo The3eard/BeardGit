@@ -171,6 +171,19 @@ pub struct MergeCurve {
     pub color_index: usize,
     /// Group ID of the child commit that generated this curve.
     pub group_id: usize,
+    /// `true` when this edge is what allocated `to_lane`: the child is a
+    /// merge and this parent had no lane yet, so one was opened for it at
+    /// `from_row`. The renderer bends such a curve at the top, into the new
+    /// lane, in that lane's colour. Every other cross-lane edge joins a
+    /// line that already exists and bends at the bottom.
+    ///
+    /// Explicit rather than inferred from "a segment on `to_lane` starts at
+    /// `from_row`": a merge whose two parents end up on the same lane has
+    /// two curves matching that description, and only one of them opened
+    /// the lane — the other is a first-parent edge that must keep its own
+    /// colour and shape, or its child's line ends in mid-air.
+    #[serde(default)]
+    pub opens_lane: bool,
 }
 
 /// A commit node with its final position (row + lane) and pre-computed edges.
@@ -470,6 +483,10 @@ impl GraphLayout {
         }
 
         let mut max_lanes: usize = 0;
+        // `(merge row, parent)` pairs for which a lane was opened — the
+        // edges the second pass tags `opens_lane`.
+        let mut opened_for: std::collections::HashSet<(usize, Arc<str>)> =
+            std::collections::HashSet::new();
 
         for (row, dag_node) in ordered_nodes.into_iter().enumerate() {
             let lane = if let Some(idx) = find_lane(&active_lanes, &dag_node.oid) {
@@ -553,6 +570,7 @@ impl GraphLayout {
                     } else {
                         let already_assigned = find_lane(&active_lanes, parent_oid).is_some();
                         if !already_assigned {
+                            opened_for.insert((row, Arc::clone(parent_oid)));
                             // Hint with the merge commit's own lane so the
                             // parent lands as close as possible and the
                             // resulting curve stays short.
@@ -631,6 +649,7 @@ impl GraphLayout {
                         to_row: parent_row,
                         color_index: layout_node.lane,
                         group_id: layout_node.segment_group,
+                        opens_lane: opened_for.contains(&(layout_node.row, Arc::clone(parent_oid))),
                     });
                 }
             }
@@ -1177,6 +1196,24 @@ mod tests {
             "closed at b2, the row above the shared parent"
         );
         assert!(!lane1[0].recycled, "closing at the parent is not a reclaim");
+        let m_to_b2 = layout
+            .merge_curves
+            .iter()
+            .find(|c| c.from_row == 0 && c.to_row == 2)
+            .unwrap();
+        assert!(
+            m_to_b2.opens_lane,
+            "the merge's second-parent edge opened lane 1"
+        );
+        let b2_to_base = layout
+            .merge_curves
+            .iter()
+            .find(|c| c.from_row == 2 && c.to_row == 3)
+            .unwrap();
+        assert!(
+            !b2_to_base.opens_lane,
+            "rejoining the mainline opens nothing"
+        );
 
         // And a tip whose first parent lives on another lane closes the same way.
         let commits = vec![
@@ -1194,6 +1231,61 @@ mod tests {
             .collect();
         assert_eq!(lane1.len(), 1);
         assert_eq!((lane1[0].start_row, lane1[0].end_row), (1, 2));
+    }
+
+    /// **The line that ended in mid-air.** A merge whose two parents land
+    /// on the same lane produces two curves from the merge row into that
+    /// lane. Only the second-parent edge opened the lane; the first-parent
+    /// edge reaches a later commit on it and must not be mistaken for the
+    /// opener — the renderer used to draw it as one, in the other lane's
+    /// colour and on top of its line, leaving the merge's own lane with a
+    /// stub that connected to nothing.
+    #[test]
+    fn test_first_parent_edge_into_a_lane_opened_for_the_second_parent_does_not_open_it() {
+        // The merge must sit on a lane with a free lane below it when its
+        // second parent is placed — a tip always takes the lowest free
+        // lane, so `m` is reached through `c` instead.
+        //
+        //   x → a   lane 0   row 0
+        //   y → b   lane 1   row 1
+        //   c → m   lane 2   row 2
+        //   a root  lane 0   row 3  (frees lane 0)
+        //   b root  lane 1   row 4  (frees lane 1)
+        //   m (p1, p2) lane 2 row 5  → p2 opens the nearest free lane, 1
+        //   p2 → p1 lane 1   row 6  (lanes 1 and 2 now both track p1)
+        //   p1 root lane 1   row 7  (lowest lane wins)
+        let commits = vec![
+            commit("x", &["a"]),
+            commit("y", &["b"]),
+            commit("c", &["m"]),
+            commit("a", &[]),
+            commit("b", &[]),
+            commit("m", &["p1", "p2"]),
+            commit("p2", &["p1"]),
+            commit("p1", &[]),
+        ];
+        let layout = GraphLayout::compute(Dag::build(commits));
+        let m = layout.nodes.iter().find(|n| n.oid == "m").unwrap();
+        let p1 = layout.nodes.iter().find(|n| n.oid == "p1").unwrap();
+        let p2 = layout.nodes.iter().find(|n| n.oid == "p2").unwrap();
+        assert_eq!(p1.lane, p2.lane, "fixture: both parents share a lane");
+        assert_ne!(m.lane, p1.lane);
+
+        let to_p2 = layout
+            .merge_curves
+            .iter()
+            .find(|c| c.from_row == m.row && c.to_row == p2.row)
+            .unwrap();
+        let to_p1 = layout
+            .merge_curves
+            .iter()
+            .find(|c| c.from_row == m.row && c.to_row == p1.row)
+            .unwrap();
+        assert!(to_p2.opens_lane);
+        assert!(
+            !to_p1.opens_lane,
+            "the first-parent edge joins a lane that p2 opened"
+        );
     }
 
     #[test]
@@ -1493,6 +1585,7 @@ mod tests {
                 to_row: 1,
                 color_index: 1,
                 group_id: 2,
+                opens_lane: true,
             }],
             head_lane: Some(0),
             viewport_index: OnceLock::new(),
