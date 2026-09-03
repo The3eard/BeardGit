@@ -15,6 +15,8 @@
   import { activeViewStore } from "$lib/stores/navigation";
   import { openTab as openEditorTab } from "$lib/stores/fileEditor";
   import { isBatchSelection, batchActionIds, type BatchActionId } from "./changes-menu";
+  import { get } from "svelte/store";
+  import { remembered, scoped } from "$lib/stores/viewMemory";
   import {
     computeVirtualWindow,
     findScroller,
@@ -103,6 +105,13 @@
   let scrollTop = $state(0);
   let viewportHeight = $state(0);
 
+  // The shared scroller's position, remembered across view switches. Both
+  // list instances write the same cell (same scroller), so whichever mounts
+  // with rows first puts it back; done once, after there is content to
+  // scroll — assigning before that clamps to 0 and would overwrite the value.
+  const savedScrollTop = remembered(scoped("changes.scrollTop"), 0);
+  let scrollRestored = false;
+
   let virtualWindow = $derived(
     computeVirtualWindow({
       count: files.length,
@@ -129,8 +138,15 @@
     const scroller = findScroller(listEl);
     if (!scroller) return;
 
+    if (!scrollRestored && files.length > 0) {
+      scrollRestored = true;
+      scroller.scrollTop = get(savedScrollTop);
+    }
     measureAgainst(scroller);
-    const onScroll = () => measureAgainst(scroller);
+    const onScroll = () => {
+      savedScrollTop.set(scroller.scrollTop);
+      measureAgainst(scroller);
+    };
     scroller.addEventListener("scroll", onScroll, { passive: true });
     return () => scroller.removeEventListener("scroll", onScroll);
   });

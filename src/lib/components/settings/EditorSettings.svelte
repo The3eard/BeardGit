@@ -423,6 +423,21 @@
         </FormRow>
       </div>
 
+      <div data-setting-anchor="reveal-active-file" id="reveal-active-file">
+        <FormRow
+          label={m.settings_editor_reveal_active_file()}
+          for="editor-reveal-active-file-toggle"
+          helperText={m.settings_editor_reveal_active_file_description()}
+        >
+          <Switch
+            id="editor-reveal-active-file-toggle"
+            checked={$editorPrefs?.reveal_active_file_in_tree ?? true}
+            disabled={loading}
+            onchange={(e) => handleToggle("reveal_active_file_in_tree", e)}
+          />
+        </FormRow>
+      </div>
+
       <div data-setting-anchor="large-file-warning" id="large-file-warning">
         <FormRow
           label={m.settings_editor_large_file_warning()}

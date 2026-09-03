@@ -1,6 +1,15 @@
 <script lang="ts">
   import { getErrorMessage } from "$lib/api/errors";
-  import { fileStatuses, unstagedStats, stagedStats, stageFiles, unstageFiles, commit, amendCommit, refreshStatuses, refreshDiffs } from "../../stores/changes";
+  import {
+    fileStatuses, unstagedStats, stagedStats, stageFiles, unstageFiles, commit, amendCommit, refreshStatuses, refreshDiffs,
+    // The commit draft lives in the per-repo ChangesSlice (not $state) so
+    // it survives leaving the Changes view and follows its project tab.
+    commitMessage as summary,
+    commitDescription as description,
+    commitAmend as isAmend,
+    commitPreAmendSummary as savedSummary,
+    commitPreAmendDescription as savedDescription,
+  } from "../../stores/changes";
   import type { FileDiffStat } from "$lib/types";
   import ChangesList from "./ChangesList.svelte";
   import CleanDialog from "./CleanDialog.svelte";
@@ -38,16 +47,11 @@
   // Commit message is split into a one-line summary and an optional body
   // so the composer guides toward conventional commit shape. They are
   // joined (summary + blank line + body) only at commit time.
-  let summary = $state("");
-  let description = $state("");
-  let isAmend = $state(false);
-  let savedSummary = $state("");
-  let savedDescription = $state("");
 
   /** Join summary + body into a git commit message (body optional). */
   function composedMessage(): string {
-    const s = summary.trim();
-    const d = description.trim();
+    const s = $summary.trim();
+    const d = $description.trim();
     return d ? `${s}\n\n${d}` : s;
   }
 
@@ -128,22 +132,22 @@
   let showCleanDialog = $state(false);
 
   async function handleAmendToggle() {
-    if (isAmend) {
-      savedSummary = summary;
-      savedDescription = description;
+    if ($isAmend) {
+      $savedSummary = $summary;
+      $savedDescription = $description;
       try {
         const parts = splitMessage(await getHeadMessage());
-        summary = parts.summary;
-        description = parts.description;
+        $summary = parts.summary;
+        $description = parts.description;
       } catch {
-        summary = '';
-        description = '';
+        $summary = '';
+        $description = '';
       }
     } else {
-      summary = savedSummary;
-      description = savedDescription;
-      savedSummary = '';
-      savedDescription = '';
+      $summary = $savedSummary;
+      $description = $savedDescription;
+      $savedSummary = '';
+      $savedDescription = '';
     }
   }
 
@@ -210,8 +214,8 @@
       const cleaned = stripAnsi(raw);
       if (cleaned) {
         const parts = splitMessage(cleaned);
-        summary = parts.summary;
-        description = parts.description;
+        $summary = parts.summary;
+        $description = parts.description;
       }
     }
   }
@@ -371,24 +375,24 @@
   async function handleCommit() {
     const msg = composedMessage();
     if (!msg) return;
-    if (isAmend) {
+    if ($isAmend) {
       await amendCommit(msg);
     } else {
       await commit(msg);
     }
-    summary = "";
-    description = "";
-    isAmend = false;
+    $summary = "";
+    $description = "";
+    $isAmend = false;
   }
 
-  // Commit is allowed once there's a summary and (unless amending) at least
+  // Commit is allowed once there's a $summary and (unless amending) at least
   // one staged file. The reason surfaces below the button so the disabled
   // state is explained rather than just greyed out.
-  let canCommit = $derived(summary.trim().length > 0 && (isAmend || staged.length > 0));
+  let canCommit = $derived($summary.trim().length > 0 && ($isAmend || staged.length > 0));
   let commitDisabledReason = $derived(
-    summary.trim().length === 0
+    $summary.trim().length === 0
       ? m.staging_hint_need_summary()
-      : (!isAmend && staged.length === 0)
+      : (!$isAmend && staged.length === 0)
         ? m.staging_hint_nothing_staged()
         : "",
   );
@@ -426,10 +430,10 @@
       <span class="amend-toggle">
         <Checkbox
           id="amend-toggle"
-          checked={isAmend}
+          checked={$isAmend}
           testid="amend-toggle"
           onchange={(e) => {
-            isAmend = (e.target as HTMLInputElement).checked;
+            $isAmend = (e.target as HTMLInputElement).checked;
             handleAmendToggle();
           }}
         />
@@ -489,14 +493,14 @@
       class="commit-summary"
       type="text"
       placeholder={m.staging_summary_placeholder()}
-      bind:value={summary}
+      bind:value={$summary}
       onkeydown={(e) => { if (e.key === 'Enter' && e.metaKey) handleCommit(); }}
       data-testid="commit-message"
     />
     <textarea
       class="commit-input"
       placeholder={m.staging_description_placeholder()}
-      bind:value={description}
+      bind:value={$description}
       onkeydown={(e) => { if (e.key === 'Enter' && e.metaKey) handleCommit(); }}
       data-testid="commit-description"
     ></textarea>
@@ -515,7 +519,7 @@
       onclick={handleCommit}
       testid="commit-btn"
     >
-      {#if isAmend}
+      {#if $isAmend}
         {m.staging_amend_button()}
       {:else if headBranch}
         {staged.length === 1

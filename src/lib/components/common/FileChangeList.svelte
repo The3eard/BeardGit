@@ -9,6 +9,8 @@
 <script lang="ts">
   import type { CommitFileChange } from "../../types";
   import FileStatusBadge from "./FileStatusBadge.svelte";
+  import { get, writable } from "svelte/store";
+  import { remembered } from "$lib/stores/viewMemory";
   import {
     computeVirtualWindow,
     findScroller,
@@ -20,19 +22,42 @@
     files,
     onSelect,
     onContextMenu,
+    memoryKey,
   }: {
     files: CommitFileChange[];
     onSelect?: (path: string) => void;
     onContextMenu?: (e: MouseEvent, path: string) => void;
+    /**
+     * When set, the selected path and the scroller offset outlive the
+     * component under `<memoryKey>.selected` / `<memoryKey>.scrollTop`
+     * (see `stores/viewMemory`). Callers scope it per repo and, where
+     * the same pane shows different commits, per commit.
+     */
+    memoryKey?: string;
   } = $props();
 
-  let selectedPath = $state<string | null>(null);
+  // Without `memoryKey` these are plain per-instance writables, so the
+  // component behaves exactly as before. `memoryKey` is read once at init
+  // on purpose — a store cell is picked for the component's lifetime.
+  // svelte-ignore state_referenced_locally
+  const selectedPath = memoryKey
+    ? remembered<string | null>(memoryKey + ".selected", null)
+    : writable<string | null>(null);
+  // svelte-ignore state_referenced_locally
+  const savedScrollTop = memoryKey
+    ? remembered(memoryKey + ".scrollTop", 0)
+    : writable(0);
 
-  // Reset selection when files change
+  // Reset selection when files change — but not on the first run, which
+  // would wipe the remembered selection on remount.
+  let firstFiles = true;
   $effect(() => {
-    if (files) {
-      selectedPath = null;
+    void files;
+    if (firstFiles) {
+      firstFiles = false;
+      return;
     }
+    $selectedPath = null;
   });
 
   // ── Virtualization ────────────────────────────────────────────────────
@@ -59,14 +84,24 @@
     }),
   );
 
+  // The remembered offset is the ancestor scroller's, restored once when the
+  // list first has rows; `measure` then keeps the memory current.
+  let scrollRestored = false;
   $effect(() => {
     void files.length;
     if (!listEl) return;
     const scroller = findScroller(listEl);
     if (!scroller) return;
 
+    if (!scrollRestored) {
+      scrollRestored = true;
+      const top = get(savedScrollTop);
+      if (top > 0) scroller.scrollTop = top;
+    }
+
     const measure = () => {
       if (!listEl) return;
+      $savedScrollTop = scroller.scrollTop;
       ({ scrollTop, viewportHeight } = measureAgainstScroller(listEl, scroller));
     };
     measure();
@@ -78,7 +113,7 @@
     if (onSelect) {
       onSelect(path);
     }
-    selectedPath = selectedPath === path ? null : path;
+    $selectedPath = $selectedPath === path ? null : path;
   }
 
   function splitPath(path: string): { dir: string; name: string } {
@@ -115,7 +150,7 @@
   <li style={positioned ? virtualRowStyle(index, ROW_HEIGHT) : undefined}>
     <button
       class="file-item"
-      class:selected={selectedPath === file.path}
+      class:selected={$selectedPath === file.path}
       onclick={() => handleClick(file.path)}
       oncontextmenu={onContextMenu ? (e) => onContextMenu!(e, file.path) : undefined}
     >

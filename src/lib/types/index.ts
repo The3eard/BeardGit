@@ -1316,6 +1316,8 @@ export interface EditorPreferences {
   indent_with_tabs: boolean;
   /** When true, the file tree hides paths matched by `.gitignore`. */
   respect_gitignore_in_tree: boolean;
+  /** When true, the file tree expands to and highlights the active tab's file. */
+  reveal_active_file_in_tree: boolean;
   /** File-size warning threshold in KB. Backend clamps to 1..=2048. */
   large_file_warning_kb: number;
 }

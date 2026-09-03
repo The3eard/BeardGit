@@ -6,6 +6,7 @@
   import {
     issueDetail,
     issueDetailLoading,
+    selectedIssueNumber,
     closeIssue,
     reopenIssue,
     addIssueComment,
@@ -29,10 +30,15 @@
   import Xrefs from "../common/Xrefs.svelte";
   import { renderMarkdown } from "../../utils/markdown";
   import { Button, IconButton, Skeleton } from "$lib/components/ui";
+  import { remembered, scoped } from "../../stores/viewMemory";
 
   let showCloseConfirm = $state(false);
   let actionError = $state("");
-  let commentBody = $state("");
+  // Draft keyed by the selected issue so it neither leaks across issues
+  // nor dies on a section switch.
+  let commentBody = $derived(
+    remembered(scoped(`issues.commentDraft.${$selectedIssueNumber ?? ""}`), ""),
+  );
   let commentSubmitting = $state(false);
 
   let showLabelPicker = $state(false);
@@ -64,12 +70,12 @@
 
   async function handleAddComment() {
     const d = $issueDetail;
-    if (!d || !commentBody.trim()) return;
+    if (!d || !$commentBody.trim()) return;
     commentSubmitting = true;
     try {
       actionError = "";
-      await addIssueComment(d.summary.number, commentBody.trim());
-      commentBody = "";
+      await addIssueComment(d.summary.number, $commentBody.trim());
+      $commentBody = "";
     } catch (e) {
       actionError = getErrorMessage(e);
     } finally {
@@ -255,7 +261,7 @@
         <textarea
           class="comment-textarea"
           placeholder={m.issues_comment_placeholder()}
-          bind:value={commentBody}
+          bind:value={$commentBody}
           rows="3"
         ></textarea>
         <div class="comment-actions">
@@ -263,7 +269,7 @@
             variant="primary"
             size="sm"
             loading={commentSubmitting}
-            disabled={!commentBody.trim() || commentSubmitting}
+            disabled={!$commentBody.trim() || commentSubmitting}
             onclick={handleAddComment}
           >
             {m.issues_add_comment()}

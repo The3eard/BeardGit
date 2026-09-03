@@ -21,12 +21,15 @@
   import AssigneeStack from "../common/AssigneeStack.svelte";
   import type { SearchTag } from "../../search/types";
   import { issueFilters, filterIssuesLocal } from "../../search/issue-provider";
+  import { remembered, scoped } from "$lib/stores/viewMemory";
 
   let showCreateDialog = $state(false);
   let loading = $state(false);
   let initialized = false;
 
-  let searchTags = $state<SearchTag[]>([
+  // Remembered per repo so refinements survive leaving the view; the seed
+  // only applies the first time the view opens for this repo.
+  const searchTags = remembered<SearchTag[]>(scoped("issues.searchTags"), [
     {
       id: `init-${Date.now()}`,
       type: "state",
@@ -35,7 +38,7 @@
     },
   ]);
 
-  let filteredList = $derived(filterIssuesLocal($issueList, searchTags));
+  let filteredList = $derived(filterIssuesLocal($issueList, $searchTags));
 
   function syncStateFilter(tags: SearchTag[]) {
     const stateTag = tags.find((t) => t.type === "state");
@@ -48,7 +51,7 @@
   }
 
   function handleSearch(tags: SearchTag[]) {
-    searchTags = tags;
+    $searchTags = tags;
     syncStateFilter(tags);
     fetchList();
   }
@@ -104,6 +107,7 @@
   emptyMessage={m.issues_empty()}
   onSelect={handleSelect}
   onRefresh={fetchList}
+  memoryKey={scoped("issues.list")}
 >
   {#snippet headerActions()}
     <Button variant="primary" size="sm" onclick={() => { showCreateDialog = true; }}>
@@ -120,7 +124,7 @@
   {#snippet afterHeader()}
     <SearchBar
       filters={issueFilters}
-      bind:tags={searchTags}
+      bind:tags={$searchTags}
       placeholder={m.issues_search_placeholder()}
       onSearch={handleSearch}
     />
