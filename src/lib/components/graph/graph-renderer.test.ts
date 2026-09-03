@@ -47,8 +47,8 @@ const node = (oid: string, lane: number, row: number, segment_group: number, is_
 const seg = (lane: number, start_row: number, end_row: number, group_id: number) => ({
   lane, start_row, end_row, color_index: lane, recycled: false, sync_state: "Unknown" as const, group_id,
 });
-const curve = (from_lane: number, from_row: number, to_lane: number, to_row: number, group_id: number) => ({
-  from_lane, from_row, to_lane, to_row, color_index: from_lane, group_id,
+const curve = (from_lane: number, from_row: number, to_lane: number, to_row: number, group_id: number, opens_lane = false) => ({
+  from_lane, from_row, to_lane, to_row, color_index: from_lane, group_id, opens_lane,
 });
 
 describe("renderGraph merge curves", () => {
@@ -56,8 +56,21 @@ describe("renderGraph merge curves", () => {
   // b2's parent is base (lane 0, row 3): lane 1 closes at row 2.
   const nodes = [node("m", 0, 0, 0, true), node("b1", 0, 1, 0), node("b2", 1, 2, 1), node("base", 0, 3, 0)];
   const segments = [seg(0, 0, 3, 0), seg(1, 0, 2, 1)];
-  const curves = [curve(0, 0, 1, 2, 0), curve(1, 2, 0, 3, 1)];
+  const curves = [curve(0, 0, 1, 2, 0, true), curve(1, 2, 0, 3, 1)];
   const theme = defaultGraphTheme();
+
+  it("keeps a first-parent edge into a lane opened for another parent in the child's colour", () => {
+    // m (lane 0, row 0) merges p2 (lane 1, row 1) and reaches p1 (lane 1,
+    // row 3) as first parent. Only the p2 edge opens lane 1; the p1 edge
+    // must bend at the bottom in lane 0's colour, or m's line ends nowhere.
+    const twoParents = [node("m", 0, 0, 0, true), node("p2", 1, 1, 1), node("y", 0, 2, 0), node("p1", 1, 3, 1)];
+    const segs = [seg(0, 0, 2, 0), seg(1, 0, 3, 1)];
+    const cs = [curve(0, 0, 1, 1, 0, true), curve(0, 0, 1, 3, 0)];
+    const { ctx, strokes } = recordingContext();
+    renderGraph(ctx, twoParents, 0, 600, 200, 2, null, [], segs, cs, theme);
+    const curveStrokes = strokes.filter((s) => s.kind === "curve");
+    expect(curveStrokes.map((s) => s.style)).toEqual([theme.laneColors[1], theme.laneColors[0]]);
+  });
 
   it("draws the curve that opens a lane in that lane's colour, not the child's", () => {
     const { ctx, strokes } = recordingContext();

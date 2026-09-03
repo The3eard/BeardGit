@@ -44,6 +44,8 @@ export interface MergeCurve {
   to_row: number;
   color_index: number;
   group_id: number;
+  /** This edge allocated `to_lane` (merge → parent with no lane yet); bends at the top. */
+  opens_lane: boolean;
 }
 
 /** Options accepted by `getGraphViewport` / `loadGraphChunk`.
