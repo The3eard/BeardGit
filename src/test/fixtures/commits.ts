@@ -85,6 +85,7 @@ export function makeMergeCurve(
     to_row: 0,
     color_index: 1,
     group_id: 1,
+    opens_lane: false,
     ...overrides,
   };
 }

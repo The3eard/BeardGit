@@ -24,7 +24,10 @@ use sha2::{Digest, Sha256};
 /// at its parent's row. The key does not see the algorithm, only the repo, so
 /// without the bump a cached layout keeps drawing the old ghost segments
 /// until something else moves a ref.
-pub const SCHEMA_VERSION: u32 = 3;
+///
+/// Bumped 3 → 4 when `MergeCurve` gained `opens_lane`; a cached layout
+/// deserialises it as `false` and every merge bend would lose its shape.
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// A single repo's cached graph layout along with the state that produced it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
