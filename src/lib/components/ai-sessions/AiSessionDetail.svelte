@@ -45,6 +45,7 @@
   import ProviderIcon from "./ProviderIcon.svelte";
   import EmptyState from "../common/EmptyState.svelte";
   import { Button } from "$lib/components/ui";
+  import { remembered } from "$lib/stores/viewMemory";
   import { requestOpenCreateBackgroundRunDialog } from "$lib/stores/aiBackground";
   import {
     selectedActiveTerminal,
@@ -217,8 +218,8 @@
   // a single line while the report or transcript carries the
   // substance. The user drags the handle to resize, clamped so neither
   // pane collapses to zero height (keeps the section headers + copy
-  // button reachable).
-  let promptPct = $state(20);
+  // button reachable). Remembered so the split survives a section switch.
+  const promptPct = remembered("aiSessions.promptPct", 20);
 
   function startSplitResize(e: MouseEvent) {
     e.preventDefault();
@@ -232,7 +233,7 @@
     function onMouseMove(ev: MouseEvent) {
       const offset = ev.clientY - rect.top;
       const next = (offset / total) * 100;
-      promptPct = Math.max(minPct, Math.min(maxPct, next));
+      $promptPct = Math.max(minPct, Math.min(maxPct, next));
     }
     function onMouseUp() {
       window.removeEventListener("mousemove", onMouseMove);
@@ -255,7 +256,7 @@
   let report = $state<string | null>(null);
   let reportLoading = $state(false);
   /** Bottom pane content selector: rendered report (default) or raw transcript. */
-  let bottomView = $state<"report" | "transcript">("report");
+  const bottomView = remembered<"report" | "transcript">("aiSessions.bottomView", "report");
 
   async function loadReport(sessionId: string) {
     reportLoading = true;
@@ -398,7 +399,7 @@
          dialog's original prompt, so we pin the prompt above (≈50% of
          the remaining height by default) and let the user resize via
          the drag handle. -->
-    <div class="split" style="--prompt-pct: {promptPct}%">
+    <div class="split" style="--prompt-pct: {$promptPct}%">
       <section class="split-pane prompt-pane" data-testid="ai-session-detail-prompt">
         <header class="split-header">
           <span class="split-title">{m.ai_background_section_prompt()}</span>
@@ -417,12 +418,12 @@
       <section class="split-pane transcript-pane" data-testid="ai-session-detail-bottom">
         <header class="split-header">
           <span class="split-title">
-            {bottomView === "report"
+            {$bottomView === "report"
               ? m.ai_background_section_report()
               : m.ai_background_section_output()}
           </span>
           <div class="split-actions">
-            {#if bottomView === "report"}
+            {#if $bottomView === "report"}
               <button
                 class="split-link"
                 onclick={handleRefreshReport}
@@ -436,7 +437,7 @@
               </button>
               <button
                 class="split-link"
-                onclick={() => (bottomView = "transcript")}
+                onclick={() => ($bottomView = "transcript")}
                 data-testid="ai-session-detail-show-transcript"
               >
                 {m.ai_background_show_transcript({
@@ -446,7 +447,7 @@
             {:else}
               <button
                 class="split-link"
-                onclick={() => (bottomView = "report")}
+                onclick={() => ($bottomView = "report")}
                 data-testid="ai-session-detail-show-report"
               >
                 {m.ai_background_show_report()}
@@ -454,7 +455,7 @@
             {/if}
           </div>
         </header>
-        {#if bottomView === "report"}
+        {#if $bottomView === "report"}
           {#if report && report.trim().length > 0}
             <article
               class="report-body"

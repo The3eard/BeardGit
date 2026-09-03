@@ -67,6 +67,7 @@
   import RepoConfigPage from "$lib/components/repo-config/RepoConfigPage.svelte";
   import {
     persistTabsForProject as persistEditorTabs,
+    parkProject as parkEditorProject,
     startFileEditorListeners,
     openTab as openEditorTab,
   } from "$lib/stores/fileEditor";
@@ -282,6 +283,9 @@
       // the right paths.
       const prev = get(activeProject);
       if (prev?.path) persistEditorTabs(prev.path);
+      // Park its in-memory editor state too, so the stores never describe
+      // a project that is no longer active (see `parkProject`).
+      parkEditorProject();
 
       tryChangeView("graph");
       selectedDiff = null;

@@ -311,8 +311,8 @@ export function graphViewport(): GraphViewport {
   ];
 
   const merge_curves: MergeCurve[] = [
-    { from_lane: 1, from_row: 1, to_lane: 0, to_row: 0, color_index: 1, group_id: 1 },
-    { from_lane: 0, from_row: 8, to_lane: 2, to_row: 5, color_index: 2, group_id: 2 },
+    { from_lane: 1, from_row: 1, to_lane: 0, to_row: 0, color_index: 1, group_id: 1, opens_lane: false },
+    { from_lane: 0, from_row: 8, to_lane: 2, to_row: 5, color_index: 2, group_id: 2, opens_lane: false },
   ];
 
   return {

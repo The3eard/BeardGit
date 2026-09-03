@@ -22,11 +22,14 @@
   import { formatRelativeTime } from "../../utils/time";
   import { debounce } from "../../utils/debounce";
   import type { TagInfo } from "../../types";
+  import { scoped } from "$lib/stores/viewMemory";
 
   let loadingMore = $state(false);
   let showCreateDialog = $state(false);
   let confirmDelete = $state<string | null>(null);
-  let filterValue = $state("");
+  // Seeded from the store: the filter outlives this component, and an
+  // empty input over a filtered list read as the app losing the filter.
+  let filterValue = $state($tagFilter);
   let searchingBackend = $state(false);
 
   const debouncedBackendSearch = debounce(async (value: string) => {
@@ -81,6 +84,7 @@
   {getKey}
   emptyMessage={m.tags_empty()}
   onSelect={handleSelect}
+  memoryKey={scoped("tags.list")}
 >
   {#snippet headerActions()}
     <Button variant="primary" size="sm" onclick={() => (showCreateDialog = true)}>

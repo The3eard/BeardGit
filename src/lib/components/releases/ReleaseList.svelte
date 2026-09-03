@@ -6,6 +6,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import List from "../common/List.svelte";
+  import { scoped } from "$lib/stores/viewMemory";
   import {
     releases,
     releasesLoading,
@@ -72,6 +73,7 @@
   emptyMessage={m.release_list_empty()}
   onSelect={handleSelect}
   onRefresh={refreshReleases}
+  memoryKey={scoped("releases.list")}
 >
   {#snippet headerActions()}
     <Button

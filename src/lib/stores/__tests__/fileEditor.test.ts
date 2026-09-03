@@ -86,6 +86,12 @@ import {
   searchTree,
   SEARCH_RESULT_CAP,
   updateBuffer,
+  updateBufferDebounced,
+  flushBufferEdits,
+  revealInTree,
+  syncProject,
+  forgetProject,
+  parkProject,
 } from "../fileEditor";
 
 /**
@@ -704,6 +710,207 @@ describe("fileEditor store", () => {
       await restoreTabsForProject("/projects/nope");
       expect(get(tabs)).toEqual([]);
       expect(get(activeTabPath)).toBeNull();
+    });
+  });
+
+  describe("debounced buffer edits", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it("coalesces a burst of keystrokes into one store write", async () => {
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "", size: 0 });
+      await openTab("a.ts");
+
+      updateBufferDebounced("a.ts", "h");
+      updateBufferDebounced("a.ts", "he");
+      updateBufferDebounced("a.ts", "hey");
+      expect(get(tabs)[0].bufferContent).toBe("");
+
+      vi.advanceTimersByTime(150);
+      expect(get(tabs)[0].bufferContent).toBe("hey");
+      expect(get(tabs)[0].dirty).toBe(true);
+    });
+
+    it("save writes the pending edit, not the last flushed one", async () => {
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "", size: 0 });
+      mocks.writeWorkdirFile.mockResolvedValue(undefined);
+      await openTab("a.ts");
+
+      updateBufferDebounced("a.ts", "typed");
+      await saveActive();
+
+      expect(mocks.writeWorkdirFile).toHaveBeenCalledWith("a.ts", "typed");
+    });
+
+    it("flushBufferEdits is what a tab switch relies on", async () => {
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "", size: 0 });
+      await openTab("a.ts");
+      await openTab("b.ts");
+
+      updateBufferDebounced("b.ts", "edit");
+      setActiveTab("a.ts");
+
+      expect(get(tabs).find((t) => t.path === "b.ts")?.bufferContent).toBe("edit");
+      flushBufferEdits(); // nothing pending — must be a no-op
+      expect(get(tabs).find((t) => t.path === "b.ts")?.bufferContent).toBe("edit");
+    });
+  });
+
+  describe("revealInTree", () => {
+    it("expands every ancestor and lists only the ones not yet loaded", async () => {
+      mocks.listWorkdirTree.mockResolvedValueOnce([dir("src/lib")]);
+      await loadDirectory("src", true);
+      mocks.listWorkdirTree.mockClear();
+      mocks.listWorkdirTree.mockResolvedValue([file("src/lib/deep/x.ts")]);
+
+      await revealInTree("src/lib/deep/x.ts", true);
+
+      expect([...get(expandedDirs)].sort()).toEqual(["src", "src/lib", "src/lib/deep"]);
+      const listed = mocks.listWorkdirTree.mock.calls.map((c) => c[0]).sort();
+      expect(listed).toEqual(["src/lib", "src/lib/deep"]);
+    });
+
+    it("is a no-op for a top-level file", async () => {
+      await revealInTree("README.md", true);
+      expect(mocks.listWorkdirTree).not.toHaveBeenCalled();
+      expect(get(expandedDirs).size).toBe(0);
+    });
+  });
+
+  describe("session cache across projects", () => {
+    /**
+     * The bug: leaving the editor view unmounted the panel, and remounting
+     * it reset the tree and re-read every tab, because the panel kept its
+     * own "which project is loaded" flag. The store owns that now, so a
+     * second sync for the same project must do nothing at all.
+     */
+    it("a repeated sync for the same project touches nothing", async () => {
+      mocks.listWorkdirTree.mockResolvedValue([dir("src")]);
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "x", size: 1 });
+      await syncProject("/p/a", true);
+      await toggleDirectory("src", true);
+      await openTab("src/a.ts");
+      updateBuffer("src/a.ts", "unsaved");
+      mocks.listWorkdirTree.mockClear();
+      mocks.readWorkdirFile.mockClear();
+
+      await syncProject("/p/a", true);
+
+      expect(mocks.listWorkdirTree).not.toHaveBeenCalled();
+      expect(mocks.readWorkdirFile).not.toHaveBeenCalled();
+      expect(get(expandedDirs).has("src")).toBe(true);
+      expect(get(tabs)[0].bufferContent).toBe("unsaved");
+    });
+
+    it("a flipped gitignore flag re-lists the tree for the same project", async () => {
+      mocks.listWorkdirTree.mockResolvedValue([]);
+      await syncProject("/p/a", true);
+      mocks.listWorkdirTree.mockClear();
+
+      await syncProject("/p/a", false);
+
+      expect(mocks.listWorkdirTree).toHaveBeenCalledWith(null, expect.any(Number), false);
+    });
+
+    it("parks the outgoing project and restores it, edits included, on the way back", async () => {
+      mocks.listWorkdirTree.mockResolvedValue([dir("src")]);
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "disk", size: 4 });
+      await syncProject("/p/a", true);
+      await toggleDirectory("src", true);
+      await openTab("src/a.ts");
+      await openTab("src/b.ts");
+      updateBufferDebounced("src/a.ts", "unsaved"); // parked mid-debounce
+
+      await syncProject("/p/b", true);
+      expect(get(tabs)).toEqual([]);
+      expect(get(expandedDirs).size).toBe(0);
+      await openTab("other.ts");
+
+      mocks.readWorkdirFile.mockClear();
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "changed", size: 7 });
+      await syncProject("/p/a", true);
+
+      expect(get(tabs).map((t) => t.path)).toEqual(["src/a.ts", "src/b.ts"]);
+      expect(get(expandedDirs).has("src")).toBe(true);
+      // The dirty buffer is the user's work and comes back untouched…
+      const a = get(tabs).find((t) => t.path === "src/a.ts")!;
+      expect(a.bufferContent).toBe("unsaved");
+      expect(a.dirty).toBe(true);
+      // …while the clean one is re-read: the disk may have moved meanwhile.
+      expect(mocks.readWorkdirFile).toHaveBeenCalledWith("src/b.ts");
+      expect(mocks.readWorkdirFile).not.toHaveBeenCalledWith("src/a.ts");
+      expect(get(tabs).find((t) => t.path === "src/b.ts")?.bufferContent).toBe("changed");
+
+      // And project B is parked in turn.
+      await syncProject("/p/b", true);
+      expect(get(tabs).map((t) => t.path)).toEqual(["other.ts"]);
+    });
+
+    it("a first-time project starts from localStorage, not from the previous one", async () => {
+      mocks.listWorkdirTree.mockResolvedValue([]);
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "", size: 0 });
+      lsStore.set(
+        "beardgit:editor-tabs:/p/b",
+        JSON.stringify({ paths: ["from-storage.ts"], activePath: "from-storage.ts" }),
+      );
+      await syncProject("/p/a", true);
+      await openTab("a.ts");
+
+      await syncProject("/p/b", true);
+
+      expect(get(tabs).map((t) => t.path)).toEqual(["from-storage.ts"]);
+    });
+
+    it("persisting a project that is not live uses its parked tabs", async () => {
+      mocks.listWorkdirTree.mockResolvedValue([]);
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "", size: 0 });
+      await syncProject("/p/a", true);
+      await openTab("a-only.ts");
+      await syncProject("/p/b", true);
+      await openTab("b-only.ts");
+
+      // Two switches from the graph view: the route persists A while the
+      // live stores hold B. A's key must not receive B's paths.
+      persistTabsForProject("/p/a");
+      const raw = JSON.parse(lsStore.get("beardgit:editor-tabs:/p/a")!);
+      expect(raw.paths).toEqual(["a-only.ts"]);
+    });
+
+    it("a tab opened while the stores are unowned joins the project that syncs next", async () => {
+      mocks.listWorkdirTree.mockResolvedValue([]);
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "", size: 0 });
+      await syncProject("/p/a", true);
+      await openTab("a.ts");
+
+      // Route: project switch A → B with the editor unmounted…
+      parkProject();
+      expect(get(tabs)).toEqual([]);
+      // …then "Open in editor" from B's Changes view, before the panel mounts.
+      await openTab("b-changes.ts");
+
+      await syncProject("/p/b", true);
+      expect(get(tabs).map((t) => t.path)).toEqual(["b-changes.ts"]);
+      expect(get(activeTabPath)).toBe("b-changes.ts");
+
+      // A was parked intact.
+      await syncProject("/p/a", true);
+      expect(get(tabs).map((t) => t.path)).toEqual(["a.ts"]);
+    });
+
+    it("forgetProject drops the parked state after persisting its paths", async () => {
+      mocks.listWorkdirTree.mockResolvedValue([]);
+      mocks.readWorkdirFile.mockResolvedValue({ kind: "text", data: "", size: 0 });
+      await syncProject("/p/a", true);
+      await openTab("a.ts");
+      await syncProject("/p/b", true);
+
+      forgetProject("/p/a");
+
+      expect(JSON.parse(lsStore.get("beardgit:editor-tabs:/p/a")!).paths).toEqual(["a.ts"]);
+      // Re-syncing A is a first-time load again: from localStorage.
+      mocks.readWorkdirFile.mockClear();
+      await syncProject("/p/a", true);
+      expect(mocks.readWorkdirFile).toHaveBeenCalledWith("a.ts");
     });
   });
 });

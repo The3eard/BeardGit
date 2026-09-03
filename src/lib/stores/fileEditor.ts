@@ -14,11 +14,12 @@
  * All mutations go through `runMutation` so failures surface a sticky
  * toast with the standard "See details" affordance.
  *
- * The store is **single-project scoped**: callers persist the open-tabs
- * list to localStorage on project switch and re-hydrate it after the
- * new project loads. The backend file-IO commands resolve paths against
- * whatever `app-core` considers the active project, so the store never
- * needs to thread a project handle.
+ * The live stores hold **one project at a time** — the backend file-IO
+ * commands resolve paths against whatever `app-core` considers the active
+ * project, so nothing here threads a project handle. Every other open
+ * project's editor state (tabs, buffers, tree listings, expanded folders)
+ * sits in a session cache keyed by project path; `syncProject` swaps it in
+ * and out. localStorage keeps only the tab *paths*, for the next launch.
  */
 import { getErrorMessage } from "$lib/api/errors";
 import { derived, get, writable } from "svelte/store";
@@ -297,6 +298,31 @@ export function parentDir(path: string): string {
   return idx === -1 ? "" : path.slice(0, idx);
 }
 
+/**
+ * Expand every ancestor of `path` so its row is on screen, listing the
+ * ones the tree has not visited yet. Used by the "reveal active file"
+ * preference; the scroll itself is the tree view's business.
+ */
+export async function revealInTree(
+  path: string,
+  respectGitignore: boolean,
+): Promise<void> {
+  const ancestors: string[] = [];
+  for (let p = parentDir(path); p !== ""; p = parentDir(p)) ancestors.push(p);
+  if (ancestors.length === 0) return;
+  expandedDirs.update((s) => {
+    const next = new Set(s);
+    for (const a of ancestors) next.add(a);
+    return next;
+  });
+  const known = get(treeChildren);
+  await Promise.all(
+    ancestors
+      .filter((a) => !known.has(a))
+      .map((a) => loadDirectory(a, respectGitignore)),
+  );
+}
+
 /** Drop all tree state — used when switching to a different project. */
 export function resetTree(): void {
   treeSeq++;
@@ -472,6 +498,7 @@ export async function openTab(path: string): Promise<void> {
 export function setActiveTab(path: string): void {
   const exists = get(tabs).some((t) => t.path === path);
   if (!exists) return;
+  flushBufferEdits();
   activeTabPath.set(path);
   // If the tab was flagged as externally changed, reload it so the
   // editor doesn't keep showing the prior disk content.
@@ -488,6 +515,7 @@ export function setActiveTab(path: string): void {
  * when none remain) becomes the active one.
  */
 export async function closeTab(path: string): Promise<void> {
+  flushBufferEdits();
   const list = get(tabs);
   const idx = list.findIndex((t) => t.path === path);
   if (idx < 0) return;
@@ -505,19 +533,59 @@ export async function closeTab(path: string): Promise<void> {
   }
 }
 
-/** Update a tab's buffer content (called on every CodeMirror change). */
+/** Update a tab's buffer content synchronously. */
 export function updateBuffer(path: string, content: string): void {
   tabs.update((list) => {
     const idx = list.findIndex((t) => t.path === path);
     if (idx < 0) return list;
     const next = [...list];
+    const disk = next[idx].diskContent;
     next[idx] = {
       ...next[idx],
       bufferContent: content,
-      dirty: content !== next[idx].diskContent,
+      // Length first: almost every edit changes it, and the full compare
+      // is O(file) on each keystroke of a large buffer.
+      dirty: content.length !== disk.length || content !== disk,
     };
     return next;
   });
+}
+
+/**
+ * How long typing is allowed to run ahead of the store.
+ *
+ * Under the threshold where the dirty dot in the tab strip is seen to lag,
+ * and long enough that a burst of keys is one store write.
+ */
+const BUFFER_FLUSH_MS = 100;
+let pendingEdit: { path: string; content: string } | null = null;
+let pendingEditTimer: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Coalesce a burst of CodeMirror changes into one store write.
+ *
+ * `updateBuffer` runs inside CodeMirror's update listener, before the
+ * keystroke paints. Writing `tabs` there copies the tab list and re-runs
+ * every subscriber — tab strip, toolbar, pane — on each character, which
+ * is what made typing feel heavy. The editor owns the live document; the
+ * store only needs to catch up before anyone *reads* the buffer, and
+ * {@link flushBufferEdits} is called from every such path.
+ */
+export function updateBufferDebounced(path: string, content: string): void {
+  if (pendingEdit && pendingEdit.path !== path) flushBufferEdits();
+  pendingEdit = { path, content };
+  clearTimeout(pendingEditTimer);
+  pendingEditTimer = setTimeout(flushBufferEdits, BUFFER_FLUSH_MS);
+}
+
+/** Write any coalesced edit through to the store now. */
+export function flushBufferEdits(): void {
+  clearTimeout(pendingEditTimer);
+  pendingEditTimer = undefined;
+  if (!pendingEdit) return;
+  const { path, content } = pendingEdit;
+  pendingEdit = null;
+  updateBuffer(path, content);
 }
 
 /**
@@ -527,6 +595,7 @@ export function updateBuffer(path: string, content: string): void {
  * standard sticky toast.
  */
 export async function saveActive(opts?: { stage?: boolean }): Promise<void> {
+  flushBufferEdits();
   const path = get(activeTabPath);
   if (!path) return;
   const tab = get(tabs).find((t) => t.path === path);
@@ -631,11 +700,24 @@ export function closeTabsUnder(prefix: string): void {
  */
 export function persistTabsForProject(projectPath: string): void {
   if (typeof localStorage === "undefined") return;
-  const list = get(tabs);
-  const payload = {
-    paths: list.map((t) => t.path),
-    activePath: get(activeTabPath),
-  };
+  // The live stores may belong to another project by now — the editor is
+  // only synced while its panel is mounted, so two project switches from
+  // the graph view leave them holding the project before last. Persisting
+  // them under this key would hand one repository's paths to another.
+  let payload: { paths: string[]; activePath: string | null };
+  if (currentProject === null || currentProject === projectPath) {
+    payload = {
+      paths: get(tabs).map((t) => t.path),
+      activePath: get(activeTabPath),
+    };
+  } else {
+    const cached = sessionCache.get(projectPath);
+    if (!cached) return;
+    payload = {
+      paths: cached.tabs.map((t) => t.path),
+      activePath: cached.activeTabPath,
+    };
+  }
   try {
     localStorage.setItem(
       STORAGE_PREFIX + projectPath,
@@ -710,11 +792,184 @@ export async function restoreTabsForProject(
 
 /** Reset the in-memory tab list and tree — called on project teardown. */
 export function clearAll(): void {
+  flushBufferEdits();
   tabs.set([]);
   activeTabPath.set(null);
   resetTree();
   treeLoading.set(false);
   searchLoading.set(false);
+}
+
+// ---------------------------------------------------------------------------
+// Session cache — one editor state per open project
+// ---------------------------------------------------------------------------
+
+/** Everything worth keeping about a project's editor while it is not active. */
+interface EditorProjectState {
+  tabs: EditorTab[];
+  activeTabPath: string | null;
+  treeChildren: Map<string, WorkdirTreeEntry[]>;
+  expandedDirs: Set<string>;
+  failedDirs: Set<string>;
+}
+
+/**
+ * Parked editor state, keyed by project path. RAM only, on purpose: it has
+ * to survive leaving the editor view and switching project tabs, not a
+ * relaunch — localStorage keeps the tab paths for that.
+ */
+const sessionCache = new Map<string, EditorProjectState>();
+
+/** Project the live stores currently describe; `null` before the first sync. */
+let currentProject: string | null = null;
+
+/** `respectGitignore` the current tree was listed with. */
+let currentRespectGitignore: boolean | null = null;
+
+function snapshotCurrent(): EditorProjectState {
+  flushBufferEdits();
+  return {
+    tabs: get(tabs),
+    activeTabPath: get(activeTabPath),
+    treeChildren: get(treeChildren),
+    expandedDirs: get(expandedDirs),
+    failedDirs: get(failedDirs),
+  };
+}
+
+/**
+ * Point the live stores at `projectPath`, doing only what has changed.
+ *
+ * Called by the editor panel whenever it mounts or its inputs change. The
+ * panel used to reset the tree on every mount because "which project did I
+ * load" lived in the component — so leaving for the graph and coming back
+ * collapsed every folder and re-read every tab, dropping unsaved edits.
+ * Owning that knowledge here makes a remount for the same project a no-op.
+ *
+ * - Same project, same gitignore flag: nothing.
+ * - Same project, flag flipped: re-list the tree.
+ * - Different project: park the current state in the session cache, then
+ *   either restore the target's parked state or, first time this session,
+ *   list the root and re-hydrate tabs from localStorage.
+ *
+ * A restored project's listings and clean buffers are re-read in place —
+ * the disk may have moved while it was in the background — but nothing is
+ * blanked first: the parked state paints, then corrects itself. Dirty
+ * buffers are kept as they are; they are the user's work.
+ */
+export async function syncProject(
+  projectPath: string,
+  respectGitignore: boolean,
+): Promise<void> {
+  if (projectPath === currentProject) {
+    if (respectGitignore !== currentRespectGitignore) {
+      currentRespectGitignore = respectGitignore;
+      await refreshTree(respectGitignore);
+    }
+    return;
+  }
+
+  // Tabs opened while the stores were unowned — "Open in editor" from the
+  // Changes view before this panel ever mounted, or right after a project
+  // switch parked the previous one — belong to the project arriving now.
+  // They are re-opened on top of whatever it restores.
+  flushBufferEdits();
+  const orphans = currentProject === null ? get(tabs) : [];
+  const orphanActive = currentProject === null ? get(activeTabPath) : null;
+
+  if (currentProject !== null) {
+    sessionCache.set(currentProject, snapshotCurrent());
+  }
+  currentProject = projectPath;
+  currentRespectGitignore = respectGitignore;
+
+  const parked = sessionCache.get(projectPath);
+  if (!parked) {
+    tabs.set([]);
+    activeTabPath.set(null);
+    resetTree();
+    await Promise.all([
+      refreshTree(respectGitignore),
+      restoreTabsForProject(projectPath),
+    ]);
+    await adoptOrphans(orphans, orphanActive);
+    return;
+  }
+
+  // Listings still in flight belong to the project we just left.
+  treeSeq++;
+  loadingDirs.set(new Set());
+  treeLoading.set(false);
+  searchResults.set([]);
+  searchTruncated.set(false);
+  treeChildren.set(parked.treeChildren);
+  expandedDirs.set(parked.expandedDirs);
+  failedDirs.set(parked.failedDirs);
+  tabs.set(parked.tabs);
+  activeTabPath.set(parked.activeTabPath);
+
+  const cleanPaths = parked.tabs
+    .filter((t) => !t.dirty && t.status !== "loading")
+    .map((t) => t.path);
+  await Promise.all([
+    refreshTreePaths(["", ...parked.expandedDirs], respectGitignore),
+    ...cleanPaths.map(async (p) => {
+      try {
+        applyReadResult(p, await apiReadFile(p));
+      } catch (err) {
+        markLoadError(p, err);
+      }
+    }),
+  ]);
+  await adoptOrphans(orphans, orphanActive);
+}
+
+async function adoptOrphans(
+  orphans: EditorTab[],
+  orphanActive: string | null,
+): Promise<void> {
+  if (orphans.length === 0) return;
+  for (const o of orphans) await openTab(o.path);
+  if (orphanActive) activeTabPath.set(orphanActive);
+}
+
+/**
+ * Detach the live stores from their project without loading another.
+ *
+ * Called by the route on every project switch, whether or not the editor
+ * is mounted. Without it, two switches made from the graph view leave the
+ * stores describing the project before last — and a file opened "in
+ * editor" from the new project's Changes lands in the old one's tab list.
+ */
+export function parkProject(): void {
+  if (currentProject === null) return;
+  sessionCache.set(currentProject, snapshotCurrent());
+  currentProject = null;
+  currentRespectGitignore = null;
+  treeSeq++;
+  tabs.set([]);
+  activeTabPath.set(null);
+  treeChildren.set(new Map());
+  expandedDirs.set(new Set());
+  failedDirs.set(new Set());
+  loadingDirs.set(new Set());
+  treeLoading.set(false);
+  searchResults.set([]);
+  searchTruncated.set(false);
+}
+
+/**
+ * Drop a closed project's parked state. Its tab paths are persisted first
+ * so re-opening the project later restores them.
+ */
+export function forgetProject(projectPath: string): void {
+  persistTabsForProject(projectPath);
+  sessionCache.delete(projectPath);
+  if (currentProject === projectPath) {
+    currentProject = null;
+    currentRespectGitignore = null;
+    clearAll();
+  }
 }
 
 let externalListenerPromise: Promise<UnlistenFn> | null = null;
@@ -851,6 +1106,11 @@ export async function deletePath(
  * `beforeEach` blocks in the unit tests so cases stay isolated.
  */
 export function __resetForTests(): void {
+  clearTimeout(pendingEditTimer);
+  pendingEdit = null;
+  sessionCache.clear();
+  currentProject = null;
+  currentRespectGitignore = null;
   tabs.set([]);
   activeTabPath.set(null);
   resetTree();

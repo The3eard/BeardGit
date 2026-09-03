@@ -76,12 +76,10 @@ pub struct WorkdirTreeEntry {
 /// Internal: should this directory entry be skipped wholesale?
 ///
 /// Covers [`ALWAYS_SKIP_DIR_NAMES`] and the ai-worktree subdir under
-/// `.beardgit/`. Symlinks are skipped here too — a code repo rarely has
-/// them and resolving them safely is its own can of worms.
+/// `.beardgit/`. `file_type` is the *resolved* type: a symlink to a
+/// directory is a directory here, so `node_modules -> ../shared/node_modules`
+/// is skipped like the real thing.
 fn should_skip_entry(rel_path: &str, file_type: &std::fs::FileType, name: &str) -> bool {
-    if file_type.is_symlink() {
-        return true;
-    }
     if file_type.is_dir() {
         if ALWAYS_SKIP_DIR_NAMES.contains(&name) {
             return true;
@@ -139,7 +137,9 @@ impl Repository {
     ///
     /// Always skipped, regardless of `respect_gitignore`: see
     /// [`ALWAYS_SKIP_DIR_NAMES`], plus `.beardgit/ai-worktrees/`.
-    /// Symlinks are skipped silently.
+    /// Symlinks are followed: a link to a directory lists as a directory
+    /// (and expands to the target's children), a link to a file lists as a
+    /// file. Only dangling links are dropped.
     ///
     /// Sort order: directories first, then files; within each group,
     /// alphabetical case-insensitive.
@@ -260,7 +260,14 @@ impl Repository {
                 );
                 let Some(found) = one.pop() else { continue };
                 if found.is_directory {
-                    queue.push(entry.path());
+                    // A symlinked directory is listed when the user expands
+                    // it, but the walk does not follow it: a link back up
+                    // the tree would otherwise spend the whole scan ceiling
+                    // going in circles.
+                    let is_link = entry.file_type().map(|t| t.is_symlink()).unwrap_or(false);
+                    if !is_link {
+                        queue.push(entry.path());
+                    }
                 } else if found.path.to_lowercase().contains(&needle) {
                     out.push(found);
                 }
@@ -368,12 +375,22 @@ fn push_entry(
     entry: &std::fs::DirEntry,
     out: &mut Vec<WorkdirTreeEntry>,
 ) {
-    let file_type = match entry.file_type() {
-        Ok(t) => t,
-        Err(_) => return,
+    let Ok(link_type) = entry.file_type() else {
+        return;
     };
     let name = entry.file_name().to_string_lossy().into_owned();
     let full = entry.path();
+    // `DirEntry::file_type` does not follow symlinks; the listing wants what
+    // the link points at. `metadata` resolves the chain and fails on a
+    // dangling link, which is the one case the tree drops.
+    let file_type = if link_type.is_symlink() {
+        match std::fs::metadata(&full) {
+            Ok(meta) => meta.file_type(),
+            Err(_) => return,
+        }
+    } else {
+        link_type
+    };
     let rel = match rel_forward_slash(repo_root, &full) {
         Some(r) => r,
         None => return,
@@ -398,7 +415,9 @@ fn push_entry(
             size: None,
         });
     } else if file_type.is_file() {
-        let size = entry.metadata().ok().map(|m| m.len());
+        // `std::fs::metadata`, not `entry.metadata()`: the latter reports the
+        // link itself, and a link's size is the length of its target path.
+        let size = std::fs::metadata(&full).ok().map(|m| m.len());
         out.push(WorkdirTreeEntry {
             path: rel,
             name,
@@ -585,6 +604,64 @@ mod tests {
             hits[0].path, "hit-at-the-root.ts",
             "the shallowest match must survive a directory with 40 of its own"
         );
+    }
+
+    /// A symlinked directory used to vanish from the tree — "the tree does
+    /// not know what to do with symlinks". It lists as a directory, and
+    /// expanding it lists the target's children under the link's path.
+    #[cfg(unix)]
+    #[test]
+    fn list_workdir_tree_follows_symlinks() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        fs::create_dir_all(path.join("real")).unwrap();
+        fs::write(path.join("real/inner.txt"), "i").unwrap();
+        fs::write(path.join("real-file.txt"), "f").unwrap();
+        std::os::unix::fs::symlink(path.join("real"), path.join("linkdir")).unwrap();
+        std::os::unix::fs::symlink(path.join("real-file.txt"), path.join("linkfile.txt")).unwrap();
+        std::os::unix::fs::symlink(path.join("missing"), path.join("dangling")).unwrap();
+
+        let repo = Repository::open(&path).unwrap();
+        let root = repo.list_workdir_tree(None, 100, false).unwrap();
+
+        let linkdir = root
+            .iter()
+            .find(|e| e.name == "linkdir")
+            .expect("linkdir listed");
+        assert!(linkdir.is_directory);
+        let linkfile = root
+            .iter()
+            .find(|e| e.name == "linkfile.txt")
+            .expect("linkfile listed");
+        assert!(!linkfile.is_directory);
+        assert_eq!(
+            linkfile.size,
+            Some(1),
+            "size is the target's, not the link's"
+        );
+        assert!(!root.iter().any(|e| e.name == "dangling"));
+
+        let children = repo.list_workdir_tree(Some("linkdir"), 100, false).unwrap();
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].path, "linkdir/inner.txt");
+    }
+
+    /// The search walk must not follow a symlinked directory: a link back up
+    /// the tree is a cycle, and the scan ceiling is the only thing that
+    /// would stop it.
+    #[cfg(unix)]
+    #[test]
+    fn search_workdir_files_does_not_descend_into_symlinked_directories() {
+        let (_tmp, path) = create_repo_with_n_commits(1);
+        fs::create_dir_all(path.join("real")).unwrap();
+        fs::write(path.join("real/needle.txt"), "n").unwrap();
+        std::os::unix::fs::symlink(&path, path.join("real/loop")).unwrap();
+        std::os::unix::fs::symlink(path.join("real"), path.join("linkdir")).unwrap();
+
+        let repo = Repository::open(&path).unwrap();
+        let hits = repo.search_workdir_files("needle", 50, false).unwrap();
+
+        let paths: Vec<&str> = hits.iter().map(|e| e.path.as_str()).collect();
+        assert_eq!(paths, ["real/needle.txt"]);
     }
 
     #[test]

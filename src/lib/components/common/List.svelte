@@ -7,6 +7,8 @@
 -->
 <script lang="ts" generics="T">
   import type { Snippet } from "svelte";
+  import { get, writable } from "svelte/store";
+  import { remembered } from "$lib/stores/viewMemory";
   import { debounce } from "../../utils/debounce";
   import { IconButton, Skeleton } from "$lib/components/ui";
   import { computeVirtualWindow } from "../../utils/virtualWindow";
@@ -71,6 +73,12 @@
      * empty list (useful in tests).
      */
     virtualizeOver?: number;
+    /**
+     * When set, the filter text and scroll offset outlive the component
+     * under `<memoryKey>.filter` / `<memoryKey>.scrollTop` (see
+     * `stores/viewMemory`). Callers scope it per repo.
+     */
+    memoryKey?: string;
   }
 
   let {
@@ -96,11 +104,23 @@
     customContent,
     rowHeight,
     virtualizeOver = 500,
+    memoryKey,
   }: Props = $props();
 
   // ── Filter state ──────────────────────────────────────────────────────
-  let filterInput = $state("");
-  let filterQuery = $state("");
+  // Without `memoryKey` these are plain per-instance writables, so the
+  // component behaves exactly as before. `memoryKey` is read once at init
+  // on purpose — a store cell is picked for the component's lifetime.
+  // svelte-ignore state_referenced_locally
+  const filterInput = memoryKey
+    ? remembered(memoryKey + ".filter", "")
+    : writable("");
+  // svelte-ignore state_referenced_locally
+  const savedScrollTop = memoryKey
+    ? remembered(memoryKey + ".scrollTop", 0)
+    : writable(0);
+  // Seed with the remembered text so the list comes back already filtered.
+  let filterQuery = $state(get(filterInput));
 
   // svelte-ignore state_referenced_locally
   const applyFilter = debounce((value: string) => {
@@ -108,7 +128,7 @@
   }, filterDelay);
 
   function onFilterInput(value: string) {
-    filterInput = value;
+    $filterInput = value;
     applyFilter(value);
   }
 
@@ -128,7 +148,8 @@
   // The arithmetic lives in `utils/virtualWindow` so the lists that can't
   // consume this component — the changes list, the workdir tree — share
   // the behaviour without inheriting the panel layout.
-  let scrollTop = $state(0);
+  // Seeded from memory so a virtualized list mounts on the right slice.
+  let scrollTop = $state(get(savedScrollTop));
   let viewportHeight = $state(0);
 
   let computedWindow = $derived(
@@ -148,8 +169,9 @@
   );
 
   function handleScroll(e: Event) {
-    if (!isVirtualized) return;
     const el = e.currentTarget as HTMLDivElement;
+    $savedScrollTop = el.scrollTop;
+    if (!isVirtualized) return;
     scrollTop = el.scrollTop;
     // Measure viewport height lazily on the scroll path so we never
     // depend on `bind:clientHeight` (which Svelte 5 wires through
@@ -170,6 +192,18 @@
     if (viewportHeight === 0 && listEl.clientHeight > 0) {
       viewportHeight = listEl.clientHeight;
     }
+  });
+
+  // Put the scroller back where it was, once, as soon as there are rows to
+  // scroll. Rows are already in the DOM when the effect runs (and the
+  // virtualized sizer already has its full height), so a direct write is
+  // enough; the resulting scroll event re-saves the same offset.
+  let scrollRestored = false;
+  $effect(() => {
+    if (scrollRestored || !listEl || filteredItems.length === 0) return;
+    scrollRestored = true;
+    const top = get(savedScrollTop);
+    if (top > 0) listEl.scrollTop = top;
   });
 
   // ── Keyboard navigation ───────────────────────────────────────────────
@@ -204,7 +238,7 @@
 
   /** Reset filter when onRefresh is called externally. */
   export function resetFilter() {
-    filterInput = "";
+    $filterInput = "";
     filterQuery = "";
   }
 </script>
@@ -255,7 +289,7 @@
         type="text"
         class="filter-input"
         placeholder={filterPlaceholder}
-        value={filterInput}
+        value={$filterInput}
         oninput={(e) => onFilterInput(e.currentTarget.value)}
       />
     </div>

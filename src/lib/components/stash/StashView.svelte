@@ -5,7 +5,7 @@
   import { loadStashes } from "../../stores/stashes";
 </script>
 
-<SplitView refreshFn={loadStashes}>
+<SplitView refreshFn={loadStashes} memoryKey="stashes.splitWidth">
   {#snippet left()}<StashList />{/snippet}
   {#snippet right()}<StashDetail />{/snippet}
 </SplitView>

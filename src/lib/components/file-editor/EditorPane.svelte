@@ -42,7 +42,7 @@
     activeTabPath,
     saveActive,
     tabs,
-    updateBuffer,
+    updateBufferDebounced,
   } from "$lib/stores/fileEditor";
   import { activeTheme } from "$lib/stores/theme";
   import * as m from "$lib/paraglide/messages";
@@ -53,6 +53,16 @@
   );
 
   /**
+   * The active path on its own. `extensions` below depends on this, not
+   * on `active`: every buffer write replaces the tab object, and a
+   * derived that read `active?.path` re-ran on each keystroke to rebuild
+   * the whole extension array — keymaps, completion sources, linter — for
+   * a result the editor then ignored. A primitive only changes when the
+   * path does.
+   */
+  let activePath = $derived(active?.path ?? "");
+
+  /**
    * Build the CodeMirror extension array from the user's editor
    * preferences. Always-on bits (history, default keymap, save
    * shortcut) live at the top of the array; toggleable features are
@@ -60,7 +70,7 @@
    */
   let extensions = $derived.by<Extension[]>(() => {
     const prefs = $editorPrefs;
-    const filename = active?.path ?? "";
+    const filename = activePath;
     const langName = getLanguageExtensionName(filename);
     const exts: Extension[] = [
       history(),
@@ -106,7 +116,10 @@
       // Language-aware sources (HTML tags, CSS properties, etc.) keep
       // working because language data merges — we add to the set, we
       // don't override it.
-      exts.push(autocompletion());
+      // `activateOnTypingDelay` defaults to 100ms, which reads as the popup
+      // hesitating after each keystroke. 30ms is still enough to fold a
+      // fast burst of keys into one query against the buffer.
+      exts.push(autocompletion({ activateOnTypingDelay: 30 }));
       exts.push(EditorState.languageData.of(() => [{ autocomplete: completeAnyWord }]));
 
       // Per-language snippet pack — empty for unmapped languages.
@@ -180,8 +193,12 @@
     return `${bytes} B`;
   }
 
+  // Debounced: the store catches up ~100ms after the last keystroke, or
+  // immediately before anything reads the buffer (save, tab switch, close).
+  // The synchronous write ran inside CodeMirror's update listener, ahead of
+  // the paint, and re-rendered the tab strip and toolbar per character.
   function onChange(content: string) {
-    if (active) updateBuffer(active.path, content);
+    if (active) updateBufferDebounced(active.path, content);
   }
 </script>
 

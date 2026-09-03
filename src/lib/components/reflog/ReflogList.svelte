@@ -4,6 +4,7 @@
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
   import List from "../common/List.svelte";
+  import { scoped } from "$lib/stores/viewMemory";
   import * as m from "$lib/paraglide/messages";
 
   let {
@@ -73,6 +74,7 @@
   onSelect={handleSelect}
   onRefresh={handleRefresh}
   onContextMenu={handleContextMenu}
+  memoryKey={scoped("reflog.list")}
 >
   {#snippet row({ item }: { item: ReflogEntry; selected: boolean })}
     {@const style = actionStyle(item.action)}

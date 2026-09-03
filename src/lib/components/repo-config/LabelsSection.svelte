@@ -23,17 +23,19 @@
     deleteRepoLabel,
   } from "$lib/api/tauri";
   import { addToast } from "$lib/stores/toast";
+  import { remembered, scoped } from "$lib/stores/viewMemory";
 
   let current = $derived($repoConfigStore.current);
   let repoPath = $derived($repoConfigStore.repoPath);
 
   // Editor state — one dialog handles both Add + Edit via the `mode`
   // discriminator. `originalName` tracks the pre-edit name so rename
-  // round-trips work on both backends.
-  let editorOpen = $state(false);
-  let editorMode = $state<"add" | "edit">("add");
-  let editorOriginalName = $state<string>("");
-  let draft = $state<RepoConfigLabel>(emptyLabel());
+  // round-trips work on both backends. Remembered so an open editor and
+  // its draft survive a section switch.
+  const editorOpen = remembered(scoped("repoConfig.labelEditor.open"), false);
+  const editorMode = remembered<"add" | "edit">(scoped("repoConfig.labelEditor.mode"), "add");
+  const editorOriginalName = remembered(scoped("repoConfig.labelEditor.originalName"), "");
+  const draft = remembered<RepoConfigLabel>(scoped("repoConfig.labelEditor.draft"), emptyLabel());
   let saving = $state(false);
   let editorError = $state<string | null>(null);
 
@@ -46,54 +48,55 @@
   }
 
   function openAdd() {
-    editorMode = "add";
-    editorOriginalName = "";
-    draft = emptyLabel();
+    $editorMode = "add";
+    $editorOriginalName = "";
+    $draft = emptyLabel();
     editorError = null;
-    editorOpen = true;
+    $editorOpen = true;
   }
 
   function openEdit(label: RepoConfigLabel) {
-    editorMode = "edit";
-    editorOriginalName = label.name;
-    draft = {
+    $editorMode = "edit";
+    $editorOriginalName = label.name;
+    $draft = {
       name: label.name,
       color: label.color ?? "cccccc",
       description: label.description ?? "",
     };
     editorError = null;
-    editorOpen = true;
+    $editorOpen = true;
   }
 
   function closeEditor() {
-    editorOpen = false;
+    $editorOpen = false;
   }
 
   async function saveLabel() {
     if (!repoPath) return;
-    if (draft.name.trim().length === 0) {
+    if ($draft.name.trim().length === 0) {
       editorError = "Label name cannot be empty.";
       return;
     }
     saving = true;
     editorError = null;
     try {
-      if (editorMode === "add") {
-        await createRepoLabel(repoPath, draft);
+      const saved = $draft;
+      if ($editorMode === "add") {
+        await createRepoLabel(repoPath, saved);
         updateCurrent((d) => {
-          d.labels = [...d.labels, { ...draft }];
+          d.labels = [...d.labels, { ...saved }];
         });
-        addToast({ message: `Label ${draft.name} created`, type: "success" });
+        addToast({ message: `Label ${saved.name} created`, type: "success" });
       } else {
-        await updateRepoLabel(repoPath, editorOriginalName, draft);
+        const original = $editorOriginalName;
+        await updateRepoLabel(repoPath, original, saved);
         updateCurrent((d) => {
-          d.labels = d.labels.map((l) =>
-            l.name === editorOriginalName ? { ...draft } : l,
-          );
+          d.labels = d.labels.map((l) => (l.name === original ? { ...saved } : l));
         });
-        addToast({ message: `Label ${draft.name} updated`, type: "success" });
+        addToast({ message: `Label ${saved.name} updated`, type: "success" });
       }
-      editorOpen = false;
+      $editorOpen = false;
+      $draft = emptyLabel();
     } catch (e) {
       editorError = getErrorMessage(e);
       addToast({ message: getErrorMessage(e), type: "error" });
@@ -196,8 +199,8 @@
 </div>
 
 <Dialog
-  bind:open={editorOpen}
-  title={editorMode === "add" ? "Add label" : "Edit label"}
+  bind:open={$editorOpen}
+  title={$editorMode === "add" ? "Add label" : "Edit label"}
   size="sm"
 >
   <div class="editor">
@@ -206,7 +209,7 @@
         id="label-name"
         type="text"
         class="bg-input"
-        bind:value={draft.name}
+        bind:value={$draft.name}
         data-testid="repo-config-label-name"
       />
     </Field>
@@ -215,9 +218,9 @@
         id="label-description"
         type="text"
         class="bg-input"
-        value={draft.description ?? ""}
+        value={$draft.description ?? ""}
         oninput={(e) =>
-          (draft = { ...draft, description: (e.target as HTMLInputElement).value })}
+          ($draft = { ...$draft, description: (e.target as HTMLInputElement).value })}
         data-testid="repo-config-label-description"
       />
     </Field>
@@ -225,7 +228,7 @@
       <div class="color-row">
         <span
           class="swatch large"
-          style={`background: #${draft.color ?? "cccccc"}`}
+          style={`background: #${$draft.color ?? "cccccc"}`}
           aria-hidden="true"
         ></span>
         <input
@@ -233,10 +236,10 @@
           type="text"
           class="bg-input"
           placeholder="ff0000"
-          value={draft.color ?? ""}
+          value={$draft.color ?? ""}
           oninput={(e) =>
-            (draft = {
-              ...draft,
+            ($draft = {
+              ...$draft,
               color: normaliseColor((e.target as HTMLInputElement).value),
             })}
           data-testid="repo-config-label-color"
