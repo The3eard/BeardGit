@@ -13,22 +13,25 @@
   import { IconButton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
   import { loadCiRuns } from "../../stores/provider";
+  import { remembered } from "../../stores/viewMemory";
 
-  let showJobLog = $state(false);
-  let detailHeight = $state(250);
+  // Both survive a section switch: the log pane stays open at the height
+  // the user dragged it to.
+  const showJobLog = remembered("pipelines.showJobLog", false);
+  const detailHeight = remembered("pipelines.detailHeight", 250);
 
   function handleJobSelect(_jobId: number) {
-    showJobLog = true;
+    $showJobLog = true;
   }
 
   function closeJobLog() {
-    showJobLog = false;
+    $showJobLog = false;
   }
 
   function startVerticalResize(e: MouseEvent) {
     e.preventDefault();
     const startY = e.clientY;
-    const startHeight = detailHeight;
+    const startHeight = $detailHeight;
     // Measure the right pane at drag start: the detail may grow up to
     // 80% of it, so the job log always keeps ~20%.
     const containerHeight =
@@ -40,7 +43,7 @@
       // Min: 80px (enough for first row of jobs), max: 80% of the pane
       const minH = 80;
       const maxH = containerHeight * 0.8;
-      detailHeight = Math.max(minH, Math.min(maxH, startHeight + delta));
+      $detailHeight = Math.max(minH, Math.min(maxH, startHeight + delta));
     }
 
     function onMouseUp() {
@@ -57,14 +60,14 @@
   }
 </script>
 
-<SplitView refreshFn={refresh} defaultWidth={420}>
+<SplitView refreshFn={refresh} defaultWidth={420} memoryKey="pipelines.splitWidth">
   {#snippet left()}
     <PipelineList />
   {/snippet}
   {#snippet right()}
     <div class="pipeline-right">
-      {#if showJobLog}
-        <div class="pipelines-detail" style="height: {detailHeight}px">
+      {#if $showJobLog}
+        <div class="pipelines-detail" style="height: {$detailHeight}px">
           <PipelineDetail onSelectJob={handleJobSelect} />
         </div>
         <!-- svelte-ignore a11y_no_static_element_interactions -->

@@ -6,7 +6,7 @@
 </script>
 
 <div class="branch-view" data-testid="branch-view">
-  <SplitView refreshFn={refreshBranches}>
+  <SplitView refreshFn={refreshBranches} memoryKey="branches.splitWidth">
     {#snippet left()}<BranchList />{/snippet}
     {#snippet right()}<BranchDetail />{/snippet}
   </SplitView>

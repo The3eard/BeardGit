@@ -2,6 +2,7 @@
   import BranchTreeNode from "./BranchTreeNode.svelte";
   import type { BranchTreeNode as TreeNode } from "./branch-tree";
   import { shortOid } from "../../utils/git";
+  import { remembered, scoped } from "../../stores/viewMemory";
   import * as m from "$lib/paraglide/messages";
 
   let {
@@ -18,7 +19,22 @@
     onContext: (e: MouseEvent, node: TreeNode) => void;
   } = $props();
 
-  let folderOpen = $state(true);
+  // One shared set of collapsed folder paths for the whole tree, so the
+  // state outlives this node and a section switch. Folders default to open.
+  // Local and remote trees are prefixed apart: a local folder named after a
+  // remote would otherwise share an entry with it.
+  const collapsedFolders = remembered(scoped("branches.collapsedFolders"), new Set<string>());
+  let folderKey = $derived(`${node.isRemote ? "remote" : "local"}:${node.fullPath}`);
+  let folderOpen = $derived(!$collapsedFolders.has(folderKey));
+
+  function toggleFolder() {
+    collapsedFolders.update((s) => {
+      const next = new Set(s);
+      if (next.has(folderKey)) next.delete(folderKey);
+      else next.add(folderKey);
+      return next;
+    });
+  }
 
   let indent = $derived(depth * 16 + 12);
 </script>
@@ -28,8 +44,8 @@
   <div
     class="tree-folder"
     style="padding-left: {indent}px"
-    onclick={() => (folderOpen = !folderOpen)}
-    onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") folderOpen = !folderOpen; }}
+    onclick={toggleFolder}
+    onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") toggleFolder(); }}
     role="button"
     tabindex="0"
   >

@@ -50,6 +50,7 @@
   import LabelPicker from "../common/LabelPicker.svelte";
   import ReviewerPicker from "./ReviewerPicker.svelte";
   import PathTree from "../common/PathTree.svelte";
+  import { remembered, scoped } from "../../stores/viewMemory";
   import type { CheckoutResult } from "../../types";
 
   interface Props {
@@ -64,7 +65,7 @@
 
   // Merge/close confirmation state
   let showMergeConfirm = $state(false);
-  let mergeStrategy = $state("merge");
+  const mergeStrategy = remembered(scoped("mrpr.mergeStrategy"), "merge");
   let showMergeDropdown = $state(false);
   let showCloseConfirm = $state(false);
 
@@ -109,8 +110,12 @@
   }
   let actionError = $state("");
 
-  // Comment input state
-  let commentBody = $state("");
+  // Comment input state. The draft is keyed by the selected MR/PR so
+  // switching items does not carry the text over, and survives a section
+  // switch.
+  let commentBody = $derived(
+    remembered(scoped(`mrpr.commentDraft.${$selectedMrPrNumber ?? ""}`), ""),
+  );
   let commentSubmitting = $state(false);
 
   async function handleMerge() {
@@ -118,7 +123,7 @@
     if (!detail) return;
     try {
       actionError = "";
-      await mergeMrPr(detail.summary.number, mergeStrategy);
+      await mergeMrPr(detail.summary.number, $mergeStrategy);
     } catch (e) {
       actionError = m.mrpr_merge_failed({ error: getErrorMessage(e) });
     }
@@ -150,11 +155,11 @@
 
   async function handleRequestChanges() {
     const detail = $mrPrDetail;
-    if (!detail || !commentBody.trim()) return;
+    if (!detail || !$commentBody.trim()) return;
     try {
       actionError = "";
-      await requestChangesMrPr(detail.summary.number, commentBody.trim());
-      commentBody = "";
+      await requestChangesMrPr(detail.summary.number, $commentBody.trim());
+      $commentBody = "";
     } catch (e) {
       actionError = getErrorMessage(e);
     }
@@ -162,12 +167,12 @@
 
   async function handleAddComment() {
     const detail = $mrPrDetail;
-    if (!detail || !commentBody.trim()) return;
+    if (!detail || !$commentBody.trim()) return;
     commentSubmitting = true;
     try {
       actionError = "";
-      await addMrPrComment(detail.summary.number, commentBody.trim());
-      commentBody = "";
+      await addMrPrComment(detail.summary.number, $commentBody.trim());
+      $commentBody = "";
     } catch (e) {
       actionError = getErrorMessage(e);
     } finally {
@@ -345,7 +350,7 @@
         <Button variant="success" size="sm" onclick={handleApprove}>{m.mrpr_approve()}</Button>
         <div class="merge-group">
           <Button variant="success" onclick={() => { showMergeConfirm = true; }}>
-            {mergeStrategy === "squash" ? m.mrpr_merge_squash() : mergeStrategy === "rebase" ? m.mrpr_merge_rebase() : m.mrpr_merge()}
+            {$mergeStrategy === "squash" ? m.mrpr_merge_squash() : $mergeStrategy === "rebase" ? m.mrpr_merge_rebase() : m.mrpr_merge()}
           </Button>
           <IconButton
             tone="default"
@@ -358,9 +363,9 @@
           />
           {#if showMergeDropdown}
             <div class="merge-dropdown-menu">
-              <button class:active={mergeStrategy === "merge"} onclick={() => { mergeStrategy = "merge"; showMergeDropdown = false; }}>{m.mrpr_merge()}</button>
-              <button class:active={mergeStrategy === "squash"} onclick={() => { mergeStrategy = "squash"; showMergeDropdown = false; }}>{m.mrpr_merge_squash()}</button>
-              <button class:active={mergeStrategy === "rebase"} onclick={() => { mergeStrategy = "rebase"; showMergeDropdown = false; }}>{m.mrpr_merge_rebase()}</button>
+              <button class:active={$mergeStrategy === "merge"} onclick={() => { $mergeStrategy = "merge"; showMergeDropdown = false; }}>{m.mrpr_merge()}</button>
+              <button class:active={$mergeStrategy === "squash"} onclick={() => { $mergeStrategy = "squash"; showMergeDropdown = false; }}>{m.mrpr_merge_squash()}</button>
+              <button class:active={$mergeStrategy === "rebase"} onclick={() => { $mergeStrategy = "rebase"; showMergeDropdown = false; }}>{m.mrpr_merge_rebase()}</button>
             </div>
           {/if}
         </div>
@@ -512,7 +517,7 @@
         <textarea
           class="comment-textarea"
           placeholder={m.mrpr_comment_placeholder()}
-          bind:value={commentBody}
+          bind:value={$commentBody}
           rows="3"
         ></textarea>
         <div class="comment-actions">
@@ -520,7 +525,7 @@
             variant="primary"
             size="sm"
             loading={commentSubmitting}
-            disabled={!commentBody.trim() || commentSubmitting}
+            disabled={!$commentBody.trim() || commentSubmitting}
             onclick={handleAddComment}
           >
             {m.mrpr_add_comment()}
@@ -528,7 +533,7 @@
           <Button
             variant="danger"
             size="sm"
-            disabled={!commentBody.trim()}
+            disabled={!$commentBody.trim()}
             onclick={handleRequestChanges}
           >
             {m.mrpr_request_changes()}

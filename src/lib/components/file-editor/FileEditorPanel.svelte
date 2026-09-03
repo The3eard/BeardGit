@@ -69,25 +69,12 @@
       .map((e) => e.path),
   );
 
-  // Re-load tree + tabs whenever the active project changes. The old
-  // project's expanded folders are dropped first: their paths mean
-  // something else here.
-  let lastLoadedProject: string | null = null;
+  // Keep the store pointed at the active project. The store decides what
+  // that costs (see `syncProject`); this effect only reports the inputs.
   $effect(() => {
     const path = projectPath;
-    if (path && path !== lastLoadedProject) {
-      lastLoadedProject = path;
-      resetTree();
-      void refreshTree(respectGitignore);
-      void restoreTabsForProject(path);
-    }
-  });
-
-  // Re-pull the tree when the gitignore preference flips.
-  $effect(() => {
-    if (projectPath) {
-      void refreshTree(respectGitignore);
-    }
+    const respect = respectGitignore;
+    if (path) void untrack(() => syncProject(path, respect));
   });
 
   // External changes (checkout, pull, an edit outside the app) should be

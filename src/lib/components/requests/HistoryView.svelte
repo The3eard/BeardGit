@@ -21,6 +21,7 @@
   import type { RequestHistoryRow } from "$lib/types/requests";
   import { Button } from "$lib/components/ui";
   import List from "../common/List.svelte";
+  import { scoped } from "$lib/stores/viewMemory";
   import TwoLineRow from "../common/TwoLineRow.svelte";
   import { currentSource } from "./stores";
 
@@ -89,6 +90,7 @@
   selectedKey={null}
   {getKey}
   emptyMessage="No runs yet."
+  memoryKey={scoped("requests.history.list")}
 >
   {#snippet headerActions()}
     <span class="hint">

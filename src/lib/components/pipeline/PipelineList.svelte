@@ -23,11 +23,16 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import TriggerWorkflowDialog from "./TriggerWorkflowDialog.svelte";
   import { clampMenuPosition } from "$lib/utils/menu-position";
+  import { remembered, scoped } from "$lib/stores/viewMemory";
 
   let loading = $state(false);
   let loadingMore = $state(false);
   let error = $state<string | null>(null);
-  let searchTags = $state<SearchTag[]>([]);
+  // Remembered per repo so refinements survive leaving the view. The
+  // branch seed is applied once per repo (tracked separately, so clearing
+  // every chip on purpose is not undone by the next visit).
+  const searchTags = remembered<SearchTag[]>(scoped("pipeline.searchTags"), []);
+  const searchSeeded = remembered(scoped("pipeline.searchSeeded"), false);
   let initialized = false;
   let triggerDialogOpen = $state(false);
   let ctxMenu = $state<{ x: number; y: number; run: CiRun } | null>(null);
@@ -90,8 +95,9 @@
   async function initAndLoad() {
     if (initialized) return;
     initialized = true;
-    if ($repoInfo?.head_branch) {
-      searchTags = [{
+    if (!$searchSeeded && $repoInfo?.head_branch) {
+      $searchSeeded = true;
+      $searchTags = [{
         id: `init-${Date.now()}`,
         type: "branch",
         value: $repoInfo.head_branch,
@@ -118,11 +124,11 @@
     loading = true;
     error = null;
     try {
-      const { branch, status, source } = extractApiParams(searchTags);
+      const { branch, status, source } = extractApiParams($searchTags);
       await loadCiRuns(branch, source, status);
       startCiRunListPolling(async () => {
         try {
-          const p = extractApiParams(searchTags);
+          const p = extractApiParams($searchTags);
           await loadCiRuns(p.branch, p.source, p.status);
         } catch { /* ignore */ }
       });
@@ -136,7 +142,7 @@
   function refresh() { fetchPipelines(); }
 
   function handleSearch(tags: SearchTag[]) {
-    searchTags = tags;
+    $searchTags = tags;
     initialized = false;
     initialized = true;
     fetchPipelines();
@@ -147,7 +153,7 @@
   async function handleLoadMore() {
     loadingMore = true;
     try {
-      const { branch, status, source } = extractApiParams(searchTags);
+      const { branch, status, source } = extractApiParams($searchTags);
       await loadMoreCiRuns(branch, source, status);
     } catch (e) {
       error = getErrorMessage(e);
@@ -232,6 +238,7 @@
   onSelect={selectCiRun}
   onRefresh={refresh}
   onContextMenu={onRowContextMenu}
+  memoryKey={scoped("pipeline.list")}
 >
   {#snippet headerActions()}
     <Button
@@ -251,7 +258,7 @@
   {#snippet afterHeader()}
     <SearchBar
       filters={ciFilters}
-      bind:tags={searchTags}
+      bind:tags={$searchTags}
       placeholder={m.pipeline_search_placeholder()}
       onSearch={handleSearch}
     />
