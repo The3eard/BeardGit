@@ -179,6 +179,23 @@ function rowY(row: number, offset: number): number {
 }
 
 
+/**
+ * Vertical extent of a merge curve's bend, from the true endpoints.
+ *
+ * Scales with the horizontal lane distance — a 1-lane hop turns tightly, a
+ * wide octopus jump eases over more rows — capped by the available vertical
+ * span so short edges don't overshoot. Shared by the curve drawing and by
+ * the segment clipping so the two agree on where a curve meets a lane.
+ */
+export function curveBend(x1: number, y1: number, x2: number, y2: number): number {
+  const laneSpan = Math.abs(x2 - x1);
+  const rowSpan = Math.abs(y2 - y1);
+  return Math.min(
+    Math.max(ROW_HEIGHT, laneSpan * 0.9),
+    Math.max(ROW_HEIGHT, rowSpan - ROW_HEIGHT * 0.3),
+  );
+}
+
 function withAlpha(color: string, alpha: number): string {
   // Only #RRGGBB literals can be split into channels. A user theme could
   // supply rgb()/hsl()/#RGB — parseInt would then yield NaN and produce an
@@ -356,6 +373,24 @@ export function renderGraph(
     curveDepartsTo.add(`${curve.to_lane},${curve.from_row}`);
     curveArrivesAt.add(`${curve.to_lane},${curve.to_row}`);
   }
+  // Rows where a lane's segment opens. A curve whose target lane opens at
+  // the curve's own row is a merge pulling a parent into a fresh lane: it
+  // bends at the top, into that lane, and the lane's line takes over.
+  // Every other curve bends at the bottom, into a line that already exists.
+  const segmentStartsAt = new Map<string, LaneSegment>();
+  for (const seg of laneSegments) segmentStartsAt.set(`${seg.lane},${seg.start_row}`, seg);
+  /** The segment a top-bending curve hands off to, if this curve is one. */
+  const openedSegment = (c: MergeCurve) => segmentStartsAt.get(`${c.to_lane},${c.from_row}`);
+  /**
+   * A segment whose line the curve runs along and then leaves: the curve
+   * departs from this lane at or above the segment's end and lands below
+   * it. The segment is a merged branch whose lane was freed at its parent's
+   * row, so its end is connected, not dangling.
+   */
+  const curveLeavesFrom = (lane: number, endRow: number) =>
+    mergeCurves.some(
+      (c) => c.from_lane === lane && c.from_row <= endRow && c.to_row > endRow,
+    );
 
   // ── Draw lane segments (continuous vertical lines) ──
   performance.mark('lanes-start');
@@ -399,11 +434,16 @@ export function renderGraph(
     const hasNodeAtStart = nodePositions.has(`${seg.lane},${seg.start_row}`);
     const hasNodeAtEnd = nodePositions.has(`${seg.lane},${seg.end_row}`);
     const hasCurveAtStart = curveDepartsTo.has(`${seg.lane},${seg.start_row}`);
-    const hasCurveAtEnd = curveArrivesAt.has(`${seg.lane},${seg.end_row}`);
+    const hasCurveAtEnd =
+      curveArrivesAt.has(`${seg.lane},${seg.end_row}`) ||
+      curveLeavesFrom(seg.lane, seg.end_row);
 
-    // If a merge curve targets this lane from the segment's start row,
-    // clip the segment to start where the S-curve arrives at this lane.
-    // This prevents orphaned line pieces above the curve's arrival point.
+    // A merge curve that opens this lane bends at the top and arrives
+    // `curveBend` below the merge row (see the curve drawing). Clip the
+    // segment to start there, so no line piece floats above the arrival.
+    // The clip and the curve share `curveBend`: they used to disagree,
+    // and the difference was a stub on the parent's lane that nothing
+    // connected to.
     let drawY1 = y1;
     if (hasCurveAtStart) {
       const curve = mergeCurves.find(
@@ -412,9 +452,7 @@ export function renderGraph(
       if (curve) {
         const cy1 = rowY(curve.from_row, offset);
         const cy2 = rowY(curve.to_row, offset);
-        const dist = Math.abs(cy2 - cy1);
-        const ch = Math.min(ROW_HEIGHT * 2.5, dist * 0.6);
-        const arrivalY = cy1 + ROW_HEIGHT * 0.3 + ch;
+        const arrivalY = cy1 + curveBend(laneX(curve.from_lane), cy1, laneX(curve.to_lane), cy2);
         drawY1 = Math.max(drawY1, arrivalY);
       }
     }
@@ -510,40 +548,55 @@ export function renderGraph(
     const maxY = Math.max(y1, y2);
     if (maxY < -ROW_HEIGHT || minY > canvasHeight + ROW_HEIGHT) continue;
 
-    const curveVisible = selectedGroup === null || curve.group_id === selectedGroup;
+    // A curve that opens a lane is the first stretch of that lane's line,
+    // so it takes the lane's colour and group; drawn in the child's colour
+    // it changed hue mid-line where the segment took over, and dimming or
+    // hovering the branch left its first bend at full strength.
+    const opened = openedSegment(curve);
+    const colorIndex = opened ? opened.color_index : curve.color_index;
+    const groupId = opened ? opened.group_id : curve.group_id;
+    const curveVisible = selectedGroup === null || groupId === selectedGroup;
     const curveAlpha = curveVisible ? 1.0 : theme.dimOpacity;
-    ctx.strokeStyle = laneColor(curve.color_index, theme);
+    ctx.strokeStyle = laneColor(colorIndex, theme);
     ctx.globalAlpha = 0.85 * curveAlpha;
     ctx.beginPath();
 
     // Geometry from the TRUE endpoints, clamped only for the moveTo/lineTo
-    // tails so off-canvas curves don't paint giant control arms. The bend
-    // sits at the bottom (toward to_row) and its height scales with the
-    // horizontal lane distance — a 1-lane hop turns tightly, a wide
-    // octopus jump eases over more rows — capped by the available
-    // vertical span so short merges don't overshoot.
-    const laneSpan = Math.abs(x2 - x1);
-    const rowSpan = Math.abs(y2 - y1);
-    const bend = Math.min(
-      Math.max(ROW_HEIGHT, laneSpan * 0.9),
-      Math.max(ROW_HEIGHT, rowSpan - ROW_HEIGHT * 0.3),
-    );
-    const bendStartY = y2 - bend; // straight run ends here, curve begins
+    // tails so off-canvas curves don't paint giant control arms.
+    //
+    // Two shapes, decided by which lane owns the vertical run:
+    //  - a merge that opens a fresh lane for its parent bends at the TOP:
+    //    it leaves the merge commit, hooks into the parent's lane within
+    //    `bend`, and that lane's own segment carries on down to the parent;
+    //  - everything else (a branch tip rejoining a line that already
+    //    exists) bends at the BOTTOM: down its own lane, then into the
+    //    parent's at the parent's row.
+    // Both are a symmetric cubic with vertical tangents → no kinks.
+    const bend = curveBend(x1, y1, x2, y2);
     const tailTopY = Math.max(y1, -ROW_HEIGHT * 2);
     const tailBotY = Math.min(y2, canvasHeight + ROW_HEIGHT * 2);
 
-    // Vertical run down lane `from` until the bend starts (clamped to the
-    // visible tail), then a symmetric cubic whose control points are
-    // vertical tangents at both ends → smooth S with no kinks.
-    ctx.moveTo(x1, tailTopY);
-    if (bendStartY > tailTopY) ctx.lineTo(x1, bendStartY);
-    const cpStartY = Math.min(bendStartY, tailBotY);
-    ctx.bezierCurveTo(
-      x1, (cpStartY + y2) / 2,
-      x2, (cpStartY + y2) / 2,
-      x2, Math.min(y2, tailBotY),
-    );
-    if (tailBotY > y2) ctx.lineTo(x2, tailBotY);
+    if (opened) {
+      const bendEndY = y1 + bend; // curve ends here, straight run begins
+      ctx.moveTo(x1, y1);
+      ctx.bezierCurveTo(
+        x1, (y1 + bendEndY) / 2,
+        x2, (y1 + bendEndY) / 2,
+        x2, bendEndY,
+      );
+      if (tailBotY > bendEndY) ctx.lineTo(x2, tailBotY);
+    } else {
+      const bendStartY = y2 - bend; // straight run ends here, curve begins
+      ctx.moveTo(x1, tailTopY);
+      if (bendStartY > tailTopY) ctx.lineTo(x1, bendStartY);
+      const cpStartY = Math.min(bendStartY, tailBotY);
+      ctx.bezierCurveTo(
+        x1, (cpStartY + y2) / 2,
+        x2, (cpStartY + y2) / 2,
+        x2, Math.min(y2, tailBotY),
+      );
+      if (tailBotY > y2) ctx.lineTo(x2, tailBotY);
+    }
 
     ctx.stroke();
     resetOpacity();
@@ -672,8 +725,11 @@ export function renderGraph(
         // Stop drawing badges if they'd overflow
         if (currentX + badgeWidth > messageEndX - 40) break;
 
-        ctx.fillStyle = badgeColor + "22";
-        ctx.strokeStyle = badgeColor + "66";
+        // `withAlpha`, not `color + "22"`: a theme may hand us rgb()/hsl()
+        // or a short hex, and appending two digits to those is an invalid
+        // colour the canvas silently drops — the badge vanished.
+        ctx.fillStyle = withAlpha(badgeColor, 0.13);
+        ctx.strokeStyle = withAlpha(badgeColor, 0.4);
         ctx.lineWidth = 1;
         roundRect(ctx, currentX, y - REF_BADGE_HEIGHT / 2, badgeWidth, REF_BADGE_HEIGHT, 3);
         ctx.fill();

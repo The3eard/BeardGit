@@ -506,6 +506,32 @@ impl GraphLayout {
 
             active_lanes[lane] = Some(Arc::clone(&dag_node.oid));
 
+            // Every other lane still waiting for this commit has now reached
+            // it: its line ends here, at the row above, and the cross-lane
+            // curve from its last child to this node carries the connection.
+            // Left in place, those duplicate lanes kept drawing a vertical
+            // line down to the bottom of the graph (or until the cap forced a
+            // reclaim) long after the branch had merged.
+            for other in 0..active_lanes.len() {
+                if other == lane || active_lanes[other].as_deref() != Some(&*dag_node.oid) {
+                    continue;
+                }
+                if let Some(start) = lane_start_row[other].take()
+                    && start < row
+                {
+                    lane_segments.push(LaneSegment {
+                        lane: other,
+                        start_row: start,
+                        end_row: row - 1,
+                        color_index: other,
+                        recycled: false,
+                        sync_state: SyncState::Unknown,
+                        group_id: lane_group[other],
+                    });
+                }
+                active_lanes[other] = None;
+            }
+
             if dag_node.parents.is_empty() {
                 // Root commit: close this lane's segment
                 if let Some(start) = lane_start_row[lane].take() {
@@ -1115,6 +1141,59 @@ mod tests {
         // Verify base is placed in exactly one lane
         let base_nodes: Vec<_> = layout.nodes.iter().filter(|n| n.oid == "base").collect();
         assert_eq!(base_nodes.len(), 1);
+    }
+
+    /// **The ghost line.** A branch lane used to stay open after the branch
+    /// had merged: the duplicate slot tracking the shared parent was never
+    /// cleared, so its segment ran to the last row of the graph — a vertical
+    /// line with no commits on it, under every merged branch. The lane must
+    /// close at the row above the parent, and be free for reuse.
+    #[test]
+    fn test_merged_branch_lane_closes_at_parent() {
+        //   m (merge b1, b2)   row 0, lane 0
+        //   b1                 row 1, lane 0
+        //   b2                 row 2, lane 1
+        //   base               row 3, lane 0  ← lane 1 closes at row 2
+        //   r1, r2             rows 4-5, lane 0
+        let commits = vec![
+            commit("m", &["b1", "b2"]),
+            commit("b1", &["base"]),
+            commit("b2", &["base"]),
+            commit("base", &["r1"]),
+            commit("r1", &["r2"]),
+            commit("r2", &[]),
+        ];
+        let layout = GraphLayout::compute(Dag::build(commits));
+
+        let lane1: Vec<&LaneSegment> = layout
+            .lane_segments
+            .iter()
+            .filter(|s| s.lane == 1)
+            .collect();
+        assert_eq!(lane1.len(), 1, "one tenure on lane 1: {lane1:?}");
+        assert_eq!(lane1[0].start_row, 0, "opened by the merge at row 0");
+        assert_eq!(
+            lane1[0].end_row, 2,
+            "closed at b2, the row above the shared parent"
+        );
+        assert!(!lane1[0].recycled, "closing at the parent is not a reclaim");
+
+        // And a tip whose first parent lives on another lane closes the same way.
+        let commits = vec![
+            commit("f2", &["f1"]),
+            commit("t", &["u"]),
+            commit("f1", &["u"]),
+            commit("u", &["v"]),
+            commit("v", &[]),
+        ];
+        let layout = GraphLayout::compute(Dag::build(commits));
+        let lane1: Vec<&LaneSegment> = layout
+            .lane_segments
+            .iter()
+            .filter(|s| s.lane == 1)
+            .collect();
+        assert_eq!(lane1.len(), 1);
+        assert_eq!((lane1[0].start_row, lane1[0].end_row), (1, 2));
     }
 
     #[test]
