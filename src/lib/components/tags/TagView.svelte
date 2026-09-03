@@ -5,7 +5,7 @@
   import { refreshTags } from "../../stores/tags";
 </script>
 
-<SplitView refreshFn={refreshTags}>
+<SplitView refreshFn={refreshTags} memoryKey="tags.splitWidth">
   {#snippet left()}<TagList />{/snippet}
   {#snippet right()}<TagDetail />{/snippet}
 </SplitView>

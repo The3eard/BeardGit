@@ -13,6 +13,7 @@
   import { formatSigningBackend, signatureChipState } from "$lib/utils/signing";
   import * as m from "$lib/paraglide/messages";
   import FileChangeList from "../common/FileChangeList.svelte";
+  import { scoped } from "$lib/stores/viewMemory";
   import ContextMenu from "../common/ContextMenu.svelte";
   import type { MenuItem } from "../common/ContextMenu.svelte";
   import Xrefs from "../common/Xrefs.svelte";
@@ -278,7 +279,16 @@
     {#if files.length > 0}
       <div class="detail-section">
         <div class="detail-label">{m.commit_detail_files({ count: String(files.length) })}</div>
-        <FileChangeList files={files} onSelect={handleFileSelect} onContextMenu={openFileContextMenu} />
+        <!-- `memoryKey` is read once per mount, so remount per commit: the
+             same pane shows one commit after another without unmounting. -->
+        {#key commit.oid}
+          <FileChangeList
+            files={files}
+            onSelect={handleFileSelect}
+            onContextMenu={openFileContextMenu}
+            memoryKey={scoped(`commitDetail.files.${commit.oid}`)}
+          />
+        {/key}
       </div>
     {/if}
   </div>

@@ -15,16 +15,13 @@
 <script lang="ts">
   import { Field, FormRow } from "$lib/components/ui";
   import { repoConfigStore, updateCurrent } from "$lib/stores/repoConfig";
+  import { remembered, scoped } from "$lib/stores/viewMemory";
 
-  let topicInput = $state("");
-
-  $effect(() => {
-    // When the loaded config changes (e.g. the dialog opens for a
-    // different repo) clear any half-typed topic so it doesn't leak
-    // across sessions.
-    void $repoConfigStore.repoPath;
-    topicInput = "";
-  });
+  // Keyed by the loaded config's repo so a half-typed topic survives a
+  // section switch without leaking to a dialog opened for another repo.
+  let topicInput = $derived(
+    remembered(scoped(`repoConfig.topicInput.${$repoConfigStore.repoPath ?? ""}`), ""),
+  );
 
   let current = $derived($repoConfigStore.current);
 
@@ -61,9 +58,9 @@
   function handleTopicKeydown(e: KeyboardEvent) {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
-      addTopic(topicInput);
-      topicInput = "";
-    } else if (e.key === "Backspace" && topicInput.length === 0) {
+      addTopic($topicInput);
+      $topicInput = "";
+    } else if (e.key === "Backspace" && $topicInput.length === 0) {
       const topics = current?.topics ?? [];
       if (topics.length > 0) {
         removeTopic(topics[topics.length - 1]);
@@ -123,7 +120,7 @@
           type="text"
           class="chip-input"
           placeholder="Type and press Enter"
-          bind:value={topicInput}
+          bind:value={$topicInput}
           onkeydown={handleTopicKeydown}
           data-testid="repo-config-topic-input"
         />

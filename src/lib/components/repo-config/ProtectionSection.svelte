@@ -24,6 +24,7 @@
   import { getBranchProtection, setBranchProtection } from "$lib/api/tauri";
   import { localBranches } from "$lib/stores/branches";
   import { addToast } from "$lib/stores/toast";
+  import { remembered, scoped } from "$lib/stores/viewMemory";
 
   interface Props {
     /** Detected forge — controls whether protection is supported. */
@@ -34,10 +35,11 @@
 
   let { forge, repoPath }: Props = $props();
 
-  let selectedBranch = $state<string>("");
+  // Branch pick and unsaved toggles survive a section switch.
+  const selectedBranch = remembered(scoped("repoConfig.protection.branch"), "");
   let loading = $state(false);
   let saving = $state(false);
-  let rules = $state<BranchProtection>(emptyRules());
+  const rules = remembered<BranchProtection>(scoped("repoConfig.protection.rules"), emptyRules());
   let error = $state<string | null>(null);
 
   function emptyRules(): BranchProtection {
@@ -56,16 +58,16 @@
 
   async function onBranchChange(event: Event) {
     const next = (event.target as HTMLSelectElement).value;
-    selectedBranch = next;
+    $selectedBranch = next;
     error = null;
     if (!next || !repoPath) return;
     loading = true;
     try {
       const loaded = await getBranchProtection(repoPath, next);
-      rules = loaded ?? emptyRules();
+      $rules = loaded ?? emptyRules();
     } catch (e) {
       error = getErrorMessage(e);
-      rules = emptyRules();
+      $rules = emptyRules();
     } finally {
       loading = false;
     }
@@ -75,17 +77,17 @@
     key: K,
     value: BranchProtection[K],
   ) {
-    rules = { ...rules, [key]: value };
+    $rules = { ...$rules, [key]: value };
   }
 
   async function saveRules() {
-    if (!repoPath || !selectedBranch) return;
+    if (!repoPath || !$selectedBranch) return;
     saving = true;
     error = null;
     try {
-      await setBranchProtection(repoPath, selectedBranch, rules);
+      await setBranchProtection(repoPath, $selectedBranch, $rules);
       addToast({
-        message: `Branch protection saved for ${selectedBranch}`,
+        message: `Branch protection saved for ${$selectedBranch}`,
         type: "success",
       });
     } catch (e) {
@@ -107,7 +109,7 @@
     <Field label="Branch" description="Pick a branch to configure protection for.">
       <select
         class="bg-select"
-        value={selectedBranch}
+        value={$selectedBranch}
         onchange={onBranchChange}
         data-testid="repo-config-protection-branch"
       >
@@ -120,7 +122,7 @@
 
     {#if loading}
       <p class="hint">Loading current protection…</p>
-    {:else if selectedBranch}
+    {:else if $selectedBranch}
       <div class="rules">
         <FormRow
           label="Require pull request before merging"
@@ -128,7 +130,7 @@
         >
           <Switch
             id="protect-require-pr"
-            checked={rules.require_pull_request}
+            checked={$rules.require_pull_request}
             onchange={(e) =>
               setRule(
                 "require_pull_request",
@@ -138,7 +140,7 @@
           />
         </FormRow>
 
-        {#if rules.require_pull_request}
+        {#if $rules.require_pull_request}
           <FormRow label="Required approvals" for="protect-approvals">
             <input
               id="protect-approvals"
@@ -146,7 +148,7 @@
               min="0"
               max="10"
               class="bg-input-number"
-              value={rules.required_approvals}
+              value={$rules.required_approvals}
               oninput={(e) =>
                 setRule(
                   "required_approvals",
@@ -163,7 +165,7 @@
         >
           <Switch
             id="protect-require-status"
-            checked={rules.require_status_checks}
+            checked={$rules.require_status_checks}
             onchange={(e) =>
               setRule(
                 "require_status_checks",
@@ -179,7 +181,7 @@
         >
           <Switch
             id="protect-up-to-date"
-            checked={rules.require_up_to_date}
+            checked={$rules.require_up_to_date}
             onchange={(e) =>
               setRule(
                 "require_up_to_date",
@@ -195,7 +197,7 @@
         >
           <Switch
             id="protect-resolve-conversations"
-            checked={rules.require_conversation_resolution}
+            checked={$rules.require_conversation_resolution}
             onchange={(e) =>
               setRule(
                 "require_conversation_resolution",
@@ -208,7 +210,7 @@
         <FormRow label="Include administrators" for="protect-enforce-admins">
           <Switch
             id="protect-enforce-admins"
-            checked={rules.enforce_admins}
+            checked={$rules.enforce_admins}
             onchange={(e) =>
               setRule(
                 "enforce_admins",

@@ -21,19 +21,22 @@
   import { Button, IconButton } from "$lib/components/ui";
   import type { SearchTag } from "../../search/types";
   import { mrFilters, filterMrPrLocal } from "../../search/mr-provider";
+  import { remembered, scoped } from "$lib/stores/viewMemory";
 
   let showCreateDialog = $state(false);
   let loading = $state(false);
   let initialized = false;
 
-  let searchTags = $state<SearchTag[]>([{
+  // Remembered per repo so refinements survive leaving the view; the seed
+  // only applies the first time the view opens for this repo.
+  const searchTags = remembered<SearchTag[]>(scoped("mrpr.searchTags"), [{
     id: `init-${Date.now()}`,
     type: "state",
     value: "open",
     display: "state:open",
   }]);
 
-  let filteredList = $derived(filterMrPrLocal($mrPrList, searchTags));
+  let filteredList = $derived(filterMrPrLocal($mrPrList, $searchTags));
 
   function syncStateFilter(tags: SearchTag[]) {
     const stateTag = tags.find(t => t.type === "state");
@@ -46,7 +49,7 @@
   }
 
   function handleSearch(tags: SearchTag[]) {
-    searchTags = tags;
+    $searchTags = tags;
     syncStateFilter(tags);
     fetchList();
   }
@@ -110,6 +113,7 @@
   {emptyMessage}
   onSelect={handleSelect}
   onRefresh={fetchList}
+  memoryKey={scoped("mrpr.list")}
 >
   {#snippet headerActions()}
     <Button variant="primary" size="sm" onclick={() => { showCreateDialog = true; }}>
@@ -126,7 +130,7 @@
   {#snippet afterHeader()}
     <SearchBar
       filters={mrFilters}
-      bind:tags={searchTags}
+      bind:tags={$searchTags}
       placeholder={m.mrpr_search_placeholder()}
       onSearch={handleSearch}
     />
