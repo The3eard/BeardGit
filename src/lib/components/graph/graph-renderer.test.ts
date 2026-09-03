@@ -7,15 +7,17 @@ import { ROW_HEIGHT, LANE_WIDTH, curveBend, defaultGraphTheme, refColor, renderG
  * the text code paths run. Enough to assert what each stroke was drawn with.
  */
 function recordingContext() {
-  const strokes: { style: string; alpha: number; kind: string }[] = [];
+  const strokes: { style: string; alpha: number; kind: string; x: number; y1: number; y2: number }[] = [];
   const state: Record<string, unknown> = { strokeStyle: "", fillStyle: "", globalAlpha: 1 };
   let lastPath = "";
+  let x = 0, y1 = 0, y2 = 0;
   const ctx = new Proxy(state, {
     get(target, prop: string) {
       if (prop in target) return target[prop];
       if (prop === "measureText") return () => ({ width: 10 });
+      if (prop === "moveTo") return (mx: number, my: number) => { x = mx; y1 = my; y2 = my; };
       if (prop === "bezierCurveTo") return () => { lastPath = "curve"; };
-      if (prop === "lineTo") return () => { if (lastPath !== "curve") lastPath = "line"; };
+      if (prop === "lineTo") return (_lx: number, ly: number) => { y2 = ly; if (lastPath !== "curve") lastPath = "line"; };
       if (prop === "arc") return () => { lastPath = "arc"; };
       if (prop === "beginPath") return () => { lastPath = ""; };
       if (prop === "stroke") {
@@ -24,6 +26,7 @@ function recordingContext() {
             style: String(target.strokeStyle),
             alpha: Number(target.globalAlpha),
             kind: lastPath,
+            x, y1, y2,
           });
         };
       }
@@ -74,6 +77,28 @@ describe("renderGraph merge curves", () => {
     renderGraph(ctx, nodes, 0, 600, 200, 2, null, [], segments, curves, theme, null, [], 0);
     const curveStrokes = strokes.filter((s) => s.kind === "curve");
     expect(curveStrokes[0].alpha).toBeCloseTo(0.85 * theme.dimOpacity);
+  });
+});
+
+describe("renderGraph segment ends under a departing curve", () => {
+  // Tip t on lane 2 (row 1) whose parent u sits on lane 0 (row 3). Lane 2's
+  // segment closes at row 2; the curve (2,1)→(0,3) spans two lanes, so its
+  // bend starts above row 2's centre. The straight run must stop there.
+  const nodes = [node("h", 0, 0, 0), node("t", 2, 1, 1), node("f", 0, 2, 0), node("u", 0, 3, 0)];
+  const segments = [seg(0, 0, 3, 0), seg(2, 1, 2, 1)];
+  const curves = [curve(2, 1, 0, 3, 1)];
+
+  it("clips the segment where the curve begins to bend, so no spike pokes out", () => {
+    const { ctx, strokes } = recordingContext();
+    renderGraph(ctx, nodes, 0, 600, 200, 3, null, [], segments, curves, defaultGraphTheme());
+    const laneX2 = LANE_WIDTH + 2 * LANE_WIDTH;
+    const lane2 = strokes.find((s) => s.kind === "line" && s.x === laneX2);
+    expect(lane2).toBeDefined();
+    const rowCentre = (r: number) => r * ROW_HEIGHT + ROW_HEIGHT / 2;
+    const bend = curveBend(laneX2, rowCentre(1), LANE_WIDTH, rowCentre(3));
+    expect(bend).toBeGreaterThan(ROW_HEIGHT); // the case that used to spike
+    expect(lane2!.y2).toBeCloseTo(rowCentre(3) - bend);
+    expect(lane2!.y2).toBeLessThan(rowCentre(2));
   });
 });
 
