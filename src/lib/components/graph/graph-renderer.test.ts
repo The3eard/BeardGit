@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ROW_HEIGHT, LANE_WIDTH, curveBend, defaultGraphTheme, renderGraph } from "./graph-renderer";
+import { ROW_HEIGHT, LANE_WIDTH, curveBend, defaultGraphTheme, refColor, renderGraph } from "./graph-renderer";
 
 /**
  * A recording 2D context: every method is a no-op that logs its name and the
@@ -74,6 +74,18 @@ describe("renderGraph merge curves", () => {
     renderGraph(ctx, nodes, 0, 600, 200, 2, null, [], segments, curves, theme, null, [], 0);
     const curveStrokes = strokes.filter((s) => s.kind === "curve");
     expect(curveStrokes[0].alpha).toBeCloseTo(0.85 * theme.dimOpacity);
+  });
+});
+
+describe("refColor", () => {
+  it("colours a badge by ref kind from the theme, never by name hash", () => {
+    const theme = defaultGraphTheme();
+    expect(refColor("refs/heads/feat/x", theme)).toBe(theme.refBadge.branch);
+    expect(refColor("refs/remotes/origin/feat/x", theme)).toBe(theme.refBadge.remote);
+    expect(refColor("refs/tags/v1.0", theme)).toBe(theme.refBadge.tag);
+    expect(refColor("HEAD", theme)).toBe(theme.refBadge.head);
+    // Two branches → same colour: the kind is the signal, not the name.
+    expect(refColor("refs/heads/a", theme)).toBe(refColor("refs/heads/b", theme));
   });
 });
 

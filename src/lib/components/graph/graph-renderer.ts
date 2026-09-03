@@ -13,7 +13,6 @@
 
 import type { LayoutNode, LaneSegment, MergeCurve, GraphTheme, MrPr } from "../../types";
 import { formatRelativeTimeUnix } from "../../utils/time";
-import { hashString as _hashString } from "../../utils/ref-colors";
 import { shortOid } from "../../utils/git";
 import { recordRenderMetrics } from "./graph-perf";
 
@@ -863,14 +862,19 @@ function formatRef(ref: string): string {
   return ref;
 }
 
-/** Delegates to the shared ref-colors utility for consistent hashing. */
-const hashString = _hashString;
-
-function refColor(ref: string, theme: GraphTheme): string {
+/**
+ * Badge colour by ref kind, from the theme's `ref_*` fields.
+ *
+ * Badges used to be coloured by a hash of the name over the lane palette,
+ * which made a branch share its colour with an unrelated lane, disagreed
+ * with the commit-detail badge (a different palette and modulus), and left
+ * the theme's branch / remote / tag colours unread.
+ */
+export function refColor(ref: string, theme: GraphTheme): string {
   if (ref === "HEAD") return theme.refBadge.head;
-  const label = formatRef(ref);
-  const colors = theme.laneColors;
-  return colors[hashString(label) % colors.length];
+  if (ref.startsWith("refs/remotes/")) return theme.refBadge.remote;
+  if (ref.startsWith("refs/tags/")) return theme.refBadge.tag;
+  return theme.refBadge.branch;
 }
 
 function roundRect(

@@ -133,6 +133,12 @@ export function applyTheme(theme: ThemeData): void {
   el.setProperty("--border", d.border);
   el.setProperty("--border-strong", d.border_strong);
   el.setProperty("--selection", d.selection);
+  // Ref badge colours by kind, so DOM badges (commit detail) and the canvas
+  // graph read the same four values from the theme.
+  el.setProperty("--graph-ref-branch", theme.graph.ref_branch);
+  el.setProperty("--graph-ref-remote", theme.graph.ref_remote);
+  el.setProperty("--graph-ref-tag", theme.graph.ref_tag);
+  el.setProperty("--graph-ref-head", theme.graph.ref_head);
   el.setProperty("--theme-mode", theme.meta.mode);
   // Native controls (checkbox, select, scrollbar) follow the theme's
   // mode instead of always rendering light. Mirrors the static default
