@@ -2,6 +2,7 @@
   import * as m from "$lib/paraglide/messages";
   import { Button, Skeleton } from "$lib/components/ui";
   import FileChangeList from "../common/FileChangeList.svelte";
+  import { scoped } from "$lib/stores/viewMemory";
   import ConfirmDialog from "../common/ConfirmDialog.svelte";
   import EmptyState from "../common/EmptyState.svelte";
   import DiffEditor from "../editor/DiffEditor.svelte";
@@ -170,7 +171,14 @@
         <div class="detail-section">
           <div class="section-label">{m.commit_detail_files({ count: String($selectedCommitFiles.length) })}</div>
           <div class="section-card files-card">
-            <FileChangeList files={$selectedCommitFiles} onSelect={handleFileClick} />
+            <!-- `memoryKey` is read once per mount; remount per tag. -->
+            {#key $selectedTagName}
+              <FileChangeList
+                files={$selectedCommitFiles}
+                onSelect={handleFileClick}
+                memoryKey={scoped(`tags.files.${$selectedTagName}`)}
+              />
+            {/key}
           </div>
         </div>
       {/if}

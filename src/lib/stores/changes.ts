@@ -53,6 +53,13 @@ export const openStagingFile = activeField<{ path: string; isStaged: boolean } |
 export const openStagingDiff = activeField<FileDiff | null>((rs) => rs.changes.openStagingDiff);
 /** Current commit message draft. Cleared after successful commit. */
 export const commitMessage = activeField<string>((rs) => rs.changes.commitMessage);
+/** Commit body draft + amend toggle — see `ChangesSlice`. */
+export const commitDescription = activeField<string>((rs) => rs.changes.commitDescription);
+export const commitAmend = activeField<boolean>((rs) => rs.changes.commitAmend);
+export const commitPreAmendSummary = activeField<string>((rs) => rs.changes.commitPreAmendSummary);
+export const commitPreAmendDescription = activeField<string>(
+  (rs) => rs.changes.commitPreAmendDescription,
+);
 
 /** Clear the active repo's changes state (e.g., on project switch). */
 export function clearChangesState(): void {
@@ -212,6 +219,7 @@ export async function commit(message: string) {
     failureToastPrefix: "Commit failed",
   });
   commitMessage.set("");
+  commitDescription.set("");
 }
 
 /**

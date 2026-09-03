@@ -18,7 +18,9 @@
   `runMutation` so failures surface a sticky toast.
 -->
 <script lang="ts">
+  import { tick, untrack } from "svelte";
   import { addToast } from "$lib/stores/toast";
+  import { editorPrefs } from "$lib/stores/editorPrefs";
   import { IconButton, SearchInput } from "$lib/components/ui";
   import ContextMenu from "$lib/components/common/ContextMenu.svelte";
   import type { MenuItem } from "$lib/components/common/ContextMenu.svelte";
@@ -31,10 +33,12 @@
     knownEntries,
     openTab,
     refreshTree,
+    revealInTree,
     searchLoading,
     searchResults,
     searchTree,
     searchTruncated,
+    treeChildren,
     treeLoading,
   } from "$lib/stores/fileEditor";
 
@@ -63,6 +67,27 @@
 
   let filterQuery = $state("");
   let searching = $derived(filterQuery.trim() !== "");
+  let treeBody = $state<HTMLDivElement | undefined>();
+
+  /**
+   * Follow the active tab: expand its ancestors, then scroll its row into
+   * view once it exists. Tracks only the active path and the preference —
+   * the tree stores are read untracked so a listing landing does not
+   * re-run the reveal. Skipped while filtering: the flat result list has
+   * no folders to open, and stealing its scroll would be the wrong move.
+   */
+  $effect(() => {
+    const path = $activeTabPath;
+    const follow = $editorPrefs?.reveal_active_file_in_tree ?? true;
+    if (!path || !follow || searching) return;
+    void untrack(async () => {
+      await revealInTree(path, respectGitignore);
+      await tick();
+      treeBody
+        ?.querySelector(`[aria-label="${CSS.escape(path)}"]`)
+        ?.scrollIntoView({ block: "nearest" });
+    });
+  });
 
   /**
    * Debounce before hitting the backend. Every keystroke would otherwise
@@ -205,7 +230,7 @@
     />
   </header>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="tree-body" oncontextmenu={onTreeContext}>
+  <div class="tree-body" bind:this={treeBody} oncontextmenu={onTreeContext}>
     {#if searching}
       {#if (searchPending || $searchLoading) && $searchResults.length === 0}
         <div class="tree-state">
@@ -231,7 +256,11 @@
           </button>
         {/each}
       {/if}
-    {:else if $treeLoading}
+    {:else if $treeLoading && !$treeChildren.has("")}
+      <!-- Only a *first* root listing gets the placeholder. A re-list of a
+           root that is already on screen (a project restored from the
+           session cache) keeps showing it; hiding the tree for the round
+           trip is the blank frame the partial refresh exists to avoid. -->
       <div class="tree-state">
         <span class="muted">{m.editor_loading_tree()}</span>
       </div>

@@ -124,6 +124,12 @@
   --graph-color-3: #c78bb0;
   --graph-color-4: #e0604c;
   --graph-color-5: #93c4d8;
+  /* Ref badge colours by kind — overwritten by the theme's `graph.ref_*`
+     in `applyTheme`; these mirror the built-in theme defaults. */
+  --graph-ref-branch: var(--accent-green);
+  --graph-ref-remote: var(--accent-blue);
+  --graph-ref-tag: var(--accent-orange);
+  --graph-ref-head: var(--accent-purple);
 
   --font-mono: "Fira Code", "SF Mono", "Consolas", monospace;
   --font-icons: "NerdFontSymbols";

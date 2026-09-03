@@ -29,7 +29,7 @@
 </script>
 
 <div class="ai-sessions-view" data-testid="ai-sessions-view">
-  <SplitView defaultWidth={380} refreshFn={refreshAll}>
+  <SplitView defaultWidth={380} refreshFn={refreshAll} memoryKey="aiSessions.splitWidth">
     {#snippet left()}<AiSessionList />{/snippet}
     {#snippet right()}<AiSessionDetail />{/snippet}
   </SplitView>

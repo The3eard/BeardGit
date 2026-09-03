@@ -26,8 +26,15 @@ export class ChangesSlice {
   readonly openStagingFile = writable<{ path: string; isStaged: boolean } | null>(null);
   /** Full hunks/lines diff for {@link openStagingFile}, fetched on demand. */
   readonly openStagingDiff = writable<FileDiff | null>(null);
-  /** Current commit-message draft. Cleared after a successful commit. */
+  /** Current commit-message draft (summary line). Cleared after a successful commit. */
   readonly commitMessage = writable("");
+  /** Commit-message body draft — lives here so it survives leaving the Changes view. */
+  readonly commitDescription = writable("");
+  /** Whether the composer is in amend mode. */
+  readonly commitAmend = writable(false);
+  /** Draft parked while amend mode shows HEAD's message; restored on untoggle. */
+  readonly commitPreAmendSummary = writable("");
+  readonly commitPreAmendDescription = writable("");
   /** Checkbox selection for the unstaged / staged file lists. */
   readonly unstagedSelection = writable<Set<string>>(new Set());
   readonly stagedSelection = writable<Set<string>>(new Set());

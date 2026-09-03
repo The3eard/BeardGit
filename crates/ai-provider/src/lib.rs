@@ -13,6 +13,7 @@
 //! infrequently (startup, tab switch) and are fast local operations.
 
 pub mod error;
+pub mod prompts;
 pub mod types;
 
 #[cfg(any(test, feature = "mock"))]
@@ -69,15 +70,16 @@ pub trait AiProvider: Send + Sync {
     ) -> Result<Command, AiError>;
 
     // ─── 4. Specialized Actions ───
+    //
+    // The prompt text lives in [`prompts`]. These helpers embed it in argv;
+    // `app-core` bypasses them for providers that read prompts from stdin
+    // (see [`background_uses_stdin_prompt`](Self::background_uses_stdin_prompt))
+    // because a large diff does not fit in a single argument.
 
     /// Build a command to generate a commit message from a diff.
     fn build_commit_message_cmd(&self, diff: &str, cwd: &Path) -> Result<Command, AiError> {
         self.build_execute_command(
-            &format!(
-                "Generate a concise git commit message for this diff. \
-                 Use the conventional commits format: type(scope): description. \
-                 Output ONLY the commit message, no explanations.\n\n{diff}"
-            ),
+            &prompts::commit_message(diff),
             cwd,
             &ExecuteOptions::default(),
         )
@@ -85,14 +87,7 @@ pub trait AiProvider: Send + Sync {
 
     /// Build a command to review code changes.
     fn build_review_cmd(&self, diff: &str, cwd: &Path) -> Result<Command, AiError> {
-        self.build_execute_command(
-            &format!(
-                "Review this code diff. Report bugs, security issues, \
-                 performance problems, and style concerns. Be concise.\n\n{diff}"
-            ),
-            cwd,
-            &ExecuteOptions::default(),
-        )
+        self.build_execute_command(&prompts::review(diff), cwd, &ExecuteOptions::default())
     }
 
     /// Build a command to analyze code and answer a question about it.
@@ -103,7 +98,7 @@ pub trait AiProvider: Send + Sync {
         cwd: &Path,
     ) -> Result<Command, AiError> {
         self.build_execute_command(
-            &format!("{question}\n\n{content}"),
+            &prompts::analysis(content, question),
             cwd,
             &ExecuteOptions::default(),
         )
@@ -112,11 +107,7 @@ pub trait AiProvider: Send + Sync {
     /// Build a command to generate a PR/MR description.
     fn build_pr_description_cmd(&self, diff: &str, cwd: &Path) -> Result<Command, AiError> {
         self.build_execute_command(
-            &format!(
-                "Generate a pull request description for this diff. \
-                 Include a summary section and a list of key changes. \
-                 Use markdown formatting.\n\n{diff}"
-            ),
+            &prompts::pr_description(diff),
             cwd,
             &ExecuteOptions::default(),
         )
@@ -124,14 +115,7 @@ pub trait AiProvider: Send + Sync {
 
     /// Build a command to review a PR/MR.
     fn build_pr_review_cmd(&self, diff: &str, cwd: &Path) -> Result<Command, AiError> {
-        self.build_execute_command(
-            &format!(
-                "Review this pull request diff. Report bugs, security issues, \
-                 design concerns, and suggest improvements. Be thorough.\n\n{diff}"
-            ),
-            cwd,
-            &ExecuteOptions::default(),
-        )
+        self.build_execute_command(&prompts::pr_review(diff), cwd, &ExecuteOptions::default())
     }
 
     /// Build a [`Command`] for a **headless background run** inside a
@@ -147,8 +131,10 @@ pub trait AiProvider: Send + Sync {
         Err(AiError::NotSupported)
     }
 
-    /// Whether [`launch_background`](Self::launch_background) should pipe the
-    /// prompt on stdin (`true`) instead of passing it as a CLI flag (`false`).
+    /// Whether headless runs should pipe the prompt on stdin (`true`) instead
+    /// of passing it as a CLI argument (`false`). Applies to both
+    /// [`launch_background`](Self::launch_background) and the specialized
+    /// actions above when built with `ExecuteOptions::prompt_on_stdin`.
     ///
     /// Default: `false` — most providers accept `--prompt` / `-p`. Claude Code
     /// overrides to `true` because `--print <prompt>` truncates long strings.

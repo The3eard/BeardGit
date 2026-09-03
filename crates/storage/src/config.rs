@@ -151,8 +151,18 @@ pub struct EditorPreferences {
     pub indent_with_tabs: bool,
     /// When true, the file tree hides paths matched by `.gitignore`. Default `true`.
     pub respect_gitignore_in_tree: bool,
+    /// When true, the file tree expands to and highlights the file in the
+    /// active editor tab. Default `true`.
+    #[serde(default = "default_reveal_active_file_in_tree")]
+    pub reveal_active_file_in_tree: bool,
     /// File-size threshold (KB) above which the editor warns before opening. Clamped 1..=2048.
     pub large_file_warning_kb: u32,
+}
+
+/// Following the active tab in the tree is what every IDE does by default;
+/// the toggle exists for users who arrange the tree by hand.
+fn default_reveal_active_file_in_tree() -> bool {
+    true
 }
 
 impl Default for EditorPreferences {
@@ -176,6 +186,7 @@ impl Default for EditorPreferences {
             tab_size: 2,
             indent_with_tabs: false,
             respect_gitignore_in_tree: true,
+            reveal_active_file_in_tree: default_reveal_active_file_in_tree(),
             large_file_warning_kb: 256,
         }
     }
@@ -892,6 +903,7 @@ mod tests {
         assert!(cfg.editor_preferences.json_lint);
         assert!(cfg.editor_preferences.color_picker);
         assert!(!cfg.editor_preferences.indent_guides);
+        assert!(cfg.editor_preferences.reveal_active_file_in_tree);
     }
 
     #[test]
@@ -918,6 +930,7 @@ mod tests {
             tab_size: 4,
             indent_with_tabs: true,
             respect_gitignore_in_tree: true,
+            reveal_active_file_in_tree: false,
             large_file_warning_kb: 1024,
         };
         let cfg = AppConfig {

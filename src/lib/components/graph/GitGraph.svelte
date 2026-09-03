@@ -39,6 +39,7 @@
   import { getErrorMessage } from "$lib/api/errors";
   import * as m from "$lib/paraglide/messages";
   import { Button, Checkbox } from "$lib/components/ui";
+  import { remembered, scoped } from "$lib/stores/viewMemory";
 
   // Column visibility state
   let columns = $state<GraphColumn[]>(DEFAULT_COLUMNS.map(c => ({ ...c })));
@@ -79,9 +80,11 @@
   let canvas: HTMLCanvasElement;
   let container!: HTMLDivElement;
   let ctx: CanvasRenderingContext2D | null = null;
-  let graphSearchTags = $state<SearchTag[]>([]);
-  let filteredViewport = $state<GraphViewportType | null>(null);
-  let filteredOffset = $state(0);
+  // Search chips + their result travel together across view switches: tags
+  // without the filtered viewport would paint chips over the unfiltered graph.
+  const graphSearchTags = remembered<SearchTag[]>(scoped("graph.searchTags"), []);
+  const filteredViewport = remembered<GraphViewportType | null>(scoped("graph.filteredViewport"), null);
+  const filteredOffset = remembered(scoped("graph.filteredOffset"), 0);
   let searchLoading = $state(false);
 
   // Hover state — tracks which segment group the mouse is over
@@ -127,21 +130,21 @@
   let drawRafId: number | null = null;
 
   function getActiveNodes() {
-    const activeVp = filteredViewport ?? $viewport;
+    const activeVp = $filteredViewport ?? $viewport;
     if (!activeVp || activeVp.nodes.length === 0) return [];
     return activeVp.nodes;
   }
 
   let filteredNodes = $derived(getActiveNodes());
   let displayNodes = $derived.by(() => {
-    if (filteredViewport) {
+    if ($filteredViewport) {
       const visibleCount = container ? Math.ceil(container.clientHeight / ROW_HEIGHT) + 2 : 20;
-      const sliced = filteredViewport.nodes.slice(filteredOffset, filteredOffset + visibleCount);
-      return sliced.map((n, i) => ({ ...n, row: filteredOffset + i }));
+      const sliced = $filteredViewport.nodes.slice($filteredOffset, $filteredOffset + visibleCount);
+      return sliced.map((n, i) => ({ ...n, row: $filteredOffset + i }));
     }
     return filteredNodes;
   });
-  let isFiltering = $derived(graphSearchTags.length > 0);
+  let isFiltering = $derived($graphSearchTags.length > 0);
 
   // Sequence guard so a slow in-flight search can't clobber a newer one
   // (user removes a tag, presses Enter again, etc. — the older `await
@@ -151,15 +154,15 @@
   let graphSearchDebounce: ReturnType<typeof setTimeout> | null = null;
 
   function handleGraphSearch(tags: SearchTag[]) {
-    graphSearchTags = tags;
-    filteredOffset = 0;
+    $graphSearchTags = tags;
+    $filteredOffset = 0;
     if (tags.length === 0) {
       if (graphSearchDebounce) {
         clearTimeout(graphSearchDebounce);
         graphSearchDebounce = null;
       }
       graphSearchSeq++;
-      filteredViewport = null;
+      $filteredViewport = null;
       searchLoading = false;
       return;
     }
@@ -175,10 +178,10 @@
     try {
       const result = await filterGraphRemote(tags);
       if (seq !== graphSearchSeq) return; // stale
-      filteredViewport = result;
+      $filteredViewport = result;
     } catch {
       if (seq !== graphSearchSeq) return;
-      filteredViewport = null;
+      $filteredViewport = null;
     } finally {
       if (seq === graphSearchSeq) searchLoading = false;
     }
@@ -271,13 +274,13 @@
   function draw() {
     if (!ctx || !canvas) return;
 
-    const activeVp = filteredViewport ?? $viewport;
+    const activeVp = $filteredViewport ?? $viewport;
     if (!activeVp || filteredNodes.length === 0) {
       ctx.clearRect(0, 0, canvas.width / canvasDpr, canvas.height / canvasDpr);
       // Cold-start path: skeleton DOM overlays the canvas and owns the
       // visual — bail out silently so we don't paint "No commits" text
       // over the lane stripes.
-      if ($viewport === null && !filteredViewport && !isFiltering && !searchLoading) {
+      if ($viewport === null && !$filteredViewport && !isFiltering && !searchLoading) {
         return;
       }
       ctx.fillStyle = "#888888"; /* beardgit:allow-hex: canvas ctx requires concrete color; read from theme at call site would require async */
@@ -303,7 +306,7 @@
     const drawKey = JSON.stringify({
       vp: vpId(activeVp),
       th: $activeTheme?.meta.id ?? "_",
-      off: filteredViewport ? filteredOffset : $graphOffset,
+      off: $filteredViewport ? $filteredOffset : $graphOffset,
       filt: isFiltering,
       sel: $selectedOid,
       grp: $selectedGroup,
@@ -323,24 +326,24 @@
     if (drawKey === lastDrawKey) return;
     lastDrawKey = drawKey;
 
-    if (filteredViewport) {
+    if ($filteredViewport) {
       // Slice filtered nodes for offset-based scrolling within filtered results
       const visibleCount = Math.ceil(canvasH / ROW_HEIGHT) + 2;
-      const slicedNodes = filteredViewport.nodes.slice(filteredOffset, filteredOffset + visibleCount);
-      const displayNodes = slicedNodes.map((n, i) => ({ ...n, row: filteredOffset + i }));
+      const slicedNodes = $filteredViewport.nodes.slice($filteredOffset, $filteredOffset + visibleCount);
+      const displayNodes = slicedNodes.map((n, i) => ({ ...n, row: $filteredOffset + i }));
       renderGraph(
         ctx,
         displayNodes,
-        filteredOffset,
+        $filteredOffset,
         canvasW,
         canvasH,
-        filteredViewport.total_lane_count,
+        $filteredViewport.total_lane_count,
         $selectedOid,
         columns,
-        filteredViewport.lane_segments ?? [],
-        filteredViewport.merge_curves ?? [],
+        $filteredViewport.lane_segments ?? [],
+        $filteredViewport.merge_curves ?? [],
         graphTheme,
-        filteredViewport.head_lane ?? null,
+        $filteredViewport.head_lane ?? null,
         $userEmails,
         $selectedGroup,
         hoveredGroup,
@@ -432,11 +435,11 @@
   function handleWheel(e: WheelEvent) {
     e.preventDefault();
 
-    if (filteredViewport) {
+    if ($filteredViewport) {
       const rowDelta = Math.sign(e.deltaY) * Math.max(1, Math.round(Math.abs(e.deltaY) / ROW_HEIGHT));
       const visibleRows = container ? Math.floor(container.clientHeight / ROW_HEIGHT) : 20;
-      const maxOffset = Math.max(0, filteredViewport.total_count - visibleRows);
-      filteredOffset = Math.max(0, Math.min(filteredOffset + rowDelta, maxOffset));
+      const maxOffset = Math.max(0, $filteredViewport.total_count - visibleRows);
+      $filteredOffset = Math.max(0, Math.min($filteredOffset + rowDelta, maxOffset));
       draw();
       return;
     }
@@ -475,8 +478,8 @@
     }
 
     // Track hovered row from mouse Y position
-    const activeVp = filteredViewport ?? $viewport;
-    const currentOffset = filteredViewport ? filteredOffset : (activeVp?.offset ?? 0);
+    const activeVp = $filteredViewport ?? $viewport;
+    const currentOffset = $filteredViewport ? $filteredOffset : (activeVp?.offset ?? 0);
     const newHoveredRow = Math.floor(y / ROW_HEIGHT) + currentOffset;
     const prevHovered = hoveredRow;
     hoveredRow = (activeVp && activeVp.nodes.length > 0) ? newHoveredRow : null;
@@ -552,9 +555,9 @@
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const activeVp = filteredViewport ?? $viewport;
+    const activeVp = $filteredViewport ?? $viewport;
     if (!activeVp || activeVp.nodes.length === 0) return;
-    const currentOffset = filteredViewport ? filteredOffset : activeVp.offset;
+    const currentOffset = $filteredViewport ? $filteredOffset : activeVp.offset;
 
     const activeNodes = displayNodes;
     const activeSegments = activeVp.lane_segments ?? [];
@@ -563,9 +566,9 @@
 
     if (hit.type === "node" && hit.row !== undefined) {
       selectedGroup.set(null);
-      if (filteredViewport) {
-        const nodeIdx = hit.row - filteredOffset;
-        const node = filteredViewport.nodes[filteredOffset + nodeIdx];
+      if ($filteredViewport) {
+        const nodeIdx = hit.row - $filteredOffset;
+        const node = $filteredViewport.nodes[$filteredOffset + nodeIdx];
         if (node) selectCommit(node.oid);
       } else {
         const node = filteredNodes.find((n) => n.row === hit.row);
@@ -581,13 +584,13 @@
 
   function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
-    const activeVp = filteredViewport ?? $viewport;
+    const activeVp = $filteredViewport ?? $viewport;
     if (!activeVp || filteredNodes.length === 0) return;
 
     const rect = canvas.getBoundingClientRect();
     const y = e.clientY - rect.top;
 
-    const offset = filteredViewport ? filteredOffset : activeVp.offset;
+    const offset = $filteredViewport ? $filteredOffset : activeVp.offset;
     const rowIndex = hitTest(y, offset, displayNodes.length);
     if (rowIndex === null) return;
 
@@ -969,8 +972,8 @@
     $activeTheme;
     columns;
     filteredNodes;
-    filteredViewport;
-    filteredOffset;
+    $filteredViewport;
+    $filteredOffset;
     searchLoading;
     hoveredGroup;
     $bisectState;
@@ -998,13 +1001,13 @@
     }
   });
 
-  let activeVpDerived = $derived(filteredViewport ?? $viewport);
+  let activeVpDerived = $derived($filteredViewport ?? $viewport);
   let rangeStart = $derived(
-    filteredViewport ? filteredOffset + 1 : (activeVpDerived ? activeVpDerived.offset + 1 : 0)
+    $filteredViewport ? $filteredOffset + 1 : (activeVpDerived ? activeVpDerived.offset + 1 : 0)
   );
   let rangeEnd = $derived(
-    filteredViewport
-      ? Math.min(filteredOffset + Math.ceil((container?.clientHeight ?? 600) / ROW_HEIGHT), filteredViewport.total_count)
+    $filteredViewport
+      ? Math.min($filteredOffset + Math.ceil((container?.clientHeight ?? 600) / ROW_HEIGHT), $filteredViewport.total_count)
       : (activeVpDerived
         ? Math.min(activeVpDerived.offset + activeVpDerived.nodes.length, activeVpDerived.total_count)
         : 0)
@@ -1016,7 +1019,7 @@
   <div class="graph-header">
     <SearchBar
       filters={graphFilters}
-      bind:tags={graphSearchTags}
+      bind:tags={$graphSearchTags}
       placeholder={m.graph_search_placeholder()}
       onSearch={handleGraphSearch}
       testId="graph-search"

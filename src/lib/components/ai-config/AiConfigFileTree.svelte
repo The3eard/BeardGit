@@ -14,6 +14,7 @@
   } from "../../stores/aiConfig";
   import type { AiConfigFile } from "../../types";
   import { repoInfo } from "$lib/stores/repo";
+  import { remembered, scoped } from "$lib/stores/viewMemory";
   import * as m from "$lib/paraglide/messages";
 
   // ─── Props ───
@@ -37,11 +38,12 @@
 
   // ─── Local state ───
 
-  let projectCollapsed = $state(false);
-  let userCollapsed = $state(false);
+  // Collapse state survives a section switch.
+  const projectCollapsed = remembered(scoped("aiConfig.projectCollapsed"), false);
+  const userCollapsed = remembered(scoped("aiConfig.userCollapsed"), false);
 
   /** Track collapsed state per folder path. Folders default to expanded. */
-  let collapsedFolders = $state<Set<string>>(new Set());
+  const collapsedFolders = remembered(scoped("aiConfig.collapsedFolders"), new Set<string>());
 
   // ─── Derived: split files by scope ───
 
@@ -171,17 +173,17 @@
   // ─── Folder toggle ───
 
   function toggleFolder(folderPath: string): void {
-    const next = new Set(collapsedFolders);
+    const next = new Set($collapsedFolders);
     if (next.has(folderPath)) {
       next.delete(folderPath);
     } else {
       next.add(folderPath);
     }
-    collapsedFolders = next;
+    $collapsedFolders = next;
   }
 
   function isFolderOpen(folderPath: string): boolean {
-    return !collapsedFolders.has(folderPath);
+    return !$collapsedFolders.has(folderPath);
   }
 </script>
 
@@ -194,12 +196,12 @@
     class="section-header"
     role="button"
     tabindex="0"
-    onclick={() => (projectCollapsed = !projectCollapsed)}
+    onclick={() => ($projectCollapsed = !$projectCollapsed)}
     onkeydown={(e) => {
-      if (e.key === "Enter" || e.key === " ") projectCollapsed = !projectCollapsed;
+      if (e.key === "Enter" || e.key === " ") $projectCollapsed = !$projectCollapsed;
     }}
   >
-    <span class="section-chevron nf" class:collapsed={projectCollapsed}>{"\uF054"}</span>
+    <span class="section-chevron nf" class:collapsed={$projectCollapsed}>{"\uF054"}</span>
     <span class="section-label">{m.ai_config_project()}</span>
     <span class="section-count">{projectFiles.length}</span>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -212,7 +214,7 @@
     </button>
   </div>
 
-  {#if !projectCollapsed}
+  {#if !$projectCollapsed}
     {#if !hasProjectInstructions}
       <div class="no-claude-banner">
         <span class="banner-icon nf">{"\uF449"}</span>
@@ -234,12 +236,12 @@
     class="section-header"
     role="button"
     tabindex="0"
-    onclick={() => (userCollapsed = !userCollapsed)}
+    onclick={() => ($userCollapsed = !$userCollapsed)}
     onkeydown={(e) => {
-      if (e.key === "Enter" || e.key === " ") userCollapsed = !userCollapsed;
+      if (e.key === "Enter" || e.key === " ") $userCollapsed = !$userCollapsed;
     }}
   >
-    <span class="section-chevron nf" class:collapsed={userCollapsed}>{"\uF054"}</span>
+    <span class="section-chevron nf" class:collapsed={$userCollapsed}>{"\uF054"}</span>
     <span class="section-label">{m.ai_config_user()}</span>
     <span class="section-count">{userFiles.length}</span>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -252,7 +254,7 @@
     </button>
   </div>
 
-  {#if !userCollapsed}
+  {#if !$userCollapsed}
     {#if userTree.length === 0}
       <div class="list-empty">{m.ai_config_user()}</div>
     {:else}

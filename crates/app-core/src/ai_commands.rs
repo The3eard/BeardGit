@@ -2,8 +2,8 @@
 //!
 //! Exposes 17 commands covering detection, headless task execution, interactive
 //! terminal launch, session/worktree/config introspection, and config file
-//! management. All commands follow the `Result<T, String>` IPC convention used
-//! throughout `app-core`.
+//! management. All commands return `Result<T, IpcError>` like the rest of
+//! `app-core`.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -13,7 +13,7 @@ use tauri::{AppHandle, Emitter, State};
 
 use ai_provider::{
     AiConfigFile, AiConversation, AiProvider, AiProviderKind, AiWorktree, AvailableAiProvider,
-    ConfigKind, ConfigScope, RepoAiStatus,
+    ConfigKind, ConfigScope, ExecuteOptions, RepoAiStatus, prompts,
 };
 use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use terminal::{SessionId, TerminalConfig, TerminalManager};
@@ -212,6 +212,45 @@ pub async fn ai_refresh_detection(
 
 // ─── Headless Actions ─────────────────────────────────────────────────────────
 
+/// Spawn a single-shot headless AI task for `prompt` and return its `TaskId`.
+///
+/// Providers that read prompts from stdin (`background_uses_stdin_prompt`)
+/// get the prompt piped instead of placed in argv: a staged diff can run to
+/// hundreds of kilobytes, past what one argument holds. Other providers keep
+/// the argv form. Tasks spawn as `TaskKind::AiHeadless` (not the default
+/// Generic) so they surface in the unified drawer — Generic tasks are
+/// suppressed by `kind_from_runtime` and would never emit `task://update`.
+async fn spawn_headless(
+    provider: &dyn AiProvider,
+    prompt: String,
+    cwd: &Path,
+    label: &str,
+    task_manager: &Arc<TaskManager>,
+) -> Result<TaskId, IpcError> {
+    let prompt_on_stdin = provider.background_uses_stdin_prompt();
+    let options = ExecuteOptions {
+        prompt_on_stdin,
+        ..ExecuteOptions::default()
+    };
+    let cmd = provider
+        .build_execute_command(&prompt, cwd, &options)
+        .map_err(|e| e.to_string())?;
+    let (program, args) = command_to_parts(&cmd);
+    let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let task_id = task_manager
+        .spawn_with_options(SpawnOptions {
+            label: label.into(),
+            command: &program,
+            args: &args_refs,
+            cwd,
+            cancellable: true,
+            kind: TaskKind::AiHeadless,
+            stdin: prompt_on_stdin.then_some(prompt),
+        })
+        .await;
+    Ok(task_id)
+}
+
 /// Generate a commit message for the current staged diff.
 ///
 /// Spawns a headless AI task via `TaskManager`. Returns the `TaskId` so the
@@ -226,23 +265,14 @@ pub async fn ai_generate_commit_message(
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
     let diff = get_staged_diff_text(&cwd).await?;
-    let cmd = p
-        .build_commit_message_cmd(&diff, &cwd)
-        .map_err(|e| e.to_string())?;
-    let (program, args) = command_to_parts(&cmd);
-    let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let task_id = task_manager
-        .spawn_with_options(SpawnOptions {
-            label: "AI: generate commit message".into(),
-            command: &program,
-            args: &args_refs,
-            cwd: &cwd,
-            cancellable: true,
-            kind: TaskKind::AiHeadless,
-            stdin: None,
-        })
-        .await;
-    Ok(task_id)
+    spawn_headless(
+        p.as_ref(),
+        prompts::commit_message(&diff),
+        &cwd,
+        "AI: generate commit message",
+        &task_manager,
+    )
+    .await
 }
 
 /// Analyze code and answer a question about it.
@@ -260,23 +290,14 @@ pub async fn ai_analyze_code(
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
-    let cmd = p
-        .build_analysis_cmd(&content, &question, &cwd)
-        .map_err(|e| e.to_string())?;
-    let (program, args) = command_to_parts(&cmd);
-    let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let task_id = task_manager
-        .spawn_with_options(SpawnOptions {
-            label: "AI: analyze code".into(),
-            command: &program,
-            args: &args_refs,
-            cwd: &cwd,
-            cancellable: true,
-            kind: TaskKind::AiHeadless,
-            stdin: None,
-        })
-        .await;
-    Ok(task_id)
+    spawn_headless(
+        p.as_ref(),
+        prompts::analysis(&content, &question),
+        &cwd,
+        "AI: analyze code",
+        &task_manager,
+    )
+    .await
 }
 
 /// Generate a pull request description for the current staged diff.
@@ -292,23 +313,14 @@ pub async fn ai_generate_pr_description(
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
     let diff = get_staged_diff_text(&cwd).await?;
-    let cmd = p
-        .build_pr_description_cmd(&diff, &cwd)
-        .map_err(|e| e.to_string())?;
-    let (program, args) = command_to_parts(&cmd);
-    let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let task_id = task_manager
-        .spawn_with_options(SpawnOptions {
-            label: "AI: generate PR description".into(),
-            command: &program,
-            args: &args_refs,
-            cwd: &cwd,
-            cancellable: true,
-            kind: TaskKind::AiHeadless,
-            stdin: None,
-        })
-        .await;
-    Ok(task_id)
+    spawn_headless(
+        p.as_ref(),
+        prompts::pr_description(&diff),
+        &cwd,
+        "AI: generate PR description",
+        &task_manager,
+    )
+    .await
 }
 
 /// Review a code diff.
@@ -325,26 +337,14 @@ pub async fn ai_review_code(
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
-    let cmd = p.build_review_cmd(&diff, &cwd).map_err(|e| e.to_string())?;
-    let (program, args) = command_to_parts(&cmd);
-    let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    // Spawn with `TaskKind::AiHeadless` (rather than the default Generic)
-    // so the task surfaces in the unified drawer. Generic tasks are
-    // intentionally suppressed by `kind_from_runtime` and would never
-    // emit `task://update`, leaving the drawer's list empty even while
-    // output streamed to `taskOutput`. See `task_events::kind_from_runtime`.
-    let task_id = task_manager
-        .spawn_with_options(SpawnOptions {
-            label: "AI: review code".into(),
-            command: &program,
-            args: &args_refs,
-            cwd: &cwd,
-            cancellable: true,
-            kind: TaskKind::AiHeadless,
-            stdin: None,
-        })
-        .await;
-    Ok(task_id)
+    spawn_headless(
+        p.as_ref(),
+        prompts::review(&diff),
+        &cwd,
+        "AI: review code",
+        &task_manager,
+    )
+    .await
 }
 
 /// Review a pull request diff.
@@ -361,23 +361,14 @@ pub async fn ai_review_pr(
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
-    let cmd = p
-        .build_pr_review_cmd(&diff, &cwd)
-        .map_err(|e| e.to_string())?;
-    let (program, args) = command_to_parts(&cmd);
-    let args_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let task_id = task_manager
-        .spawn_with_options(SpawnOptions {
-            label: "AI: review PR".into(),
-            command: &program,
-            args: &args_refs,
-            cwd: &cwd,
-            cancellable: true,
-            kind: TaskKind::AiHeadless,
-            stdin: None,
-        })
-        .await;
-    Ok(task_id)
+    spawn_headless(
+        p.as_ref(),
+        prompts::pr_review(&diff),
+        &cwd,
+        "AI: review PR",
+        &task_manager,
+    )
+    .await
 }
 
 // ─── Persisted reviews ────────────────────────────────────────────────────────

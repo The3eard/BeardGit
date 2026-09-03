@@ -9,12 +9,15 @@
   import { onMount } from "svelte";
   import { listen } from "@tauri-apps/api/event";
   import type { Snippet } from "svelte";
+  import { writable } from "svelte/store";
+  import { remembered } from "$lib/stores/viewMemory";
 
   let {
     refreshFn,
     left,
     right,
     defaultWidth = 304,
+    memoryKey,
   }: {
     refreshFn: () => void | Promise<void>;
     left: Snippet;
@@ -22,17 +25,22 @@
     /** Initial width of the left panel in px. On resize the width is
      *  clamped between 220px and 80% of the split container. */
     defaultWidth?: number;
+    /** When set, the dragged width survives leaving the view (see
+     *  `stores/viewMemory`). Global key — layout is not per repo. */
+    memoryKey?: string;
   } = $props();
 
   // svelte-ignore state_referenced_locally
   // `defaultWidth` seeds the initial width; parent-side updates are intentionally ignored
   // because the pane width becomes user-controlled once resizing starts.
-  let sidebarWidth = $state(defaultWidth);
+  const sidebarWidth = memoryKey
+    ? remembered(memoryKey, defaultWidth)
+    : writable(defaultWidth);
 
   function startResize(e: MouseEvent) {
     e.preventDefault();
     const startX = e.clientX;
-    const startWidth = sidebarWidth;
+    const startWidth = $sidebarWidth;
     // Measure the split container at drag start: the left pane may grow
     // up to 80% of it, so the right pane always keeps ~20%.
     const containerWidth =
@@ -43,7 +51,7 @@
       const delta = e.clientX - startX;
       const minW = Math.max(220, window.innerWidth * 0.15);
       const maxW = containerWidth * 0.8;
-      sidebarWidth = Math.max(minW, Math.min(maxW, startWidth + delta));
+      $sidebarWidth = Math.max(minW, Math.min(maxW, startWidth + delta));
     }
 
     function onMouseUp() {
@@ -68,8 +76,8 @@
   });
 </script>
 
-<div class="split-view" style="--split-x: {sidebarWidth}px">
-  <div class="split-sidebar" style="width: {sidebarWidth}px">
+<div class="split-view" style="--split-x: {$sidebarWidth}px">
+  <div class="split-sidebar" style="width: {$sidebarWidth}px">
     {@render left()}
   </div>
   <!-- The handle is positioned over the seam rather than laid out in it —

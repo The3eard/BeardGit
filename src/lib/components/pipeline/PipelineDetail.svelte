@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getErrorMessage } from "$lib/api/errors";
-  import { selectedCiRun, loadingDetail, loadJobLog, retryCiRun, retryCiFailedJobs, cancelCiRun, retryCiJob } from "../../stores/provider";
+  import { selectedCiRun, loadingDetail, loadJobLog, retryCiRun, retryCiFailedJobs, cancelCiRun, retryCiJob, selectedJobId } from "../../stores/provider";
   import type { CiJob } from "../../types";
   import * as m from "$lib/paraglide/messages";
   import { ciStatusColor } from "../../utils/status";
@@ -9,7 +9,8 @@
 
   let { onSelectJob }: { onSelectJob?: (jobId: number) => void } = $props();
 
-  let selectedJobId = $state<number | null>(null);
+  // Job selection is the provider store's `selectedJobId` (set by
+  // `loadJobLog`), so the highlight survives leaving the view.
   let loadingJobId = $state<number | null>(null);
   let busy = $state(false);
   let actionError = $state<string | null>(null);
@@ -84,7 +85,6 @@
   }
 
   async function handleJobClick(job: CiJob) {
-    selectedJobId = job.id;
     loadingJobId = job.id;
     onSelectJob?.(job.id);
     try {
@@ -148,7 +148,7 @@
               <div class="job-row-wrapper">
                 <button
                   class="job-row"
-                  class:selected={selectedJobId === job.id}
+                  class:selected={$selectedJobId === job.id}
                   onclick={() => handleJobClick(job)}
                 >
                   {#if loadingJobId === job.id}

@@ -11,7 +11,7 @@
   let { onFileClick }: Props = $props();
 </script>
 
-<SplitView refreshFn={refreshMrPrList}>
+<SplitView refreshFn={refreshMrPrList} memoryKey="mrPr.splitWidth">
   {#snippet left()}<MrPrList />{/snippet}
   {#snippet right()}<MrPrDetail {onFileClick} />{/snippet}
 </SplitView>

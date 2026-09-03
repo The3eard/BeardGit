@@ -6,21 +6,23 @@
   import { Button, IconButton } from "$lib/components/ui";
   import { formatRelativeTimeUnix } from "../../utils/time";
   import { shortOid } from "../../utils/git";
+  import { remembered, scoped } from "../../stores/viewMemory";
 
-  let showStashInput = $state(false);
-  let stashMessage = $state("");
+  // Half-typed stash message survives a section switch.
+  const showStashInput = remembered(scoped("stash.showInput"), false);
+  const stashMessage = remembered(scoped("stash.message"), "");
   let confirmDrop = $state<number | null>(null);
 
   async function handleStashPush() {
-    const msg = stashMessage.trim() || null;
+    const msg = $stashMessage.trim() || null;
     await doStashPush(msg);
-    stashMessage = "";
-    showStashInput = false;
+    $stashMessage = "";
+    $showStashInput = false;
   }
 
   function handleCancelStash() {
-    stashMessage = "";
-    showStashInput = false;
+    $stashMessage = "";
+    $showStashInput = false;
   }
 
   function handleStashKeydown(e: KeyboardEvent) {
@@ -54,22 +56,23 @@
   {getKey}
   emptyMessage={m.stash_empty()}
   onSelect={handleSelect}
+  memoryKey={scoped("stash.list")}
 >
   {#snippet headerActions()}
-    {#if showStashInput}
+    {#if $showStashInput}
       <div class="stash-input-row">
         <input
           type="text"
           class="stash-input"
           placeholder={m.stash_message_placeholder()}
-          bind:value={stashMessage}
+          bind:value={$stashMessage}
           onkeydown={handleStashKeydown}
         />
         <IconButton tone="default" icon={""} description={m.stash_button()} onclick={handleStashPush} />
         <IconButton tone="default" icon={""} description={m.confirm_cancel()} onclick={handleCancelStash} />
       </div>
     {:else}
-      <Button variant="neutral" size="sm" onclick={() => (showStashInput = true)}>
+      <Button variant="neutral" size="sm" onclick={() => ($showStashInput = true)}>
         {m.stash_button()}
       </Button>
     {/if}
