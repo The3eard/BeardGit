@@ -6,15 +6,17 @@
   delete flows so the tree stays presentational.
 
   Lifecycle:
-   - On mount, refreshes the workdir tree and restores any tabs
-     persisted from the previous session for the active project.
-   - Persists tabs to localStorage on project switch (the parent route
-     drives this via `onProjectSwitch`); the panel itself only handles
-     restore-on-mount so a cold open of the editor view on the same
-     project re-hydrates the same tabs.
+   - Whenever it mounts or the active project / gitignore flag changes it
+     calls `syncProject`, which does the minimum: nothing for a remount on
+     the same project, a re-list for a flipped flag, a swap through the
+     store's session cache for a different project. The panel itself
+     remembers nothing about which project is loaded — that used to live
+     here, and a remount reset the tree and re-read every tab.
+   - Persists tab paths to localStorage on teardown and on project switch
+     (the parent route drives the latter via `onProjectSwitch`).
 -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import ConfirmDialog from "$lib/components/common/ConfirmDialog.svelte";
   import SplitView from "$lib/components/common/SplitView.svelte";
   import { editorPrefs } from "$lib/stores/editorPrefs";
@@ -23,10 +25,9 @@
     deletePath,
     persistTabsForProject,
     refreshTree,
-    resetTree,
     setTreeRefreshHook,
     renamePath,
-    restoreTabsForProject,
+    syncProject,
     knownEntries,
   } from "$lib/stores/fileEditor";
   import { activeProject } from "$lib/stores/projects";
@@ -68,25 +69,12 @@
       .map((e) => e.path),
   );
 
-  // Re-load tree + tabs whenever the active project changes. The old
-  // project's expanded folders are dropped first: their paths mean
-  // something else here.
-  let lastLoadedProject: string | null = null;
+  // Keep the store pointed at the active project. The store decides what
+  // that costs (see `syncProject`); this effect only reports the inputs.
   $effect(() => {
     const path = projectPath;
-    if (path && path !== lastLoadedProject) {
-      lastLoadedProject = path;
-      resetTree();
-      void refreshTree(respectGitignore);
-      void restoreTabsForProject(path);
-    }
-  });
-
-  // Re-pull the tree when the gitignore preference flips.
-  $effect(() => {
-    if (projectPath) {
-      void refreshTree(respectGitignore);
-    }
+    const respect = respectGitignore;
+    if (path) void untrack(() => syncProject(path, respect));
   });
 
   // External changes (checkout, pull, an edit outside the app) should be
@@ -176,7 +164,7 @@
   </div>
 {:else}
   <div class="file-editor">
-    <SplitView refreshFn={() => {}} defaultWidth={284}>
+    <SplitView refreshFn={() => {}} defaultWidth={284} memoryKey="editor.splitWidth">
       {#snippet left()}
         <FileTreeView
           {respectGitignore}

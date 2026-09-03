@@ -10,7 +10,7 @@
   import { refreshReleases } from "../../stores/releases";
 </script>
 
-<SplitView refreshFn={refreshReleases}>
+<SplitView refreshFn={refreshReleases} memoryKey="releases.splitWidth">
   {#snippet left()}<ReleaseList />{/snippet}
   {#snippet right()}<ReleaseDetail />{/snippet}
 </SplitView>

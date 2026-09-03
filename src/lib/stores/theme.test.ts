@@ -116,6 +116,12 @@ describe("applyTheme writes the derived palette", () => {
     expect(token("--border")).toBe(d.border);
     expect(token("--border-strong")).toBe(d.border_strong);
     expect(token("--selection")).toBe(d.selection);
+    // Ref badge colours by kind — read by the commit-detail badges, and the
+    // same values the canvas graph gets through `buildGraphTheme`.
+    expect(token("--graph-ref-branch")).toBe(DARK.graph.ref_branch);
+    expect(token("--graph-ref-remote")).toBe(DARK.graph.ref_remote);
+    expect(token("--graph-ref-tag")).toBe(DARK.graph.ref_tag);
+    expect(token("--graph-ref-head")).toBe(DARK.graph.ref_head);
   });
 
   it("follows the mode for the neutral overlays", () => {

@@ -30,14 +30,20 @@
     dismissDiskChange,
   } from "../../stores/aiConfig";
   import { activeTheme } from "../../stores/theme";
+  import { remembered } from "../../stores/viewMemory";
   import * as m from "$lib/paraglide/messages";
   import type { AiConfigFile } from "../../types";
   import { Button } from "$lib/components/ui";
 
   // ─── Local state ───
 
-  /** Current editor content (may differ from saved). */
-  let editorContent = $state("");
+  /**
+   * Current editor content (may differ from saved). Remembered per file
+   * path so an unsaved edit survives a section switch the same way
+   * `activeFileDirty` does — otherwise the flag said "dirty" over a buffer
+   * that had been reset to the saved text.
+   */
+  let editorContent = $derived(remembered(`aiConfig.buffer.${$activeFilePath ?? ""}`, ""));
 
   /** Whether the create-file dialog is open. */
   let showCreateDialog = $state(false);
@@ -91,10 +97,12 @@
 
   // ─── Sync editor content when active file changes ───
 
+  // Only while clean: a remount with unsaved changes must keep the buffer,
+  // not re-seed it from disk.
   $effect(() => {
     const content = $activeFileContent;
-    if (content !== null) {
-      editorContent = content;
+    if (content !== null && !$activeFileDirty) {
+      editorContent.set(content);
     }
   });
 
@@ -129,7 +137,7 @@
     if ((e.metaKey || e.ctrlKey) && e.key === "s") {
       e.preventDefault();
       if ($activeFileDirty && $activeFilePath) {
-        saveFile(editorContent);
+        saveFile($editorContent);
       }
     }
   }
@@ -165,7 +173,7 @@
   }
 
   function handleEditorChange(content: string) {
-    editorContent = content;
+    $editorContent = content;
     if (content !== get(activeFileContent)) {
       markDirty();
     }
@@ -175,7 +183,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="ai-config-editor">
-  <SplitView refreshFn={() => {}} defaultWidth={244}>
+  <SplitView refreshFn={() => {}} defaultWidth={244} memoryKey="aiConfig.splitWidth">
     {#snippet left()}
     <!-- Left panel: file tree -->
     <div class="file-tree-panel">
@@ -207,7 +215,7 @@
           <Button
             variant="primary"
             disabled={!$activeFileDirty}
-            onclick={() => saveFile(editorContent)}
+            onclick={() => saveFile($editorContent)}
           >
             {m.ai_config_save()} <kbd class="save-kbd">{navigator.platform.includes("Mac") ? "\u2318S" : "Ctrl+S"}</kbd>
           </Button>
@@ -227,7 +235,7 @@
         <!-- CodeMirror editor -->
         <div class="editor-area">
           <CodeEditor
-            content={editorContent}
+            content={$editorContent}
             revisionId={fileRevision}
             filename={displayName}
             isDark={$activeTheme?.meta.mode !== "light"}

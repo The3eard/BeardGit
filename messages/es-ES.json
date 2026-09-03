@@ -1061,6 +1061,8 @@
   "settings_editor_indent_with_tabs_description": "Si está desactivado se usan espacios.",
   "settings_editor_respect_gitignore": "Respetar .gitignore en el árbol de archivos",
   "settings_editor_respect_gitignore_description": "Activado por defecto — los archivos que coincidan con .gitignore se ocultan, para que los artefactos de compilación no llenen el árbol. Desactívalo para verlos cuando el archivo que necesitas editar esté ignorado.",
+  "settings_editor_reveal_active_file": "Revelar el archivo activo en el árbol",
+  "settings_editor_reveal_active_file_description": "Expande el árbol hasta el archivo abierto en el editor y lo resalta cada vez que cambia la pestaña activa.",
   "settings_editor_large_file_warning": "Avisar al abrir archivos mayores de",
   "settings_editor_large_file_warning_unit": "KB",
   "settings_cat_git_title": "Git",

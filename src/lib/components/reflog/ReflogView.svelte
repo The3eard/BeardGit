@@ -23,7 +23,7 @@
   } = $props();
 </script>
 
-<SplitView refreshFn={loadReflog}>
+<SplitView refreshFn={loadReflog} memoryKey="reflog.splitWidth">
   {#snippet left()}
     <ReflogList entries={$reflogEntries} {onContextMenu} />
   {/snippet}

@@ -37,6 +37,8 @@ import {
   loadingJobLog,
 } from "./provider";
 import { refreshStatuses, clearChangesState } from "./changes";
+import { forgetProject as forgetEditorProject } from "./fileEditor";
+import { forgetScope } from "./viewMemory";
 import { loadProjectSnapshot, saveCurrentSnapshot, restorePersistedViewport } from "./project-cache";
 import { refreshUserEmails, clearGraphState, resetGraphViewScope, viewport } from "./graph";
 import * as m from "$lib/paraglide/messages";
@@ -427,6 +429,10 @@ export async function closeTab(tabIndex: number) {
 
   // Free this repo's state container — bounds memory to open tabs (spec 08).
   dropRepoState(closedPath);
+  // And its parked editor state (tab paths are persisted on the way out),
+  // plus every per-view UI memory scoped to it.
+  forgetEditorProject(closedPath);
+  forgetScope(closedPath);
 
   const newActiveIdx = removeTab(tabIndex);
 
