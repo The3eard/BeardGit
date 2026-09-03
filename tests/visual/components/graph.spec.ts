@@ -104,7 +104,7 @@ const SCENARIOS: Record<string, () => GraphViewport> = {
       makeLaneSegment({ lane: 1, start_row: 4, end_row: 5, color_index: 1, group_id: 2 }),
     ];
     viewport.merge_curves = [
-      makeMergeCurve({ from_lane: 0, from_row: 0, to_lane: 1, to_row: 2, color_index: 0, group_id: 0 }),
+      makeMergeCurve({ from_lane: 0, from_row: 0, to_lane: 1, to_row: 2, color_index: 0, group_id: 0, opens_lane: true }),
       makeMergeCurve({ from_lane: 1, from_row: 2, to_lane: 0, to_row: 3, color_index: 1, group_id: 1 }),
       makeMergeCurve({ from_lane: 1, from_row: 4, to_lane: 0, to_row: 6, color_index: 1, group_id: 2 }),
     ];
