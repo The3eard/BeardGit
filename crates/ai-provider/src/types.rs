@@ -172,6 +172,10 @@ pub struct ExecuteOptions {
     pub extra_args: Vec<String>,
     /// Maximum spend budget (provider-specific).
     pub max_budget: Option<f64>,
+    /// Leave the prompt out of argv because the caller writes it to the
+    /// child's stdin. Only meaningful for providers whose
+    /// `background_uses_stdin_prompt()` is `true`; others ignore it.
+    pub prompt_on_stdin: bool,
 }
 
 /// Output format for headless execution.
