@@ -4,6 +4,8 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased]
 
+## [26.9.0] — Sections that remember, an editor that keeps its place, and a graph that draws what git did — 2026-09-03
+
 ### Added
 
 - **Every section remembers where you left it.** Leaving a view and coming back used to reset it: the filter you had typed in Branches, the folders you had collapsed, the split you had dragged, the comment you were halfway through on a merge request, the message in the commit box. Each section is one component that unmounts when you leave, so anything it held in local state was simply gone. That state now outlives the section for the length of the session — filters and scroll positions in every list, panel widths in the nine split views, the collapsed groups and folders of the branch tree, the search chips in Graph / MRs / Issues / Pipelines, the drafts (commit message and amend toggle, stash message, new submodule, bisect good/bad refs, MR and issue comments keyed by item, repo-config labels and protection rules), the Report/Transcript sub-tab and split of AI sessions, and the job-log pane of Pipelines. Repo-specific state is kept per project tab and dropped when the tab closes; layout is kept once for the app. Nothing is persisted across a relaunch. The commit draft moved into the per-repo state along the way, so switching project tabs no longer swaps one repository's half-written message under another.
