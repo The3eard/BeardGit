@@ -50,6 +50,7 @@ const BASE: EditorPreferences = {
   tab_size: 2,
   indent_with_tabs: false,
   respect_gitignore_in_tree: false,
+  reveal_active_file_in_tree: true,
   large_file_warning_kb: 256,
 };
 

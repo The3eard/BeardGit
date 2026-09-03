@@ -1061,6 +1061,8 @@
   "settings_editor_indent_with_tabs_description": "Off uses spaces.",
   "settings_editor_respect_gitignore": "Respect .gitignore in file tree",
   "settings_editor_respect_gitignore_description": "On by default — files matched by .gitignore are hidden, so build output does not fill the tree. Turn off to show them when the file you need to edit is itself ignored.",
+  "settings_editor_reveal_active_file": "Reveal active file in file tree",
+  "settings_editor_reveal_active_file_description": "Expand the tree to the file open in the editor and highlight it whenever the active tab changes.",
   "settings_editor_large_file_warning": "Warn when opening files larger than",
   "settings_editor_large_file_warning_unit": "KB",
   "settings_cat_git_title": "Git",
