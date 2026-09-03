@@ -21,43 +21,9 @@ playwright/.cache/
 # Tauri
 src-tauri/target/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# AI assistant artifacts — kept local, not shared in the repo
-.claude/
-CLAUDE.md
-**/CLAUDE.md
-GEMINI.md
-**/GEMINI.md
-AGENTS.md
-**/AGENTS.md
-.cursorrules
-.cursor/
-.windsurfrules
-.continuerules
-.aider*
-.github/copilot-instructions.md
-.superpowers/
-
-# Local-only documentation (specs, plans, scratch)
-# docs/ is published as the project website; only exclude assistant artifacts inside it
-docs/superpowers/
-docs/.superpowers/
 # Staging area for regenerated marketing screenshots (promoted into
 # assets/screenshots/ once approved — see scripts/build-screenshots.mjs)
 docs/assets/screenshots/_new/
-
-# Editor config
-.zed/
 
 # Mobile icons (desktop app only)
 src-tauri/icons/android/
@@ -79,10 +45,5 @@ src/lib/paraglide/
 # Bundled CLI binaries (downloaded by scripts/download-cli-binaries.js)
 src-tauri/binaries/
 
-# CodeGraph MCP local index
-.codegraph/
-
-# Personal task notes + bug evidence (local working files, not shared)
-tasks.md
-bug_images/
-bug_videos/
+# Personal tooling (AI assistants, IDE, notes) is NOT listed here on purpose:
+# it lives in .git/info/exclude (this clone) and ~/.config/git/ignore (all repos).
