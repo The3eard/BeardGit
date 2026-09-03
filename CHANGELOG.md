@@ -19,6 +19,7 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ### Changed
 
+- **The AI actions send their prompt over stdin, and say less.** The five specialised actions — commit message, review, and the rest — handed Claude Code their whole prompt as a single command-line argument, staged diff included, which the provider crate itself documented as truncating past the platform's argv limit; a large diff came back reviewed in part. Providers that read stdin now get the prompt piped. The prompts themselves lost the pressure language written for older models ("Output ONLY", "Be thorough") and the review prompts state the output shape, since the reply is saved as a Markdown file. Codex and OpenCode keep the argument form.
 - **Typing in the editor is lighter, and the completion popup opens sooner.** Every keystroke wrote the buffer into the tab store from inside CodeMirror's update listener, before the character painted, re-rendering the tab strip and toolbar per key and rebuilding the whole extension array because a derived value watched the tab object rather than its path. The store now catches up 100 ms after the last keystroke, or immediately before anything reads the buffer (save, tab switch, close); the extensions rebuild only when the file changes. The autocomplete popup's typing delay drops from 100 ms to 30 ms.
 
 ## [26.8.0] — Themes you can read, three data-loss fixes, and an updater that finishes — 2026-08-28
