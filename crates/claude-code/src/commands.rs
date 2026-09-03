@@ -16,30 +16,9 @@ pub fn build_execute_command(
         .detect_binary()
         .ok_or_else(|| AiError::BinaryNotFound(provider.binary_name().into()))?;
 
-    let mut cmd = Command::new(binary);
-    cmd.current_dir(cwd);
-    cmd.arg("--print").arg(prompt);
-
-    match options.output_format {
-        OutputFormat::Text => {
-            cmd.arg("--output-format").arg("text");
-        }
-        OutputFormat::Json => {
-            cmd.arg("--output-format").arg("json");
-        }
-    }
-
-    if let Some(ref model) = options.model {
-        cmd.arg("--model").arg(model);
-    }
-    if let Some(budget) = options.max_budget {
-        cmd.arg("--max-budget-usd").arg(budget.to_string());
-    }
-    for arg in &options.extra_args {
-        cmd.arg(arg);
-    }
-
-    Ok(cmd)
+    Ok(build_execute_command_from_binary(
+        &binary, prompt, cwd, options,
+    ))
 }
 
 /// Build an interactive terminal launch command.
@@ -118,7 +97,11 @@ pub fn build_background_command_from_binary(
     cmd
 }
 
-/// Build a command from a known binary path (for testing without detection).
+/// Build a headless `--print` command from a known binary path.
+///
+/// With `options.prompt_on_stdin` the prompt is omitted from argv: `claude
+/// --print` then reads it from stdin, which is how large diffs avoid the
+/// argument-length truncation noted on `background_uses_stdin_prompt`.
 pub fn build_execute_command_from_binary(
     binary: &Path,
     prompt: &str,
@@ -127,7 +110,10 @@ pub fn build_execute_command_from_binary(
 ) -> Command {
     let mut cmd = Command::new(binary);
     cmd.current_dir(cwd);
-    cmd.arg("--print").arg(prompt);
+    cmd.arg("--print");
+    if !options.prompt_on_stdin {
+        cmd.arg(prompt);
+    }
 
     match options.output_format {
         OutputFormat::Text => {
@@ -215,6 +201,23 @@ mod tests {
         let debug = get_command_debug(&cmd);
         assert!(debug.contains("--output-format"));
         assert!(debug.contains("json"));
+    }
+
+    #[test]
+    fn execute_command_prompt_on_stdin_omits_positional_prompt() {
+        let opts = ExecuteOptions {
+            prompt_on_stdin: true,
+            ..Default::default()
+        };
+        let cmd = build_execute_command_from_binary(
+            &PathBuf::from("/usr/bin/claude"),
+            "a very long diff",
+            Path::new("/tmp/repo"),
+            &opts,
+        );
+        let debug = get_command_debug(&cmd);
+        assert!(debug.contains("--print"));
+        assert!(!debug.contains("a very long diff"));
     }
 
     #[test]
