@@ -381,13 +381,15 @@ export function renderGraph(
   /** The segment a top-bending curve hands off to, if this curve is one. */
   const openedSegment = (c: MergeCurve) => segmentStartsAt.get(`${c.to_lane},${c.from_row}`);
   /**
-   * A segment whose line the curve runs along and then leaves: the curve
-   * departs from this lane at or above the segment's end and lands below
-   * it. The segment is a merged branch whose lane was freed at its parent's
-   * row, so its end is connected, not dangling.
+   * Curves whose line this segment carries and which then leave it: they
+   * depart from this lane at or above the segment's end and land below it.
+   * The segment is a merged branch whose lane was freed at its parent's row,
+   * so its end is connected, not dangling — and it must stop where the
+   * first of those curves starts to bend, or the straight run pokes out
+   * below the bend as a spike.
    */
-  const curveLeavesFrom = (lane: number, endRow: number) =>
-    mergeCurves.some(
+  const curvesLeavingFrom = (lane: number, endRow: number) =>
+    mergeCurves.filter(
       (c) => c.from_lane === lane && c.from_row <= endRow && c.to_row > endRow,
     );
 
@@ -433,9 +435,20 @@ export function renderGraph(
     const hasNodeAtStart = nodePositions.has(`${seg.lane},${seg.start_row}`);
     const hasNodeAtEnd = nodePositions.has(`${seg.lane},${seg.end_row}`);
     const hasCurveAtStart = curveDepartsTo.has(`${seg.lane},${seg.start_row}`);
+    const leaving = curvesLeavingFrom(seg.lane, seg.end_row);
     const hasCurveAtEnd =
-      curveArrivesAt.has(`${seg.lane},${seg.end_row}`) ||
-      curveLeavesFrom(seg.lane, seg.end_row);
+      curveArrivesAt.has(`${seg.lane},${seg.end_row}`) || leaving.length > 0;
+
+    // Clip the end to where the departing curve begins its bend — the same
+    // `curveBend` the curve is drawn with. A 1-lane hop bends within the
+    // last row so nothing changes; a wider hop starts bending above the
+    // segment's last row, and the straight run used to continue past it.
+    let drawY2 = y2;
+    for (const c of leaving) {
+      const cy1 = rowY(c.from_row, offset);
+      const cy2 = rowY(c.to_row, offset);
+      drawY2 = Math.min(drawY2, cy2 - curveBend(laneX(c.from_lane), cy1, laneX(c.to_lane), cy2));
+    }
 
     // A merge curve that opens this lane bends at the top and arrives
     // `curveBend` below the merge row (see the curve drawing). Clip the
@@ -457,7 +470,7 @@ export function renderGraph(
     }
 
     // Skip segment if the clipped range is empty
-    if (drawY1 >= y2) continue;
+    if (drawY1 >= drawY2) continue;
 
     const color = laneColor(seg.color_index, theme);
     const la = groupAlpha(seg.group_id);
@@ -465,7 +478,7 @@ export function renderGraph(
     ctx.globalAlpha = 0.85 * la;
     ctx.beginPath();
     ctx.moveTo(x, drawY1);
-    ctx.lineTo(x, y2);
+    ctx.lineTo(x, drawY2);
     ctx.stroke();
 
     // Draw ▲ arrow at top if no node AND no curve connection at start
