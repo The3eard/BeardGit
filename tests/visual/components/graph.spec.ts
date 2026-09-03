@@ -73,6 +73,45 @@ const SCENARIOS: Record<string, () => GraphViewport> = {
     viewport.total_lane_count = 2;
     return viewport;
   },
+  /**
+   * The exact layout `graph-builder` emits for a merged branch followed by a
+   * tip that rejoins the mainline — both curve shapes the renderer draws:
+   *
+   *   row 0  m   lane 0  merge(b1, b2)   → curve (0,0)→(1,2) bends at the top
+   *   row 1  b1  lane 0
+   *   row 2  b2  lane 1                  lane 1 opens at row 0, closes here
+   *   row 3  base lane 0                 ← curve (1,2)→(0,3) bends at the bottom
+   *   row 4  t   lane 1  tip → u         lane 1 reopens, closes at row 5
+   *   row 5  f1  lane 0
+   *   row 6  u   lane 0                  ← curve (1,4)→(0,6)
+   *   row 7  v   lane 0
+   *
+   * Lane 1 used to run to the last row after each merge (a ghost line), and
+   * the segment clip under the top bend disagreed with the curve geometry.
+   */
+  "merge-and-rejoin": () => {
+    const viewport = makeGraphViewport({
+      count: 8,
+      decorate: (_node, i) => ({
+        lane: i === 2 || i === 4 ? 1 : 0,
+        segment_group: i === 2 ? 1 : i === 4 ? 2 : 0,
+        is_merge: i === 0,
+      }),
+    });
+    viewport.lane_segments = [
+      makeLaneSegment({ lane: 0, start_row: 0, end_row: 7, color_index: 0, group_id: 0 }),
+      makeLaneSegment({ lane: 1, start_row: 0, end_row: 2, color_index: 1, group_id: 1 }),
+      makeLaneSegment({ lane: 1, start_row: 4, end_row: 5, color_index: 1, group_id: 2 }),
+    ];
+    viewport.merge_curves = [
+      makeMergeCurve({ from_lane: 0, from_row: 0, to_lane: 1, to_row: 2, color_index: 0, group_id: 0 }),
+      makeMergeCurve({ from_lane: 1, from_row: 2, to_lane: 0, to_row: 3, color_index: 1, group_id: 1 }),
+      makeMergeCurve({ from_lane: 1, from_row: 4, to_lane: 0, to_row: 6, color_index: 1, group_id: 2 }),
+    ];
+    viewport.visible_lane_count = 2;
+    viewport.total_lane_count = 2;
+    return viewport;
+  },
 };
 
 for (const mode of THEME_MODES) {
