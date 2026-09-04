@@ -17,10 +17,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/The3eard/BeardGit/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/The3eard/BeardGit?include_prereleases&color=FF6A16&labelColor=0d1117&style=for-the-badge"></a>
-  <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-58a6ff?style=for-the-badge&labelColor=0d1117"></a>
-  <a href="https://github.com/The3eard/BeardGit/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/The3eard/BeardGit/ci.yml?branch=main&label=CI&style=for-the-badge&labelColor=0d1117"></a>
-  <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-58a6ff?style=for-the-badge&labelColor=0d1117">
+  <a href="https://github.com/The3eard/BeardGit/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/The3eard/BeardGit?include_prereleases&color=d9924f&labelColor=151312&style=for-the-badge"></a>
+  <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-8a7f74?style=for-the-badge&labelColor=151312"></a>
+  <a href="https://github.com/The3eard/BeardGit/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/The3eard/BeardGit/ci.yml?branch=main&label=CI&style=for-the-badge&labelColor=151312"></a>
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-8a7f74?style=for-the-badge&labelColor=151312">
+  <img alt="Themes" src="https://img.shields.io/badge/themes-31%20built--in%20%C2%B7%20WCAG%20AA-8a7f74?style=for-the-badge&labelColor=151312">
 </p>
 
 <p align="center">
@@ -52,6 +53,8 @@ You ship code from **one keyboard**, not seventeen tabs. BeardGit is built on a 
 </p>
 
 100K+ commits render smoothly via a viewport-sliced renderer. Branch lanes, merge curves, sync-state lines, author highlighting — all on HTML canvas, not DOM. `⌘F` filters by author, message, or ref; the graph re-lays out only for the matches. Three-way merge editor, interactive rebase, revert, amend, reset, cherry-pick, blame, reflog with recovery actions, and a visual `git bisect` with auto-mode that runs your test command at every step.
+
+**Compare any ref against any ref.** Pick a base and a compare side — branch, tag, or SHA, with autocomplete — and get the commits it adds, an ahead/behind summary, the changed files, and a per-file diff. **Branch cleanup** flags local branches whose upstream is `[gone]` and offers a one-dialog bulk delete, with "merged into default" as an opt-in second group. **Commit signing** (SSH / GPG / X.509) is honoured when your git config asks for it; a **Test signing** button in Settings signs a throwaway commit and shows you the real error if it fails.
 
 Pick a folder that isn't a repo yet and BeardGit offers to set it up in one shot: `git init`, drop a `.gitignore`, commit as **Initial commit**, create a matching repo on GitHub or GitLab, wire the remote, and push — every step independently optional, partial progress preserved on failure.
 
@@ -107,12 +110,14 @@ Edit repo files without leaving BeardGit. CodeMirror 6 with per-language snippet
 
 ### And the rest
 
-- **Multi-repo tabs.** Heavy state (repo, layout, watcher) loads only for the active tab. A dozen open repos cost the same as one. `⌘1…⌘9` jumps between them.
+- **Multi-repo tabs.** Heavy state (repo, layout, watcher) loads only for the active tab. A dozen open repos cost the same as one. `⌘1…⌘9` jumps between them; drag a tab to reorder.
+- **Every section remembers where you left it.** Filters, scroll positions, split widths, collapsed folders, search chips, and half-written drafts (commit message, MR comment, stash message) survive leaving a view and coming back — per repo tab, for the length of the session. The editor keeps its open tabs and unsaved edits across views too.
+- **Staging that works at line level.** Collapse a hunk, expand the whole file, stage or discard individual lines, arrow-key through the list, Shift-select a range, and stage / discard / stash the selection from the right-click menu.
 - **Real terminals.** xterm.js + WebGL fed by a native Rust PTY. OSC 7 auto-links a terminal to the matching project tab. Foreground process polling detects when `claude` / `codex` / `opencode` start and updates the tab on the fly.
 - **Themes and i18n.** 31 built-in themes, light and dark, plus your own as a TOML file — every accent flows from CSS tokens, including the graph. All three text rungs of every bundled theme clear WCAG AA, enforced by a test; a theme you write yourself is measured and reported, never rewritten. English and Spanish ship via [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs); adding a locale is a JSON file.
 - **A sidebar that's yours.** Reorder navigation items, hide what you don't use, reset to the default. Layout persists app-wide.
 - **Auto-update.** Tauri updater on the stable channel with diagnostics for endpoint and last-check timestamp — so you can tell a 404 apart from a DNS hiccup without leaving the app.
-- **Local-only logs.** `tracing` with daily rotation and 7-day auto-purge to a per-platform path. The log path is included in the in-app error dialog; sharing a file is your call, never the app's.
+- **Local-only logs.** `tracing` with daily rotation and 7-day auto-purge to a per-platform path, and a live log-level switch (error / info / debug) in Settings → Advanced. The log path is included in the in-app error dialog; sharing a file is your call, never the app's.
 
 ---
 
@@ -237,10 +242,10 @@ npm run tauri build
 | Layer | Stack |
 |---|---|
 | Shell | Tauri 2 with the auto-updater plugin |
-| Core | Rust — 18 crates, libgit2, SQLite, `tracing`, `tokio`, `reqwest`, `portable-pty` |
+| Core | Rust — 22 crates, libgit2, SQLite, `tracing`, `tokio`, `reqwest`, `portable-pty` |
 | Frontend | Svelte 5, TypeScript, Canvas 2D, CodeMirror 6, xterm.js + WebGL, Vite, Paraglide 2 |
 | Integrations | `gh` and `glab` (bundled), Claude Code, Codex, OpenCode |
-| CI | GitHub Actions — `cargo fmt`, `cargo clippy --workspace -D warnings`, `cargo test --workspace`, `svelte-check`, `vitest`, stylelint, eslint |
+| CI | GitHub Actions on a 3-OS matrix — the same 15 checks as the local gate (`scripts/gate.sh`): `cargo fmt`, `cargo clippy --all-targets`, `cargo test`, `svelte-check`, `vitest`, stylelint + eslint, IPC contract, error-code map, icon glyphs, toolchain pin, `cargo audit`, `npm audit` |
 
 Three layers with strict boundaries. Only `app-core` depends on Tauri — every other crate is a reusable library.
 
@@ -253,7 +258,9 @@ Three layers with strict boundaries. Only `app-core` depends on Tauri — every 
 | `provider` | `CiProvider` trait + CI types + shared HTTP helpers |
 | `gitlab-api` / `github-api` | REST implementations of `CiProvider` |
 | `ai-provider` | `AiProvider` trait + shared AI types |
+| `ai-provider-common` | Shared helpers for the CLI-based AI provider crates |
 | `claude-code` / `codex` / `opencode` | `AiProvider` implementations |
+| `ai-runner` | Background worktree coordinator — glues `ai-provider`, `git-engine`, and `task-runner` |
 | `auth` | AES-256-GCM encrypted credential store with machine-bound key |
 | `storage` | SQLite via rusqlite, JSON config, TOML theme loader, logging |
 | `task-runner` | Async task manager with streaming output and cancellation |
@@ -261,7 +268,7 @@ Three layers with strict boundaries. Only `app-core` depends on Tauri — every 
 | `watcher` | Debounced filesystem + AI config + sessions watchers |
 | `mutation-events` | Lightweight event bus for cross-feature notifications |
 | `requests-runner` / `requests-store` | `.http` parser, executor, and SQLite-backed history |
-| `app-core` | 200+ Tauri command handlers, `AppState`, event bridge |
+| `app-core` | 300+ Tauri command handlers, `AppState`, event bridge |
 
 ### Branch strategy
 
