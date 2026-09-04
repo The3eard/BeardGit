@@ -40,7 +40,7 @@
 
 ## § 01 — Manifiesto
 
-El código se envía desde **un solo teclado**, no desde diecisiete pestañas. BeardGit parte de una premisa simple: *todo lo que tocas para liberar un cambio debería vivir en una sola app.* Tu grafo de commits. Tus ramas. Tu staging. Tus pull requests y merge requests en **GitHub y GitLab**. Tus pipelines de CI y trabajos de despliegue. Tus issues, etiquetas y releases. Tus terminales. Tus agentes de IA. Tus **peticiones HTTP**, versionadas junto al código que las llama. Los **archivos del repo**, editados sin salir. Cierra las pestañas del navegador. Cierra el resto de clientes. BeardGit es la **única ventana** que mantienes abierta.
+El código se envía desde **un solo teclado**, no desde diecisiete pestañas. BeardGit parte de una premisa simple: _todo lo que tocas para liberar un cambio debería vivir en una sola app._ Tu grafo de commits. Tus ramas. Tu staging. Tus pull requests y merge requests en **GitHub y GitLab**. Tus pipelines de CI y trabajos de despliegue. Tus issues, etiquetas y releases. Tus terminales. Tus agentes de IA. Tus **peticiones HTTP**, versionadas junto al código que las llama. Los **archivos del repo**, editados sin salir. Cierra las pestañas del navegador. Cierra el resto de clientes. BeardGit es la **única ventana** que mantienes abierta.
 
 ---
 
@@ -127,7 +127,7 @@ Edita archivos del repo sin salir de BeardGit. CodeMirror 6 con snippets por len
 
 **Te va a gustar si:**
 
-- Trabajas en **GitHub *o* GitLab** y quieres una experiencia de primera en cualquiera de las dos — no “GitHub con un GitLab pegado encima”.
+- Trabajas en **GitHub _o_ GitLab** y quieres una experiencia de primera en cualquiera de las dos — no “GitHub con un GitLab pegado encima”.
 - Pruebas APIs contra el repo que estás mirando y odias saltar a un cliente de API aparte.
 - Lanzas **Claude Code / Codex / OpenCode** y los quieres aislados en worktrees, no sueltos en tu árbol.
 - Te importa que tu cliente git no arrastre 200 MB de Chromium para pintar una sidebar.
@@ -139,7 +139,7 @@ Edita archivos del repo sin salir de BeardGit. CodeMirror 6 con snippets por len
 - Necesitas SVN, Mercurial, Perforce o Bitbucket auto-hospedado — no soportados.
 - Buscas un producto de pago con soporte telefónico y portal SSO empresarial — no es esto.
 
-BeardGit es **gratis y de código disponible**. La licencia CC BY-NC-SA bloquea revender BeardGit *en sí*; usarlo comercialmente en tu equipo es perfectamente válido.
+BeardGit es **gratis y de código disponible**. La licencia CC BY-NC-SA bloquea revender BeardGit _en sí_; usarlo comercialmente en tu equipo es perfectamente válido.
 
 ---
 
@@ -148,7 +148,7 @@ BeardGit es **gratis y de código disponible**. La licencia CC BY-NC-SA bloquea 
 Cada release publica instaladores precompilados:
 
 | Plataforma | Arquitectura  | Formato     |
-|---|---|---|
+| ---------- | ------------- | ----------- |
 | macOS      | Apple Silicon | `.dmg`      |
 | Linux      | x64           | `.AppImage` |
 | Windows    | x64           | `.exe`      |
@@ -239,42 +239,42 @@ npm run tauri build
 <details>
 <summary><strong>Stack y arquitectura</strong></summary>
 
-| Capa | Stack |
-|---|---|
-| Shell | Tauri 2 con el plugin de auto-actualización |
-| Core | Rust — 22 crates, libgit2, SQLite, `tracing`, `tokio`, `reqwest`, `portable-pty` |
-| Frontend | Svelte 5, TypeScript, Canvas 2D, CodeMirror 6, xterm.js + WebGL, Vite, Paraglide 2 |
-| Integraciones | `gh` y `glab` (incluidas), Claude Code, Codex, OpenCode |
-| CI | GitHub Actions en matriz de 3 SO — los mismos 15 checks que el gate local (`scripts/gate.sh`): `cargo fmt`, `cargo clippy --all-targets`, `cargo test`, `svelte-check`, `vitest`, stylelint + eslint, contrato IPC, mapa de códigos de error, glifos de iconos, pin del toolchain, `cargo audit`, `npm audit` |
+| Capa          | Stack                                                                                                                                                                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shell         | Tauri 2 con el plugin de auto-actualización                                                                                                                                                                                                                                                                   |
+| Core          | Rust — 22 crates, libgit2, SQLite, `tracing`, `tokio`, `reqwest`, `portable-pty`                                                                                                                                                                                                                              |
+| Frontend      | Svelte 5, TypeScript, Canvas 2D, CodeMirror 6, xterm.js + WebGL, Vite, Paraglide 2                                                                                                                                                                                                                            |
+| Integraciones | `gh` y `glab` (incluidas), Claude Code, Codex, OpenCode                                                                                                                                                                                                                                                       |
+| CI            | GitHub Actions en matriz de 3 SO — los mismos 15 checks que el gate local (`scripts/gate.sh`): `cargo fmt`, `cargo clippy --all-targets`, `cargo test`, `svelte-check`, `vitest`, stylelint + eslint, contrato IPC, mapa de códigos de error, glifos de iconos, pin del toolchain, `cargo audit`, `npm audit` |
 
 Tres capas con fronteras estrictas. Solo `app-core` depende de Tauri — el resto de crates son librerías reutilizables.
 
-| Crate | Rol |
-|---|---|
-| `git-engine` | Git híbrido — `git2` para lecturas, `git` del sistema para escrituras |
-| `graph-builder` | Construcción de DAG y asignación de calles, sin I/O |
-| `forge-provider` | Trait `ForgeProvider` y tipos compartidos (solo contrato) |
-| `cli-provider` | Implementaciones `GitHubCli` / `GitLabCli` vía `gh` / `glab` |
-| `provider` | Trait `CiProvider`, tipos de CI y helpers HTTP comunes |
-| `gitlab-api` / `github-api` | Implementaciones REST de `CiProvider` |
-| `ai-provider` | Trait `AiProvider` y tipos de IA compartidos |
-| `ai-provider-common` | Helpers compartidos por las crates de proveedores de IA basados en CLI |
-| `claude-code` / `codex` / `opencode` | Implementaciones de `AiProvider` |
-| `ai-runner` | Coordinador de worktrees en background — une `ai-provider`, `git-engine` y `task-runner` |
-| `auth` | Credential store cifrado con AES-256-GCM y clave anclada al equipo |
-| `storage` | SQLite vía rusqlite, config JSON, cargador de temas TOML, logging |
-| `task-runner` | Gestor de tareas asíncrono con salida streamed y cancelación |
-| `terminal` | Gestor de sesiones PTY vía `portable-pty` con integración OSC 7 |
-| `watcher` | Watchers de filesystem, configs de IA y sesiones, con debounce |
-| `mutation-events` | Bus ligero de eventos para notificaciones cross-feature |
-| `requests-runner` / `requests-store` | Parser y ejecutor `.http`, historial en SQLite |
-| `app-core` | 300+ handlers de comandos Tauri, `AppState`, puente de eventos |
+| Crate                                | Rol                                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `git-engine`                         | Git híbrido — `git2` para lecturas, `git` del sistema para escrituras                    |
+| `graph-builder`                      | Construcción de DAG y asignación de calles, sin I/O                                      |
+| `forge-provider`                     | Trait `ForgeProvider` y tipos compartidos (solo contrato)                                |
+| `cli-provider`                       | Implementaciones `GitHubCli` / `GitLabCli` vía `gh` / `glab`                             |
+| `provider`                           | Trait `CiProvider`, tipos de CI y helpers HTTP comunes                                   |
+| `gitlab-api` / `github-api`          | Implementaciones REST de `CiProvider`                                                    |
+| `ai-provider`                        | Trait `AiProvider` y tipos de IA compartidos                                             |
+| `ai-provider-common`                 | Helpers compartidos por las crates de proveedores de IA basados en CLI                   |
+| `claude-code` / `codex` / `opencode` | Implementaciones de `AiProvider`                                                         |
+| `ai-runner`                          | Coordinador de worktrees en background — une `ai-provider`, `git-engine` y `task-runner` |
+| `auth`                               | Credential store cifrado con AES-256-GCM y clave anclada al equipo                       |
+| `storage`                            | SQLite vía rusqlite, config JSON, cargador de temas TOML, logging                        |
+| `task-runner`                        | Gestor de tareas asíncrono con salida streamed y cancelación                             |
+| `terminal`                           | Gestor de sesiones PTY vía `portable-pty` con integración OSC 7                          |
+| `watcher`                            | Watchers de filesystem, configs de IA y sesiones, con debounce                           |
+| `mutation-events`                    | Bus ligero de eventos para notificaciones cross-feature                                  |
+| `requests-runner` / `requests-store` | Parser y ejecutor `.http`, historial en SQLite                                           |
+| `app-core`                           | 300+ handlers de comandos Tauri, `AppState`, puente de eventos                           |
 
 ### Estrategia de ramas
 
-| Rama | Propósito |
-|---|---|
-| `main` | Espejo de la última release estable. El endpoint de auto-update apunta aquí. |
+| Rama   | Propósito                                                                                                               |
+| ------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `main` | Espejo de la última release estable. El endpoint de auto-update apunta aquí.                                            |
 | `beta` | Rama de integración. Ramas de feature/fix mergean aquí con `--no-ff`, después `main` se fast-forwardea en cada release. |
 
 El día a día va en ramas cortas desde `beta` (`feat/<thing>`, `fix/<thing>`, …). No se acumulan features en una rama larga.
