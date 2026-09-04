@@ -401,8 +401,8 @@ section + section { border-top: 1px solid var(--rule); }
 
 .hero-stats {
   display: grid;
-  grid-template-columns: repeat(3, auto);
-  gap: 2.4rem;
+  grid-template-columns: repeat(4, auto);
+  gap: 2.2rem;
   padding-top: 1.6rem;
   border-top: 1px solid var(--rule);
 }
@@ -529,7 +529,7 @@ button.theme-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   /* Auto-fit lets the grid breathe from 1 to 4 columns based on viewport.
      min(260px, 100%) prevents overflow on viewports narrower than the
      min track width (e.g. 320px phones). At ~1264px content width the
-     grid resolves to 4 columns × 2 rows and all 8 cards fit at once. */
+     grid resolves to 4 columns × 3 rows and all 12 cards fit at once. */
   grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   border: 1px solid var(--rule);
   border-radius: 12px;
