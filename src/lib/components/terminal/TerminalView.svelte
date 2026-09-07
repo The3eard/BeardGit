@@ -8,6 +8,7 @@
     terminalSetActive,
   } from "$lib/api/tauri";
   import { onTerminalOutput, offTerminalOutput } from "$lib/stores/terminal";
+  import { encodeTerminalInput } from "./input-encoding";
   import type { TerminalTabInfo } from "$lib/types";
 
   interface Props {
@@ -19,9 +20,7 @@
   let terminalComponent = $state<Terminal | undefined>();
 
   function handleData(data: string) {
-    // Encode keyboard input as base64 and send to PTY
-    const encoded = btoa(data);
-    terminalWrite(terminal.sessionId, encoded);
+    terminalWrite(terminal.sessionId, encodeTerminalInput(data));
   }
 
   function handleOutput(data: Uint8Array) {

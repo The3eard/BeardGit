@@ -134,6 +134,7 @@ impl TerminalManager {
         for arg in args {
             cmd.arg(arg);
         }
+        apply_terminal_env(&mut cmd);
         for (key, value) in &config.env {
             if is_dangerous_env_key(key) {
                 continue;
@@ -365,6 +366,32 @@ impl Drop for TerminalManager {
 fn reap_child(session: &mut Session) {
     let _ = session._child.kill();
     let _ = session._child.wait();
+}
+
+/// Describe the terminal the child is attached to.
+///
+/// `CommandBuilder` inherits the app's own environment, and a GUI app
+/// launched from Finder / a desktop launcher has no `TERM`, `COLORTERM` or
+/// `LANG` at all (launchd only hands it `HOME`, `PATH`, `SHELL`, `USER`).
+/// Without `TERM` zsh/fish/fzf fall back to a dumb terminal; without a
+/// UTF-8 `LANG` the line editor mangles every multibyte glyph. Under
+/// `tauri dev` the values leak in from the developer's terminal instead,
+/// which is why the bug never reproduced locally. We are xterm.js, so we
+/// say so unconditionally and only fill `LANG` when nothing set it.
+fn apply_terminal_env(cmd: &mut CommandBuilder) {
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("COLORTERM", "truecolor");
+    cmd.env("TERM_PROGRAM", "BeardGit");
+    cmd.env_remove("TERM_PROGRAM_VERSION");
+    #[cfg(unix)]
+    {
+        let has_locale = ["LANG", "LC_ALL", "LC_CTYPE"]
+            .iter()
+            .any(|k| cmd.get_env(k).is_some_and(|v| !v.is_empty()));
+        if !has_locale {
+            cmd.env("LANG", "en_US.UTF-8");
+        }
+    }
 }
 
 /// Default shell used when the system has no `SHELL` env var. Matches
@@ -675,6 +702,51 @@ mod tests {
         thread::sleep(Duration::from_millis(300));
         let out = String::from_utf8_lossy(&sink.output_bytes()).to_string();
         assert!(out.contains("spawn_program_ok"), "got: {out}");
+        let _ = mgr.kill(id);
+    }
+
+    /// The PTY child must see a terminal description even when the app
+    /// itself was launched without one (Finder / desktop launcher).
+    #[test]
+    #[cfg(unix)]
+    fn child_env_describes_the_terminal() {
+        let sink = Arc::new(CollectingSink::new());
+        let mgr = TerminalManager::new(Arc::clone(&sink) as Arc<dyn TerminalEventSink>);
+
+        let config = TerminalConfig {
+            cwd: std::env::temp_dir(),
+            shell: None,
+            args: Vec::new(),
+            env: HashMap::new(),
+            cols: 80,
+            rows: 24,
+        };
+
+        let id = mgr
+            .spawn_program(
+                "/bin/sh",
+                &[
+                    "-c".to_string(),
+                    "echo TERM=$TERM COLORTERM=$COLORTERM TERM_PROGRAM=$TERM_PROGRAM LOCALE=${LC_ALL:-${LC_CTYPE:-$LANG}}".to_string(),
+                ],
+                config,
+            )
+            .expect("spawn should succeed");
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        let out = loop {
+            let out = String::from_utf8_lossy(&sink.output_bytes()).into_owned();
+            if out.contains("TERM_PROGRAM=") || std::time::Instant::now() >= deadline {
+                break out;
+            }
+            thread::sleep(Duration::from_millis(50));
+        };
+        assert!(out.contains("TERM=xterm-256color"), "got: {out}");
+        assert!(out.contains("COLORTERM=truecolor"), "got: {out}");
+        assert!(out.contains("TERM_PROGRAM=BeardGit"), "got: {out}");
+        assert!(
+            out.to_ascii_uppercase().contains("UTF-8"),
+            "child must have a UTF-8 locale, got: {out}"
+        );
         let _ = mgr.kill(id);
     }
 
