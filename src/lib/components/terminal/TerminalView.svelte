@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { get } from "svelte/store";
   import Terminal from "./Terminal.svelte";
+  import { aiEnabled } from "$lib/stores/ai";
   import { activeTheme } from "$lib/stores/theme";
   import {
     terminalWrite,
@@ -8,6 +10,7 @@
     terminalSetActive,
   } from "$lib/api/tauri";
   import { onTerminalOutput, offTerminalOutput } from "$lib/stores/terminal";
+  import { encodeTerminalInput } from "./input-encoding";
   import type { TerminalTabInfo } from "$lib/types";
 
   interface Props {
@@ -19,9 +22,7 @@
   let terminalComponent = $state<Terminal | undefined>();
 
   function handleData(data: string) {
-    // Encode keyboard input as base64 and send to PTY
-    const encoded = btoa(data);
-    terminalWrite(terminal.sessionId, encoded);
+    terminalWrite(terminal.sessionId, encodeTerminalInput(data));
   }
 
   function handleOutput(data: Uint8Array) {
@@ -45,13 +46,15 @@
 
     // Mark this session as the visible terminal so the backend polls its
     // foreground process for AI-provider detection (Claude/Codex/OpenCode).
-    terminalSetActive(terminal.sessionId);
+    // That poll is the only consumer, so with AI off nothing is marked and
+    // the polling thread stays idle.
+    if (get(aiEnabled)) terminalSetActive(terminal.sessionId);
   });
 
   onDestroy(() => {
     offTerminalOutput(terminal.sessionId);
     // Clear active session when this view unmounts.
-    terminalSetActive(null);
+    if (get(aiEnabled)) terminalSetActive(null);
   });
 
   function handleClick() {

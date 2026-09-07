@@ -196,6 +196,67 @@ pub fn set_sidebar_nav_layout(
         .map_err(|e| IpcError::from(e.to_string()))
 }
 
+// ─── AI master switch ────────────────────────────────────────────────────
+
+/// Whether the AI integration is enabled. Default `true`.
+#[tauri::command]
+pub fn get_ai_enabled(state: State<'_, AppState>) -> Result<bool, IpcError> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(config.ai_enabled)
+}
+
+/// Persist the AI master switch. Turning it off does not touch the other
+/// `ai_*` preferences (preferred provider, worktree root, cap), so turning
+/// it back on restores the previous setup. It does not cancel background
+/// runs already in flight either — those finish on their own; only *new*
+/// AI work is refused (see [`super::helpers::ensure_ai_enabled`]).
+#[tauri::command]
+pub fn set_ai_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), IpcError> {
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.ai_enabled = enabled;
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
+}
+
+// ─── Forge master switch ─────────────────────────────────────────────────
+
+/// Whether the GitHub / GitLab integration is enabled. Default `true`.
+#[tauri::command]
+pub fn get_forge_enabled(state: State<'_, AppState>) -> Result<bool, IpcError> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(config.forge_enabled)
+}
+
+/// Persist the forge master switch.
+///
+/// Turning it off also drops the in-memory provider connections and the
+/// active provider, so `get_provider_status` reports nothing connected
+/// from this moment on — the frontend's existing "no provider" gating then
+/// hides every forge surface. The saved providers and their credentials
+/// in the config / credential store are left alone: turning it back on
+/// runs the normal auto-connect against them. Nothing is deleted.
+#[tauri::command]
+pub fn set_forge_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), IpcError> {
+    {
+        let mut config = state.config.lock().map_err(|e| e.to_string())?;
+        config.forge_enabled = enabled;
+        config
+            .save(&state.config_path)
+            .map_err(|e| IpcError::from(e.to_string()))?;
+    }
+    if !enabled {
+        // One mutex at a time, per the AppState lock discipline.
+        state.providers.lock().map_err(|e| e.to_string())?.clear();
+        *state
+            .active_provider_index
+            .lock()
+            .map_err(|e| e.to_string())? = None;
+        super::helpers::invalidate_forge_provider_cache(&state);
+    }
+    Ok(())
+}
+
 // ─── AI background settings (Phase 10) ───────────────────────────────────
 
 /// Serialisable view of the AI background settings.

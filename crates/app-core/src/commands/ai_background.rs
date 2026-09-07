@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 use terminal::{SessionId, TerminalConfig, TerminalManager};
 
-use super::helpers::get_active_project_path;
+use super::helpers::{ensure_ai_enabled, get_active_project_path};
 use crate::ai_background::{AiBackgroundCoordinator, StartArgs};
 use crate::ipc_error::IpcError;
 use crate::state::AppState;
@@ -96,6 +96,7 @@ pub async fn ai_start_background_run(
     request: StartBackgroundRunRequest,
     state: State<'_, AppState>,
 ) -> Result<StartBackgroundRunResponse, IpcError> {
+    ensure_ai_enabled(&state)?;
     let repo_root = get_active_project_path(&state)?;
     let kind = parse_kind(&request.provider)?;
 
@@ -234,6 +235,7 @@ pub fn ai_open_background_terminal(
     state: State<'_, AppState>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
 ) -> Result<SessionId, IpcError> {
+    ensure_ai_enabled(&state)?;
     let coord = coordinator(&state)?;
     let session = coord
         .get(&session_id)

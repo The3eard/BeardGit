@@ -32,6 +32,7 @@
     terminalWrite,
   } from "$lib/api/tauri";
   import { openStandaloneTerminal } from "$lib/stores/tabs";
+  import { encodeTerminalInput } from "$lib/components/terminal/input-encoding";
   import { Button } from "$lib/components/ui";
   import type { CliAuthStatus, ProviderKind } from "$lib/types";
   import * as m from "$lib/paraglide/messages";
@@ -164,7 +165,7 @@
         cwd,
         `${kind} auth login`,
       );
-      await terminalWrite(sessionId, btoa(cmd + "\n"));
+      await terminalWrite(sessionId, encodeTerminalInput(cmd + "\n"));
     } catch {
       /* ignore */
     } finally {
@@ -183,7 +184,7 @@
         cwd,
         `${kind} auth logout`,
       );
-      await terminalWrite(sessionId, btoa(cmd + "\n"));
+      await terminalWrite(sessionId, encodeTerminalInput(cmd + "\n"));
     } catch {
       /* ignore */
     } finally {

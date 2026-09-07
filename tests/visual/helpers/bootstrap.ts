@@ -158,6 +158,10 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
     // These are the real command names; an earlier set of invented ones
     // (`detect_ai_providers`, `list_ai_sessions`, `get_ai_background_settings`)
     // sat here answering nothing until `IpcResponses` became typed.
+    // The AI master switch: on, as for every user who has not opted out.
+    // `loadAiEnabled` treats anything but `false` as on, so an unmocked
+    // command would also pass; declared here so the baseline says so.
+    get_ai_enabled: true,
     ai_get_providers: [],
     ai_refresh_detection: undefined,
     ai_get_preferred_provider: null,
@@ -170,6 +174,7 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
 
     // Forge / CI — `get_provider_status` controls which sidebar items
     // render (pipelines / issues / mr-pr / releases / repo-config).
+    get_forge_enabled: true,
     get_provider_status: makeProviderStatus(opts.forge ?? "github"),
     cli_check_auth_status: [],
     try_auto_connect: undefined,
