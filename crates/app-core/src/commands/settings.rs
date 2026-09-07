@@ -196,6 +196,29 @@ pub fn set_sidebar_nav_layout(
         .map_err(|e| IpcError::from(e.to_string()))
 }
 
+// ─── AI master switch ────────────────────────────────────────────────────
+
+/// Whether the AI integration is enabled. Default `true`.
+#[tauri::command]
+pub fn get_ai_enabled(state: State<'_, AppState>) -> Result<bool, IpcError> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(config.ai_enabled)
+}
+
+/// Persist the AI master switch. Turning it off does not touch the other
+/// `ai_*` preferences (preferred provider, worktree root, cap), so turning
+/// it back on restores the previous setup. It does not cancel background
+/// runs already in flight either — those finish on their own; only *new*
+/// AI work is refused (see [`super::helpers::ensure_ai_enabled`]).
+#[tauri::command]
+pub fn set_ai_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), IpcError> {
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.ai_enabled = enabled;
+    config
+        .save(&state.config_path)
+        .map_err(|e| IpcError::from(e.to_string()))
+}
+
 // ─── AI background settings (Phase 10) ───────────────────────────────────
 
 /// Serialisable view of the AI background settings.

@@ -32,6 +32,7 @@
   import VersionSlot from "./statusbar/VersionSlot.svelte";
   import { toggleTasksPopover } from "$lib/stores/tasksPopover";
   import { activeViewStore, pendingSettingsSection } from "$lib/stores/navigation";
+  import { aiEnabled } from "$lib/stores/ai";
 
   /**
    * Deep-link map — translates a slot's logical target (`"ai"`,
@@ -63,8 +64,10 @@
   <div class="status-left">
     <TasksSlot onOpen={toggleTasksPopover} />
     <span class="divider" aria-hidden="true"></span>
-    <AiSlot {onNavigate} />
-    <span class="divider" aria-hidden="true"></span>
+    {#if $aiEnabled}
+      <AiSlot {onNavigate} />
+      <span class="divider" aria-hidden="true"></span>
+    {/if}
     <!-- RepoSlot carries its own trailing divider so it collapses
          cleanly on terminal/welcome tabs. -->
     <RepoSlot onOpenView={(view) => activeViewStore.set(view)} />

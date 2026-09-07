@@ -1776,6 +1776,16 @@ export async function aiBackgroundSetSettings(settings: AiBackgroundSettings): P
   return invoke<void>("ai_background_set_settings", { settings });
 }
 
+/** Read the AI master switch (default `true`). */
+export async function getAiEnabled(): Promise<boolean> {
+  return invoke<boolean>("get_ai_enabled");
+}
+
+/** Persist the AI master switch. */
+export async function setAiEnabled(enabled: boolean): Promise<void> {
+  return invoke<void>("set_ai_enabled", { enabled });
+}
+
 // ─── Bisect ─────────────────────────────────────────────────────────
 
 /** Start a bisect session, optionally providing bad and good commits. */

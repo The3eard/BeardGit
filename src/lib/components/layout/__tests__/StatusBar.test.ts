@@ -46,9 +46,13 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("$lib/stores/ai", () => ({
-  preferredAiProvider: mocks.preferredAiProvider,
-}));
+vi.mock("$lib/stores/ai", async () => {
+  const { writable } = await import("svelte/store");
+  return {
+    preferredAiProvider: mocks.preferredAiProvider,
+    aiEnabled: writable(true),
+  };
+});
 
 vi.mock("$lib/stores/provider", () => ({
   providerStatus: mocks.providerStatus,

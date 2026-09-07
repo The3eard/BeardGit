@@ -125,6 +125,11 @@ export function errorCodeMessage(code: string): string | null {
       return "Branch has unmerged commits — delete with force to discard them";
     case "branch_exists":
       return "A branch with that name already exists — choose a different name";
+    case "ai_disabled":
+      // Every AI surface is hidden while the switch is off, so this only
+      // reaches a toast from a stale view or a shortcut. Say where the
+      // switch is rather than echo the refusal.
+      return "AI assistance is turned off — enable it in Settings → General";
     default:
       return null;
   }
