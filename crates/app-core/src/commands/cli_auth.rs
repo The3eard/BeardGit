@@ -9,7 +9,7 @@ use crate::state::AppState;
 
 /// Check authentication status for both `gh` and `glab` CLIs.
 ///
-/// Resolves bundled binaries first, then falls back to PATH. Returns a
+/// Resolves the bundled sidecar first, then falls back to PATH. Returns a
 /// `CliAuthStatus` per tool — if the binary isn't found, the entry has
 /// `installed: false` instead of an error.
 #[tauri::command]
@@ -39,26 +39,56 @@ pub async fn cli_check_auth_status(
 /// Get the shell command string to launch an interactive auth flow in a
 /// terminal tab for the given CLI tool.
 ///
-/// Returns `"gh auth login"` or `"glab auth login"` — the frontend opens
-/// a terminal tab and writes this command.
+/// The frontend opens a terminal tab and types this command into the
+/// user's shell. It must therefore name the **same binary** the app itself
+/// will drive afterwards — the resolved sidecar path, quoted for the
+/// shell — not the bare `gh`/`glab`, which the shell resolves through its
+/// own `PATH`: for the user without the CLI installed (the reason the
+/// sidecar exists) that was "command not found".
 #[tauri::command]
-#[instrument(name = "cmd::cli_auth::get_auth_command")]
-pub fn cli_get_auth_command(tool: String) -> Result<String, IpcError> {
-    match tool.as_str() {
-        "gh" => Ok("gh auth login".to_string()),
-        "glab" => Ok("glab auth login".to_string()),
-        _ => Err(IpcError::from(format!("Unknown CLI tool: {tool}"))),
-    }
+#[instrument(skip(state), name = "cmd::cli_auth::get_auth_command")]
+pub fn cli_get_auth_command(tool: String, state: State<'_, AppState>) -> Result<String, IpcError> {
+    cli_shell_command(&tool, "login", &state)
 }
 
 /// Get the shell command to log out of a CLI tool.
 #[tauri::command]
-#[instrument(name = "cmd::cli_auth::get_logout_command")]
-pub fn cli_get_logout_command(tool: String) -> Result<String, IpcError> {
-    match tool.as_str() {
-        "gh" => Ok("gh auth logout".to_string()),
-        "glab" => Ok("glab auth logout".to_string()),
-        _ => Err(IpcError::from(format!("Unknown CLI tool: {tool}"))),
+#[instrument(skip(state), name = "cmd::cli_auth::get_logout_command")]
+pub fn cli_get_logout_command(
+    tool: String,
+    state: State<'_, AppState>,
+) -> Result<String, IpcError> {
+    cli_shell_command(&tool, "logout", &state)
+}
+
+fn cli_shell_command(
+    tool: &str,
+    verb: &str,
+    state: &State<'_, AppState>,
+) -> Result<String, IpcError> {
+    let kind = match tool {
+        "gh" => provider::ProviderKind::GitHub,
+        "glab" => provider::ProviderKind::GitLab,
+        _ => return Err(IpcError::from(format!("Unknown CLI tool: {tool}"))),
+    };
+    let binary = resolve_cli_binary(state, kind)?;
+    Ok(format!(
+        "{} auth {verb}",
+        shell_quote_path(&binary.to_string_lossy())
+    ))
+}
+
+/// Quote a filesystem path for the user's interactive shell.
+///
+/// POSIX shells: single quotes, with embedded `'` spliced as `'\''`.
+/// Windows: the terminal is PowerShell/cmd; `& 'path'` runs a quoted
+/// path in PowerShell and `'` is doubled inside. cmd.exe users get a
+/// PowerShell-shaped line, which is what the default terminal there is.
+fn shell_quote_path(path: &str) -> String {
+    if cfg!(windows) {
+        format!("& '{}'", path.replace('\'', "''"))
+    } else {
+        format!("'{}'", path.replace('\'', "'\\''"))
     }
 }
 
@@ -87,45 +117,30 @@ pub async fn is_cli_authenticated(
 mod tests {
     //! The CLI-detection flows depend on the real `gh`/`glab` binaries and a
     //! Tauri handle — those are integration-tested. What we can unit-test
-    //! are the two pure command wrappers (`cli_get_auth_command`,
-    //! `cli_get_logout_command`) plus the not-installed status helper.
+    //! is the shell quoting of the resolved binary path plus the
+    //! not-installed status helper.
 
-    use super::{cli_get_auth_command, cli_get_logout_command};
+    use super::shell_quote_path;
 
     #[test]
-    fn cli_get_auth_command_maps_known_tools() {
+    #[cfg(unix)]
+    fn shell_quote_path_survives_spaces_and_quotes() {
         assert_eq!(
-            cli_get_auth_command("gh".to_string()).unwrap(),
-            "gh auth login"
+            shell_quote_path("/Applications/My Apps/BeardGit.app/Contents/MacOS/gh"),
+            "'/Applications/My Apps/BeardGit.app/Contents/MacOS/gh'"
         );
-        assert_eq!(
-            cli_get_auth_command("glab".to_string()).unwrap(),
-            "glab auth login"
-        );
+        // An embedded single quote is closed, escaped, and reopened.
+        assert_eq!(shell_quote_path("/tmp/it's/gh"), "'/tmp/it'\\''s/gh'");
     }
 
     #[test]
-    fn cli_get_auth_command_unknown_tool_errors() {
-        let err = cli_get_auth_command("hub".to_string()).err();
-        assert!(err.is_some(), "unknown tool should be rejected");
-    }
-
-    #[test]
-    fn cli_get_logout_command_maps_known_tools() {
+    #[cfg(windows)]
+    fn shell_quote_path_uses_powershell_call_operator() {
         assert_eq!(
-            cli_get_logout_command("gh".to_string()).unwrap(),
-            "gh auth logout"
+            shell_quote_path(r"C:\Program Files\BeardGit\gh.exe"),
+            r"& 'C:\Program Files\BeardGit\gh.exe'"
         );
-        assert_eq!(
-            cli_get_logout_command("glab".to_string()).unwrap(),
-            "glab auth logout"
-        );
-    }
-
-    #[test]
-    fn cli_get_logout_command_unknown_tool_errors() {
-        assert!(cli_get_logout_command("".to_string()).is_err());
-        assert!(cli_get_logout_command("cli".to_string()).is_err());
+        assert_eq!(shell_quote_path(r"C:\it's\gh.exe"), r"& 'C:\it''s\gh.exe'");
     }
 
     #[test]
