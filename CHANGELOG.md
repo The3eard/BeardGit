@@ -4,6 +4,8 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased]
 
+## [26.9.1] — Two switches, a terminal that draws what the shell drew, and the CLIs you actually ship — 2026-09-07
+
 ### Added
 
 - **A switch to turn the GitHub / GitLab integration off, and BeardGit becomes a git-only client.** Settings → General → Integrations. Without a connected account the forge surfaces already hid themselves, but the app still went to the network on its own: at every launch it validated each saved token over HTTPS to reconnect, and on every repository open it resolved the origin remote against the forge API. Off, neither happens, the Integrations page shows only a pointer back to the switch so the `gh` / `glab` status checks it runs on mount never fire, and the sidebar group, status-bar pill, forge views, graph badges and init-repo's "create remote" follow the existing no-provider gating. The saved accounts and tokens are kept, not deleted; turning it back on reconnects them as a launch would. With it off, the only network traffic the app initiates on its own is the update check.
