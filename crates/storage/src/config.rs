@@ -18,6 +18,14 @@ fn default_auto_check_updates() -> bool {
     true
 }
 
+fn default_ai_enabled() -> bool {
+    true
+}
+
+fn default_forge_enabled() -> bool {
+    true
+}
+
 fn default_diff_line_wrapping() -> bool {
     true
 }
@@ -262,6 +270,16 @@ pub struct AppConfig {
     /// List of recently opened repository paths.
     #[serde(default)]
     pub recent_repos: Vec<String>,
+    /// Master switch for the GitHub / GitLab integration. When `false` the
+    /// app never reconnects the saved providers, never validates a PAT,
+    /// never resolves the active repo against a forge API and never shells
+    /// out to `gh` / `glab`; the frontend hides every forge surface. Saved
+    /// providers and their credentials are kept for when it is turned back
+    /// on. Default `true`. With this off, the only outbound traffic the app
+    /// initiates on its own is the updater poll.
+    #[serde(default = "default_forge_enabled")]
+    pub forge_enabled: bool,
+
     /// Authenticated providers to auto-reconnect on startup.
     #[serde(default)]
     pub providers: Vec<SavedProvider>,
@@ -304,6 +322,14 @@ pub struct AppConfig {
     /// Ids of Navigation sidebar items the user has chosen to hide.
     #[serde(default)]
     pub sidebar_nav_hidden: Vec<String>,
+
+    /// Master switch for the AI integration. When `false` the app neither
+    /// probes for AI CLIs nor lets any AI command run, and the frontend
+    /// hides every AI surface (sidebar group, status-bar slot, commit-box
+    /// actions, background runs). Default `true`. The other `ai_*` fields
+    /// are kept as they are so re-enabling restores the previous setup.
+    #[serde(default = "default_ai_enabled")]
+    pub ai_enabled: bool,
 
     /// Preferred AI provider kind (e.g. `"claude_code"`, `"codex"`, `"open_code"`).
     /// `None` means "use first detected".
@@ -383,6 +409,7 @@ impl Default for AppConfig {
             theme_auto: default_theme_auto(),
             locale: default_locale(),
             recent_repos: Vec::new(),
+            forge_enabled: default_forge_enabled(),
             providers: Vec::new(),
             external_editor: None,
             window_width: None,
@@ -394,6 +421,7 @@ impl Default for AppConfig {
             sidebar_collapsed: false,
             sidebar_nav_order: default_sidebar_nav_order(),
             sidebar_nav_hidden: Vec::new(),
+            ai_enabled: default_ai_enabled(),
             preferred_ai_provider: None,
             ai_worktree_root: None,
             ai_background_concurrency_cap: default_ai_background_concurrency_cap(),
@@ -709,6 +737,49 @@ mod tests {
 
         let config = AppConfig::load(&path).unwrap();
         assert!(config.auto_check_updates);
+    }
+
+    #[test]
+    fn test_forge_enabled_defaults_true_and_roundtrips() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, r#"{"theme": "github-dark"}"#).unwrap();
+        assert!(AppConfig::load(&path).unwrap().forge_enabled);
+
+        let config = AppConfig {
+            forge_enabled: false,
+            providers: vec![SavedProvider {
+                kind: "github".to_string(),
+                instance_url: "https://api.github.com".to_string(),
+            }],
+            ..AppConfig::default()
+        };
+        config.save(&path).unwrap();
+        let loaded = AppConfig::load(&path).unwrap();
+        assert!(!loaded.forge_enabled);
+        // Disabling keeps the saved providers for when it is turned back on.
+        assert_eq!(loaded.providers.len(), 1);
+    }
+
+    #[test]
+    fn test_ai_enabled_defaults_true_and_roundtrips() {
+        // Opt-out, not opt-in: a config written before the switch existed
+        // must load with AI on, and `false` must survive a save/load.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, r#"{"theme": "github-dark"}"#).unwrap();
+        assert!(AppConfig::load(&path).unwrap().ai_enabled);
+
+        let config = AppConfig {
+            ai_enabled: false,
+            preferred_ai_provider: Some("codex".to_string()),
+            ..AppConfig::default()
+        };
+        config.save(&path).unwrap();
+        let loaded = AppConfig::load(&path).unwrap();
+        assert!(!loaded.ai_enabled);
+        // Disabling must not wipe the rest of the AI setup.
+        assert_eq!(loaded.preferred_ai_provider.as_deref(), Some("codex"));
     }
 
     #[test]

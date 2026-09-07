@@ -189,7 +189,58 @@ export async function checkStatus() {
   providerStatus.set(status);
 }
 
+/**
+ * The GitHub / GitLab master switch (Settings → General → Integrations).
+ * Mirrors `AppConfig::forge_enabled`.
+ *
+ * Optimistically `true` until `loadForgeEnabled()` resolves; the app shell
+ * awaits that load before `tryAutoConnect`, so no PAT is validated on the
+ * strength of the default. Off, the backend reports no providers, and every
+ * forge surface already hides itself on that (sidebar group, status-bar
+ * slot, forge views via `installProviderDisconnectReroute`, init-repo's
+ * "create remote"). This store only adds what that gating cannot see: the
+ * Integrations page and the boot-time connect.
+ */
+export const forgeEnabled = writable(true);
+
+/** Load the forge master switch from persisted config. Call before connecting. */
+export async function loadForgeEnabled(): Promise<void> {
+  try {
+    const value = await api.getForgeEnabled();
+    // Only an explicit `false` turns the forge off (an unmocked command in
+    // the visual harness answers `undefined`).
+    forgeEnabled.set(value !== false);
+  } catch {
+    // Unreadable config: keep the optimistic default.
+  }
+}
+
+/**
+ * Persist the forge master switch and apply it: off drops the connections
+ * and stops CI polling; on runs the normal auto-connect against the saved
+ * providers. Reverts the store if persisting fails.
+ */
+export async function setForgeEnabled(enabled: boolean): Promise<void> {
+  const previous = get(forgeEnabled);
+  forgeEnabled.set(enabled);
+  try {
+    await api.setForgeEnabled(enabled);
+  } catch (e) {
+    forgeEnabled.set(previous);
+    throw e;
+  }
+  if (enabled) {
+    await tryAutoConnect();
+  } else {
+    stopAllPolling();
+    providerStatus.set({ providers: [], active_index: null });
+    ciRuns.set([]);
+    selectedCiRun.set(null);
+  }
+}
+
 export async function tryAutoConnect() {
+  if (!get(forgeEnabled)) return;
   try {
     await api.tryAutoConnect();
     await checkStatus();

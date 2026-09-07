@@ -70,7 +70,7 @@ Create, edit, merge, approve, and comment on **PRs and MRs** with **per-file dif
 
 A clean `ForgeProvider` abstraction wraps `gh` and `glab`. Self-hosted **GitHub Enterprise** and **on-prem GitLab** work out of the box; auth is checked per-host so a VPN-only forge doesn't shadow a working one. Multi-instance friendly: a personal `gitlab.com` and a corporate self-hosted GitLab can coexist.
 
-> Both CLIs ship bundled in every installer. No PATH dance, no setup.
+> Both CLIs ship bundled in every installer, and the bundled copies are the ones BeardGit drives — the same version for every user, whatever is on your `PATH`. Your existing `gh` / `glab` login carries over: credentials live in your per-user config and keyring, not in the binary.
 
 ---
 
@@ -116,6 +116,7 @@ Edit repo files without leaving BeardGit. CodeMirror 6 with per-language snippet
 - **Real terminals.** xterm.js + WebGL fed by a native Rust PTY. OSC 7 auto-links a terminal to the matching project tab. Foreground process polling detects when `claude` / `codex` / `opencode` start and updates the tab on the fly.
 - **Themes and i18n.** 31 built-in themes, light and dark, plus your own as a TOML file — every accent flows from CSS tokens, including the graph. All three text rungs of every bundled theme clear WCAG AA, enforced by a test; a theme you write yourself is measured and reported, never rewritten. English and Spanish ship via [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs); adding a locale is a JSON file.
 - **A sidebar that's yours.** Reorder navigation items, hide what you don't use, reset to the default. Layout persists app-wide.
+- **Switch whole integrations off.** Settings → General → Integrations has one switch for GitHub / GitLab and one for AI. Off, the corresponding surfaces disappear — sidebar entries, status-bar slots, views, toolbar and commit-box actions — and nothing runs behind them: no token is validated at launch, no remote is resolved against a forge API, no AI CLI is probed, no terminal process is polled. Both off leaves a **git-only client** whose only network traffic of its own is the update check, which has its own toggle. Accounts and preferences are kept for when you turn them back on.
 - **Auto-update.** Tauri updater on the stable channel with diagnostics for endpoint and last-check timestamp — so you can tell a 404 apart from a DNS hiccup without leaving the app.
 - **Local-only logs.** `tracing` with daily rotation and 7-day auto-purge to a per-platform path, and a live log-level switch (error / info / debug) in Settings → Advanced. The log path is included in the in-app error dialog; sharing a file is your call, never the app's.
 

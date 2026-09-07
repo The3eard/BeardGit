@@ -11,6 +11,7 @@
 
 import { writable, get } from "svelte/store";
 import { hasActiveProvider } from "./provider";
+import { aiEnabled } from "./ai";
 
 /** Currently active sidebar view identifier. */
 export const activeViewStore = writable<string>("graph");
@@ -37,6 +38,22 @@ export const PROVIDER_VIEWS: readonly string[] = [
 export function installProviderDisconnectReroute(): () => void {
   return hasActiveProvider.subscribe((active) => {
     if (!active && PROVIDER_VIEWS.includes(get(activeViewStore))) {
+      activeViewStore.set("graph");
+    }
+  });
+}
+
+/**
+ * Views that only exist for the AI integration. Same contract as
+ * `PROVIDER_VIEWS`: when the AI master switch goes off while one of them is
+ * showing, `installAiDisabledReroute()` returns to `graph`.
+ */
+export const AI_VIEWS: readonly string[] = ["ai-config", "ai-sessions"];
+
+/** Subscribe to `aiEnabled`; reroute off the AI views when it goes false. */
+export function installAiDisabledReroute(): () => void {
+  return aiEnabled.subscribe((enabled) => {
+    if (!enabled && AI_VIEWS.includes(get(activeViewStore))) {
       activeViewStore.set("graph");
     }
   });

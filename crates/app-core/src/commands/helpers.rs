@@ -174,6 +174,39 @@ pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<Pat
     Ok(PathBuf::from(&slot.path))
 }
 
+/// Read the forge master switch (`AppConfig::forge_enabled`). A poisoned
+/// config mutex reads as "on": that is the default, and hiding an
+/// integration is not the right reaction to an unrelated failure.
+pub(super) fn forge_enabled(state: &State<'_, AppState>) -> bool {
+    state.config.lock().map(|c| c.forge_enabled).unwrap_or(true)
+}
+
+/// Refuse AI work while the AI master switch (`AppConfig::ai_enabled`) is
+/// off.
+///
+/// The frontend hides every AI surface when the switch is off, so in
+/// normal use this never fires; it is the backstop for a stale view, a
+/// keyboard shortcut, or a compromised renderer asking anyway. Raised via
+/// [`IpcError::expected`]: the user chose this, it is not a failure to log.
+/// Read-only AI commands (listing runs, reading a transcript) are not
+/// gated — history stays viewable; only new probes, launches and prompts
+/// are refused.
+pub(crate) fn ensure_ai_enabled(state: &State<'_, AppState>) -> Result<(), IpcError> {
+    let enabled = state
+        .config
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?
+        .ai_enabled;
+    if enabled {
+        Ok(())
+    } else {
+        // Kept on one line: `check-ipc-codes.mjs` reads the code from the
+        // same line as the constructor.
+        const MSG: &str = "AI assistance is turned off in Settings → General";
+        Err(IpcError::expected("ai_disabled", MSG))
+    }
+}
+
 /// `active_index` pointing past `projects` is state corruption, not a
 /// routine condition — the one arm in this family that does mean something
 /// went wrong. It logs, and it does not borrow `no_active_project`'s code.
@@ -346,6 +379,16 @@ pub(super) fn get_active_provider_and_project(
 /// If no repo is open or no provider matches, `active_provider_index` is
 /// set to `None`.
 pub(super) async fn detect_active_provider(state: &State<'_, AppState>) {
+    // Forge switch off: nothing may be active, and the remote must not be
+    // resolved against a forge API. Every caller (repo open, connect,
+    // disconnect, auto-connect, explicit re-detect) funnels through here,
+    // so this is the one place that keeps the switch honest.
+    if !forge_enabled(state) {
+        *state.active_provider_index.lock().unwrap() = None;
+        invalidate_forge_provider_cache(state);
+        return;
+    }
+
     // Get the repo's origin remote URL from the active slot
     let remote_url = {
         let projects = state.projects.lock().unwrap();
@@ -518,18 +561,22 @@ fn sidecar_candidate_paths(
 /// Resolve the path to the CLI binary for a given provider.
 ///
 /// Resolution order:
-/// 1. System `PATH` lookup (plain `gh` / `glab`) — picks up the user's
-///    already-installed + authenticated CLI when present.
-/// 2. Bundled Tauri sidecar paths (candidate locations from
-///    [`sidecar_candidate_paths`]) — used when the user has nothing on
-///    PATH so the app still works out of the box.
+/// 1. Bundled Tauri sidecar (candidate locations from
+///    [`sidecar_candidate_paths`]) — the version we ship and test against,
+///    identical on every machine.
+/// 2. System `PATH` lookup (plain `gh` / `glab`) — only when the sidecar
+///    is missing (a stripped install, or a dev checkout that never ran
+///    `scripts/download-cli-binaries.js`).
 ///
-/// The PATH-first ordering is load-bearing. Users who already run
-/// `gh auth login` / `glab auth login` against a tool on their PATH
-/// expect BeardGit to reuse that session. Preferring the sidecar meant
-/// we'd shell out to an unauthenticated bundled binary and silently get
-/// empty MR/PR lists (401s parsed as "no results"). The sidecar is the
-/// fallback for users who don't install the CLIs themselves.
+/// Sidecar-first does **not** lose the user's login. Both CLIs read their
+/// credentials from the per-user config dir / OS keyring keyed by host
+/// (`~/.config/gh`, `~/.config/glab-cli`), not from anything tied to the
+/// binary that ran `auth login`, so the bundled binary sees the same
+/// session as the one on PATH. What PATH-first bought was inconsistency:
+/// the same BeardGit build drove whichever CLI version each user happened
+/// to have installed. The cost of sidecar-first is that the pinned
+/// versions in `cli-versions.json` must be kept current — the gate's
+/// `check:cli-versions` enforces that.
 ///
 /// Sidecar binaries are authored as `{name}-{target_triple}[.exe]` but
 /// Tauri strips the triple when copying them, so at runtime the
@@ -545,19 +592,20 @@ pub(super) fn resolve_cli_binary(
         return Ok(path.clone());
     }
 
-    // Slow path: PATH probe, then sidecar fallback.
+    // Slow path: sidecar probe, then PATH fallback.
     let plain_name = match kind {
         provider::ProviderKind::GitHub => "gh",
         provider::ProviderKind::GitLab => "glab",
     };
-    let resolved: Option<std::path::PathBuf> = which::which(plain_name).ok().or_else(|| {
-        let sidecar_name = sidecar_binary_name(kind);
-        std::env::current_exe().ok().and_then(|exe_path| {
+    let sidecar_name = sidecar_binary_name(kind);
+    let resolved: Option<std::path::PathBuf> = std::env::current_exe()
+        .ok()
+        .and_then(|exe_path| {
             sidecar_candidate_paths(&exe_path, sidecar_name)
                 .into_iter()
                 .find(|p| p.exists())
         })
-    });
+        .or_else(|| which::which(plain_name).ok());
 
     match resolved {
         Some(path) => {
@@ -566,13 +614,10 @@ pub(super) fn resolve_cli_binary(
             }
             Ok(path)
         }
-        None => {
-            let sidecar_name = sidecar_binary_name(kind);
-            Err(format!(
-                "{plain_name} not found. Install it (or authenticate it) and restart BeardGit.\n\
+        None => Err(format!(
+            "{plain_name} not found. Install it (or authenticate it) and restart BeardGit.\n\
                  Looked for system '{plain_name}' and bundled sidecar '{sidecar_name}'."
-            ))
-        }
+        )),
     }
 }
 
