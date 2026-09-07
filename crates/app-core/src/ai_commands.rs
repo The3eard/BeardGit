@@ -18,7 +18,7 @@ use ai_provider::{
 use task_runner::{SpawnOptions, TaskId, TaskKind, TaskManager};
 use terminal::{SessionId, TerminalConfig, TerminalManager};
 
-use crate::commands::get_active_project_path;
+use crate::commands::{ensure_ai_enabled, get_active_project_path};
 use crate::ipc_error::IpcError;
 use crate::state::AppState;
 
@@ -146,6 +146,17 @@ pub async fn ai_refresh_detection(
     app_handle: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), IpcError> {
+    // With the master switch off there is nothing to detect: clear any
+    // providers found while it was on, so `ai_get_providers` reports none
+    // and every provider-gated surface in the frontend stays hidden. Not
+    // an error — the frontend calls this from the same startup path
+    // regardless of the switch.
+    if ensure_ai_enabled(&state).is_err() {
+        let mut guard = state.ai_providers.lock().map_err(|e| e.to_string())?;
+        guard.clear();
+        return Ok(());
+    }
+
     let detected = tokio::task::spawn_blocking(|| {
         let kinds = [
             AiProviderKind::ClaudeCode,
@@ -261,6 +272,7 @@ pub async fn ai_generate_commit_message(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
 ) -> Result<TaskId, IpcError> {
+    ensure_ai_enabled(&state)?;
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -287,6 +299,7 @@ pub async fn ai_analyze_code(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
 ) -> Result<TaskId, IpcError> {
+    ensure_ai_enabled(&state)?;
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -309,6 +322,7 @@ pub async fn ai_generate_pr_description(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
 ) -> Result<TaskId, IpcError> {
+    ensure_ai_enabled(&state)?;
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -334,6 +348,7 @@ pub async fn ai_review_code(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
 ) -> Result<TaskId, IpcError> {
+    ensure_ai_enabled(&state)?;
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -358,6 +373,7 @@ pub async fn ai_review_pr(
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
 ) -> Result<TaskId, IpcError> {
+    ensure_ai_enabled(&state)?;
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -453,6 +469,7 @@ pub fn ai_launch_interactive(
     state: State<'_, AppState>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
 ) -> Result<SessionId, IpcError> {
+    ensure_ai_enabled(&state)?;
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -487,6 +504,7 @@ pub fn ai_launch_worktree(
     state: State<'_, AppState>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
 ) -> Result<Option<SessionId>, IpcError> {
+    ensure_ai_enabled(&state)?;
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;
@@ -523,6 +541,7 @@ pub fn ai_resume_conversation(
     state: State<'_, AppState>,
     terminal_manager: State<'_, Arc<TerminalManager>>,
 ) -> Result<Option<SessionId>, IpcError> {
+    ensure_ai_enabled(&state)?;
     let cwd = get_active_project_path(&state)?;
     let kind = parse_kind(&provider)?;
     let p = make_provider(kind)?;

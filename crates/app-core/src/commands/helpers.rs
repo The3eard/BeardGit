@@ -174,6 +174,39 @@ pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<Pat
     Ok(PathBuf::from(&slot.path))
 }
 
+/// Read the forge master switch (`AppConfig::forge_enabled`). A poisoned
+/// config mutex reads as "on": that is the default, and hiding an
+/// integration is not the right reaction to an unrelated failure.
+pub(super) fn forge_enabled(state: &State<'_, AppState>) -> bool {
+    state.config.lock().map(|c| c.forge_enabled).unwrap_or(true)
+}
+
+/// Refuse AI work while the AI master switch (`AppConfig::ai_enabled`) is
+/// off.
+///
+/// The frontend hides every AI surface when the switch is off, so in
+/// normal use this never fires; it is the backstop for a stale view, a
+/// keyboard shortcut, or a compromised renderer asking anyway. Raised via
+/// [`IpcError::expected`]: the user chose this, it is not a failure to log.
+/// Read-only AI commands (listing runs, reading a transcript) are not
+/// gated — history stays viewable; only new probes, launches and prompts
+/// are refused.
+pub(crate) fn ensure_ai_enabled(state: &State<'_, AppState>) -> Result<(), IpcError> {
+    let enabled = state
+        .config
+        .lock()
+        .map_err(|e| IpcError::new("error", e.to_string()))?
+        .ai_enabled;
+    if enabled {
+        Ok(())
+    } else {
+        // Kept on one line: `check-ipc-codes.mjs` reads the code from the
+        // same line as the constructor.
+        const MSG: &str = "AI assistance is turned off in Settings → General";
+        Err(IpcError::expected("ai_disabled", MSG))
+    }
+}
+
 /// `active_index` pointing past `projects` is state corruption, not a
 /// routine condition — the one arm in this family that does mean something
 /// went wrong. It logs, and it does not borrow `no_active_project`'s code.
@@ -346,6 +379,16 @@ pub(super) fn get_active_provider_and_project(
 /// If no repo is open or no provider matches, `active_provider_index` is
 /// set to `None`.
 pub(super) async fn detect_active_provider(state: &State<'_, AppState>) {
+    // Forge switch off: nothing may be active, and the remote must not be
+    // resolved against a forge API. Every caller (repo open, connect,
+    // disconnect, auto-connect, explicit re-detect) funnels through here,
+    // so this is the one place that keeps the switch honest.
+    if !forge_enabled(state) {
+        *state.active_provider_index.lock().unwrap() = None;
+        invalidate_forge_provider_cache(state);
+        return;
+    }
+
     // Get the repo's origin remote URL from the active slot
     let remote_url = {
         let projects = state.projects.lock().unwrap();

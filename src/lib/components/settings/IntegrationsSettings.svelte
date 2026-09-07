@@ -30,23 +30,43 @@
   import * as m from "$lib/paraglide/messages";
   import ConnectionHowTo from "./ConnectionHowTo.svelte";
   import ConnectionRow from "./ConnectionRow.svelte";
-  import { Card } from "$lib/components/ui";
+  import { Button, Card } from "$lib/components/ui";
+  import { forgeEnabled } from "$lib/stores/provider";
+  import { setCategory } from "$lib/stores/settingsRoute";
 </script>
 
 <div class="integrations-page">
-  <ConnectionHowTo />
+  {#if !$forgeEnabled}
+    <!-- The switch lives in General → Integrations next to the AI one;
+         this page only points there. Not mounting the rows matters: each
+         `ConnectionRow` checks its status on mount, and the CLI rows shell
+         out to `gh` / `glab auth status`, which goes to the network. -->
+    <Card
+      title={m.settings_integrations_connections_section()}
+      description={m.settings_integrations_connections_description()}
+    >
+      <div class="disabled-notice" data-testid="integrations-disabled">
+        <p>{m.integrations_settings_disabled_notice()}</p>
+        <Button variant="neutral" onclick={() => setCategory("general", "forge-enabled")}>
+          {m.ai_settings_disabled_action()}
+        </Button>
+      </div>
+    </Card>
+  {:else}
+    <ConnectionHowTo />
 
-  <Card
-    title={m.settings_integrations_connections_section()}
-    description={m.settings_integrations_connections_description()}
-  >
-    <div class="connections-grid" data-setting-anchor="connections">
-      <ConnectionRow kind="github" />
-      <ConnectionRow kind="gitlab" />
-      <ConnectionRow kind="gh" />
-      <ConnectionRow kind="glab" />
-    </div>
-  </Card>
+    <Card
+      title={m.settings_integrations_connections_section()}
+      description={m.settings_integrations_connections_description()}
+    >
+      <div class="connections-grid" data-setting-anchor="connections">
+        <ConnectionRow kind="github" />
+        <ConnectionRow kind="gitlab" />
+        <ConnectionRow kind="gh" />
+        <ConnectionRow kind="glab" />
+      </div>
+    </Card>
+  {/if}
 </div>
 
 <style>
@@ -60,5 +80,17 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .disabled-notice {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+  }
+  .disabled-notice p {
+    margin: 0;
   }
 </style>

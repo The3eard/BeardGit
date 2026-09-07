@@ -54,6 +54,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import {
+    aiEnabled,
     aiProviders,
     aiProvidersDetecting,
     preferredAiProvider,
@@ -61,6 +62,7 @@
     setPreferredProvider,
     loadPreferredProvider,
   } from "$lib/stores/ai";
+  import { setCategory } from "$lib/stores/settingsRoute";
   import type { AiBackgroundSettings, AiProviderKind } from "$lib/types";
   import {
     aiBackgroundGetSettings,
@@ -68,6 +70,7 @@
   } from "$lib/api/tauri";
   import * as m from "$lib/paraglide/messages";
   import {
+    Button,
     Card,
     SettingSection,
     FormRow,
@@ -147,6 +150,22 @@
   }
 </script>
 
+{#if !$aiEnabled}
+  <!-- The switch itself lives in General → Integrations, next to the
+       forge switch it will share a card with; this page only points there
+       so the category stays reachable while everything else is hidden. -->
+  <Card
+    title={m.settings_ai_providers_section_title()}
+    description={m.settings_ai_providers_section_description()}
+  >
+    <div class="disabled-notice" data-testid="ai-settings-disabled">
+      <p>{m.ai_settings_disabled_notice()}</p>
+      <Button variant="neutral" onclick={() => setCategory("general", "ai-enabled")}>
+        {m.ai_settings_disabled_action()}
+      </Button>
+    </div>
+  </Card>
+{:else}
 <Card
   title={m.settings_ai_providers_section_title()}
   description={m.settings_ai_providers_section_description()}
@@ -268,8 +287,21 @@
     {/if}
   </SettingSection>
 </Card>
+{/if}
 
 <style>
+  .disabled-notice {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+  }
+  .disabled-notice p {
+    margin: 0;
+  }
+
   .provider-list {
     display: flex;
     flex-direction: column;

@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { fileStatuses } from "../../stores/changes";
   import { hasActiveProvider, activeProvider } from "../../stores/provider";
+  import { aiEnabled } from "../../stores/ai";
   import { sidebarLayout, updateLayout } from "../../stores/sidebarLayout";
   import { type SidebarNavItem } from "../../utils/applyLayout";
   import { addToast } from "../../stores/toast";
@@ -69,10 +70,15 @@
     return ids.map((id) => itemById.get(id)).filter((x): x is SidebarNavItem => !!x);
   }
 
-  /** Normal-mode groups: only visible items, and groups with none drop out. */
+  /**
+   * Normal-mode groups: only visible items, and groups with none drop out.
+   * The AI group also drops out while the AI master switch is off — like
+   * the forge group, it only exists when its integration does.
+   */
   let visibleGroups = $derived.by(() => {
     const hiddenSet = new Set($sidebarLayout.hidden);
     return navGroups
+      .filter((g) => g.key !== "ai" || $aiEnabled)
       .map((g) => ({ ...g, items: groupItems(g.ids).filter((i) => !hiddenSet.has(i.id)) }))
       .filter((g) => g.items.length > 0);
   });
@@ -81,7 +87,11 @@
   let visibleFlat = $derived(visibleGroups.flatMap((g) => g.items));
 
   /** Edit-mode groups: every item, hidden ones included (greyed). */
-  let editGroups = $derived(navGroups.map((g) => ({ ...g, items: groupItems(g.ids) })));
+  let editGroups = $derived(
+    navGroups
+      .filter((g) => g.key !== "ai" || $aiEnabled)
+      .map((g) => ({ ...g, items: groupItems(g.ids) })),
+  );
 
   /** Force-exit edit mode if the sidebar collapses. */
   $effect(() => {

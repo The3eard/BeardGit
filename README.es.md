@@ -70,7 +70,7 @@ Crea, edita, mergea, aprueba y comenta **PRs y MRs** con **diff por archivo y co
 
 Una abstracción `ForgeProvider` envuelve `gh` y `glab`. **GitHub Enterprise** auto-hospedado y **GitLab on-prem** funcionan de serie; la auth se valida por host, así que un forge solo accesible por VPN no eclipsa a otro que sí responde. Multi-instancia: tu `gitlab.com` personal y un GitLab corporativo conviven sin problema.
 
-> Las dos CLIs vienen incluidas en cada instalador. Sin tocar el PATH, sin setup.
+> Las dos CLIs vienen incluidas en cada instalador, y las incluidas son las que BeardGit usa — la misma versión para todos, tengas lo que tengas en el `PATH`. Tu sesión de `gh` / `glab` se conserva: las credenciales viven en tu config de usuario y en el keychain, no en el binario.
 
 ---
 
@@ -116,6 +116,7 @@ Edita archivos del repo sin salir de BeardGit. CodeMirror 6 con snippets por len
 - **Terminales de verdad.** xterm.js + WebGL alimentado por un PTY nativo en Rust. OSC 7 enlaza la terminal con la pestaña del proyecto. Detección por proceso en primer plano: cuando arranca `claude` / `codex` / `opencode`, la pestaña se actualiza al vuelo.
 - **Temas e i18n.** 31 temas de serie, claros y oscuros, más los tuyos en un archivo TOML — cada acento sale de tokens CSS, también en el grafo. Los tres niveles de texto de todos los temas incluidos cumplen WCAG AA, con un test que lo garantiza; un tema que escribas tú se mide y se te reporta, nunca se reescribe. Inglés y español de serie vía [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs); añadir un idioma es un JSON.
 - **Tu sidebar.** Reordena entradas, oculta lo que no usas, restaura el orden por defecto. La disposición persiste en toda la app.
+- **Apaga integraciones enteras.** Ajustes → General → Integraciones tiene un interruptor para GitHub / GitLab y otro para la IA. Apagados, sus superficies desaparecen — entradas del sidebar, slots de la barra de estado, vistas, acciones del toolbar y del cuadro de commit — y nada corre por detrás: no se valida ningún token al arrancar, no se resuelve el remoto contra ninguna API de forge, no se detecta ninguna CLI de IA ni se sondea el proceso del terminal. Con los dos apagados queda un **cliente solo git** cuyo único tráfico de red propio es la comprobación de actualizaciones, que tiene su propio interruptor. Cuentas y preferencias se conservan para cuando los vuelvas a encender.
 - **Auto-actualización.** Updater de Tauri en el canal estable con diagnóstico del endpoint y el último check — distingues un 404 de un fallo de DNS sin salir de la app.
 - **Logs solo locales.** `tracing` con rotación diaria y purgado a 7 días en una ruta por plataforma, y un selector de nivel de log en vivo (error / info / debug) en Ajustes → Avanzado. La ruta del log aparece en el diálogo de error in-app; compartirla es decisión tuya, jamás de la app.
 

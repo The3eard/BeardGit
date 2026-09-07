@@ -25,8 +25,23 @@ export const preferredAiProvider = writable<AiProviderKind | null>(null);
  */
 export const aiProvidersDetecting = writable(true);
 
-/** Whether at least one AI provider is installed. */
-export const hasAiProvider = derived(aiProviders, (p) => p.length > 0);
+/**
+ * The AI master switch (Settings → General). Mirrors `AppConfig::ai_enabled`.
+ *
+ * Optimistically `true` until `loadAiEnabled()` resolves, so the very first
+ * paint matches the common case; `+page.svelte` awaits the load before it
+ * starts any AI work, so nothing is probed on the strength of the default.
+ * Every AI surface derives its visibility from this (directly, or through
+ * `hasAiProvider`), and `installAiDisabledReroute` in `navigation.ts`
+ * leaves the AI views when it goes false.
+ */
+export const aiEnabled = writable(true);
+
+/** Whether at least one AI provider is installed — and the switch is on. */
+export const hasAiProvider = derived(
+  [aiProviders, aiEnabled],
+  ([p, enabled]) => enabled && p.length > 0,
+);
 
 /** The effective default provider — preferred if available, otherwise first detected. */
 export const defaultAiProvider = derived(
@@ -50,6 +65,13 @@ export const defaultAiProvider = derived(
  * block so a failure doesn't leave the UI stuck.
  */
 export async function detectAiProviders(): Promise<void> {
+  // Switch off: nothing to probe. Clear rather than keep stale results so
+  // `hasAiProvider`-gated surfaces cannot come back through a cached list.
+  if (!get(aiEnabled)) {
+    aiProviders.set([]);
+    aiProvidersDetecting.set(false);
+    return;
+  }
   aiProvidersDetecting.set(true);
   try {
     await api.aiRefreshDetection();
@@ -57,6 +79,42 @@ export async function detectAiProviders(): Promise<void> {
     aiProviders.set(providers);
   } finally {
     aiProvidersDetecting.set(false);
+  }
+}
+
+// ─── Master switch ───
+
+/** Load the AI master switch from persisted config. Call before any AI work. */
+export async function loadAiEnabled(): Promise<void> {
+  try {
+    const value = await api.getAiEnabled();
+    // Only an explicit `false` turns AI off. Anything else (an unreadable
+    // config, or a test harness answering `undefined` for a command it does
+    // not mock) keeps the optimistic default rather than hiding AI.
+    aiEnabled.set(value !== false);
+  } catch {
+    // Unreadable config: keep the optimistic default rather than hide AI.
+  }
+}
+
+/**
+ * Persist the AI master switch and apply it: turning it on runs detection so
+ * the provider-gated surfaces appear; turning it off drops the detected
+ * providers so they disappear. Reverts the store if persisting fails.
+ */
+export async function setAiEnabled(enabled: boolean): Promise<void> {
+  const previous = get(aiEnabled);
+  aiEnabled.set(enabled);
+  try {
+    await api.setAiEnabled(enabled);
+  } catch (e) {
+    aiEnabled.set(previous);
+    throw e;
+  }
+  if (enabled) {
+    await detectAiProviders();
+  } else {
+    aiProviders.set([]);
   }
 }
 
@@ -130,9 +188,17 @@ export async function aiLaunchWorktree(
 
 // ─── Introspection (re-export from API) ───
 
-export const aiListWorktrees = api.aiListWorktrees;
-export const aiCleanupWorktree = api.aiCleanupWorktree;
-export const aiGetConfigFiles = api.aiGetConfigFiles;
+// Thin wrappers rather than `= api.fn` aliases: an alias reads the export
+// at module-evaluation time, which throws under a component test that
+// mocks `$lib/api/tauri` with only the wrappers it cares about. This store
+// is now imported by the shell chrome (Sidebar, StatusBar, TerminalView)
+// for `aiEnabled`, so it loads in far more tests than before.
+export const aiListWorktrees: typeof api.aiListWorktrees = (...args) =>
+  api.aiListWorktrees(...args);
+export const aiCleanupWorktree: typeof api.aiCleanupWorktree = (...args) =>
+  api.aiCleanupWorktree(...args);
+export const aiGetConfigFiles: typeof api.aiGetConfigFiles = (...args) =>
+  api.aiGetConfigFiles(...args);
 
 // ─── Helpers ───
 
