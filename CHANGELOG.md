@@ -4,6 +4,15 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased]
 
+### Fixed
+
+- **The terminal draws what the shell drew.** Opening the app from Finder or a desktop launcher gave the shell no `TERM`, `COLORTERM` or `LANG` — launchd hands a GUI app none of them — so zsh, fish and fzf fell back to a dumb terminal and the line editor mangled every multibyte glyph. Ctrl+R history search, fzf, vim, anything that draws in raw mode, left garbage in the buffer. It never reproduced in development because the developer's own terminal leaked its values in. The PTY now declares itself `xterm-256color` with truecolor and a UTF-8 locale when none is set, and on macOS starts a login shell like every native terminal does, so `path_helper` and `~/.zprofile` run and your tools are on `PATH`. Four more faults in the same chain went with it: the interactive terminal converted a bare `\n` into `\r\n`, which raw-mode programs use to mean "down one line, same column"; keyboard input was base64-encoded from UTF-16 code units, so `ñ` reached the shell as one invalid byte and `€` or an emoji threw and was dropped; closing a terminal tab with another one behind it left the survivor mute, because the tab layer matched terminals by position and unregistered the wrong session's output; and the pool that recycled xterm instances handed out terminals that could never attach to a new container, so the fourth terminal you opened after closing one of three came up blank. The pool is gone, one instance per tab.
+- **"Log in" with `gh` / `glab` works for the user who has neither installed.** The button typed a bare `gh auth login` into a terminal, which the shell resolved through its own `PATH` — "command not found" for exactly the user the bundled copies exist for. The command now names the binary the app itself will use.
+
+### Changed
+
+- **BeardGit drives its own `gh` and `glab`.** The bundled copies were only ever a fallback: whatever `gh` or `glab` you had on `PATH` won, so the same build ran a different CLI version on every machine, and the bundled ones had quietly sat at gh 2.62.0 and glab 1.46.1 for close to two years — that glab could no longer read the config a current glab writes, and failed every GitLab call for anyone who also had a modern one installed. The bundled binaries now come first, with `PATH` as the fallback. Your login is not affected: both CLIs keep credentials in your per-user config and keyring, keyed by host, not by which binary ran `auth login`. The pins move to gh 2.100.0 and glab 1.116.0, and a check in the gate and in CI fails once they trail the latest release by more than 90 days.
+
 ## [26.9.0] — Sections that remember, an editor that keeps its place, and a graph that draws what git did — 2026-09-03
 
 ### Added
