@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { get } from "svelte/store";
   import Terminal from "./Terminal.svelte";
+  import { aiEnabled } from "$lib/stores/ai";
   import { activeTheme } from "$lib/stores/theme";
   import {
     terminalWrite,
@@ -44,13 +46,15 @@
 
     // Mark this session as the visible terminal so the backend polls its
     // foreground process for AI-provider detection (Claude/Codex/OpenCode).
-    terminalSetActive(terminal.sessionId);
+    // That poll is the only consumer, so with AI off nothing is marked and
+    // the polling thread stays idle.
+    if (get(aiEnabled)) terminalSetActive(terminal.sessionId);
   });
 
   onDestroy(() => {
     offTerminalOutput(terminal.sessionId);
     // Clear active session when this view unmounts.
-    terminalSetActive(null);
+    if (get(aiEnabled)) terminalSetActive(null);
   });
 
   function handleClick() {

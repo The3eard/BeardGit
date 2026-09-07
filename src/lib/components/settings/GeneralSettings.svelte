@@ -51,6 +51,14 @@
       anchor: "ui-scale",
     },
     {
+      id: "general.ai-enabled",
+      label: "AI assistance",
+      description:
+        "Master switch for the AI integration: commit-message generation, code review, AI sessions and background agents. Off hides every AI control and probes nothing.",
+      category: "general",
+      anchor: "ai-enabled",
+    },
+    {
       id: "general.diff-show-whitespace",
       label: "Show whitespace in diffs",
       description:
@@ -79,6 +87,17 @@
     diffLineWrapping,
     updateDiffLineWrapping,
   } from "$lib/stores/diffSettings";
+  import { aiEnabled, setAiEnabled } from "$lib/stores/ai";
+
+  async function handleToggleAiEnabled(event: Event) {
+    const input = event.target as HTMLInputElement;
+    try {
+      await setAiEnabled(input.checked);
+    } catch {
+      // Persistence failed — the store already reverted; re-sync the box.
+      input.checked = !input.checked;
+    }
+  }
 
   async function handleToggleDiffWhitespace(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -106,6 +125,28 @@
   description={m.settings_general_theme_section_description()}
 >
   <LookAndFeelSection />
+</Card>
+
+<Card
+  title={m.settings_general_integrations_section_title()}
+  description={m.settings_general_integrations_section_description()}
+>
+  <div class="diff-settings-body">
+    <div data-setting-anchor="ai-enabled">
+      <FormRow
+        label={m.settings_general_ai_enabled_label()}
+        for="ai-enabled-toggle"
+        helperText={m.settings_general_ai_enabled_hint()}
+      >
+        <Switch
+          id="ai-enabled-toggle"
+          testid="ai-enabled-toggle"
+          checked={$aiEnabled}
+          onchange={handleToggleAiEnabled}
+        />
+      </FormRow>
+    </div>
+  </div>
 </Card>
 
 <Card
