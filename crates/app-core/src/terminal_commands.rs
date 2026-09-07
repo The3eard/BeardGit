@@ -16,10 +16,21 @@ pub fn terminal_spawn(
     rows: u16,
     terminal_manager: State<'_, Arc<TerminalManager>>,
 ) -> Result<SessionId, IpcError> {
+    // macOS terminals (Terminal.app, iTerm, VS Code) all start a *login*
+    // shell: it is the only thing that runs `/etc/zprofile` (path_helper)
+    // and `~/.zprofile`, so a non-login shell in a Finder-launched app
+    // gets the bare launchd PATH and none of the user's tools. Linux
+    // terminals default to non-login shells and their desktop sessions
+    // already carry the environment, so leave them alone.
+    let args = if cfg!(target_os = "macos") {
+        vec!["-l".to_string()]
+    } else {
+        Vec::new()
+    };
     let config = TerminalConfig {
         cwd: PathBuf::from(cwd),
         shell: None,
-        args: Vec::new(),
+        args,
         env: HashMap::new(),
         cols,
         rows,

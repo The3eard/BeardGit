@@ -913,8 +913,11 @@
       <div class="content-wrapper">
         <!-- Persistent terminal layer: always mounted, shown/hidden via visibility.
              Uses absolute positioning so terminals keep full dimensions when hidden.
-             Keyed by sessionId so Svelte never destroys/recreates on tab reorder. -->
-        {#each $openTabs as tab, i}
+             Keyed by tab identity (project path / sessionId): an unkeyed each
+             matches blocks by index, so closing a terminal tab re-targeted the
+             surviving TerminalView to another session while its onDestroy
+             unregistered that session's output listener. -->
+        {#each $openTabs as tab, i (tab.kind === "terminal" ? `terminal:${tab.terminal.sessionId}` : `${tab.kind}:${tab.project.path}`)}
           {#if tab.kind === "terminal"}
             <div class="terminal-persist" class:visible={i === $activeTabIndex} style:background={$activeTheme?.colors.background}>
               <LazyComponent
