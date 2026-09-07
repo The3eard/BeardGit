@@ -3,13 +3,43 @@ import { get } from "svelte/store";
 import { activeViewStore } from "./navigation";
 import {
   installProviderDisconnectReroute,
+  installAiDisabledReroute,
   PROVIDER_VIEWS,
+  AI_VIEWS,
 } from "./navigation";
 import { providerStatus } from "./provider";
+import { aiEnabled } from "./ai";
 
 beforeEach(() => {
   providerStatus.set({ providers: [], active_index: null });
+  aiEnabled.set(true);
   activeViewStore.set("graph");
+});
+
+describe("AI disabled reroute", () => {
+  it("routes AI views back to graph when the switch goes off", () => {
+    activeViewStore.set("ai-sessions");
+    const teardown = installAiDisabledReroute();
+    expect(get(activeViewStore)).toBe("ai-sessions");
+
+    aiEnabled.set(false);
+    expect(get(activeViewStore)).toBe("graph");
+    teardown();
+  });
+
+  it("leaves other views alone and does nothing when re-enabled", () => {
+    activeViewStore.set("changes");
+    const teardown = installAiDisabledReroute();
+    aiEnabled.set(false);
+    expect(get(activeViewStore)).toBe("changes");
+    aiEnabled.set(true);
+    expect(get(activeViewStore)).toBe("changes");
+    teardown();
+  });
+
+  it("exports the canonical AI view list", () => {
+    expect(AI_VIEWS).toEqual(["ai-config", "ai-sessions"]);
+  });
 });
 
 describe("provider disconnect reroute", () => {

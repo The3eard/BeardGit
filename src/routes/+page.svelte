@@ -32,7 +32,7 @@
   import SubmoduleList from "$lib/components/submodules/SubmoduleList.svelte";
   import MrPrView from "$lib/components/mr-pr/MrPrView.svelte";
   import IssueView from "$lib/components/issues/IssueView.svelte";
-  import { activeViewStore, installProviderDisconnectReroute } from "$lib/stores/navigation";
+  import { activeViewStore, installProviderDisconnectReroute, installAiDisabledReroute } from "$lib/stores/navigation";
   import { branchFileDiff, branchSelectedCommit, branchSelectedFiles, closeBranchCommitDetail } from "$lib/stores/branches";
   import { blamePreviousView } from "$lib/stores/blame";
   import { initTerminalEvents } from "$lib/stores/terminal";
@@ -62,7 +62,7 @@
   import { addToast } from "$lib/stores/toast";
   import { get } from "svelte/store";
   import ShortcutOverlay from "$lib/components/common/ShortcutOverlay.svelte";
-  import { detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
+  import { aiEnabled, loadAiEnabled, detectAiProviders, loadPreferredProvider } from "$lib/stores/ai";
   import CreateBackgroundRunDialog from "$lib/components/ai/CreateBackgroundRunDialog.svelte";
   import RepoConfigPage from "$lib/components/repo-config/RepoConfigPage.svelte";
   import {
@@ -72,7 +72,7 @@
     openTab as openEditorTab,
   } from "$lib/stores/fileEditor";
   import { initRepoConfigRouteSync } from "$lib/stores/repoConfigRoute";
-  import { startAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
+  import { startAiBackgroundListeners, stopAiBackgroundListeners, refreshAiBackgroundRuns, openCreateBackgroundRunDialogRequest } from "$lib/stores/aiBackground";
   import { startConversationListeners, stopConversationListeners } from "$lib/stores/aiConversations";
   import { createBranchDialog, openCreateBranchDialog, closeCreateBranchDialog } from "$lib/stores/createBranchDialog";
   import CreateBranchDialog from "$lib/components/branches/CreateBranchDialog.svelte";
@@ -100,6 +100,8 @@
   let repoConfigPageRef = $state<RepoConfigPage | undefined>(undefined);
   let teardownRepoConfigRoute: (() => void) | null = null;
   let teardownProviderReroute: (() => void) | null = null;
+  let teardownAiReroute: (() => void) | null = null;
+  let teardownAiRuntime: (() => void) | null = null;
   let teardownDragDropListener: (() => void) | null = null;
   let teardownFileEditor: (() => void) | null = null;
   let showAiBackgroundDialog = $state(false);
@@ -244,17 +246,33 @@
     teardownProviderReroute = installProviderDisconnectReroute();
     initProjects();
     initTerminalEvents();
-    detectAiProviders();
-    loadPreferredProvider();
-    startAiBackgroundListeners();
-    refreshAiBackgroundRuns().catch(() => {});
-    // AI session auto-refresh listeners are per-project-path — register
-    // once here with the initial active project (if any), and re-register
-    // from the `onProjectSwitch` callback below. Putting this at the
-    // app-shell level keeps `AiSessionsView` / `AiSessionList` free of
-    // `onMount` work so the view swap into AI Sessions paints the same
-    // frame as the rest of the sections (pipelines / tags / branches).
-    refreshAiSessionListeners();
+    // The AI master switch decides whether any of the AI runtime starts:
+    // CLI detection, the background-run and transcript listeners, and the
+    // per-project session listeners (see `refreshAiSessionListeners`).
+    // Loaded before the subscription so the first callback already sees
+    // the persisted value and nothing is probed on the optimistic default.
+    // The same subscription then reacts to the switch being flipped live
+    // in Settings, so no relaunch is needed either way.
+    await loadAiEnabled();
+    teardownAiReroute = installAiDisabledReroute();
+    teardownAiRuntime = aiEnabled.subscribe((enabled) => {
+      if (enabled) {
+        detectAiProviders();
+        loadPreferredProvider();
+        startAiBackgroundListeners();
+        refreshAiBackgroundRuns().catch(() => {});
+        // AI session auto-refresh listeners are per-project-path — register
+        // once here with the initial active project (if any), and re-register
+        // from the `onProjectSwitch` callback below. Putting this at the
+        // app-shell level keeps `AiSessionsView` / `AiSessionList` free of
+        // `onMount` work so the view swap into AI Sessions paints the same
+        // frame as the rest of the sections (pipelines / tags / branches).
+        refreshAiSessionListeners();
+      } else {
+        stopAiBackgroundListeners();
+        stopConversationListeners();
+      }
+    });
 
     try {
       sidebarCollapsed = await getSidebarCollapsed();
@@ -562,7 +580,10 @@
         keys: { mod: true, shift: true, key: "A" },
         label: m.ai_background_new_run_button(),
         category: "AI",
-        action: () => { showAiBackgroundDialog = true; },
+        // No-op while the AI switch is off: the shortcut stays registered
+        // (the cheat sheet is static) but must not open a dialog whose
+        // every action the backend would refuse.
+        action: () => { if (get(aiEnabled)) showAiBackgroundDialog = true; },
         global: true,
       },
       {
@@ -598,6 +619,10 @@
     teardownRepoConfigRoute = null;
     teardownProviderReroute?.();
     teardownProviderReroute = null;
+    teardownAiReroute?.();
+    teardownAiReroute = null;
+    teardownAiRuntime?.();
+    teardownAiRuntime = null;
     teardownDragDropListener?.();
     teardownDragDropListener = null;
     teardownFileEditor?.();
@@ -614,6 +639,7 @@
    */
   function refreshAiSessionListeners(): void {
     stopConversationListeners();
+    if (!get(aiEnabled)) return;
     const proj = get(activeProject);
     if (proj?.path) {
       void startConversationListeners(proj.path);
@@ -1135,7 +1161,9 @@
             <span class="welcome-chip">{m.welcome_chip_reviews()}</span>
             <span class="welcome-chip">{m.welcome_chip_pipelines()}</span>
             <span class="welcome-chip">{m.welcome_chip_terminals()}</span>
-            <span class="welcome-chip">{m.welcome_chip_ai()}</span>
+            {#if $aiEnabled}
+              <span class="welcome-chip">{m.welcome_chip_ai()}</span>
+            {/if}
             <span class="welcome-chip">{m.welcome_chip_http()}</span>
           </div>
 

@@ -46,6 +46,7 @@ vi.mock("$lib/stores/provider", async () => {
     hasActiveProvider,
     isConnecting,
     providerError,
+    forgeEnabled: writable(true),
     connect: vi.fn(),
     disconnect: vi.fn(),
     checkStatus: vi.fn(),
