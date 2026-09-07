@@ -1786,6 +1786,16 @@ export async function setAiEnabled(enabled: boolean): Promise<void> {
   return invoke<void>("set_ai_enabled", { enabled });
 }
 
+/** Read the GitHub / GitLab master switch (default `true`). */
+export async function getForgeEnabled(): Promise<boolean> {
+  return invoke<boolean>("get_forge_enabled");
+}
+
+/** Persist the GitHub / GitLab master switch. */
+export async function setForgeEnabled(enabled: boolean): Promise<void> {
+  return invoke<void>("set_forge_enabled", { enabled });
+}
+
 // ─── Bisect ─────────────────────────────────────────────────────────
 
 /** Start a bisect session, optionally providing bad and good commits. */

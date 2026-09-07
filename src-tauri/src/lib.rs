@@ -420,6 +420,8 @@ pub fn run() {
             app_core::commands::ai_background_set_settings,
             app_core::commands::get_ai_enabled,
             app_core::commands::set_ai_enabled,
+            app_core::commands::get_forge_enabled,
+            app_core::commands::set_forge_enabled,
             // Bisect
             app_core::commands::bisect_start,
             app_core::commands::bisect_good,
