@@ -174,6 +174,7 @@ function bootstrapResponses(opts: BootstrapOpts): IpcResponses {
 
     // Forge / CI — `get_provider_status` controls which sidebar items
     // render (pipelines / issues / mr-pr / releases / repo-config).
+    get_forge_enabled: true,
     get_provider_status: makeProviderStatus(opts.forge ?? "github"),
     cli_check_auth_status: [],
     try_auto_connect: undefined,

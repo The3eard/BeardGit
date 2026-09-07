@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import "../app.css";
-  import { tryAutoConnect } from "$lib/stores/provider";
+  import { loadForgeEnabled, tryAutoConnect } from "$lib/stores/provider";
   import { initLocale } from "$lib/stores/locale";
   import { initTaskStore, cleanupTaskStore } from "$lib/stores/taskPanel";
   import { initTasksStore, stopTasksStore } from "$lib/stores/tasks";
@@ -32,7 +32,9 @@
   onMount(() => {
     initLocale();
     initUiScale();
-    tryAutoConnect();
+    // The forge switch is read first so the saved PATs are only validated
+    // over the network when the integration is on.
+    void loadForgeEnabled().then(() => tryAutoConnect());
     initTaskStore();
     // Unified tasks drawer aggregator — wires the 3 bridges (task://update
     // Tauri events, aiBackgroundRuns, autoUpdate.updateTask) into the

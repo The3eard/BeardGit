@@ -22,6 +22,10 @@ fn default_ai_enabled() -> bool {
     true
 }
 
+fn default_forge_enabled() -> bool {
+    true
+}
+
 fn default_diff_line_wrapping() -> bool {
     true
 }
@@ -266,6 +270,16 @@ pub struct AppConfig {
     /// List of recently opened repository paths.
     #[serde(default)]
     pub recent_repos: Vec<String>,
+    /// Master switch for the GitHub / GitLab integration. When `false` the
+    /// app never reconnects the saved providers, never validates a PAT,
+    /// never resolves the active repo against a forge API and never shells
+    /// out to `gh` / `glab`; the frontend hides every forge surface. Saved
+    /// providers and their credentials are kept for when it is turned back
+    /// on. Default `true`. With this off, the only outbound traffic the app
+    /// initiates on its own is the updater poll.
+    #[serde(default = "default_forge_enabled")]
+    pub forge_enabled: bool,
+
     /// Authenticated providers to auto-reconnect on startup.
     #[serde(default)]
     pub providers: Vec<SavedProvider>,
@@ -395,6 +409,7 @@ impl Default for AppConfig {
             theme_auto: default_theme_auto(),
             locale: default_locale(),
             recent_repos: Vec::new(),
+            forge_enabled: default_forge_enabled(),
             providers: Vec::new(),
             external_editor: None,
             window_width: None,
@@ -722,6 +737,28 @@ mod tests {
 
         let config = AppConfig::load(&path).unwrap();
         assert!(config.auto_check_updates);
+    }
+
+    #[test]
+    fn test_forge_enabled_defaults_true_and_roundtrips() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, r#"{"theme": "github-dark"}"#).unwrap();
+        assert!(AppConfig::load(&path).unwrap().forge_enabled);
+
+        let config = AppConfig {
+            forge_enabled: false,
+            providers: vec![SavedProvider {
+                kind: "github".to_string(),
+                instance_url: "https://api.github.com".to_string(),
+            }],
+            ..AppConfig::default()
+        };
+        config.save(&path).unwrap();
+        let loaded = AppConfig::load(&path).unwrap();
+        assert!(!loaded.forge_enabled);
+        // Disabling keeps the saved providers for when it is turned back on.
+        assert_eq!(loaded.providers.len(), 1);
     }
 
     #[test]

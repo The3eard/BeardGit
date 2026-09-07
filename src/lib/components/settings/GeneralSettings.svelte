@@ -59,6 +59,14 @@
       anchor: "ai-enabled",
     },
     {
+      id: "general.forge-enabled",
+      label: "GitHub / GitLab integration",
+      description:
+        "Master switch for the forge integration: pull/merge requests, issues, releases, pipelines, repo settings and the gh / glab tools. Off makes BeardGit a git-only client with no network calls of its own besides the updater.",
+      category: "general",
+      anchor: "forge-enabled",
+    },
+    {
       id: "general.diff-show-whitespace",
       label: "Show whitespace in diffs",
       description:
@@ -88,6 +96,16 @@
     updateDiffLineWrapping,
   } from "$lib/stores/diffSettings";
   import { aiEnabled, setAiEnabled } from "$lib/stores/ai";
+  import { forgeEnabled, setForgeEnabled } from "$lib/stores/provider";
+
+  async function handleToggleForgeEnabled(event: Event) {
+    const input = event.target as HTMLInputElement;
+    try {
+      await setForgeEnabled(input.checked);
+    } catch {
+      input.checked = !input.checked;
+    }
+  }
 
   async function handleToggleAiEnabled(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -132,6 +150,20 @@
   description={m.settings_general_integrations_section_description()}
 >
   <div class="diff-settings-body">
+    <div data-setting-anchor="forge-enabled">
+      <FormRow
+        label={m.settings_general_forge_enabled_label()}
+        for="forge-enabled-toggle"
+        helperText={m.settings_general_forge_enabled_hint()}
+      >
+        <Switch
+          id="forge-enabled-toggle"
+          testid="forge-enabled-toggle"
+          checked={$forgeEnabled}
+          onchange={handleToggleForgeEnabled}
+        />
+      </FormRow>
+    </div>
     <div data-setting-anchor="ai-enabled">
       <FormRow
         label={m.settings_general_ai_enabled_label()}

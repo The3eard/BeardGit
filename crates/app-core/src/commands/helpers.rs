@@ -174,6 +174,13 @@ pub(crate) fn get_active_project_path(state: &State<'_, AppState>) -> Result<Pat
     Ok(PathBuf::from(&slot.path))
 }
 
+/// Read the forge master switch (`AppConfig::forge_enabled`). A poisoned
+/// config mutex reads as "on": that is the default, and hiding an
+/// integration is not the right reaction to an unrelated failure.
+pub(super) fn forge_enabled(state: &State<'_, AppState>) -> bool {
+    state.config.lock().map(|c| c.forge_enabled).unwrap_or(true)
+}
+
 /// Refuse AI work while the AI master switch (`AppConfig::ai_enabled`) is
 /// off.
 ///
@@ -372,6 +379,16 @@ pub(super) fn get_active_provider_and_project(
 /// If no repo is open or no provider matches, `active_provider_index` is
 /// set to `None`.
 pub(super) async fn detect_active_provider(state: &State<'_, AppState>) {
+    // Forge switch off: nothing may be active, and the remote must not be
+    // resolved against a forge API. Every caller (repo open, connect,
+    // disconnect, auto-connect, explicit re-detect) funnels through here,
+    // so this is the one place that keeps the switch honest.
+    if !forge_enabled(state) {
+        *state.active_provider_index.lock().unwrap() = None;
+        invalidate_forge_provider_cache(state);
+        return;
+    }
+
     // Get the repo's origin remote URL from the active slot
     let remote_url = {
         let projects = state.projects.lock().unwrap();

@@ -213,10 +213,16 @@ pub async fn disconnect_provider(
 pub async fn try_auto_connect(
     state: State<'_, AppState>,
 ) -> Result<Vec<provider::ProviderUser>, IpcError> {
-    // Read saved providers from config
+    // Read saved providers from config — none while the forge switch is
+    // off. This is the boot-time network call the switch exists to stop:
+    // each saved PAT is otherwise validated over HTTPS on every launch.
     let saved_providers = {
         let config = state.config.lock().unwrap();
-        config.providers.clone()
+        if config.forge_enabled {
+            config.providers.clone()
+        } else {
+            Vec::new()
+        }
     };
 
     let mut connected_users = Vec::new();
@@ -275,6 +281,14 @@ pub async fn try_auto_connect(
 /// Used by the frontend to render the provider list and active badge.
 #[tauri::command]
 pub fn get_provider_status(state: State<'_, AppState>) -> provider::ProviderStatusResponse {
+    // Off: report nothing connected, whatever is still in memory. The
+    // frontend derives every forge surface from this response.
+    if !forge_enabled(&state) {
+        return provider::ProviderStatusResponse {
+            providers: Vec::new(),
+            active_index: None,
+        };
+    }
     let providers = state.providers.lock().unwrap();
     let active_index = *state.active_provider_index.lock().unwrap();
 
