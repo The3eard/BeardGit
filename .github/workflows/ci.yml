@@ -65,6 +65,12 @@ jobs:
         # something better than the raw message never got asked.
         run: node scripts/check-ipc-codes.mjs
 
+      - name: Bundled CLI version freshness
+        # The gh/glab sidecars win over PATH at runtime, so a stale pin in
+        # cli-versions.json reaches every user. Fails once the pin trails
+        # the latest upstream release by more than the grace period.
+        run: node scripts/check-cli-versions.mjs
+
       - name: Playwright spec collection check
         # Collection only (--list): no browsers, no app build, ~2s. One
         # unloadable module aborts collection for the WHOLE project, so a

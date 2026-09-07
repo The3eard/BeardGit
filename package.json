@@ -26,6 +26,7 @@
     "check:glyphs": "node scripts/check-icon-glyphs.mjs",
     "check:toolchain": "node scripts/check-toolchain-pin.mjs",
     "check:codes": "node scripts/check-ipc-codes.mjs",
+    "check:cli-versions": "node scripts/check-cli-versions.mjs",
     "gate": "bash scripts/gate.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
