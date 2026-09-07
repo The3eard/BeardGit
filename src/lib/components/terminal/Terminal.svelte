@@ -7,7 +7,6 @@
   import { SearchAddon } from "@xterm/addon-search";
   import type { ITheme } from "@xterm/xterm";
   import type { ThemeData } from "../../types";
-  import { acquireInteractive, releaseInteractive } from "./interactive-pool";
 
   interface Props {
     mode: "interactive" | "readonly";
@@ -51,85 +50,62 @@
   onMount(() => {
     if (!containerEl) return;
 
-    if (mode === "interactive") {
-      // ── Interactive: acquire from pool ──
-      const pooled = acquireInteractive();
-      terminal = pooled.terminal;
-      fitAddon = pooled.fitAddon;
+    // One xterm instance per mounted component, in both modes. Instances are
+    // deliberately NOT pooled: `Terminal.open()` is a no-op once the terminal
+    // has been opened, so a recycled instance stays attached to the container
+    // it was first rendered in, and `reset()` does not drop `onData` /
+    // `onResize` subscriptions — a reused terminal kept sending keystrokes to
+    // the PTY session it was previously bound to.
+    const interactive = mode === "interactive";
+    terminal = new XTerm({
+      theme: toXtermTheme(theme),
+      fontFamily: "'Fira Code', 'NerdFontSymbols', monospace",
+      fontSize,
+      disableStdin: !interactive,
+      cursorBlink: interactive,
+      scrollback: 10000,
+      // A PTY already translates `\n` → `\r\n` (termios ONLCR); a raw-mode
+      // program (fzf, vim, less) that emits a bare `\n` means "move down,
+      // keep the column". Converting it here breaks their drawing. Only the
+      // read-only mode shows non-PTY output that needs the conversion.
+      convertEol: !interactive,
+    });
 
-      // Apply current theme and font size (pool instance may have stale values)
-      terminal.options.theme = toXtermTheme(theme);
-      terminal.options.fontSize = fontSize;
+    fitAddon = new FitAddon();
+    terminal.loadAddon(fitAddon);
+    terminal.loadAddon(new WebLinksAddon());
+    terminal.loadAddon(new SearchAddon());
 
-      terminal.open(containerEl);
+    terminal.open(containerEl);
 
-      // Load WebGL addon after open (needs canvas context)
-      try {
-        terminal.loadAddon(new WebglAddon());
-      } catch {
-        // WebGL not available — fallback to canvas renderer (automatic)
-      }
-
-      fitAddon.fit();
-
-      if (onData) {
-        terminal.onData(onData);
-      }
-
-      const observer = new ResizeObserver(() => {
-        requestAnimationFrame(() => fitAddon?.fit());
-      });
-      observer.observe(containerEl);
-
-      return () => {
-        observer.disconnect();
-        if (terminal && fitAddon) {
-          releaseInteractive({ terminal, fitAddon });
-          terminal = undefined;
-          fitAddon = undefined;
-        }
-      };
-    } else {
-      // ── Read-only: create fresh instance (pool managed at higher level) ──
-      terminal = new XTerm({
-        theme: toXtermTheme(theme),
-        fontFamily: "'Fira Code', 'NerdFontSymbols', monospace",
-        fontSize,
-        disableStdin: true,
-        cursorBlink: false,
-        scrollback: 10000,
-        convertEol: true,
-      });
-
-      fitAddon = new FitAddon();
-      terminal.loadAddon(fitAddon);
-      terminal.loadAddon(new WebLinksAddon());
-      terminal.loadAddon(new SearchAddon());
-
-      terminal.open(containerEl);
-
-      try {
-        terminal.loadAddon(new WebglAddon());
-      } catch {
-        // WebGL not available
-      }
-
-      fitAddon.fit();
-
-      if (onData) {
-        terminal.onData(onData);
-      }
-
-      const observer = new ResizeObserver(() => {
-        requestAnimationFrame(() => fitAddon?.fit());
-      });
-      observer.observe(containerEl);
-
-      return () => {
-        observer.disconnect();
-        terminal?.dispose();
-      };
+    // Load WebGL addon after open (needs canvas context)
+    try {
+      const webgl = new WebglAddon();
+      // On GPU context loss the addon stops painting; disposing it makes
+      // xterm fall back to the DOM renderer instead of going blank.
+      webgl.onContextLoss(() => webgl.dispose());
+      terminal.loadAddon(webgl);
+    } catch {
+      // WebGL not available — fallback to DOM renderer (automatic)
     }
+
+    fitAddon.fit();
+
+    if (onData) {
+      terminal.onData(onData);
+    }
+
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(() => fitAddon?.fit());
+    });
+    observer.observe(containerEl);
+
+    return () => {
+      observer.disconnect();
+      terminal?.dispose();
+      terminal = undefined;
+      fitAddon = undefined;
+    };
   });
 
   // React to theme changes
@@ -150,9 +126,7 @@
   }
 
   export function dispose(): void {
-    // Note: for interactive mode, prefer the cleanup returned by onMount
-    // which calls releaseInteractive(). This method is a fallback for
-    // callers that don't rely on Svelte's lifecycle cleanup.
+    // Fallback for callers that don't rely on Svelte's lifecycle cleanup.
     terminal?.dispose();
     terminal = undefined;
   }

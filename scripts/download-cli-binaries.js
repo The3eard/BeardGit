@@ -35,24 +35,26 @@ const VERSIONS_FILE = join(ROOT, 'cli-versions.json');
 // ── Target triple mapping ──────────────────────────────────────────────
 
 // Per-CLI extension + os/arch conventions vary. gh releases use a single
-// pattern (zip for mac/windows, tar.gz for linux). glab v1.x uses macOS (not
-// Darwin), tar.gz for macOS + linux, zip for windows.
+// pattern (zip for mac/windows, tar.gz for linux). glab switched naming at
+// some point after 1.46 from `macOS_arm64` / `Linux_x86_64` / `Windows_x86_64`
+// to Go-style `darwin_arm64` / `linux_amd64` / `windows_amd64` (verified
+// against the v1.116.0 asset list); tar.gz for darwin + linux, zip for windows.
 const PLATFORM_MAP = {
   'aarch64-apple-darwin': {
     gh: { os: 'macOS', arch: 'arm64', ext: 'zip' },
-    glab: { os: 'macOS', arch: 'arm64', ext: 'tar.gz' },
+    glab: { os: 'darwin', arch: 'arm64', ext: 'tar.gz' },
   },
   'x86_64-apple-darwin': {
     gh: { os: 'macOS', arch: 'amd64', ext: 'zip' },
-    glab: { os: 'macOS', arch: 'x86_64', ext: 'tar.gz' },
+    glab: { os: 'darwin', arch: 'amd64', ext: 'tar.gz' },
   },
   'x86_64-unknown-linux-gnu': {
     gh: { os: 'linux', arch: 'amd64', ext: 'tar.gz' },
-    glab: { os: 'Linux', arch: 'x86_64', ext: 'tar.gz' },
+    glab: { os: 'linux', arch: 'amd64', ext: 'tar.gz' },
   },
   'x86_64-pc-windows-msvc': {
     gh: { os: 'windows', arch: 'amd64', ext: 'zip' },
-    glab: { os: 'Windows', arch: 'x86_64', ext: 'zip' },
+    glab: { os: 'windows', arch: 'amd64', ext: 'zip' },
   },
 };
 

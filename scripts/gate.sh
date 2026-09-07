@@ -77,6 +77,8 @@ run "instrument fields"    "npm run check:instrument"
 run "icon glyphs"          "npm run check:glyphs"
 run "toolchain pin"        "npm run check:toolchain"
 run "IPC error codes"     "npm run check:codes"
+# The bundled gh/glab win over PATH, so a stale pin reaches every user.
+run "CLI sidecar versions" "npm run check:cli-versions"
 
 printf '\nPlaywright\n'
 run "specs load"           "npm run check:specs"
