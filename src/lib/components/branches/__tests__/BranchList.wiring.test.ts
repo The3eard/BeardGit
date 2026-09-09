@@ -46,6 +46,9 @@ vi.mock("../../../stores/branches", () => ({
   doCheckout: vi.fn(),
   doDeleteBranch: vi.fn(),
   doMergeBranch: vi.fn(),
+  favoriteBranches: writable(new Set<string>()),
+  loadFavoriteBranches: vi.fn(),
+  toggleFavoriteBranch: vi.fn(),
 }));
 
 vi.mock("../../../stores/createBranchDialog", () => ({
