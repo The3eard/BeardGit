@@ -1248,6 +1248,8 @@
   "clone_dialog_destination_placeholder": "Pick the parent folder",
   "clone_dialog_destination_browse": "Browse...",
   "clone_dialog_destination_preview": "Will clone into {path}",
+  "clone_dialog_recurse_label": "Clone submodules too",
+  "clone_dialog_recurse_tooltip": "Checks out every submodule as part of the clone (git clone --recurse-submodules). Left off, submodules arrive registered but empty and the Submodules panel can fetch them later.",
   "clone_dialog_action_clone": "Clone",
   "clone_dialog_step_cloning": "Cloning {url}…",
   "clone_dialog_error_invalid_url": "Invalid URL: {message}",
