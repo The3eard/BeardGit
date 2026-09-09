@@ -191,6 +191,7 @@ export function __resetRepoStateForTests(): void {
   container.clear();
   detachedRepoState.branches.clear();
   detachedRepoState.branches.list.set([]);
+  detachedRepoState.branches.favorites.set(new Set());
   detachedRepoState.changes.clear();
   detachedRepoState.changes.commitMessage.set("");
   detachedRepoState.compare.clear();

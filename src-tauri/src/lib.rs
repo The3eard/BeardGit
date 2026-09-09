@@ -188,6 +188,8 @@ pub fn run() {
             app_core::commands::list_branch_cleanup_candidates,
             app_core::commands::rename_branch,
             app_core::commands::checkout_branch,
+            app_core::commands::get_favorite_branches,
+            app_core::commands::set_favorite_branches,
             app_core::commands::get_diff_workdir,
             app_core::commands::get_diff_index,
             app_core::commands::get_diff_file,

@@ -154,6 +154,8 @@
   "branch_rebase_confirm": "¿Rebasear la rama actual sobre {branch}?",
   "branch_gone_chip": "eliminada",
   "branch_gone_tooltip": "La rama upstream fue eliminada en el remoto",
+  "branch_favorite_add": "Añadir a favoritas",
+  "branch_favorite_remove": "Quitar de favoritas",
   "branch_cleanup_tooltip": "Limpiar ramas…",
   "branch_cleanup_title": "Limpiar ramas",
   "branch_cleanup_loading": "Analizando ramas…",
