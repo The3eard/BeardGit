@@ -4,6 +4,20 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased]
 
+### Added
+
+- **Submodules of submodules are listed, and can be operated on.** The panel only ever showed the first level, so a repository that nests them — the common shape for vendored dependency trees — hid everything below the top. The listing now recurses (five levels deep, past which it stops rather than trusting a symlinked working tree not to loop), depth-first with each parent followed by its children, and the panel indents a nested row under the submodule it belongs to. Its actions work there too: a nested submodule is registered in *its parent's* `.gitmodules`, not the repository's, so initialize, update, deinitialize and remove now run inside that parent — addressed from the root, git rejects the path as one it does not know. A submodule with no working tree has nothing below it and is not descended into; one that is checked out but whose repository will not open is listed without its children instead of failing the whole panel.
+- **Clone can bring the submodules with it.** A checkbox in the clone dialog, off by default: on, the clone is `--recurse-submodules` and every submodule is checked out as part of it. Left off, submodules arrive registered but empty, exactly as before, and the Submodules panel fills them in on demand. It is a choice rather than the new default because a recursive clone fetches every submodule at full depth, which for a repo that vendors large dependencies is a different order of download than the one the user asked for.
+
+### Fixed
+
+- **A submodule whose checkout has moved reads as "outdated" instead of "dirty".** The status of every submodule came out of three libgit2 flags that were OR-ed together as if they meant the same thing. One of them, `WD_MODIFIED`, means "the submodule's HEAD is not the commit the superproject records" — which is the definition of outdated — so a submodule sitting at the wrong commit was reported as having uncommitted changes, and the check that would have called it outdated could never run: the panel had a status it was incapable of showing. Dirty is now what its name says, the submodule's own index and working tree, and keeps precedence when both hold.
+- **Opening a submodule in a tab cannot land outside the repository.** The path was joined onto the repository root and accepted if it existed, and the result is handed to the project-opening command, so a `..` in it would have opened a tab on an arbitrary directory. Both sides are resolved now and a path outside the repository is refused.
+
+### Changed
+
+- **The submodule fixture in the test suite creates a submodule.** It was named for one and never added it: it built a superproject and a loose repository that no `.gitmodules` mentioned. The single test using it asserted the submodule list came back empty, which it did, for the wrong reason — so the status computation, the only real logic in the module, had no coverage at all. Writing the first honest test found the bug above. Fifteen tests now cover the four statuses, nested listings, the containment check, and the argv that puts a nested operation in the right repository. `Repository::add_submodule` went with the pass: it duplicated `git submodule add` synchronously and nothing had called it since the command moved to the task runner, which is where it has to be — the operation clones, and on the main thread that froze the window.
+
 ## [26.9.1] — Two switches, a terminal that draws what the shell drew, and the CLIs you actually ship — 2026-09-07
 
 ### Added

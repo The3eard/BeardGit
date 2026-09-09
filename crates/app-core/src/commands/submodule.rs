@@ -22,32 +22,42 @@ pub fn list_submodules(
 }
 
 /// Initialize a submodule (register + set up working tree).
+///
+/// # Parameters
+/// - `path` – Submodule path relative to the repository root.
+/// - `parent` – `SubmoduleInfo::parent`: the superproject the submodule is
+///   registered in, or `None` for a top-level one. Nested submodules are
+///   unknown to the root repository, so the operation runs in the parent.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::submodule::init")]
 pub fn init_submodule(
     path: String,
+    parent: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.init_submodule(&path).map_err(IpcError::from)
+            repo.init_submodule(&path, parent.as_deref())
+                .map_err(IpcError::from)
         })
     })
 }
 
-/// Deinitialize a submodule.
+/// Deinitialize a submodule. See [`init_submodule`] for `parent`.
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::submodule::deinit")]
 pub fn deinit_submodule(
     path: String,
+    parent: Option<String>,
     force: bool,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.deinit_submodule(&path, force).map_err(IpcError::from)
+            repo.deinit_submodule(&path, parent.as_deref(), force)
+                .map_err(IpcError::from)
         })
     })
 }
@@ -99,16 +109,19 @@ pub async fn add_submodule(
 ///
 /// # Parameters
 /// - `path` – Relative path of the submodule to remove.
+/// - `parent` – See [`init_submodule`].
 #[tauri::command]
 #[instrument(skip(state, app), name = "cmd::submodule::remove")]
 pub fn remove_submodule(
     path: String,
+    parent: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
     with_mutation_guard(&state, &app, MutationKind::StagingChange, || {
         with_active_repo(&state, |repo| {
-            repo.remove_submodule(&path).map_err(IpcError::from)
+            repo.remove_submodule(&path, parent.as_deref())
+                .map_err(IpcError::from)
         })
     })
 }
@@ -126,14 +139,24 @@ pub fn submodule_abs_path(
 }
 
 /// Update a single submodule (background task, returns TaskId).
+///
+/// See [`init_submodule`] for `parent`. Here it moves the task's working
+/// directory into the parent superproject instead of passing `-C`, which is
+/// the same thing with one less argument to get wrong.
 #[tauri::command]
 #[instrument(skip(state, task_manager), name = "cmd::submodule::update")]
 pub async fn update_submodule(
     path: String,
+    parent: Option<String>,
     state: State<'_, AppState>,
     task_manager: State<'_, Arc<TaskManager>>,
 ) -> Result<TaskId, IpcError> {
-    let cwd = get_active_project_path(&state)?;
+    let project = get_active_project_path(&state)?;
+    let (nested_dir, target) = git_engine::submodule_operation_target(parent.as_deref(), &path);
+    let cwd = match nested_dir {
+        Some(dir) => project.join(dir),
+        None => project,
+    };
 
     // Explicit `Background` kind, not the bare `spawn`: that one tags
     // `Generic`, which `should_emit` drops, so a submodule update — which
@@ -143,7 +166,7 @@ pub async fn update_submodule(
         .spawn_with_options(SpawnOptions {
             label: format!("Submodule update: {path}"),
             command: "git",
-            args: &["submodule", "update", "--init", "--recursive", "--", &path],
+            args: &["submodule", "update", "--init", "--recursive", "--", target],
             cwd: &cwd,
             cancellable: true,
             kind: TaskKind::Background,
@@ -230,7 +253,19 @@ mod tests {
         let repo = Repository::open(&path).unwrap();
         // No `.gitmodules` entry for "libs/foo" — init should surface a
         // non-success from the git CLI.
-        let err = repo.init_submodule("libs/foo").err();
+        let err = repo.init_submodule("libs/foo", None).err();
         assert!(err.is_some(), "init on missing submodule should error");
+    }
+
+    #[test]
+    fn update_of_a_nested_submodule_runs_in_the_parent_directory() {
+        // Mirrors what `update_submodule` computes before spawning the task:
+        // the working directory moves into the parent superproject and git is
+        // handed the path as that repository knows it.
+        let (nested_dir, target) =
+            git_engine::submodule_operation_target(Some("libs/sub"), "libs/sub/inner");
+
+        assert_eq!(nested_dir, Some("libs/sub"));
+        assert_eq!(target, "inner");
     }
 }

@@ -77,6 +77,6 @@ pub use signing::{
     SigningTestResult,
 };
 pub use staging::FileStatus;
-pub use submodule::{SubmoduleInfo, SubmoduleStatus};
+pub use submodule::{SubmoduleInfo, SubmoduleStatus, submodule_operation_target};
 pub use workdir_tree::WorkdirTreeEntry;
 pub use worktree::WorktreeInfo;
