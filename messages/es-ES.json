@@ -1248,6 +1248,8 @@
   "clone_dialog_destination_placeholder": "Elige la carpeta padre",
   "clone_dialog_destination_browse": "Explorar...",
   "clone_dialog_destination_preview": "Se clonará en {path}",
+  "clone_dialog_recurse_label": "Clonar también los submódulos",
+  "clone_dialog_recurse_tooltip": "Descarga cada submódulo como parte del clonado (git clone --recurse-submodules). Sin marcar, los submódulos llegan registrados pero vacíos y el panel de Submódulos puede traerlos después.",
   "clone_dialog_action_clone": "Clonar",
   "clone_dialog_step_cloning": "Clonando {url}…",
   "clone_dialog_error_invalid_url": "URL no válida: {message}",

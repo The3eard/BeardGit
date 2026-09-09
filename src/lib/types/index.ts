@@ -817,12 +817,21 @@ export type SubmoduleStatus = "uninitialized" | "clean" | "outdated" | "dirty";
 
 /** Information about a single submodule. */
 export interface SubmoduleInfo {
+  /** Name in the `.gitmodules` of the superproject it belongs to — local to
+   *  that parent, not a path from the repository root. */
   name: string;
+  /** Path from the repository root, so it addresses a nested submodule too. */
   path: string;
   url: string;
   oid: string | null;
   registered_oid: string;
   status: SubmoduleStatus;
+  /** Nesting level: `0` for a submodule of the repo itself, `1` for a
+   *  submodule of that submodule, … The panel indents by it. */
+  depth: number;
+  /** Path of the superproject this submodule is registered in, or `null` at
+   *  depth 0. Every write operation on the submodule carries it. */
+  parent: string | null;
 }
 
 /** Describes which hunks/lines the user selected for staging/unstaging. */
