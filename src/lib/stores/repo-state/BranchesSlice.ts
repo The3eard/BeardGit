@@ -25,6 +25,14 @@ export class BranchesSlice {
   readonly selectedCommit = writable<CommitInfo | null>(null);
   readonly selectedFiles = writable<CommitFileChange[]>([]);
 
+  /**
+   * Branch names the user starred, local (`beta`) or remote (`origin/main`).
+   * Loaded from `<repo>/.beardgit/favorites.json` when the branch panel
+   * mounts. Not cleared by {@link clear}: it's a stored preference of this
+   * repository, not part of the selection state a repo switch resets.
+   */
+  readonly favorites = writable<Set<string>>(new Set());
+
   /** Reset selection/detail state. Mirrors the old `clearBranchState`. */
   clear(): void {
     this.selectedName.set(null);
