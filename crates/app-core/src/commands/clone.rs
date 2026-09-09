@@ -51,6 +51,15 @@ pub struct CloneRepoOptions {
     /// The final folder name is derived from `url` and created as a
     /// subdirectory of `parent_dir`.
     pub parent_dir: String,
+    /// Clone the repository's submodules too (`--recurse-submodules`).
+    ///
+    /// Off by default, and deliberately a choice rather than always-on: a
+    /// recursive clone fetches every submodule at full depth, which for a
+    /// repo that vendors large dependencies is a different order of download
+    /// than the user asked for. Without it the submodules land registered but
+    /// uninitialized, which the Submodules panel shows and can fill in later.
+    #[serde(default)]
+    pub recurse_submodules: bool,
 }
 
 /// Accepted clone request: the work is now running as a task.
@@ -210,6 +219,21 @@ pub async fn clone_repo(
         .map_err(IpcError::from)
 }
 
+/// argv for the clone.
+///
+/// The `--` separator stops `git` from interpreting a URL that begins with
+/// `--` (or any unknown clone-url shape we add later) as a CLI flag —
+/// belt-and-suspenders next to [`looks_like_clone_url`]. Split out so the
+/// flag composition is testable without spawning git.
+fn clone_argv<'a>(recurse_submodules: bool, url: &'a str, target: &'a str) -> Vec<&'a str> {
+    let mut args: Vec<&str> = vec!["clone"];
+    if recurse_submodules {
+        args.push("--recurse-submodules");
+    }
+    args.extend_from_slice(&["--", url, target]);
+    args
+}
+
 /// Validate, then hand the clone to `task_manager`. Split out of
 /// [`clone_repo`] so tests can drive the real spawn path without
 /// constructing a Tauri `State`.
@@ -224,14 +248,13 @@ pub(crate) async fn spawn_clone(
     // Validation already established that this is an existing directory.
     let cwd = Path::new(options.parent_dir.trim());
 
-    // The `--` separator stops `git` from interpreting a URL that begins with
-    // `--` (or any unknown clone-url shape we add later) as a CLI flag. Belt-
-    // and-suspenders next to `looks_like_clone_url`.
+    let args = clone_argv(options.recurse_submodules, &url, &target);
+
     let task_id = task_manager
         .spawn_with_options(SpawnOptions {
             label: format!("Clone {}", validated.name),
             command: "git",
-            args: &["clone", "--", &url, &target],
+            args: &args,
             cwd,
             cancellable: true,
             kind: TaskKind::GitClone,
@@ -252,10 +275,35 @@ mod tests {
     use std::process::Command;
 
     #[test]
+    fn clone_argv_omits_the_submodule_flag_by_default() {
+        let args = clone_argv(false, "https://example.com/x.git", "/tmp/x");
+
+        assert_eq!(args, ["clone", "--", "https://example.com/x.git", "/tmp/x"]);
+    }
+
+    #[test]
+    fn clone_argv_recurses_before_the_separator() {
+        let args = clone_argv(true, "https://example.com/x.git", "/tmp/x");
+
+        // The flag has to precede `--`; after it, git reads it as a path.
+        assert_eq!(
+            args,
+            [
+                "clone",
+                "--recurse-submodules",
+                "--",
+                "https://example.com/x.git",
+                "/tmp/x"
+            ]
+        );
+    }
+
+    #[test]
     fn rejects_url_with_newline() {
         let opts = CloneRepoOptions {
             url: "https://example.com/repo.git\nrm -rf /".into(),
             parent_dir: ".".into(),
+            recurse_submodules: false,
         };
         let err = validate_clone_request(&opts).unwrap_err();
         assert!(
@@ -269,6 +317,7 @@ mod tests {
         let opts = CloneRepoOptions {
             url: "https://example.com/repo .git".into(),
             parent_dir: ".".into(),
+            recurse_submodules: false,
         };
         let err = validate_clone_request(&opts).unwrap_err();
         assert!(matches!(err, CloneRepoError::InvalidUrl { .. }));
@@ -279,6 +328,7 @@ mod tests {
         let opts = CloneRepoOptions {
             url: "https://example.com/repo\u{0}/x.git".into(),
             parent_dir: ".".into(),
+            recurse_submodules: false,
         };
         let err = validate_clone_request(&opts).unwrap_err();
         assert!(matches!(err, CloneRepoError::InvalidUrl { .. }));
@@ -363,6 +413,7 @@ mod tests {
         let err = validate_clone_request(&CloneRepoOptions {
             url: "  ".into(),
             parent_dir: ".".into(),
+            recurse_submodules: false,
         })
         .unwrap_err();
         assert!(matches!(err, CloneRepoError::InvalidUrl { .. }));
@@ -373,6 +424,7 @@ mod tests {
         let err = validate_clone_request(&CloneRepoOptions {
             url: "ftp://example.com/x".into(),
             parent_dir: ".".into(),
+            recurse_submodules: false,
         })
         .unwrap_err();
         assert!(matches!(err, CloneRepoError::InvalidUrl { .. }));
@@ -383,6 +435,7 @@ mod tests {
         let err = validate_clone_request(&CloneRepoOptions {
             url: "https://example.com/x.git".into(),
             parent_dir: "/definitely/not/a/real/path/here".into(),
+            recurse_submodules: false,
         })
         .unwrap_err();
         assert!(matches!(err, CloneRepoError::InvalidDestination { .. }));
@@ -397,6 +450,7 @@ mod tests {
         let err = validate_clone_request(&CloneRepoOptions {
             url: "https://example.com/me/repo.git".into(),
             parent_dir: tmp.path().to_string_lossy().into_owned(),
+            recurse_submodules: false,
         })
         .unwrap_err();
         match err {
@@ -453,6 +507,7 @@ mod tests {
             &CloneRepoOptions {
                 url: bare_url,
                 parent_dir: dest.path().to_string_lossy().into_owned(),
+                recurse_submodules: false,
             },
         )
         .await

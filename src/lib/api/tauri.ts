@@ -1119,14 +1119,21 @@ export async function listSubmodules(): Promise<SubmoduleInfo[]> {
   return invoke<SubmoduleInfo[]>("list_submodules");
 }
 
-/** Initialize a submodule. */
-export async function initSubmodule(path: string): Promise<void> {
-  return invoke<void>("init_submodule", { path });
+/**
+ * Initialize a submodule.
+ *
+ * `parent` is the submodule's `parent` field: a nested submodule is
+ * registered in its parent superproject's `.gitmodules`, not the root's, so
+ * every write operation carries it and the backend runs there. `null` for a
+ * top-level submodule.
+ */
+export async function initSubmodule(path: string, parent: string | null): Promise<void> {
+  return invoke<void>("init_submodule", { path, parent });
 }
 
-/** Update a single submodule (background task). */
-export async function updateSubmodule(path: string): Promise<TaskId> {
-  return invoke<TaskId>("update_submodule", { path });
+/** Update a single submodule (background task). See {@link initSubmodule} for `parent`. */
+export async function updateSubmodule(path: string, parent: string | null): Promise<TaskId> {
+  return invoke<TaskId>("update_submodule", { path, parent });
 }
 
 /** Update all submodules (background task). */
@@ -1134,9 +1141,13 @@ export async function updateAllSubmodules(): Promise<TaskId> {
   return invoke<TaskId>("update_all_submodules");
 }
 
-/** Deinitialize a submodule. */
-export async function deinitSubmodule(path: string, force: boolean): Promise<void> {
-  return invoke<void>("deinit_submodule", { path, force });
+/** Deinitialize a submodule. See {@link initSubmodule} for `parent`. */
+export async function deinitSubmodule(
+  path: string,
+  parent: string | null,
+  force: boolean,
+): Promise<void> {
+  return invoke<void>("deinit_submodule", { path, parent, force });
 }
 
 /**
@@ -1148,9 +1159,9 @@ export async function addSubmodule(url: string, path: string): Promise<TaskId> {
   return invoke<TaskId>("add_submodule", { url, path });
 }
 
-/** Remove a submodule completely (deinit + rm). */
-export async function removeSubmodule(path: string): Promise<void> {
-  return invoke<void>("remove_submodule", { path });
+/** Remove a submodule completely (deinit + rm). See {@link initSubmodule} for `parent`. */
+export async function removeSubmodule(path: string, parent: string | null): Promise<void> {
+  return invoke<void>("remove_submodule", { path, parent });
 }
 
 /** Get the absolute filesystem path of a submodule. */
@@ -2095,6 +2106,12 @@ export interface CloneRepoOptions {
    * subdirectory of `parentDir`.
    */
   parentDir: string;
+  /**
+   * Clone the repository's submodules too (`git clone --recurse-submodules`).
+   * Defaults to `false`; without it submodules arrive registered but
+   * uninitialized and the Submodules panel can fill them in later.
+   */
+  recurseSubmodules?: boolean;
 }
 
 /**
@@ -2136,6 +2153,7 @@ export async function cloneRepo(
   const payload = {
     url: options.url,
     parent_dir: options.parentDir,
+    recurse_submodules: options.recurseSubmodules ?? false,
   };
   return invoke<CloneRepoSuccess>("clone_repo", { options: payload });
 }

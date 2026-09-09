@@ -76,6 +76,18 @@
     addError = null;
   }
 
+  /**
+   * What the row shows as the submodule's path.
+   *
+   * A nested submodule drops its parent's prefix: the parent is the row right
+   * above it and the indent already says whose it is, so repeating the full
+   * path adds width without adding information. The full path stays in the
+   * row's `title`.
+   */
+  function displayPath(sub: SubmoduleInfo): string {
+    return sub.parent ? sub.path.slice(sub.parent.length + 1) : sub.path;
+  }
+
   function statusLabel(status: string): string {
     switch (status) {
       case "uninitialized":
@@ -132,7 +144,7 @@
         label: m.submodule_init(),
         action: async () => {
           try {
-            await initSubmodule(sub.path);
+            await initSubmodule(sub.path, sub.parent);
           } catch (err) {
             alert(m.submodule_init_failed({ error: getErrorMessage(err) }));
           }
@@ -143,7 +155,7 @@
     if (sub.status !== "uninitialized") {
       items.push({
         label: m.submodule_update(),
-        action: () => updateSubmodule(sub.path),
+        action: () => updateSubmodule(sub.path, sub.parent),
       });
     }
 
@@ -157,7 +169,7 @@
             message: m.submodule_deinit_confirm({ name: sub.name }),
             onConfirm: async () => {
               try {
-                await deinitSubmodule(sub.path, false);
+                await deinitSubmodule(sub.path, sub.parent, false);
               } catch (err) {
                 alert(m.submodule_deinit_failed({ error: getErrorMessage(err) }));
               }
@@ -174,7 +186,7 @@
             message: m.submodule_deinit_force_confirm({ name: sub.name }),
             onConfirm: async () => {
               try {
-                await deinitSubmodule(sub.path, true);
+                await deinitSubmodule(sub.path, sub.parent, true);
               } catch (err) {
                 alert(m.submodule_deinit_failed({ error: getErrorMessage(err) }));
               }
@@ -194,7 +206,7 @@
           message: m.submodule_remove_confirm({ name: sub.name }),
           onConfirm: async () => {
             try {
-              await removeSubmodule(sub.path);
+              await removeSubmodule(sub.path, sub.parent);
             } catch (err) {
               alert(m.submodule_remove_failed({ error: getErrorMessage(err) }));
             }
@@ -296,8 +308,12 @@
   {/snippet}
 
   {#snippet row({ item })}
-    <div class="sub-info">
-      <span class="sub-path">{item.path}</span>
+    <div
+      class="sub-info"
+      style="padding-left: {item.depth * 16}px"
+      data-testid="submodule-row-{item.path.replace(/\//g, '-')}"
+    >
+      <span class="sub-path" title={item.path}>{displayPath(item)}</span>
       <span class="sub-url">{item.url}</span>
     </div>
     <div class="sub-meta">
