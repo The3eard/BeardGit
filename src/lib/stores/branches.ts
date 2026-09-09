@@ -25,6 +25,8 @@ import {
   deleteBranch as apiDelete,
   deleteBranches as apiDeleteBatch,
   mergeBranch as apiMerge,
+  getFavoriteBranches as apiGetFavorites,
+  setFavoriteBranches as apiSetFavorites,
 } from "../api/tauri";
 import { runMutation } from "../api/runMutation";
 import { fetchListIntoStore } from "../utils/store-helpers";
@@ -61,6 +63,48 @@ export function closeBranchCommitDetail() {
 
 export const localBranches = derived(branches, ($b) => $b.filter((b) => !b.is_remote));
 export const remoteBranches = derived(branches, ($b) => $b.filter((b) => b.is_remote));
+
+/** Starred branch names of the active repo. Sorts them first in the panel. */
+export const favoriteBranches = activeField<Set<string>>((rs) => rs.branches.favorites);
+
+/**
+ * Load the active repo's stars from `<repo>/.beardgit/favorites.json`.
+ *
+ * Called when the branch panel mounts rather than from `refreshBranches`:
+ * the file only changes when the user clicks a star, so re-reading it on
+ * every `project-mutated` event would be an IPC round-trip per mutation.
+ * A read failure leaves the set as-is — an unreadable preference file must
+ * not take the branch list down with it.
+ */
+export async function loadFavoriteBranches(): Promise<void> {
+  try {
+    favoriteBranches.set(new Set(await apiGetFavorites()));
+  } catch {
+    // Reported by the backend's own logging; the panel still works unstarred.
+  }
+}
+
+/**
+ * Star or unstar `name`, then persist the whole list.
+ *
+ * The store is updated first so the row reorders on the click rather than on
+ * the round-trip; a failed write is rolled back and surfaced by `runMutation`.
+ */
+export async function toggleFavoriteBranch(name: string): Promise<void> {
+  const before = get(favoriteBranches);
+  const next = new Set(before);
+  if (!next.delete(name)) next.add(name);
+  favoriteBranches.set(next);
+  try {
+    await runMutation({
+      kind: "branch_favorite",
+      invoke: () => apiSetFavorites([...next]),
+      failureToastPrefix: "Could not save favorites",
+    });
+  } catch {
+    favoriteBranches.set(before);
+  }
+}
 export const selectedBranchInfo = derived(
   [branches, selectedBranchName],
   ([$b, $name]) => ($name ? $b.find((b) => b.name === $name) ?? null : null),

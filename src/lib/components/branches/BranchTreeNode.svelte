@@ -79,7 +79,13 @@
     tabindex="0"
     data-testid="branch-row-{node.fullPath.replace(/\//g, '-')}"
   >
-    <span class="branch-icon nf">{"\uF418"}</span>
+    {#if node.isFavorite}
+      <!-- The star replaces the branch glyph rather than sitting next to it,
+           so every row keeps one icon column and stays aligned. -->
+      <span class="branch-icon star nf" data-testid="branch-star">{"\uF005"}</span>
+    {:else}
+      <span class="branch-icon nf">{"\uF418"}</span>
+    {/if}
     <span class="branch-name" class:head-name={node.isHead}>{node.name}</span>
     {#if node.isHead}
       <span class="head-dot" title="Current branch"></span>
@@ -175,6 +181,12 @@
   .tree-leaf.selected .branch-icon,
   .tree-leaf:hover .branch-icon {
     color: var(--accent-primary);
+  }
+
+  /* Deliberately after the rule above and at the same specificity, so a
+     starred row keeps the star colour while hovered and while selected. */
+  .tree-leaf .branch-icon.star {
+    color: var(--accent-orange);
   }
 
   .branch-name {

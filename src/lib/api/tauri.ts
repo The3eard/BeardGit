@@ -268,6 +268,20 @@ export async function checkoutBranch(name: string): Promise<void> {
   return invoke("checkout_branch", { name });
 }
 
+/**
+ * Branch names starred in the active repository, local (`beta`) or remote
+ * (`origin/main`). Persisted in `<repo>/.beardgit/favorites.json`; a repo
+ * nobody has starred anything in resolves to an empty list.
+ */
+export async function getFavoriteBranches(): Promise<string[]> {
+  return invoke<string[]>("get_favorite_branches");
+}
+
+/** Replace the starred-branch list of the active repository. */
+export async function setFavoriteBranches(branches: string[]): Promise<void> {
+  return invoke("set_favorite_branches", { branches });
+}
+
 export async function getDiffWorkdir(): Promise<FileDiff[]> {
   return invoke<FileDiff[]>("get_diff_workdir");
 }
