@@ -4,6 +4,10 @@ All notable changes to BeardGit are documented here. Format follows [keepachange
 
 ## [Unreleased]
 
+### Added
+
+- **Star the branches you actually work on and they sort to the top.** Right-click any branch, local or remote, and pick "Add to favorites": the row swaps its branch glyph for a star and rises to the top of the level it sits on. Hoisting is per level, which keeps the folder tree honest — a starred `feat/website-refresh` rises to the top of the `feat` folder rather than escaping it, and the folder itself stays where it is. The stars live with the repository, in `<repo>/.beardgit/favorites.json` next to the requests collections and the AI reports, so they survive a relaunch and a project that does not gitignore `.beardgit/` can commit them and share them with the team. They are read when the branch panel mounts rather than on every repository mutation: the file changes when you click a star, not when you commit.
+
 ## [26.9.1] — Two switches, a terminal that draws what the shell drew, and the CLIs you actually ship — 2026-09-07
 
 ### Added
