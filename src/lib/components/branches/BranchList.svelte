@@ -82,6 +82,9 @@
   let contextBranch = $state("");
   let contextOid = $state("");
   let contextIsRemote = $state(false);
+  /** Favorite key of the right-clicked branch — not its ref name, since a
+   *  local branch and its remote share one star. */
+  let contextFavoriteKey = $state("");
   let confirmDelete = $state<string | null>(null);
   let forceDelete = $state(false);
   let confirmRebase = $state<string | null>(null);
@@ -188,10 +191,10 @@
       items.push({ label: "Checkout", action: () => doCheckout(contextBranch) });
     }
     items.push({
-      label: $favoriteBranches.has(contextBranch)
+      label: $favoriteBranches.has(contextFavoriteKey)
         ? m.branch_favorite_remove()
         : m.branch_favorite_add(),
-      action: () => toggleFavoriteBranch(contextBranch),
+      action: () => toggleFavoriteBranch(contextFavoriteKey),
     });
     items.push({ separator: true });
     items.push({
@@ -249,6 +252,7 @@
     contextBranch = node.fullPath;
     contextOid = node.oid;
     contextIsRemote = node.isRemote;
+    contextFavoriteKey = node.favoriteKey;
     menuX = e.clientX;
     menuY = e.clientY;
     menuVisible = true;
@@ -348,6 +352,7 @@
             selected={$selectedBranchName}
             onSelect={selectBranch}
             onContext={handleContextMenu}
+            onToggleFavorite={(n) => toggleFavoriteBranch(n.favoriteKey)}
           />
         {/each}
       {/if}
@@ -380,6 +385,7 @@
             selected={$selectedBranchName}
             onSelect={selectBranch}
             onContext={handleContextMenu}
+            onToggleFavorite={(n) => toggleFavoriteBranch(n.favoriteKey)}
           />
         {/each}
       {/if}
