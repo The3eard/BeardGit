@@ -77,6 +77,9 @@ run "instrument fields"    "npm run check:instrument"
 run "icon glyphs"          "npm run check:glyphs"
 run "toolchain pin"        "npm run check:toolchain"
 run "IPC error codes"     "npm run check:codes"
+# docs/ is generated. A hand-edited page there would be silently reverted
+# by the next build, and a changed source with no rebuild never ships.
+run "site up to date"      "npm run check:site"
 # The bundled gh/glab win over PATH, so a stale pin reaches every user.
 run "CLI sidecar versions" "npm run check:cli-versions"
 

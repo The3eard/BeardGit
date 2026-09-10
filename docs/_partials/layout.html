@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="{{LANG}}" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{DESCRIPTION}}" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#151312" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="{{CANONICAL}}" />
+  <link rel="alternate" hreflang="en" href="{{ALT_EN}}" />
+  <link rel="alternate" hreflang="es" href="{{ALT_ES}}" />
+  <link rel="alternate" hreflang="x-default" href="{{ALT_EN}}" />
+
+  <meta property="og:title" content="{{TITLE}}" />
+  <meta property="og:description" content="{{DESCRIPTION}}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="{{CANONICAL}}" />
+  <meta property="og:locale" content="{{t:og.locale}}" />
+  <meta property="og:image" content="{{OG_IMAGE}}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="{{t:og.image_alt}}" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{TITLE}}" />
+  <meta name="twitter:description" content="{{DESCRIPTION}}" />
+  <meta name="twitter:image" content="{{OG_IMAGE}}" />
+  <meta name="twitter:image:alt" content="{{t:og.image_alt}}" />
+
+  <link rel="icon" type="image/svg+xml" href="{{BASE}}assets/logo.svg?v={{V}}" />
+  <link rel="icon" type="image/png" sizes="32x32" href="{{BASE}}assets/favicon-32.png?v={{V}}" />
+  <link rel="icon" type="image/png" sizes="192x192" href="{{BASE}}assets/favicon-192.png?v={{V}}" />
+  <link rel="apple-touch-icon" sizes="180x180" href="{{BASE}}assets/apple-touch-icon.png?v={{V}}" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,301,400,401,500,501,700,701,900,901&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{BASE}}assets/styles.css?v={{V}}" />
+{{HEAD_EXTRA}}
+  <script>function loadScript(a){var b=document.getElementsByTagName("head")[0],c=document.createElement("script");c.type="text/javascript",c.src="https://tracker.metricool.com/resources/be.js",c.onreadystatechange=a,c.onload=a,b.appendChild(c)}loadScript(function(){beTracker.t({hash:"244616eaed13de8fb961a27a3677700b"})});</script>
+</head>
+<body data-page="{{PAGE}}" data-lang="{{LANG}}">
+
+{{NAV}}
+
+  <!-- Offered, never forced: switching language on someone mid-read is
+       worse than a line they can ignore. Shown by app.js only when the
+       browser's language disagrees with the page's. -->
+  <div class="lang-nudge" id="langNudge" hidden>
+    <span>{{t:nav.nudge}}</span>
+    <a href="{{LANG_SWITCH_HREF}}">{{t:nav.nudge_cta}}</a>
+    <button type="button" id="langNudgeClose" aria-label="{{t:nav.nudge_dismiss}}">×</button>
+  </div>
+
+{{CONTENT}}
+
+{{FOOTER}}
+
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog">
+    <button class="lightbox-close" id="lightboxClose" aria-label="{{t:lightbox.close}}">×</button>
+    <img class="lightbox-img" id="lightboxImg" alt="" />
+    <div class="lightbox-caption mono" id="lightboxCaption"></div>
+  </div>
+
+  <script src="{{BASE}}assets/app.js?v={{V}}"></script>
+</body>
+</html>
