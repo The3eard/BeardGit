@@ -51,7 +51,7 @@ const SITE_UPDATED = "2026-09-10";
  * the build fails if this version is already a released heading in
  * CHANGELOG.md while an `[Unreleased]` block is still open.
  */
-const UPCOMING_VERSION = "26.9.2";
+const UPCOMING_VERSION = "26.9.3";
 
 const LANGS = ["en", "es"];
 const DEFAULT_LANG = "en";
