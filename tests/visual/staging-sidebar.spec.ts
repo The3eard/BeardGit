@@ -11,9 +11,9 @@
  */
 
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
 
 import {
+  emitMockEventTargeted,
   installBootstrapMocks,
   waitForAppReady,
   clickNav,
@@ -38,32 +38,6 @@ const NULL_FLAGS = {
   worktrees_changed: false,
   remotes_changed: false,
 };
-
-/**
- * Like emitMockEvent, but only fires callbacks registered for `event`
- * (looked up from the recorded `plugin:event|listen` calls), so other
- * listeners (theme, tasks, …) don't crash on a foreign payload shape.
- */
-async function emitEventTargeted(
-  page: Page,
-  event: string,
-  payload: unknown,
-): Promise<void> {
-  await page.evaluate(
-    ({ event: e, payload: p }) => {
-      const state = window.__beardgitMockIPC;
-      if (!state) return;
-      for (const call of state.calls) {
-        if (call.cmd !== "plugin:event|listen") continue;
-        const args = call.args as { event?: string; handler?: number };
-        if (args?.event !== e || typeof args.handler !== "number") continue;
-        const cb = state.callbacks.get(args.handler);
-        cb?.({ event: e, id: 0, payload: p });
-      }
-    },
-    { event, payload },
-  );
-}
 
 function changesFixture(): IpcResponses {
   return {
@@ -140,7 +114,7 @@ test.describe("changes view", () => {
         makeFileDiffStat({ path: "src/b.ts" }),
       ],
     });
-    await emitEventTargeted(page, "project-mutated", {
+    await emitMockEventTargeted(page, "project-mutated", {
       project_path: PROJECT.path,
       kind: { type: "external" },
       flags: { ...NULL_FLAGS, status_changed: true },

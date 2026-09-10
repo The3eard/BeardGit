@@ -36,6 +36,7 @@ import type {
   ReflogEntry,
   Release,
   StashEntry,
+  SubmoduleInfo,
   TagInfo,
   WorkdirTreeEntry,
   WorktreeInfo,
@@ -49,7 +50,16 @@ import {
   makeProjectInfo,
 } from "../../../src/test/fixtures";
 
-const oid = (s: number): string => s.toString(16).padStart(40, "0");
+// Pad on the right: a commit is shown by its first seven characters, so
+// leading zeros would render every SHA in every capture as "0000000". The
+// numbers below are the real repos' short SHAs, which is only visible with
+// the significant digits first.
+const oid = (s: number): string => s.toString(16).padEnd(40, "0");
+
+/** Unix seconds for `FIXED_NOW` in tests/visual/helpers/bootstrap.ts —
+ *  the clock the app is rendered against, so relative times come out as
+ *  hours and days rather than "last year". */
+const FIXTURE_NOW = 1778580000;
 
 const GH_PATH = "/Users/adolfo/Projects/beardgit_gh_tests";
 const GL_PATH = "/Users/adolfo/Projects/beardgit_glab_tests";
@@ -273,14 +283,14 @@ export function issueDetail(): IssueDetail {
  */
 export function graphViewport(): GraphViewport {
   const n = (i: number, lane: number, summary: string, refs: string[] = [], is_merge = false): LayoutNode => ({
-    oid: oid(0x1000 + i),
+    oid: oid(0x8f3a2b1 + i * 0x1d73),
     lane,
     row: i,
     refs,
     summary,
     author: "Adolfo Fuentes",
     email: "adolfo@example.com",
-    timestamp: 1745780000 - i * 5400,
+    timestamp: FIXTURE_NOW - 7200 - i * 43200,
     is_merge,
     is_root: false,
     segment_group: lane,
@@ -357,6 +367,57 @@ export function tagList(): TagInfo[] {
   ];
 }
 
+/**
+ * A nested submodule tree: a vendored dependency that itself vendors one.
+ * `depth` is what the panel indents by, and `parent` is the superproject a
+ * write operation has to run in — the pair is the whole point of the view,
+ * so a flat list would make a poor screenshot.
+ */
+export function submoduleList(): SubmoduleInfo[] {
+  return [
+    {
+      name: "vendor/tasklog-core",
+      path: "vendor/tasklog-core",
+      url: "https://github.com/The3eard/tasklog-core.git",
+      oid: oid(0x4b1f8a2),
+      registered_oid: oid(0x4b1f8a2),
+      status: "clean",
+      depth: 0,
+      parent: null,
+    },
+    {
+      name: "vendor/chrono-tz",
+      path: "vendor/tasklog-core/vendor/chrono-tz",
+      url: "https://github.com/chronotope/chrono-tz.git",
+      oid: oid(0x91c07d5),
+      registered_oid: oid(0x7ae3b10),
+      status: "outdated",
+      depth: 1,
+      parent: "vendor/tasklog-core",
+    },
+    {
+      name: "vendor/ratatui",
+      path: "vendor/ratatui",
+      url: "https://github.com/ratatui-org/ratatui.git",
+      oid: oid(0x2d94ef6),
+      registered_oid: oid(0x2d94ef6),
+      status: "dirty",
+      depth: 0,
+      parent: null,
+    },
+    {
+      name: "vendor/insta",
+      path: "vendor/insta",
+      url: "https://github.com/mitsuhiko/insta.git",
+      oid: null,
+      registered_oid: oid(0xc5a2081),
+      status: "uninitialized",
+      depth: 0,
+      parent: null,
+    },
+  ];
+}
+
 export function worktreeList(): WorktreeInfo[] {
   return [
     { path: "/Users/adolfo/Projects/beardgit_gh_tests", branch: "main", head_oid: oid(0xdde29e2), is_main: true, is_locked: false },
@@ -373,7 +434,7 @@ export function reflogList(): ReflogEntry[] {
     summary,
     author: "Adolfo Fuentes",
     email: "adolfo@example.com",
-    timestamp: 1745780000 - i * 3600,
+    timestamp: FIXTURE_NOW - 5400 - i * 9000,
   });
   return [
     e(0, "merge feat/recurring-tasks", "Merge branch 'feat/recurring-tasks'"),
@@ -388,8 +449,8 @@ export function reflogList(): ReflogEntry[] {
 
 export function stashList(): StashEntry[] {
   return [
-    { index: 0, message: "WIP on main: experiment with --json output", branch: "main", timestamp: 1745779000, oid: oid(0x3001) },
-    { index: 1, message: "On feat/tui-dashboard: scratch keybinding map", branch: "feat/tui-dashboard", timestamp: 1745700000, oid: oid(0x3002) },
+    { index: 0, message: "WIP on main: experiment with --json output", branch: "main", timestamp: FIXTURE_NOW - 12600, oid: oid(0x3001) },
+    { index: 1, message: "On feat/tui-dashboard: scratch keybinding map", branch: "feat/tui-dashboard", timestamp: FIXTURE_NOW - 190800, oid: oid(0x3002) },
   ];
 }
 

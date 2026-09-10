@@ -3,17 +3,17 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/og-github.png" alt="BeardGit — your whole repo, in one window" />
+  <img src="docs/assets/og-github.png" alt="BeardGit — one window for your whole repo" />
 </p>
 
 <h1 align="center">BeardGit</h1>
 
 <p align="center">
-  <strong>Your whole repo, in one window.</strong>
+  <strong>One window for your whole repo.</strong>
   <br />
-  Stop juggling six tabs to ship a commit. Graph, PRs and MRs, issues, CI/CD pipelines, releases, terminals, AI agents, an in-repo <code>.http</code> workspace, and an in-app code editor — in a single native desktop app.
+  The graph, your pull and merge requests, CI, issues, releases, terminals, AI runs, your <code>.http</code> requests and a file editor — in the same desktop app, so shipping a change stops being a tour of four of them.
   <br />
-  No Electron. No telemetry. macOS · Linux · Windows.
+  Built on Tauri, not Electron. No account, no telemetry. macOS · Linux · Windows.
 </p>
 
 <p align="center">
@@ -21,287 +21,125 @@
   <a href="LICENSE.md"><img alt="License" src="https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-8a7f74?style=for-the-badge&labelColor=151312"></a>
   <a href="https://github.com/The3eard/BeardGit/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/The3eard/BeardGit/ci.yml?branch=main&label=CI&style=for-the-badge&labelColor=151312"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-8a7f74?style=for-the-badge&labelColor=151312">
-  <img alt="Themes" src="https://img.shields.io/badge/themes-31%20built--in%20%C2%B7%20WCAG%20AA-8a7f74?style=for-the-badge&labelColor=151312">
+  <img alt="Themes" src="https://img.shields.io/badge/themes-31%20built--in-8a7f74?style=for-the-badge&labelColor=151312">
 </p>
 
 <p align="center">
-  <a href="https://github.com/The3eard/BeardGit/releases/latest"><strong>Download for macOS, Linux, or Windows ↓</strong></a>
+  <a href="https://github.com/The3eard/BeardGit/releases/latest"><strong>Download ↓</strong></a>
   &nbsp;·&nbsp;
-  <a href="https://the3eard.github.io/BeardGit/">Visit the website</a>
+  <a href="https://the3eard.github.io/BeardGit/">Website</a>
   &nbsp;·&nbsp;
-  <a href="#who-beardgit-is-for">Is it for me?</a>
+  <a href="https://the3eard.github.io/BeardGit/features/">Features</a>
+  &nbsp;·&nbsp;
+  <a href="https://the3eard.github.io/BeardGit/guide/">Guide</a>
+  &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
+
+---
+
+## Why it exists
+
+I kept the graph in one app, the merge request in a browser tab, the pipeline in another, and the API call I wanted to test in a fourth. None of those tools was bad — the jumping was. So BeardGit puts the things I touch to ship a change in one window. It isn't out to be the last Git client you install; plenty of them are older, bigger and better funded. It's the one where the next step is usually already on screen.
 
 <p align="center">
-  <em>If BeardGit saves you a tab, drop a ⭐ — it’s how the project gets seen.</em>
+  <img src="docs/assets/screenshots/graph-dark.png" alt="BeardGit's canvas commit graph with branch lanes, merge curves and the commit detail pane" width="100%" />
 </p>
 
----
+## What's in the window
 
-## § 01 — Manifesto
+- **A commit graph on canvas.** Six-figure histories scroll smoothly, because only the visible rows are drawn. Branch lanes, merge curves, ref badges by kind, author highlighting, and a search (`⌘F` or `/`) that re-lays out around the matches.
+- **Staging down to the line.** Collapse hunks, expand a file to its full contents, stage or discard individual lines, Shift-select a range, keyboard through the list. Commits honour your `commit.gpgsign` setup — SSH, GPG or X.509 — and Settings has a *Test signing* button that shows the real error.
+- **GitHub *and* GitLab, both properly.** Pull requests and merge requests with per-file diffs and inline review threads; issues, labels, milestones, pipelines, releases, repo settings. Self-hosted GitHub Enterprise and on-prem GitLab included, with auth checked per host so a VPN-only forge can't shadow a working one.
+- **Branches as a folder tree, with stars.** Star the branches you actually work on and they rise to the top of their own level. A star belongs to the branch, not the ref, and lives in `.beardgit/favorites.json`. Plus branch cleanup for `[gone]` upstreams, tags, stashes, worktrees, nested submodules, reflog with recovery actions, and compare-any-two-refs.
+- **AI that runs in a worktree.** Your own install of Claude Code, Codex or OpenCode, started on an `ai/<provider>/<slug>` branch in an isolated worktree, queued at a cap you set. Read the transcript, then merge, keep or discard. Your checkout never moves.
+- **An `.http` workspace in the repo.** Plain files under `.beardgit/requests/`, committed with the code that calls them. Environments are commit-safe JSON; secrets are names in the file and encrypted values on your machine. Response history with a diff between any two runs.
+- **A file editor for the two-line fix.** CodeMirror 6 with per-language snippets, JSON linting, inline colour pickers and a gitignore-aware tree. Save writes to disk; save with Shift also stages it.
+- **Real terminals.** xterm.js over a native Rust PTY, with `TERM`, truecolor and a UTF-8 locale set properly, and a login shell on macOS so your `PATH` is the one you expect. OSC 7 links a terminal to its project tab.
+- **31 themes, or write your own.** Three original families plus the classics. The theme reaches the editor's syntax colours, the diff backgrounds and the graph lanes. Yours is a TOML file with 18 colours; the rest is derived. Every bundled theme clears the WCAG AA contrast floor, enforced by a test.
+- **A command palette.** `⌘⇧P` lists every view and every registered shortcut and runs it — the fastest way to learn the keyboard. `?` opens the full cheat sheet, generated from the same registry.
+- **Multi-repo tabs that stay cheap.** Heavy state loads only for the active tab, and every section remembers its filters, scroll, pane widths and half-written drafts for the length of the session.
+- **Two switches for the whole integration surface.** Settings → General → Integrations: one for GitHub/GitLab, one for AI. Off, the surfaces disappear and nothing runs behind them — no token validated at launch, no remote resolved against a forge API, no CLI probing. Both off leaves a git-only client whose only outbound request of its own is the update check, which has its own toggle.
 
-You ship code from **one keyboard**, not seventeen tabs. BeardGit is built on a simple premise: _everything you touch to release a change should live in one app._ Your commit graph. Your branches. Your staging. Your pull requests and merge requests on **GitHub and GitLab**. Your CI pipelines and deploy jobs. Your issues, labels, and releases. Your terminals. Your AI agents. Your **API requests**, committed alongside the code that calls them. Your **repo files**, edited in place. Close the browser tabs. Close the other clients. BeardGit is the **one window** you keep open.
+The long version, view by view, is on the [features page](https://the3eard.github.io/BeardGit/features/).
 
----
+## Install
 
-## § 02 — What you get
+| Platform | Build | Needs |
+| --- | --- | --- |
+| macOS | Apple Silicon · `.dmg` | Nothing — WKWebView ships with the OS |
+| Linux | x64 · `.AppImage` | `libwebkit2gtk-4.1` |
+| Windows | x64 · `.exe` | WebView2 Runtime (already on Windows 11) |
 
-### A canvas graph that scales
-
-<p align="center">
-  <img src="docs/assets/screenshots/graph-dark.png" alt="BeardGit canvas commit graph with branch lanes, merge curves, and author highlighting" width="100%" />
-</p>
-
-100K+ commits render smoothly via a viewport-sliced renderer. Branch lanes, merge curves, sync-state lines, author highlighting — all on HTML canvas, not DOM. `⌘F` filters by author, message, or ref; the graph re-lays out only for the matches. Three-way merge editor, interactive rebase, revert, amend, reset, cherry-pick, blame, reflog with recovery actions, and a visual `git bisect` with auto-mode that runs your test command at every step.
-
-**Compare any ref against any ref.** Pick a base and a compare side — branch, tag, or SHA, with autocomplete — and get the commits it adds, an ahead/behind summary, the changed files, and a per-file diff. **Branch cleanup** flags local branches whose upstream is `[gone]` and offers a one-dialog bulk delete, with "merged into default" as an opt-in second group. **Commit signing** (SSH / GPG / X.509) is honoured when your git config asks for it; a **Test signing** button in Settings signs a throwaway commit and shows you the real error if it fails.
-
-Pick a folder that isn't a repo yet and BeardGit offers to set it up in one shot: `git init`, drop a `.gitignore`, commit as **Initial commit**, create a matching repo on GitHub or GitLab, wire the remote, and push — every step independently optional, partial progress preserved on failure.
-
----
-
-### Forge-native for GitHub and GitLab
-
-<p align="center">
-  <img src="docs/assets/screenshots/pull-requests-dark.png" alt="Pull request detail with CI pipeline status and inline review comments" width="100%" />
-</p>
-
-Create, edit, merge, approve, and comment on **PRs and MRs** with **per-file diff and inline review threads**. Manage issues, labels, milestones, assignees. Trigger, retry, retry-failed-only, cancel pipelines. Publish releases and stream asset uploads. Edit repo settings — description, homepage, topics, visibility, default branch, branch protection, labels — without leaving the app.
-
-A clean `ForgeProvider` abstraction wraps `gh` and `glab`. Self-hosted **GitHub Enterprise** and **on-prem GitLab** work out of the box; auth is checked per-host so a VPN-only forge doesn't shadow a working one. Multi-instance friendly: a personal `gitlab.com` and a corporate self-hosted GitLab can coexist.
-
-> Both CLIs ship bundled in every installer, and the bundled copies are the ones BeardGit drives — the same version for every user, whatever is on your `PATH`. Your existing `gh` / `glab` login carries over: credentials live in your per-user config and keyring, not in the binary.
-
----
-
-### AI that runs in a worktree, not in your face
-
-<p align="center">
-  <img src="docs/assets/screenshots/ai-sessions-dark.png" alt="AI background run transcript inside a worktree with provider and prompt selection" width="100%" />
-</p>
-
-**Claude Code, Codex, OpenCode** — your local install, driven by BeardGit. Each background run lands on its own `ai/<provider>/<slug>` branch in an isolated worktree under `.beardgit/ai-worktrees/`, queued at a concurrency cap you set. Review, merge, or discard. The transcript stays in-app and survives tab switches; your main checkout stays untouched.
-
-From any tab the active provider can also draft a commit message, review your staged changes, or review a PR — gated on "there's actually something to talk about" so you never get an empty reply.
-
----
-
-### An `.http` workspace, in your repo
-
-<p align="center">
-  <img src="docs/assets/screenshots/requests-dark.png" alt="In-repo .http API testing workspace with environment files and response history" width="100%" />
-</p>
-
-Your API requests live next to the code that calls them. Plain `.http` files under `.beardgit/requests/`, committed with the rest of the project, so `git pull` shares them with the team. Environments split into commit-safe `_env/<name>.json`; secrets stay encrypted in BeardGit's local credential store, never in git.
-
-When a forge provider is active, seven `forge_*` auto-variables (`forge_token`, `forge_host`, `forge_api_base`, `forge_owner`, `forge_repo`, `forge_branch`, `forge_commit_sha`) are available with zero setup, so hitting the API of the repo you're staring at is one click. JSON syntax highlighting, `{{var}}` autocomplete, **diff between any two responses from history**, and Copy-as cURL / fetch / HTTPie / wget. Cancel actually cancels the in-flight request.
-
----
-
-### An in-app code editor
-
-<p align="center">
-  <img src="docs/assets/screenshots/editor-dark.png" alt="In-app CodeMirror code editor with snippets, JSON lint and inline color pickers" width="100%" />
-</p>
-
-Edit repo files without leaving BeardGit. CodeMirror 6 with per-language snippets (Rust, TS / JS, Python, Go), keyword completion, JSON lint with rules for `package.json` and `tsconfig.json`, inline color pickers in CSS, indent guides, and a gitignore-aware file tree. Save writes to disk; `⇧ Save` also stages it for the next commit. Right-click any file row in Changes, Branches, or Reflog and pick **Open in editor** to jump straight in.
-
----
-
-### And the rest
-
-- **Multi-repo tabs.** Heavy state (repo, layout, watcher) loads only for the active tab. A dozen open repos cost the same as one. `⌘1…⌘9` jumps between them; drag a tab to reorder.
-- **Every section remembers where you left it.** Filters, scroll positions, split widths, collapsed folders, search chips, and half-written drafts (commit message, MR comment, stash message) survive leaving a view and coming back — per repo tab, for the length of the session. The editor keeps its open tabs and unsaved edits across views too.
-- **Staging that works at line level.** Collapse a hunk, expand the whole file, stage or discard individual lines, arrow-key through the list, Shift-select a range, and stage / discard / stash the selection from the right-click menu.
-- **Real terminals.** xterm.js + WebGL fed by a native Rust PTY. OSC 7 auto-links a terminal to the matching project tab. Foreground process polling detects when `claude` / `codex` / `opencode` start and updates the tab on the fly.
-- **Themes and i18n.** 31 built-in themes, light and dark, plus your own as a TOML file — every accent flows from CSS tokens, including the graph. All three text rungs of every bundled theme clear WCAG AA, enforced by a test; a theme you write yourself is measured and reported, never rewritten. English and Spanish ship via [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs); adding a locale is a JSON file.
-- **A sidebar that's yours.** Reorder navigation items, hide what you don't use, reset to the default. Layout persists app-wide.
-- **Switch whole integrations off.** Settings → General → Integrations has one switch for GitHub / GitLab and one for AI. Off, the corresponding surfaces disappear — sidebar entries, status-bar slots, views, toolbar and commit-box actions — and nothing runs behind them: no token is validated at launch, no remote is resolved against a forge API, no AI CLI is probed, no terminal process is polled. Both off leaves a **git-only client** whose only network traffic of its own is the update check, which has its own toggle. Accounts and preferences are kept for when you turn them back on.
-- **Auto-update.** Tauri updater on the stable channel with diagnostics for endpoint and last-check timestamp — so you can tell a 404 apart from a DNS hiccup without leaving the app.
-- **Local-only logs.** `tracing` with daily rotation and 7-day auto-purge to a per-platform path, and a live log-level switch (error / info / debug) in Settings → Advanced. The log path is included in the in-app error dialog; sharing a file is your call, never the app's.
-
----
-
-## Who BeardGit is for
-
-> Five minutes from download to first commit. No accounts, no logins, no "BeardGit Cloud."
-
-**You'll like it if you:**
-
-- Live on **GitHub _or_ GitLab** and want a first-class experience on either — not "GitHub plus a GitLab bolt-on."
-- Test APIs against the repo you're staring at and hate context-switching to a separate API client.
-- Run **Claude Code / Codex / OpenCode** and want them isolated in worktrees, not loose in your tree.
-- Care that your git client doesn't ship a 200 MB Chromium runtime to render a sidebar.
-- Want a polished GUI with **Linux as a first-class platform**, not an afterthought.
-
-**You probably won't if you:**
-
-- Live entirely on `git` CLI and `lazygit` — BeardGit is GUI-first.
-- Need SVN, Mercurial, Perforce, or self-hosted Bitbucket — not supported.
-- Want a paid product with phone support and an enterprise SSO portal — that's not this.
-
-BeardGit is **free and source-available**. The CC BY-NC-SA license blocks reselling BeardGit _itself_ — using it commercially in your team is fine.
-
----
-
-## Install in 30 seconds
-
-Pre-built installers are published on every tagged release:
-
-| Platform | Architecture  | Format      |
-| -------- | ------------- | ----------- |
-| macOS    | Apple Silicon | `.dmg`      |
-| Linux    | x64           | `.AppImage` |
-| Windows  | x64           | `.exe`      |
-
-> **[→ Download the latest release](https://github.com/The3eard/BeardGit/releases/latest)**, pick your installer, and run it. `gh` and `glab` are bundled — no extra setup needed.
+> **[→ Download the latest release](https://github.com/The3eard/BeardGit/releases/latest)**. `gh` and `glab` are bundled, so there is nothing else to install. You do need `git` on your `PATH` — every write goes through it.
 
 <details>
-<summary><strong>First launch — unsigned builds (one-time setup)</strong></summary>
+<summary><strong>Getting past the first-launch warning</strong></summary>
 
-BeardGit is currently distributed without Apple or Microsoft code-signing certificates, so both operating systems will flag the app the first time you open it. The app is safe; the warnings exist because the binaries are not notarized/signed. You only need to do this once per install.
+The builds aren't code-signed, so macOS and Windows stop them once. Nothing is wrong with the download.
 
-**macOS — "BeardGit is damaged" / "developer cannot be verified"**
+**macOS** — drag the app to `/Applications`, then either right-click → **Open**, or clear the quarantine flag:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/BeardGit.app
 ```
 
-Or right-click `BeardGit.app` → **Open** → click **Open** in the confirmation, or use **System Settings → Privacy & Security → Open Anyway**.
+**Windows** — SmartScreen → **More info** → **Run anyway**. It won't ask again on that machine.
 
-**Windows — "Windows protected your PC" (SmartScreen)**
-
-Click **More info** → **Run anyway**. The warning won't reappear on the same machine.
+**Linux** — `chmod +x BeardGit-*.AppImage && ./BeardGit-*.AppImage`
 
 </details>
 
----
+## Whether it fits you
 
-<details>
-<summary><strong>Building from source</strong></summary>
+**You'll probably like it if you** work on GitHub *or* GitLab and want both treated properly; test APIs against the repo you're looking at; run an AI CLI and want it in a worktree rather than loose in your checkout; prefer a native app to another Chromium runtime; or use Linux and are tired of being the afterthought platform.
 
-### Prerequisites
+**You probably won't if you** are happy in `git` and `lazygit`; need SVN, Mercurial, Perforce or Bitbucket; want a signed installer today, an SLA or a support line; or are on an Intel Mac.
 
-- **Git 2.x+** — required at runtime for write operations.
-- **Rust stable** — install via [rustup](https://rustup.rs).
-- **Node.js 22+** — install from [nodejs.org](https://nodejs.org).
+## Rough edges, up front
 
-**macOS**
+- **The builds aren't signed.** One command on macOS, two clicks on Windows, once per install. Certificates cost money per year and this is a one-person project.
+- **Three platforms, three formats.** No Intel Mac build, and no `.deb`, `.rpm` or `.msi`. Building from source covers the rest.
+- **Two forges, not five.** Bitbucket, Gitea and Codeberg aren't supported — the provider layer is abstracted, but each still needs a real driver and tests.
+- **`git` has to be on your `PATH`,** and the app doesn't check at startup: if it's missing, a commit fails rather than the launch.
+- **One request per `.http` file, for now.** The parser understands several blocks; the panel runs the first one. It also won't reach `localhost` unless you start the app with `BEARDGIT_REQUESTS_ALLOW_PRIVATE=1`.
+- **One developer, in the open.** Bugs get fixed when they're reported, and [the changelog](CHANGELOG.md) says which and why. If you need a maintained-by-committee product, Fork, Tower, GitKraken and lazygit are all good.
 
-```sh
-xcode-select --install
-```
+## Documentation
 
-**Linux (Debian / Ubuntu)**
+| | |
+| --- | --- |
+| [Guide](https://the3eard.github.io/BeardGit/guide/) | Install, connect a forge, set up an AI CLI, write `.http` requests and your own theme, the full keyboard table, where your data lives, troubleshooting |
+| [Features](https://the3eard.github.io/BeardGit/features/) | Every view, one by one |
+| [Changelog](CHANGELOG.md) | What changed in each release, and why |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Crate layout, branch strategy, the checks a change has to pass |
+| [SECURITY.md](SECURITY.md) | Disclosure policy |
 
-```sh
-sudo apt update
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
-  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-```
+## Building from source
 
-**Linux (Arch)**
-
-```sh
-sudo pacman -S --needed webkit2gtk-4.1 base-devel curl wget file \
-  openssl appmenu-gtk-module libappindicator-gtk3 librsvg xdotool
-```
-
-**Linux (Fedora)**
+You need Rust (the version is pinned in `rust-toolchain.toml`), Node 22 and git.
 
 ```sh
-sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file \
-  libappindicator-gtk3-devel librsvg2-devel libxdo-devel
-sudo dnf group install "c-development"
-```
-
-**Windows**
-
-1. Install [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and select **Desktop development with C++**.
-2. Install the [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
-
-### Build and run
-
-```sh
-git clone git@github.com:The3eard/BeardGit.git
+git clone https://github.com/The3eard/BeardGit.git
 cd BeardGit
 npm install
 npm run tauri dev
 ```
 
-First build compiles every Rust crate and takes roughly 3–5 minutes. Subsequent runs are fast. Release bundle:
-
-```sh
-npm run tauri build
-```
-
-</details>
-
-<details>
-<summary><strong>Tech stack and architecture</strong></summary>
-
-| Layer        | Stack                                                                                                                                                                                                                                                                                   |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shell        | Tauri 2 with the auto-updater plugin                                                                                                                                                                                                                                                    |
-| Core         | Rust — 22 crates, libgit2, SQLite, `tracing`, `tokio`, `reqwest`, `portable-pty`                                                                                                                                                                                                        |
-| Frontend     | Svelte 5, TypeScript, Canvas 2D, CodeMirror 6, xterm.js + WebGL, Vite, Paraglide 2                                                                                                                                                                                                      |
-| Integrations | `gh` and `glab` (bundled), Claude Code, Codex, OpenCode                                                                                                                                                                                                                                 |
-| CI           | GitHub Actions on a 3-OS matrix — the same 15 checks as the local gate (`scripts/gate.sh`): `cargo fmt`, `cargo clippy --all-targets`, `cargo test`, `svelte-check`, `vitest`, stylelint + eslint, IPC contract, error-code map, icon glyphs, toolchain pin, `cargo audit`, `npm audit` |
-
-Three layers with strict boundaries. Only `app-core` depends on Tauri — every other crate is a reusable library.
-
-| Crate                                | Role                                                                                   |
-| ------------------------------------ | -------------------------------------------------------------------------------------- |
-| `git-engine`                         | Hybrid git — `git2` for reads, system `git` for writes                                 |
-| `graph-builder`                      | Pure DAG construction and lane assignment                                              |
-| `forge-provider`                     | `ForgeProvider` trait + shared forge types (contract-only)                             |
-| `cli-provider`                       | `GitHubCli` / `GitLabCli` impls of `ForgeProvider` via `gh` / `glab`                   |
-| `provider`                           | `CiProvider` trait + CI types + shared HTTP helpers                                    |
-| `gitlab-api` / `github-api`          | REST implementations of `CiProvider`                                                   |
-| `ai-provider`                        | `AiProvider` trait + shared AI types                                                   |
-| `ai-provider-common`                 | Shared helpers for the CLI-based AI provider crates                                    |
-| `claude-code` / `codex` / `opencode` | `AiProvider` implementations                                                           |
-| `ai-runner`                          | Background worktree coordinator — glues `ai-provider`, `git-engine`, and `task-runner` |
-| `auth`                               | AES-256-GCM encrypted credential store with machine-bound key                          |
-| `storage`                            | SQLite via rusqlite, JSON config, TOML theme loader, logging                           |
-| `task-runner`                        | Async task manager with streaming output and cancellation                              |
-| `terminal`                           | PTY session manager via `portable-pty` with OSC 7 integration                          |
-| `watcher`                            | Debounced filesystem + AI config + sessions watchers                                   |
-| `mutation-events`                    | Lightweight event bus for cross-feature notifications                                  |
-| `requests-runner` / `requests-store` | `.http` parser, executor, and SQLite-backed history                                    |
-| `app-core`                           | 300+ Tauri command handlers, `AppState`, event bridge                                  |
-
-### Branch strategy
-
-| Branch | Purpose                                                                                                       |
-| ------ | ------------------------------------------------------------------------------------------------------------- |
-| `main` | Mirrors the latest stable release. Auto-update endpoint points here.                                          |
-| `beta` | Integration branch. Feature/fix branches merge here with `--no-ff`, then `main` is fast-forwarded on release. |
-
-Day-to-day work happens on short-lived branches off `beta` (`feat/<thing>`, `fix/<thing>`, …). Don't batch features on a long-lived branch.
-
-</details>
-
----
+The first build compiles every Rust crate and takes a few minutes; after that it's quick. `npm run tauri build` produces the installer for your platform. Platform prerequisites are in the [guide](https://the3eard.github.io/BeardGit/guide/#build), and the layout of the workspace is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing
 
-Pull requests welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). All contributors must sign a short CLA before their changes can be merged.
+Pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Contributors sign a short CLA before their changes can be merged.
 
-If you find a bug, [open an issue](https://github.com/The3eard/BeardGit/issues). If you're unsure whether something's a bug, a limitation, or an opportunity for a plugin, open it anyway — over-triage beats under-triage.
-
-## Security
-
-See [SECURITY.md](SECURITY.md) for our disclosure policy.
+Found a bug? [Open an issue](https://github.com/The3eard/BeardGit/issues) with your OS, the version from Help → About, and what you did. If you're not sure whether it's a bug or a limitation, open it anyway — sorting that out is my job.
 
 ## License
 
-[CC BY-NC-SA 4.0](LICENSE.md). Free for non-commercial use with attribution and share-alike. Commercial use of the app by individuals or teams is fine — the NC clause is defensive (it blocks reselling BeardGit itself).
+[CC BY-NC-SA 4.0](LICENSE.md). Free to use, including at work on work code. The non-commercial clause is defensive: it stops someone repackaging and selling BeardGit itself.
 
 ---
 
 <p align="center">
-  Made with <code>cargo</code>, coffee, and stubbornness by <a href="https://github.com/The3eard">Adolfo Fuentes</a>.
-  <br />
-  <sub>If BeardGit saves you a tab, drop a ⭐ on the repo — it's how the project gets seen.</sub>
+  <sub>If BeardGit saves you a tab, a ⭐ on the repo is how other people find it.</sub>
 </p>

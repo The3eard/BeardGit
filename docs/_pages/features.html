@@ -1,0 +1,585 @@
+<!--meta
+{
+  "title": {
+    "en": "Features — BeardGit",
+    "es": "Funciones — BeardGit"
+  },
+  "description": {
+    "en": "Every view in BeardGit, one by one: the canvas graph, per-line staging, branches and submodules, pull and merge requests, CI pipelines, AI runs in worktrees, the .http workspace, the file editor, terminals, themes and the command palette.",
+    "es": "Todas las vistas de BeardGit, una por una: el grafo en canvas, staging por líneas, ramas y submódulos, pull y merge requests, pipelines de CI, ejecuciones de AI en worktrees, el espacio .http, el editor de ficheros, las terminales, los temas y la paleta de comandos."
+  }
+}
+-->
+  <section class="page-head">
+    <div class="wrap">
+      <!--@en-->
+      <div class="page-head-inner">
+        <h1>What's in the window</h1>
+        <p class="page-lede">
+          Twenty-odd views, grouped the way the sidebar groups them. Each one is here because I
+          needed it while working on something else and got tired of leaving. If you'd rather see
+          how to use them than what they are, the <a href="{{L}}guide/">guide</a> is the other door.
+        </p>
+      </div>
+      <!--/@en-->
+      <!--@es-->
+      <div class="page-head-inner">
+        <h1>Qué hay en la ventana</h1>
+        <p class="page-lede">
+          Una veintena de vistas, agrupadas como las agrupa la barra lateral. Cada una está aquí
+          porque la necesité mientras hacía otra cosa y me cansé de salir de la app. Si prefieres ver
+          cómo se usan en vez de qué son, la <a href="{{L}}guide/">guía</a> es la otra puerta.
+        </p>
+      </div>
+      <!--/@es-->
+    </div>
+  </section>
+
+  <!-- ============ GRAPH ============ -->
+  <section class="feature-block" id="graph">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.graph_eyebrow}}</div>
+        <!--@en-->
+        <h2>The graph, on <span class="italic">canvas</span></h2>
+        <p class="block-body">
+          Drawn on an HTML canvas rather than as DOM nodes, and only for the rows in the viewport, so
+          a six-figure history scrolls at the same speed as a fresh repo. What the lines mean matters
+          as much as the speed: a merge bends into the lane it opens, in that lane's colour, and a
+          branch that rejoins an existing line bends back into it — so the shape on screen is the
+          shape git recorded.
+        </p>
+        <ul class="block-list">
+          <li>Branch lanes, merge curves, sync-state lines and author highlighting, all coloured from the active theme.</li>
+          <li><code class="mono">⌘F</code> or <code class="mono">/</code> filters by author, message or ref, and the graph re-lays out around the matches.</li>
+          <li>Ref badges coloured by kind — local branch, remote, tag, HEAD — the same colour here and in the commit detail.</li>
+          <li>Select a commit for its message, author, parents and changed files, with a per-file diff.</li>
+          <li>Three-way merge editor, interactive rebase, revert, amend, reset, cherry-pick and blame.</li>
+          <li><code class="mono">J</code> / <code class="mono">K</code> walk commits without touching the mouse.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>El grafo, en <span class="italic">canvas</span></h2>
+        <p class="block-body">
+          Dibujado en un canvas y no como nodos del DOM, y solo para las filas visibles, así que un
+          historial de seis cifras se recorre igual de rápido que un repo recién creado. Lo que
+          significan las líneas importa tanto como la velocidad: un merge se curva hacia el carril que
+          abre, con el color de ese carril, y una rama que vuelve a una línea existente se curva hacia
+          ella — de forma que la figura en pantalla es la que git registró.
+        </p>
+        <ul class="block-list">
+          <li>Carriles de ramas, curvas de merge, líneas de sincronización y resaltado por autor, todo con los colores del tema activo.</li>
+          <li><code class="mono">⌘F</code> o <code class="mono">/</code> filtra por autor, mensaje o ref, y el grafo se recoloca alrededor de los resultados.</li>
+          <li>Badges de refs coloreados por tipo — rama local, remota, tag, HEAD — con el mismo color aquí y en el detalle del commit.</li>
+          <li>Selecciona un commit para ver mensaje, autor, padres y ficheros cambiados, con diff por fichero.</li>
+          <li>Editor de merge a tres bandas, rebase interactivo, revert, amend, reset, cherry-pick y blame.</li>
+          <li><code class="mono">J</code> / <code class="mono">K</code> recorren commits sin tocar el ratón.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+{{fig:graph|reveal}}
+    </div>
+  </section>
+
+  <!-- ============ CHANGES ============ -->
+  <section class="feature-block" id="changes">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.changes_eyebrow}}</div>
+        <!--@en-->
+        <h2>Staging, down to the <span class="italic">line</span></h2>
+        <p class="block-body">
+          The changes view is where most of a working day goes, so it takes keyboard input seriously.
+          Hunks collapse, a file can be expanded to its full contents when three lines of context
+          aren't enough, and single lines can be staged, discarded or stashed from the selection.
+        </p>
+        <ul class="block-list">
+          <li>Collapse one hunk or all of them; expand a file to its whole contents and keep that view across a background refresh.</li>
+          <li>Stage, unstage or discard individual lines, or a Shift-selected range.</li>
+          <li>Arrow keys move the cursor, <code class="mono">Space</code> stages the file under it, <code class="mono">Enter</code> opens its diff.</li>
+          <li>A pencil on any row opens that file in the editor; <code class="mono">⌘E</code> opens whatever the diff pane is showing.</li>
+          <li>Commits honour <code class="mono">commit.gpgsign</code> — SSH, GPG or X.509 — and Settings has a Test signing button that shows the real error.</li>
+          <li>Discard is careful with symlinks: a link is removed as a link, whatever it points at.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>Staging, hasta la <span class="italic">línea</span></h2>
+        <p class="block-body">
+          La vista de cambios es donde se va la mayor parte de la jornada, así que se toma el teclado
+          en serio. Los hunks se pliegan, un fichero se puede expandir a su contenido completo cuando
+          tres líneas de contexto no bastan, y se pueden preparar, descartar o guardar en un stash
+          líneas sueltas a partir de la selección.
+        </p>
+        <ul class="block-list">
+          <li>Plega un hunk o todos; expande un fichero a su contenido completo y conserva esa vista tras un refresco en segundo plano.</li>
+          <li>Prepara, quita del índice o descarta líneas sueltas, o un rango seleccionado con Shift.</li>
+          <li>Las flechas mueven el cursor, <code class="mono">Espacio</code> prepara el fichero donde está y <code class="mono">Enter</code> abre su diff.</li>
+          <li>Un lápiz en cualquier fila abre ese fichero en el editor; <code class="mono">⌘E</code> abre el que tenga el panel de diff.</li>
+          <li>Los commits respetan <code class="mono">commit.gpgsign</code> — SSH, GPG o X.509 — y Ajustes tiene un botón de prueba de firma que muestra el error real.</li>
+          <li>Descartar tiene cuidado con los symlinks: un enlace se borra como enlace, apunte a donde apunte.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+{{fig:changes|reveal}}
+    </div>
+  </section>
+
+  <!-- ============ BRANCHES ============ -->
+  <section class="feature-block" id="branches">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.branches_eyebrow}}</div>
+        <!--@en-->
+        <h2>Branches, tags, stashes, <span class="italic">worktrees</span></h2>
+        <p class="block-body">
+          Branches arrive as a folder tree, because <code class="mono">feat/</code> and
+          <code class="mono">fix/</code> already are one. Star the ones you actually work on and they
+          rise to the top of their own level — a starred <code class="mono">feat/thing</code> goes to
+          the top of the <code class="mono">feat</code> folder rather than escaping it. A star belongs
+          to the branch, not the ref, so starring <code class="mono">develop</code> lights up
+          <code class="mono">origin/develop</code> too, and it lives in
+          <code class="mono">.beardgit/favorites.json</code> so it survives a relaunch.
+        </p>
+        <ul class="block-list">
+          <li>Local and remote branches, ahead/behind counts, and a chip on any branch whose upstream is <code class="mono">[gone]</code>.</li>
+          <li>Branch cleanup: one dialog deletes the gone ones in bulk, with "merged into the default branch" as an opt-in second group.</li>
+          <li>Tags and releases, stashes with per-file diffs, and linked worktrees you can create, open in a tab or prune.</li>
+          <li>Compare any two refs — branch, tag or SHA, with autocomplete — for the commits one adds, an ahead/behind summary and a per-file diff.</li>
+          <li>Reflog with recovery actions, for the reset you regret.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>Ramas, tags, stashes, <span class="italic">worktrees</span></h2>
+        <p class="block-body">
+          Las ramas llegan como un árbol de carpetas, porque <code class="mono">feat/</code> y
+          <code class="mono">fix/</code> ya lo son. Marca con una estrella las que de verdad usas y
+          suben a lo alto de su propio nivel: una <code class="mono">feat/cosa</code> marcada sube a lo
+          alto de la carpeta <code class="mono">feat</code> en vez de escaparse de ella. La estrella
+          pertenece a la rama, no a la ref, así que marcar <code class="mono">develop</code> también
+          enciende <code class="mono">origin/develop</code>, y vive en
+          <code class="mono">.beardgit/favorites.json</code> para sobrevivir a un reinicio.
+        </p>
+        <ul class="block-list">
+          <li>Ramas locales y remotas, cuentas de adelanto/retraso, y una etiqueta en cualquier rama cuyo upstream sea <code class="mono">[gone]</code>.</li>
+          <li>Limpieza de ramas: un diálogo borra en bloque las que ya no existen en el remoto, con "mergeadas en la rama por defecto" como segundo grupo opcional.</li>
+          <li>Tags y releases, stashes con diff por fichero, y worktrees enlazados que puedes crear, abrir en una pestaña o podar.</li>
+          <li>Compara dos refs cualesquiera — rama, tag o SHA, con autocompletado — para ver los commits que añade una sobre la otra, el resumen de adelanto/retraso y el diff por fichero.</li>
+          <li>Reflog con acciones de recuperación, para ese reset del que te arrepientes.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+      <div class="shot-pair">
+{{fig:branches|reveal}}
+{{fig:submodules|reveal}}
+      </div>
+      <div class="shot-pair">
+{{fig:compare|reveal}}
+{{fig:stashes|reveal}}
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FORGE ============ -->
+  <section class="feature-block" id="forge">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.forge_eyebrow}}</div>
+        <!--@en-->
+        <h2>GitHub <span class="italic">and</span> GitLab</h2>
+        <p class="block-body">
+          Both, properly, rather than one with the other bolted on. BeardGit talks to them through
+          <code class="mono">gh</code> and <code class="mono">glab</code>, and ships its own copies of
+          both inside every installer — the same versions for every user, whatever is on your
+          <code class="mono">PATH</code>. Your existing login carries over, because those CLIs keep
+          credentials in your own config and keyring, not in the binary.
+        </p>
+        <ul class="block-list">
+          <li>Pull requests and merge requests: open, edit, comment, approve, merge, with per-file diffs and inline review threads. <code class="mono">[</code> and <code class="mono">]</code> walk the files.</li>
+          <li>Issues with labels, milestones and assignees; releases with streamed asset uploads.</li>
+          <li>Repo settings — description, homepage, topics, visibility, default branch, branch protection, labels — without opening a browser.</li>
+          <li>Self-hosted GitHub Enterprise and on-prem GitLab work as they are; auth is checked per host, so a VPN-only forge can't shadow a working one.</li>
+          <li>A personal <code class="mono">gitlab.com</code> and a corporate GitLab can be connected at the same time.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>GitHub <span class="italic">y</span> GitLab</h2>
+        <p class="block-body">
+          Los dos en serio, en vez de uno con el otro atornillado por encima. BeardGit habla con ellos
+          a través de <code class="mono">gh</code> y <code class="mono">glab</code>, e incluye sus
+          propias copias de ambos en cada instalador — las mismas versiones para todo el mundo, sea lo
+          que sea lo que tengas en el <code class="mono">PATH</code>. Tu login de siempre sigue
+          valiendo, porque esas CLIs guardan las credenciales en tu configuración y tu keyring, no en
+          el binario.
+        </p>
+        <ul class="block-list">
+          <li>Pull requests y merge requests: abrir, editar, comentar, aprobar, mergear, con diff por fichero e hilos de review en línea. <code class="mono">[</code> y <code class="mono">]</code> recorren los ficheros.</li>
+          <li>Issues con etiquetas, milestones y asignados; releases con subida de artefactos en streaming.</li>
+          <li>Ajustes del repo — descripción, web, topics, visibilidad, rama por defecto, protección de ramas, etiquetas — sin abrir el navegador.</li>
+          <li>GitHub Enterprise autoalojado y GitLab on-prem funcionan tal cual; la autenticación se comprueba por host, así que un forge que solo vive en la VPN no tapa a otro que sí responde.</li>
+          <li>Un <code class="mono">gitlab.com</code> personal y un GitLab corporativo pueden estar conectados a la vez.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+      <div class="shot-pair">
+{{fig:pull-requests|reveal}}
+{{fig:merge-requests|reveal}}
+      </div>
+      <div class="shot-pair">
+{{fig:issues|reveal}}
+{{fig:releases|reveal}}
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CI ============ -->
+  <section class="feature-block" id="ci">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.ci_eyebrow}}</div>
+        <!--@en-->
+        <h2>Pipelines, and the log you <span class="italic">actually</span> want</h2>
+        <p class="block-body">
+          GitHub Actions runs and GitLab pipelines in the same view, with the job list underneath and
+          its log in a pane you can keep open while you work. Wide build matrices are followed to the
+          end rather than cut off at the first hundred jobs.
+        </p>
+        <ul class="block-list">
+          <li>Trigger, retry, retry only the failed jobs, or cancel — from the row.</li>
+          <li>Job logs stream into a pane that keeps its place when you leave the view and come back.</li>
+          <li>Search chips filter by status, branch or ref.</li>
+          <li>The graph shows the pipeline status of a commit next to it, so a red build is visible where you already are.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>Pipelines, y el log que <span class="italic">de verdad</span> quieres</h2>
+        <p class="block-body">
+          Las ejecuciones de GitHub Actions y los pipelines de GitLab en la misma vista, con la lista
+          de jobs debajo y su log en un panel que puedes dejar abierto mientras trabajas. Las matrices
+          de build grandes se recorren hasta el final en vez de cortarse en los primeros cien jobs.
+        </p>
+        <ul class="block-list">
+          <li>Lanza, reintenta, reintenta solo los jobs fallidos o cancela — desde la propia fila.</li>
+          <li>Los logs de cada job llegan a un panel que conserva su sitio cuando sales de la vista y vuelves.</li>
+          <li>Los chips de búsqueda filtran por estado, rama o ref.</li>
+          <li>El grafo muestra el estado del pipeline junto al commit, así que una build roja se ve donde ya estás mirando.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+      <div class="shot-pair">
+{{fig:pipelines|reveal}}
+{{fig:pipelines-gitlab|reveal}}
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ AI ============ -->
+  <section class="feature-block" id="ai">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.ai_eyebrow}}</div>
+        <!--@en-->
+        <h2>AI runs in a <span class="italic">worktree</span></h2>
+        <p class="block-body">
+          BeardGit doesn't have a model or an API key. It drives <em>your</em> install of Claude Code,
+          Codex or OpenCode, and it does it somewhere that can't ruin your afternoon: each background
+          run gets its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch in an
+          isolated worktree, queued at a concurrency cap you set. Your checkout doesn't move while it
+          works.
+        </p>
+        <ul class="block-list">
+          <li>Read the transcript as it streams, then merge the branch, keep the worktree for later, or throw it away.</li>
+          <li>The run writes a Markdown report into the parent repository, so it survives discarding the worktree.</li>
+          <li>From any view the active provider can draft a commit message, review your staged changes, or review a pull request — and stays quiet when there's nothing to talk about.</li>
+          <li>Prompts go over stdin, so a large staged diff is reviewed whole instead of being cut at the command-line limit.</li>
+          <li>One switch in Settings turns the whole thing off: no CLI probing at launch, no AI views, no AI actions.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>La AI trabaja en un <span class="italic">worktree</span></h2>
+        <p class="block-body">
+          BeardGit no tiene modelo ni clave de API. Lanza <em>tu</em> instalación de Claude Code, Codex
+          u OpenCode, y lo hace en un sitio donde no puede arruinarte la tarde: cada ejecución en
+          segundo plano recibe su propia rama <code class="mono">ai/&lt;proveedor&gt;/&lt;slug&gt;</code>
+          en un worktree aislado, en una cola con el límite de concurrencia que tú pongas. Tu copia de
+          trabajo no se mueve mientras trabaja.
+        </p>
+        <ul class="block-list">
+          <li>Lee la transcripción mientras llega y luego mergea la rama, conserva el worktree para después o tíralo.</li>
+          <li>La ejecución escribe un informe en Markdown en el repositorio padre, así que sobrevive a descartar el worktree.</li>
+          <li>Desde cualquier vista, el proveedor activo puede redactar un mensaje de commit, revisar lo que tienes preparado o revisar una pull request — y se calla cuando no hay nada que comentar.</li>
+          <li>Los prompts van por stdin, así que un diff grande se revisa completo en vez de cortarse en el límite de la línea de comandos.</li>
+          <li>Un interruptor en Ajustes lo apaga todo: sin sondear CLIs al arrancar, sin vistas de AI y sin acciones de AI.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+{{fig:ai-sessions|reveal}}
+    </div>
+  </section>
+
+  <!-- ============ REQUESTS ============ -->
+  <section class="feature-block" id="requests">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.requests_eyebrow}}</div>
+        <!--@en-->
+        <h2>An <span class="italic">.http</span> workspace inside the repo</h2>
+        <p class="block-body">
+          The request that reproduces a bug belongs next to the code that has the bug, not in a
+          desktop app's private database. These are plain <code class="mono">.http</code> files under
+          <code class="mono">.beardgit/requests/</code>: commit them and
+          <code class="mono">git pull</code> hands them to the rest of the team.
+        </p>
+        <ul class="block-list">
+          <li>Environments are commit-safe JSON under <code class="mono">_env/</code>: variables in the file, secrets by name only, with the values encrypted on your machine.</li>
+          <li><code class="mono">{{raw:var}}</code> autocomplete, JSON syntax highlighting, and a resolved preview before you send.</li>
+          <li>Response history per request, with a diff between any two responses you've had.</li>
+          <li>Copy as cURL, fetch, HTTPie or wget. Cancel actually cancels the in-flight request.</li>
+          <li>Private and loopback addresses are refused unless you opt in — the <a href="{{L}}guide/#requests">guide</a> has the flag.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>Un espacio <span class="italic">.http</span> dentro del repo</h2>
+        <p class="block-body">
+          La petición que reproduce un bug pertenece al lado del código que tiene el bug, no a la base
+          de datos privada de una app de escritorio. Son ficheros <code class="mono">.http</code>
+          normales en <code class="mono">.beardgit/requests/</code>: commitéalos y
+          <code class="mono">git pull</code> se los lleva al resto del equipo.
+        </p>
+        <ul class="block-list">
+          <li>Los entornos son JSON commiteable en <code class="mono">_env/</code>: las variables en el fichero, los secretos solo por nombre y sus valores cifrados en tu máquina.</li>
+          <li>Autocompletado de <code class="mono">{{raw:var}}</code>, resaltado de JSON y una vista previa ya resuelta antes de enviar.</li>
+          <li>Historial de respuestas por petición, con diff entre dos cualesquiera de las que has recibido.</li>
+          <li>Copiar como cURL, fetch, HTTPie o wget. Cancelar cancela de verdad la petición en vuelo.</li>
+          <li>Las direcciones privadas y de loopback se rechazan salvo que lo habilites — la <a href="{{L}}guide/#requests">guía</a> tiene el flag.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+{{fig:requests|reveal}}
+    </div>
+  </section>
+
+  <!-- ============ EDITOR ============ -->
+  <section class="feature-block" id="editor">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.editor_eyebrow}}</div>
+        <!--@en-->
+        <h2>A file editor for the <span class="italic">two-line</span> fix</h2>
+        <p class="block-body">
+          Not a replacement for your IDE — a place to fix the typo you just saw in the diff without
+          changing windows. CodeMirror 6, with a gitignore-aware tree that lists one level at a time
+          and keeps its open tabs, expanded folders and unsaved edits when you leave the view and come
+          back.
+        </p>
+        <ul class="block-list">
+          <li>Per-language snippets (Rust, TypeScript, JavaScript, Python, Go), keyword completion and indent guides.</li>
+          <li>JSON linting, with extra rules for <code class="mono">package.json</code> and <code class="mono">tsconfig.json</code>, and inline colour pickers in CSS.</li>
+          <li>Save writes to disk; save with Shift also stages the file for the next commit.</li>
+          <li>Reveal the active file in the tree, on by default: the folders open and the row scrolls into view.</li>
+          <li>Right-click a file in Changes, Branches or Reflog and open it here.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>Un editor de ficheros para el arreglo de <span class="italic">dos líneas</span></h2>
+        <p class="block-body">
+          No sustituye a tu IDE: es un sitio donde corregir la errata que acabas de ver en el diff sin
+          cambiar de ventana. CodeMirror 6, con un árbol que respeta el gitignore, lista un nivel a la
+          vez y conserva pestañas abiertas, carpetas desplegadas y cambios sin guardar cuando sales de
+          la vista y vuelves.
+        </p>
+        <ul class="block-list">
+          <li>Snippets por lenguaje (Rust, TypeScript, JavaScript, Python, Go), autocompletado de palabras clave y guías de indentación.</li>
+          <li>Lint de JSON, con reglas extra para <code class="mono">package.json</code> y <code class="mono">tsconfig.json</code>, y selectores de color en línea en CSS.</li>
+          <li>Guardar escribe en disco; guardar con Shift también prepara el fichero para el siguiente commit.</li>
+          <li>Revelar el fichero activo en el árbol, activado de serie: las carpetas se abren y la fila se desplaza a la vista.</li>
+          <li>Clic derecho en un fichero en Cambios, Ramas o Reflog y se abre aquí.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+{{fig:editor|reveal}}
+    </div>
+  </section>
+
+  <!-- ============ HISTORY TOOLS ============ -->
+  <section class="feature-block" id="history">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.history_eyebrow}}</div>
+        <!--@en-->
+        <h2>Bisect and reflog, with <span class="italic">buttons</span></h2>
+        <p class="block-body">
+          Two commands worth having a face. Pick the good commit and the bad one and step through with
+          buttons; or let auto-mode run your test command at every step and resolve it while you do
+          something else. Bisect works inside a linked worktree or a submodule, which is where it used
+          to silently do nothing.
+        </p>
+        <ul class="block-list">
+          <li>The bisect log is on screen, so you can see what git has concluded so far.</li>
+          <li>Reflog lists every move of HEAD with recovery actions on the row — the safety net for a bad reset or a lost branch tip.</li>
+          <li>Interactive rebase is planned in a dialog and re-checked before it runs, so commits that landed while it was open can't be dropped.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>Bisect y reflog, con <span class="italic">botones</span></h2>
+        <p class="block-body">
+          Dos comandos que merecen tener cara. Elige el commit bueno y el malo y avanza con botones; o
+          deja que el modo automático ejecute tu comando de test en cada paso y lo resuelva mientras
+          haces otra cosa. Bisect funciona dentro de un worktree enlazado o de un submódulo, que es
+          justo donde antes no hacía nada sin decirlo.
+        </p>
+        <ul class="block-list">
+          <li>El log de bisect está en pantalla, así que ves a qué ha llegado git hasta ahora.</li>
+          <li>El reflog lista cada movimiento de HEAD con acciones de recuperación en la fila — la red de seguridad para un reset mal dado o una punta de rama perdida.</li>
+          <li>El rebase interactivo se planifica en un diálogo y se vuelve a comprobar antes de ejecutarse, así que los commits que hayan llegado mientras estaba abierto no pueden desaparecer.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+      <div class="shot-pair">
+{{fig:bisect|reveal}}
+{{fig:reflog|reveal}}
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ THEMES ============ -->
+  <section class="feature-block" id="themes">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.themes_eyebrow}}</div>
+        <!--@en-->
+        <h2>31 themes, and <span class="italic">yours</span></h2>
+        <p class="block-body">
+          Three original families — BeardGit, Fjord and Nebula — and the classics you already use in
+          your editor: Rosé Pine, Everforest, Kanagawa, Ayu, Catppuccin, Dracula, Gruvbox, Nord, Tokyo
+          Night, Solarized, Oxocarbon and more. The theme reaches the whole app, including the editor's
+          syntax colours, the diff backgrounds and the graph lanes.
+        </p>
+        <ul class="block-list">
+          <li>Every bundled theme clears the WCAG AA contrast floor on all three text levels, and a test keeps it that way.</li>
+          <li>A theme you write is measured too, and reported — never rewritten. The picker tells you which tokens fall short and by how much, and applies it anyway.</li>
+          <li>Your own theme is a TOML file with 18 colours; the accents, borders, graph lanes and editor palette are derived from them unless you pin your own.</li>
+          <li>Dark and light pair up, so the app can follow your OS.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>31 temas, y el <span class="italic">tuyo</span></h2>
+        <p class="block-body">
+          Tres familias propias — BeardGit, Fjord y Nebula — y los clásicos que ya usas en tu editor:
+          Rosé Pine, Everforest, Kanagawa, Ayu, Catppuccin, Dracula, Gruvbox, Nord, Tokyo Night,
+          Solarized, Oxocarbon y más. El tema llega a toda la app, incluidos los colores de sintaxis
+          del editor, los fondos de los diffs y los carriles del grafo.
+        </p>
+        <ul class="block-list">
+          <li>Todos los temas incluidos superan el mínimo de contraste WCAG AA en los tres niveles de texto, y un test se encarga de que siga siendo así.</li>
+          <li>El tema que escribas tú también se mide, y se informa — nunca se reescribe. El selector te dice qué tokens se quedan cortos y por cuánto, y lo aplica igualmente.</li>
+          <li>Tu tema es un fichero TOML con 18 colores; los acentos, los bordes, los carriles del grafo y la paleta del editor se derivan de ellos salvo que fijes los tuyos.</li>
+          <li>El oscuro y el claro se emparejan, así que la app puede seguir a tu sistema.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+{{fig:themes|reveal}}
+    </div>
+  </section>
+
+  <!-- ============ KEYBOARD ============ -->
+  <section class="feature-block" id="keyboard">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.keyboard_eyebrow}}</div>
+        <!--@en-->
+        <h2>A <span class="italic">command palette</span>, and the keys behind it</h2>
+        <p class="block-body">
+          <code class="mono">⌘⇧P</code> lists every view and every registered shortcut, and running
+          one from the palette does exactly what the key does. It's the fastest way to learn the
+          keyboard: find the thing by name, and the palette shows you the shortcut next to it.
+        </p>
+        <ul class="block-list">
+          <li>Type a couple of words in any order — <code class="mono">stash</code>, <code class="mono">unstage all</code> — and pick the row.</li>
+          <li><code class="mono">?</code> opens the full cheat sheet, generated from the same registry, so it can't drift from what actually works.</li>
+          <li>On Linux and Windows every <code class="mono">⌘</code> below reads as <code class="mono">Ctrl</code>.</li>
+          <li>The <a href="{{L}}guide/#keyboard">guide has the complete table</a> — the palette and the cheat sheet are the same list.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>Una <span class="italic">paleta de comandos</span>, y las teclas que hay detrás</h2>
+        <p class="block-body">
+          <code class="mono">⌘⇧P</code> lista todas las vistas y todos los atajos registrados, y
+          ejecutar uno desde la paleta hace exactamente lo que hace la tecla. Es la forma más rápida de
+          aprenderse el teclado: busca la acción por su nombre y la paleta te enseña el atajo al lado.
+        </p>
+        <ul class="block-list">
+          <li>Escribe un par de palabras en cualquier orden — <code class="mono">stash</code>, <code class="mono">unstage all</code> — y elige la fila.</li>
+          <li><code class="mono">?</code> abre la chuleta completa, generada desde el mismo registro, así que no puede desviarse de lo que de verdad funciona.</li>
+          <li>En Linux y Windows, cada <code class="mono">⌘</code> de aquí se lee como <code class="mono">Ctrl</code>.</li>
+          <li>La <a href="{{L}}guide/#keyboard">guía tiene la tabla completa</a> — la paleta y la chuleta son la misma lista.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+{{fig:command-palette|reveal}}
+    </div>
+  </section>
+
+  <!-- ============ PRIVACY ============ -->
+  <section class="feature-block" id="privacy">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">{{t:block.privacy_eyebrow}}</div>
+        <!--@en-->
+        <h2>Yours, and <span class="italic">quiet</span></h2>
+        <p class="block-body">
+          No account, no telemetry, no analytics endpoint anywhere in the app. Two switches in
+          Settings → General → Integrations decide how much of it is even awake: one for GitHub and
+          GitLab, one for AI. With both off, BeardGit is a git-only client whose only outbound request
+          of its own is the update check — and that has a switch too.
+        </p>
+        <ul class="block-list">
+          <li>Forge off: no saved token is validated at launch, the origin remote isn't resolved against a forge API, and every forge surface hides itself. Accounts are kept, not deleted.</li>
+          <li>AI off: no CLI probing, no AI views, no terminal process polling for an agent. Runs already going finish; history stays readable.</li>
+          <li>Multi-repo tabs load their heavy state only for the tab you're in, so a dozen open repos cost about what one does.</li>
+          <li>Logs are local, rotate daily and are purged after a week; the level is a setting, and secrets are redacted on the way in.</li>
+          <li>The <a href="{{L}}guide/#data">guide lists every file the app writes</a>, on your machine and inside your repo.</li>
+        </ul>
+        <!--/@en-->
+        <!--@es-->
+        <h2>Tuyo, y <span class="italic">callado</span></h2>
+        <p class="block-body">
+          Sin cuenta, sin telemetría y sin ningún endpoint de analítica en la app. Dos interruptores en
+          Ajustes → General → Integraciones deciden cuánto de todo esto está siquiera despierto: uno
+          para GitHub y GitLab, otro para la AI. Con los dos apagados, BeardGit es un cliente solo de
+          git cuya única petición propia hacia fuera es la comprobación de actualizaciones — que
+          también tiene interruptor.
+        </p>
+        <ul class="block-list">
+          <li>Forge apagado: no se valida ningún token guardado al arrancar, el remoto origin no se resuelve contra la API del forge y toda la superficie de forge se esconde. Las cuentas se conservan, no se borran.</li>
+          <li>AI apagada: no se sondean CLIs, no hay vistas de AI y no se vigila el proceso de la terminal buscando un agente. Lo que ya estaba corriendo termina; el historial sigue legible.</li>
+          <li>Las pestañas de repositorio cargan su estado pesado solo para la pestaña en la que estás, así que una docena de repos abiertos cuesta más o menos lo que uno.</li>
+          <li>Los logs son locales, rotan a diario y se purgan al cabo de una semana; el nivel es un ajuste, y los secretos se tachan al escribirlos.</li>
+          <li>La <a href="{{L}}guide/#data">guía enumera todos los ficheros que escribe la app</a>, en tu máquina y dentro de tu repo.</li>
+        </ul>
+        <!--/@es-->
+      </div>
+{{fig:settings-integrations|reveal}}
+    </div>
+  </section>
+
+  <section class="page-foot">
+    <div class="wrap">
+      <div class="callout reveal">
+        <div>
+          <!--@en-->
+          <h2>Now the <span class="italic">how</span></h2>
+          <p class="callout-body">Installing, connecting a forge, writing a theme, the full keyboard
+          table, where your data lives and what to do when something misbehaves — all in the guide.</p>
+          <!--/@en-->
+          <!--@es-->
+          <h2>Ahora el <span class="italic">cómo</span></h2>
+          <p class="callout-body">Instalar, conectar un forge, escribir un tema, la tabla completa de
+          atajos, dónde viven tus datos y qué hacer cuando algo se porta mal — todo en la guía.</p>
+          <!--/@es-->
+        </div>
+        <div>
+          <a href="{{L}}guide/" class="btn btn-primary">{{t:features.read_guide}}</a>
+        </div>
+      </div>
+    </div>
+  </section>

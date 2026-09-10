@@ -349,4 +349,64 @@
   }
 
   wireDownloads();
+
+  /* ---------- Language nudge ----------
+     The site is published in English and Spanish as separate pages. A
+     visitor whose browser asks for the other one gets a line offering it,
+     never a redirect: being moved mid-read is worse than a line you can
+     ignore, and a redirect would also hide one language from crawlers. */
+  const NUDGE_KEY = "beardgit.langNudge";
+  const nudge = document.getElementById("langNudge");
+  const pageLang = document.body.dataset.lang;
+  if (nudge && pageLang) {
+    const otherLang = pageLang === "en" ? "es" : "en";
+    const preferred = (navigator.languages && navigator.languages.length
+      ? navigator.languages
+      : [navigator.language || ""]
+    ).map((tag) => String(tag).slice(0, 2).toLowerCase());
+
+    let dismissed = false;
+    try {
+      dismissed = localStorage.getItem(NUDGE_KEY) === "1";
+    } catch {
+      /* private window with storage blocked — just show it */
+    }
+
+    if (!dismissed && preferred[0] === otherLang) {
+      nudge.hidden = false;
+    }
+    document.getElementById("langNudgeClose")?.addEventListener("click", () => {
+      nudge.hidden = true;
+      try {
+        localStorage.setItem(NUDGE_KEY, "1");
+      } catch {
+        /* nothing to remember it with; it reappears next visit */
+      }
+    });
+  }
+
+  /* ---------- Guide: mark the section you're reading ---------- */
+  const guideNav = document.querySelector(".guide-nav");
+  if (guideNav) {
+    const links = new Map(
+      Array.from(guideNav.querySelectorAll("a[href^='#']")).map((a) => [
+        a.getAttribute("href").slice(1),
+        a,
+      ]),
+    );
+    const sections = Array.from(document.querySelectorAll(".guide-section[id]"));
+    // Top-biased margin: the heading crossing the upper third of the
+    // viewport is the one being read, not whatever is centred.
+    const spy = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          links.forEach((a) => a.classList.remove("active"));
+          links.get(e.target.id)?.classList.add("active");
+        });
+      },
+      { rootMargin: "-80px 0px -66% 0px" },
+    );
+    sections.forEach((s) => spy.observe(s));
+  }
 })();
