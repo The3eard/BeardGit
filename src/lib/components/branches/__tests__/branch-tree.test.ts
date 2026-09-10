@@ -7,7 +7,7 @@
  * looks like a bug if it silently changes.
  */
 import { describe, it, expect } from "vitest";
-import { buildBranchTree } from "../branch-tree";
+import { buildBranchTree, favoriteKey } from "../branch-tree";
 import type { BranchInfo } from "$lib/types";
 
 function branch(name: string, extra: Partial<BranchInfo> = {}): BranchInfo {
@@ -74,10 +74,10 @@ describe("buildBranchTree", () => {
     expect(names(tree)).toEqual(["b", "d", "a", "c"]);
   });
 
-  it("marks remote branches by their full name", () => {
+  it("marks a remote branch by its branch name, not its ref", () => {
     const tree = buildBranchTree(
       [branch("origin/main", { is_remote: true }), branch("origin/dev", { is_remote: true })],
-      new Set(["origin/main"]),
+      new Set(["main"]),
     );
 
     const origin = tree[0];
@@ -92,5 +92,44 @@ describe("buildBranchTree", () => {
 
     expect(names(tree)).toEqual(["main"]);
     expect(tree[0].isFavorite).toBe(false);
+  });
+});
+
+describe("favoriteKey", () => {
+  it("keys a local branch by its own name", () => {
+    expect(favoriteKey(branch("develop"))).toBe("develop");
+    expect(favoriteKey(branch("feat/thing"))).toBe("feat/thing");
+  });
+
+  it("drops the remote segment so a branch and its remote share one star", () => {
+    expect(favoriteKey(branch("origin/develop", { is_remote: true }))).toBe("develop");
+    expect(favoriteKey(branch("upstream/feat/thing", { is_remote: true }))).toBe("feat/thing");
+  });
+
+  it("leaves a remote HEAD alone — it is a symbolic ref, not a branch", () => {
+    // Otherwise `origin/HEAD` would key to "HEAD" and starring any branch
+    // called HEAD would light it up.
+    expect(favoriteKey(branch("origin/HEAD", { is_remote: true }))).toBe("origin/HEAD");
+  });
+
+  it("pairs a local branch with its remote in one tree pass", () => {
+    const local = buildBranchTree([branch("develop")], new Set(["develop"]));
+    const remote = buildBranchTree(
+      [branch("origin/develop", { is_remote: true })],
+      new Set(["develop"]),
+    );
+
+    expect(local[0].isFavorite).toBe(true);
+    expect(remote[0].children[0].isFavorite).toBe(true);
+    // Both rows toggle the same entry, so unstarring either clears both.
+    expect(local[0].favoriteKey).toBe(remote[0].children[0].favoriteKey);
+  });
+
+  it("gives folders no favorite key", () => {
+    const tree = buildBranchTree([branch("feat/a")]);
+
+    expect(tree[0].isFolder).toBe(true);
+    expect(tree[0].favoriteKey).toBe("");
+    expect(tree[0].children[0].favoriteKey).toBe("feat/a");
   });
 });

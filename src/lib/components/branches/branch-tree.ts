@@ -1,4 +1,5 @@
 import type { BranchInfo } from "../../types";
+import { parseRemoteBranch } from "./parse-remote-branch";
 
 /** Shared tree node type for branch folder tree rendering. */
 export interface BranchTreeNode {
@@ -16,7 +17,25 @@ export interface BranchTreeNode {
   upstreamGone: boolean;
   /** `true` when the user starred the branch. Always `false` for folders. */
   isFavorite: boolean;
+  /** {@link favoriteKey} of this branch — what the star toggle writes.
+   *  Empty for folders. */
+  favoriteKey: string;
   children: BranchTreeNode[];
+}
+
+/**
+ * The key a branch is starred under: the branch, not the ref pointing at it.
+ *
+ * `develop` and `origin/develop` are one branch as far as the user is
+ * concerned, so starring either marks both. A remote branch therefore drops
+ * its remote segment — the first one, which is how libgit2 names remote refs —
+ * and a local branch is its own key. `origin/HEAD` is a symbolic ref rather
+ * than a branch, and {@link parseRemoteBranch} rejects it, so it keys to
+ * itself and can never be starred by proxy.
+ */
+export function favoriteKey(branch: BranchInfo): string {
+  if (!branch.is_remote) return branch.name;
+  return parseRemoteBranch(branch.name)?.branch ?? branch.name;
 }
 
 /**
@@ -46,6 +65,8 @@ export function buildBranchTree(
 
   for (const branch of branchList) {
     const parts = branch.name.split("/");
+    // Not `key`: the loop below uses that name for the child-map key.
+    const favKey = favoriteKey(branch);
     let current = root;
 
     for (let i = 0; i < parts.length; i++) {
@@ -66,7 +87,8 @@ export function buildBranchTree(
           ahead: isLeaf ? branch.ahead : 0,
           behind: isLeaf ? branch.behind : 0,
           upstreamGone: isLeaf ? branch.upstream_gone : false,
-          isFavorite: isLeaf && favorites.has(branch.name),
+          isFavorite: isLeaf && favorites.has(favKey),
+          favoriteKey: isLeaf ? favKey : "",
           children: [],
         };
         current.push(existing);
