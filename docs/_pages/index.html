@@ -1,0 +1,832 @@
+<!--meta
+{
+  "title": {
+    "en": "BeardGit — one window for your whole repo",
+    "es": "BeardGit — una ventana para todo tu repositorio"
+  },
+  "description": {
+    "en": "A desktop Git client that keeps the graph, your pull and merge requests, CI, issues, releases, terminals, AI runs, .http requests and a file editor in the same window. macOS, Linux and Windows. Free, no account, no telemetry.",
+    "es": "Un cliente de Git de escritorio que deja el grafo, tus pull y merge requests, la CI, las issues, las releases, las terminales, las ejecuciones de AI, las peticiones .http y un editor de ficheros en la misma ventana. macOS, Linux y Windows. Gratis, sin cuenta y sin telemetría."
+  },
+  "head": "ld-index"
+}
+-->
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="top">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div class="hero-main">
+          <div class="hero-meta reveal">
+            <span class="badge"><span class="badge-dot"></span>{{t:hero.badge_active}}</span>
+            <span class="badge mono" data-release-badge hidden></span>
+            <span class="badge mono">macOS (Apple Silicon) · Linux x64 · Windows x64</span>
+          </div>
+
+          <!--@en-->
+          <h1 class="hero-title reveal">
+            <span class="lead">Your whole repo,</span>
+            <span class="lead">in <span class="italic accent">one</span> window.<span class="caret"></span></span>
+          </h1>
+
+          <p class="hero-sub reveal mono">
+            The graph, <strong style="color:var(--fg)">pull and merge requests</strong>, CI, issues, releases,
+            terminals, <strong style="color:var(--fg)">AI runs</strong>, your
+            <strong style="color:var(--fg)">.http requests</strong> and a
+            <strong style="color:var(--fg)">file editor</strong> — in the same app, so shipping a change
+            stops being a tour of four of them.
+          </p>
+          <!--/@en-->
+          <!--@es-->
+          <h1 class="hero-title reveal">
+            <span class="lead">Todo tu repo,</span>
+            <span class="lead">en <span class="italic accent">una</span> ventana.<span class="caret"></span></span>
+          </h1>
+
+          <p class="hero-sub reveal mono">
+            El grafo, las <strong style="color:var(--fg)">pull y merge requests</strong>, la CI, las issues, las
+            releases, las terminales, las <strong style="color:var(--fg)">ejecuciones de AI</strong>, tus
+            <strong style="color:var(--fg)">peticiones .http</strong> y un
+            <strong style="color:var(--fg)">editor de ficheros</strong> — en la misma app, para que subir un
+            cambio deje de ser un recorrido por cuatro de ellas.
+          </p>
+          <!--/@es-->
+
+          <div class="cta-row reveal">
+            <a href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" class="btn btn-primary" data-dl="auto">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v13M5 12l7 7 7-7M4 21h16"/></svg>
+              <span data-dl-label>{{t:hero.download}}</span>
+            </a>
+            <a href="{{L}}features/" class="btn btn-ghost">
+              {{t:hero.see_features}}
+            </a>
+            <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener" class="btn btn-ghost btn-star" aria-label="{{t:hero.star_aria}}">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l3.06 6.2 6.84.99-4.95 4.83 1.17 6.81L12 18.13l-6.12 3.22 1.17-6.81L2.1 9.69l6.84-.99L12 2.5z"/></svg>
+              {{t:hero.star}}
+              <img class="btn-badge" alt="" height="18" src="https://img.shields.io/github/stars/The3eard/BeardGit?style=flat&label=&color=21262d&labelColor=21262d" loading="lazy" />
+            </a>
+          </div>
+
+          <p class="hero-microcta mono reveal">{{t:hero.microcta}}</p>
+
+          <div class="hero-stats reveal">
+            <div>
+              <div class="stat-num">100K<span class="italic">+</span></div>
+              <div class="stat-lbl">{{t:hero.stat_commits}}</div>
+            </div>
+            <div>
+              <div class="stat-num">31</div>
+              <div class="stat-lbl">{{t:hero.stat_themes}}</div>
+            </div>
+            <div>
+              <div class="stat-num">2</div>
+              <div class="stat-lbl">{{t:hero.stat_forges}}</div>
+            </div>
+            <div>
+              <div class="stat-num">0</div>
+              <div class="stat-lbl">{{t:hero.stat_accounts}}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Animated commit graph -->
+        <div class="hero-graph reveal" aria-hidden="true">
+          <svg viewBox="0 0 440 480" preserveAspectRatio="xMidYMid meet">
+            <g opacity="0.35">
+              <line x1="60"  y1="30" x2="60"  y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
+              <line x1="120" y1="30" x2="120" y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
+              <line x1="180" y1="30" x2="180" y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
+            </g>
+
+            <path class="edge main"   d="M60 60 L60 430"/>
+            <path class="edge beard"  d="M60 110 C 60 135, 120 135, 120 160 L 120 260 C 120 285, 60 285, 60 310"/>
+            <path class="edge blue"   d="M60 170 C 60 195, 180 195, 180 220 L 180 360 C 180 385, 60 385, 60 410"/>
+            <path class="edge green"  d="M120 220 C 120 240, 60 240, 60 260"/>
+            <path class="edge accent" d="M60 260 L 60 310"/>
+
+            <circle class="node"        cx="60"  cy="60"  r="6"/>
+            <circle class="node beard"  cx="60"  cy="110" r="6"/>
+            <circle class="node blue"   cx="60"  cy="170" r="6"/>
+            <circle class="node beard"  cx="120" cy="160" r="6"/>
+            <circle class="node green"  cx="120" cy="220" r="6"/>
+            <circle class="node"        cx="60"  cy="260" r="6"/>
+            <circle class="node active" cx="60"  cy="310" r="7"/>
+            <circle class="node blue"   cx="180" cy="220" r="6"/>
+            <circle class="node blue"   cx="180" cy="360" r="6"/>
+            <circle class="node"        cx="60"  cy="410" r="6"/>
+
+            <text class="graph-label" x="205" y="64">main</text>
+            <text class="graph-hash"  x="205" y="78">a1f3e22  initial commit</text>
+
+            <text class="graph-label" x="205" y="114">chore: add tauri shell</text>
+            <text class="graph-hash"  x="205" y="128">7ce09a1  · adolfo</text>
+
+            <text class="graph-label" x="205" y="174">feat: commit graph engine</text>
+            <text class="graph-hash"  x="205" y="188">3b22f0e  · adolfo</text>
+
+            <text class="graph-label" x="205" y="224">feat: multi-repo tabs</text>
+            <text class="graph-hash"  x="205" y="238">91d2a7c  · adolfo</text>
+
+            <text class="graph-label" x="205" y="264">fix: watcher deadlock</text>
+            <text class="graph-hash"  x="205" y="278">e04b88a  · adolfo</text>
+
+            <text class="graph-label" x="205" y="314" fill="var(--accent)">HEAD  site/landing-page</text>
+            <text class="graph-hash"  x="205" y="328">f2a9d10  · {{t:hero.graph_here}}</text>
+
+            <text class="graph-label" x="205" y="364">feat(ai): commit drafter</text>
+            <text class="graph-hash"  x="205" y="378">2c78901  · adolfo</text>
+
+            <text class="graph-label" x="205" y="414">release: tagged</text>
+            <text class="graph-hash"  x="205" y="428">83f5280  · latest</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WHY ============ -->
+  <section id="why">
+    <div class="wrap">
+      <div class="manifesto">
+        <div>
+          <div class="manifesto-label">
+            <div class="eyebrow">{{t:why.eyebrow}}</div>
+          </div>
+        </div>
+        <!--@en-->
+        <div class="manifesto-body reveal">
+          I kept the graph in one app, the merge request in a browser tab, the pipeline in another,
+          and the API call I wanted to test in a fourth. None of those tools was bad. The jumping
+          was. So BeardGit puts the things I touch to ship a change in one window, in a shape I can
+          keep in my head. It is not out to be the last Git client you install — plenty of them are
+          older, bigger and better funded. It is the one where the next step is usually already on
+          screen.
+        </div>
+        <!--/@en-->
+        <!--@es-->
+        <div class="manifesto-body reveal">
+          Tenía el grafo en una app, la merge request en una pestaña del navegador, el pipeline en
+          otra y la llamada a la API que quería probar en una cuarta. Ninguna de esas herramientas
+          era mala; el salto entre ellas sí. Así que BeardGit reúne en una ventana lo que toco para
+          subir un cambio, con una forma que me cabe en la cabeza. No pretende ser el último cliente
+          de Git que instales — hay muchos más veteranos, más grandes y con más presupuesto. Es el
+          que suele tener el siguiente paso ya en pantalla.
+        </div>
+        <!--/@es-->
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SHOWCASE ============ -->
+  <section id="showcase" class="showcase">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <!--@en--><h2>Six views, one <span class="italic">window</span>.</h2><!--/@en-->
+        <!--@es--><h2>Seis vistas, una <span class="italic">ventana</span>.</h2><!--/@es-->
+        <div class="section-head-meta">{{t:showcase.meta}}</div>
+      </div>
+
+      <div class="carousel" id="shot-carousel">
+        <button class="carousel-arrow prev" type="button" aria-label="{{t:carousel.prev}}" data-dir="-1">‹</button>
+        <div class="carousel-track">
+{{fig:graph|carousel-slide|eager}}
+{{fig:pull-requests|carousel-slide}}
+{{fig:changes|carousel-slide}}
+{{fig:editor|carousel-slide}}
+{{fig:requests|carousel-slide}}
+{{fig:ai-sessions|carousel-slide}}
+        </div>
+        <button class="carousel-arrow next" type="button" aria-label="{{t:carousel.next}}" data-dir="1">›</button>
+        <div class="carousel-dots"></div>
+      </div>
+
+      <p class="section-foot mono reveal">
+        <!--@en-->Another fourteen views — branches, tags, stashes, worktrees, submodules, reflog,
+        bisect, issues, releases, pipelines, compare — are on the
+        <a href="{{L}}features/">features page</a>.<!--/@en-->
+        <!--@es-->Hay catorce vistas más — ramas, tags, stashes, worktrees, submódulos, reflog,
+        bisect, issues, releases, pipelines, comparar — en la
+        <a href="{{L}}features/">página de funciones</a>.<!--/@es-->
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ THEMES ============ -->
+  <section id="themes">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <!--@en--><h2>Pick a theme. The whole app <span class="italic">follows</span>.</h2><!--/@en-->
+        <!--@es--><h2>Elige un tema. La app entera <span class="italic">le sigue</span>.</h2><!--/@es-->
+        <div class="section-head-meta">{{t:themes.meta}}</div>
+      </div>
+
+      <!--@en-->
+      <p class="themes-lede mono reveal">
+        Three original families — <strong>BeardGit</strong> (copper, the default), <strong>Fjord</strong>
+        and <strong>Nebula</strong> — plus the classics you already use elsewhere, for
+        <strong>31 built-in themes</strong>. It isn't only chrome: the editor's syntax colours, the diff
+        backgrounds and the graph lanes recolour with it. Your own theme is a TOML file with 18 colours;
+        everything else is derived for you.
+        <span class="italic">This page follows too — flip the toggle up top.</span>
+      </p>
+      <!--/@en-->
+      <!--@es-->
+      <p class="themes-lede mono reveal">
+        Tres familias propias — <strong>BeardGit</strong> (cobre, el de serie), <strong>Fjord</strong>
+        y <strong>Nebula</strong> — más los clásicos que ya usas en otras herramientas: en total
+        <strong>31 temas incluidos</strong>. Y no es solo la carcasa: la sintaxis del editor, los fondos
+        de los diffs y los carriles del grafo cambian de color con él. Tu propio tema es un fichero TOML
+        con 18 colores; el resto se deriva solo.
+        <span class="italic">Esta página también le sigue — prueba el interruptor de arriba.</span>
+      </p>
+      <!--/@es-->
+
+      <div class="themes-chips reveal" id="theme-chips">
+        <button class="theme-chip active" type="button" data-theme-name="BeardGit"
+                data-light="{{BASE}}assets/screenshots/theme-beardgit-light.png?v={{V}}"
+                data-dark="{{BASE}}assets/screenshots/theme-beardgit-dark.png?v={{V}}">
+          <span class="theme-swatch" style="background:#151312"><span class="theme-dot" style="background:#d9924f"></span></span>
+          <span class="theme-chip-name">BeardGit <span class="mono">copper</span></span>
+        </button>
+        <button class="theme-chip" type="button" data-theme-name="Fjord"
+                data-light="{{BASE}}assets/screenshots/theme-fjord-light.png?v={{V}}"
+                data-dark="{{BASE}}assets/screenshots/theme-fjord-dark.png?v={{V}}">
+          <span class="theme-swatch" style="background:#0e141b"><span class="theme-dot" style="background:#54bdc9"></span></span>
+          <span class="theme-chip-name">Fjord <span class="mono">ice cyan</span></span>
+        </button>
+        <button class="theme-chip" type="button" data-theme-name="Nebula"
+                data-light="{{BASE}}assets/screenshots/theme-nebula-light.png?v={{V}}"
+                data-dark="{{BASE}}assets/screenshots/theme-nebula-dark.png?v={{V}}">
+          <span class="theme-swatch" style="background:#13111f"><span class="theme-dot" style="background:#a78bfa"></span></span>
+          <span class="theme-chip-name">Nebula <span class="mono">violet</span></span>
+        </button>
+        <span class="theme-chip theme-chip-more mono">+ Rosé Pine · Everforest · Kanagawa · Ayu · Catppuccin · Dracula · Gruvbox · Nord · Tokyo Night · Solarized · Oxocarbon …</span>
+      </div>
+
+      <figure class="shot-figure reveal" id="theme-preview">
+        <div class="screenshot-slot" data-slot="theme-preview">
+          <img class="shot-img"
+               data-src-light="{{BASE}}assets/screenshots/theme-beardgit-light.png?v={{V}}"
+               data-src-dark="{{BASE}}assets/screenshots/theme-beardgit-dark.png?v={{V}}"
+               src="{{BASE}}assets/screenshots/theme-beardgit-dark.png?v={{V}}"
+               width="2880" height="1800"
+               loading="lazy" decoding="async"
+               alt="{{t:themes.preview_alt}}" />
+        </div>
+        <figcaption class="shot-caption mono">{{t:themes.preview_caption}} <span data-theme-label>BeardGit</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ WHAT IT DOES ============ -->
+  <section id="what">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <!--@en--><h2>What you get, <span class="italic">briefly</span>.</h2><!--/@en-->
+        <!--@es--><h2>Lo que hace, <span class="italic">en corto</span>.</h2><!--/@es-->
+        <div class="section-head-meta">{{t:what.meta}}</div>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="5" cy="6" r="2.25"/><circle cx="5" cy="18" r="2.25"/><circle cx="19" cy="12" r="2.25"/>
+              <path d="M5 8.25v7.5"/><path d="M7 6h6a4 4 0 0 1 4 4v0"/><path d="M7 18h6a4 4 0 0 0 4-4v0"/>
+            </svg>
+          </div>
+          <div class="feature-num">01 / 06</div>
+          <!--@en-->
+          <h3 class="feature-title">A graph drawn on <span class="italic">canvas</span>.</h3>
+          <p class="feature-body">Six-figure histories scroll smoothly, because only the rows on screen are drawn. Lanes, merge curves, ref badges, author highlighting, and a search that re-lays out around the matches.</p>
+          <!--/@en-->
+          <!--@es-->
+          <h3 class="feature-title">Un grafo dibujado en <span class="italic">canvas</span>.</h3>
+          <p class="feature-body">Historiales de seis cifras se recorren con fluidez porque solo se pinta lo que está en pantalla. Carriles, curvas de merge, badges de refs, resaltado por autor y una búsqueda que recoloca el grafo alrededor de los resultados.</p>
+          <!--/@es-->
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="6" cy="6" r="2.25"/><circle cx="6" cy="18" r="2.25"/><circle cx="18" cy="18" r="2.25"/>
+              <path d="M6 8.25v7.5"/><path d="M14 6h2a2 2 0 0 1 2 2v8"/><path d="M11 3l3 3-3 3"/>
+            </svg>
+          </div>
+          <div class="feature-num">02 / 06</div>
+          <!--@en-->
+          <h3 class="feature-title">GitHub <span class="italic">and</span> GitLab, both properly.</h3>
+          <p class="feature-body">Pull requests and merge requests with per-file diffs and inline review threads. Issues, labels, milestones, pipelines, releases, repo settings. Self-hosted instances included.</p>
+          <!--/@en-->
+          <!--@es-->
+          <h3 class="feature-title">GitHub <span class="italic">y</span> GitLab, los dos en serio.</h3>
+          <p class="feature-body">Pull requests y merge requests con diff por fichero e hilos de review en línea. Issues, etiquetas, milestones, pipelines, releases y ajustes del repo. Instancias autoalojadas incluidas.</p>
+          <!--/@es-->
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h7"/><path d="M16 14l5 5"/><path d="M21 14h-5v5"/>
+            </svg>
+          </div>
+          <div class="feature-num">03 / 06</div>
+          <!--@en-->
+          <h3 class="feature-title">Staging down to the <span class="italic">line</span>.</h3>
+          <p class="feature-body">Collapse a hunk, expand the whole file, stage or discard single lines, Shift-select a range. Commits honour your signing config, and a Test signing button shows the real error when it fails.</p>
+          <!--/@en-->
+          <!--@es-->
+          <h3 class="feature-title">Staging hasta la <span class="italic">línea</span>.</h3>
+          <p class="feature-body">Pliega un hunk, expande el fichero completo, prepara o descarta líneas sueltas, selecciona un rango con Shift. Los commits respetan tu configuración de firma, y un botón de prueba te enseña el error real cuando falla.</p>
+          <!--/@es-->
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/>
+              <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/>
+              <path d="M5 15l.75 1.75L7.5 17.5l-1.75.75L5 20l-.75-1.75L2.5 17.5l1.75-.75L5 15z"/>
+            </svg>
+          </div>
+          <div class="feature-num">04 / 06</div>
+          <!--@en-->
+          <h3 class="feature-title">AI runs in a <span class="italic">worktree</span>, not in your tree.</h3>
+          <p class="feature-body">Your own install of Claude Code, Codex or OpenCode, started on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch in an isolated worktree. Read the transcript, then merge or throw it away. Your checkout never moves.</p>
+          <!--/@en-->
+          <!--@es-->
+          <h3 class="feature-title">La AI trabaja en un <span class="italic">worktree</span>, no en tu árbol.</h3>
+          <p class="feature-body">Tu propia instalación de Claude Code, Codex u OpenCode, lanzada en su rama <code class="mono">ai/&lt;proveedor&gt;/&lt;slug&gt;</code> dentro de un worktree aislado. Lees la transcripción y luego mergeas o lo tiras. Tu copia de trabajo no se mueve.</p>
+          <!--/@es-->
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><path d="M14 4l-4 16"/>
+            </svg>
+          </div>
+          <div class="feature-num">05 / 06</div>
+          <!--@en-->
+          <h3 class="feature-title">Requests and an <span class="italic">editor</span>, in the repo.</h3>
+          <p class="feature-body">Plain <code class="mono">.http</code> files under <code class="mono">.beardgit/requests/</code>, committed with the code that calls them. And a CodeMirror editor for quick fixes: save writes to disk, Shift-save also stages it.</p>
+          <!--/@en-->
+          <!--@es-->
+          <h3 class="feature-title">Peticiones y un <span class="italic">editor</span>, en el repo.</h3>
+          <p class="feature-body">Ficheros <code class="mono">.http</code> normales en <code class="mono">.beardgit/requests/</code>, commiteados junto al código que los llama. Y un editor CodeMirror para arreglos rápidos: guardar escribe en disco, guardar con Shift también lo prepara para el commit.</p>
+          <!--/@es-->
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M13 15h4"/>
+            </svg>
+          </div>
+          <div class="feature-num">06 / 06</div>
+          <!--@en-->
+          <h3 class="feature-title">Real terminals, and a <span class="italic">command palette</span>.</h3>
+          <p class="feature-body">xterm.js over a native PTY, with the bundled <code class="mono">gh</code> and <code class="mono">glab</code> on hand. <code class="mono">⌘⇧P</code> reaches every view and every shortcut without a menu hunt.</p>
+          <!--/@en-->
+          <!--@es-->
+          <h3 class="feature-title">Terminales de verdad y una <span class="italic">paleta de comandos</span>.</h3>
+          <p class="feature-body">xterm.js sobre un PTY nativo, con los <code class="mono">gh</code> y <code class="mono">glab</code> incluidos a mano. <code class="mono">⌘⇧P</code> llega a cualquier vista y a cualquier atajo sin buscar en menús.</p>
+          <!--/@es-->
+        </div>
+      </div>
+
+      <p class="section-foot mono reveal">
+        <!--@en-->The long version, view by view, is on the
+        <a href="{{L}}features/">features page</a>. How to actually use each one is in the
+        <a href="{{L}}guide/">guide</a>.<!--/@en-->
+        <!--@es-->La versión larga, vista por vista, está en la
+        <a href="{{L}}features/">página de funciones</a>. Cómo usar cada cosa, en la
+        <a href="{{L}}guide/">guía</a>.<!--/@es-->
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ AUDIENCE ============ -->
+  <section id="audience">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <!--@en--><h2>Whether it <span class="italic">fits you</span>.</h2><!--/@en-->
+        <!--@es--><h2>Si te <span class="italic">encaja</span>.</h2><!--/@es-->
+        <div class="section-head-meta">{{t:audience.meta}}</div>
+      </div>
+
+      <div class="audience-grid">
+        <div class="audience-card audience-fit reveal">
+          <div class="audience-head">
+            <span class="audience-mark" aria-hidden="true">✓</span>
+            <h3 class="audience-title">{{t:audience.fit_title}}</h3>
+          </div>
+          <!--@en-->
+          <ul class="audience-list">
+            <li>work on <strong>GitHub <em>or</em> GitLab</strong> — or both, on different repos, on the same afternoon</li>
+            <li>test APIs against the repo you are looking at, and would rather not open a separate API client</li>
+            <li>run <strong>Claude Code, Codex or OpenCode</strong> and want them in a worktree instead of loose in your checkout</li>
+            <li>prefer a native app to another Chromium runtime</li>
+            <li>use Linux and are tired of being the afterthought platform</li>
+          </ul>
+          <!--/@en-->
+          <!--@es-->
+          <ul class="audience-list">
+            <li>trabajas en <strong>GitHub <em>o</em> GitLab</strong> — o en los dos, en repos distintos, la misma tarde</li>
+            <li>pruebas APIs contra el repo que tienes delante y preferirías no abrir un cliente de API aparte</li>
+            <li>usas <strong>Claude Code, Codex u OpenCode</strong> y los quieres en un worktree en vez de suelto en tu copia de trabajo</li>
+            <li>prefieres una app nativa a otro runtime de Chromium</li>
+            <li>usas Linux y estás cansado de ser la plataforma de después</li>
+          </ul>
+          <!--/@es-->
+        </div>
+
+        <div class="audience-card audience-skip reveal">
+          <div class="audience-head">
+            <span class="audience-mark" aria-hidden="true">✕</span>
+            <h3 class="audience-title">{{t:audience.skip_title}}</h3>
+          </div>
+          <!--@en-->
+          <ul class="audience-list">
+            <li>are happy in <code class="mono">git</code> and <code class="mono">lazygit</code> — this is a GUI, and it won't beat your muscle memory</li>
+            <li>need <strong>SVN, Mercurial, Perforce</strong> or Bitbucket — none of them are supported</li>
+            <li>want a signed installer today, an SLA, or a support line — it's one developer and an unsigned build</li>
+            <li>are on an Intel Mac — only Apple Silicon builds are published</li>
+          </ul>
+          <!--/@en-->
+          <!--@es-->
+          <ul class="audience-list">
+            <li>estás cómodo con <code class="mono">git</code> y <code class="mono">lazygit</code> — esto es una GUI y no va a ganar a tu memoria muscular</li>
+            <li>necesitas <strong>SVN, Mercurial, Perforce</strong> o Bitbucket — ninguno está soportado</li>
+            <li>quieres un instalador firmado hoy, un SLA o un teléfono de soporte — esto es un desarrollador y una build sin firmar</li>
+            <li>tienes un Mac Intel — solo se publican builds para Apple Silicon</li>
+          </ul>
+          <!--/@es-->
+        </div>
+      </div>
+
+      <p class="audience-foot mono reveal">
+        <!--@en--><strong>Free, and the source is right there.</strong> The CC BY-NC-SA licence stops
+        someone reselling BeardGit itself; using it at work, on work code, is fine.<!--/@en-->
+        <!--@es--><strong>Gratis, y el código está a la vista.</strong> La licencia CC BY-NC-SA impide
+        que alguien revenda BeardGit; usarlo en el trabajo, sobre código del trabajo, está bien.<!--/@es-->
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ ROUGH EDGES ============ -->
+  <section id="rough-edges">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <!--@en--><h2>The <span class="italic">rough edges</span>, up front.</h2><!--/@en-->
+        <!--@es--><h2>Los <span class="italic">bordes rugosos</span>, por delante.</h2><!--/@es-->
+        <div class="section-head-meta">{{t:rough.meta}}</div>
+      </div>
+
+      <!--@en-->
+      <p class="rough-lede mono reveal">
+        Better said here than discovered on your own machine. None of these are secrets — they are
+        in the changelog and the issue tracker too.
+      </p>
+      <div class="rough-grid">
+        <div class="rough-card reveal">
+          <h3>The builds aren't signed</h3>
+          <p>macOS and Windows both block the first launch. One command on macOS, two clicks on
+          Windows, once per install. Certificates cost money per year and this is a one-person
+          project; it is on the list.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Three platforms, three formats, no more</h3>
+          <p><code class="mono">.dmg</code> for Apple Silicon, <code class="mono">.AppImage</code> for
+          Linux x64, <code class="mono">.exe</code> for Windows x64. No Intel Mac build, no
+          <code class="mono">.deb</code>, <code class="mono">.rpm</code> or <code class="mono">.msi</code>.
+          Building from source covers the rest.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Two forges, not five</h3>
+          <p>GitHub and GitLab are first-class, self-hosted included. Bitbucket, Gitea and Codeberg
+          are not supported: the provider layer is abstracted, but each one still needs a real driver
+          and tests behind it.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>It needs <code class="mono">git</code> on your PATH</h3>
+          <p>Reads go through libgit2, writes shell out to your own <code class="mono">git</code>.
+          The app doesn't check for it at startup, so if it's missing you'll find out when a commit
+          fails rather than when you launch.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>One request per <code class="mono">.http</code> file, for now</h3>
+          <p>The parser understands several blocks in a file; the panel still runs the first one.
+          It also won't reach <code class="mono">localhost</code> unless you opt in — see the
+          <a href="{{L}}guide/#requests">guide</a>.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>One developer, in the open</h3>
+          <p>Bugs get fixed when they're reported, and the changelog says which and why. If you need
+          a maintained-by-committee product, that's fair — <strong>Fork, Tower, GitKraken</strong> and
+          <strong>lazygit</strong> are all good, and none of them owe me anything.</p>
+        </div>
+      </div>
+      <!--/@en-->
+      <!--@es-->
+      <p class="rough-lede mono reveal">
+        Mejor dicho aquí que descubierto en tu máquina. Nada de esto es un secreto: está también en
+        el changelog y en el issue tracker.
+      </p>
+      <div class="rough-grid">
+        <div class="rough-card reveal">
+          <h3>Las builds no están firmadas</h3>
+          <p>macOS y Windows bloquean el primer arranque. Un comando en macOS, dos clics en Windows,
+          una vez por instalación. Los certificados cuestan dinero al año y esto lo hace una persona;
+          está en la lista.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Tres plataformas, tres formatos, ni uno más</h3>
+          <p><code class="mono">.dmg</code> para Apple Silicon, <code class="mono">.AppImage</code> para
+          Linux x64, <code class="mono">.exe</code> para Windows x64. No hay build para Mac Intel, ni
+          <code class="mono">.deb</code>, <code class="mono">.rpm</code> o <code class="mono">.msi</code>.
+          Compilar desde el código cubre el resto.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Dos forges, no cinco</h3>
+          <p>GitHub y GitLab son de primera clase, autoalojados incluidos. Bitbucket, Gitea y Codeberg
+          no están soportados: la capa de proveedores está abstraída, pero cada uno necesita todavía
+          un driver de verdad y sus tests detrás.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Necesita <code class="mono">git</code> en el PATH</h3>
+          <p>Las lecturas van por libgit2; las escrituras llaman a tu propio
+          <code class="mono">git</code>. La app no lo comprueba al arrancar, así que si falta te
+          enterarás cuando falle un commit, no al abrirla.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Una petición por fichero <code class="mono">.http</code>, por ahora</h3>
+          <p>El parser entiende varios bloques por fichero; el panel sigue ejecutando el primero.
+          Tampoco llega a <code class="mono">localhost</code> si no lo habilitas — está en la
+          <a href="{{L}}guide/#requests">guía</a>.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Un desarrollador, a la vista</h3>
+          <p>Los fallos se arreglan cuando se reportan, y el changelog dice cuáles y por qué. Si
+          necesitas un producto mantenido por un equipo, es razonable — <strong>Fork, Tower,
+          GitKraken</strong> y <strong>lazygit</strong> son buenos, y ninguno me debe nada.</p>
+        </div>
+      </div>
+      <!--/@es-->
+    </div>
+  </section>
+
+  <!-- ============ INSTALL ============ -->
+  <section id="install">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <!--@en--><h2>Download, <span class="italic">approve</span> once, launch.</h2><!--/@en-->
+        <!--@es--><h2>Descarga, <span class="italic">autoriza</span> una vez, abre.</h2><!--/@es-->
+        <div class="section-head-meta">{{t:install.meta}}</div>
+      </div>
+
+      <!--@en-->
+      <p class="install-lede mono reveal">
+        The installers are <strong>unsigned</strong>, so your OS stops the first launch.
+        <strong>Approve it once</strong> and it runs like any native app. <span class="mono">gh</span>
+        and <span class="mono">glab</span> come bundled, so there is nothing else to install.
+      </p>
+      <!--/@en-->
+      <!--@es-->
+      <p class="install-lede mono reveal">
+        Los instaladores <strong>no están firmados</strong>, así que tu sistema para el primer arranque.
+        <strong>Autorízalo una vez</strong> y funciona como cualquier app nativa. <span class="mono">gh</span>
+        y <span class="mono">glab</span> vienen incluidos, así que no hay nada más que instalar.
+      </p>
+      <!--/@es-->
+
+      <div class="install-grid">
+        <div class="install-card reveal">
+          <div class="install-os">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.7 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 2 2.6 3.4 2.6 1.4-.1 1.9-.9 3.5-.9 1.7 0 2.1.9 3.5.9 1.5 0 2.4-1.2 3.2-2.4.9-1.4 1.3-2.7 1.4-2.8-.1 0-2.7-1-2.7-4.1zM16.1 4.8c.7-.9 1.2-2.1 1.1-3.3-1 0-2.3.7-3 1.5-.7.8-1.3 2-1.1 3.2 1.2.1 2.3-.6 3-1.4z"/></svg>
+            <div class="install-os-name">macOS</div>
+          </div>
+          <div class="install-arch">Apple Silicon · <code>.dmg</code></div>
+          <a class="install-link" href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" data-dl="macos">
+            <span data-dl-label>{{t:install.dl_macos}}</span> ↗
+          </a>
+          <div class="install-cmd">
+            <div class="install-cmd-scroll">
+              <span data-cmd="xattr -dr com.apple.quarantine /Applications/BeardGit.app">xattr -dr com.apple.quarantine /Applications/BeardGit.app</span>
+            </div>
+            <button class="install-copy" type="button" aria-label="{{t:install.copy}}">{{t:install.copy_label}}</button>
+          </div>
+          <div class="install-meta">{{t:install.meta_macos}}</div>
+        </div>
+
+        <div class="install-card reveal">
+          <div class="install-os">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2c-1.8 0-3 1.3-3 3 0 1.6 1 2.6 1 4 0 1-1 1.5-2 2-2.5 1.3-3.5 4-3 7 .5 2 1.5 3 3 4 1 .5 1 1.5 0 2-.5 .3-.5 1 .5 1h7c1 0 1-.7.5-1-1-.5-1-1.5 0-2 1.5-1 2.5-2 3-4 .5-3-.5-5.7-3-7-1-.5-2-1-2-2 0-1.4 1-2.4 1-4 0-1.7-1.2-3-3-3z"/></svg>
+            <div class="install-os-name">Linux</div>
+          </div>
+          <div class="install-arch">x64 · <code>.AppImage</code></div>
+          <a class="install-link" href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" data-dl="linux">
+            <span data-dl-label>{{t:install.dl_linux}}</span> ↗
+          </a>
+          <div class="install-cmd">
+            <div class="install-cmd-scroll">
+              <span data-cmd="chmod +x BeardGit-*.AppImage && ./BeardGit-*.AppImage">chmod +x BeardGit-*.AppImage &amp;&amp; ./BeardGit-*.AppImage</span>
+            </div>
+            <button class="install-copy" type="button" aria-label="{{t:install.copy}}">{{t:install.copy_label}}</button>
+          </div>
+          <div class="install-meta">{{t:install.meta_linux}}</div>
+        </div>
+
+        <div class="install-card reveal">
+          <div class="install-os">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5l8-1.1V12H3V5.5zM12 4.3l9-1.3V12h-9V4.3zM3 12.5h8V20L3 18.9v-6.4zM12 12.5h9V21l-9-1.3v-7.2z"/></svg>
+            <div class="install-os-name">Windows</div>
+          </div>
+          <div class="install-arch">x64 · <code>.exe</code></div>
+          <a class="install-link" href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" data-dl="windows">
+            <span data-dl-label>{{t:install.dl_windows}}</span> ↗
+          </a>
+          <div class="install-cmd step">
+            <div class="install-cmd-scroll">
+              <span data-cmd="SmartScreen → More info → Run anyway">SmartScreen → More info → Run anyway</span>
+            </div>
+            <button class="install-copy" type="button" aria-label="{{t:install.copy}}">{{t:install.copy_label}}</button>
+          </div>
+          <div class="install-meta">{{t:install.meta_windows}}</div>
+        </div>
+      </div>
+
+      <div class="callout reveal">
+        <div>
+          <div class="eyebrow" style="margin-bottom:0.8rem">{{t:install.source_eyebrow}}</div>
+          <!--@en-->
+          <h2>Rather <span class="italic">build it</span> yourself?</h2>
+          <p class="callout-body">Rust, Node 22 and Tauri 2. The prerequisites per platform and the
+          exact commands are in the <a href="{{L}}guide/#build">guide</a>. Licensed
+          <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
+          <!--/@en-->
+          <!--@es-->
+          <h2>¿Prefieres <span class="italic">compilarlo</span> tú?</h2>
+          <p class="callout-body">Rust, Node 22 y Tauri 2. Los requisitos por plataforma y los comandos
+          exactos están en la <a href="{{L}}guide/#build">guía</a>. Licencia
+          <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
+          <!--/@es-->
+        </div>
+        <div>
+          <a href="https://github.com/The3eard/BeardGit" class="btn btn-ghost" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
+            {{t:install.clone}}
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section id="faq">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <!--@en--><h2>Common <span class="italic">questions</span>.</h2><!--/@en-->
+        <!--@es--><h2>Preguntas <span class="italic">habituales</span>.</h2><!--/@es-->
+        <div class="section-head-meta">{{t:faq.meta}}</div>
+      </div>
+
+      <div class="faq-list">
+        <!--@en-->
+        <details class="faq-item reveal">
+          <summary>Is it really free? What's the catch?</summary>
+          <div class="faq-body">
+            Free to download and use, no account, no paywall, no telemetry. The licence is
+            <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>,
+            which only stops someone repackaging and selling BeardGit itself. Using it to earn a living
+            with your own code is exactly what it's for.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Why does my OS say it's damaged or unverified?</summary>
+          <div class="faq-body">
+            Because the builds are unsigned, not because anything is wrong with the download. On macOS
+            run <code class="mono">xattr -dr com.apple.quarantine /Applications/BeardGit.app</code> once,
+            or right-click the app and choose Open. On Windows, More info → Run anyway. Details in the
+            <a href="{{L}}guide/#install">guide</a>.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Where do my tokens and AI keys live?</summary>
+          <div class="faq-body">
+            BeardGit doesn't manage AI keys at all — it drives your local <code class="mono">claude</code>,
+            <code class="mono">codex</code> or <code class="mono">opencode</code>, which already have their
+            own auth. Forge tokens are encrypted with AES-256-GCM in a file on your machine, under a key
+            derived from a machine identifier. The <a href="{{L}}guide/#data">guide</a> says exactly where,
+            and what that does and doesn't protect against.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Does it phone home?</summary>
+          <div class="faq-body">
+            There is no telemetry and no analytics in the app. On its own it makes one request: the
+            update check, which has a switch. Turning off the GitHub/GitLab and AI integrations in
+            Settings stops the token validation and CLI probing at launch too, leaving a git-only
+            client. Everything else happens because you clicked something.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>How does it compare to GitKraken, Fork, Sourcetree or Tower?</summary>
+          <div class="faq-body">
+            They're mature products with teams behind them and BeardGit isn't trying to out-do them at
+            being themselves. The difference is what's in the same window: AI runs in worktrees, an
+            in-repo <code class="mono">.http</code> workspace, and a file editor next to the graph — plus
+            GitLab treated as well as GitHub. If that isn't what you're missing, they're a better buy.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Does it work offline?</summary>
+          <div class="faq-body">
+            Git is local, so the graph, branches, staging, commits, terminals and local AI runs all work
+            with no network. Pull requests, merge requests, pipelines and releases obviously need
+            connectivity, and say so instead of hanging.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>How do I report a bug?</summary>
+          <div class="faq-body">
+            <a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Open an issue</a>
+            with your OS, the version from Help → About, and what you did. If you're not sure whether it's
+            a bug or a limitation, open it anyway — sorting that out is my job, not yours.
+          </div>
+        </details>
+        <!--/@en-->
+        <!--@es-->
+        <details class="faq-item reveal">
+          <summary>¿De verdad es gratis? ¿Dónde está la trampa?</summary>
+          <div class="faq-body">
+            Gratis de descargar y de usar, sin cuenta, sin muro de pago y sin telemetría. La licencia es
+            <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>,
+            que solo impide que alguien reempaquete y venda BeardGit. Usarlo para ganarte la vida con tu
+            propio código es justo para lo que está.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Por qué mi sistema dice que está dañado o sin verificar?</summary>
+          <div class="faq-body">
+            Porque las builds no están firmadas, no porque la descarga tenga nada raro. En macOS ejecuta
+            <code class="mono">xattr -dr com.apple.quarantine /Applications/BeardGit.app</code> una vez, o
+            haz clic derecho en la app y elige Abrir. En Windows, Más información → Ejecutar de todas formas.
+            El detalle está en la <a href="{{L}}guide/#install">guía</a>.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Dónde acaban mis tokens y mis claves de AI?</summary>
+          <div class="faq-body">
+            BeardGit no gestiona claves de AI: lanza tu <code class="mono">claude</code>,
+            <code class="mono">codex</code> u <code class="mono">opencode</code> local, que ya tienen su
+            propia autenticación. Los tokens de forge se cifran con AES-256-GCM en un fichero de tu máquina,
+            con una clave derivada de un identificador del equipo. La <a href="{{L}}guide/#data">guía</a>
+            dice exactamente dónde y contra qué protege eso — y contra qué no.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Llama a casa?</summary>
+          <div class="faq-body">
+            No hay telemetría ni analítica en la app. Por su cuenta hace una sola petición: la comprobación
+            de actualizaciones, que tiene su interruptor. Apagar las integraciones de GitHub/GitLab y de AI
+            en Ajustes también detiene la validación de tokens y el sondeo de CLIs al arrancar, y te deja un
+            cliente solo de git. Todo lo demás pasa porque has hecho clic en algo.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Cómo se compara con GitKraken, Fork, Sourcetree o Tower?</summary>
+          <div class="faq-body">
+            Son productos maduros con equipos detrás y BeardGit no intenta ganarles en ser ellos. La
+            diferencia está en lo que cabe en la misma ventana: ejecuciones de AI en worktrees, un espacio
+            <code class="mono">.http</code> dentro del repo y un editor de ficheros junto al grafo — además
+            de tratar GitLab igual que GitHub. Si eso no es lo que te falta, te compensan más ellos.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Funciona sin conexión?</summary>
+          <div class="faq-body">
+            Git es local, así que el grafo, las ramas, el staging, los commits, las terminales y las
+            ejecuciones de AI locales funcionan sin red. Las pull requests, las merge requests, los
+            pipelines y las releases necesitan conexión, evidentemente, y lo dicen en vez de quedarse
+            colgadas.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Cómo reporto un fallo?</summary>
+          <div class="faq-body">
+            <a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Abre una issue</a>
+            con tu sistema, la versión que sale en Ayuda → Acerca de, y qué hiciste. Si no sabes si es un
+            fallo o una limitación, ábrela igual — clasificarlo es mi trabajo, no el tuyo.
+          </div>
+        </details>
+        <!--/@es-->
+      </div>
+
+      <p class="section-foot mono reveal">
+        <!--@en-->Longer answers, and the ones that need commands, are in the
+        <a href="{{L}}guide/">guide</a>.<!--/@en-->
+        <!--@es-->Las respuestas largas, y las que necesitan comandos, están en la
+        <a href="{{L}}guide/">guía</a>.<!--/@es-->
+      </p>
+    </div>
+  </section>

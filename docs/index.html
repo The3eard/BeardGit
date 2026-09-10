@@ -3,33 +3,37 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>BeardGit — your whole repo, in one window</title>
-  <meta name="description" content="Your whole repo in one window — graph, PRs/MRs, issues, CI/CD, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor. Native desktop. No Electron. macOS · Linux · Windows." />
+  <title>BeardGit — one window for your whole repo</title>
+  <meta name="description" content="A desktop Git client that keeps the graph, your pull and merge requests, CI, issues, releases, terminals, AI runs, .http requests and a file editor in the same window. macOS, Linux and Windows. Free, no account, no telemetry." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#151312" media="(prefers-color-scheme: dark)" />
 
   <link rel="canonical" href="https://the3eard.github.io/BeardGit/" />
+  <link rel="alternate" hreflang="en" href="https://the3eard.github.io/BeardGit/" />
+  <link rel="alternate" hreflang="es" href="https://the3eard.github.io/BeardGit/es/" />
+  <link rel="alternate" hreflang="x-default" href="https://the3eard.github.io/BeardGit/" />
 
-  <meta property="og:title" content="BeardGit — your whole repo, in one window" />
-  <meta property="og:description" content="Stop juggling six tabs to ship a commit. Graph, PRs/MRs, issues, CI/CD, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor — in a single native desktop app. No Electron. No telemetry." />
+  <meta property="og:title" content="BeardGit — one window for your whole repo" />
+  <meta property="og:description" content="A desktop Git client that keeps the graph, your pull and merge requests, CI, issues, releases, terminals, AI runs, .http requests and a file editor in the same window. macOS, Linux and Windows. Free, no account, no telemetry." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://the3eard.github.io/BeardGit/" />
-  <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260904a" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="BeardGit — your whole repo, in one window" />
+  <meta property="og:image:alt" content="BeardGit — one window for the whole repo" />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="BeardGit — your whole repo, in one window" />
-  <meta name="twitter:description" content="Stop juggling six tabs to ship a commit. Graph, PRs/MRs, issues, CI/CD, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor — in a single native desktop app." />
-  <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260904a" />
-  <meta name="twitter:image:alt" content="BeardGit — your whole repo, in one window" />
+  <meta name="twitter:title" content="BeardGit — one window for your whole repo" />
+  <meta name="twitter:description" content="A desktop Git client that keeps the graph, your pull and merge requests, CI, issues, releases, terminals, AI runs, .http requests and a file editor in the same window. macOS, Linux and Windows. Free, no account, no telemetry." />
+  <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
+  <meta name="twitter:image:alt" content="BeardGit — one window for the whole repo" />
 
-  <link rel="icon" type="image/svg+xml" href="assets/logo.svg?v=20260904a" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260904a" />
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png?v=20260904a" />
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20260904a" />
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png?v=20260910a" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20260910a" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -37,21 +41,21 @@
   <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,301,400,401,500,501,700,701,900,901&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/styles.css?v=20260904a" />
-
+  <link rel="stylesheet" href="assets/styles.css?v=20260910a" />
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "BeardGit",
-    "description": "Your whole repo in one window. Native desktop Git client for GitHub and GitLab with a canvas graph, full PR/MR lifecycle, CI/CD pipelines, issues, releases, terminals, AI agents that run in isolated worktrees, an in-repo .http API testing workspace, and an in-app code editor. macOS, Linux, Windows. No Electron, no telemetry.",
+    "description": "Desktop Git client for GitHub and GitLab with a canvas commit graph, pull and merge requests, CI pipelines, issues, releases, terminals, AI CLI runs in isolated worktrees, an in-repo .http request workspace and a file editor. macOS, Linux and Windows. Built on Tauri, not Electron. No account and no telemetry.",
     "url": "https://the3eard.github.io/BeardGit/",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "macOS, Linux, Windows",
     "downloadUrl": "https://github.com/The3eard/BeardGit/releases/latest",
-    "softwareRequirements": "macOS (Apple Silicon), Linux x64 (libwebkit2gtk-4.1), Windows x64 (WebView2)",
+    "softwareRequirements": "macOS (Apple Silicon), Linux x64 (libwebkit2gtk-4.1), Windows x64 (WebView2), git 2.x",
     "license": "https://github.com/The3eard/BeardGit/blob/main/LICENSE.md",
-    "image": "https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260904a",
+    "image": "https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a",
+    "inLanguage": "en",
     "author": {
       "@type": "Person",
       "name": "Adolfo Fuentes",
@@ -67,38 +71,53 @@
 
   <script>function loadScript(a){var b=document.getElementsByTagName("head")[0],c=document.createElement("script");c.type="text/javascript",c.src="https://tracker.metricool.com/resources/be.js",c.onreadystatechange=a,c.onload=a,b.appendChild(c)}loadScript(function(){beTracker.t({hash:"244616eaed13de8fb961a27a3677700b"})});</script>
 </head>
-<body>
+<body data-page="home" data-lang="en">
 
-  <!-- ============ NAV ============ -->
   <nav class="nav">
     <div class="wrap nav-inner">
-      <a href="#top" class="brand" style="border:none">
-        <img src="assets/logo.svg?v=20260904a" alt="" class="brand-mark" />
+      <a href="" class="brand" style="border:none">
+        <img src="assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
         <span class="brand-name">BeardGit</span>
       </a>
       <div class="nav-links">
-        <a href="#manifesto">Manifesto</a>
-        <a href="#showcase">Showcase</a>
-        <a href="#themes">Themes</a>
-        <a href="#features">Features</a>
-        <a href="#audience">For you?</a>
-        <a href="#shortcuts">Keys</a>
-        <a href="#install">Install</a>
-        <a href="#faq">FAQ</a>
+        <a href="" data-nav="home" aria-current="page" class="active">Home</a>
+        <a href="features/" data-nav="features">Features</a>
+        <a href="guide/" data-nav="guide">Guide</a>
+        <a href="changelog/" data-nav="changelog">Changelog</a>
         <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
-      <button class="theme-toggle" id="themeToggle" aria-label="Toggle color theme" title="Cycle theme: auto / light / dark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" id="themeIcon">
-          <!-- icon swapped by JS -->
-          <circle cx="12" cy="12" r="4"/>
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-        </svg>
-        <span id="themeLabel">Auto</span>
-      </button>
+      <div class="nav-actions">
+        <a class="lang-switch" href="es/" title="Ver esta página en español" hreflang="es" lang="es">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M3 12h18"/>
+            <path d="M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/>
+          </svg>
+          <span>ES</span>
+        </a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Change colour theme" title="Cycle theme: auto / light / dark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" id="themeIcon">
+            <!-- icon swapped by JS -->
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+          </svg>
+          <span id="themeLabel">Auto</span>
+        </button>
+      </div>
     </div>
   </nav>
 
-  <!-- ============ HERO ============ -->
+
+  <!-- Offered, never forced: switching language on someone mid-read is
+       worse than a line they can ignore. Shown by app.js only when the
+       browser's language disagrees with the page's. -->
+  <div class="lang-nudge" id="langNudge" hidden>
+    <span>Esta página también está en español.</span>
+    <a href="es/">Verla en español →</a>
+    <button type="button" id="langNudgeClose" aria-label="Cerrar">×</button>
+  </div>
+
+<!-- ============ HERO ============ -->
   <section class="hero" id="top">
     <div class="wrap">
       <div class="hero-grid">
@@ -109,23 +128,27 @@
             <span class="badge mono">macOS (Apple Silicon) · Linux x64 · Windows x64</span>
           </div>
 
+          
           <h1 class="hero-title reveal">
             <span class="lead">Your whole repo,</span>
             <span class="lead">in <span class="italic accent">one</span> window.<span class="caret"></span></span>
           </h1>
 
           <p class="hero-sub reveal mono">
-            Graph, <strong style="color:var(--fg)">PRs &amp; MRs</strong>, CI/CD, issues, releases, terminals,
-            <strong style="color:var(--fg)">AI agents</strong>, an in-repo
-            <strong style="color:var(--fg)">.http workspace</strong>, and an
-            <strong style="color:var(--fg)">in-app editor</strong> — in one native app,
-            <strong style="color:var(--fg)">themed end to end</strong>.
+            The graph, <strong style="color:var(--fg)">pull and merge requests</strong>, CI, issues, releases,
+            terminals, <strong style="color:var(--fg)">AI runs</strong>, your
+            <strong style="color:var(--fg)">.http requests</strong> and a
+            <strong style="color:var(--fg)">file editor</strong> — in the same app, so shipping a change
+            stops being a tour of four of them.
           </p>
-
+          
           <div class="cta-row reveal">
             <a href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" class="btn btn-primary" data-dl="auto">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v13M5 12l7 7 7-7M4 21h16"/></svg>
               <span data-dl-label>Download BeardGit</span>
+            </a>
+            <a href="features/" class="btn btn-ghost">
+              See what it does
             </a>
             <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener" class="btn btn-ghost btn-star" aria-label="Star BeardGit on GitHub">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l3.06 6.2 6.84.99-4.95 4.83 1.17 6.81L12 18.13l-6.12 3.22 1.17-6.81L2.1 9.69l6.84-.99L12 2.5z"/></svg>
@@ -134,24 +157,24 @@
             </a>
           </div>
 
-          <p class="hero-microcta mono reveal">If BeardGit saves you a tab, drop a ★ — it’s how the project gets seen.</p>
+          <p class="hero-microcta mono reveal">If it saves you a tab, a ★ on the repo is how other people find it.</p>
 
           <div class="hero-stats reveal">
             <div>
               <div class="stat-num">100K<span class="italic">+</span></div>
-              <div class="stat-lbl">Commits rendered</div>
-            </div>
-            <div>
-              <div class="stat-num">0<span class="italic">×</span></div>
-              <div class="stat-lbl">Electron runtimes</div>
-            </div>
-            <div>
-              <div class="stat-num">3<span class="italic"> AI</span></div>
-              <div class="stat-lbl">Providers built-in</div>
+              <div class="stat-lbl">Commits it renders</div>
             </div>
             <div>
               <div class="stat-num">31</div>
-              <div class="stat-lbl">Themes, all WCAG AA</div>
+              <div class="stat-lbl">Themes built in</div>
+            </div>
+            <div>
+              <div class="stat-num">2</div>
+              <div class="stat-lbl">Forges, both first-class</div>
+            </div>
+            <div>
+              <div class="stat-num">0</div>
+              <div class="stat-lbl">Accounts to create</div>
             </div>
           </div>
         </div>
@@ -159,21 +182,18 @@
         <!-- Animated commit graph -->
         <div class="hero-graph reveal" aria-hidden="true">
           <svg viewBox="0 0 440 480" preserveAspectRatio="xMidYMid meet">
-            <!-- column guides -->
             <g opacity="0.35">
               <line x1="60"  y1="30" x2="60"  y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
               <line x1="120" y1="30" x2="120" y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
               <line x1="180" y1="30" x2="180" y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
             </g>
 
-            <!-- edges (drawn first, behind nodes) -->
             <path class="edge main"   d="M60 60 L60 430"/>
             <path class="edge beard"  d="M60 110 C 60 135, 120 135, 120 160 L 120 260 C 120 285, 60 285, 60 310"/>
             <path class="edge blue"   d="M60 170 C 60 195, 180 195, 180 220 L 180 360 C 180 385, 60 385, 60 410"/>
             <path class="edge green"  d="M120 220 C 120 240, 60 240, 60 260"/>
             <path class="edge accent" d="M60 260 L 60 310"/>
 
-            <!-- nodes -->
             <circle class="node"        cx="60"  cy="60"  r="6"/>
             <circle class="node beard"  cx="60"  cy="110" r="6"/>
             <circle class="node blue"   cx="60"  cy="170" r="6"/>
@@ -185,7 +205,6 @@
             <circle class="node blue"   cx="180" cy="360" r="6"/>
             <circle class="node"        cx="60"  cy="410" r="6"/>
 
-            <!-- labels -->
             <text class="graph-label" x="205" y="64">main</text>
             <text class="graph-hash"  x="205" y="78">a1f3e22  initial commit</text>
 
@@ -215,23 +234,26 @@
     </div>
   </section>
 
-  <!-- ============ MANIFESTO ============ -->
-  <section id="manifesto">
+  <!-- ============ WHY ============ -->
+  <section id="why">
     <div class="wrap">
       <div class="manifesto">
         <div>
           <div class="manifesto-label">
-            <div class="eyebrow">§ 01 — Manifesto</div>
+            <div class="eyebrow">§ 01 — Why it exists</div>
           </div>
         </div>
+        
         <div class="manifesto-body reveal">
-          You ship code from <strong>one keyboard</strong>, not seventeen tabs. BeardGit is built on a simple
-          premise: <span class="italic">everything you touch to release a change should live in one app.</span>
-          Graph. Branches. Staging. <strong>PRs &amp; MRs</strong> on GitHub and GitLab. CI. Issues. Releases.
-          Terminals. <strong>AI agents</strong>. Your API requests, committed next to the code. Your repo files,
-          edited in place. Close the other clients — BeardGit is the <strong>one window</strong> you keep open.
+          I kept the graph in one app, the merge request in a browser tab, the pipeline in another,
+          and the API call I wanted to test in a fourth. None of those tools was bad. The jumping
+          was. So BeardGit puts the things I touch to ship a change in one window, in a shape I can
+          keep in my head. It is not out to be the last Git client you install — plenty of them are
+          older, bigger and better funded. It is the one where the next step is usually already on
+          screen.
         </div>
-      </div>
+        
+        </div>
     </div>
   </section>
 
@@ -239,303 +261,155 @@
   <section id="showcase" class="showcase">
     <div class="wrap">
       <div class="section-head reveal">
-        <h2>The whole repo, one <span class="italic">window</span>.</h2>
-        <div class="section-head-meta">§ 02 — Interface</div>
+        <h2>Six views, one <span class="italic">window</span>.</h2>
+        <div class="section-head-meta">§ 02 — A look at it</div>
       </div>
 
-            <div class="carousel" id="shot-carousel">
+      <div class="carousel" id="shot-carousel">
         <button class="carousel-arrow prev" type="button" aria-label="Previous screenshot" data-dir="-1">‹</button>
         <div class="carousel-track">
-    <figure class="shot-figure carousel-slide">
-            <div class="screenshot-slot" data-slot="graph">
-              <picture>
-                <source class="shot-src" type="image/avif"
-                        data-srcset-light="assets/screenshots/graph-light.avif?v=20260904a"
-                        data-srcset-dark="assets/screenshots/graph-dark.avif?v=20260904a"
-                        srcset="assets/screenshots/graph-dark.avif?v=20260904a" />
-                <source class="shot-src" type="image/webp"
-                        data-srcset-light="assets/screenshots/graph-light.webp?v=20260904a"
-                        data-srcset-dark="assets/screenshots/graph-dark.webp?v=20260904a"
-                        srcset="assets/screenshots/graph-dark.webp?v=20260904a" />
-                <img class="shot-img"
-                     data-src-light="assets/screenshots/graph-light.png?v=20260904a"
-                     data-src-dark="assets/screenshots/graph-dark.png?v=20260904a"
-                     src="assets/screenshots/graph-dark.png?v=20260904a"
-                     width="2880" height="1800"
-                     fetchpriority="high" decoding="async"
-                     alt="BeardGit main window — the canvas commit graph with branch lanes, merge curves, ref badges and version tags in a single tab" />
-              </picture>
-            </div>
-            <figcaption class="shot-caption mono">fig. 01 — commit graph</figcaption>
-          </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="editor">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/editor-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/editor-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/editor-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/editor-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/editor-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/editor-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/editor-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/editor-dark.png?v=20260904a"
-                       src="assets/screenshots/editor-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="In-app code editor — gitignore-aware file tree and a tabbed CodeMirror buffer with theme-matched Rust syntax highlighting" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 02 — in-app editor</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="pull-requests">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/pull-requests-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/pull-requests-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/pull-requests-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/pull-requests-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/pull-requests-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/pull-requests-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/pull-requests-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/pull-requests-dark.png?v=20260904a"
-                       src="assets/screenshots/pull-requests-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="Pull request detail — rendered description, labels, reviewers, changed files and an inline review thread" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 03 — pull request detail</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="pipelines">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/pipelines-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/pipelines-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/pipelines-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/pipelines-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/pipelines-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/pipelines-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/pipelines-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/pipelines-dark.png?v=20260904a"
-                       src="assets/screenshots/pipelines-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="CI pipelines list with per-run status badges, plus the stages and jobs of the selected run" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 04 — CI pipelines</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="command-palette">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/command-palette-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/command-palette-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/command-palette-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/command-palette-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/command-palette-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/command-palette-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/command-palette-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/command-palette-dark.png?v=20260904a"
-                       src="assets/screenshots/command-palette-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="Command palette overlay — fuzzy-matched navigation views and keyboard shortcuts, opened with Cmd-Shift-P" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 05 — command palette</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="requests">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/requests-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/requests-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/requests-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/requests-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/requests-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/requests-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/requests-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/requests-dark.png?v=20260904a"
-                       src="assets/screenshots/requests-dark.png?v=20260904a"
-                       width="2784" height="1824"
-                       loading="lazy" decoding="async"
-                       alt="Requests panel — .http file editor with JSON body, env switcher, and a syntax-highlighted response" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 06 — requests panel</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="issues">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/issues-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/issues-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/issues-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/issues-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/issues-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/issues-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/issues-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/issues-dark.png?v=20260904a"
-                       src="assets/screenshots/issues-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="Issue list with labels and state, plus the selected issue body and comment thread" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 07 — issues</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="releases">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/releases-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/releases-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/releases-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/releases-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/releases-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/releases-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/releases-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/releases-dark.png?v=20260904a"
-                       src="assets/screenshots/releases-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="Releases list with semver tags, publish dates and asset counts" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 08 — releases</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="branches">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/branches-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/branches-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/branches-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/branches-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/branches-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/branches-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/branches-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/branches-dark.png?v=20260904a"
-                       src="assets/screenshots/branches-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="Branch list with upstream tracking and ahead/behind counts" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 09 — branches</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="worktrees">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/worktrees-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/worktrees-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/worktrees-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/worktrees-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/worktrees-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/worktrees-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/worktrees-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/worktrees-dark.png?v=20260904a"
-                       src="assets/screenshots/worktrees-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="Worktrees — the main checkout plus AI and feature worktrees on their own branches" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 10 — worktrees</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="bisect">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/bisect-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/bisect-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/bisect-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/bisect-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/bisect-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/bisect-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/bisect-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/bisect-dark.png?v=20260904a"
-                       src="assets/screenshots/bisect-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="Visual bisect mid-session — good/bad/skip controls, counters and the bisect log" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 11 — visual bisect</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="ai-sessions">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/ai-sessions-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/ai-sessions-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/ai-sessions-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/ai-sessions-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/ai-sessions-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/ai-sessions-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/ai-sessions-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/ai-sessions-dark.png?v=20260904a"
-                       src="assets/screenshots/ai-sessions-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="AI session transcripts from Claude Code and Codex, scoped to the repo" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 12 — AI sessions</figcaption>
-            </figure>
-    <figure class="shot-figure carousel-slide">
-              <div class="screenshot-slot" data-slot="merge-requests">
-                <picture>
-                  <source class="shot-src" type="image/avif"
-                          data-srcset-light="assets/screenshots/merge-requests-light.avif?v=20260904a"
-                          data-srcset-dark="assets/screenshots/merge-requests-dark.avif?v=20260904a"
-                          srcset="assets/screenshots/merge-requests-dark.avif?v=20260904a" />
-                  <source class="shot-src" type="image/webp"
-                          data-srcset-light="assets/screenshots/merge-requests-light.webp?v=20260904a"
-                          data-srcset-dark="assets/screenshots/merge-requests-dark.webp?v=20260904a"
-                          srcset="assets/screenshots/merge-requests-dark.webp?v=20260904a" />
-                  <img class="shot-img"
-                       data-src-light="assets/screenshots/merge-requests-light.png?v=20260904a"
-                       data-src-dark="assets/screenshots/merge-requests-dark.png?v=20260904a"
-                       src="assets/screenshots/merge-requests-dark.png?v=20260904a"
-                       width="2880" height="1800"
-                       loading="lazy" decoding="async"
-                       alt="The same merge-request workflow on GitLab — detail, files and review thread" />
-                </picture>
-              </div>
-              <figcaption class="shot-caption mono">fig. 13 — GitLab merge request</figcaption>
-            </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="graph">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="assets/screenshots/graph-light.avif?v=20260910a"
+                  data-srcset-dark="assets/screenshots/graph-dark.avif?v=20260910a"
+                  srcset="assets/screenshots/graph-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="assets/screenshots/graph-light.webp?v=20260910a"
+                  data-srcset-dark="assets/screenshots/graph-dark.webp?v=20260910a"
+                  srcset="assets/screenshots/graph-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/graph-light.png?v=20260910a"
+                 data-src-dark="assets/screenshots/graph-dark.png?v=20260910a"
+                 src="assets/screenshots/graph-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 fetchpriority="high" decoding="async"
+                 alt="The commit graph: branch lanes, merge curves, ref badges and the commit detail pane" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">the commit graph, with the selected commit's files beside it</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="pull-requests">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="assets/screenshots/pull-requests-light.avif?v=20260910a"
+                  data-srcset-dark="assets/screenshots/pull-requests-dark.avif?v=20260910a"
+                  srcset="assets/screenshots/pull-requests-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="assets/screenshots/pull-requests-light.webp?v=20260910a"
+                  data-srcset-dark="assets/screenshots/pull-requests-dark.webp?v=20260910a"
+                  srcset="assets/screenshots/pull-requests-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/pull-requests-light.png?v=20260910a"
+                 data-src-dark="assets/screenshots/pull-requests-dark.png?v=20260910a"
+                 src="assets/screenshots/pull-requests-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="A pull request with its CI status, per-file diff and inline review threads" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">a pull request, reviewed without leaving the app</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="changes">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="assets/screenshots/changes-light.avif?v=20260910a"
+                  data-srcset-dark="assets/screenshots/changes-dark.avif?v=20260910a"
+                  srcset="assets/screenshots/changes-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="assets/screenshots/changes-light.webp?v=20260910a"
+                  data-srcset-dark="assets/screenshots/changes-dark.webp?v=20260910a"
+                  srcset="assets/screenshots/changes-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/changes-light.png?v=20260910a"
+                 data-src-dark="assets/screenshots/changes-dark.png?v=20260910a"
+                 src="assets/screenshots/changes-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The changes view with hunks, per-line staging and a side-by-side diff" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">staging, down to individual lines</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="editor">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="assets/screenshots/editor-light.avif?v=20260910a"
+                  data-srcset-dark="assets/screenshots/editor-dark.avif?v=20260910a"
+                  srcset="assets/screenshots/editor-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="assets/screenshots/editor-light.webp?v=20260910a"
+                  data-srcset-dark="assets/screenshots/editor-dark.webp?v=20260910a"
+                  srcset="assets/screenshots/editor-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/editor-light.png?v=20260910a"
+                 data-src-dark="assets/screenshots/editor-dark.png?v=20260910a"
+                 src="assets/screenshots/editor-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The in-app file editor with the repository tree, tabs and syntax highlighting" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">the file editor, for the fix that doesn't deserve a context switch</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="requests">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="assets/screenshots/requests-light.avif?v=20260910a"
+                  data-srcset-dark="assets/screenshots/requests-dark.avif?v=20260910a"
+                  srcset="assets/screenshots/requests-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="assets/screenshots/requests-light.webp?v=20260910a"
+                  data-srcset-dark="assets/screenshots/requests-dark.webp?v=20260910a"
+                  srcset="assets/screenshots/requests-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/requests-light.png?v=20260910a"
+                 data-src-dark="assets/screenshots/requests-dark.png?v=20260910a"
+                 src="assets/screenshots/requests-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The .http request workspace with the request, the composed body and the environment picker" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">an .http request, committed next to the code that calls it</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="ai-sessions">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="assets/screenshots/ai-sessions-light.avif?v=20260910a"
+                  data-srcset-dark="assets/screenshots/ai-sessions-dark.avif?v=20260910a"
+                  srcset="assets/screenshots/ai-sessions-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="assets/screenshots/ai-sessions-light.webp?v=20260910a"
+                  data-srcset-dark="assets/screenshots/ai-sessions-dark.webp?v=20260910a"
+                  srcset="assets/screenshots/ai-sessions-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="assets/screenshots/ai-sessions-light.png?v=20260910a"
+                 data-src-dark="assets/screenshots/ai-sessions-dark.png?v=20260910a"
+                 src="assets/screenshots/ai-sessions-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="An AI session with its transcript, the worktree it ran in and the saved report" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">an AI run, in its own worktree, with the transcript kept</figcaption>
+      </figure>
         </div>
         <button class="carousel-arrow next" type="button" aria-label="Next screenshot" data-dir="1">›</button>
-        <div class="carousel-dots" aria-hidden="true"></div>
+        <div class="carousel-dots"></div>
       </div>
+
+      <p class="section-foot mono reveal">
+        Another fourteen views — branches, tags, stashes, worktrees, submodules, reflog,
+        bisect, issues, releases, pipelines, compare — are on the
+        <a href="features/">features page</a>.
+        </p>
     </div>
   </section>
 
@@ -547,31 +421,32 @@
         <div class="section-head-meta">§ 03 — Themes</div>
       </div>
 
+      
       <p class="themes-lede mono reveal">
-        Three original families — <strong>copper</strong> (the default), <strong>Fjord</strong> and
-        <strong>Nebula</strong> — plus the classics, <strong>31 built-in themes</strong> in all, each with a dark
-        and a light variant that follow your OS. It isn't just chrome: <strong>editor syntax, diff backgrounds
-        and graph lanes recolour together</strong>. Every bundled theme clears <strong>WCAG AA</strong> on all
-        three text rungs, enforced by a test; write your own as a TOML file and it's measured too, never rewritten.
-        <span class="italic">This page does the same — flip the toggle up top.</span>
+        Three original families — <strong>BeardGit</strong> (copper, the default), <strong>Fjord</strong>
+        and <strong>Nebula</strong> — plus the classics you already use elsewhere, for
+        <strong>31 built-in themes</strong>. It isn't only chrome: the editor's syntax colours, the diff
+        backgrounds and the graph lanes recolour with it. Your own theme is a TOML file with 18 colours;
+        everything else is derived for you.
+        <span class="italic">This page follows too — flip the toggle up top.</span>
       </p>
-
+      
       <div class="themes-chips reveal" id="theme-chips">
         <button class="theme-chip active" type="button" data-theme-name="BeardGit"
-                data-light="assets/screenshots/theme-beardgit-light.png?v=20260904a"
-                data-dark="assets/screenshots/theme-beardgit-dark.png?v=20260904a">
+                data-light="assets/screenshots/theme-beardgit-light.png?v=20260910a"
+                data-dark="assets/screenshots/theme-beardgit-dark.png?v=20260910a">
           <span class="theme-swatch" style="background:#151312"><span class="theme-dot" style="background:#d9924f"></span></span>
           <span class="theme-chip-name">BeardGit <span class="mono">copper</span></span>
         </button>
         <button class="theme-chip" type="button" data-theme-name="Fjord"
-                data-light="assets/screenshots/theme-fjord-light.png?v=20260904a"
-                data-dark="assets/screenshots/theme-fjord-dark.png?v=20260904a">
+                data-light="assets/screenshots/theme-fjord-light.png?v=20260910a"
+                data-dark="assets/screenshots/theme-fjord-dark.png?v=20260910a">
           <span class="theme-swatch" style="background:#0e141b"><span class="theme-dot" style="background:#54bdc9"></span></span>
           <span class="theme-chip-name">Fjord <span class="mono">ice cyan</span></span>
         </button>
         <button class="theme-chip" type="button" data-theme-name="Nebula"
-                data-light="assets/screenshots/theme-nebula-light.png?v=20260904a"
-                data-dark="assets/screenshots/theme-nebula-dark.png?v=20260904a">
+                data-light="assets/screenshots/theme-nebula-light.png?v=20260910a"
+                data-dark="assets/screenshots/theme-nebula-dark.png?v=20260910a">
           <span class="theme-swatch" style="background:#13111f"><span class="theme-dot" style="background:#a78bfa"></span></span>
           <span class="theme-chip-name">Nebula <span class="mono">violet</span></span>
         </button>
@@ -581,73 +456,69 @@
       <figure class="shot-figure reveal" id="theme-preview">
         <div class="screenshot-slot" data-slot="theme-preview">
           <img class="shot-img"
-               data-src-light="assets/screenshots/theme-beardgit-light.png?v=20260904a"
-               data-src-dark="assets/screenshots/theme-beardgit-dark.png?v=20260904a"
-               src="assets/screenshots/theme-beardgit-dark.png?v=20260904a"
+               data-src-light="assets/screenshots/theme-beardgit-light.png?v=20260910a"
+               data-src-dark="assets/screenshots/theme-beardgit-dark.png?v=20260910a"
+               src="assets/screenshots/theme-beardgit-dark.png?v=20260910a"
                width="2880" height="1800"
                loading="lazy" decoding="async"
-               alt="The in-app editor rendered in the selected theme" />
+               alt="The in-app file editor rendered in the selected theme" />
         </div>
-        <figcaption class="shot-caption mono">fig. 14 — the editor in <span data-theme-label>BeardGit</span> · <span class="italic">click a theme, flip the toggle for dark/light</span></figcaption>
+        <figcaption class="shot-caption mono">the editor in <span data-theme-label>BeardGit</span></figcaption>
       </figure>
     </div>
   </section>
 
-  <!-- ============ FEATURES ============ -->
-  <section id="features">
+  <!-- ============ WHAT IT DOES ============ -->
+  <section id="what">
     <div class="wrap">
       <div class="section-head reveal">
-        <h2>Everything you do, in <span class="italic">one place</span>.</h2>
-        <div class="section-head-meta">§ 04 — Capabilities</div>
+        <h2>What you get, <span class="italic">briefly</span>.</h2>
+        <div class="section-head-meta">§ 04 — What you get</div>
       </div>
 
       <div class="features-grid">
-        <div class="feature wide reveal">
+        <div class="feature reveal">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="5" cy="6" r="2.25"/>
-              <circle cx="5" cy="18" r="2.25"/>
-              <circle cx="19" cy="12" r="2.25"/>
-              <path d="M5 8.25v7.5"/>
-              <path d="M7 6h6a4 4 0 0 1 4 4v0"/>
-              <path d="M7 18h6a4 4 0 0 0 4-4v0"/>
+              <circle cx="5" cy="6" r="2.25"/><circle cx="5" cy="18" r="2.25"/><circle cx="19" cy="12" r="2.25"/>
+              <path d="M5 8.25v7.5"/><path d="M7 6h6a4 4 0 0 1 4 4v0"/><path d="M7 18h6a4 4 0 0 0 4-4v0"/>
             </svg>
           </div>
-          <div class="feature-num">01 / 12</div>
-          <h3 class="feature-title">A <span class="italic">canvas graph</span> that scales.</h3>
-          <p class="feature-body">100K+ commits render smoothly. Branch lanes, merge curves, sync-state lines, and author highlighting — all on HTML canvas, not DOM. <code class="mono">⌘F</code> filters by author, message, or ref.</p>
-        </div>
+          <div class="feature-num">01 / 06</div>
+          
+          <h3 class="feature-title">A graph drawn on <span class="italic">canvas</span>.</h3>
+          <p class="feature-body">Six-figure histories scroll smoothly, because only the rows on screen are drawn. Lanes, merge curves, ref badges, author highlighting, and a search that re-lays out around the matches.</p>
+          
+          </div>
 
         <div class="feature reveal">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 8l9-4 9 4-9 4-9-4z"/>
-              <path d="M3 12l9 4 9-4"/>
-              <path d="M3 16l9 4 9-4"/>
+              <circle cx="6" cy="6" r="2.25"/><circle cx="6" cy="18" r="2.25"/><circle cx="18" cy="18" r="2.25"/>
+              <path d="M6 8.25v7.5"/><path d="M14 6h2a2 2 0 0 1 2 2v8"/><path d="M11 3l3 3-3 3"/>
             </svg>
           </div>
-          <div class="feature-num">02 / 12</div>
-          <h3 class="feature-title">Multi-repo <span class="italic">tabs</span>.</h3>
-          <p class="feature-body">Every repo is a tab. Heavy state loads only for the active one — a dozen open repos cost the same as one. <code class="mono">⌘1…⌘9</code> jumps between them.</p>
-        </div>
+          <div class="feature-num">02 / 06</div>
+          
+          <h3 class="feature-title">GitHub <span class="italic">and</span> GitLab, both properly.</h3>
+          <p class="feature-body">Pull requests and merge requests with per-file diffs and inline review threads. Issues, labels, milestones, pipelines, releases, repo settings. Self-hosted instances included.</p>
+          
+          </div>
 
         <div class="feature reveal">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="6" cy="6" r="2.25"/>
-              <circle cx="6" cy="18" r="2.25"/>
-              <circle cx="18" cy="18" r="2.25"/>
-              <path d="M6 8.25v7.5"/>
-              <path d="M14 6h2a2 2 0 0 1 2 2v8"/>
-              <path d="M11 3l3 3-3 3"/>
+              <path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h7"/><path d="M16 14l5 5"/><path d="M21 14h-5v5"/>
             </svg>
           </div>
-          <div class="feature-num">03 / 12</div>
-          <h3 class="feature-title">Forge-native for <span class="italic">GitHub + GitLab</span>.</h3>
-          <p class="feature-body">Full PR/MR lifecycle with inline review threads. Issues, pipelines, releases, repo settings — without leaving the app. Self-hosted GitHub Enterprise and on-prem GitLab too. <code class="mono">gh</code> and <code class="mono">glab</code> bundled.</p>
-        </div>
+          <div class="feature-num">03 / 06</div>
+          
+          <h3 class="feature-title">Staging down to the <span class="italic">line</span>.</h3>
+          <p class="feature-body">Collapse a hunk, expand the whole file, stage or discard single lines, Shift-select a range. Commits honour your signing config, and a Test signing button shows the real error when it fails.</p>
+          
+          </div>
 
-        <div class="feature tall reveal">
+        <div class="feature reveal">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/>
@@ -655,228 +526,167 @@
               <path d="M5 15l.75 1.75L7.5 17.5l-1.75.75L5 20l-.75-1.75L2.5 17.5l1.75-.75L5 15z"/>
             </svg>
           </div>
-          <div class="feature-num">04 / 12</div>
-          <h3 class="feature-title">Your own AI CLI, in a <span class="italic">worktree</span>.</h3>
-          <p class="feature-body">BeardGit drives <strong>your local install</strong> of Claude Code, Codex, or OpenCode in a fresh worktree. Each run lands on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch — review, merge, or discard.</p>
-        </div>
-
-        <div class="feature wide reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="7"/>
-              <path d="M8.5 11l2 2 4-4.5"/>
-              <path d="M16.5 16.5L21 21"/>
-            </svg>
+          <div class="feature-num">04 / 06</div>
+          
+          <h3 class="feature-title">AI runs in a <span class="italic">worktree</span>, not in your tree.</h3>
+          <p class="feature-body">Your own install of Claude Code, Codex or OpenCode, started on its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch in an isolated worktree. Read the transcript, then merge or throw it away. Your checkout never moves.</p>
+          
           </div>
-          <div class="feature-num">05 / 12</div>
-          <h3 class="feature-title">Visual <span class="italic">bisect</span>.</h3>
-          <p class="feature-body">Pick the good commit, pick the bad commit, step through with buttons. Auto-mode runs your test command at every step and resolves it without you watching.</p>
-        </div>
 
         <div class="feature reveal">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="16" rx="2"/>
-              <path d="M7 9l3 3-3 3"/>
-              <path d="M13 15h4"/>
+              <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><path d="M14 4l-4 16"/>
             </svg>
           </div>
-          <div class="feature-num">06 / 12</div>
-          <h3 class="feature-title">Bundled <span class="italic">CLIs</span>.</h3>
-          <p class="feature-body"><code class="mono">gh</code> and <code class="mono">glab</code> ship inside every installer. No PATH setup. Run them in a real PTY terminal — or let BeardGit call them for you.</p>
-        </div>
+          <div class="feature-num">05 / 06</div>
+          
+          <h3 class="feature-title">Requests and an <span class="italic">editor</span>, in the repo.</h3>
+          <p class="feature-body">Plain <code class="mono">.http</code> files under <code class="mono">.beardgit/requests/</code>, committed with the code that calls them. And a CodeMirror editor for quick fixes: save writes to disk, Shift-save also stages it.</p>
+          
+          </div>
 
         <div class="feature reveal">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="16 18 22 12 16 6"/>
-              <polyline points="8 6 2 12 8 18"/>
-              <path d="M14 4l-4 16"/>
+              <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M13 15h4"/>
             </svg>
           </div>
-          <div class="feature-num">07 / 12</div>
-          <h3 class="feature-title">An in-app <span class="italic">code editor</span>.</h3>
-          <p class="feature-body">CodeMirror 6 with per-language snippets, keyword completion, JSON lint, inline color pickers, and a gitignore-aware tree. Save writes to disk; <code class="mono">⇧ Save</code> also stages for the next commit.</p>
-        </div>
-
-        <div class="feature wide reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 6h16"/>
-              <path d="M4 12h10"/>
-              <path d="M4 18h7"/>
-              <path d="M16 14l5 5"/>
-              <path d="M21 14h-5v5"/>
-            </svg>
+          <div class="feature-num">06 / 06</div>
+          
+          <h3 class="feature-title">Real terminals, and a <span class="italic">command palette</span>.</h3>
+          <p class="feature-body">xterm.js over a native PTY, with the bundled <code class="mono">gh</code> and <code class="mono">glab</code> on hand. <code class="mono">⌘⇧P</code> reaches every view and every shortcut without a menu hunt.</p>
+          
           </div>
-          <div class="feature-num">08 / 12</div>
-          <h3 class="feature-title">An <span class="italic">.http</span> workspace, in your repo.</h3>
-          <p class="feature-body">Plain <code class="mono">.http</code> files in your repo, committed with the project. Envs in JSON, secrets encrypted locally. Response diff between any two runs.</p>
-        </div>
-
-        <div class="feature reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="5" width="18" height="14" rx="2"/>
-              <path d="M7 10l2.5 2L7 14"/>
-              <path d="M12 14h5"/>
-            </svg>
-          </div>
-          <div class="feature-num">09 / 12</div>
-          <h3 class="feature-title">A <span class="italic">command palette</span> for everything.</h3>
-          <p class="feature-body"><code class="mono">⌘⇧P</code> fuzzy-matches every view and every keyboard action — type <code class="mono">stash</code>, hit Enter, you're there. No menu hunting.</p>
-        </div>
-
-        <div class="feature reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 7h10"/>
-              <path d="M11 4l3 3-3 3"/>
-              <path d="M20 17H10"/>
-              <path d="M13 14l-3 3 3 3"/>
-            </svg>
-          </div>
-          <div class="feature-num">10 / 12</div>
-          <h3 class="feature-title"><span class="italic">Compare</span> any ref against any ref.</h3>
-          <p class="feature-body">Pick a base and a compare side — branch, tag or SHA — and see the commits it adds, ahead/behind, changed files and a per-file diff. "What does my branch add over <code class="mono">main</code>?", answered in-app.</p>
-        </div>
-
-        <div class="feature reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="6" cy="5" r="2.25"/>
-              <path d="M6 7.25V19"/>
-              <path d="M6 12c0-2 1.5-3.5 3.5-3.5H14"/>
-              <path d="M15 5l5 5M20 5l-5 5"/>
-            </svg>
-          </div>
-          <div class="feature-num">11 / 12</div>
-          <h3 class="feature-title">Branch <span class="italic">cleanup</span> and signed commits.</h3>
-          <p class="feature-body">Branches whose upstream is <code class="mono">[gone]</code> get a chip and a one-dialog bulk delete. Commits honour your <code class="mono">commit.gpgsign</code> — SSH, GPG or X.509 — with a <strong>Test signing</strong> button that shows the real error.</p>
-        </div>
-
-        <div class="feature reveal">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 5h16v14H4z"/>
-              <path d="M4 10h16"/>
-              <path d="M9 10v9"/>
-              <path d="M12 14.5l1.5 1.5 3-3"/>
-            </svg>
-          </div>
-          <div class="feature-num">12 / 12</div>
-          <h3 class="feature-title">Every view <span class="italic">remembers</span> where you left it.</h3>
-          <p class="feature-body">Filters, scroll, split widths, collapsed folders, search chips and half-written drafts survive leaving a section and coming back — per repo tab. The editor keeps its open tabs and unsaved edits too.</p>
-        </div>
       </div>
+
+      <p class="section-foot mono reveal">
+        The long version, view by view, is on the
+        <a href="features/">features page</a>. How to actually use each one is in the
+        <a href="guide/">guide</a>.
+        </p>
     </div>
   </section>
 
-  <!-- ============ AUDIENCE / POSITIONING ============ -->
+  <!-- ============ AUDIENCE ============ -->
   <section id="audience">
     <div class="wrap">
       <div class="section-head reveal">
-        <h2>Made for the dev with <span class="italic">six tabs open</span>.</h2>
-        <div class="section-head-meta">§ 05 — Who it's for</div>
+        <h2>Whether it <span class="italic">fits you</span>.</h2>
+        <div class="section-head-meta">§ 05 — Whether it fits</div>
       </div>
-
-      <p class="audience-lede mono reveal">
-        Five minutes from download to first commit. No accounts, no cloud. A deliberate choice for a specific kind of developer.
-      </p>
 
       <div class="audience-grid">
         <div class="audience-card audience-fit reveal">
           <div class="audience-head">
             <span class="audience-mark" aria-hidden="true">✓</span>
-            <h3 class="audience-title">You’ll like it if you</h3>
+            <h3 class="audience-title">You'll probably like it if you</h3>
           </div>
+          
           <ul class="audience-list">
-            <li>live on <strong>GitHub <em>or</em> GitLab</strong> and want a first-class experience on either — not “GitHub plus a GitLab bolt-on”</li>
-            <li>test APIs against the repo you’re staring at and hate context-switching to a separate API client</li>
-            <li>run <strong>Claude Code / Codex / OpenCode</strong> and want them isolated in worktrees, not loose in your tree</li>
-            <li>care that your git client doesn’t ship a 200&nbsp;MB Chromium runtime to render a sidebar</li>
-            <li>want a polished GUI with <strong>Linux as a first-class platform</strong>, not an afterthought</li>
+            <li>work on <strong>GitHub <em>or</em> GitLab</strong> — or both, on different repos, on the same afternoon</li>
+            <li>test APIs against the repo you are looking at, and would rather not open a separate API client</li>
+            <li>run <strong>Claude Code, Codex or OpenCode</strong> and want them in a worktree instead of loose in your checkout</li>
+            <li>prefer a native app to another Chromium runtime</li>
+            <li>use Linux and are tired of being the afterthought platform</li>
           </ul>
-        </div>
+          
+          </div>
 
         <div class="audience-card audience-skip reveal">
           <div class="audience-head">
             <span class="audience-mark" aria-hidden="true">✕</span>
-            <h3 class="audience-title">You probably won’t if you</h3>
+            <h3 class="audience-title">You probably won't if you</h3>
           </div>
+          
           <ul class="audience-list">
-            <li>live entirely on <code class="mono">git</code> CLI and <code class="mono">lazygit</code> — BeardGit is GUI-first</li>
-            <li>need <strong>SVN, Mercurial, Perforce</strong>, or self-hosted Bitbucket — not supported</li>
-            <li>want a paid product with phone support and an enterprise SSO portal — that’s not this</li>
+            <li>are happy in <code class="mono">git</code> and <code class="mono">lazygit</code> — this is a GUI, and it won't beat your muscle memory</li>
+            <li>need <strong>SVN, Mercurial, Perforce</strong> or Bitbucket — none of them are supported</li>
+            <li>want a signed installer today, an SLA, or a support line — it's one developer and an unsigned build</li>
+            <li>are on an Intel Mac — only Apple Silicon builds are published</li>
           </ul>
-        </div>
+          
+          </div>
       </div>
 
       <p class="audience-foot mono reveal">
-        <strong>Free and source-available.</strong> CC&nbsp;BY-NC-SA blocks reselling BeardGit itself; commercial team use is fine.
-      </p>
+        <strong>Free, and the source is right there.</strong> The CC BY-NC-SA licence stops
+        someone reselling BeardGit itself; using it at work, on work code, is fine.
+        </p>
     </div>
   </section>
 
-  <!-- ============ KEYBOARD ============ -->
-  <section id="shortcuts">
+  <!-- ============ ROUGH EDGES ============ -->
+  <section id="rough-edges">
     <div class="wrap">
       <div class="section-head reveal">
-        <h2>Twelve keys, <span class="italic">no menus</span>.</h2>
-        <div class="section-head-meta">§ 06 — Keyboard</div>
+        <h2>The <span class="italic">rough edges</span>, up front.</h2>
+        <div class="section-head-meta">§ 06 — Rough edges</div>
       </div>
 
-      <p class="shortcuts-lede mono reveal">
-        A taste of what ships built-in. The full cheat sheet is one keystroke away — press <kbd class="kbd">?</kbd> inside the app. Modifiers shown for macOS; on Linux/Windows <kbd class="kbd">⌘</kbd> reads as <kbd class="kbd">Ctrl</kbd>.
+      
+      <p class="rough-lede mono reveal">
+        Better said here than discovered on your own machine. None of these are secrets — they are
+        in the changelog and the issue tracker too.
       </p>
-
-      <div class="shortcuts-grid">
-        <div class="shortcut-group reveal">
-          <h3 class="shortcut-group-title">Git</h3>
-          <ul class="shortcut-list">
-            <li><span>Stage all changes</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">S</kbd></span></li>
-            <li><span>Push</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">K</kbd></span></li>
-            <li><span>Pull</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">L</kbd></span></li>
-            <li><span>Fetch</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">F</kbd></span></li>
-            <li><span>New branch</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">B</kbd></span></li>
-          </ul>
+      <div class="rough-grid">
+        <div class="rough-card reveal">
+          <h3>The builds aren't signed</h3>
+          <p>macOS and Windows both block the first launch. One command on macOS, two clicks on
+          Windows, once per install. Certificates cost money per year and this is a one-person
+          project; it is on the list.</p>
         </div>
-        <div class="shortcut-group reveal">
-          <h3 class="shortcut-group-title">Graph</h3>
-          <ul class="shortcut-list">
-            <li><span>Next / previous commit</span><span class="kbd-row"><kbd class="kbd">J</kbd><span class="kbd-sep">/</span><kbd class="kbd">K</kbd></span></li>
-            <li><span>First / last commit</span><span class="kbd-row"><kbd class="kbd">Home</kbd><span class="kbd-sep">/</span><kbd class="kbd">End</kbd></span></li>
-            <li><span>Search commits</span><span class="kbd-row"><kbd class="kbd">/</kbd></span></li>
-            <li><span>New AI background run</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">A</kbd></span></li>
-          </ul>
+        <div class="rough-card reveal">
+          <h3>Three platforms, three formats, no more</h3>
+          <p><code class="mono">.dmg</code> for Apple Silicon, <code class="mono">.AppImage</code> for
+          Linux x64, <code class="mono">.exe</code> for Windows x64. No Intel Mac build, no
+          <code class="mono">.deb</code>, <code class="mono">.rpm</code> or <code class="mono">.msi</code>.
+          Building from source covers the rest.</p>
         </div>
-        <div class="shortcut-group reveal">
-          <h3 class="shortcut-group-title">Tabs &amp; UI</h3>
-          <ul class="shortcut-list">
-            <li><span>Next tab</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">Tab</kbd></span></li>
-            <li><span>Close tab</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">W</kbd></span></li>
-            <li><span>New terminal tab</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">T</kbd></span></li>
-            <li><span>Toggle sidebar</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">B</kbd></span></li>
-            <li><span>Command palette</span><span class="kbd-row"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">P</kbd></span></li>
-            <li><span>Show all shortcuts</span><span class="kbd-row"><kbd class="kbd">?</kbd></span></li>
-          </ul>
+        <div class="rough-card reveal">
+          <h3>Two forges, not five</h3>
+          <p>GitHub and GitLab are first-class, self-hosted included. Bitbucket, Gitea and Codeberg
+          are not supported: the provider layer is abstracted, but each one still needs a real driver
+          and tests behind it.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>It needs <code class="mono">git</code> on your PATH</h3>
+          <p>Reads go through libgit2, writes shell out to your own <code class="mono">git</code>.
+          The app doesn't check for it at startup, so if it's missing you'll find out when a commit
+          fails rather than when you launch.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>One request per <code class="mono">.http</code> file, for now</h3>
+          <p>The parser understands several blocks in a file; the panel still runs the first one.
+          It also won't reach <code class="mono">localhost</code> unless you opt in — see the
+          <a href="guide/#requests">guide</a>.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>One developer, in the open</h3>
+          <p>Bugs get fixed when they're reported, and the changelog says which and why. If you need
+          a maintained-by-committee product, that's fair — <strong>Fork, Tower, GitKraken</strong> and
+          <strong>lazygit</strong> are all good, and none of them owe me anything.</p>
         </div>
       </div>
-    </div>
+      
+      </div>
   </section>
 
   <!-- ============ INSTALL ============ -->
   <section id="install">
     <div class="wrap">
       <div class="section-head reveal">
-        <h2>Download, <span class="italic">approve</span>, launch.</h2>
-        <div class="section-head-meta">§ 07 — Getting started</div>
+        <h2>Download, <span class="italic">approve</span> once, launch.</h2>
+        <div class="section-head-meta">§ 07 — Install</div>
       </div>
 
+      
       <p class="install-lede mono reveal">
-        Builds are <strong>unsigned</strong>, so your OS blocks the first launch. <strong>Approve the app once</strong> and it runs native. <span class="mono">gh</span> and <span class="mono">glab</span> ship bundled. Code-signing is on the roadmap.
+        The installers are <strong>unsigned</strong>, so your OS stops the first launch.
+        <strong>Approve it once</strong> and it runs like any native app. <span class="mono">gh</span>
+        and <span class="mono">glab</span> come bundled, so there is nothing else to install.
       </p>
-
+      
       <div class="install-grid">
         <div class="install-card reveal">
           <div class="install-os">
@@ -893,7 +703,7 @@
             </div>
             <button class="install-copy" type="button" aria-label="Copy command">Copy</button>
           </div>
-          <div class="install-meta">Drag to <span class="mono">/Applications</span>, then run the command above once to clear Gatekeeper's quarantine flag. Temporary — goes away with code-signing.</div>
+          <div class="install-meta">Drag it to /Applications, then run that command once to clear Gatekeeper's quarantine flag. It goes away when the app is signed.</div>
         </div>
 
         <div class="install-card reveal">
@@ -911,7 +721,7 @@
             </div>
             <button class="install-copy" type="button" aria-label="Copy command">Copy</button>
           </div>
-          <div class="install-meta">Mark executable and run directly. Requires <span class="mono">libwebkit2gtk-4.1</span>. <span class="mono">.deb</span> / <span class="mono">.rpm</span> bundles aren't shipped right now — build from source if you need them.</div>
+          <div class="install-meta">Mark it executable and run it. Needs libwebkit2gtk-4.1. No .deb or .rpm right now — build from source if you need one.</div>
         </div>
 
         <div class="install-card reveal">
@@ -927,18 +737,22 @@
             <div class="install-cmd-scroll">
               <span data-cmd="SmartScreen → More info → Run anyway">SmartScreen → More info → Run anyway</span>
             </div>
-            <button class="install-copy" type="button" aria-label="Copy step">Copy</button>
+            <button class="install-copy" type="button" aria-label="Copy command">Copy</button>
           </div>
-          <div class="install-meta">Requires WebView2 Runtime (installed on Windows 11 by default). The <span class="mono">.msi</span> bundle will return once the app is code-signed.</div>
+          <div class="install-meta">Needs the WebView2 Runtime, which Windows 11 already has. The .msi comes back once the app is signed.</div>
         </div>
       </div>
 
       <div class="callout reveal">
         <div>
           <div class="eyebrow" style="margin-bottom:0.8rem">§ 07.1 — From source</div>
+          
           <h2>Rather <span class="italic">build it</span> yourself?</h2>
-          <p class="callout-body">Rust + Node + Tauri 2. Full setup and platform prerequisites live in the <a href="https://github.com/The3eard/BeardGit#building-from-source" target="_blank" rel="noopener">README</a>. Licensed <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
-        </div>
+          <p class="callout-body">Rust, Node 22 and Tauri 2. The prerequisites per platform and the
+          exact commands are in the <a href="guide/#build">guide</a>. Licensed
+          <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
+          
+          </div>
         <div>
           <a href="https://github.com/The3eard/BeardGit" class="btn btn-ghost" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
@@ -953,108 +767,110 @@
   <section id="faq">
     <div class="wrap">
       <div class="section-head reveal">
-        <h2>Frequently <span class="italic">asked</span>.</h2>
-        <div class="section-head-meta">§ 08 — FAQ</div>
+        <h2>Common <span class="italic">questions</span>.</h2>
+        <div class="section-head-meta">§ 08 — Questions</div>
       </div>
 
       <div class="faq-list">
+        
         <details class="faq-item reveal">
-          <summary>Why is the app unsigned?</summary>
+          <summary>Is it really free? What's the catch?</summary>
           <div class="faq-body">
-            Signing certificates cost real money per year and BeardGit is a one-person beta. Until that changes, your OS will block first launch — the workaround in <a href="#install">§&nbsp;07</a> is one command. Signing is on the roadmap.
+            Free to download and use, no account, no paywall, no telemetry. The licence is
+            <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>,
+            which only stops someone repackaging and selling BeardGit itself. Using it to earn a living
+            with your own code is exactly what it's for.
           </div>
         </details>
-
         <details class="faq-item reveal">
-          <summary>Where do my AI keys live?</summary>
+          <summary>Why does my OS say it's damaged or unverified?</summary>
           <div class="faq-body">
-            BeardGit doesn't manage keys. It drives <em>your local install</em> of <code class="mono">claude-code</code>, <code class="mono">codex</code>, or <code class="mono">opencode</code>, which already have their own auth. Your tokens never touch BeardGit's storage.
+            Because the builds are unsigned, not because anything is wrong with the download. On macOS
+            run <code class="mono">xattr -dr com.apple.quarantine /Applications/BeardGit.app</code> once,
+            or right-click the app and choose Open. On Windows, More info → Run anyway. Details in the
+            <a href="guide/#install">guide</a>.
           </div>
         </details>
-
         <details class="faq-item reveal">
-          <summary>Why no Electron?</summary>
+          <summary>Where do my tokens and AI keys live?</summary>
           <div class="faq-body">
-            Electron ships a Chromium runtime per app — ~150 MB before you do anything. BeardGit is built on Tauri 2 and uses the OS's native webview. Small installer, fast cold start.
+            BeardGit doesn't manage AI keys at all — it drives your local <code class="mono">claude</code>,
+            <code class="mono">codex</code> or <code class="mono">opencode</code>, which already have their
+            own auth. Forge tokens are encrypted with AES-256-GCM in a file on your machine, under a key
+            derived from a machine identifier. The <a href="guide/#data">guide</a> says exactly where,
+            and what that does and doesn't protect against.
           </div>
         </details>
-
         <details class="faq-item reveal">
-          <summary>Can I theme it? Does it match my editor?</summary>
+          <summary>Does it phone home?</summary>
           <div class="faq-body">
-            Yes. BeardGit ships three original theme families — <strong>BeardGit</strong> (copper, the default), <strong>Fjord</strong> and <strong>Nebula</strong> — each with dark and light variants that follow your OS automatically, alongside Rosé Pine, Everforest, Kanagawa, Ayu, Catppuccin, Dracula, Gruvbox, Nord, Tokyo Night, Solarized and more: 31 in total, every one audited for WCAG AA contrast. Your own theme is a TOML file. Crucially the theme drives the <em>whole</em> app: the in-app editor's syntax palette, diff backgrounds and the graph lanes all recolour with it, so nothing reads as a bolted-on GitHub skin.
+            There is no telemetry and no analytics in the app. On its own it makes one request: the
+            update check, which has a switch. Turning off the GitHub/GitLab and AI integrations in
+            Settings stops the token validation and CLI probing at launch too, leaving a git-only
+            client. Everything else happens because you clicked something.
           </div>
         </details>
-
         <details class="faq-item reveal">
-          <summary>How does it compare to GitKraken / Fork / Sourcetree / Tower?</summary>
+          <summary>How does it compare to GitKraken, Fork, Sourcetree or Tower?</summary>
           <div class="faq-body">
-            BeardGit isn’t trying to beat any of them at being themselves — they’re mature commercial products. BeardGit is the opinionated alternative for developers who want AI worktree runs, an in-repo <code class="mono">.http</code> workspace, and an in-app editor in the same window as the graph. See <a href="#audience">§&nbsp;05 — Who it’s for</a>.
+            They're mature products with teams behind them and BeardGit isn't trying to out-do them at
+            being themselves. The difference is what's in the same window: AI runs in worktrees, an
+            in-repo <code class="mono">.http</code> workspace, and a file editor next to the graph — plus
+            GitLab treated as well as GitHub. If that isn't what you're missing, they're a better buy.
           </div>
         </details>
-
         <details class="faq-item reveal">
           <summary>Does it work offline?</summary>
           <div class="faq-body">
-            Yes — Git is local-first. Graph rendering, branches, staging, commits, terminals, and AI runs against a local CLI all work without a network. PR/MR/CI and remote pipeline triggers obviously need connectivity, and degrade cleanly when you go offline.
+            Git is local, so the graph, branches, staging, commits, terminals and local AI runs all work
+            with no network. Pull requests, merge requests, pipelines and releases obviously need
+            connectivity, and say so instead of hanging.
           </div>
         </details>
-
         <details class="faq-item reveal">
-          <summary>What about Bitbucket, Gitea, Codeberg, …?</summary>
+          <summary>How do I report a bug?</summary>
           <div class="faq-body">
-            Today only GitHub and GitLab are first-class. Bitbucket and Gitea are on the wish-list once the GH/GL surface stabilises — the forge layer is abstracted, but each backend still needs a real driver and tests. PRs welcome.
+            <a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Open an issue</a>
+            with your OS, the version from Help → About, and what you did. If you're not sure whether it's
+            a bug or a limitation, open it anyway — sorting that out is my job, not yours.
           </div>
         </details>
+        
+        </div>
 
-        <details class="faq-item reveal">
-          <summary>Is BeardGit really free?</summary>
-          <div class="faq-body">
-            Yes. Free to download and use, no account, no telemetry, no paywall. <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a> only forbids repackaging or reselling BeardGit itself — using it to earn money <em>with your code</em> is fine.
-          </div>
-        </details>
-
-        <details class="faq-item reveal">
-          <summary>How do I report a bug or request a feature?</summary>
-          <div class="faq-body">
-            Open an issue on <a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">GitHub</a>. Include your OS, the BeardGit version (Help → About), and a short repro. Patches via PR are very welcome — see <a href="https://github.com/The3eard/BeardGit/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a>.
-          </div>
-        </details>
-      </div>
+      <p class="section-foot mono reveal">
+        Longer answers, and the ones that need commands, are in the
+        <a href="guide/">guide</a>.
+        </p>
     </div>
   </section>
 
-  <!-- ============ FOOTER ============ -->
+
   <footer>
     <div class="wrap">
       <div class="footer-grid">
         <div class="footer-col">
           <div class="brand" style="margin-bottom:1rem">
-            <img src="assets/logo.svg?v=20260904a" alt="" class="brand-mark" />
+            <img src="assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
             <span class="brand-name">BeardGit</span>
           </div>
-          <p class="footer-tagline mono">
-            A native desktop Git client. One window for graph, PRs, MRs, CI, issues, releases, terminals, AI agents, an in-repo .http workspace, and an in-app code editor.
-          </p>
+          <p class="footer-tagline mono">A desktop Git client that keeps the graph, your pull and merge requests, CI, issues, releases, terminals, AI runs, .http requests and a file editor in the same window.</p>
         </div>
         <div class="footer-col">
-          <h4>Product</h4>
+          <h4>Site</h4>
           <ul>
-            <li><a href="#features">Features</a></li>
-            <li><a href="#showcase">Showcase</a></li>
-            <li><a href="#themes">Themes</a></li>
-            <li><a href="#shortcuts">Keyboard</a></li>
-            <li><a href="#install">Install</a></li>
-            <li><a href="#faq">FAQ</a></li>
-            <li><a href="https://github.com/The3eard/BeardGit/releases" target="_blank" rel="noopener">Releases</a></li>
+            <li><a href="">Home</a></li>
+            <li><a href="features/">Features</a></li>
+            <li><a href="guide/">Guide</a></li>
+            <li><a href="changelog/">Changelog</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h4>Source</h4>
           <ul>
             <li><a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/releases" target="_blank" rel="noopener">Releases</a></li>
             <li><a href="https://github.com/The3eard/BeardGit/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a></li>
-            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></li>
             <li><a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Issues</a></li>
           </ul>
         </div>
@@ -1064,16 +880,16 @@
             <li><a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">License</a></li>
             <li><a href="https://github.com/The3eard/BeardGit/blob/main/CLA.md" target="_blank" rel="noopener">CLA</a></li>
             <li><a href="https://github.com/The3eard/BeardGit/blob/main/SECURITY.md" target="_blank" rel="noopener">Security</a></li>
-            <li><a href="https://github.com/The3eard/BeardGit/blob/main/README.es.md" target="_blank" rel="noopener" hreflang="es" lang="es">Leer en español ↗</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
         <span>© 2026 Adolfo Fuentes</span>
-        <span class="mono">Graph · PRs · MRs · CI · issues · releases · terminals · AI · .http · editor — one app.</span>
+        <span class="mono">Free, source-available, no account, no telemetry.</span>
       </div>
     </div>
   </footer>
+
 
   <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog">
     <button class="lightbox-close" id="lightboxClose" aria-label="Close">×</button>
@@ -1081,6 +897,6 @@
     <div class="lightbox-caption mono" id="lightboxCaption"></div>
   </div>
 
-  <script src="assets/app.js?v=20260904a"></script>
+  <script src="assets/app.js?v=20260910a"></script>
 </body>
 </html>

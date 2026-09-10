@@ -35,7 +35,7 @@ npm run tauri dev
 
 ## Project Structure
 
-The repository is organized as a Cargo workspace with 18 focused crates, plus the Svelte frontend and Tauri shell. Only `app-core` depends on Tauri — every other crate is a reusable library that can be lifted into a different host (CLI, daemon, alternative UI) without modification.
+The repository is organized as a Cargo workspace with 22 focused crates, plus the Svelte frontend and Tauri shell. Only `app-core` depends on Tauri — every other crate is a reusable library that can be lifted into a different host (CLI, daemon, alternative UI) without modification.
 
 | Path | Description |
 |---|---|
@@ -47,19 +47,24 @@ The repository is organized as a Cargo workspace with 18 focused crates, plus th
 | `crates/gitlab-api` | GitLab REST v4 implementation of `CiProvider` |
 | `crates/github-api` | GitHub REST implementation of `CiProvider` |
 | `crates/ai-provider` | `AiProvider` trait + shared AI types |
+| `crates/ai-provider-common` | Shared helpers for the CLI-based AI provider crates |
 | `crates/claude-code` | `AiProvider` implementation for Claude Code CLI |
 | `crates/codex` | `AiProvider` implementation for OpenAI Codex CLI |
 | `crates/opencode` | `AiProvider` implementation for OpenCode CLI |
+| `crates/ai-runner` | Background worktree coordinator — glues `ai-provider`, `git-engine` and `task-runner` |
 | `crates/auth` | AES-256-GCM encrypted credential store with machine-bound key |
 | `crates/storage` | SQLite via rusqlite, JSON config, TOML theme loader, file logging |
 | `crates/task-runner` | Async task manager with streaming output and cancellation |
 | `crates/terminal` | PTY session manager via `portable-pty` with OSC 7 integration |
 | `crates/watcher` | Debounced filesystem + AI config + sessions watchers |
 | `crates/mutation-events` | Lightweight event bus for cross-feature notifications |
-| `crates/app-core` | 200+ Tauri command handlers, `AppState`, event bridge |
+| `crates/requests-runner` | `.http` parser, variable resolver and request executor |
+| `crates/requests-store` | Request collections and response history (its own SQLite database) |
+| `crates/app-core` | ~310 Tauri command handlers, `AppState`, event bridge |
 | `src/` | Svelte 5 frontend application |
 | `src-tauri/` | Tauri 2 application shell, capabilities, and platform configuration |
 | `messages/` | Paraglide source catalogs (`en-US.json`, `es-ES.json`) |
+| `docs/` | The public site. `docs/**` HTML is generated — edit `docs/_pages`, `docs/_partials` and `docs/_i18n`, then run `npm run build:site` |
 
 ---
 
@@ -85,17 +90,18 @@ The repository is organized as a Cargo workspace with 18 focused crates, plus th
    - `test:` — adding or updating tests.
    - `style:` — formatting / lint-only changes.
 
-3. **Run the full quality bar** before pushing. CI enforces each of these:
+3. **Run the gate** before pushing:
 
    ```sh
-   cargo fmt --all -- --check
-   cargo clippy --workspace --all-targets -- -D warnings
-   cargo test --workspace
-   npx svelte-check
-   npx vitest run
-   npx stylelint "src/**/*.{svelte,css}"
-   npx eslint src
+   npm run gate              # everything
+   npm run gate -- --fast    # skips cargo test and the visual baselines
    ```
+
+   `scripts/gate.sh` is the contract — it is versioned, and it lists every
+   check with the reason it exists. CI runs the same checks, but split
+   across parallel jobs and a 3-OS matrix, so adding a check to the gate
+   does not add it to CI (`.github/workflows/ci.yml`). Fix what it reports;
+   auto-fixing until it goes green is not the same thing.
 
    The `paraglide` bindings in `src/lib/paraglide/` are auto-compiled by the Vite plugin during `dev`/`build`, but if you edit `messages/*.json` directly, regenerate them with:
 

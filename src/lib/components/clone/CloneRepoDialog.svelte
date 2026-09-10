@@ -20,12 +20,13 @@
   import { getErrorCode, getErrorMessage } from "$lib/api/errors";
   import { watchCloneTask } from "$lib/stores/clone";
   import { addToast } from "$lib/stores/toast";
-  import { Button, Dialog } from "$lib/components/ui";
+  import { Button, Checkbox, Dialog } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
 
   // ── Local reactive state ─────────────────────────────────────────────
   let url = $state("");
   let parentDir = $state("");
+  let recurseSubmodules = $state(false);
   let inFlight = $state(false);
   let bannerMessage = $state<string | null>(null);
   let currentStep = $state<string | null>(null);
@@ -78,6 +79,7 @@
     if ($cloneDialogOpen) {
       url = "";
       parentDir = "";
+      recurseSubmodules = false;
       bannerMessage = null;
       currentStep = null;
       inFlight = false;
@@ -110,7 +112,11 @@
       // Resolves as soon as validation passes — the clone itself runs as a
       // task. Only validation failures land in the banner below; a failing
       // clone surfaces as a failed task row, handled by `watchCloneTask`.
-      const out = await cloneRepo({ url: trimmedUrl, parentDir: trimmedParent });
+      const out = await cloneRepo({
+        url: trimmedUrl,
+        parentDir: trimmedParent,
+        recurseSubmodules,
+      });
       watchCloneTask(out.task_id, out.path, out.name);
       closeCloneDialog();
       // The dialog is the only thing that was on screen, so say where the
@@ -184,6 +190,15 @@
         {m.clone_dialog_destination_preview({ path: previewPath })}
       </div>
     {/if}
+
+    <label class="option" title={m.clone_dialog_recurse_tooltip()}>
+      <Checkbox
+        checked={recurseSubmodules}
+        onchange={(e) => (recurseSubmodules = (e.target as HTMLInputElement).checked)}
+        testid="clone-recurse-submodules"
+      />
+      <span>{m.clone_dialog_recurse_label()}</span>
+    </label>
   </fieldset>
 
   {#if bannerMessage}
@@ -244,6 +259,14 @@
     font-size: var(--font-size-xs);
     color: var(--text-secondary);
     word-break: break-all;
+  }
+  .option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
   }
   .banner {
     padding: 8px 12px;

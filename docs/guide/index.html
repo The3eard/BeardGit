@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Guide — BeardGit</title>
+  <meta name="description" content="How to install BeardGit, connect GitHub or GitLab, set up an AI CLI, write .http requests and your own theme, the full keyboard table, where your data lives, and what to do when something misbehaves." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#151312" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://the3eard.github.io/BeardGit/guide/" />
+  <link rel="alternate" hreflang="en" href="https://the3eard.github.io/BeardGit/guide/" />
+  <link rel="alternate" hreflang="es" href="https://the3eard.github.io/BeardGit/es/guide/" />
+  <link rel="alternate" hreflang="x-default" href="https://the3eard.github.io/BeardGit/guide/" />
+
+  <meta property="og:title" content="Guide — BeardGit" />
+  <meta property="og:description" content="How to install BeardGit, connect GitHub or GitLab, set up an AI CLI, write .http requests and your own theme, the full keyboard table, where your data lives, and what to do when something misbehaves." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://the3eard.github.io/BeardGit/guide/" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="BeardGit — one window for the whole repo" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Guide — BeardGit" />
+  <meta name="twitter:description" content="How to install BeardGit, connect GitHub or GitLab, set up an AI CLI, write .http requests and your own theme, the full keyboard table, where your data lives, and what to do when something misbehaves." />
+  <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
+  <meta name="twitter:image:alt" content="BeardGit — one window for the whole repo" />
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo.svg?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="192x192" href="../assets/favicon-192.png?v=20260910a" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png?v=20260910a" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,301,400,401,500,501,700,701,900,901&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/styles.css?v=20260910a" />
+
+  <script>function loadScript(a){var b=document.getElementsByTagName("head")[0],c=document.createElement("script");c.type="text/javascript",c.src="https://tracker.metricool.com/resources/be.js",c.onreadystatechange=a,c.onload=a,b.appendChild(c)}loadScript(function(){beTracker.t({hash:"244616eaed13de8fb961a27a3677700b"})});</script>
+</head>
+<body data-page="guide" data-lang="en">
+
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a href="../" class="brand" style="border:none">
+        <img src="../assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
+        <span class="brand-name">BeardGit</span>
+      </a>
+      <div class="nav-links">
+        <a href="../" data-nav="home">Home</a>
+        <a href="../features/" data-nav="features">Features</a>
+        <a href="../guide/" data-nav="guide" aria-current="page" class="active">Guide</a>
+        <a href="../changelog/" data-nav="changelog">Changelog</a>
+        <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="nav-actions">
+        <a class="lang-switch" href="../es/guide/" title="Ver esta página en español" hreflang="es" lang="es">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M3 12h18"/>
+            <path d="M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/>
+          </svg>
+          <span>ES</span>
+        </a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Change colour theme" title="Cycle theme: auto / light / dark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" id="themeIcon">
+            <!-- icon swapped by JS -->
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+          </svg>
+          <span id="themeLabel">Auto</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+
+  <!-- Offered, never forced: switching language on someone mid-read is
+       worse than a line they can ignore. Shown by app.js only when the
+       browser's language disagrees with the page's. -->
+  <div class="lang-nudge" id="langNudge" hidden>
+    <span>Esta página también está en español.</span>
+    <a href="../es/guide/">Verla en español →</a>
+    <button type="button" id="langNudgeClose" aria-label="Cerrar">×</button>
+  </div>
+
+<section class="page-head">
+    <div class="wrap">
+      
+      <div class="page-head-inner">
+        <h1>Guide</h1>
+        <p class="page-lede">
+          Everything you need after the download, in the order you'll need it. Paths, commands and
+          limits here are the real ones, taken from the code — including the places where the app is
+          stricter or quieter than you'd expect.
+        </p>
+      </div>
+      
+      </div>
+  </section>
+
+  <section class="guide">
+    <div class="wrap guide-layout">
+      <aside class="guide-nav" aria-label="Guide contents">
+        <div class="guide-nav-inner">
+          <div class="eyebrow">Contents</div>
+          <ol>
+            <li><a href="#install">Install</a></li>
+            <li><a href="#first-run">First repository</a></li>
+            <li><a href="#forge">GitHub / GitLab</a></li>
+            <li><a href="#ai">AI CLIs</a></li>
+            <li><a href="#requests">.http requests</a></li>
+            <li><a href="#themes">Themes</a></li>
+            <li><a href="#keyboard">Keyboard</a></li>
+            <li><a href="#settings">Settings</a></li>
+            <li><a href="#data">Your data</a></li>
+            <li><a href="#updates">Updates</a></li>
+            <li><a href="#trouble">Troubleshooting</a></li>
+            <li><a href="#build">From source</a></li>
+            <li><a href="#uninstall">Uninstall</a></li>
+          </ol>
+        </div>
+      </aside>
+
+      <div class="guide-body">
+
+        <!-- ============ INSTALL ============ -->
+        <article class="guide-section" id="install">
+          
+          <h2>1 · Install and first launch</h2>
+          <p>Three installers, published on every tagged release. Pick yours from the
+          <a href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener">latest release</a>.</p>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <thead><tr><th>Platform</th><th>Build</th><th>Needs</th></tr></thead>
+              <tbody>
+                <tr><td>macOS</td><td>Apple Silicon · <code class="mono">.dmg</code></td><td>Nothing — WKWebView ships with the OS</td></tr>
+                <tr><td>Linux</td><td>x64 · <code class="mono">.AppImage</code></td><td><code class="mono">libwebkit2gtk-4.1</code></td></tr>
+                <tr><td>Windows</td><td>x64 · <code class="mono">.exe</code></td><td>WebView2 Runtime (already on Windows 11)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>There is no Intel Mac build, and no <code class="mono">.deb</code>,
+          <code class="mono">.rpm</code> or <code class="mono">.msi</code>. Both
+          <code class="mono">gh</code> and <code class="mono">glab</code> are inside every installer,
+          so there is nothing else to fetch.</p>
+
+          <h3>Getting past the first-launch warning</h3>
+          <p>The builds are not code-signed, so both macOS and Windows stop them once. Nothing is
+          wrong with the download — the warning exists because there is no certificate behind it.</p>
+          <p><strong>macOS</strong> — drag the app to <code class="mono">/Applications</code>, then
+          either right-click it and choose <em>Open</em>, or clear the quarantine flag:</p>
+          <pre class="code"><code>xattr -dr com.apple.quarantine /Applications/BeardGit.app</code></pre>
+          <p><strong>Windows</strong> — SmartScreen → <em>More info</em> → <em>Run anyway</em>. It
+          won't ask again on that machine.</p>
+          <p><strong>Linux</strong> — make the AppImage executable and run it:</p>
+          <pre class="code"><code>chmod +x BeardGit-*.AppImage
+./BeardGit-*.AppImage</code></pre>
+
+          <h3>One thing to check</h3>
+          <p>BeardGit reads your repositories through libgit2, but every write — commit, push, rebase,
+          merge — runs your own <code class="mono">git</code>. It needs to be on your
+          <code class="mono">PATH</code>, and <strong>the app does not check at startup</strong>: if
+          it's missing, the first commit fails instead of the app warning you. <code class="mono">git --version</code>
+          in a terminal is the whole test. What BeardGit does fix by itself is the empty
+          <code class="mono">PATH</code> a desktop launcher hands a GUI app, so opening it from Finder
+          or a dock still finds your tools.</p>
+          
+          </article>
+
+        <!-- ============ FIRST RUN ============ -->
+        <article class="guide-section" id="first-run">
+          
+          <h2>2 · Opening your first repository</h2>
+          <p>The welcome screen has three ways in: open a folder, clone a URL, or pick one you had
+          open before. Every repository is a tab, and only the active tab keeps its heavy state — the
+          graph layout, the file watcher — so a dozen open repos cost about what one does.</p>
+          <ul>
+            <li><strong>Open a folder that isn't a repository yet</strong> and BeardGit offers to set
+            it up in one pass: <code class="mono">git init</code>, drop in a
+            <code class="mono">.gitignore</code>, make the first commit, create the matching repo on
+            GitHub or GitLab, wire the remote and push. Every step is optional, and if one fails the
+            earlier ones stay done.</li>
+            <li><strong>Tabs</strong> — <code class="mono">⌘Tab</code> and
+            <code class="mono">⌘⇧Tab</code> move between them, <code class="mono">⌘W</code> closes the
+            active one, and dragging a tab reorders it.</li>
+            <li><strong>Sections remember where you left them</strong> for the length of the session:
+            filters, scroll positions, pane widths, collapsed folders, and half-written drafts like a
+            commit message or a review comment. Per repository tab, dropped when the tab closes,
+            never written to disk.</li>
+          </ul>
+          <p>External changes are picked up on their own. A commit you make in a terminal, a branch
+          your teammate pushed, a file another program rewrote — a debounced watcher notices and the
+          views refresh, including inside linked worktrees and submodules.</p>
+          
+                <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="welcome">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/welcome-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/welcome-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/welcome-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/welcome-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/welcome-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/welcome-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/welcome-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/welcome-dark.png?v=20260910a"
+                 src="../assets/screenshots/welcome-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The welcome screen with buttons to open or clone a repository and a list of recent ones" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">the welcome screen, on a launch with no repository open</figcaption>
+      </figure>
+        </article>
+
+        <!-- ============ FORGE ============ -->
+        <article class="guide-section" id="forge">
+          
+          <h2>3 · Connecting GitHub or GitLab</h2>
+          <p>BeardGit talks to both through <code class="mono">gh</code> and
+          <code class="mono">glab</code>, and it drives <strong>its own bundled copies</strong> rather
+          than whatever is on your <code class="mono">PATH</code> — same versions for everyone.
+          Logging in is the CLI's normal flow:</p>
+          <ol>
+            <li>Settings → Integrations → the forge you want, then <em>Log in</em>. A terminal tab
+            opens and runs <code class="mono">auth login</code> on the bundled binary, so it works
+            even if you have never installed <code class="mono">gh</code> or
+            <code class="mono">glab</code> yourself.</li>
+            <li>Follow the CLI's prompts. Your credentials go where that CLI keeps them — your own
+            config and system keyring, keyed by host — not into BeardGit.</li>
+            <li>Open a repository whose <code class="mono">origin</code> points at that host and the
+            forge views appear: pull or merge requests, issues, pipelines, releases, repo settings.</li>
+          </ol>
+          <p><strong>Self-hosted works as-is.</strong> GitHub Enterprise and on-prem GitLab are
+          normal hosts here. Auth is checked per host, so a forge that only answers on the VPN cannot
+          shadow one that's reachable, and a personal <code class="mono">gitlab.com</code> plus a
+          corporate GitLab can be connected at the same time.</p>
+          <p>If you also store a personal access token in BeardGit, it is encrypted on your machine —
+          see <a href="#data">where your data lives</a>. Turning the integration off in Settings stops
+          the app validating those tokens at launch and resolving your remote against the forge API;
+          nothing is deleted, and turning it back on reconnects.</p>
+          
+          </article>
+
+        <!-- ============ AI ============ -->
+        <article class="guide-section" id="ai">
+          
+          <h2>4 · Setting up an AI CLI</h2>
+          <p>BeardGit has no model and no API key of its own. It runs <em>your</em> install of
+          <strong>Claude Code</strong>, <strong>Codex</strong> or <strong>OpenCode</strong>, which
+          already have their own auth. Install one, make sure it works in a terminal, and BeardGit
+          finds it: at launch it looks each of the three up on your <code class="mono">PATH</code> and
+          asks for <code class="mono">--version</code>. Settings → AI is where you pick the preferred
+          provider and re-run that detection.</p>
+          <h3>Background runs</h3>
+          <p>A background run is the interesting part. Give it a prompt and it starts on a fresh
+          branch, <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code>, in a git worktree of its
+          own — by default under <code class="mono">.beardgit/ai-worktrees/</code>, and you can point
+          that somewhere else in Settings. Your checkout is untouched while it works. Runs are queued
+          against a concurrency cap you set (three by default).</p>
+          <p>When it finishes you can read the transcript, look at the diff, and then merge the
+          branch, keep the worktree for later, or discard it. The run also writes a Markdown report
+          into <code class="mono">.beardgit/ai-reports/</code> in the <em>parent</em> repository, so
+          discarding the worktree doesn't take the write-up with it.</p>
+          <h3>The small AI actions</h3>
+          <p>From any view the active provider can draft a commit message, review your staged changes,
+          or review a pull request. Prompts are piped over stdin, so a large staged diff is reviewed in
+          full rather than truncated at the command-line limit, and a saved review lands in
+          <code class="mono">.beardgit/reviews/</code>. Each action checks there is something to talk
+          about first, so you never get an answer about an empty diff.</p>
+          <p>None of this has to be on. One switch in Settings → General → Integrations turns the whole
+          AI side off: no CLI probing at launch, no AI views, no AI actions, no process polling. Runs
+          already in flight finish, and the history stays readable.</p>
+          
+          </article>
+
+        <!-- ============ REQUESTS ============ -->
+        <article class="guide-section" id="requests">
+          
+          <h2>5 · The <code class="mono">.http</code> workspace</h2>
+          <p>Requests live in the repository, as plain files under
+          <code class="mono">.beardgit/requests/</code>. Commit them and the rest of the team gets them
+          with a <code class="mono">git pull</code>. The panel seeds a small Quickstart collection the
+          first time you open it, so there is something to run immediately.</p>
+
+          <h3>The file format</h3>
+          <p>A request is a name, a method and URL, headers, a blank line, then a body:</p>
+          <pre class="code"><code># @name Create a post
+POST {{base_url}}/posts
+Content-Type: application/json
+Authorization: Bearer {{api_token}}
+
+{
+  "title": "hello from BeardGit",
+  "userId": 1
+}</code></pre>
+          <p>What the parser accepts, exactly:</p>
+          <ul>
+            <li><code class="mono">GET POST PUT PATCH DELETE HEAD OPTIONS</code>, case-insensitive. Anything else is an error with the line number.</li>
+            <li>Headers run until the first blank line, as <code class="mono">Name: value</code>.</li>
+            <li>Everything after that blank line is the body, verbatim — comments are <em>not</em> stripped there.</li>
+            <li>Lines starting with <code class="mono">#</code> or <code class="mono">//</code> are comments, before the request line and among the headers.</li>
+            <li><code class="mono"># @name Something</code> names the request. Only that spelling — <code class="mono">// @name</code> does nothing.</li>
+            <li>A line starting with <code class="mono">###</code> separates blocks, and the rest of that line is a name.</li>
+          </ul>
+          <p class="note"><strong>One request per file, for now.</strong> The parser understands
+          several blocks, but the panel runs the first one. There are no scripts, no assertions and no
+          <code class="mono">@variable</code> declarations inside a <code class="mono">.http</code>
+          file.</p>
+
+          <h3>Variables and environments</h3>
+          <p>An environment is a JSON file at
+          <code class="mono">.beardgit/requests/_env/&lt;name&gt;.json</code>, and the filename is the
+          environment's name:</p>
+          <pre class="code"><code>{
+  "$schema": "beardgit-env/v1",
+  "vars": {
+    "base_url": "https://api.example.com",
+    "post_id": "1"
+  },
+  "secrets": ["api_token"]
+}</code></pre>
+          <p><code class="mono">vars</code> are plain text and safe to commit.
+          <code class="mono">secrets</code> lists <strong>names only</strong> — the values are
+          encrypted on your machine, never in the file. <code class="mono">{{name}}</code> is
+          substituted in the URL, in header names and values, and in the body, and resolves in this
+          order: a per-run override you type in the panel, then a secret, then a variable. A name that
+          resolves to nothing fails the request instead of quietly sending an empty string.</p>
+          <p>Which environment is active is <em>not</em> stored in the repository — it lives in
+          BeardGit's local database, so two people sharing the same files can be pointed at different
+          environments.</p>
+
+          <h3>Limits worth knowing before you blame the app</h3>
+          <ul>
+            <li><strong>Loopback and private addresses are refused.</strong> A request to
+            <code class="mono">localhost</code>, a <code class="mono">192.168.*</code> host or a
+            link-local address is blocked unless you launch the app with
+            <code class="mono">BEARDGIT_REQUESTS_ALLOW_PRIVATE=1</code>. It's a guard against a
+            committed request file reaching your own network, not an oversight.</li>
+            <li><strong>30-second timeout</strong>, and redirects are <em>not</em> followed — you see
+            the 301 rather than what it points at.</li>
+            <li>Response bodies are kept up to 5 MiB and flagged as truncated past that.</li>
+            <li>History keeps the last 50 runs per request, with the request as it was actually sent —
+            which means a resolved secret is in that local database in plain text. It never leaves your
+            machine, but it is there.</li>
+            <li>The response diff compares <em>bodies</em>, not status codes or headers.</li>
+          </ul>
+          
+          </article>
+
+        <!-- ============ THEMES ============ -->
+        <article class="guide-section" id="themes">
+          
+          <h2>6 · Themes, including your own</h2>
+          <p>Settings → Look &amp; feel lists the 31 bundled themes. Each has a dark and a light
+          variant that pair up, so the app can follow your OS. The theme colours the whole app — the
+          editor's syntax palette, diff backgrounds and graph lanes included.</p>
+          <h3>Writing one</h3>
+          <p>Drop a <code class="mono">.toml</code> file in the <code class="mono">themes/</code>
+          folder next to your settings (the exact path is in <a href="#data">§ 9</a>; the app writes a
+          README there with the same template). The filename doesn't matter — the
+          <code class="mono">[meta] id</code> is the identity, and reusing a built-in
+          <code class="mono">id</code> replaces that theme.</p>
+          <p>Only two sections are required: <code class="mono">[meta]</code> and the 18 colours of
+          <code class="mono">[colors]</code>.</p>
+          <pre class="code"><code>[meta]
+id = "my-theme"
+name = "My Theme"
+mode = "dark"            # "dark" or "light", nothing else
+
+[colors]
+background = "#111111"
+foreground = "#eeeeee"
+black = "#333333"
+red = "#ff0000"
+green = "#00ff00"
+yellow = "#ff8800"
+blue = "#0000ff"
+magenta = "#8800ff"
+cyan = "#00ffff"
+white = "#cccccc"
+bright-black = "#999999"
+bright-red = "#ff4444"
+bright-green = "#44ff44"
+bright-yellow = "#ffaa44"
+bright-blue = "#4444ff"
+bright-magenta = "#aa44ff"
+bright-cyan = "#44ffff"
+bright-white = "#ffffff"</code></pre>
+          <p>Everything else — accents, text levels, borders, the ten graph lanes, the editor's syntax
+          colours — is derived from those. Override any of it with the optional
+          <code class="mono">[accents]</code>, <code class="mono">[derived]</code>,
+          <code class="mono">[graph]</code> and <code class="mono">[editor]</code> sections, where a
+          value you pin is used as-is:</p>
+          <pre class="code"><code>[accents]
+primary = "cyan"          # an ANSI name (underscored) or a hex value
+
+[derived]
+text-secondary = "#969ead"
+
+[graph]
+lane-colors = ["#7aa2f7", "#9ece6a", "#ff9e64"]   # at least two
+node-radius = 5.0
+
+[editor]
+added-bg = "#1b3829"
+syntax-keyword = "#ff7b72"</code></pre>
+          <p class="note"><strong>Colour formats:</strong> <code class="mono">#RRGGBB</code>,
+          <code class="mono">#RRGGBBAA</code> and <code class="mono">rgba(…)</code> only. Short hex
+          (<code class="mono">#abc</code>) and <code class="mono">rgb(…)</code> are rejected, and a
+          file that fails to parse is skipped silently — if your theme doesn't appear in the list, that
+          is the first thing to check. Both <code class="mono">bright-black</code> and
+          <code class="mono">bright_black</code> spellings work.</p>
+          <h3>The contrast report</h3>
+          <p>When a theme is applied, BeardGit measures five tokens — the three text levels and the two
+          border levels — against each surface they're drawn on, and reports anything below the WCAG
+          floor (4.5:1 for text, 3.0:1 for the strong border, 2.0:1 for the quiet one). It is
+          <strong>advisory</strong>: the picker tells you which tokens fall short and by how much, and
+          applies your theme exactly as written. Colours it can't measure, like
+          <code class="mono">rgba(…)</code>, are listed as unaudited. Every bundled theme clears the
+          floor, and a test keeps it that way.</p>
+          
+          </article>
+
+        <!-- ============ KEYBOARD ============ -->
+        <article class="guide-section" id="keyboard">
+          
+          <h2>7 · The keyboard, in full</h2>
+          <p>This is the complete list of registered shortcuts. <code class="mono">?</code> inside the
+          app shows the same thing, generated from the same registry, and
+          <code class="mono">⌘⇧P</code> lets you run any of them by name. On Linux and Windows every
+          <code class="mono">⌘</code> below is <code class="mono">Ctrl</code>.</p>
+
+          <h3>Views</h3>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <tbody>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">1</kbd> … <kbd class="kbd">⌘</kbd><kbd class="kbd">6</kbd></td><td>Graph, Changes, Branches, Tags, Stashes, Worktrees</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">,</kbd></td><td>Settings</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">P</kbd></td><td>Command palette</td></tr>
+                <tr><td><kbd class="kbd">?</kbd></td><td>Shortcut cheat sheet</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Git</h3>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <tbody>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">F</kbd></td><td>Fetch</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">L</kbd></td><td>Pull</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">K</kbd></td><td>Push</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">B</kbd></td><td>New branch</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">S</kbd></td><td>Stage everything</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">U</kbd></td><td>Unstage everything</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">E</kbd></td><td>Open the current diff's file in the editor</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Graph</h3>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <tbody>
+                <tr><td><kbd class="kbd">J</kbd> / <kbd class="kbd">K</kbd></td><td>Next / previous commit</td></tr>
+                <tr><td><kbd class="kbd">Home</kbd> / <kbd class="kbd">End</kbd></td><td>First / last commit</td></tr>
+                <tr><td><kbd class="kbd">/</kbd> or <kbd class="kbd">⌘</kbd><kbd class="kbd">F</kbd></td><td>Focus the commit search</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Tabs, panes and background work</h3>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <tbody>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">⇥</kbd> / <kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">⇥</kbd></td><td>Next / previous project tab</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">W</kbd></td><td>Close the active tab</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">B</kbd></td><td>Collapse or expand the sidebar</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">T</kbd></td><td>New terminal tab</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">J</kbd></td><td>Tasks popover</td></tr>
+                <tr><td><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">A</kbd></td><td>New AI background run</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Inside a list</h3>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <tbody>
+                <tr><td><kbd class="kbd">↑</kbd> / <kbd class="kbd">↓</kbd></td><td>Move the cursor in the changes list</td></tr>
+                <tr><td><kbd class="kbd">⇧</kbd><kbd class="kbd">↑</kbd> / <kbd class="kbd">⇧</kbd><kbd class="kbd">↓</kbd></td><td>Select a range of files</td></tr>
+                <tr><td><kbd class="kbd">Space</kbd></td><td>Stage or unstage the file under the cursor</td></tr>
+                <tr><td><kbd class="kbd">Enter</kbd></td><td>Open its diff</td></tr>
+                <tr><td><kbd class="kbd">[</kbd> / <kbd class="kbd">]</kbd></td><td>Previous / next file, in a pull or merge request</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note"><kbd class="kbd">⌘</kbd><kbd class="kbd">Enter</kbd> commits from the message
+          box, but that one is wired to the Command key literally, so on Linux and Windows you'll need
+          the button for now.</p>
+          
+          </article>
+
+        <!-- ============ SETTINGS ============ -->
+        <article class="guide-section" id="settings">
+          
+          <h2>8 · A tour of Settings</h2>
+          <ul>
+            <li><strong>General → Integrations</strong> — one switch for GitHub/GitLab, one for AI.
+            Off, the matching surfaces disappear and nothing runs behind them. Both off leaves a
+            git-only client. Your accounts and preferences are kept for when you turn them back on.</li>
+            <li><strong>General → Updates</strong> — whether to check for updates at launch, plus the
+            endpoint and the last-check timestamp, so a 404 is distinguishable from no network.</li>
+            <li><strong>Look &amp; feel</strong> — theme, follow-the-OS pairing, and the contrast
+            report for whatever is applied.</li>
+            <li><strong>AI</strong> — which provider to prefer, how many background runs may run at
+            once, and where their worktrees go.</li>
+            <li><strong>Git</strong> — the <em>Test signing</em> button, which signs a throwaway commit
+            and shows you the real error if your SSH, GPG or X.509 setup isn't right.</li>
+            <li><strong>Advanced</strong> — the log level (error, info or debug, applied live), a
+            button to open the log folder, and one to clear the cached graph layouts.</li>
+            <li><strong>Sidebar</strong> — reorder the navigation, hide what you don't use, reset to
+            default. That layout is app-wide.</li>
+          </ul>
+          
+          </article>
+
+        <!-- ============ DATA ============ -->
+        <article class="guide-section" id="data">
+          
+          <h2>9 · Where your data lives</h2>
+          <h3>On your machine</h3>
+          <p>One folder holds everything:</p>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <tbody>
+                <tr><td>macOS</td><td><code class="mono">~/Library/Application Support/beardgit/</code></td></tr>
+                <tr><td>Linux</td><td><code class="mono">~/.config/beardgit/</code> (or <code class="mono">$XDG_CONFIG_HOME/beardgit/</code>)</td></tr>
+                <tr><td>Windows</td><td><code class="mono">%APPDATA%\beardgit\</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <thead><tr><th>File</th><th>What it is</th></tr></thead>
+              <tbody>
+                <tr><td><code class="mono">settings.json</code></td><td>Every preference, your open and recent repositories, and the list of connected forge accounts</td></tr>
+                <tr><td><code class="mono">credentials.enc</code></td><td>Forge tokens and request secrets, encrypted</td></tr>
+                <tr><td><code class="mono">data.db</code></td><td>Commit cache</td></tr>
+                <tr><td><code class="mono">requests.db</code></td><td>Global request collections, response history, and which environment is active per project</td></tr>
+                <tr><td><code class="mono">themes/</code></td><td>Your own <code class="mono">.toml</code> themes, plus a README with the template</td></tr>
+                <tr><td><code class="mono">layouts/</code>, <code class="mono">project-cache/</code></td><td>Cached graph layouts and per-project scratch data. Safe to delete; Settings → Advanced has a button for the layouts</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><strong>Logs</strong> are elsewhere, one file per day named
+          <code class="mono">beardgit.&lt;date&gt;.log</code>, purged after a week:</p>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <tbody>
+                <tr><td>macOS</td><td><code class="mono">~/Library/Logs/BeardGit/</code></td></tr>
+                <tr><td>Linux</td><td><code class="mono">~/.local/share/beardgit/logs/</code></td></tr>
+                <tr><td>Windows</td><td><code class="mono">%APPDATA%\BeardGit\logs\</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Tokens, <code class="mono">Authorization</code> headers and credentials embedded in URLs
+          are replaced with <code class="mono">&lt;redacted&gt;</code> on the way into the file, so a
+          log you attach to an issue doesn't carry your keys. Prose, URLs that can hold a credential
+          and shell input are kept out by design.</p>
+
+          <h3>How the encryption works, and what it doesn't do</h3>
+          <p>Tokens are encrypted with AES-256-GCM under a key derived from an identifier of the
+          machine — the platform UUID on macOS, <code class="mono">/etc/machine-id</code> on Linux, the
+          registry's <code class="mono">MachineGuid</code> on Windows. That means the file is useless
+          on another computer: a stray copy in a backup, a synced folder or an accidental commit gives
+          nothing away.</p>
+          <p>It is <strong>not</strong> protection against something running as you on your own
+          machine — anything with your user account can derive the same key. Moving to the OS keychain
+          is the intended next step. Said plainly because a security claim you have to read the source
+          to qualify isn't worth much.</p>
+
+          <h3>Inside your repository</h3>
+          <p>Everything BeardGit writes into a project goes under
+          <code class="mono">.beardgit/</code>:</p>
+          <div class="table-scroll">
+            <table class="guide-table">
+              <thead><tr><th>Path</th><th>What it is</th><th>Commit it?</th></tr></thead>
+              <tbody>
+                <tr><td><code class="mono">requests/</code></td><td>Your <code class="mono">.http</code> files</td><td>Yes — that's the point</td></tr>
+                <tr><td><code class="mono">requests/_env/*.json</code></td><td>Environment variables; secrets by name only</td><td>Yes</td></tr>
+                <tr><td><code class="mono">favorites.json</code></td><td>Your starred branches</td><td>Your call — commit it to share them with the team</td></tr>
+                <tr><td><code class="mono">ai-worktrees/</code></td><td>The isolated worktrees AI runs happen in</td><td>No</td></tr>
+                <tr><td><code class="mono">ai-reports/</code></td><td>The Markdown report each AI run leaves behind</td><td>No</td></tr>
+                <tr><td><code class="mono">reviews/</code></td><td>AI reviews you chose to save</td><td>No</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note">The <code class="mono">.gitignore</code> BeardGit can write for a new
+          repository <strong>does not</strong> mention <code class="mono">.beardgit/</code>, so the
+          local-only folders above are not ignored for you. If you want to share your requests but not
+          the AI scratch space, add this yourself:</p>
+          <pre class="code"><code>.beardgit/ai-worktrees/
+.beardgit/ai-reports/
+.beardgit/reviews/</code></pre>
+
+          <h3>What the app sends over the network on its own</h3>
+          <p>One thing: the update check, described in <a href="#updates">§ 10</a>. With the forge
+          integration on it also validates each saved token at launch and resolves your
+          <code class="mono">origin</code> remote against the forge API; with AI on it looks for the
+          three CLIs locally, which is a subprocess, not a request. Turn both integrations off and the
+          updater poll is the only outbound traffic left — and it has its own switch. There is no
+          telemetry, no analytics and no crash reporter anywhere in the app.</p>
+          
+          </article>
+
+        <!-- ============ UPDATES ============ -->
+        <article class="guide-section" id="updates">
+          
+          <h2>10 · Updates</h2>
+          <p>BeardGit checks once at launch, against a single URL — the
+          <code class="mono">latest.json</code> attached to the newest GitHub release — and no more
+          than once a minute across restarts. It never asks in a dialog you didn't open: if there's a
+          newer version you get a quiet notice, and installing is your click. If the check fails, it
+          fails silently rather than nagging you about your network.</p>
+          <p>Version numbers are <code class="mono">year.month.release</code>, so 26.9.1 is the second
+          release of September 2026. The updater only offers something strictly newer, and Settings →
+          General shows the endpoint and last-check time when you need to tell a 404 apart from a DNS
+          hiccup. Turn the whole thing off there if you'd rather update by hand.</p>
+          <p>On macOS and Windows the installer replaces the app, and on Windows it closes BeardGit
+          mid-install — nothing that would be shown after the download is worth reading, which is why
+          the unsigned-build notice appears before you start.</p>
+          
+          </article>
+
+        <!-- ============ TROUBLESHOOTING ============ -->
+        <article class="guide-section" id="trouble">
+          
+          <h2>11 · When something misbehaves</h2>
+          <dl class="trouble-list">
+            <dt>"BeardGit is damaged and can't be opened"</dt>
+            <dd>Gatekeeper, not a bad download. <code class="mono">xattr -dr com.apple.quarantine /Applications/BeardGit.app</code>, once.</dd>
+
+            <dt>A commit, push or rebase fails but reads look fine</dt>
+            <dd>Writes use your system <code class="mono">git</code>. Check <code class="mono">git --version</code> in a terminal — the app doesn't verify it at startup.</dd>
+
+            <dt>Commit signing fails</dt>
+            <dd>Settings → Git → <em>Test signing</em>. It signs a throwaway commit and shows the actual error from your signer, which is usually a missing key or an agent that isn't running.</dd>
+
+            <dt>GitLab actions fail while GitHub works</dt>
+            <dd>Since 26.9.1 BeardGit uses its own bundled <code class="mono">glab</code>, which fixed exactly this: an old <code class="mono">glab</code> on your <code class="mono">PATH</code> couldn't read the config a current one writes. Update to the latest release.</dd>
+
+            <dt>The terminal mangles accents, or Ctrl+R and fzf leave rubbish on screen</dt>
+            <dd>Fixed in 26.9.1. Opening the app from a launcher gave the shell no <code class="mono">TERM</code> or locale, so anything drawing in raw mode broke. Update.</dd>
+
+            <dt>A request to localhost is refused</dt>
+            <dd>Deliberate. Start the app with <code class="mono">BEARDGIT_REQUESTS_ALLOW_PRIVATE=1</code> to allow loopback and private addresses.</dd>
+
+            <dt>My theme doesn't show up in the list</dt>
+            <dd>A theme file that doesn't parse is skipped without a message. The usual causes are a short hex value like <code class="mono">#abc</code>, an <code class="mono">rgb(…)</code> value, a missing colour, or a <code class="mono">mode</code> that isn't exactly <code class="mono">dark</code> or <code class="mono">light</code>.</dd>
+
+            <dt>The graph looks stale after something changed outside the app</dt>
+            <dd>Settings → Advanced → clear the cached layouts, then reopen the repository. Worth reporting if it happens twice.</dd>
+
+            <dt>Anything else</dt>
+            <dd>Settings → Advanced → set the log level to debug, reproduce it, then open the log folder from the same page. Attach the file — it is redacted — to <a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">an issue</a>, with your OS and the version from Help → About.</dd>
+          </dl>
+          
+          </article>
+
+        <!-- ============ BUILD ============ -->
+        <article class="guide-section" id="build">
+          
+          <h2>12 · Building from source</h2>
+          <p>You need <strong>Rust</strong> (the version is pinned in
+          <code class="mono">rust-toolchain.toml</code>), <strong>Node 22</strong> and
+          <strong>git</strong>.</p>
+          <pre class="code"><code>git clone https://github.com/The3eard/BeardGit.git
+cd BeardGit
+npm install
+npm run tauri dev</code></pre>
+          <p>The first build compiles every Rust crate and takes a few minutes; after that it's quick.
+          <code class="mono">npm run tauri build</code> produces the installer for your platform.</p>
+          <p>Platform prerequisites:</p>
+          <ul>
+            <li><strong>macOS</strong> — <code class="mono">xcode-select --install</code></li>
+            <li><strong>Debian / Ubuntu</strong> — <code class="mono">libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev</code></li>
+            <li><strong>Arch</strong> — <code class="mono">webkit2gtk-4.1 base-devel curl wget file openssl appmenu-gtk-module libappindicator-gtk3 librsvg xdotool</code></li>
+            <li><strong>Fedora</strong> — <code class="mono">webkit2gtk4.1-devel openssl-devel curl wget file libappindicator-gtk3-devel librsvg2-devel libxdo-devel</code> plus the C development group</li>
+            <li><strong>Windows</strong> — MSVC Build Tools with "Desktop development with C++", and the WebView2 Runtime</li>
+          </ul>
+          <p>Contributions are welcome — <a href="https://github.com/The3eard/BeardGit/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a>
+          has the branch conventions and the checks a change has to pass.</p>
+          
+          </article>
+
+        <!-- ============ UNINSTALL ============ -->
+        <article class="guide-section" id="uninstall">
+          
+          <h2>13 · Uninstalling</h2>
+          <p>Remove the app the way your OS does it: drag it out of
+          <code class="mono">/Applications</code>, delete the AppImage, or use Add/Remove programs.
+          That leaves your data behind on purpose. To remove that too, delete the config folder and
+          the log folder from <a href="#data">§ 9</a>.</p>
+          <p>Two things worth remembering before you do: <code class="mono">credentials.enc</code>
+          holds your forge tokens and request secrets, and the tokens themselves are still valid on
+          the forge — revoke them there if that's what you meant. And anything under
+          <code class="mono">.beardgit/</code> in a repository stays with the repository until you
+          delete it, including AI worktrees, which are real git worktrees. Removing them through the
+          Worktrees view keeps git's bookkeeping straight.</p>
+          
+          </article>
+
+      </div>
+    </div>
+  </section>
+
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="brand" style="margin-bottom:1rem">
+            <img src="../assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
+            <span class="brand-name">BeardGit</span>
+          </div>
+          <p class="footer-tagline mono">A desktop Git client that keeps the graph, your pull and merge requests, CI, issues, releases, terminals, AI runs, .http requests and a file editor in the same window.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Site</h4>
+          <ul>
+            <li><a href="../">Home</a></li>
+            <li><a href="../features/">Features</a></li>
+            <li><a href="../guide/">Guide</a></li>
+            <li><a href="../changelog/">Changelog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Source</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/releases" target="_blank" rel="noopener">Releases</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Issues</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">License</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CLA.md" target="_blank" rel="noopener">CLA</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/SECURITY.md" target="_blank" rel="noopener">Security</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Adolfo Fuentes</span>
+        <span class="mono">Free, source-available, no account, no telemetry.</span>
+      </div>
+    </div>
+  </footer>
+
+
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">×</button>
+    <img class="lightbox-img" id="lightboxImg" alt="" />
+    <div class="lightbox-caption mono" id="lightboxCaption"></div>
+  </div>
+
+  <script src="../assets/app.js?v=20260910a"></script>
+</body>
+</html>

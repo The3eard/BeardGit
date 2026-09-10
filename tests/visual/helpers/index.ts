@@ -4,6 +4,7 @@ export {
   setMockResponses,
   patchMockResponses,
   emitMockEvent,
+  emitMockEventTargeted,
   getMockCalls,
   clearMockCalls,
   type ByArgResponse,
