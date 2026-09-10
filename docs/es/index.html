@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="es" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>BeardGit — una ventana para todo tu repositorio</title>
+  <meta name="description" content="Un cliente de Git de escritorio que deja el grafo, tus pull y merge requests, la CI, las issues, las releases, las terminales, las ejecuciones de AI, las peticiones .http y un editor de ficheros en la misma ventana. macOS, Linux y Windows. Gratis, sin cuenta y sin telemetría." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#151312" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://the3eard.github.io/BeardGit/es/" />
+  <link rel="alternate" hreflang="en" href="https://the3eard.github.io/BeardGit/" />
+  <link rel="alternate" hreflang="es" href="https://the3eard.github.io/BeardGit/es/" />
+  <link rel="alternate" hreflang="x-default" href="https://the3eard.github.io/BeardGit/" />
+
+  <meta property="og:title" content="BeardGit — una ventana para todo tu repositorio" />
+  <meta property="og:description" content="Un cliente de Git de escritorio que deja el grafo, tus pull y merge requests, la CI, las issues, las releases, las terminales, las ejecuciones de AI, las peticiones .http y un editor de ficheros en la misma ventana. macOS, Linux y Windows. Gratis, sin cuenta y sin telemetría." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://the3eard.github.io/BeardGit/es/" />
+  <meta property="og:locale" content="es_ES" />
+  <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="BeardGit — una ventana para todo el repositorio" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="BeardGit — una ventana para todo tu repositorio" />
+  <meta name="twitter:description" content="Un cliente de Git de escritorio que deja el grafo, tus pull y merge requests, la CI, las issues, las releases, las terminales, las ejecuciones de AI, las peticiones .http y un editor de ficheros en la misma ventana. macOS, Linux y Windows. Gratis, sin cuenta y sin telemetría." />
+  <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
+  <meta name="twitter:image:alt" content="BeardGit — una ventana para todo el repositorio" />
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo.svg?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="192x192" href="../assets/favicon-192.png?v=20260910a" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png?v=20260910a" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,301,400,401,500,501,700,701,900,901&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/styles.css?v=20260910a" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "BeardGit",
+    "description": "Cliente de Git de escritorio para GitHub y GitLab con grafo de commits en canvas, pull y merge requests, pipelines de CI, issues, releases, terminales, ejecuciones de CLIs de AI en worktrees aislados, un espacio de peticiones .http dentro del repo y un editor de ficheros. macOS, Linux y Windows. Hecho con Tauri, no con Electron. Sin cuenta y sin telemetría.",
+    "url": "https://the3eard.github.io/BeardGit/es/",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS, Linux, Windows",
+    "downloadUrl": "https://github.com/The3eard/BeardGit/releases/latest",
+    "softwareRequirements": "macOS (Apple Silicon), Linux x64 (libwebkit2gtk-4.1), Windows x64 (WebView2), git 2.x",
+    "license": "https://github.com/The3eard/BeardGit/blob/main/LICENSE.md",
+    "image": "https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a",
+    "inLanguage": "es",
+    "author": {
+      "@type": "Person",
+      "name": "Adolfo Fuentes",
+      "url": "https://github.com/The3eard"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
+  <script>function loadScript(a){var b=document.getElementsByTagName("head")[0],c=document.createElement("script");c.type="text/javascript",c.src="https://tracker.metricool.com/resources/be.js",c.onreadystatechange=a,c.onload=a,b.appendChild(c)}loadScript(function(){beTracker.t({hash:"244616eaed13de8fb961a27a3677700b"})});</script>
+</head>
+<body data-page="home" data-lang="es">
+
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a href="../es/" class="brand" style="border:none">
+        <img src="../assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
+        <span class="brand-name">BeardGit</span>
+      </a>
+      <div class="nav-links">
+        <a href="../es/" data-nav="home" aria-current="page" class="active">Inicio</a>
+        <a href="../es/features/" data-nav="features">Funciones</a>
+        <a href="../es/guide/" data-nav="guide">Guía</a>
+        <a href="../es/changelog/" data-nav="changelog">Novedades</a>
+        <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="nav-actions">
+        <a class="lang-switch" href="../" title="Read this page in English" hreflang="en" lang="en">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M3 12h18"/>
+            <path d="M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/>
+          </svg>
+          <span>EN</span>
+        </a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Cambiar el tema de color" title="Cambiar tema: automático / claro / oscuro">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" id="themeIcon">
+            <!-- icon swapped by JS -->
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+          </svg>
+          <span id="themeLabel">Auto</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+
+  <!-- Offered, never forced: switching language on someone mid-read is
+       worse than a line they can ignore. Shown by app.js only when the
+       browser's language disagrees with the page's. -->
+  <div class="lang-nudge" id="langNudge" hidden>
+    <span>This page is also available in English.</span>
+    <a href="../">Read it in English →</a>
+    <button type="button" id="langNudgeClose" aria-label="Dismiss">×</button>
+  </div>
+
+<!-- ============ HERO ============ -->
+  <section class="hero" id="top">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div class="hero-main">
+          <div class="hero-meta reveal">
+            <span class="badge"><span class="badge-dot"></span>En desarrollo activo</span>
+            <span class="badge mono" data-release-badge hidden></span>
+            <span class="badge mono">macOS (Apple Silicon) · Linux x64 · Windows x64</span>
+          </div>
+
+          
+          <h1 class="hero-title reveal">
+            <span class="lead">Todo tu repo,</span>
+            <span class="lead">en <span class="italic accent">una</span> ventana.<span class="caret"></span></span>
+          </h1>
+
+          <p class="hero-sub reveal mono">
+            El grafo, las <strong style="color:var(--fg)">pull y merge requests</strong>, la CI, las issues, las
+            releases, las terminales, las <strong style="color:var(--fg)">ejecuciones de AI</strong>, tus
+            <strong style="color:var(--fg)">peticiones .http</strong> y un
+            <strong style="color:var(--fg)">editor de ficheros</strong> — en la misma app, para que subir un
+            cambio deje de ser un recorrido por cuatro de ellas.
+          </p>
+          
+
+          <div class="cta-row reveal">
+            <a href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" class="btn btn-primary" data-dl="auto">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v13M5 12l7 7 7-7M4 21h16"/></svg>
+              <span data-dl-label>Descargar BeardGit</span>
+            </a>
+            <a href="../es/features/" class="btn btn-ghost">
+              Ver qué hace
+            </a>
+            <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener" class="btn btn-ghost btn-star" aria-label="Dar una estrella a BeardGit en GitHub">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l3.06 6.2 6.84.99-4.95 4.83 1.17 6.81L12 18.13l-6.12 3.22 1.17-6.81L2.1 9.69l6.84-.99L12 2.5z"/></svg>
+              Dar una estrella
+              <img class="btn-badge" alt="" height="18" src="https://img.shields.io/github/stars/The3eard/BeardGit?style=flat&label=&color=21262d&labelColor=21262d" loading="lazy" />
+            </a>
+          </div>
+
+          <p class="hero-microcta mono reveal">Si te ahorra una pestaña, una ★ en el repo es como lo encuentran los demás.</p>
+
+          <div class="hero-stats reveal">
+            <div>
+              <div class="stat-num">100K<span class="italic">+</span></div>
+              <div class="stat-lbl">Commits que dibuja</div>
+            </div>
+            <div>
+              <div class="stat-num">31</div>
+              <div class="stat-lbl">Temas incluidos</div>
+            </div>
+            <div>
+              <div class="stat-num">2</div>
+              <div class="stat-lbl">Forges, los dos en serio</div>
+            </div>
+            <div>
+              <div class="stat-num">0</div>
+              <div class="stat-lbl">Cuentas que crear</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Animated commit graph -->
+        <div class="hero-graph reveal" aria-hidden="true">
+          <svg viewBox="0 0 440 480" preserveAspectRatio="xMidYMid meet">
+            <g opacity="0.35">
+              <line x1="60"  y1="30" x2="60"  y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
+              <line x1="120" y1="30" x2="120" y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
+              <line x1="180" y1="30" x2="180" y2="450" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 4"/>
+            </g>
+
+            <path class="edge main"   d="M60 60 L60 430"/>
+            <path class="edge beard"  d="M60 110 C 60 135, 120 135, 120 160 L 120 260 C 120 285, 60 285, 60 310"/>
+            <path class="edge blue"   d="M60 170 C 60 195, 180 195, 180 220 L 180 360 C 180 385, 60 385, 60 410"/>
+            <path class="edge green"  d="M120 220 C 120 240, 60 240, 60 260"/>
+            <path class="edge accent" d="M60 260 L 60 310"/>
+
+            <circle class="node"        cx="60"  cy="60"  r="6"/>
+            <circle class="node beard"  cx="60"  cy="110" r="6"/>
+            <circle class="node blue"   cx="60"  cy="170" r="6"/>
+            <circle class="node beard"  cx="120" cy="160" r="6"/>
+            <circle class="node green"  cx="120" cy="220" r="6"/>
+            <circle class="node"        cx="60"  cy="260" r="6"/>
+            <circle class="node active" cx="60"  cy="310" r="7"/>
+            <circle class="node blue"   cx="180" cy="220" r="6"/>
+            <circle class="node blue"   cx="180" cy="360" r="6"/>
+            <circle class="node"        cx="60"  cy="410" r="6"/>
+
+            <text class="graph-label" x="205" y="64">main</text>
+            <text class="graph-hash"  x="205" y="78">a1f3e22  initial commit</text>
+
+            <text class="graph-label" x="205" y="114">chore: add tauri shell</text>
+            <text class="graph-hash"  x="205" y="128">7ce09a1  · adolfo</text>
+
+            <text class="graph-label" x="205" y="174">feat: commit graph engine</text>
+            <text class="graph-hash"  x="205" y="188">3b22f0e  · adolfo</text>
+
+            <text class="graph-label" x="205" y="224">feat: multi-repo tabs</text>
+            <text class="graph-hash"  x="205" y="238">91d2a7c  · adolfo</text>
+
+            <text class="graph-label" x="205" y="264">fix: watcher deadlock</text>
+            <text class="graph-hash"  x="205" y="278">e04b88a  · adolfo</text>
+
+            <text class="graph-label" x="205" y="314" fill="var(--accent)">HEAD  site/landing-page</text>
+            <text class="graph-hash"  x="205" y="328">f2a9d10  · estás aquí</text>
+
+            <text class="graph-label" x="205" y="364">feat(ai): commit drafter</text>
+            <text class="graph-hash"  x="205" y="378">2c78901  · adolfo</text>
+
+            <text class="graph-label" x="205" y="414">release: tagged</text>
+            <text class="graph-hash"  x="205" y="428">83f5280  · latest</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WHY ============ -->
+  <section id="why">
+    <div class="wrap">
+      <div class="manifesto">
+        <div>
+          <div class="manifesto-label">
+            <div class="eyebrow">§ 01 — Por qué existe</div>
+          </div>
+        </div>
+        
+        <div class="manifesto-body reveal">
+          Tenía el grafo en una app, la merge request en una pestaña del navegador, el pipeline en
+          otra y la llamada a la API que quería probar en una cuarta. Ninguna de esas herramientas
+          era mala; el salto entre ellas sí. Así que BeardGit reúne en una ventana lo que toco para
+          subir un cambio, con una forma que me cabe en la cabeza. No pretende ser el último cliente
+          de Git que instales — hay muchos más veteranos, más grandes y con más presupuesto. Es el
+          que suele tener el siguiente paso ya en pantalla.
+        </div>
+        
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SHOWCASE ============ -->
+  <section id="showcase" class="showcase">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Seis vistas, una <span class="italic">ventana</span>.</h2>
+        <div class="section-head-meta">§ 02 — Un vistazo</div>
+      </div>
+
+      <div class="carousel" id="shot-carousel">
+        <button class="carousel-arrow prev" type="button" aria-label="Captura anterior" data-dir="-1">‹</button>
+        <div class="carousel-track">
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="graph">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/graph-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/graph-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/graph-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/graph-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/graph-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/graph-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/graph-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/graph-dark.png?v=20260910a"
+                 src="../assets/screenshots/graph-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 fetchpriority="high" decoding="async"
+                 alt="El grafo de commits: carriles de ramas, curvas de merge, badges de refs y el panel de detalle del commit" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">el grafo de commits, con los ficheros del commit seleccionado al lado</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="pull-requests">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/pull-requests-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/pull-requests-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/pull-requests-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/pull-requests-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/pull-requests-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/pull-requests-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/pull-requests-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/pull-requests-dark.png?v=20260910a"
+                 src="../assets/screenshots/pull-requests-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="Una pull request con su estado de CI, el diff por fichero y los hilos de review en línea" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">una pull request, revisada sin salir de la app</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="changes">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/changes-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/changes-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/changes-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/changes-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/changes-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/changes-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/changes-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/changes-dark.png?v=20260910a"
+                 src="../assets/screenshots/changes-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="La vista de cambios con hunks, staging por líneas y diff en paralelo" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">staging, hasta líneas sueltas</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="editor">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/editor-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/editor-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/editor-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/editor-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/editor-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/editor-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/editor-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/editor-dark.png?v=20260910a"
+                 src="../assets/screenshots/editor-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="El editor de ficheros de la app con el árbol del repositorio, pestañas y resaltado de sintaxis" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">el editor de ficheros, para el arreglo que no merece cambiar de app</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="requests">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/requests-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/requests-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/requests-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/requests-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/requests-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/requests-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/requests-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/requests-dark.png?v=20260910a"
+                 src="../assets/screenshots/requests-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="El espacio de peticiones .http con la petición, el cuerpo compuesto y el selector de entorno" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">una petición .http, commiteada junto al código que la llama</figcaption>
+      </figure>
+      <figure class="shot-figure carousel-slide">
+        <div class="screenshot-slot" data-slot="ai-sessions">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/ai-sessions-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/ai-sessions-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/ai-sessions-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/ai-sessions-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/ai-sessions-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/ai-sessions-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/ai-sessions-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/ai-sessions-dark.png?v=20260910a"
+                 src="../assets/screenshots/ai-sessions-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="Una sesión de AI con su transcripción, el worktree en el que corrió y el informe guardado" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">una ejecución de AI, en su worktree, con la transcripción guardada</figcaption>
+      </figure>
+        </div>
+        <button class="carousel-arrow next" type="button" aria-label="Captura siguiente" data-dir="1">›</button>
+        <div class="carousel-dots"></div>
+      </div>
+
+      <p class="section-foot mono reveal">
+        Hay catorce vistas más — ramas, tags, stashes, worktrees, submódulos, reflog,
+        bisect, issues, releases, pipelines, comparar — en la
+        <a href="../es/features/">página de funciones</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ THEMES ============ -->
+  <section id="themes">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Elige un tema. La app entera <span class="italic">le sigue</span>.</h2>
+        <div class="section-head-meta">§ 03 — Temas</div>
+      </div>
+
+      
+      <p class="themes-lede mono reveal">
+        Tres familias propias — <strong>BeardGit</strong> (cobre, el de serie), <strong>Fjord</strong>
+        y <strong>Nebula</strong> — más los clásicos que ya usas en otras herramientas: en total
+        <strong>31 temas incluidos</strong>. Y no es solo la carcasa: la sintaxis del editor, los fondos
+        de los diffs y los carriles del grafo cambian de color con él. Tu propio tema es un fichero TOML
+        con 18 colores; el resto se deriva solo.
+        <span class="italic">Esta página también le sigue — prueba el interruptor de arriba.</span>
+      </p>
+      
+
+      <div class="themes-chips reveal" id="theme-chips">
+        <button class="theme-chip active" type="button" data-theme-name="BeardGit"
+                data-light="../assets/screenshots/theme-beardgit-light.png?v=20260910a"
+                data-dark="../assets/screenshots/theme-beardgit-dark.png?v=20260910a">
+          <span class="theme-swatch" style="background:#151312"><span class="theme-dot" style="background:#d9924f"></span></span>
+          <span class="theme-chip-name">BeardGit <span class="mono">copper</span></span>
+        </button>
+        <button class="theme-chip" type="button" data-theme-name="Fjord"
+                data-light="../assets/screenshots/theme-fjord-light.png?v=20260910a"
+                data-dark="../assets/screenshots/theme-fjord-dark.png?v=20260910a">
+          <span class="theme-swatch" style="background:#0e141b"><span class="theme-dot" style="background:#54bdc9"></span></span>
+          <span class="theme-chip-name">Fjord <span class="mono">ice cyan</span></span>
+        </button>
+        <button class="theme-chip" type="button" data-theme-name="Nebula"
+                data-light="../assets/screenshots/theme-nebula-light.png?v=20260910a"
+                data-dark="../assets/screenshots/theme-nebula-dark.png?v=20260910a">
+          <span class="theme-swatch" style="background:#13111f"><span class="theme-dot" style="background:#a78bfa"></span></span>
+          <span class="theme-chip-name">Nebula <span class="mono">violet</span></span>
+        </button>
+        <span class="theme-chip theme-chip-more mono">+ Rosé Pine · Everforest · Kanagawa · Ayu · Catppuccin · Dracula · Gruvbox · Nord · Tokyo Night · Solarized · Oxocarbon …</span>
+      </div>
+
+      <figure class="shot-figure reveal" id="theme-preview">
+        <div class="screenshot-slot" data-slot="theme-preview">
+          <img class="shot-img"
+               data-src-light="../assets/screenshots/theme-beardgit-light.png?v=20260910a"
+               data-src-dark="../assets/screenshots/theme-beardgit-dark.png?v=20260910a"
+               src="../assets/screenshots/theme-beardgit-dark.png?v=20260910a"
+               width="2880" height="1800"
+               loading="lazy" decoding="async"
+               alt="El editor de ficheros de la app con el tema seleccionado" />
+        </div>
+        <figcaption class="shot-caption mono">el editor con el tema <span data-theme-label>BeardGit</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ WHAT IT DOES ============ -->
+  <section id="what">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Lo que hace, <span class="italic">en corto</span>.</h2>
+        <div class="section-head-meta">§ 04 — Qué hace</div>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="5" cy="6" r="2.25"/><circle cx="5" cy="18" r="2.25"/><circle cx="19" cy="12" r="2.25"/>
+              <path d="M5 8.25v7.5"/><path d="M7 6h6a4 4 0 0 1 4 4v0"/><path d="M7 18h6a4 4 0 0 0 4-4v0"/>
+            </svg>
+          </div>
+          <div class="feature-num">01 / 06</div>
+          
+          <h3 class="feature-title">Un grafo dibujado en <span class="italic">canvas</span>.</h3>
+          <p class="feature-body">Historiales de seis cifras se recorren con fluidez porque solo se pinta lo que está en pantalla. Carriles, curvas de merge, badges de refs, resaltado por autor y una búsqueda que recoloca el grafo alrededor de los resultados.</p>
+          
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="6" cy="6" r="2.25"/><circle cx="6" cy="18" r="2.25"/><circle cx="18" cy="18" r="2.25"/>
+              <path d="M6 8.25v7.5"/><path d="M14 6h2a2 2 0 0 1 2 2v8"/><path d="M11 3l3 3-3 3"/>
+            </svg>
+          </div>
+          <div class="feature-num">02 / 06</div>
+          
+          <h3 class="feature-title">GitHub <span class="italic">y</span> GitLab, los dos en serio.</h3>
+          <p class="feature-body">Pull requests y merge requests con diff por fichero e hilos de review en línea. Issues, etiquetas, milestones, pipelines, releases y ajustes del repo. Instancias autoalojadas incluidas.</p>
+          
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h7"/><path d="M16 14l5 5"/><path d="M21 14h-5v5"/>
+            </svg>
+          </div>
+          <div class="feature-num">03 / 06</div>
+          
+          <h3 class="feature-title">Staging hasta la <span class="italic">línea</span>.</h3>
+          <p class="feature-body">Pliega un hunk, expande el fichero completo, prepara o descarta líneas sueltas, selecciona un rango con Shift. Los commits respetan tu configuración de firma, y un botón de prueba te enseña el error real cuando falla.</p>
+          
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"/>
+              <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/>
+              <path d="M5 15l.75 1.75L7.5 17.5l-1.75.75L5 20l-.75-1.75L2.5 17.5l1.75-.75L5 15z"/>
+            </svg>
+          </div>
+          <div class="feature-num">04 / 06</div>
+          
+          <h3 class="feature-title">La AI trabaja en un <span class="italic">worktree</span>, no en tu árbol.</h3>
+          <p class="feature-body">Tu propia instalación de Claude Code, Codex u OpenCode, lanzada en su rama <code class="mono">ai/&lt;proveedor&gt;/&lt;slug&gt;</code> dentro de un worktree aislado. Lees la transcripción y luego mergeas o lo tiras. Tu copia de trabajo no se mueve.</p>
+          
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><path d="M14 4l-4 16"/>
+            </svg>
+          </div>
+          <div class="feature-num">05 / 06</div>
+          
+          <h3 class="feature-title">Peticiones y un <span class="italic">editor</span>, en el repo.</h3>
+          <p class="feature-body">Ficheros <code class="mono">.http</code> normales en <code class="mono">.beardgit/requests/</code>, commiteados junto al código que los llama. Y un editor CodeMirror para arreglos rápidos: guardar escribe en disco, guardar con Shift también lo prepara para el commit.</p>
+          
+        </div>
+
+        <div class="feature reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M13 15h4"/>
+            </svg>
+          </div>
+          <div class="feature-num">06 / 06</div>
+          
+          <h3 class="feature-title">Terminales de verdad y una <span class="italic">paleta de comandos</span>.</h3>
+          <p class="feature-body">xterm.js sobre un PTY nativo, con los <code class="mono">gh</code> y <code class="mono">glab</code> incluidos a mano. <code class="mono">⌘⇧P</code> llega a cualquier vista y a cualquier atajo sin buscar en menús.</p>
+          
+        </div>
+      </div>
+
+      <p class="section-foot mono reveal">
+        La versión larga, vista por vista, está en la
+        <a href="../es/features/">página de funciones</a>. Cómo usar cada cosa, en la
+        <a href="../es/guide/">guía</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ AUDIENCE ============ -->
+  <section id="audience">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Si te <span class="italic">encaja</span>.</h2>
+        <div class="section-head-meta">§ 05 — Si encaja</div>
+      </div>
+
+      <div class="audience-grid">
+        <div class="audience-card audience-fit reveal">
+          <div class="audience-head">
+            <span class="audience-mark" aria-hidden="true">✓</span>
+            <h3 class="audience-title">Te gustará si</h3>
+          </div>
+          
+          <ul class="audience-list">
+            <li>trabajas en <strong>GitHub <em>o</em> GitLab</strong> — o en los dos, en repos distintos, la misma tarde</li>
+            <li>pruebas APIs contra el repo que tienes delante y preferirías no abrir un cliente de API aparte</li>
+            <li>usas <strong>Claude Code, Codex u OpenCode</strong> y los quieres en un worktree en vez de suelto en tu copia de trabajo</li>
+            <li>prefieres una app nativa a otro runtime de Chromium</li>
+            <li>usas Linux y estás cansado de ser la plataforma de después</li>
+          </ul>
+          
+        </div>
+
+        <div class="audience-card audience-skip reveal">
+          <div class="audience-head">
+            <span class="audience-mark" aria-hidden="true">✕</span>
+            <h3 class="audience-title">Probablemente no, si</h3>
+          </div>
+          
+          <ul class="audience-list">
+            <li>estás cómodo con <code class="mono">git</code> y <code class="mono">lazygit</code> — esto es una GUI y no va a ganar a tu memoria muscular</li>
+            <li>necesitas <strong>SVN, Mercurial, Perforce</strong> o Bitbucket — ninguno está soportado</li>
+            <li>quieres un instalador firmado hoy, un SLA o un teléfono de soporte — esto es un desarrollador y una build sin firmar</li>
+            <li>tienes un Mac Intel — solo se publican builds para Apple Silicon</li>
+          </ul>
+          
+        </div>
+      </div>
+
+      <p class="audience-foot mono reveal">
+        <strong>Gratis, y el código está a la vista.</strong> La licencia CC BY-NC-SA impide
+        que alguien revenda BeardGit; usarlo en el trabajo, sobre código del trabajo, está bien.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ ROUGH EDGES ============ -->
+  <section id="rough-edges">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Los <span class="italic">bordes rugosos</span>, por delante.</h2>
+        <div class="section-head-meta">§ 06 — Bordes rugosos</div>
+      </div>
+
+      
+      <p class="rough-lede mono reveal">
+        Mejor dicho aquí que descubierto en tu máquina. Nada de esto es un secreto: está también en
+        el changelog y en el issue tracker.
+      </p>
+      <div class="rough-grid">
+        <div class="rough-card reveal">
+          <h3>Las builds no están firmadas</h3>
+          <p>macOS y Windows bloquean el primer arranque. Un comando en macOS, dos clics en Windows,
+          una vez por instalación. Los certificados cuestan dinero al año y esto lo hace una persona;
+          está en la lista.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Tres plataformas, tres formatos, ni uno más</h3>
+          <p><code class="mono">.dmg</code> para Apple Silicon, <code class="mono">.AppImage</code> para
+          Linux x64, <code class="mono">.exe</code> para Windows x64. No hay build para Mac Intel, ni
+          <code class="mono">.deb</code>, <code class="mono">.rpm</code> o <code class="mono">.msi</code>.
+          Compilar desde el código cubre el resto.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Dos forges, no cinco</h3>
+          <p>GitHub y GitLab son de primera clase, autoalojados incluidos. Bitbucket, Gitea y Codeberg
+          no están soportados: la capa de proveedores está abstraída, pero cada uno necesita todavía
+          un driver de verdad y sus tests detrás.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Necesita <code class="mono">git</code> en el PATH</h3>
+          <p>Las lecturas van por libgit2; las escrituras llaman a tu propio
+          <code class="mono">git</code>. La app no lo comprueba al arrancar, así que si falta te
+          enterarás cuando falle un commit, no al abrirla.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Una petición por fichero <code class="mono">.http</code>, por ahora</h3>
+          <p>El parser entiende varios bloques por fichero; el panel sigue ejecutando el primero.
+          Tampoco llega a <code class="mono">localhost</code> si no lo habilitas — está en la
+          <a href="../es/guide/#requests">guía</a>.</p>
+        </div>
+        <div class="rough-card reveal">
+          <h3>Un desarrollador, a la vista</h3>
+          <p>Los fallos se arreglan cuando se reportan, y el changelog dice cuáles y por qué. Si
+          necesitas un producto mantenido por un equipo, es razonable — <strong>Fork, Tower,
+          GitKraken</strong> y <strong>lazygit</strong> son buenos, y ninguno me debe nada.</p>
+        </div>
+      </div>
+      
+    </div>
+  </section>
+
+  <!-- ============ INSTALL ============ -->
+  <section id="install">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Descarga, <span class="italic">autoriza</span> una vez, abre.</h2>
+        <div class="section-head-meta">§ 07 — Instalar</div>
+      </div>
+
+      
+      <p class="install-lede mono reveal">
+        Los instaladores <strong>no están firmados</strong>, así que tu sistema para el primer arranque.
+        <strong>Autorízalo una vez</strong> y funciona como cualquier app nativa. <span class="mono">gh</span>
+        y <span class="mono">glab</span> vienen incluidos, así que no hay nada más que instalar.
+      </p>
+      
+
+      <div class="install-grid">
+        <div class="install-card reveal">
+          <div class="install-os">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.7 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 2 2.6 3.4 2.6 1.4-.1 1.9-.9 3.5-.9 1.7 0 2.1.9 3.5.9 1.5 0 2.4-1.2 3.2-2.4.9-1.4 1.3-2.7 1.4-2.8-.1 0-2.7-1-2.7-4.1zM16.1 4.8c.7-.9 1.2-2.1 1.1-3.3-1 0-2.3.7-3 1.5-.7.8-1.3 2-1.1 3.2 1.2.1 2.3-.6 3-1.4z"/></svg>
+            <div class="install-os-name">macOS</div>
+          </div>
+          <div class="install-arch">Apple Silicon · <code>.dmg</code></div>
+          <a class="install-link" href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" data-dl="macos">
+            <span data-dl-label>Descargar para macOS</span> ↗
+          </a>
+          <div class="install-cmd">
+            <div class="install-cmd-scroll">
+              <span data-cmd="xattr -dr com.apple.quarantine /Applications/BeardGit.app">xattr -dr com.apple.quarantine /Applications/BeardGit.app</span>
+            </div>
+            <button class="install-copy" type="button" aria-label="Copiar el comando">Copiar</button>
+          </div>
+          <div class="install-meta">Arrástralo a /Applications y ejecuta ese comando una vez para quitar la marca de cuarentena de Gatekeeper. Desaparecerá cuando la app esté firmada.</div>
+        </div>
+
+        <div class="install-card reveal">
+          <div class="install-os">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2c-1.8 0-3 1.3-3 3 0 1.6 1 2.6 1 4 0 1-1 1.5-2 2-2.5 1.3-3.5 4-3 7 .5 2 1.5 3 3 4 1 .5 1 1.5 0 2-.5 .3-.5 1 .5 1h7c1 0 1-.7.5-1-1-.5-1-1.5 0-2 1.5-1 2.5-2 3-4 .5-3-.5-5.7-3-7-1-.5-2-1-2-2 0-1.4 1-2.4 1-4 0-1.7-1.2-3-3-3z"/></svg>
+            <div class="install-os-name">Linux</div>
+          </div>
+          <div class="install-arch">x64 · <code>.AppImage</code></div>
+          <a class="install-link" href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" data-dl="linux">
+            <span data-dl-label>Descargar para Linux</span> ↗
+          </a>
+          <div class="install-cmd">
+            <div class="install-cmd-scroll">
+              <span data-cmd="chmod +x BeardGit-*.AppImage && ./BeardGit-*.AppImage">chmod +x BeardGit-*.AppImage &amp;&amp; ./BeardGit-*.AppImage</span>
+            </div>
+            <button class="install-copy" type="button" aria-label="Copiar el comando">Copiar</button>
+          </div>
+          <div class="install-meta">Márcalo como ejecutable y ábrelo. Necesita libwebkit2gtk-4.1. Ahora mismo no hay .deb ni .rpm — si lo necesitas, compila desde el código.</div>
+        </div>
+
+        <div class="install-card reveal">
+          <div class="install-os">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5l8-1.1V12H3V5.5zM12 4.3l9-1.3V12h-9V4.3zM3 12.5h8V20L3 18.9v-6.4zM12 12.5h9V21l-9-1.3v-7.2z"/></svg>
+            <div class="install-os-name">Windows</div>
+          </div>
+          <div class="install-arch">x64 · <code>.exe</code></div>
+          <a class="install-link" href="https://github.com/The3eard/BeardGit/releases/latest" target="_blank" rel="noopener" data-dl="windows">
+            <span data-dl-label>Descargar para Windows</span> ↗
+          </a>
+          <div class="install-cmd step">
+            <div class="install-cmd-scroll">
+              <span data-cmd="SmartScreen → More info → Run anyway">SmartScreen → More info → Run anyway</span>
+            </div>
+            <button class="install-copy" type="button" aria-label="Copiar el comando">Copiar</button>
+          </div>
+          <div class="install-meta">Necesita el WebView2 Runtime, que Windows 11 ya trae. El .msi volverá cuando la app esté firmada.</div>
+        </div>
+      </div>
+
+      <div class="callout reveal">
+        <div>
+          <div class="eyebrow" style="margin-bottom:0.8rem">§ 07.1 — Desde el código</div>
+          
+          <h2>¿Prefieres <span class="italic">compilarlo</span> tú?</h2>
+          <p class="callout-body">Rust, Node 22 y Tauri 2. Los requisitos por plataforma y los comandos
+          exactos están en la <a href="../es/guide/#build">guía</a>. Licencia
+          <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>.</p>
+          
+        </div>
+        <div>
+          <a href="https://github.com/The3eard/BeardGit" class="btn btn-ghost" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
+            Clonar el repo
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section id="faq">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Preguntas <span class="italic">habituales</span>.</h2>
+        <div class="section-head-meta">§ 08 — Preguntas</div>
+      </div>
+
+      <div class="faq-list">
+        
+        <details class="faq-item reveal">
+          <summary>¿De verdad es gratis? ¿Dónde está la trampa?</summary>
+          <div class="faq-body">
+            Gratis de descargar y de usar, sin cuenta, sin muro de pago y sin telemetría. La licencia es
+            <a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">CC&nbsp;BY-NC-SA&nbsp;4.0</a>,
+            que solo impide que alguien reempaquete y venda BeardGit. Usarlo para ganarte la vida con tu
+            propio código es justo para lo que está.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Por qué mi sistema dice que está dañado o sin verificar?</summary>
+          <div class="faq-body">
+            Porque las builds no están firmadas, no porque la descarga tenga nada raro. En macOS ejecuta
+            <code class="mono">xattr -dr com.apple.quarantine /Applications/BeardGit.app</code> una vez, o
+            haz clic derecho en la app y elige Abrir. En Windows, Más información → Ejecutar de todas formas.
+            El detalle está en la <a href="../es/guide/#install">guía</a>.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Dónde acaban mis tokens y mis claves de AI?</summary>
+          <div class="faq-body">
+            BeardGit no gestiona claves de AI: lanza tu <code class="mono">claude</code>,
+            <code class="mono">codex</code> u <code class="mono">opencode</code> local, que ya tienen su
+            propia autenticación. Los tokens de forge se cifran con AES-256-GCM en un fichero de tu máquina,
+            con una clave derivada de un identificador del equipo. La <a href="../es/guide/#data">guía</a>
+            dice exactamente dónde y contra qué protege eso — y contra qué no.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Llama a casa?</summary>
+          <div class="faq-body">
+            No hay telemetría ni analítica en la app. Por su cuenta hace una sola petición: la comprobación
+            de actualizaciones, que tiene su interruptor. Apagar las integraciones de GitHub/GitLab y de AI
+            en Ajustes también detiene la validación de tokens y el sondeo de CLIs al arrancar, y te deja un
+            cliente solo de git. Todo lo demás pasa porque has hecho clic en algo.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Cómo se compara con GitKraken, Fork, Sourcetree o Tower?</summary>
+          <div class="faq-body">
+            Son productos maduros con equipos detrás y BeardGit no intenta ganarles en ser ellos. La
+            diferencia está en lo que cabe en la misma ventana: ejecuciones de AI en worktrees, un espacio
+            <code class="mono">.http</code> dentro del repo y un editor de ficheros junto al grafo — además
+            de tratar GitLab igual que GitHub. Si eso no es lo que te falta, te compensan más ellos.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Funciona sin conexión?</summary>
+          <div class="faq-body">
+            Git es local, así que el grafo, las ramas, el staging, los commits, las terminales y las
+            ejecuciones de AI locales funcionan sin red. Las pull requests, las merge requests, los
+            pipelines y las releases necesitan conexión, evidentemente, y lo dicen en vez de quedarse
+            colgadas.
+          </div>
+        </details>
+        <details class="faq-item reveal">
+          <summary>¿Cómo reporto un fallo?</summary>
+          <div class="faq-body">
+            <a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Abre una issue</a>
+            con tu sistema, la versión que sale en Ayuda → Acerca de, y qué hiciste. Si no sabes si es un
+            fallo o una limitación, ábrela igual — clasificarlo es mi trabajo, no el tuyo.
+          </div>
+        </details>
+        
+      </div>
+
+      <p class="section-foot mono reveal">
+        Las respuestas largas, y las que necesitan comandos, están en la
+        <a href="../es/guide/">guía</a>.
+      </p>
+    </div>
+  </section>
+
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="brand" style="margin-bottom:1rem">
+            <img src="../assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
+            <span class="brand-name">BeardGit</span>
+          </div>
+          <p class="footer-tagline mono">Un cliente de Git de escritorio que deja el grafo, tus pull y merge requests, la CI, las issues, las releases, las terminales, las ejecuciones de AI, las peticiones .http y un editor de ficheros en la misma ventana.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Sitio</h4>
+          <ul>
+            <li><a href="../es/">Inicio</a></li>
+            <li><a href="../es/features/">Funciones</a></li>
+            <li><a href="../es/guide/">Guía</a></li>
+            <li><a href="../es/changelog/">Novedades</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Código</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/releases" target="_blank" rel="noopener">Releases</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contribuir</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Issues</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">Licencia</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CLA.md" target="_blank" rel="noopener">CLA</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/SECURITY.md" target="_blank" rel="noopener">Seguridad</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Adolfo Fuentes</span>
+        <span class="mono">Gratis, con el código a la vista, sin cuenta y sin telemetría.</span>
+      </div>
+    </div>
+  </footer>
+
+
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">×</button>
+    <img class="lightbox-img" id="lightboxImg" alt="" />
+    <div class="lightbox-caption mono" id="lightboxCaption"></div>
+  </div>
+
+  <script src="../assets/app.js?v=20260910a"></script>
+</body>
+</html>

@@ -11,7 +11,7 @@
   import { IconButton, Skeleton } from "$lib/components/ui";
   import * as m from "$lib/paraglide/messages";
   import type { MenuItem } from "../common/ContextMenu.svelte";
-  import type { BranchTreeNode as TreeNode } from "./branch-tree";
+  import { buildBranchTree, type BranchTreeNode as TreeNode } from "./branch-tree";
   import type { InitialSource } from "./suggest-local-name";
   import { parseRemoteBranch } from "./parse-remote-branch";
   import {
@@ -25,6 +25,9 @@
     doCheckout,
     doDeleteBranch,
     doMergeBranch,
+    favoriteBranches,
+    loadFavoriteBranches,
+    toggleFavoriteBranch,
   } from "../../stores/branches";
   import { remotes, refreshRemotes } from "../../stores/remotes";
   import { openCreateBranchDialog } from "../../stores/createBranchDialog";
@@ -33,58 +36,6 @@
   import { runMutation } from "../../api/runMutation";
   import { remembered, scoped } from "../../stores/viewMemory";
   import type { BranchInfo } from "../../types";
-
-  /**
-   * Build a folder-tree from a flat branch list.
-   * Branches with "/" in their name are nested under folder nodes.
-   */
-  function buildTree(branchList: BranchInfo[]): TreeNode[] {
-    const root: TreeNode[] = [];
-    const childMaps = new WeakMap<TreeNode[], Map<string, TreeNode>>();
-
-    function getMap(children: TreeNode[]): Map<string, TreeNode> {
-      let map = childMaps.get(children);
-      if (!map) {
-        map = new Map();
-        childMaps.set(children, map);
-      }
-      return map;
-    }
-
-    for (const branch of branchList) {
-      const parts = branch.name.split("/");
-      let current = root;
-
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        const isLeaf = i === parts.length - 1;
-        const key = `${part}:${isLeaf ? "leaf" : "folder"}`;
-        const map = getMap(current);
-
-        let existing = map.get(key);
-        if (!existing) {
-          existing = {
-            name: part,
-            fullPath: isLeaf ? branch.name : parts.slice(0, i + 1).join("/"),
-            isFolder: !isLeaf,
-            isHead: isLeaf && branch.is_head,
-            isRemote: branch.is_remote,
-            oid: isLeaf ? branch.oid : "",
-            ahead: isLeaf ? branch.ahead : 0,
-            behind: isLeaf ? branch.behind : 0,
-            upstreamGone: isLeaf ? branch.upstream_gone : false,
-            children: [],
-          };
-          current.push(existing);
-          map.set(key, existing);
-        }
-        if (!isLeaf) {
-          current = existing.children;
-        }
-      }
-    }
-    return root;
-  }
 
   // Survives a section switch; the applied value is seeded from it so a
   // remount filters immediately instead of waiting for a keystroke.
@@ -118,8 +69,8 @@
     return $remoteBranches.filter((b) => b.name.toLowerCase().includes(needle));
   });
 
-  let localTree = $derived(buildTree(filteredLocal));
-  let remoteTree = $derived(buildTree(filteredRemote));
+  let localTree = $derived(buildBranchTree(filteredLocal, $favoriteBranches));
+  let remoteTree = $derived(buildBranchTree(filteredRemote, $favoriteBranches));
 
   const localCollapsed = remembered(scoped("branches.localCollapsed"), false);
   const remoteCollapsed = remembered(scoped("branches.remoteCollapsed"), false);
@@ -131,6 +82,9 @@
   let contextBranch = $state("");
   let contextOid = $state("");
   let contextIsRemote = $state(false);
+  /** Favorite key of the right-clicked branch — not its ref name, since a
+   *  local branch and its remote share one star. */
+  let contextFavoriteKey = $state("");
   let confirmDelete = $state<string | null>(null);
   let forceDelete = $state(false);
   let confirmRebase = $state<string | null>(null);
@@ -237,6 +191,13 @@
       items.push({ label: "Checkout", action: () => doCheckout(contextBranch) });
     }
     items.push({
+      label: $favoriteBranches.has(contextFavoriteKey)
+        ? m.branch_favorite_remove()
+        : m.branch_favorite_add(),
+      action: () => toggleFavoriteBranch(contextFavoriteKey),
+    });
+    items.push({ separator: true });
+    items.push({
       label: "New branch from here",
       action: () =>
         openCreateBranchDialog({ kind: "ref", name: contextBranch, oid: contextOid }),
@@ -291,6 +252,7 @@
     contextBranch = node.fullPath;
     contextOid = node.oid;
     contextIsRemote = node.isRemote;
+    contextFavoriteKey = node.favoriteKey;
     menuX = e.clientX;
     menuY = e.clientY;
     menuVisible = true;
@@ -303,9 +265,12 @@
   }
 
   // Seed the remotes store on mount so the first right-click has data
-  // without waiting for a project-mutated event.
+  // without waiting for a project-mutated event. Favorites are read here
+  // too — they only change on a star click, so they don't belong in the
+  // project-mutated fan-out.
   onMount(() => {
     void refreshRemotes();
+    void loadFavoriteBranches();
   });
 
   // Required by List type signature but unused — trees are rendered via customContent.
@@ -387,6 +352,7 @@
             selected={$selectedBranchName}
             onSelect={selectBranch}
             onContext={handleContextMenu}
+            onToggleFavorite={(n) => toggleFavoriteBranch(n.favoriteKey)}
           />
         {/each}
       {/if}
@@ -419,6 +385,7 @@
             selected={$selectedBranchName}
             onSelect={selectBranch}
             onContext={handleContextMenu}
+            onToggleFavorite={(n) => toggleFavoriteBranch(n.favoriteKey)}
           />
         {/each}
       {/if}

@@ -1,0 +1,1426 @@
+<!doctype html>
+<html lang="es" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Novedades — BeardGit</title>
+  <meta name="description" content="Qué ha cambiado en cada versión de BeardGit: lo que se ha añadido, lo que se ha corregido y qué estaba roto antes de arreglarlo." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#151312" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://the3eard.github.io/BeardGit/es/changelog/" />
+  <link rel="alternate" hreflang="en" href="https://the3eard.github.io/BeardGit/changelog/" />
+  <link rel="alternate" hreflang="es" href="https://the3eard.github.io/BeardGit/es/changelog/" />
+  <link rel="alternate" hreflang="x-default" href="https://the3eard.github.io/BeardGit/changelog/" />
+
+  <meta property="og:title" content="Novedades — BeardGit" />
+  <meta property="og:description" content="Qué ha cambiado en cada versión de BeardGit: lo que se ha añadido, lo que se ha corregido y qué estaba roto antes de arreglarlo." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://the3eard.github.io/BeardGit/es/changelog/" />
+  <meta property="og:locale" content="es_ES" />
+  <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="BeardGit — una ventana para todo el repositorio" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Novedades — BeardGit" />
+  <meta name="twitter:description" content="Qué ha cambiado en cada versión de BeardGit: lo que se ha añadido, lo que se ha corregido y qué estaba roto antes de arreglarlo." />
+  <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
+  <meta name="twitter:image:alt" content="BeardGit — una ventana para todo el repositorio" />
+
+  <link rel="icon" type="image/svg+xml" href="../../assets/logo.svg?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="192x192" href="../../assets/favicon-192.png?v=20260910a" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../../assets/apple-touch-icon.png?v=20260910a" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,301,400,401,500,501,700,701,900,901&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/styles.css?v=20260910a" />
+
+  <script>function loadScript(a){var b=document.getElementsByTagName("head")[0],c=document.createElement("script");c.type="text/javascript",c.src="https://tracker.metricool.com/resources/be.js",c.onreadystatechange=a,c.onload=a,b.appendChild(c)}loadScript(function(){beTracker.t({hash:"244616eaed13de8fb961a27a3677700b"})});</script>
+</head>
+<body data-page="changelog" data-lang="es">
+
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a href="../../es/" class="brand" style="border:none">
+        <img src="../../assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
+        <span class="brand-name">BeardGit</span>
+      </a>
+      <div class="nav-links">
+        <a href="../../es/" data-nav="home">Inicio</a>
+        <a href="../../es/features/" data-nav="features">Funciones</a>
+        <a href="../../es/guide/" data-nav="guide">Guía</a>
+        <a href="../../es/changelog/" data-nav="changelog" aria-current="page" class="active">Novedades</a>
+        <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="nav-actions">
+        <a class="lang-switch" href="../../changelog/" title="Read this page in English" hreflang="en" lang="en">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M3 12h18"/>
+            <path d="M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/>
+          </svg>
+          <span>EN</span>
+        </a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Cambiar el tema de color" title="Cambiar tema: automático / claro / oscuro">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" id="themeIcon">
+            <!-- icon swapped by JS -->
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+          </svg>
+          <span id="themeLabel">Auto</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+
+  <!-- Offered, never forced: switching language on someone mid-read is
+       worse than a line they can ignore. Shown by app.js only when the
+       browser's language disagrees with the page's. -->
+  <div class="lang-nudge" id="langNudge" hidden>
+    <span>This page is also available in English.</span>
+    <a href="../../changelog/">Read it in English →</a>
+    <button type="button" id="langNudgeClose" aria-label="Dismiss">×</button>
+  </div>
+
+<section class="page-head">
+    <div class="wrap">
+      
+      <div class="page-head-inner">
+        <h1>Novedades</h1>
+        <p class="page-lede">
+          Todas las versiones, de la más reciente a la más antigua. Cada entrada cuenta qué
+          estaba mal y por qué, no solo qué se ha movido: es la versión útil, y además
+          escribirlo es lo que evita que el mismo fallo vuelva. La numeración es
+          <span class="mono">año.mes.release</span>, así que 26.9.1 es la segunda versión de
+          septiembre de 2026.
+        </p>
+        <p class="page-lede-note mono">
+          Se mantiene solo en inglés para que no se desincronice del
+          <a href="https://github.com/The3eard/BeardGit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">CHANGELOG.md</a>
+          del repositorio.
+        </p>
+      </div>
+      
+    </div>
+  </section>
+
+  <section id="releases">
+    <div class="wrap">
+      <div class="releases">
+      <details class="release" open data-current="true">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">26.9.2</span>
+            <span class="release-date mono">esta versión</span>
+          </div>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title added">Añadido</h3>
+          <ul class="release-list">
+            <li><strong>Star the branches you actually work on and they sort to the top.</strong> Hover a branch row and a hollow star appears in its own column; click it to star the branch, click it again to unstar. The context menu offers the same thing for anyone who looks there first. A starred row keeps its star lit and rises to the top of the level it sits on. Hoisting is per level, which keeps the folder tree honest — a starred <code class="mono">feat/website-refresh</code> rises to the top of the <code class="mono">feat</code> folder rather than escaping it, and the folder itself stays where it is. A star belongs to the <em>branch</em>, not to the ref: <code class="mono">develop</code> and <code class="mono">origin/develop</code> are one branch as far as you are concerned, so starring either lights up both, and unstarring either clears both. The stars live with the repository, in <code class="mono">&lt;repo&gt;/.beardgit/favorites.json</code> next to the requests collections and the AI reports, so they survive a relaunch and a project that does not gitignore <code class="mono">.beardgit/</code> can commit them and share them with the team. They are read when the branch panel mounts rather than on every repository mutation: the file changes when you click a star, not when you commit.</li>
+            <li><strong>Submodules of submodules are listed, and can be operated on.</strong> The panel only ever showed the first level, so a repository that nests them — the common shape for vendored dependency trees — hid everything below the top. The listing now recurses (five levels deep, past which it stops rather than trusting a symlinked working tree not to loop), depth-first with each parent followed by its children, and the panel indents a nested row under the submodule it belongs to. Its actions work there too: a nested submodule is registered in <em>its parent's</em> <code class="mono">.gitmodules</code>, not the repository's, so initialize, update, deinitialize and remove now run inside that parent — addressed from the root, git rejects the path as one it does not know. A submodule with no working tree has nothing below it and is not descended into; one that is checked out but whose repository will not open is listed without its children instead of failing the whole panel.</li>
+            <li><strong>Clone can bring the submodules with it.</strong> A checkbox in the clone dialog, off by default: on, the clone is <code class="mono">--recurse-submodules</code> and every submodule is checked out as part of it. Left off, submodules arrive registered but empty, exactly as before, and the Submodules panel fills them in on demand. It is a choice rather than the new default because a recursive clone fetches every submodule at full depth, which for a repo that vendors large dependencies is a different order of download than the one the user asked for.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title fixed">Corregido</h3>
+          <ul class="release-list">
+            <li><strong>A submodule whose checkout has moved reads as &quot;outdated&quot; instead of &quot;dirty&quot;.</strong> The status of every submodule came out of three libgit2 flags that were OR-ed together as if they meant the same thing. One of them, <code class="mono">WD_MODIFIED</code>, means &quot;the submodule's HEAD is not the commit the superproject records&quot; — which is the definition of outdated — so a submodule sitting at the wrong commit was reported as having uncommitted changes, and the check that would have called it outdated could never run: the panel had a status it was incapable of showing. Dirty is now what its name says, the submodule's own index and working tree, and keeps precedence when both hold.</li>
+            <li><strong>Opening a submodule in a tab cannot land outside the repository.</strong> The path was joined onto the repository root and accepted if it existed, and the result is handed to the project-opening command, so a <code class="mono">..</code> in it would have opened a tab on an arbitrary directory. Both sides are resolved now and a path outside the repository is refused.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title changed">Cambiado</h3>
+          <ul class="release-list">
+            <li><strong>The submodule fixture in the test suite creates a submodule.</strong> It was named for one and never added it: it built a superproject and a loose repository that no <code class="mono">.gitmodules</code> mentioned. The single test using it asserted the submodule list came back empty, which it did, for the wrong reason — so the status computation, the only real logic in the module, had no coverage at all. Writing the first honest test found the bug above. Fifteen tests now cover the four statuses, nested listings, the containment check, and the argv that puts a nested operation in the right repository. <code class="mono">Repository::add_submodule</code> went with the pass: it duplicated <code class="mono">git submodule add</code> synchronously and nothing had called it since the command moved to the task runner, which is where it has to be — the operation clones, and on the main thread that froze the window.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release" open>
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">26.9.1</span>
+            <span class="release-date mono">2026-09-07</span>
+          </div>
+          <p class="release-title">Two switches, a terminal that draws what the shell drew, and the CLIs you actually ship</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title added">Añadido</h3>
+          <ul class="release-list">
+            <li><strong>A switch to turn the GitHub / GitLab integration off, and BeardGit becomes a git-only client.</strong> Settings → General → Integrations. Without a connected account the forge surfaces already hid themselves, but the app still went to the network on its own: at every launch it validated each saved token over HTTPS to reconnect, and on every repository open it resolved the origin remote against the forge API. Off, neither happens, the Integrations page shows only a pointer back to the switch so the <code class="mono">gh</code> / <code class="mono">glab</code> status checks it runs on mount never fire, and the sidebar group, status-bar pill, forge views, graph badges and init-repo's &quot;create remote&quot; follow the existing no-provider gating. The saved accounts and tokens are kept, not deleted; turning it back on reconnects them as a launch would. With it off, the only network traffic the app initiates on its own is the update check.</li>
+            <li><strong>A switch to turn the AI integration off.</strong> Same place. Without an AI CLI installed the app already hid the commit-box actions and the toolbar menu, but the rest stayed on regardless: the AI Config and AI Sessions entries in the sidebar, the AI slot in the status bar, Cmd+Shift+A opening a background-run dialog that could only fail, a probe for the three CLIs at every launch and every visit to Settings → AI, transcript listeners re-armed on each project switch, and a thread asking every three seconds which process the terminal was running, purely to spot an AI agent. Off, none of that happens: the surfaces go, the views reroute to the graph like the forge views do when a provider disconnects, and the backend refuses new AI work even if something asks. Runs already in progress finish, history stays readable, and the preferred provider and background-run settings are kept for when it comes back on. Default on.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title fixed">Corregido</h3>
+          <ul class="release-list">
+            <li><strong>The terminal draws what the shell drew.</strong> Opening the app from Finder or a desktop launcher gave the shell no <code class="mono">TERM</code>, <code class="mono">COLORTERM</code> or <code class="mono">LANG</code> — launchd hands a GUI app none of them — so zsh, fish and fzf fell back to a dumb terminal and the line editor mangled every multibyte glyph. Ctrl+R history search, fzf, vim, anything that draws in raw mode, left garbage in the buffer. It never reproduced in development because the developer's own terminal leaked its values in. The PTY now declares itself <code class="mono">xterm-256color</code> with truecolor and a UTF-8 locale when none is set, and on macOS starts a login shell like every native terminal does, so <code class="mono">path_helper</code> and <code class="mono">~/.zprofile</code> run and your tools are on <code class="mono">PATH</code>. Four more faults in the same chain went with it: the interactive terminal converted a bare <code class="mono">\n</code> into <code class="mono">\r\n</code>, which raw-mode programs use to mean &quot;down one line, same column&quot;; keyboard input was base64-encoded from UTF-16 code units, so <code class="mono">ñ</code> reached the shell as one invalid byte and <code class="mono">€</code> or an emoji threw and was dropped; closing a terminal tab with another one behind it left the survivor mute, because the tab layer matched terminals by position and unregistered the wrong session's output; and the pool that recycled xterm instances handed out terminals that could never attach to a new container, so the fourth terminal you opened after closing one of three came up blank. The pool is gone, one instance per tab.</li>
+            <li><strong>&quot;Log in&quot; with <code class="mono">gh</code> / <code class="mono">glab</code> works for the user who has neither installed.</strong> The button typed a bare <code class="mono">gh auth login</code> into a terminal, which the shell resolved through its own <code class="mono">PATH</code> — &quot;command not found&quot; for exactly the user the bundled copies exist for. The command now names the binary the app itself will use.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title changed">Cambiado</h3>
+          <ul class="release-list">
+            <li><strong>BeardGit drives its own <code class="mono">gh</code> and <code class="mono">glab</code>.</strong> The bundled copies were only ever a fallback: whatever <code class="mono">gh</code> or <code class="mono">glab</code> you had on <code class="mono">PATH</code> won, so the same build ran a different CLI version on every machine, and the bundled ones had quietly sat at gh 2.62.0 and glab 1.46.1 for close to two years — that glab could no longer read the config a current glab writes, and failed every GitLab call for anyone who also had a modern one installed. The bundled binaries now come first, with <code class="mono">PATH</code> as the fallback. Your login is not affected: both CLIs keep credentials in your per-user config and keyring, keyed by host, not by which binary ran <code class="mono">auth login</code>. The pins move to gh 2.100.0 and glab 1.116.0, and a check in the gate and in CI fails once they trail the latest release by more than 90 days.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">26.9.0</span>
+            <span class="release-date mono">2026-09-03</span>
+          </div>
+          <p class="release-title">Sections that remember, an editor that keeps its place, and a graph that draws what git did</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title added">Añadido</h3>
+          <ul class="release-list">
+            <li><strong>Every section remembers where you left it.</strong> Leaving a view and coming back used to reset it: the filter you had typed in Branches, the folders you had collapsed, the split you had dragged, the comment you were halfway through on a merge request, the message in the commit box. Each section is one component that unmounts when you leave, so anything it held in local state was simply gone. That state now outlives the section for the length of the session — filters and scroll positions in every list, panel widths in the nine split views, the collapsed groups and folders of the branch tree, the search chips in Graph / MRs / Issues / Pipelines, the drafts (commit message and amend toggle, stash message, new submodule, bisect good/bad refs, MR and issue comments keyed by item, repo-config labels and protection rules), the Report/Transcript sub-tab and split of AI sessions, and the job-log pane of Pipelines. Repo-specific state is kept per project tab and dropped when the tab closes; layout is kept once for the app. Nothing is persisted across a relaunch. The commit draft moved into the per-repo state along the way, so switching project tabs no longer swaps one repository's half-written message under another.</li>
+            <li><strong>The editor keeps its tree and tabs across views and project tabs.</strong> Switching to another section and back collapsed every folder in the file tree and re-read every open tab from disk — dropping unsaved edits — because the panel remembered which project it had loaded in a variable that died with it. The editor store now owns that, with a per-project session cache: a remount for the same project is a no-op, a different project swaps its parked tree, expanded folders and tabs back in, corrects the listings and clean buffers against the disk without blanking anything, and leaves dirty buffers exactly as they were. A file opened &quot;in editor&quot; from the Changes view before the panel has ever mounted is adopted by the project that loads next rather than filed under the previous one.</li>
+            <li><strong>Reveal the active file in the tree.</strong> New editor preference, on by default: when the active tab changes, the tree expands the file's ancestors — listing the ones it had not visited yet — and scrolls the row into view. Off while the tree filter is active, since the flat result list has nothing to expand.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title fixed">Corregido</h3>
+          <ul class="release-list">
+            <li><strong>A merged branch's lane no longer runs to the bottom of the graph.</strong> When two lanes were both waiting for the same parent commit, the one that did not get to draw it was never released: its segment stayed open and painted a vertical line with no commits on it down to the last row, or until the lane cap forced a reclaim. Under every merged branch. The lane now closes at the row above the parent and is free for reuse, and cached layouts are rebuilt once.</li>
+            <li><strong>Merge curves and the lines they hand off to agree on where they meet.</strong> Three artefacts from one disagreement. The segment starting under a merge was clipped with an arrival point computed one way while the curve was drawn another, leaving a stub on the parent's lane that nothing connected to. A merge pulling a parent into a fresh lane now bends at the top, into that lane, in that lane's colour and group — it used to bend at the bottom in the child's colour and change hue where the segment took over, and hovering or dimming the branch left its first bend at full strength — while a branch rejoining an existing line bends at the bottom, and its segment stops where the curve begins to bend instead of poking out below it as a spike. Which curve opened a lane is now decided by the layout, not guessed by the renderer from &quot;a segment starts here&quot;: a merge whose two parents landed on the same lane matched that guess twice, and the first-parent edge was painted over the other lane's line, leaving the merge's own line — <code class="mono">master</code>'s, in the report — ending in mid-air.</li>
+            <li><strong>Ref badges are the same colour in the graph and in the commit detail, and the theme's ref colours are honoured.</strong> Badges were coloured by a hash of the ref name — the canvas over the lane palette, the detail pane over five accent tokens with a different modulus — so one branch had two colours, and a branch could share its colour with an unrelated lane. The theme's <code class="mono">ref_branch</code> / <code class="mono">ref_remote</code> / <code class="mono">ref_tag</code> fields were loaded and never read. Both now colour by kind: local branch, remote, tag, HEAD, from the theme, which also publishes them as <code class="mono">--graph-ref-*</code> tokens for DOM badges. A badge whose theme colour was <code class="mono">rgb()</code> or short hex also stopped vanishing on the canvas: its alpha was produced by appending two hex digits to the string.</li>
+            <li><strong>The editor's file tree follows symlinks.</strong> A symlinked directory or file was skipped outright. It now lists as what it points at — a linked directory expands to the target's children — and only dangling links are dropped. The tree filter's walk does not descend into linked directories, so a link back up the tree cannot send it in circles.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title changed">Cambiado</h3>
+          <ul class="release-list">
+            <li><strong>The AI actions send their prompt over stdin, and say less.</strong> The five specialised actions — commit message, review, and the rest — handed Claude Code their whole prompt as a single command-line argument, staged diff included, which the provider crate itself documented as truncating past the platform's argv limit; a large diff came back reviewed in part. Providers that read stdin now get the prompt piped. The prompts themselves lost the pressure language written for older models (&quot;Output ONLY&quot;, &quot;Be thorough&quot;) and the review prompts state the output shape, since the reply is saved as a Markdown file. Codex and OpenCode keep the argument form.</li>
+            <li><strong>Typing in the editor is lighter, and the completion popup opens sooner.</strong> Every keystroke wrote the buffer into the tab store from inside CodeMirror's update listener, before the character painted, re-rendering the tab strip and toolbar per key and rebuilding the whole extension array because a derived value watched the tab object rather than its path. The store now catches up 100 ms after the last keystroke, or immediately before anything reads the buffer (save, tab switch, close); the extensions rebuild only when the file changes. The autocomplete popup's typing delay drops from 100 ms to 30 ms.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">26.8.0</span>
+            <span class="release-date mono">2026-08-28</span>
+          </div>
+          <p class="release-title">Themes you can read, three data-loss fixes, and an updater that finishes</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title added">Añadido</h3>
+          <ul class="release-list">
+            <li><strong>11 new themes, and every bundled theme now passes a contrast audit.</strong> Rosé Pine (Moon / Dawn), Everforest (Dark / Light), Kanagawa, Ayu (Dark / Mirage / Light), Material, Zenburn and Oxocarbon take the built-ins from 20 to 31. They arrived with a WCAG contrast check that the theme derivation had always claimed to run and never did — measuring the existing themes found 25 tokens below the readable floor across 13 of the 20, and the worst of them were not merely quiet but unreadable: gruvbox-dark at 1.67:1, nord at 1.69:1, one-dark at 1.90:1. All three text rungs now clear 4.5:1 on every bundled theme, pinned by a test. A theme you wrote yourself is reported, never rewritten: the picker lists which tokens fall short and by how much, and applies your theme regardless.</li>
+            <li><strong>Collapse a hunk, expand the whole file, open it in the editor.</strong> The Changes view had no collapsed state at all, so a file with a dozen hunks was a dozen hunks of scrolling to reach the one you cared about — each hunk header now has a chevron, and the toolbar a collapse-all that flips to expand-all. Seeing the rest of the file needed the backend: libgit2 keeps three lines of context around each change and nothing had ever asked it for more, so the surrounding code simply was not in the payload. The toolbar's expand control re-fetches the file as one hunk, and the context survives a background refresh. Each row also gets a pencil that opens it in the editor, and <code class="mono">Mod+E</code> opens whatever the diff pane is holding.</li>
+            <li><strong>Log level is now a setting, and the log has something in it.</strong> The log file had one line in it: 165 <code class="mono">#[instrument]</code> attributes created spans that the formatter was never told to print, and the level was fixed at startup with no way to change it. Settings → Advanced now switches between error, info and debug live, persisted across restarts, and the events that make a bug report answerable are there — project open/close/switch, watcher start, mutation fan-out, task start/finish with exit code, and every IPC failure from a single chokepoint. Prose, URLs that can carry a credential, and shell input stay out of the file by construction.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title fixed">Corregido</h3>
+          <ul class="release-list">
+            <li><strong>Per-line staging staged the lines you picked, not the ones at those indices.</strong> A line selection is positional — hunk 2, lines 5–7 of what the pane rendered — and the backend threw that diff away and re-derived its own at libgit2's fixed three lines of context. The two agreed right up until &quot;show whole file&quot; let the pane ask for the file as one hunk; from then on the same indices named different lines on each side. Tick a line, press Stage, get a success toast, and a different line was staged. Discard destroyed the wrong lines, or failed with a corrupt-patch error, depending on the shape. Two clicks from the Changes view, and it survived navigation. All three staging paths now re-derive the diff at the context the selection was built against.</li>
+            <li><strong>Discarding or unstaging a single line works again.</strong> Both failed every time: <code class="mono">git apply</code> rejected the patch, the target was left untouched, and you got an error toast. The rule for what to do with a <em>non-selected</em> changed line was written for a forward patch, and these two paths apply with <code class="mono">--reverse</code>, where the polarity is the other way round — so the patch described a state the file was not in. Safe, but the action was unusable.</li>
+            <li><strong>Installing an update dead-ended on macOS and Windows.</strong> The install flow set a re-auth notice and returned early, and the dialog meant to carry that notice was never mounted by any route — so the toast disappeared and nothing was ever installed. Linux was the only platform where updating worked. The gate is gone: the download starts immediately, and the unsigned-build notice moved into the surfaces you see <em>before</em> installing, since the Windows installer kills the app mid-install and nothing shown after the download would ever be read.</li>
+            <li><strong>Discarding an untracked symlink no longer deletes what it points at.</strong> Discarding resolved the path before deciding what to remove, and resolving a symlink follows it — so discarding a link that pointed at a tracked directory ran a recursive delete on that directory, wiping committed files, while the link itself stayed put and the app reported success. A link pointing outside the repository took the opposite path: the containment check skipped it, so nothing was deleted and you were told it had been. Discard now classifies the entry without following it, so a symlink is removed as a link whatever it points at, and a delete that is attempted and fails comes back as an error naming the paths still on disk instead of reporting a clean working tree.</li>
+            <li><strong>An interactive rebase left open while HEAD moves no longer drops the new commits.</strong> The rebase plan is a snapshot taken when the editor opens, and nothing rechecked it before running. <code class="mono">git rebase -i</code> applies exactly the todo list it is given and silently discards every commit missing from it, so if anything moved HEAD while the dialog was open — a commit from a terminal, a pull, an AI background run — submitting the plan erased those commits from the branch. The plan is now re-checked against the current range and refused if it no longer covers it, with a message telling you to reopen the editor. Marking a commit <code class="mono">drop</code> is unaffected. Planning a rebase over more than 1,000 commits is now refused up front rather than truncated, for the same reason: a shortened list would be a shortened todo file.</li>
+            <li><strong>Background work now shows up in the tasks popover — and a failed tag push finally says so.</strong> Eight operations that already ran as background tasks never appeared anywhere: pushing a tag, pushing all tags, updating a submodule (and updating all of them), checking out a merge request or pull request, publishing a tag + release, uploading a release asset, and an automated bisect run. They spawned as untyped tasks, which the drawer deliberately filters out, so there was no row and no spinner on the status-bar icon. Worst of them was the tag push, which was silent twice over: it also never surfaced a failure, so a push rejected for lack of permission, an existing remote tag, or no network produced nothing at all, anywhere. All eight now produce a cancellable row, and a rejected tag push shows an error toast.</li>
+            <li><strong>Bisect now works inside a linked worktree or a submodule, and external commits there refresh the view.</strong> Both assumed <code class="mono">.git</code> is a directory. In a linked worktree it is a file pointing elsewhere, so the bisect state file was looked for at a path that never exists and the bisect UI simply never appeared with a session running. The filesystem watcher had the same blind spot from the other side: a worktree keeps its HEAD and index in one out-of-tree directory and its refs in another, and a commit touches neither the working tree nor anything the watcher was looking at — so committing from a terminal in a worktree refreshed nothing. Both now resolve the real git directory, and the watcher watches it.</li>
+            <li><strong>A CI pipeline with more than 100 jobs now shows all of them.</strong> The job list for a workflow run (GitHub) or pipeline (GitLab) asked for one page of 100 and never looked further, so a wide build matrix showed the first hundred jobs and said nothing about the rest. Both now follow pagination to the end, and log it if they ever stop at the safety bound.</li>
+            <li><strong>A GitLab issue whose comments can't be loaded no longer looks like an issue with no comments.</strong> The detail pane derived the comment count from the notes it fetched and fell back to an empty list when that fetch failed — a token without the right scope is the usual cause — which replaced the real count with zero. The issue list beside it still showed the true count, so the two disagreed: &quot;5 comments&quot; in the list, no comments section at all in the detail. The count now survives a failed fetch, and the pane says the comments could not be loaded instead of hiding the section.</li>
+            <li><strong>The editor's file tree lists every folder, and stops going stale.</strong> &quot;I can't open the <code class="mono">main</code> folder, it isn't listed.&quot; The tree asked for the entire working directory capped at 10,000 entries, and the cap was applied to a depth-first walk that stopped dead wherever it happened to be — so it kept whatever the walk reached first and dropped the rest, directories included, and the folders that did survive arrived without their children and expanded to nothing. There is no tree walk left to budget: the tree now lists one level at a time and fetches a folder's children when you first open it. A refresh also drops its cached listings, closing the gap where a file created inside a collapsed folder was invisible until you switched projects, and a rename left the tree offering the old name.</li>
+            <li><strong>Every theme's editor colours now actually reach the app.</strong> The 15 <code class="mono">[editor]</code> tokens of all 20 bundled themes were inert: the Rust struct serialized them as <code class="mono">added-bg</code> / <code class="mono">syntax-keyword</code> / <code class="mono">gutter-fg</code> while the frontend read <code class="mono">added_bg</code> / <code class="mono">syntax_keyword</code> / <code class="mono">gutter_fg</code>, so every read came back undefined. The two diff-background tokens are the only ones with no derived fallback, which is why a light theme painted its added and removed rows in the dark defaults — the exact pixels in the reported screenshot. From the same pass: the scrollbar thumb and spinner track were hardcoded white at 15% opacity, which in every light theme is a white thumb on a white page.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title changed">Cambiado</h3>
+          <ul class="release-list">
+            <li><strong>Cloning a repository and adding a submodule no longer freeze the window, and can be cancelled.</strong> Both ran the clone inline on the UI thread, so the app was unresponsive for as long as the remote took, with no progress and no way to stop it — the dialog's own spinner couldn't even paint, because the thread that would paint it was the blocked one. Both now run as background tasks with a cancellable row in the tasks popover, and the clone opens its new tab when the task lands. Cancelling a clone leaves the partial checkout in place; retrying reports that the folder already exists rather than deleting anything for you.</li>
+            <li><strong>Assorted performance work.</strong> Two of the bigger ones, if you hit them: the Changes list and the commit-detail file list now render only the rows in view above 500 files, so a working tree with tens of thousands of untracked files (an unignored <code class="mono">node_modules</code>, say) no longer mounts a DOM node per file; and the working-tree file search — which runs on every keystroke in the file-editor search — moved off the UI thread along with four other measured-expensive commands, so typing no longer costs a frame per character. The rest were smaller and are not worth listing individually.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">26.7.1</span>
+            <span class="release-date mono">2026-07-03</span>
+          </div>
+          <p class="release-title">Off the UI thread, per-tab state isolation, and broader error codes</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title changed">Cambiado</h3>
+          <ul class="release-list">
+            <li><strong>Opening diffs and refreshing the Changes view no longer compete with the UI thread.</strong> The diff and file-content read commands — the working-tree and staged diffs (whole-tree and per-file), the cheap per-file change stats that back the Changes list, and reading a file's contents from a commit, the working tree, or the index — ran their <code class="mono">git2</code> work synchronously on the webview's main thread. On a large repo, opening a big diff or letting the Changes list refresh could stutter or briefly freeze the window. They now run on a background thread (<code class="mono">spawn_blocking</code>), keeping the UI responsive; results are unchanged. (<code class="mono">get_diff_workdir</code>/<code class="mono">get_diff_index</code>/<code class="mono">get_diff_file</code>, <code class="mono">get_diff_stats_workdir</code>/<code class="mono">get_diff_stats_index</code>, <code class="mono">get_file_at_commit</code>/<code class="mono">get_file_workdir</code>/<code class="mono">get_file_index</code>.)</li>
+            <li><strong>More git actions now fail with a stable error code instead of raw text, and the &quot;not a git repository&quot; code is unified.</strong> The typed <code class="mono">{ code, message }</code> error envelope — which lets the app react to <em>why</em> a command failed rather than parsing its message — now covers the common working-tree mutations: branch delete (single and batch), checkout, the stash family (push/pop/apply/apply-file/drop), merge, rebase, revert, cherry-pick, reset, branch rename, and tag create/delete. Three situations you act on differently now carry their own code and get a clearer toast: switching branches with uncommitted edits that would be overwritten (&quot;Checkout would overwrite uncommitted changes — commit or stash first&quot;), a safe delete of a branch that still has unmerged commits (&quot;Branch has unmerged commits — delete with force to discard them&quot;), and renaming a branch onto a name that's already taken (&quot;A branch with that name already exists — choose a different name&quot;). Opening a non-repository also reports one consistent code everywhere: <code class="mono">open_project</code> already used <code class="mono">not_a_repo</code>, but <code class="mono">open_repo</code> emitted a different <code class="mono">repo_not_found</code> for the identical situation and the frontend only recognised one of them, so that path fell back to raw text — both now use <code class="mono">not_a_repo</code> (the old code is still accepted as an alias). No behaviour changes for successful commands; only how failures are labelled.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title fixed">Corregido</h3>
+          <ul class="release-list">
+            <li><strong>The commit graph no longer jumps back to the top when a background change lands or when you switch tabs.</strong> The graph reset its scroll to the very first row whenever the active repo's info was re-fetched — which happens on <em>every</em> background mutation (a commit, fetch, or checkout picked up by the watcher) and on every tab switch — so scrolling deep into history and then having anything refresh (or flipping to another tab and back) yanked you straight back to the newest commit, undoing the per-repo scroll position the graph now keeps. The reset now fires only when you actually switch to a different repository that has no cached view yet: a background refresh keeps your exact scroll position (reconciling if new commits landed above), and returning to a tab restores the offset and selection you left it at.</li>
+            <li><strong>Checking out a commit (detached HEAD) over uncommitted changes now warns you instead of failing with a raw error.</strong> Switching <em>branches</em> over a dirty tree already surfaced the actionable &quot;Checkout would overwrite uncommitted changes — commit or stash first&quot; toast, but checking out a specific commit shared none of that: it returned a generic <code class="mono">git</code> error code, so the UI couldn't tell you to commit or stash first. Detached checkout now maps the same libgit2 conflict to the <code class="mono">would_lose_changes</code> code, so both paths give you the same clear prompt.</li>
+            <li><strong>The commit graph no longer forgets your selected commit when you switch repo tabs — and switching back is instant.</strong> The graph's viewport, scroll offset, and selected commit lived in module-level stores shared by every open repo tab, kept in sync only by a hand-rolled per-path cache that was cleared on every switch. So opening another repo wiped the first repo's graph selection (its commit detail panel emptied), and coming back re-fetched and re-laid-out the graph from scratch. This state now lives per-repo in the RepoState container, so each tab keeps its own graph view and commit selection: switching tabs is a pointer swap — the cached graph paints immediately with no spinner or rebuild, and the commit you had selected is still selected. A commit-detail load that resolves after you've already switched tabs now lands in the repo it was started for instead of the tab you're looking at.</li>
+            <li><strong>The Compare view no longer shows one repo's comparison in another repo's tab.</strong> Starting a compare (or opening a per-file diff in it) in repo A and switching to repo B before the backend responded could paint A's merge-base, commit list, and changed files into B's Compare view — the stale-response guard was a module-level counter that nothing bumped on a tab switch, while the writes always landed in whatever repo was active when the response arrived. Each compare now captures the repo it was started for and writes its results back into that repo's own state, so a late response lands where it belongs and is invisible in the tab you switched to; the last-wins guard is now per-repo, so a newer compare in the same repo still cancels an older one. The same fix now covers the Compare view's &quot;Load more&quot; pagination: clicking it in repo A and switching to a repo B that happened to have the same base/compare refs could append A's next page of commits into B's list — it now appends into the repo it was started for.</li>
+            <li><strong>The Requests panel no longer leaks its selection across repository tabs — and can't Send or Save against the wrong repo.</strong> The selected <code class="mono">.http</code> file, its parsed request, the active environment, the run state, and the last response were held in module-level stores shared by every open repo tab. Because the panel doesn't remount on a tab switch, selecting a project-local request in repo A and then switching to repo B left A's file path selected while the Send/Save buttons used B's project path — so hitting Send wrote or executed the file in the <em>wrong</em> repository, and only a 10-second background poll eventually cleared it (and it missed same-named files entirely). This selection state now lives per-repo in the RepoState container, so switching tabs instantly shows that repo's own selection and every request is always sent and saved against the repo it belongs to.</li>
+            <li><strong>The MR/PR and Issues views now keep their state per repository tab.</strong> The pull-request and issue lists, their filter tabs, the selected item and its detail, the open per-file PR diff, and the label/milestone picker caches lived in module-level stores shared by every open repo tab — so opening repo B wiped repo A's list and selection, and switching back re-fetched everything from scratch (and a slow list or detail load that resolved after a tab switch could paint one repo's pull requests into another repo's view). Each of these now lives per-repo in the RepoState container: switching tabs is a pointer swap that instantly restores that repo's own MR/PR and Issues view, and a list, detail, or PR file-diff load that resolves after you've switched tabs lands in the repo it was started for instead of the tab you're looking at.</li>
+            <li><strong>Each tab's at-a-glance status badges are now backed by that repo's own state, closing the last cross-repo cache.</strong> The compact status pills on inactive tabs (↑ ahead, ↓ behind, ! modified, + staged, ? untracked, ⚑ stashes) and the cached commit-graph viewport that lets a tab repaint instantly on switch were read from a single app-wide <code class="mono">Map&lt;projectPath, ProjectSnapshot&gt;</code> — the exact &quot;wrote active-repo data under an inactive repo's key&quot; hazard that this cache had already been bitten by twice. That in-memory cache now lives per-repo in the RepoState container, reached only by a repo's own path, so a tab's badges and instant-paint graph can never be sourced from another repo's data. This completes the per-repo state migration (spec 08): with the graph, branches, changes, compare, requests, MR/PR, and Issues views already moved, no feature store keeps its own private per-path cache for tab survival anymore. (The unified tasks popover and AI background-runs list stay intentionally app-global — they aggregate work across every repo and carry no per-repo routing key.)</li>
+            <li><strong>Staging, checkout, and branch cleanup/delete no longer freeze the window.</strong> These commands ran their real work — index writes, <code class="mono">git add -A</code> working-tree walks, patch application, checkouts that rewrite the working tree, and the <code class="mono">git branch -d/-D</code> subprocess spawns (including the batch delete, which forks one process per branch) — synchronously on the webview's main thread, so staging a large change, switching branches on a big repo, or bulk-deleting dozens of branches would lock the UI until they finished. They now run on a background thread (<code class="mono">spawn_blocking</code>), keeping the window responsive; the mutation-driven refresh is unchanged. Same fix for opening the &quot;Clean up branches…&quot; dialog, whose candidate list is an uncached O(branches × divergence) graph walk that used to block the thread every time it opened. (<code class="mono">stage_files</code>/<code class="mono">unstage_files</code>/<code class="mono">stage_all</code>/<code class="mono">unstage_all</code>/<code class="mono">stage_hunks</code>/<code class="mono">unstage_hunks</code>/<code class="mono">discard_files</code>/<code class="mono">discard_hunks</code>, <code class="mono">checkout_branch</code>/<code class="mono">checkout_detached</code>, <code class="mono">delete_branch</code>/<code class="mono">delete_branches</code>, <code class="mono">list_branch_cleanup_candidates</code>.)</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">26.7.0</span>
+            <span class="release-date mono">2026-07-02</span>
+          </div>
+          <p class="release-title">Instant on huge repos, commit signing, a compare view, and branch cleanup</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title added">Añadido</h3>
+          <ul class="release-list">
+            <li><strong>Push and Pull buttons show what's out of sync.</strong> The top-bar Push and Pull buttons now carry a small count badge (↑N on Push, ↓N on Pull) in the corner and pick up the accent tint whenever the current branch is ahead of / behind its upstream — so you can see at a glance that there's something to push or pull without opening the status bar. Counts come from the same branch-vs-upstream data the status bar already tracks (refreshed through the mutation pipeline, no polling), the badge caps at &quot;99+&quot;, and it's an absolutely-positioned overlay so the buttons never resize or shift. When there's no upstream, HEAD is detached, or you're in sync, the badge and tint stay off. The tooltip spells the count out (&quot;Push — 3 commits ahead&quot;).</li>
+            <li><strong>Commit signing (SSH/GPG/X.509) is now honored and surfaced.</strong> If your git config has <code class="mono">commit.gpgsign=true</code>, commits created in BeardGit are now signed — creation routes through the git CLI (which drives your ssh/gpg/x509 backend and agent natively) instead of the libgit2 path that silently produced unsigned commits, so signature-enforcing branch protection no longer rejects your pushes. Amend, merge, revert, cherry-pick, and interactive-rebase squash/reword already went through the CLI and so sign automatically under the same config; AI-agent commits are made by the agent's own <code class="mono">git</code>, so they sign too. Signing runs non-interactively (<code class="mono">GIT_TERMINAL_PROMPT=0</code>) so a locked key fails fast with the real gpg/ssh error rather than hanging — agent-based setups (ssh-agent / gpg-agent) are the supported mode. When signing is not configured, nothing changes (the byte-identical libgit2 path is kept). The commit box shows a subtle &quot;Will be signed (SSH/GPG)&quot; chip, Git settings gains a <strong>Commit signing</strong> section with a <strong>Test signing</strong> button that signs a throwaway commit with your real config and reports success or the exact stderr, and the commit-detail pane shows a signature chip (present → lazily verified via <code class="mono">git verify-commit</code> on the open commit, cached per commit). Annotated tags are signed when <code class="mono">tag.gpgSign</code> is set (honored via config). Signature <em>verification</em> renders git's verdict only; no trust-store management.</li>
+            <li><strong>Branch cleanup: <code class="mono">[gone]</code> detection + bulk delete.</strong> Local branches whose upstream was deleted on the remote (and pruned) now show a red <code class="mono">[gone]</code> chip in the branches list, alongside the ahead/behind pips. A new &quot;Clean up branches…&quot; action in the branches-view header opens a dialog with two grouped sections — <strong>Gone</strong> (pre-checked) and <strong>Merged into <code class="mono">&lt;default&gt;</code></strong> (unchecked, since squash-merge workflows make &quot;merged&quot; incomplete) — each row showing the last-commit date and how many commits it holds beyond the target. Selecting and confirming deletes the whole batch in one command (one refresh, not N), with per-branch failures reported rather than aborting the run. Gone branches that aren't fully merged surface a &quot;not fully merged&quot; warning and require an explicit force acknowledgment before they can be deleted; everything else uses the safe <code class="mono">git branch -d</code>. Deleted branches remain recoverable from the Reflog view. Current, default, and worktree-checked-out branches are never listed as candidates.</li>
+            <li><strong>Compare any ref against any ref.</strong> A new Compare view answers &quot;what does my branch add over <code class="mono">main</code>?&quot; without leaving the app: pick a base and a compare ref (branch, tag, or SHA, with autocomplete), and see the commits the compare side adds (with an ahead/behind summary), the changed-file list, and a per-file diff — the same diff pane, binary/too-large handling, and status badges used elsewhere. Two range modes: <strong>3-dot</strong> (<code class="mono">merge-base(A,B)..B</code> — &quot;what B adds&quot;, PR semantics; the default) and <strong>2-dot</strong> (direct <code class="mono">A..B</code> tree comparison), plus a swap button. The commit list windows with a &quot;Load more&quot; so a huge divergence doesn't flood the UI. It opens contextually — from the graph node menu (&quot;Compare with HEAD…&quot;, &quot;Compare with…&quot;), the branches list menu (&quot;Compare with current branch&quot;), or the command palette (&quot;Compare refs…&quot;) — and deliberately adds no sidebar item. All read-only.</li>
+            <li><strong>Reorder tabs by dragging.</strong> Drag any tab to a new spot in the tab strip: the neighbouring tabs slide aside to open a gap and the dragged tab eases into place on drop. A composite tab (a repo plus its linked terminals/worktrees) moves as one whole pill — the sections inside it keep their order. The new order is persisted across restarts. (Implemented with pointer dragging rather than HTML5 drag-and-drop, which drops silently in the desktop webview.)</li>
+            <li><strong>Keyboard navigation and range selection in the Changes lists.</strong> Arrow keys move a focus cursor within a list, Space toggles the focused file's checkbox, and Shift+Arrow or Shift+click select a range of files. Focus and ranges stay within a single list (Staged / Unstaged).</li>
+            <li><strong>Stash selected files from the right-click menu.</strong> Right-click in Changes → <strong>Stash Selected (N)</strong> stashes just the checked files (or the file under the cursor), untracked files included, leaving the rest of the working tree untouched.</li>
+            <li><strong>Batch actions on a multi-file selection in the Changes right-click menu.</strong> When two or more files are checked and you right-click one of them, the context menu grows a dedicated section that applies the git action to the whole selection at once: <strong>Stage Selected (N)</strong> / <strong>Discard Selected (N)</strong> on the Unstaged list, <strong>Unstage Selected (N)</strong> on the Staged list, plus <strong>Stash Selected (N)</strong> and <strong>Copy Paths (N)</strong> on both. Discarding confirms once for the whole batch (&quot;Discard changes in N files?&quot;) and runs as a single operation (one refresh, tracked files reset and untracked files deleted together) instead of file-by-file. The single-file actions are unchanged when nothing is multi-selected.</li>
+            <li><strong>CI now runs the frontend test suite and the Rust tests on all three platforms.</strong> A dedicated <code class="mono">frontend-tests</code> job runs Vitest on every push/PR (a broken frontend test now fails CI), and the Rust <code class="mono">cargo test</code> job runs on a Linux + Windows + macOS matrix for pushes to <code class="mono">beta</code>/<code class="mono">main</code> (Linux-only for <code class="mono">feature/**</code> pushes and PRs, keeping iteration cheap). <code class="mono">fmt</code>/<code class="mono">clippy</code>/the trait-purity guard stay Linux-only.</li>
+            <li><strong>Weekly performance benchmarks (<code class="mono">perf.yml</code>).</strong> A scheduled (and manually dispatchable) workflow runs Criterion benchmarks for commit-walk (<code class="mono">git-engine</code>) and graph layout/viewport (<code class="mono">graph-builder</code>) over a generated synthetic repository — no external fixture required — and uploads the results as an artifact for trend tracking.</li>
+            <li><strong>The IPC contract between the Rust backend and the frontend is now enforced.</strong> An ESLint rule forbids importing <code class="mono">invoke</code> (<code class="mono">@tauri-apps/api/core</code>) anywhere outside <code class="mono">src/lib/api/</code>, so every backend call must go through a typed wrapper; and a new CI step (<code class="mono">scripts/check-ipc-contract.mjs</code>) fails the build if a Rust <code class="mono">#[tauri::command]</code> has no <code class="mono">tauri.ts</code> wrapper (or a wrapper points at a command that no longer exists). This closes the &quot;silently drifted&quot; gap that let the whole Requests feature bypass the contract.</li>
+            <li><strong>Structured error codes across the IPC boundary.</strong> New/high-value commands (<code class="mono">clone_repo</code>, <code class="mono">open_project</code>, <code class="mono">open_repo</code>, <code class="mono">push</code>/<code class="mono">pull</code>/<code class="mono">fetch</code>) now reject with a typed <code class="mono">{ code, message }</code> envelope instead of a bare string, so the frontend can branch on a stable code (<code class="mono">not_a_repo</code>, <code class="mono">auth_required</code>, <code class="mono">not_fast_forward</code>, <code class="mono">destination_exists</code>, …) rather than parsing error text. <code class="mono">errors.ts</code> parses both the new and legacy string shapes.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title changed">Cambiado</h3>
+          <ul class="release-list">
+            <li><strong>Internal: backend crate decomposition (dev-facing, no behaviour change).</strong> <code class="mono">app-core</code> shed three chunks of business logic to the library crates where they belong, keeping only thin <code class="mono">#[tauri::command]</code> glue; the IPC contract, command names, and payloads are unchanged throughout. (1) The remote-repository-settings logic (GitHub/GitLab <code class="mono">gh</code>/<code class="mono">glab</code> calls, JSON parsing, config diffing) moved behind a <code class="mono">ForgeRepoConfig</code> seam in <code class="mono">cli-provider</code>, with the shared data types (<code class="mono">Visibility</code>, <code class="mono">RemoteRepoConfig</code>, <code class="mono">RemoteRepoConfigPatch</code>, <code class="mono">BranchProtection</code>, <code class="mono">diff_config</code>) now living in the dependency-light <code class="mono">forge-provider</code> contract crate; <code class="mono">commands/repo_config.rs</code> shrank from 3,627 lines to ~310, and its ~55 forge-config tests now run under <code class="mono">cargo test -p cli-provider</code> without Tauri. (2) The AI background-run coordinator (queue, concurrency cap, worktree lifecycle, <code class="mono">pending_finishes</code>/<code class="mono">apply_task_finish</code> race handling, session registry) moved to a new tauri-free <code class="mono">ai-runner</code> crate, so its 19 tests run without Tauri; <code class="mono">app-core</code> keeps the Tauri event-sink bridge and command glue. (3) The structurally-identical worktree-discovery/cleanup, version parsing, and commit-attribution helpers duplicated between the <code class="mono">codex</code> and <code class="mono">opencode</code> provider crates collapsed into a new <code class="mono">ai-provider-common</code> crate parameterized by a <code class="mono">ProviderSpec</code>, so a fix lands once instead of twice (a worktree-cleanup bug previously had to be fixed in both); <code class="mono">claude-code</code> keeps its genuinely-different git-porcelain worktrees and richer attribution, sharing only the identical version-token scanner. Storage hardening from the same audit: the per-project snapshot cache key switched from <code class="mono">DefaultHasher</code> (unstable across Rust releases) to a stable SHA-256, and the SQLite commit cache gained a schema-version tag so an encoding change invalidates stale rows instead of misreading them.</li>
+            <li><strong>Committing on a huge repo is now instant — the whole graph no longer re-lays-out on every change.</strong> A plain commit, amend, checkout, or fast-forward moves one branch forward by a commit or two, yet every such action (plus every commit the filesystem watcher notices) used to re-walk up to 20,000 commits and rebuild the entire lane layout from scratch. That work is now incremental: when exactly one branch advanced on top of the current graph tip, the new rows are spliced onto the cached layout in place (O(new commits)) instead of rebuilding it. Anything that isn't a simple advance — merges, rebases, force-pushes, resets — still does a correct full rebuild, and the fast path is cross-checked against a full rebuild in debug builds so it can never drift.</li>
+            <li><strong>Opening a repository and switching tabs are faster.</strong> The graph layout cache used to walk up to 20,000 commits just to compute its cache key — on <em>every</em> open, even a cache hit. The key now derives from cheap O(refs) material (ref tips + HEAD + the HEAD tree + a <code class="mono">.git/shallow</code> marker), so a warm repo opens without that walk. Opening also no longer scans the working tree twice, and persisting the layout no longer clones the entire graph before writing it.</li>
+            <li><strong>Per-branch ahead/behind counts are cached.</strong> Listing branches recomputed the ahead/behind divergence for every tracking branch on every refresh; the counts are now cached per <code class="mono">(branch tip, upstream tip)</code> and recomputed only for branches whose tips actually moved.</li>
+            <li><strong>Scrolling deep into a huge history no longer slows down progressively.</strong> Two linear scans on the scroll path are gone. (1) Streaming the next page of commits used to re-walk the graph from the tips and throw away everything above the scroll position, so each page got slower the deeper you went; a single-branch (first-parent) view now continues the walk from the last loaded commit instead, so a page 80,000 commits down costs the same as the first page (measured ~0.85 ms vs ~120 ms at depth 4,000 on a synthetic repo). Full multi-branch views keep the exact previous results. (2) Drawing each viewport used to rescan every lane line and merge curve in the whole graph on every scroll step; a row-range index (rebuilt transparently from the cache, no on-disk format change) now returns only the lines and curves in the visible window, so the per-scroll cost stays flat as graphs grow into the tens of thousands of merges.</li>
+            <li><strong>Changes keeps your checkbox selection but clears the open file on exit.</strong> Leaving and re-entering Changes now preserves which files you had checked, while resetting the diff panel so you come back to a clean view instead of the last file you had open. Each open repository remembers its own selection.</li>
+            <li><strong>The Changes view no longer fetches every file's full diff on each refresh.</strong> A regenerated lockfile, a minified bundle, or any large/generated file in the working tree used to freeze the Changes view and balloon memory, because every save streamed the full hunks of every changed file over IPC. The file lists now render from cheap per-file stats (name/status + add/del counts, shown inline as +N/-N), and a file's hunks are fetched only when you open it — so mutation refreshes stay tiny and instant regardless of working-tree size. The currently open file re-fetches automatically after a mutation.</li>
+            <li><strong>Builds and installs no longer cause background CPU churn.</strong> The filesystem watcher now understands <code class="mono">.gitignore</code>: a <code class="mono">cargo build</code>, <code class="mono">npm install</code>, or bundler writing thousands of files under <code class="mono">target/</code> / <code class="mono">node_modules/</code> used to wake a full repo scan (refs + stashes + worktrees + status walk) every half-second for the duration of the build. Those ignored paths are now dropped from each batch before any scan runs — if a batch touches only ignored files, nothing happens at all. Live refresh is unchanged for everything that matters: editing a tracked file, adding a new (non-ignored) file, external commits/branch switches, and edits to <code class="mono">.gitignore</code> / <code class="mono">.git/info/exclude</code> itself all still refresh instantly, including files re-included by a negation rule (<code class="mono">!keep.me</code>) and files matched only by a nested <code class="mono">.gitignore</code>.</li>
+            <li><strong>The Requests panel now goes through the typed IPC layer and gains toasts.</strong> All 22 <code class="mono">requests_*</code> calls (previously raw, untyped <code class="mono">invoke()</code>s spread across 12 components) now run through typed wrappers in <code class="mono">tauri.ts</code>; mutating actions — create/save, rename, delete, duplicate, and environment save/delete/secret-set — route through <code class="mono">runMutation</code>, so they show the same success/failure toasts (with a &quot;See details&quot; affordance) as the rest of the app instead of failing silently. Behaviour is otherwise unchanged; the panel's own tree-refresh flow is preserved.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title fixed">Corregido</h3>
+          <ul class="release-list">
+            <li><strong>The &quot;Parent folder&quot; field in the New File / New Folder dialogs is now editable.</strong> It previously looked like a text field but was read-only, so you were stuck creating files under whatever folder the tree selection implied. You can now type a relative directory (e.g. <code class="mono">src/utils</code>), with autocomplete against the repo's existing folders, and leave it blank for the repo root. Typing a directory that doesn't exist yet creates the intermediate folders on the way. Input is validated inline — <code class="mono">..</code> segments, absolute paths, and illegal characters are rejected before submit — with the backend still enforcing the same rules. The Rename dialog is unchanged.</li>
+            <li><strong>Right-click menus opened near a window edge no longer get clipped.</strong> Context menus now measure themselves on open and flip/clamp to stay fully inside the window (with a small margin), so items near the right or bottom edge are always reachable — across every menu (graph, branches, changes, file tree, worktrees, submodules, requests, reflog, pipelines) and their submenus.</li>
+            <li><strong>Your Changes selection is no longer lost when you work in another repo tab.</strong> With several repositories open, checking files in one repo's Changes list, switching to another tab (or a background change landing in one), and switching back used to return an empty selection — the checkbox state was a single global store that got wiped on every tab switch. Per-repo view state (Changes selection, branch list, open staging diff, commit-message draft) now lives in one per-repository state container, so switching tabs is a pointer swap that restores exactly what each repo had. This is the first migration onto that container (branches + changes), which makes the whole &quot;state leaked across tabs&quot; class of bug structurally impossible for the migrated stores — a guarded two-repo isolation test locks the behaviour in. (Graph, MR/PR, issues, and the rest migrate in follow-up steps.)</li>
+            <li><strong>Oversized and binary diffs no longer freeze or bloat the app.</strong> Every diff/file-content path is now capped: a single file's diff stops collecting past 5 MB or 10,000 lines and is tagged truncated, binary files short-circuit before any line collection, and the workdir/index file-content endpoints enforce the same 5 MB + binary guard the commit path already had. The Changes and diff panes render a clear &quot;diff too large to display&quot; / &quot;binary file — no preview&quot; notice instead of hanging on a multi-megabyte payload. A whole-response budget (20 MB) further bounds the working-tree and staged diff list endpoints.</li>
+            <li><strong>The UI no longer freezes during bisect.</strong> Every bisect action (start, good/bad/skip, reset, state/log queries) shells out to git off the app's async runtime, so the window stays responsive — you can scroll the graph and use other commands while bisect works, even on large repos.</li>
+            <li><strong>Automated bisect is now cancellable.</strong> <code class="mono">git bisect run</code> executes as a managed background task that streams its output and can be stopped from the UI, so a slow or runaway test command no longer locks up the app until it finishes.</li>
+            <li><strong>An AI background run can no longer get stuck showing &quot;running&quot; forever.</strong> If the provider process finished in the instant before its task registration completed, the terminal event was silently dropped and the session never left the running state. The finish event is now buffered and applied as soon as the registration lands (mirroring the existing output-line buffering).</li>
+            <li><strong>CI reliability on Windows and fresh runners.</strong> The Rust test repos pin <code class="mono">core.autocrlf=false</code> so content assertions aren't broken by the runners' global CRLF conversion; the clone-pipeline test builds a well-formed <code class="mono">file:///</code> URL from Windows paths; and the Vitest CI job runs <code class="mono">svelte-kit sync</code> first so a fresh runner has the generated tsconfig. The Rust dependency audit ignores (with justification) two <code class="mono">quick-xml</code> advisories that have no upstream fix path yet — it fails again on anything new.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">26.6.3</span>
+            <span class="release-date mono">2026-06-30</span>
+          </div>
+          <p class="release-title">Fix phantom rebase toolbar</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title fixed">Corregido</h3>
+          <ul class="release-list">
+            <li><strong>A finished rebase showed a phantom Abort/Continue toolbar.</strong> After a rebase completed, git removes its <code class="mono">rebase-merge/</code> / <code class="mono">rebase-apply/</code> state directories but leaves the <code class="mono">.git/REBASE_HEAD</code> ref behind. Conflict detection treated that leftover ref as an in-progress rebase, so the toolbar appeared and clicking Abort/Continue ran <code class="mono">git rebase --abort/--continue</code>, which failed with &quot;fatal: no rebase in progress&quot;. Detection now keys only off the rebase state directories (what git itself uses), matching git's actual state. (Surfaced once interactive rebases started completing instead of hanging, in 26.6.2.)</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">26.6.2</span>
+            <span class="release-date mono">2026-06-30</span>
+          </div>
+          <p class="release-title">Rebase recovery, live change detection, and a Windows-safe version scheme</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title changed">Cambiado</h3>
+          <ul class="release-list">
+            <li><strong>Version scheme migrated to 2-digit-year CalVer (<code class="mono">YY.M.patch</code>, e.g. <code class="mono">26.6.2</code>)</strong> instead of 4-digit (<code class="mono">2026.6.x</code>). Windows installer version fields cap the major component at 255, so a <code class="mono">2026</code> major silently broke the Windows NSIS auto-updater: the new build downloaded but the install never &quot;took&quot;, leaving the client re-detecting and re-downloading in a loop (other platforms were unaffected). The release workflow now hard-fails any tag whose version is not strict semver with major ≤ 255, minor ≤ 255, patch ≤ 65535, so an un-updatable Windows artifact can never ship again, and it force-marks the published release as GitHub &quot;latest&quot; (GitHub resolves &quot;latest&quot; by semver, and this tag is numerically lower than the stranded <code class="mono">2026.6.x</code> tags). - <strong>One-time manual update required.</strong> Because no Windows-legal version can ever be numerically greater than <code class="mono">2026.x</code>, existing users on <strong>any</strong> prior build (<code class="mono">0.x</code> or <code class="mono">2026.6.x</code>) are asked to download <code class="mono">26.6.2</code> manually once. Auto-update resumes normally from <code class="mono">26.x</code> onward.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title fixed">Corregido</h3>
+          <ul class="release-list">
+            <li><strong>Interactive rebase could hang with no way to abort.</strong> A rebase plan containing <code class="mono">squash</code>, <code class="mono">fixup</code>, or <code class="mono">reword</code> made <code class="mono">git rebase -i</code> open the commit-message editor; with no controlling terminal it blocked forever, so the command never returned, no refresh event fired, and the Abort/Continue toolbar never appeared. The rebase now runs with a non-interactive <code class="mono">GIT_EDITOR</code>, so it always completes (or surfaces its conflict) and stays recoverable.</li>
+            <li><strong>Conflict state and submodules no longer refreshed in real time.</strong> After the filesystem watcher migrated to the <code class="mono">project-mutated</code> event, conflict status (which drives the Abort/Continue toolbar) and the submodule list were still wired only to the legacy <code class="mono">repo-changed</code> event and stopped updating live. Both are now driven by the mutation dispatcher, so an in-progress rebase/merge surfaces its toolbar immediately and submodules track external changes.</li>
+            <li><strong>Silent filesystem-watcher start failures are now logged.</strong> If a repo's watcher fails to start (e.g. an OS watch-descriptor limit on a large tree), real-time refresh was disabled for that repo with no diagnostic. The failure is now logged so &quot;changes don't appear live&quot; reports are traceable.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">2026.6.1</span>
+            <span class="release-date mono">2026-06-18</span>
+          </div>
+          <p class="release-title">Clearer hierarchy, a grouped sidebar, and a friendlier first run</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">More depth between panels</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Consistent, colour-coded file status</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">One consistent set of buttons</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">A clearer commit box</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">A grouped sidebar</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">A welcome screen that shows what BeardGit does</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Up-to-date dependencies</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">2026.6.0</span>
+            <span class="release-date mono">2026-06-13</span>
+          </div>
+          <p class="release-title">Design identity overhaul: own themes, merged title bar, coherent diffs</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">Own theme families — BeardGit (copper) is the new default</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Editors and diffs now follow the theme — 100%, by construction</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">The tab bar is the title bar now</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">A single design language for primitives and states</h3>
+          <ul class="release-list">
+            <li><strong>Checkbox &amp; Switch primitives</strong> — all 46 native checkboxes across 19 component files replaced: custom-drawn Checkbox for selection (staging lists, dialogs, pickers) and a role=&quot;switch&quot; toggle for boolean settings, both keeping a real hidden input so keyboard/AT semantics are untouched. Native controls also stopped rendering light-mode on dark themes (<code class="mono">color-scheme</code> was never set, now synced per theme). Markdown task-lists in issue/PR/release bodies re-skin to the same checkbox visual.</li>
+            <li><strong>Skeleton loaders</strong> — list panels and every detail pane's first load sketch their incoming content (shimmer rows / heading+paragraph bars) instead of a centered spinner; spinners remain for point operations only. The status-bar tasks slot swaps its &quot;sync&quot; glyph (which read as a refresh button) for a checklist icon at rest and a real spinner ring while work runs.</li>
+            <li><strong>EmptyState everywhere</strong> — every &quot;Select a X to view details&quot; italic one-liner became the shared icon + title block (with CTAs where they help, e.g. &quot;New Worktree&quot;), and elevation got a system: two shadow tokens replace 27 ad-hoc box-shadows, master list panes sit one surface step above detail panes.</li>
+            <li><strong>Typography</strong> — all 641 hardcoded font sizes now reference the <code class="mono">--font-size-*</code> scale, and the graph canvas uses deliberate type: ref badges, SHA and date columns in Fira Code, prose in the system sans.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Graph: first-parent view, branch scope, smoother curves, faster canvas</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Copper branding, end to end</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Interaction &amp; ergonomics</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixes along the way</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">0.2.1</span>
+            <span class="release-date mono">2026-06-10</span>
+          </div>
+          <p class="release-title">Staging diffs that stay fresh + sidebar reorder that works everywhere</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">Unstaged files show their diff again</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">The selected file is highlighted in the changes lists</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Sidebar (and rebase) reorder no longer relies on HTML5 drag &amp; drop</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">0.2.0</span>
+            <span class="release-date mono">2026-06-08</span>
+          </div>
+          <p class="release-title">Audit hardening pass + a resizable, selectable diff panel</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">The bottom diff panel is now resizable on both axes — and selectable</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Audit — correctness &amp; data-integrity</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Audit — security hardening</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Audit — robustness, resources &amp; UTF-8</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Dependencies</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">0.1.13</span>
+            <span class="release-date mono">2026-05-12</span>
+          </div>
+          <p class="release-title">Per-theme accents, command palette, security &amp; performance pass</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">Themes finally have an identity</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Command Palette (Cmd+Shift+P)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Six performance wins on the libgit2 hot path</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Nine security audit fixes</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">UX polish — ten quick wins + the bigger ergonomic plays</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Plumbing</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Visual regression suite</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">GitHub PR review comments — inline threads finally show up</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Post-merge polish</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Landing page redesign</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">0.1.12</span>
+            <span class="release-date mono">2026-05-05</span>
+          </div>
+          <p class="release-title">In-app mini editor + per-file discard</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">Editor — edit repo files without leaving BeardGit</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Discard unstaged changes per file</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Patches generated by BeardGit are now valid for users with a custom `diff.external`</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">0.1.11</span>
+            <span class="release-date mono">2026-05-05</span>
+          </div>
+          <p class="release-title">Requests panel + brand mark refresh</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">Requests panel — `.http` API testing inside the repo</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Brand mark refresh</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Tab + welcome polish</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Landing site</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">0.1.10</span>
+            <span class="release-date mono">2026-04-28</span>
+          </div>
+          <p class="release-title">AI tasks in the drawer + persisted reviews, landing &amp; community polish</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">AI code review surfaces in the tasks drawer + persists to disk</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Code review + Commit-message buttons gated on staged changes</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Tasks drawer polish</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Diff: show whitespace toggle</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Tauri Build workflow → manual-only</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">README — AI and Observability sections rewritten</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Landing page — SEO/social meta, AVIF screenshots, Keyboard + FAQ sections</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Community health — Code of Conduct, security policy, issue/PR templates</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Internal</h3>
+          <ul class="release-list">
+            <li><code class="mono">crates/cli-provider/src/auth.rs</code>: <code class="mono">mock_cli</code> switched from <code class="mono">fs::write</code> + <code class="mono">set_permissions</code> to <code class="mono">OpenOptions::new().mode(0o755)</code> + <code class="mono">sync_all</code> + <code class="mono">drop</code>, plus a <code class="mono">wait_for_exec_ready</code> probe loop that retries the script's exec on <code class="mono">ETXTBSY</code> for up to ~1.5 s before returning. Targets the intermittent <em>&quot;Text file busy&quot;</em> failure on the GitHub Actions ubuntu runners. (Still flaky on <code class="mono">main</code> — tracked separately.)</li>
+            <li><code class="mono">crates/terminal/src/manager.rs</code>: <code class="mono">Session::last_fg_process</code> and its constructor assignment are gated behind <code class="mono">#[cfg(unix)]</code> to match the <code class="mono">master_fd</code> field, silencing the dead-code warning Windows builds were emitting.</li>
+            <li><code class="mono">crates/git-engine/src/patch.rs</code>: removed an unused <code class="mono">create_review_patch</code> helper that briefly backed a HEAD-vs-worktree review patch (replaced by direct <code class="mono">createWorkingTreePatch(true)</code> from the FE; staged-only is the correct semantic for review).</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">0.1.9</span>
+            <span class="release-date mono">2026-04-27</span>
+          </div>
+          <p class="release-title">Init repo on folder open + consolidated post-0.1.8 work</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">Init repo on folder open</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Init repo — use existing remote URL + tooltips on every element</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Sidebar edit-menu fixes</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — drag-reorder of Navigation items did nothing</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Added — &quot;Show more…&quot; expander when items are hidden</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — customize-sidebar pencil button rendered a hover rectangle</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Post-IconButton polish</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — `gh pr view` regression on `headRepositoryUrl`</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — AI toolbar dropdown click-outside swallowed by xterm/CodeMirror</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — AI dropdown tooltip described only one of its two actions</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — `+` glyph and &quot;↗ Graph&quot; nav in the Branches view</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — primary / danger / ghost button system: tonal-rest, solid-hover</h3>
+          <ul class="release-list">
+            <li><strong><code class="mono">primary</code></strong>: translucent accent-blue tint at rest (<code class="mono">color-mix(accent-blue 18%, transparent)</code>) with accent-blue text → solid <code class="mono">var(--accent-blue)</code> with <code class="mono">text-primary</code> on hover.</li>
+            <li><strong><code class="mono">danger</code></strong>: same pattern in red. Solid red at rest read as alarming for buttons (Disconnect, Clear cache, Delete asset) that don't fire instantly.</li>
+            <li><strong><code class="mono">ghost</code></strong>: dropped the <code class="mono">background: var(--overlay-hover)</code> rectangle on hover; only the text colour brightens, matching the <code class="mono">IconButton</code> rule. The <code class="mono">AiSessionDetail</code> Resume / Focus buttons get the same pattern via local CSS overrides.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — &quot;Check for updates&quot; raw error + missing diagnostics</h3>
+          <ul class="release-list">
+            <li>The Tauri updater plugin returns implementation-detail strings (<code class="mono">&quot;could not fetch json&quot;</code>, <code class="mono">&quot;the network has temporary issue&quot;</code>, etc.) verbatim. The Settings → Advanced → Check for updates row now maps recognisable &quot;endpoint unreachable&quot; shapes to a localized hint (<code class="mono">update_server_unreachable</code>) and only shows the raw text for unexpected failures.</li>
+            <li>A new diagnostics block under the row exposes <code class="mono">Last checked: &lt;relative time&gt;</code>, <code class="mono">Endpoint: &lt;url&gt;</code> (the <code class="mono">latest.json</code> URL the plugin tries), and on error a monospace <code class="mono">Detail: &lt;raw&gt;</code> line. <code class="mono">UpdateState.lastCheckedAt</code> is set in the store on every terminal resolution. Useful for distinguishing &quot;endpoint 404'd&quot; from &quot;DNS hiccup&quot; without leaving the app. Note: the underlying 404 (<code class="mono">releases/latest/download/latest.json</code> is missing because every release is currently flagged <code class="mono">prerelease=true</code> and GitHub's <code class="mono">/releases/latest/</code> redirect skips prereleases) is a release-pipeline concern, not addressed here.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Icon-only buttons + brand logos</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Added — `IconButton` component + `Button.description` prop</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Changed — every icon-only button migrated, dead per-component CSS dropped</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Changed — official brand logos for Codex / OpenCode</h3>
+          <ul class="release-list">
+            <li><strong>Codex</strong> — OpenAI monoblossom mark, shipped in black + white variants. <code class="mono">ProviderIcon</code> picks the right one off <code class="mono">$activeTheme.meta.mode</code> so the logo stays legible on both dark and light themes.</li>
+            <li><strong>OpenCode</strong> — official two-tone wordmark, shipped in light + dark variants and switched the same way. <code class="mono">&lt;img&gt;</code> cannot resolve <code class="mono">currentColor</code> from the parent document, so a single asset per brand would either flatten the two-tone OpenCode mark or paint OpenAI's monoblossom in only one mode — hence the two-asset approach.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Repo settings multi-instance fixes</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — auth probe scoped to the repo's host</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fixed — `glab repo view` payload with both `topics` and `tag_list`</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Theme color audit groundwork</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Theme — six new `--overlay-accent-*` tokens</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Brand allowlist</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Playwright visual baseline</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Lint — color literals blocked</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">PR diff view</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">PR / MR diff view</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Data model</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Fix</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Branches UI feature-complete</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Branches — new-branch entry points + rename + force-push + shortcut</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Sidebar customization</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Sidebar — reorder and hide Navigation items</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">AI sessions list trim</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">AI sessions — one-line rows, detail-pane actions</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Toolbar — AI dropdown, plain terminal button</h3>
+          <ul class="release-list">
+            <li><code class="mono">refactor(toolbar): AI becomes a dropdown, terminal becomes a plain button</code>. The toolbar's terminal split-button is now a single button (its old dropdown only surfaced the project-root fallback that the button itself already does). The &quot;AI&quot; / &quot;IA&quot; button is now an always-dropdown listing every installed AI CLI provider plus a &quot;Launch session in background…&quot; entry, which is where the per-provider launchers used to live under the terminal chevron. Escape / outside-click close the menu; aria-haspopup / aria-expanded / role=menu land for screen-reader parity.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Pipelines + Issues lists v2 (was drafted as 0.1.11-beta)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Wider list pane, shared row primitive, richer meta</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Repo settings in the sidebar (was drafted as 0.1.10-beta)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Repo settings — sidebar view replaces the modal</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Auto-update, viewport-windowed graph, lean statusbar, landing page, quick wins, reactivity foundation, AI sessions UX, forge data fixes, settings IA polish, log rename, E2E retirement, AI sessions transcript-first rewrite (originally drafted as the first 0.1.9 cut)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">In-app auto-update</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Graph — viewport-windowed commit walking (MT-1)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Lean statusbar + unified tasks drawer</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Persistent graph layout cache</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Repo config — configure remote repo via gh/glab CLI</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">AI — Codex + OpenCode provider parity</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Landing page (docs/)</h3>
+          <ul class="release-list">
+            <li><code class="mono">site(landing): wire real screenshots with theme-aware swap and lightbox</code> — replaces the placeholder art with actual app screenshots; each shot has dark + light variants that swap based on the visitor's <code class="mono">prefers-color-scheme</code>, and clicking opens a lightbox.</li>
+            <li><code class="mono">fix(landing): responsive breakpoints for mobile + tablet</code> — layout no longer breaks under 768 px.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Forge — pre-releases + closed PRs on GitHub</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">AI sessions polish (pre-Wave A)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Quick Wins bundle</h3>
+          <ul class="release-list">
+            <li><strong>Shared empty-state partial</strong> — <code class="mono">feat(frontend): shared empty-state partial + descriptions for issues/pipelines/releases</code>. Empty states across Issues, Pipelines, and Releases now render from one primitive with per-view descriptive copy, instead of three near-duplicate empty blocks.</li>
+            <li><strong>Picker consolidation</strong> — <code class="mono">refactor(mr-pr): migrate MrPrDetail to common/LabelPicker</code>, <code class="mono">chore(mr-pr): drop duplicate LabelPicker component</code>, <code class="mono">refactor(issues): adopt shared dialog chrome in AssigneePicker</code>, <code class="mono">refactor(mr-pr): adopt shared dialog chrome in ReviewerPicker</code>. The MR-PR view stops shipping its own <code class="mono">LabelPicker</code> copy; AssigneePicker and ReviewerPicker drop their hand-rolled dialog styles in favour of the shared chrome.</li>
+            <li><strong><code class="mono">.btn-icon</code> refactor</strong> — nerd-font glyph-only buttons across <code class="mono">ShortcutOverlay</code>, <code class="mono">CommitDetail</code>, <code class="mono">BlameView</code>, <code class="mono">StagingDiffEditor</code>, <code class="mono">TriggerWorkflowDialog</code>, <code class="mono">PipelineView</code>, <code class="mono">TaskPopover</code>, <code class="mono">TaskPanel</code>, and the dialog close buttons in <code class="mono">RebaseEditor</code> / <code class="mono">CreateReleaseDialog</code> / <code class="mono">CreateIssueDialog</code> / <code class="mono">TriggerWorkflowDialog</code> now share one <code class="mono">.btn-icon</code> class on <code class="mono">dialog.css</code>. <code class="mono">refactor(frontend): resolve .btn-icon naming collisions</code> cleans up the one place two different components had collided on the name.</li>
+            <li><strong>Graph refresh on branch-from-context-menu</strong> — <code class="mono">fix(graph): reload graph after creating a branch from context menu</code>. The graph didn't pick up branches created from the context menu until the next manual refresh; it now reacts immediately.</li>
+            <li><strong>Console-noise cleanup</strong> — <code class="mono">fix(frontend): route theme/branch errors through toast, drop console noise</code>. Theme-load and branch-switch failures used to log to the console and vanish; they now surface in the toast system where the user actually sees them.</li>
+            <li><strong>E2E on feature branches</strong> — <code class="mono">ci: run E2E suite on all branches, not just main/beta</code>. Catches regressions before the <code class="mono">beta</code> merge, not after. (Later disabled temporarily while the 2026-04-21 spec set lands, then removed entirely with the Spec-6 E2E retirement below.)</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Tests — app-core command coverage</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Wave two — the 2026-04-21 / 2026-04-22 spec cycle</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">AI sessions — transcript-first rewrite (Spec 7, 2026-04-22)</h3>
+          <ul class="release-list">
+            <li><strong>New <code class="mono">AiConversation</code> type</strong> (Rust <code class="mono">ai_provider::AiConversation</code>, TS mirror) — id, provider, cwd, created/last_activity unix-ms timestamps, title, optional <code class="mono">parent_id</code> 8-char prefix when the transcript was forked.</li>
+            <li><strong>New <code class="mono">AiProvider::list_conversations</code> trait method</strong>. <code class="mono">list_sessions</code> and <code class="mono">is_session_active</code> deleted from the trait; <code class="mono">AiSession</code> the type stays (background runs still use it).</li>
+            <li><strong>Claude Code</strong> reads <code class="mono">~/.claude/projects/{cwd-slug}/*.jsonl</code>. Title walks for the first non-meta <code class="mono">type: &quot;user&quot;</code> record with extractable text (supports both string content and <code class="mono">{type, text}</code> arrays; skips <code class="mono">&lt;command-name&gt;</code> / <code class="mono">&lt;local-command-caveat&gt;</code> envelopes). Fork detection from the first record's <code class="mono">parentUuid</code>.</li>
+            <li><strong>Codex</strong> walks <code class="mono">~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl</code>, parses the first-line <code class="mono">session_meta</code> payload for id/cwd/timestamp. Title is MVP-empty (follow-up extracts the first user prompt from later lines).</li>
+            <li><strong>OpenCode</strong> shells out to <code class="mono">opencode session list --format json</code> and maps <code class="mono">directory → cwd</code>, <code class="mono">updated → last_activity_at</code>, <code class="mono">title</code> verbatim.</li>
+            <li><strong>Two new Tauri commands</strong> — <code class="mono">ai_list_conversations</code> and <code class="mono">ai_resume_conversation</code>. The old <code class="mono">ai_list_sessions</code> / <code class="mono">ai_resume_session</code> / <code class="mono">aiListSessions</code> / <code class="mono">aiResumeSession</code> are deleted.</li>
+            <li><strong>Two-section UI</strong> — <code class="mono">AiSessionList.svelte</code> renders Active (BeardGit-owned terminal tabs + segments + running/queued bg-runs) above Conversations (on-disk transcripts for the current repo). Mutually-exclusive selection between conversation and bg-run in the detail pane. Row action for Conversations is labelled &quot;Resume in new terminal&quot; with a tooltip naming the forking semantics explicitly.</li>
+            <li><strong>Dropped</strong> the <code class="mono">~/.claude/sessions/{pid}.json</code> scanner, <code class="mono">is_claude_process</code>, <code class="mono">process_alive</code>, <code class="mono">is_file_active</code>, <code class="mono">AiSessionWatcher</code> pointing at the dead PID dir (repointed to <code class="mono">~/.claude/projects/</code> + <code class="mono">~/.codex/sessions/</code>).</li>
+            <li><strong>i18n</strong> — 10 new <code class="mono">ai_sessions_*</code> keys in en-US + es-ES (peninsular tuteo). <code class="mono">ConversationRow</code> is keyboard-reachable (<code class="mono">role=&quot;button&quot;</code> + Enter/Space).</li>
+            <li><strong>Testing</strong>: Rust workspace 1 045 tests (−31 for deleted legacy tests), Vitest 653 tests across 91 files (−25 for deleted stores), clippy clean, svelte-check 0/0.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Reactivity &amp; feedback foundation (Spec 1)</h3>
+          <ul class="release-list">
+            <li><strong>New <code class="mono">mutation-events</code> Rust crate</strong> — <code class="mono">Snapshot::capture</code> + <code class="mono">diff</code>, <code class="mono">MutationGuard</code> RAII wrapper, <code class="mono">MutationKind</code> enum (commit / push / stash / worktree / staging_change / ai / external / …), <code class="mono">MutationFlags</code> struct, <code class="mono">emit_mutation</code> helper. Status fingerprint tracks per-file index/worktree bitflags so staging transitions flip <code class="mono">status_changed</code> even when the overall dirty boolean doesn't move.</li>
+            <li><strong>app-core commands wrapped</strong> — every mutating Tauri command (commit / amend / branch / tag / stash / staging / worktree / remote / cherry-pick / revert / rebase / reset / merge / conflict / clean / patch / submodule / mr_pr / releases) fires the guard on success.</li>
+            <li><strong>watcher crate</strong> — debounced <code class="mono">.git/**</code> change → <code class="mono">MutationKind::External</code> so CLI edits outside BeardGit still refresh the UI.</li>
+            <li><strong>AI background runs</strong> — coordinator captures pre/post worktree snapshots and emits <code class="mono">MutationKind::Ai { source }</code> on completion / failure / cancellation.</li>
+            <li><strong>TS <code class="mono">mutations.ts</code> store</strong> — single <code class="mono">project-mutated</code> listener coalesces events per rAF tick, buffers flags per project path, flushes on tab switch, dispatches the minimal refresh set to <code class="mono">graph</code> / <code class="mono">changes</code> / <code class="mono">stashes</code> / <code class="mono">worktrees</code> / <code class="mono">repoConfig</code>.</li>
+            <li><strong><code class="mono">runMutation</code> wrapper</strong> — caller-side toast + task-record seam. Silent-set (stage / unstage / discard) suppresses success toast. Failures are sticky with a <strong>See details</strong> action that opens the Tasks popover at the failing task's detail panel.</li>
+            <li><strong>Graph cache-first paint</strong> — per-project <code class="mono">GraphViewportCache</code> slice persisted in <code class="mono">project-cache.ts</code>; synchronous hydration on cold start; faint skeleton stripes while first paint resolves; HEAD-OID reconciliation preserves scroll anchor when new commits land above the cached top.</li>
+            <li><strong>Statusbar provider filter</strong> — new <code class="mono">projectProvider</code> derived store. <code class="mono">repoConfig</code> wins; otherwise inferred from <code class="mono">origin</code> URL (<code class="mono">github.com</code>, <code class="mono">gitlab.*</code>). Renders 0 or 1 pill, never both.</li>
+            <li><strong>Tasks popover regression fixed</strong> — click-bubble race where the opening click hit the outside-click handler on the same frame. Rising-edge <code class="mono">ready</code> latch tied to the <code class="mono">open</code> transition.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">AI sessions UX pass (Spec 2)</h3>
+          <ul class="release-list">
+            <li><strong><code class="mono">ProviderIcon</code> shared component</strong> + brand SVG assets for Claude Code, Codex, OpenCode, and a generic fallback. No enclosing background square — brand logos render at native transparency.</li>
+            <li><strong><code class="mono">AiSessionList</code></strong> — shell paints immediately, refresh fires fire-and-forget in <code class="mono">onMount</code>. Row layout: 8 px padding, vertically-centered 20 px icon slot, External badge when <code class="mono">worktree_path</code> is missing or unreachable.</li>
+            <li><strong><code class="mono">AiSessionDetail</code></strong> — populates on <code class="mono">selectedBackgroundSessionId</code> change. Header uses <code class="mono">ProviderIcon</code>. Open-in-terminal / Cancel / Discard routed through <code class="mono">runMutation</code> with sticky-failure toasts.</li>
+            <li><strong>AI Settings, TabBar, AiSlot, TaskEntryRow</strong> — migrated to the shared <code class="mono">ProviderIcon</code>; generic nerd-font glyphs retired.</li>
+            <li><strong>i18n</strong> — en-US + es-ES keys for the new toast labels.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Forge data fixes (Spec 3)</h3>
+          <ul class="release-list">
+            <li><strong><code class="mono">ForgeDetailShell</code></strong> — shared loading / error / empty / content state primitive used by both <code class="mono">MrPrDetail</code> and <code class="mono">ReleaseDetail</code>.</li>
+            <li><strong><code class="mono">withTimeout</code></strong> helper + <code class="mono">TimeoutError</code> — 15 s bound on detail fetches; errors surface via a new per-detail error store (<code class="mono">mrPrDetailError</code> / <code class="mono">releaseDetailError</code>) + sticky toast with a <strong>Retry</strong> action.</li>
+            <li><strong>PR #18 infinite loading</strong> — root cause traced to unbounded <code class="mono">gh api --paginate</code> for ~3 400-file diffs. Fix: 50 MB payload cap + 20 s subprocess timeout in <code class="mono">cli-provider</code> via <code class="mono">wait-timeout</code>. Frontend's 15 s <code class="mono">withTimeout</code> is the outer guard.</li>
+            <li><strong>Release-blank</strong> — <code class="mono">#[serde(default)]</code> didn't accept explicit JSON <code class="mono">null</code>. New <code class="mono">null_as_default</code> deserializer handles null <code class="mono">body</code> / <code class="mono">assets</code> from <code class="mono">gh</code>/<code class="mono">glab</code> payloads.</li>
+            <li><strong>Empty-state copy</strong> — &quot;No changes in this pull request.&quot; / &quot;No release notes or assets published for {tag}.&quot;</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Settings IA polish (Spec 4)</h3>
+          <ul class="release-list">
+            <li><strong><code class="mono">LookAndFeelSection.svelte</code></strong> extracted from <code class="mono">GeneralSettings</code>. General now owns a single Look &amp; Feel card (no duplicate blocks).</li>
+            <li><strong>Appearance tab removed</strong> — collapsed into General; legacy <code class="mono">appearance</code> deep-links redirect to <code class="mono">general</code>.</li>
+            <li><strong>Editor/Diff tab removed</strong> — the placeholder page wasn't implemented; legacy <code class="mono">editor</code> deep-links redirect to <code class="mono">general</code>.</li>
+            <li><strong><code class="mono">CATEGORY_IDS</code></strong> reduced to <code class="mono">general / git / ai / integrations / advanced</code>.</li>
+            <li><strong>AI Settings</strong> — stray broken-glyph refresh button deleted; provider icons verified wired to <code class="mono">ProviderIcon</code>.</li>
+            <li><strong><code class="mono">ConnectionHowTo</code></strong> — reworked as a compact top-level dropdown (OAuth / PAT / CLI modes) rendered above the card, not inside.</li>
+            <li><strong>Integrations Connections</strong> — unified single Card with a new <code class="mono">ConnectionRow</code> primitive dispatching on <code class="mono">kind</code> (github / gitlab / gh / glab). <code class="mono">CliAuthSection.svelte</code> and <code class="mono">ProviderSetup.svelte</code> deleted.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Log filename convention (Spec 5)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">E2E infrastructure retired</h3>
+          <ul class="release-list">
+            <li>Deleted <code class="mono">e2e/</code> directory (specs, fixtures, page objects, Dockerfile, run scripts).</li>
+            <li>Dropped the <code class="mono">e2e-tests</code> job from <code class="mono">.github/workflows/ci.yml</code>.</li>
+            <li>Removed <code class="mono">@wdio/*</code> devDependencies + the <code class="mono">npm run e2e*</code> scripts from <code class="mono">package.json</code>.</li>
+            <li>Dropped the <code class="mono">window.__E2E__</code> surface + <code class="mono">VITE_BEARDGIT_E2E</code> gate from <code class="mono">src/routes/+layout.svelte</code>.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Auth &amp; Integrations</h3>
+          <ul class="release-list">
+            <li>Connecting a forge PAT now also logs the matching <code class="mono">gh</code>/<code class="mono">glab</code> CLI in automatically via a fire-and-forget background task; disconnecting logs it out. Users get both API and CLI auth in one action, under the same identity.</li>
+            <li><code class="mono">ConnectionHowTo</code> PAT guidance rewritten: defaults to the PAT mode, explicit warning against fine-grained tokens (they break <code class="mono">gh</code>/<code class="mono">glab</code> via missing GraphQL support — see cli/cli#6680), SSO callout for GitHub orgs, and a collapsed &quot;manual login command&quot; reference block with <code class="mono">&lt;YOUR_PAT&gt;</code> placeholders and a no-history <code class="mono">read -rs</code> variant.</li>
+            <li>CLI row in the Connections card now labels itself <strong>&quot;Connected · via {Provider} PAT&quot;</strong> when its authenticated username matches a connected forge provider — surfacing that both halves share one identity.</li>
+            <li>Removed orphan programmatic OAuth device-code flow (<code class="mono">cli_login</code> Tauri command, <code class="mono">start_cli_login</code>, <code class="mono">OAuthLoginProcess</code>, <code class="mono">OAuthLoginInfo</code>, <code class="mono">oauth-device-code</code> event emit). Superseded by the terminal-hosted <code class="mono">gh auth login</code> flow shipped with xterm.js in v0.1.5 and the new PAT-pipe flow above.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Wave A polish — buttons, markdown, AI sessions</h3>
+          <ul class="release-list">
+            <li><strong>Button primitive.</strong> <code class="mono">ui/Button</code> gains a <code class="mono">subtle</code> variant (theme-token tonal fill + accent-blue hover border) that sits between <code class="mono">primary</code> and <code class="mono">ghost</code> for actions that need to read as actionable without going loud. <code class="mono">secondary</code>'s baseline moved from <code class="mono">--overlay-hover</code> (a hover state, never a fill) to <code class="mono">--bg-secondary</code> — fixes the task-row action buttons rendering as near-white on the default dark theme. <code class="mono">ConnectionRow.svelte</code> fully migrated: every button routes through the primitive, 39 lines of shadowed local <code class="mono">.btn-*</code> CSS gone. Manage button no longer reads as disabled.</li>
+            <li><strong>Markdown renderer.</strong> Release / Issue / MR-PR detail bodies now render full GitHub-flavored markdown (fenced code blocks, tables, task lists, autolinks, strikethrough) via <code class="mono">marked</code>. Replaces the minimal <code class="mono">snarkdown</code> renderer that dropped or garbled those elements. Sanitiser extended to allow <code class="mono">&lt;input type=&quot;checkbox&quot;&gt;</code> for task lists and to rewrite <code class="mono">href=&quot;javascript:…&quot;</code> to <code class="mono">href=&quot;#&quot;</code>. Scoped <code class="mono">.body</code> styles added per detail component using theme tokens.</li>
+            <li><strong>AI Sessions interactions.</strong> Fixed four bugs that made the view feel broken: clicking an external (provider-reported) session now populates the detail pane (was always empty — the derived selection only looked in the background-run map); the detail pane gains real Focus / Open-Terminal / Dismiss actions instead of a placeholder &quot;external terminal&quot; label; the Focus button on a composite-tab-hosted terminal now sets both <code class="mono">activeTabIndex</code> and the composite's <code class="mono">activeSegmentIndex</code> so the user actually sees the terminal; the merged-sessions list dedupes by <code class="mono">(provider, cwd)</code> for active-interactive rows so a single Claude process doesn't show as two entries with different IDs. Tier/focus/resume logic extracted to a shared <code class="mono">aiSessionActions.ts</code> so list and detail share one implementation.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Testing</h3>
+          <ul class="release-list">
+            <li><strong>Rust:</strong> 1 034 tests across the workspace, clippy clean on <code class="mono">--workspace --all-targets -- -D warnings</code>.</li>
+            <li><strong>Frontend:</strong> 639 Vitest tests across 90 files.</li>
+            <li><strong>svelte-check:</strong> 0 errors / 0 warnings across 2 989 files.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release">
+        <summary>
+          <div class="release-head">
+            <span class="release-version mono">0.1.8</span>
+            <span class="release-date mono">esta versión</span>
+          </div>
+          <p class="release-title">Phases 6–10: Bisect, CLI Auth, AI Stack, Forge Integration, Bundled CLIs, Refactor, E2E, Performance</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title other">AI Background Worktree Runs (Phase 10)</h3>
+          <ul class="release-list">
+            <li><strong><code class="mono">ai-provider</code></strong> — <code class="mono">AiBackgroundRunInput</code> + <code class="mono">AiBackgroundRunStatus</code> + <code class="mono">AiTokenUsage</code> types; <code class="mono">launch_background</code> trait method with <code class="mono">NotSupported</code> default; <code class="mono">MockProvider</code> override for tests.</li>
+            <li><strong><code class="mono">claude-code</code> / <code class="mono">codex</code> / <code class="mono">opencode</code></strong> — headless command builders with provider-specific flags (Claude: <code class="mono">--print --output-format stream-json --verbose</code>; Codex/OpenCode: prompt concatenation fallback where skill/prompt flags aren't native).</li>
+            <li><strong><code class="mono">task-runner</code></strong> — <code class="mono">TaskKind::AiBackground</code> variant + <code class="mono">spawn_with_options</code> with stdin piping (backwards compatible — <code class="mono">spawn()</code> unchanged).</li>
+            <li><strong><code class="mono">app-core</code></strong> — <code class="mono">AiBackgroundCoordinator</code> with full lifecycle (Queued → Running → Completed / Failed / Cancelled), concurrency cap enforcement, worktree creation via <code class="mono">git-engine</code> and cleanup on discard. 6 Tauri commands + 2 settings commands.</li>
+            <li><strong><code class="mono">git-engine</code></strong> — <code class="mono">create_worktree_at</code> helper used by the coordinator.</li>
+            <li><strong><code class="mono">storage</code></strong> — <code class="mono">AppConfig</code> gains <code class="mono">ai_worktree_root</code>, <code class="mono">ai_background_concurrency_cap</code>, <code class="mono">ai_prompt_auto_accept</code> fields with serde defaults.</li>
+            <li><strong>Frontend</strong> — <code class="mono">CreateBackgroundRunDialog</code> with Free / Saved / Skill tabs, <code class="mono">BackgroundRunStatusBadge</code>, <code class="mono">BackgroundRunTranscript</code> with ANSI stripping, session detail + list integration, settings card, ~50 i18n keys per locale. <code class="mono">aiBackground.ts</code> store wires <code class="mono">ai-background-output</code> / <code class="mono">ai-background-status</code> events via <code class="mono">requestAnimationFrame</code> batching (matches the <code class="mono">tasks.ts</code> pattern); merges live runs into <code class="mono">aiSessions</code> for unified sidebar display.</li>
+            <li><strong>Testing</strong> — 13 tests in <code class="mono">app-core::ai_background</code> (coordinator lifecycle + cap + cancel + discard), 5 in <code class="mono">ai-provider</code>, 3 per provider for argv builders, 7 vitest tests for the store. Known follow-ups for a later release: &quot;View changes&quot; button (deferred — merge-editor expects a conflict state, current release ships &quot;Switch to worktree tab&quot; as the review path), toast notification event wiring (i18n keys present), and an end-to-end spec exercising the full dialog (placeholder at <code class="mono">e2e/specs/regression/ai-background.spec.ts</code>).</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Beta Audit — Performance &amp; Code Quality</h3>
+          <ul class="release-list">
+            <li>Cache <code class="mono">which::which()</code> results per provider kind on <code class="mono">AppState</code> — repeated provider detection no longer hits the filesystem.</li>
+            <li>Replace task polling loops with <code class="mono">TaskManager::wait_for_terminal</code> backed by <code class="mono">tokio::sync::Notify</code> — no more spin-wait on long-running tasks.</li>
+            <li>Memoise <code class="mono">Arc&lt;dyn ForgeProvider&gt;</code> keyed on <code class="mono">(provider_index, project_path)</code> — repeated forge lookups skip the construction cost. <strong>Correctness</strong></li>
+            <li>Populate the GitLab label cache so issue labels render with their real colour.</li>
+            <li>Unify <code class="mono">MrPr.labels</code> with <code class="mono">Issue.labels</code> on <code class="mono">Vec&lt;Label&gt;</code>; <code class="mono">PillRow</code> now renders the real label colour everywhere.</li>
+            <li>Drop redundant <code class="mono">refreshIssueList</code> calls on label / assignee / milestone mutations — the optimistic update already covers it.</li>
+            <li>Route <code class="mono">resolve_startup_theme</code> through <code class="mono">src/lib/api/tauri.ts</code> for consistency with every other IPC call.</li>
+            <li>Key <code class="mono">#each</code> blocks over MR/PR diff files + comment lists for stable Svelte reconciliation. <strong>Code quality</strong></li>
+            <li>Extend the trait-crate purity CI guard to include <code class="mono">ai-provider</code> (alongside <code class="mono">provider</code> and <code class="mono">forge-provider</code>).</li>
+            <li>Share <code class="mono">build_gh_upload_args</code> / <code class="mono">build_glab_upload_args</code> across crates instead of duplicating the argv shape.</li>
+            <li>Add <code class="mono">TaskManager::get_status</code> and a frontend <code class="mono">taskById</code> derived map for O(1) status lookup.</li>
+            <li>Move <code class="mono">shell_escape</code> into <code class="mono">helpers.rs</code> with unit tests.</li>
+            <li>Rename <code class="mono">MrPrComment</code> to <code class="mono">ForgeComment</code> in TypeScript (deprecated alias kept for one release).</li>
+            <li>Extend <code class="mono">MrPrFilter</code> with author / label / text fields, matching <code class="mono">IssueFilter</code>.</li>
+            <li>Rename the <code class="mono">render:text</code> perf measure to <code class="mono">render:badges-and-text</code> to match what it actually measures.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">GitLab Provider Polish</h3>
+          <ul class="release-list">
+            <li><strong>Per-file +/- counts</strong> — <code class="mono">projects/:id/merge_requests/{n}/diffs</code> returns the raw patch but no additions/deletions counts. We were hardcoding 0/0, which showed as &quot;+0 -0&quot; beside every file in the MR detail panel. New <code class="mono">count_patch_changes</code> parser counts <code class="mono">+</code> / <code class="mono">-</code> content lines while skipping <code class="mono">+++</code> / <code class="mono">---</code> file headers and <code class="mono">@@</code> hunk headers. 4 unit tests.</li>
+            <li><strong><code class="mono">glab mr list</code> boolean state flags</strong> — glab (both 1.46.1 and 1.92.1) does not accept <code class="mono">--state &lt;value&gt;</code>; passing <code class="mono">--state opened</code> made glab reply &quot;Unknown flag&quot; and our list returned empty. Switched to the boolean form glab actually supports: default → opened, <code class="mono">--closed</code>, <code class="mono">--merged</code>, <code class="mono">--all</code>. Dropped the unused <code class="mono">state_to_glab_str</code> helper.</li>
+            <li><strong>Provider-aware sidebar label</strong> — sidebar &quot;Merge Requests&quot; now reads &quot;Pull Requests&quot; when the active provider is GitHub. View id stays <code class="mono">merge-requests</code> so routing is unchanged; only the label swaps. New <code class="mono">sidebar_pull_requests</code> i18n key.</li>
+            <li><strong>MR/PR list errors are surfaced</strong> — <code class="mono">refreshMrPrList()</code> no longer swallows failures. Errors go to a new <code class="mono">mrPrListError</code> store and <code class="mono">MrPrList</code> renders them inline with a Retry button instead of an empty list with no explanation.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Settings — Connection Guide</h3>
+          <ul class="release-list">
+            <li><strong>&quot;How to connect&quot; guide</strong> — collapsible help block in Settings → Connection covering standard gitlab.com / github.com setup (PAT + CLI flows), self-hosted GitLab with OAuth and token fallback, plus troubleshooting for the multi-config warning and the 404-when-self-hosted-points-at-gitlab.com trap.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Distribution</h3>
+          <ul class="release-list">
+            <li><strong>macOS x64 dropped from the release matrix</strong> — Apple Silicon runners are now the only macOS target. Reduces CI matrix time and avoids the dual-bundle confusion at install time.</li>
+            <li><strong>Bundle formats trimmed</strong> — <code class="mono">.msi</code>, <code class="mono">.deb</code>, and <code class="mono">.rpm</code> removed from the bundle list. The <code class="mono">.dmg</code>, <code class="mono">.AppImage</code>, and <code class="mono">.exe</code> remain as the supported install paths per platform.</li>
+            <li><strong>First-launch documentation</strong> — README now explains the unsigned-build workaround for macOS until code signing lands (Gatekeeper right-click → Open). E2E fixture path no longer pins to a hardcoded location; derived from the working directory at runtime so contributors can run the suite from anywhere.</li>
+            <li><strong>Repository hygiene</strong> — AI assistant artifacts (<code class="mono">.claude/</code>, <code class="mono">.codex/</code>, etc.) untracked from the repo and added to <code class="mono">.gitignore</code>.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Forge Integration (Phase 8)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Bundled CLI Binaries (Phase 7.2)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Terminal Enhancements (Phase 7.1)</h3>
+          <ul class="release-list">
+            <li><strong>OSC 7 cwd auto-detection</strong> — terminals emit their current working directory on every prompt; when the cwd matches an open project path, the terminal tab auto-links to that project's composite tab.</li>
+            <li><strong>AI provider auto-detection</strong> — a lightweight polling loop detects when a terminal launches <code class="mono">claude</code>, <code class="mono">codex</code>, or <code class="mono">opencode</code> and updates the tab label plus brand icon dynamically.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">UI Polish &amp; Bug Fixes (Phase 7.6)</h3>
+          <ul class="release-list">
+            <li><strong>Bisect graph integration</strong> — good/bad/current/skipped commits get colored overlays in the canvas graph; right-click a commit for &quot;Mark as good / bad / skip&quot;.</li>
+            <li><strong>Worktree lock / unlock</strong> — full <code class="mono">git worktree lock</code> / <code class="mono">unlock</code> wired through <code class="mono">git-engine</code> with context menu controls.</li>
+            <li><strong>Worktree &quot;Open in graph&quot;</strong> — navigates the graph view to the worktree's branch.</li>
+            <li><strong>AI Config Editor live reload</strong> — new <code class="mono">watcher::ai_config</code> module picks up external edits to <code class="mono">settings.json</code>, <code class="mono">agents/*.md</code>, <code class="mono">skills/*/SKILL.md</code>, and <code class="mono">CLAUDE.md</code> files; the editor refreshes without losing in-progress changes.</li>
+            <li><strong>AI Sessions &quot;Focus&quot;</strong> — focuses the linked terminal tab if the session has one; otherwise launches <code class="mono">claude --resume &lt;sessionId&gt;</code> in a new PTY terminal.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Infrastructure (Phase 7.5)</h3>
+          <ul class="release-list">
+            <li><strong>Log rotation</strong> — <code class="mono">storage::logging::purge_old_logs()</code> auto-removes <code class="mono">beardgit.*.log</code> files older than 7 days on startup (async, non-blocking). Legacy <code class="mono">beardgit.log.*</code> files from pre-rename installs are also purged by age.</li>
+            <li><strong>Tracing on git writes</strong> — 41 <code class="mono">#[instrument]</code> spans on <code class="mono">git-engine</code> write operations (bisect / operations / conflict / reset / clean / remote / worktree / submodule / interactive_rebase). Sensitive fields (commit bodies, PR descriptions, PAT tokens) excluded via <code class="mono">skip(...)</code>.</li>
+            <li><strong>Tracing on Tauri commands</strong> — 80 <code class="mono">#[instrument(name = &quot;cmd::…&quot;)]</code> spans across 19 command modules. Hierarchical names make log grepping trivial.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Performance (Phase 7.7)</h3>
+          <ul class="release-list">
+            <li><strong>Graph render profiler</strong> — six <code class="mono">performance.mark</code> pairs around the render loop plus a dev-only FPS overlay toggled with <code class="mono">Ctrl+Shift+P</code>. Measurement infrastructure for future optimisations without runtime overhead in production bundles.</li>
+            <li><strong>Interactive terminal pool</strong> — 3-deep <code class="mono">xterm.js</code> instance pool recycles terminals across tab open/close. Faster tab spawn, lower GC pressure.</li>
+            <li><strong>CodeMirror language cache</strong> — module-level <code class="mono">Map&lt;string, Extension&gt;</code> short-circuits repeated dynamic imports per file extension. Second-and-subsequent opens of a language are instant.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Code Quality (Phase 7.3)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">E2E Testing (Phase 7.4 + follow-up)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Provider Architecture Cleanup (Phase 9)</h3>
+          <ul class="release-list">
+
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Security</h3>
+          <ul class="release-list">
+            <li><code class="mono">npm audit --audit-level=moderate</code> clean. Override added for <code class="mono">serialize-javascript</code> (wdio transitive dep) that upstream hadn't patched yet.</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Tooling</h3>
+          <ul class="release-list">
+            <li><code class="mono">npm run e2e:docker</code> (plus <code class="mono">:rebuild</code> and <code class="mono">:shell</code>) — one-command local E2E.</li>
+            <li><code class="mono">e2e/README.md</code> documents the happy-path authoring pattern so test authors have a template. ---</li>
+          </ul>
+        </div>
+        <div class="release-group">
+          <h3 class="release-group-title other">Phase 6 — Bisect, CLI Auth, AI Views, Multi-Provider, Code Quality</h3>
+          <ul class="release-list">
+            <li>Visual bisect workflow with good/bad/skip controls and progress indicator</li>
+            <li>Auto-bisect mode: provide a test command, BeardGit runs <code class="mono">git bisect run</code> and reports the culprit</li>
+            <li>New <code class="mono">git-engine</code> bisect module with full lifecycle (start, good, bad, skip, reset, log)</li>
+            <li>8 new Tauri commands, dedicated store, 2 Svelte components (BisectWorkflow, AutoBisectDialog) <strong>CLI Auth (gh/glab)</strong></li>
+            <li><code class="mono">gh auth status</code> and <code class="mono">glab auth status</code> detection — shows CLI login state in Settings</li>
+            <li>Terminal-based login flow: &quot;Login with CLI&quot; opens interactive <code class="mono">gh auth login</code> / <code class="mono">glab auth login</code> in a PTY tab</li>
+            <li>Unified Authentication settings page combining Token Auth and CLI Auth sections</li>
+            <li>New <code class="mono">cli-provider</code> auth module with status parsing and terminal login commands <strong>AI Config Editor</strong></li>
+            <li>Dual file tree (project-scoped + user-scoped) showing all AI config files</li>
+            <li>Editable CodeMirror pane for settings.json, agents, skills, and CLAUDE.md files</li>
+            <li>Create Config dialog for adding new agent/skill/settings files</li>
+            <li>3 new Tauri commands: <code class="mono">ai_get_config_content</code>, <code class="mono">ai_save_config_content</code>, <code class="mono">ai_create_config_file</code> <strong>AI Sessions</strong></li>
+            <li>Project-scoped session list showing active and recent Claude Code sessions</li>
+            <li>File watcher on <code class="mono">~/.claude/sessions/</code> with auto-refresh on changes</li>
+            <li>Session metadata: model, start time, duration, token usage, status (active/completed) <strong>AI Worktree Enrichment</strong></li>
+            <li><code class="mono">EnrichedWorktree</code> type combining git worktree data with AI provider status</li>
+            <li>AI badges on worktrees created by Claude Code / Codex / OpenCode</li>
+            <li>Context menu with cleanup action for orphaned AI worktrees <strong>Codex &amp; OpenCode Providers</strong></li>
+            <li>New <code class="mono">codex</code> crate: full <code class="mono">AiProvider</code> implementation with binary detection, command building, and config discovery</li>
+            <li>New <code class="mono">opencode</code> crate: full <code class="mono">AiProvider</code> implementation with binary detection, command building, and config discovery</li>
+            <li>Both wired into <code class="mono">app-core</code> provider factory with automatic detection</li>
+            <li>Dynamic terminal dropdown: only shows providers detected on the system</li>
+            <li>Codex brand color corrected (#10a37f → #ffffff) <strong>Structured Error Logging</strong></li>
+            <li>Structured file logging via <code class="mono">tracing</code> with <code class="mono">tracing-appender</code> daily rotation</li>
+            <li>Logs written to <code class="mono">~/.local/share/com.beardgit.app/logs/</code> (platform-appropriate data dir)</li>
+            <li>New <code class="mono">ErrorDialog</code> component with copy-error-to-clipboard and open-log-file actions</li>
+            <li>All dialogs (Confirm, Clean, CreateMrPr, PatchPreview, TagCreate, CreateWorktree) upgraded with error display <strong>Composite Tab Upgrade</strong></li>
+            <li>Multi-segment tabs: N terminals + worktrees per project in a single composite tab</li>
+            <li>Fixed segment ordering: Project → Worktrees → AI Terminals → Terminals</li>
+            <li>Terminal button always adds to the active project's composite tab instead of creating standalone tabs <strong>Code Quality — commands.rs Split</strong></li>
+            <li>Split monolithic <code class="mono">commands.rs</code> (3,267 LOC) into 24 feature-based modules under <code class="mono">commands/</code></li>
+            <li>Modules: advanced, bisect, branch, ci, clean, cli_auth, commit, config, conflict, diff, gitignore, graph, helpers, logging, mod, mr_pr, patch, project, provider_auth, reflog, remote, repository, settings, staging, stash, submodule, tag, theme, worktree</li>
+            <li>Extracted shared <code class="mono">dialog.css</code> (93 lines) replacing duplicated dialog styles across 7 components</li>
+            <li>New <code class="mono">fetchIntoStore</code> utility for consistent store-loading patterns <strong>E2E Test Infrastructure</strong></li>
+            <li>WebdriverIO + <code class="mono">tauri-driver</code> configuration for end-to-end testing</li>
+            <li>Fixture repo setup script (<code class="mono">e2e/fixtures/setup.sh</code>) for reproducible test environments</li>
+            <li>Page objects: <code class="mono">sidebar.page.ts</code>, <code class="mono">graph.page.ts</code></li>
+            <li>Initial specs: <code class="mono">app-launch.spec.ts</code>, <code class="mono">navigation.spec.ts</code> <strong>Bug Fixes &amp; Polish</strong></li>
+            <li>AI Config file tree correctly distinguishes project vs user scope</li>
+            <li>AI Sessions auto-cleanup on component destroy (watcher unsubscribe)</li>
+            <li>CreateConfigDialog validates file paths and prevents duplicates</li>
+            <li>Store helpers centralized with <code class="mono">fetchIntoStore</code> reducing boilerplate across stores</li>
+          </ul>
+        </div>
+      </details>
+      </div>
+    </div>
+  </section>
+
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="brand" style="margin-bottom:1rem">
+            <img src="../../assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
+            <span class="brand-name">BeardGit</span>
+          </div>
+          <p class="footer-tagline mono">Un cliente de Git de escritorio que deja el grafo, tus pull y merge requests, la CI, las issues, las releases, las terminales, las ejecuciones de AI, las peticiones .http y un editor de ficheros en la misma ventana.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Sitio</h4>
+          <ul>
+            <li><a href="../../es/">Inicio</a></li>
+            <li><a href="../../es/features/">Funciones</a></li>
+            <li><a href="../../es/guide/">Guía</a></li>
+            <li><a href="../../es/changelog/">Novedades</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Código</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/releases" target="_blank" rel="noopener">Releases</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contribuir</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Issues</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">Licencia</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CLA.md" target="_blank" rel="noopener">CLA</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/SECURITY.md" target="_blank" rel="noopener">Seguridad</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Adolfo Fuentes</span>
+        <span class="mono">Gratis, con el código a la vista, sin cuenta y sin telemetría.</span>
+      </div>
+    </div>
+  </footer>
+
+
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">×</button>
+    <img class="lightbox-img" id="lightboxImg" alt="" />
+    <div class="lightbox-caption mono" id="lightboxCaption"></div>
+  </div>
+
+  <script src="../../assets/app.js?v=20260910a"></script>
+</body>
+</html>

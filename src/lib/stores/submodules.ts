@@ -31,15 +31,21 @@ export async function refreshSubmodules() {
   await fetchIntoStore(submodules, submodulesLoading, () => apiList(), []);
 }
 
-/** Initialize a submodule and refresh the list. */
-export async function initSubmodule(path: string): Promise<void> {
-  await apiInit(path);
+/**
+ * Initialize a submodule and refresh the list.
+ *
+ * `parent` comes straight off the `SubmoduleInfo` and is `null` for a
+ * top-level submodule. Nested submodules are registered in their parent
+ * superproject, which is where the operation has to run.
+ */
+export async function initSubmodule(path: string, parent: string | null): Promise<void> {
+  await apiInit(path, parent);
   await refreshSubmodules();
 }
 
 /** Update a single submodule (background task). */
-export async function updateSubmodule(path: string): Promise<TaskId> {
-  return apiUpdate(path);
+export async function updateSubmodule(path: string, parent: string | null): Promise<TaskId> {
+  return apiUpdate(path, parent);
 }
 
 /** Update all submodules (background task). */
@@ -48,8 +54,12 @@ export async function updateAllSubmodules(): Promise<TaskId> {
 }
 
 /** Deinitialize a submodule and refresh the list. */
-export async function deinitSubmodule(path: string, force: boolean): Promise<void> {
-  await apiDeinit(path, force);
+export async function deinitSubmodule(
+  path: string,
+  parent: string | null,
+  force: boolean,
+): Promise<void> {
+  await apiDeinit(path, parent, force);
   await refreshSubmodules();
 }
 
@@ -67,8 +77,8 @@ export async function addSubmodule(url: string, path: string): Promise<TaskId> {
 }
 
 /** Remove a submodule completely and refresh the list. */
-export async function removeSubmodule(path: string): Promise<void> {
-  await apiRemove(path);
+export async function removeSubmodule(path: string, parent: string | null): Promise<void> {
+  await apiRemove(path, parent);
   await refreshSubmodules();
 }
 

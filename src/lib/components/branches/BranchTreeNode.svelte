@@ -11,12 +11,15 @@
     selected,
     onSelect,
     onContext,
+    onToggleFavorite,
   }: {
     node: TreeNode;
     depth: number;
     selected: string | null;
     onSelect: (name: string) => void;
     onContext: (e: MouseEvent, node: TreeNode) => void;
+    /** Star clicked. The row's own click must not also select the branch. */
+    onToggleFavorite: (node: TreeNode) => void;
   } = $props();
 
   // One shared set of collapsed folder paths for the whole tree, so the
@@ -61,6 +64,7 @@
         {selected}
         {onSelect}
         {onContext}
+        {onToggleFavorite}
       />
     {/each}
   {/if}
@@ -79,6 +83,28 @@
     tabindex="0"
     data-testid="branch-row-{node.fullPath.replace(/\//g, '-')}"
   >
+    <!-- Own column, always occupying its width so revealing it on hover
+         doesn't shift the row. Hidden until hover unless the branch is
+         starred, in which case it stays lit. -->
+    <button
+      type="button"
+      class="fav-toggle nf"
+      class:is-favorite={node.isFavorite}
+      title={node.isFavorite ? m.branch_favorite_remove() : m.branch_favorite_add()}
+      aria-label={node.isFavorite ? m.branch_favorite_remove() : m.branch_favorite_add()}
+      aria-pressed={node.isFavorite}
+      data-testid="branch-fav-{node.fullPath.replace(/\//g, '-')}"
+      onclick={(e) => {
+        // Without this the row's own click selects the branch as well.
+        e.stopPropagation();
+        onToggleFavorite(node);
+      }}
+      onkeydown={(e) => {
+        // Enter/Space fire the button's own click; stop the row from
+        // treating the same keystroke as "select this branch".
+        if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+      }}
+    >{node.isFavorite ? "\uF005" : "\uF006"}</button>
     <span class="branch-icon nf">{"\uF418"}</span>
     <span class="branch-name" class:head-name={node.isHead}>{node.name}</span>
     {#if node.isHead}
@@ -175,6 +201,39 @@
   .tree-leaf.selected .branch-icon,
   .tree-leaf:hover .branch-icon {
     color: var(--accent-primary);
+  }
+
+  .fav-toggle {
+    /* Reset the button chrome: this is an icon in a list row, not a control. */
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: 13px;
+    font-size: var(--font-size-sm);
+    line-height: 1;
+    flex-shrink: 0;
+    cursor: pointer;
+    color: var(--text-secondary);
+    /* Invisible but still laid out, so hover reveals it in place. */
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+
+  .tree-leaf:hover .fav-toggle,
+  .fav-toggle:focus-visible {
+    opacity: 1;
+  }
+
+  .fav-toggle:hover {
+    color: var(--accent-orange);
+  }
+
+  /* A starred branch shows its star at all times — that is the point of it. */
+  .fav-toggle.is-favorite {
+    opacity: 1;
+    color: var(--accent-orange);
   }
 
   .branch-name {

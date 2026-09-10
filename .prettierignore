@@ -12,3 +12,7 @@ package-lock.json
 
 # Rust is formatted by cargo fmt, not Prettier
 *.rs
+
+# The public site under docs/ is emitted by scripts/build-site.mjs. Formatting
+# it here would make `npm run check:site` disagree with the generator.
+docs/
