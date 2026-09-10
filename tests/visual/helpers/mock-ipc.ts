@@ -212,6 +212,35 @@ export async function emitMockEvent(
   );
 }
 
+/**
+ * Fire an event at only the listeners registered for it.
+ *
+ * `emitMockEvent` hands the payload to every registered callback, which
+ * is fine for a broadcast-shaped event and fatal for a specific one: the
+ * theme listener reading `bg_primary` off a terminal payload throws, and
+ * the app dies mid-test. The event name comes from the recorded
+ * `plugin:event|listen` calls, which is where Tauri put it.
+ */
+export async function emitMockEventTargeted(
+  page: Page,
+  event: string,
+  payload: unknown,
+): Promise<void> {
+  await page.evaluate(
+    ({ event: e, payload: p }) => {
+      const state = window.__beardgitMockIPC;
+      if (!state) return;
+      for (const call of state.calls) {
+        if (call.cmd !== "plugin:event|listen") continue;
+        const args = call.args as { event?: string; handler?: number };
+        if (args?.event !== e || typeof args.handler !== "number") continue;
+        state.callbacks.get(args.handler)?.({ event: e, id: 0, payload: p });
+      }
+    },
+    { event, payload },
+  );
+}
+
 /** Read captured IPC calls — optionally filtered by command name. */
 export async function getMockCalls(
   page: Page,

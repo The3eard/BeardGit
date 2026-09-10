@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Features — BeardGit</title>
+  <meta name="description" content="Every view in BeardGit, one by one: the canvas graph, per-line staging, branches and submodules, pull and merge requests, CI pipelines, AI runs in worktrees, the .http workspace, the file editor, terminals, themes and the command palette." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#151312" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://the3eard.github.io/BeardGit/features/" />
+  <link rel="alternate" hreflang="en" href="https://the3eard.github.io/BeardGit/features/" />
+  <link rel="alternate" hreflang="es" href="https://the3eard.github.io/BeardGit/es/features/" />
+  <link rel="alternate" hreflang="x-default" href="https://the3eard.github.io/BeardGit/features/" />
+
+  <meta property="og:title" content="Features — BeardGit" />
+  <meta property="og:description" content="Every view in BeardGit, one by one: the canvas graph, per-line staging, branches and submodules, pull and merge requests, CI pipelines, AI runs in worktrees, the .http workspace, the file editor, terminals, themes and the command palette." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://the3eard.github.io/BeardGit/features/" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="BeardGit — one window for the whole repo" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Features — BeardGit" />
+  <meta name="twitter:description" content="Every view in BeardGit, one by one: the canvas graph, per-line staging, branches and submodules, pull and merge requests, CI pipelines, AI runs in worktrees, the .http workspace, the file editor, terminals, themes and the command palette." />
+  <meta name="twitter:image" content="https://the3eard.github.io/BeardGit/assets/og-image.png?v=20260910a" />
+  <meta name="twitter:image:alt" content="BeardGit — one window for the whole repo" />
+
+  <link rel="icon" type="image/svg+xml" href="../assets/logo.svg?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png?v=20260910a" />
+  <link rel="icon" type="image/png" sizes="192x192" href="../assets/favicon-192.png?v=20260910a" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png?v=20260910a" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,301,400,401,500,501,700,701,900,901&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/styles.css?v=20260910a" />
+
+  <script>function loadScript(a){var b=document.getElementsByTagName("head")[0],c=document.createElement("script");c.type="text/javascript",c.src="https://tracker.metricool.com/resources/be.js",c.onreadystatechange=a,c.onload=a,b.appendChild(c)}loadScript(function(){beTracker.t({hash:"244616eaed13de8fb961a27a3677700b"})});</script>
+</head>
+<body data-page="features" data-lang="en">
+
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a href="../" class="brand" style="border:none">
+        <img src="../assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
+        <span class="brand-name">BeardGit</span>
+      </a>
+      <div class="nav-links">
+        <a href="../" data-nav="home">Home</a>
+        <a href="../features/" data-nav="features" aria-current="page" class="active">Features</a>
+        <a href="../guide/" data-nav="guide">Guide</a>
+        <a href="../changelog/" data-nav="changelog">Changelog</a>
+        <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="nav-actions">
+        <a class="lang-switch" href="../es/features/" title="Ver esta página en español" hreflang="es" lang="es">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M3 12h18"/>
+            <path d="M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/>
+          </svg>
+          <span>ES</span>
+        </a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Change colour theme" title="Cycle theme: auto / light / dark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" id="themeIcon">
+            <!-- icon swapped by JS -->
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+          </svg>
+          <span id="themeLabel">Auto</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+
+  <!-- Offered, never forced: switching language on someone mid-read is
+       worse than a line they can ignore. Shown by app.js only when the
+       browser's language disagrees with the page's. -->
+  <div class="lang-nudge" id="langNudge" hidden>
+    <span>Esta página también está en español.</span>
+    <a href="../es/features/">Verla en español →</a>
+    <button type="button" id="langNudgeClose" aria-label="Cerrar">×</button>
+  </div>
+
+<section class="page-head">
+    <div class="wrap">
+      
+      <div class="page-head-inner">
+        <h1>What's in the window</h1>
+        <p class="page-lede">
+          Twenty-odd views, grouped the way the sidebar groups them. Each one is here because I
+          needed it while working on something else and got tired of leaving. If you'd rather see
+          how to use them than what they are, the <a href="../guide/">guide</a> is the other door.
+        </p>
+      </div>
+      
+      </div>
+  </section>
+
+  <!-- ============ GRAPH ============ -->
+  <section class="feature-block" id="graph">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 01 — Graph</div>
+        
+        <h2>The graph, on <span class="italic">canvas</span></h2>
+        <p class="block-body">
+          Drawn on an HTML canvas rather than as DOM nodes, and only for the rows in the viewport, so
+          a six-figure history scrolls at the same speed as a fresh repo. What the lines mean matters
+          as much as the speed: a merge bends into the lane it opens, in that lane's colour, and a
+          branch that rejoins an existing line bends back into it — so the shape on screen is the
+          shape git recorded.
+        </p>
+        <ul class="block-list">
+          <li>Branch lanes, merge curves, sync-state lines and author highlighting, all coloured from the active theme.</li>
+          <li><code class="mono">⌘F</code> or <code class="mono">/</code> filters by author, message or ref, and the graph re-lays out around the matches.</li>
+          <li>Ref badges coloured by kind — local branch, remote, tag, HEAD — the same colour here and in the commit detail.</li>
+          <li>Select a commit for its message, author, parents and changed files, with a per-file diff.</li>
+          <li>Three-way merge editor, interactive rebase, revert, amend, reset, cherry-pick and blame.</li>
+          <li><code class="mono">J</code> / <code class="mono">K</code> walk commits without touching the mouse.</li>
+        </ul>
+        
+        </div>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="graph">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/graph-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/graph-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/graph-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/graph-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/graph-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/graph-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/graph-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/graph-dark.png?v=20260910a"
+                 src="../assets/screenshots/graph-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The commit graph: branch lanes, merge curves, ref badges and the commit detail pane" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">the commit graph, with the selected commit's files beside it</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ CHANGES ============ -->
+  <section class="feature-block" id="changes">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 02 — Changes</div>
+        
+        <h2>Staging, down to the <span class="italic">line</span></h2>
+        <p class="block-body">
+          The changes view is where most of a working day goes, so it takes keyboard input seriously.
+          Hunks collapse, a file can be expanded to its full contents when three lines of context
+          aren't enough, and single lines can be staged, discarded or stashed from the selection.
+        </p>
+        <ul class="block-list">
+          <li>Collapse one hunk or all of them; expand a file to its whole contents and keep that view across a background refresh.</li>
+          <li>Stage, unstage or discard individual lines, or a Shift-selected range.</li>
+          <li>Arrow keys move the cursor, <code class="mono">Space</code> stages the file under it, <code class="mono">Enter</code> opens its diff.</li>
+          <li>A pencil on any row opens that file in the editor; <code class="mono">⌘E</code> opens whatever the diff pane is showing.</li>
+          <li>Commits honour <code class="mono">commit.gpgsign</code> — SSH, GPG or X.509 — and Settings has a Test signing button that shows the real error.</li>
+          <li>Discard is careful with symlinks: a link is removed as a link, whatever it points at.</li>
+        </ul>
+        
+        </div>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="changes">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/changes-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/changes-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/changes-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/changes-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/changes-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/changes-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/changes-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/changes-dark.png?v=20260910a"
+                 src="../assets/screenshots/changes-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The changes view with hunks, per-line staging and a side-by-side diff" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">staging, down to individual lines</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ BRANCHES ============ -->
+  <section class="feature-block" id="branches">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 03 — Branches & co.</div>
+        
+        <h2>Branches, tags, stashes, <span class="italic">worktrees</span></h2>
+        <p class="block-body">
+          Branches arrive as a folder tree, because <code class="mono">feat/</code> and
+          <code class="mono">fix/</code> already are one. Star the ones you actually work on and they
+          rise to the top of their own level — a starred <code class="mono">feat/thing</code> goes to
+          the top of the <code class="mono">feat</code> folder rather than escaping it. A star belongs
+          to the branch, not the ref, so starring <code class="mono">develop</code> lights up
+          <code class="mono">origin/develop</code> too, and it lives in
+          <code class="mono">.beardgit/favorites.json</code> so it survives a relaunch.
+        </p>
+        <ul class="block-list">
+          <li>Local and remote branches, ahead/behind counts, and a chip on any branch whose upstream is <code class="mono">[gone]</code>.</li>
+          <li>Branch cleanup: one dialog deletes the gone ones in bulk, with "merged into the default branch" as an opt-in second group.</li>
+          <li>Tags and releases, stashes with per-file diffs, and linked worktrees you can create, open in a tab or prune.</li>
+          <li>Compare any two refs — branch, tag or SHA, with autocomplete — for the commits one adds, an ahead/behind summary and a per-file diff.</li>
+          <li>Reflog with recovery actions, for the reset you regret.</li>
+        </ul>
+        
+        </div>
+      <div class="shot-pair">
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="branches">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/branches-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/branches-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/branches-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/branches-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/branches-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/branches-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/branches-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/branches-dark.png?v=20260910a"
+                 src="../assets/screenshots/branches-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The branch list as a folder tree, with starred branches at the top of their level" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">branches as a folder tree, starred ones first</figcaption>
+      </figure>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="submodules">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/submodules-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/submodules-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/submodules-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/submodules-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/submodules-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/submodules-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/submodules-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/submodules-dark.png?v=20260910a"
+                 src="../assets/screenshots/submodules-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The submodule panel listing a nested submodule under its parent, with each one’s status" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">submodules, including the ones inside submodules</figcaption>
+      </figure>
+      </div>
+      <div class="shot-pair">
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="compare">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/compare-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/compare-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/compare-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/compare-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/compare-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/compare-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/compare-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/compare-dark.png?v=20260910a"
+                 src="../assets/screenshots/compare-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The compare view with two refs picked, the commits one adds, and the changed files" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">compare — what this branch adds over the other one</figcaption>
+      </figure>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="stashes">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/stashes-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/stashes-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/stashes-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/stashes-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/stashes-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/stashes-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/stashes-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/stashes-dark.png?v=20260910a"
+                 src="../assets/screenshots/stashes-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The stash list with the diff of the selected stash" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">stashes, with what is actually in them</figcaption>
+      </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FORGE ============ -->
+  <section class="feature-block" id="forge">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 04 — GitHub & GitLab</div>
+        
+        <h2>GitHub <span class="italic">and</span> GitLab</h2>
+        <p class="block-body">
+          Both, properly, rather than one with the other bolted on. BeardGit talks to them through
+          <code class="mono">gh</code> and <code class="mono">glab</code>, and ships its own copies of
+          both inside every installer — the same versions for every user, whatever is on your
+          <code class="mono">PATH</code>. Your existing login carries over, because those CLIs keep
+          credentials in your own config and keyring, not in the binary.
+        </p>
+        <ul class="block-list">
+          <li>Pull requests and merge requests: open, edit, comment, approve, merge, with per-file diffs and inline review threads. <code class="mono">[</code> and <code class="mono">]</code> walk the files.</li>
+          <li>Issues with labels, milestones and assignees; releases with streamed asset uploads.</li>
+          <li>Repo settings — description, homepage, topics, visibility, default branch, branch protection, labels — without opening a browser.</li>
+          <li>Self-hosted GitHub Enterprise and on-prem GitLab work as they are; auth is checked per host, so a VPN-only forge can't shadow a working one.</li>
+          <li>A personal <code class="mono">gitlab.com</code> and a corporate GitLab can be connected at the same time.</li>
+        </ul>
+        
+        </div>
+      <div class="shot-pair">
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="pull-requests">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/pull-requests-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/pull-requests-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/pull-requests-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/pull-requests-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/pull-requests-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/pull-requests-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/pull-requests-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/pull-requests-dark.png?v=20260910a"
+                 src="../assets/screenshots/pull-requests-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="A pull request with its CI status, per-file diff and inline review threads" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">a pull request, reviewed without leaving the app</figcaption>
+      </figure>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="merge-requests">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/merge-requests-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/merge-requests-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/merge-requests-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/merge-requests-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/merge-requests-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/merge-requests-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/merge-requests-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/merge-requests-dark.png?v=20260910a"
+                 src="../assets/screenshots/merge-requests-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="A GitLab merge request with its pipeline status and review threads" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">a GitLab merge request — the same view, the other forge</figcaption>
+      </figure>
+      </div>
+      <div class="shot-pair">
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="issues">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/issues-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/issues-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/issues-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/issues-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/issues-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/issues-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/issues-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/issues-dark.png?v=20260910a"
+                 src="../assets/screenshots/issues-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The issue list with labels and the selected issue open beside it" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">issues, with labels, assignees and comments</figcaption>
+      </figure>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="releases">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/releases-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/releases-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/releases-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/releases-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/releases-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/releases-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/releases-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/releases-dark.png?v=20260910a"
+                 src="../assets/screenshots/releases-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The release list with notes and attached assets" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">releases, published and uploaded from here</figcaption>
+      </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CI ============ -->
+  <section class="feature-block" id="ci">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 05 — CI/CD</div>
+        
+        <h2>Pipelines, and the log you <span class="italic">actually</span> want</h2>
+        <p class="block-body">
+          GitHub Actions runs and GitLab pipelines in the same view, with the job list underneath and
+          its log in a pane you can keep open while you work. Wide build matrices are followed to the
+          end rather than cut off at the first hundred jobs.
+        </p>
+        <ul class="block-list">
+          <li>Trigger, retry, retry only the failed jobs, or cancel — from the row.</li>
+          <li>Job logs stream into a pane that keeps its place when you leave the view and come back.</li>
+          <li>Search chips filter by status, branch or ref.</li>
+          <li>The graph shows the pipeline status of a commit next to it, so a red build is visible where you already are.</li>
+        </ul>
+        
+        </div>
+      <div class="shot-pair">
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="pipelines">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/pipelines-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/pipelines-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/pipelines-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/pipelines-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/pipelines-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/pipelines-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/pipelines-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/pipelines-dark.png?v=20260910a"
+                 src="../assets/screenshots/pipelines-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="A GitHub Actions run with its job list and streamed job log" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">a GitHub Actions run, jobs and log included</figcaption>
+      </figure>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="pipelines-gitlab">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/pipelines-gitlab-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/pipelines-gitlab-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/pipelines-gitlab-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/pipelines-gitlab-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/pipelines-gitlab-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/pipelines-gitlab-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/pipelines-gitlab-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/pipelines-gitlab-dark.png?v=20260910a"
+                 src="../assets/screenshots/pipelines-gitlab-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="A GitLab pipeline with its stages and jobs" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">a GitLab pipeline, in the same view</figcaption>
+      </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ AI ============ -->
+  <section class="feature-block" id="ai">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 06 — AI</div>
+        
+        <h2>AI runs in a <span class="italic">worktree</span></h2>
+        <p class="block-body">
+          BeardGit doesn't have a model or an API key. It drives <em>your</em> install of Claude Code,
+          Codex or OpenCode, and it does it somewhere that can't ruin your afternoon: each background
+          run gets its own <code class="mono">ai/&lt;provider&gt;/&lt;slug&gt;</code> branch in an
+          isolated worktree, queued at a concurrency cap you set. Your checkout doesn't move while it
+          works.
+        </p>
+        <ul class="block-list">
+          <li>Read the transcript as it streams, then merge the branch, keep the worktree for later, or throw it away.</li>
+          <li>The run writes a Markdown report into the parent repository, so it survives discarding the worktree.</li>
+          <li>From any view the active provider can draft a commit message, review your staged changes, or review a pull request — and stays quiet when there's nothing to talk about.</li>
+          <li>Prompts go over stdin, so a large staged diff is reviewed whole instead of being cut at the command-line limit.</li>
+          <li>One switch in Settings turns the whole thing off: no CLI probing at launch, no AI views, no AI actions.</li>
+        </ul>
+        
+        </div>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="ai-sessions">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/ai-sessions-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/ai-sessions-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/ai-sessions-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/ai-sessions-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/ai-sessions-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/ai-sessions-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/ai-sessions-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/ai-sessions-dark.png?v=20260910a"
+                 src="../assets/screenshots/ai-sessions-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="An AI session with its transcript, the worktree it ran in and the saved report" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">an AI run, in its own worktree, with the transcript kept</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ REQUESTS ============ -->
+  <section class="feature-block" id="requests">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 07 — Requests</div>
+        
+        <h2>An <span class="italic">.http</span> workspace inside the repo</h2>
+        <p class="block-body">
+          The request that reproduces a bug belongs next to the code that has the bug, not in a
+          desktop app's private database. These are plain <code class="mono">.http</code> files under
+          <code class="mono">.beardgit/requests/</code>: commit them and
+          <code class="mono">git pull</code> hands them to the rest of the team.
+        </p>
+        <ul class="block-list">
+          <li>Environments are commit-safe JSON under <code class="mono">_env/</code>: variables in the file, secrets by name only, with the values encrypted on your machine.</li>
+          <li><code class="mono">{{var}}</code> autocomplete, JSON syntax highlighting, and a resolved preview before you send.</li>
+          <li>Response history per request, with a diff between any two responses you've had.</li>
+          <li>Copy as cURL, fetch, HTTPie or wget. Cancel actually cancels the in-flight request.</li>
+          <li>Private and loopback addresses are refused unless you opt in — the <a href="../guide/#requests">guide</a> has the flag.</li>
+        </ul>
+        
+        </div>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="requests">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/requests-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/requests-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/requests-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/requests-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/requests-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/requests-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/requests-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/requests-dark.png?v=20260910a"
+                 src="../assets/screenshots/requests-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The .http request workspace with the request, the composed body and the environment picker" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">an .http request, committed next to the code that calls it</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ EDITOR ============ -->
+  <section class="feature-block" id="editor">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 08 — Editor</div>
+        
+        <h2>A file editor for the <span class="italic">two-line</span> fix</h2>
+        <p class="block-body">
+          Not a replacement for your IDE — a place to fix the typo you just saw in the diff without
+          changing windows. CodeMirror 6, with a gitignore-aware tree that lists one level at a time
+          and keeps its open tabs, expanded folders and unsaved edits when you leave the view and come
+          back.
+        </p>
+        <ul class="block-list">
+          <li>Per-language snippets (Rust, TypeScript, JavaScript, Python, Go), keyword completion and indent guides.</li>
+          <li>JSON linting, with extra rules for <code class="mono">package.json</code> and <code class="mono">tsconfig.json</code>, and inline colour pickers in CSS.</li>
+          <li>Save writes to disk; save with Shift also stages the file for the next commit.</li>
+          <li>Reveal the active file in the tree, on by default: the folders open and the row scrolls into view.</li>
+          <li>Right-click a file in Changes, Branches or Reflog and open it here.</li>
+        </ul>
+        
+        </div>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="editor">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/editor-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/editor-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/editor-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/editor-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/editor-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/editor-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/editor-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/editor-dark.png?v=20260910a"
+                 src="../assets/screenshots/editor-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The in-app file editor with the repository tree, tabs and syntax highlighting" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">the file editor, for the fix that doesn't deserve a context switch</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ HISTORY TOOLS ============ -->
+  <section class="feature-block" id="history">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 09 — Bisect & reflog</div>
+        
+        <h2>Bisect and reflog, with <span class="italic">buttons</span></h2>
+        <p class="block-body">
+          Two commands worth having a face. Pick the good commit and the bad one and step through with
+          buttons; or let auto-mode run your test command at every step and resolve it while you do
+          something else. Bisect works inside a linked worktree or a submodule, which is where it used
+          to silently do nothing.
+        </p>
+        <ul class="block-list">
+          <li>The bisect log is on screen, so you can see what git has concluded so far.</li>
+          <li>Reflog lists every move of HEAD with recovery actions on the row — the safety net for a bad reset or a lost branch tip.</li>
+          <li>Interactive rebase is planned in a dialog and re-checked before it runs, so commits that landed while it was open can't be dropped.</li>
+        </ul>
+        
+        </div>
+      <div class="shot-pair">
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="bisect">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/bisect-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/bisect-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/bisect-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/bisect-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/bisect-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/bisect-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/bisect-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/bisect-dark.png?v=20260910a"
+                 src="../assets/screenshots/bisect-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="A bisect session in progress with the current commit and the remaining steps" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">a bisect session, mid-hunt</figcaption>
+      </figure>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="reflog">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/reflog-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/reflog-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/reflog-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/reflog-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/reflog-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/reflog-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/reflog-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/reflog-dark.png?v=20260910a"
+                 src="../assets/screenshots/reflog-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The reflog with every move of HEAD and its recovery actions" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">the reflog — the undo you did not know you had</figcaption>
+      </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ THEMES ============ -->
+  <section class="feature-block" id="themes">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 10 — Themes</div>
+        
+        <h2>31 themes, and <span class="italic">yours</span></h2>
+        <p class="block-body">
+          Three original families — BeardGit, Fjord and Nebula — and the classics you already use in
+          your editor: Rosé Pine, Everforest, Kanagawa, Ayu, Catppuccin, Dracula, Gruvbox, Nord, Tokyo
+          Night, Solarized, Oxocarbon and more. The theme reaches the whole app, including the editor's
+          syntax colours, the diff backgrounds and the graph lanes.
+        </p>
+        <ul class="block-list">
+          <li>Every bundled theme clears the WCAG AA contrast floor on all three text levels, and a test keeps it that way.</li>
+          <li>A theme you write is measured too, and reported — never rewritten. The picker tells you which tokens fall short and by how much, and applies it anyway.</li>
+          <li>Your own theme is a TOML file with 18 colours; the accents, borders, graph lanes and editor palette are derived from them unless you pin your own.</li>
+          <li>Dark and light pair up, so the app can follow your OS.</li>
+        </ul>
+        
+        </div>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="themes">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/themes-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/themes-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/themes-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/themes-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/themes-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/themes-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/themes-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/themes-dark.png?v=20260910a"
+                 src="../assets/screenshots/themes-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The theme picker in Settings with the built-in themes and the contrast report" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">the theme picker, contrast measured</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ KEYBOARD ============ -->
+  <section class="feature-block" id="keyboard">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 11 — Keyboard</div>
+        
+        <h2>A <span class="italic">command palette</span>, and the keys behind it</h2>
+        <p class="block-body">
+          <code class="mono">⌘⇧P</code> lists every view and every registered shortcut, and running
+          one from the palette does exactly what the key does. It's the fastest way to learn the
+          keyboard: find the thing by name, and the palette shows you the shortcut next to it.
+        </p>
+        <ul class="block-list">
+          <li>Type a couple of words in any order — <code class="mono">stash</code>, <code class="mono">unstage all</code> — and pick the row.</li>
+          <li><code class="mono">?</code> opens the full cheat sheet, generated from the same registry, so it can't drift from what actually works.</li>
+          <li>On Linux and Windows every <code class="mono">⌘</code> below reads as <code class="mono">Ctrl</code>.</li>
+          <li>The <a href="../guide/#keyboard">guide has the complete table</a> — the palette and the cheat sheet are the same list.</li>
+        </ul>
+        
+        </div>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="command-palette">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/command-palette-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/command-palette-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/command-palette-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/command-palette-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/command-palette-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/command-palette-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/command-palette-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/command-palette-dark.png?v=20260910a"
+                 src="../assets/screenshots/command-palette-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="The command palette open over the graph, listing views and shortcuts" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">the command palette — views and every shortcut</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ PRIVACY ============ -->
+  <section class="feature-block" id="privacy">
+    <div class="wrap">
+      <div class="block-head reveal">
+        <div class="eyebrow">§ 12 — Privacy</div>
+        
+        <h2>Yours, and <span class="italic">quiet</span></h2>
+        <p class="block-body">
+          No account, no telemetry, no analytics endpoint anywhere in the app. Two switches in
+          Settings → General → Integrations decide how much of it is even awake: one for GitHub and
+          GitLab, one for AI. With both off, BeardGit is a git-only client whose only outbound request
+          of its own is the update check — and that has a switch too.
+        </p>
+        <ul class="block-list">
+          <li>Forge off: no saved token is validated at launch, the origin remote isn't resolved against a forge API, and every forge surface hides itself. Accounts are kept, not deleted.</li>
+          <li>AI off: no CLI probing, no AI views, no terminal process polling for an agent. Runs already going finish; history stays readable.</li>
+          <li>Multi-repo tabs load their heavy state only for the tab you're in, so a dozen open repos cost about what one does.</li>
+          <li>Logs are local, rotate daily and are purged after a week; the level is a setting, and secrets are redacted on the way in.</li>
+          <li>The <a href="../guide/#data">guide lists every file the app writes</a>, on your machine and inside your repo.</li>
+        </ul>
+        
+        </div>
+      <figure class="shot-figure reveal">
+        <div class="screenshot-slot" data-slot="settings-integrations">
+          <picture>
+          <source class="shot-src" type="image/avif"
+                  data-srcset-light="../assets/screenshots/settings-integrations-light.avif?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/settings-integrations-dark.avif?v=20260910a"
+                  srcset="../assets/screenshots/settings-integrations-dark.avif?v=20260910a" />
+          <source class="shot-src" type="image/webp"
+                  data-srcset-light="../assets/screenshots/settings-integrations-light.webp?v=20260910a"
+                  data-srcset-dark="../assets/screenshots/settings-integrations-dark.webp?v=20260910a"
+                  srcset="../assets/screenshots/settings-integrations-dark.webp?v=20260910a" />
+            <img class="shot-img"
+                 data-src-light="../assets/screenshots/settings-integrations-light.png?v=20260910a"
+                 data-src-dark="../assets/screenshots/settings-integrations-dark.png?v=20260910a"
+                 src="../assets/screenshots/settings-integrations-dark.png?v=20260910a"
+                 width="2880" height="1800"
+                 loading="lazy" decoding="async"
+                 alt="Settings showing the GitHub and GitLab connections and the bundled CLI status" />
+          </picture>
+        </div>
+        <figcaption class="shot-caption mono">the integrations page — and the switch that turns it all off</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="page-foot">
+    <div class="wrap">
+      <div class="callout reveal">
+        <div>
+          
+          <h2>Now the <span class="italic">how</span></h2>
+          <p class="callout-body">Installing, connecting a forge, writing a theme, the full keyboard
+          table, where your data lives and what to do when something misbehaves — all in the guide.</p>
+          
+          </div>
+        <div>
+          <a href="../guide/" class="btn btn-primary">Read the guide</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="brand" style="margin-bottom:1rem">
+            <img src="../assets/logo.svg?v=20260910a" alt="" class="brand-mark" />
+            <span class="brand-name">BeardGit</span>
+          </div>
+          <p class="footer-tagline mono">A desktop Git client that keeps the graph, your pull and merge requests, CI, issues, releases, terminals, AI runs, .http requests and a file editor in the same window.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Site</h4>
+          <ul>
+            <li><a href="../">Home</a></li>
+            <li><a href="../features/">Features</a></li>
+            <li><a href="../guide/">Guide</a></li>
+            <li><a href="../changelog/">Changelog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Source</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/releases" target="_blank" rel="noopener">Releases</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/issues" target="_blank" rel="noopener">Issues</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/LICENSE.md" target="_blank" rel="noopener">License</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/CLA.md" target="_blank" rel="noopener">CLA</a></li>
+            <li><a href="https://github.com/The3eard/BeardGit/blob/main/SECURITY.md" target="_blank" rel="noopener">Security</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Adolfo Fuentes</span>
+        <span class="mono">Free, source-available, no account, no telemetry.</span>
+      </div>
+    </div>
+  </footer>
+
+
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">×</button>
+    <img class="lightbox-img" id="lightboxImg" alt="" />
+    <div class="lightbox-caption mono" id="lightboxCaption"></div>
+  </div>
+
+  <script src="../assets/app.js?v=20260910a"></script>
+</body>
+</html>

@@ -1301,3 +1301,374 @@ html.js-reveal .reveal.in { opacity: 1; transform: none; }
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   .edge { stroke-dashoffset: 0 !important; }
 }
+
+/* ============================================================
+   Multi-page site — chrome and page-specific blocks.
+   Everything below arrived with the four-page build (see
+   scripts/build-site.mjs); the rules above it are the original
+   one-page landing and are still used by index.html.
+   ============================================================ */
+
+/* ---------- Nav: language switch + actions ---------- */
+.nav-actions { display: flex; align-items: center; gap: 0.6rem; }
+.nav-links a[aria-current="page"] { color: var(--accent); }
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+}
+.lang-switch:hover { color: var(--accent); border-color: var(--accent); background: var(--bg-panel); }
+.lang-switch svg { width: 14px; height: 14px; }
+
+/* A single quiet line under the nav, not a modal. Shown by app.js only
+   when the visitor's browser language disagrees with the page's. */
+.lang-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-elev);
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  flex-wrap: wrap;
+}
+.lang-nudge a { border-bottom-color: var(--accent); color: var(--accent); }
+.lang-nudge button {
+  background: none;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+}
+.lang-nudge button:hover { color: var(--fg); }
+/* A class that sets display beats the UA stylesheet's [hidden] rule. */
+.lang-nudge[hidden] { display: none; }
+
+/* ---------- Page heads (every page except the landing) ---------- */
+.page-head { padding-bottom: clamp(1.5rem, 3vw, 2.5rem); }
+.page-head-inner { max-width: 62ch; }
+.page-head h1 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(2.1rem, 4.5vw, 3.2rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0 0 1.2rem;
+}
+.page-lede { color: var(--fg-dim); font-size: 1.02rem; line-height: 1.7; margin: 0; }
+.page-lede a { border-bottom-color: var(--accent); }
+.page-lede-note { color: var(--fg-muted); font-size: 0.8rem; margin-top: 1rem; }
+.section-foot {
+  margin-top: 2.5rem;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  line-height: 1.7;
+  max-width: 70ch;
+}
+.section-foot a { border-bottom-color: var(--accent); }
+.page-foot { border-top: 1px solid var(--rule); }
+
+/* ---------- Rough edges ---------- */
+.rough-lede { max-width: 62ch; color: var(--fg-dim); font-size: 0.92rem; line-height: 1.7; margin: 0 0 2.2rem; }
+.rough-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+.rough-card {
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  background: var(--bg-elev);
+}
+.rough-card h3 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.98rem;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.rough-card p { color: var(--fg-dim); font-size: 0.85rem; line-height: 1.6; margin: 0; }
+.rough-card code { color: var(--accent); font-family: var(--font-mono); font-size: 0.88em; }
+.rough-card a { border-bottom-color: var(--accent); }
+
+/* ---------- Feature blocks (features page) ---------- */
+.feature-block .block-head { max-width: 68ch; margin-bottom: 2.2rem; }
+.feature-block h2 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0.6rem 0 1rem;
+}
+.feature-block h2 .italic { color: var(--accent); }
+.block-body { color: var(--fg-dim); font-size: 0.98rem; line-height: 1.75; margin: 0 0 1.4rem; }
+.block-body code,
+.block-list code { color: var(--accent); font-family: var(--font-mono); font-size: 0.88em; }
+.block-list { list-style: none; margin: 0; padding: 0; }
+.block-list li {
+  position: relative;
+  padding-left: 1.4rem;
+  margin-bottom: 0.7rem;
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+.block-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 6px;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0.7;
+}
+.block-list a { border-bottom-color: var(--accent); }
+.shot-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.2rem;
+}
+
+/* ---------- Changelog ---------- */
+.releases { display: flex; flex-direction: column; gap: 0.6rem; max-width: 90ch; }
+.release {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg-elev);
+  padding: 0 1.4rem;
+}
+.release[data-current="true"] { border-color: var(--rule-strong); border-left: 2px solid var(--accent); }
+.release > summary {
+  cursor: pointer;
+  list-style: none;
+  display: block;
+  padding: 1.1rem 0;
+}
+.release > summary::-webkit-details-marker { display: none; }
+.release-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.release-head::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+}
+.release[open] .release-head::after { content: "\2212"; }
+.release > summary:hover .release-version { color: var(--accent); }
+.release-version { font-size: 1.05rem; color: var(--fg); letter-spacing: 0.02em; }
+.release-date { color: var(--fg-muted); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.release-title {
+  color: var(--fg-dim);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0.5rem 0 0;
+  max-width: 76ch;
+}
+.release[open] .release-title { margin-bottom: 1.4rem; }
+.release-group { margin-bottom: 1.6rem; }
+.release-group-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 0 0 0.8rem;
+  color: var(--fg-muted);
+}
+.release-group-title.added { color: var(--brand-green); }
+.release-group-title.fixed { color: var(--accent); }
+.release-group-title.changed { color: var(--brand-blue); }
+.release-list { list-style: none; margin: 0 0 0.4rem; padding: 0; }
+.release-list li {
+  position: relative;
+  padding-left: 1.3rem;
+  margin-bottom: 1rem;
+  color: var(--fg-dim);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+.release-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 6px;
+  height: 1px;
+  background: var(--rule-strong);
+}
+.release-list strong { color: var(--fg); font-weight: 500; }
+.release-list code,
+.release-title code { color: var(--accent); font-family: var(--font-mono); font-size: 0.88em; }
+.release-list a { border-bottom-color: var(--rule-strong); }
+
+/* ---------- Guide ---------- */
+.guide-layout { display: grid; grid-template-columns: 220px 1fr; gap: clamp(2rem, 5vw, 4rem); align-items: start; }
+.guide-nav { position: sticky; top: 92px; align-self: start; }
+.guide-nav ol {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  counter-reset: guide;
+  border-left: 1px solid var(--rule);
+}
+.guide-nav li { counter-increment: guide; }
+.guide-nav a {
+  display: block;
+  border: none;
+  padding: 0.45rem 0 0.45rem 1rem;
+  margin-left: -1px;
+  border-left: 1px solid transparent;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.guide-nav a::before {
+  content: counter(guide) ". ";
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--rule-strong);
+}
+.guide-nav a:hover,
+.guide-nav a.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+}
+.guide-nav a.active::before { color: var(--accent); }
+
+.guide-body { min-width: 0; max-width: 78ch; }
+.guide-section { padding-bottom: clamp(2.5rem, 5vw, 4rem); scroll-margin-top: 92px; }
+.guide-section + .guide-section { border-top: 1px solid var(--rule); padding-top: clamp(2.5rem, 5vw, 3.5rem); }
+.guide-section h2 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+  letter-spacing: -0.02em;
+  margin: 0 0 1.2rem;
+}
+.guide-section h3 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 1.02rem;
+  margin: 2rem 0 0.8rem;
+  color: var(--fg);
+}
+.guide-section p,
+.guide-section li { color: var(--fg-dim); font-size: 0.93rem; line-height: 1.75; }
+.guide-section p { margin: 0 0 1rem; }
+.guide-section ul,
+.guide-section ol { margin: 0 0 1.2rem; padding-left: 1.4rem; }
+.guide-section li { margin-bottom: 0.6rem; }
+.guide-section strong { color: var(--fg); font-weight: 500; }
+.guide-section code { color: var(--accent); font-family: var(--font-mono); font-size: 0.88em; }
+.guide-section h2 code { font-size: 0.9em; }
+.guide-section a { border-bottom-color: var(--accent); }
+.guide-section .note {
+  border-left: 2px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 0.9rem 1.1rem;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.88rem;
+}
+
+pre.code {
+  background: var(--code-bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin: 0 0 1.4rem;
+}
+pre.code code {
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.7;
+  white-space: pre;
+}
+
+.table-scroll { overflow-x: auto; margin: 0 0 1.4rem; }
+.guide-table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+.guide-table th,
+.guide-table td {
+  text-align: left;
+  padding: 0.7rem 1rem 0.7rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  color: var(--fg-dim);
+}
+.guide-table th {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.guide-table td:first-child { color: var(--fg); white-space: nowrap; padding-right: 1.6rem; width: 1%; }
+.guide-table code { white-space: nowrap; }
+
+.trouble-list { margin: 0; }
+.trouble-list dt {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--fg);
+  font-size: 0.95rem;
+  margin-top: 1.6rem;
+}
+.trouble-list dd {
+  margin: 0.45rem 0 0;
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.trouble-list dd code { color: var(--accent); font-family: var(--font-mono); font-size: 0.88em; }
+.trouble-list dd a { border-bottom-color: var(--accent); }
+
+/* ---------- Responsive additions ---------- */
+@media (max-width: 900px) {
+  .guide-layout { grid-template-columns: 1fr; }
+  .guide-nav { position: static; }
+  .guide-nav ol { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; border-left: none; }
+  .guide-nav a { padding: 0.3rem 0; border-left: none; }
+  .guide-nav a:hover,
+  .guide-nav a.active { border-left: none; }
+  .shot-pair { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  /* The nav is real page navigation now, so it scrolls sideways instead of
+     disappearing the way the one-page anchor list used to. */
+  .nav-links {
+    display: flex;
+    order: 3;
+    width: 100%;
+    gap: 1.1rem;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+    scrollbar-width: none;
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links a { white-space: nowrap; }
+  .release { padding: 0 1rem; }
+  .guide-table td:first-child { white-space: normal; }
+}
