@@ -2,7 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [Unreleased]
+## [26.9.2] — Stars on the branches you use, and submodules all the way down — 2026-09-10
 
 ### Added
 
