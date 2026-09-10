@@ -71,6 +71,14 @@ jobs:
         # the latest upstream release by more than the grace period.
         run: node scripts/check-cli-versions.mjs
 
+      - name: Public site up to date
+        # docs/ is build output, not source: eight pages in two languages
+        # assembled from docs/_pages, docs/_partials and docs/_i18n. Editing
+        # a page under docs/ directly is silently undone by the next build,
+        # and editing a source without rebuilding ships nothing — so the
+        # pair has to be checked, not trusted.
+        run: node scripts/build-site.mjs --check
+
       - name: Playwright spec collection check
         # Collection only (--list): no browsers, no app build, ~2s. One
         # unloadable module aborts collection for the WHOLE project, so a

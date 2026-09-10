@@ -1,0 +1,33 @@
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a href="{{L}}" class="brand" style="border:none">
+        <img src="{{BASE}}assets/logo.svg?v={{V}}" alt="" class="brand-mark" />
+        <span class="brand-name">BeardGit</span>
+      </a>
+      <div class="nav-links">
+        <a href="{{L}}" data-nav="home">{{t:nav.home}}</a>
+        <a href="{{L}}features/" data-nav="features">{{t:nav.features}}</a>
+        <a href="{{L}}guide/" data-nav="guide">{{t:nav.guide}}</a>
+        <a href="{{L}}changelog/" data-nav="changelog">{{t:nav.changelog}}</a>
+        <a href="https://github.com/The3eard/BeardGit" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <div class="nav-actions">
+        <a class="lang-switch" href="{{LANG_SWITCH_HREF}}" title="{{LANG_SWITCH_TITLE}}" hreflang="{{t:nav.lang_other_code}}" lang="{{t:nav.lang_other_code}}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M3 12h18"/>
+            <path d="M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/>
+          </svg>
+          <span>{{LANG_SWITCH_LABEL}}</span>
+        </a>
+        <button class="theme-toggle" id="themeToggle" aria-label="{{t:nav.theme_aria}}" title="{{t:nav.theme_title}}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" id="themeIcon">
+            <!-- icon swapped by JS -->
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+          </svg>
+          <span id="themeLabel">{{t:theme.auto}}</span>
+        </button>
+      </div>
+    </div>
+  </nav>
