@@ -1,9 +1,11 @@
 /**
  * SVG bezier connectors between merge editor panels.
  *
- * Draws curved paths connecting conflict regions on side panels to
- * conflict placeholder lines in the center panel. Automatically
- * switches to simplified thin lines when conflicts are dense.
+ * Draws curved bands connecting a conflict region on a side panel to the
+ * region of the result panel it feeds. Coordinates may lie outside the
+ * visible gap; the SVG clips them, so a block that is half scrolled away
+ * still connects to what remains on screen. Switches to thin lines when
+ * conflicts are dense.
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -26,6 +28,8 @@ export interface ConnectorPair {
   side: RegionRect;
   center: RegionRect;
   resolved: boolean;
+  /** The conflict the user is working on; drawn stronger. */
+  active?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -35,12 +39,10 @@ export interface ConnectorPair {
 /**
  * Render connector paths into an SVG element.
  *
- * When conflicts are sparse (> 20px apart), draws filled bezier curves.
- * When dense, switches to thin straight connector lines to stay readable.
- *
  * @param svg       - The SVG element to render into.
- * @param pairs     - Connector pairs to draw.
+ * @param pairs     - Connector pairs to draw; resolved and off-screen ones are skipped.
  * @param width     - Width of the SVG element (px).
+ * @param height    - Height of the SVG element (px); pairs entirely outside are skipped.
  * @param direction - "left": side on left, center on right.
  *                    "right": center on left, side on right.
  */
@@ -48,23 +50,20 @@ export function renderConnectors(
   svg: SVGSVGElement,
   pairs: ConnectorPair[],
   width: number,
+  height: number,
   direction: 'left' | 'right',
 ): void {
   while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-  // Filter out resolved pairs and pairs with invalid coordinates
-  // (coordsAtPos returns null for off-screen lines → {top:0, bottom:0})
-  const active = pairs.filter(p =>
-    !p.resolved &&
-    !(p.side.top === 0 && p.side.bottom === 0) &&
-    !(p.center.top === 0 && p.center.bottom === 0)
-  );
+  const active = pairs.filter((p) => {
+    if (p.resolved) return false;
+    const top = Math.min(p.side.top, p.center.top);
+    const bottom = Math.max(p.side.bottom, p.center.bottom);
+    return bottom >= 0 && top <= height;
+  });
   if (active.length === 0) return;
 
-  // Detect density: check minimum gap between consecutive connectors
-  const dense = isDense(active);
-
-  if (dense) {
+  if (isDense(active)) {
     renderSimplified(svg, active, width, direction);
   } else {
     renderBezier(svg, active, width, direction);
@@ -75,14 +74,12 @@ export function renderConnectors(
 function isDense(pairs: ConnectorPair[]): boolean {
   if (pairs.length <= 1) return false;
 
-  // Sort by side top position
   const sorted = [...pairs].sort((a, b) => a.side.top - b.side.top);
   for (let i = 1; i < sorted.length; i++) {
     const gap = sorted[i].side.top - sorted[i - 1].side.bottom;
     if (gap < DENSE_THRESHOLD) return true;
   }
 
-  // Also check center positions
   const sortedCenter = [...pairs].sort((a, b) => a.center.top - b.center.top);
   for (let i = 1; i < sortedCenter.length; i++) {
     const gap = sortedCenter[i].center.top - sortedCenter[i - 1].center.bottom;
@@ -90,6 +87,10 @@ function isDense(pairs: ConnectorPair[]): boolean {
   }
 
   return false;
+}
+
+function strokeOpacity(pair: ConnectorPair, base: number): string {
+  return String(pair.active ? Math.min(1, base * 2) : base);
 }
 
 /** Render full bezier curves with filled areas (sparse mode). */
@@ -110,7 +111,6 @@ function renderBezier(
     const { top: sideTop, bottom: sideBot } = pair.side;
     const { top: centerTop, bottom: centerBot } = pair.center;
 
-    // Filled area
     const d = [
       `M ${sideX} ${sideTop}`,
       `C ${cp1X} ${sideTop}, ${cp2X} ${centerTop}, ${centerX} ${centerTop}`,
@@ -122,29 +122,19 @@ function renderBezier(
     const fillPath = document.createElementNS(SVG_NS, 'path');
     fillPath.setAttribute('d', d);
     fillPath.style.fill = 'var(--accent-primary)';
-    fillPath.style.fillOpacity = '0.06';
+    fillPath.style.fillOpacity = pair.active ? '0.14' : '0.06';
     fillPath.style.stroke = 'none';
     svg.appendChild(fillPath);
 
-    // Top edge stroke
-    const topCurve = document.createElementNS(SVG_NS, 'path');
-    topCurve.setAttribute('d',
-      `M ${sideX} ${sideTop} C ${cp1X} ${sideTop}, ${cp2X} ${centerTop}, ${centerX} ${centerTop}`);
-    topCurve.style.fill = 'none';
-    topCurve.style.stroke = 'var(--accent-primary)';
-    topCurve.style.strokeOpacity = '0.3';
-    topCurve.style.strokeWidth = '1';
-    svg.appendChild(topCurve);
-
-    // Bottom edge stroke
-    const botCurve = document.createElementNS(SVG_NS, 'path');
-    botCurve.setAttribute('d',
-      `M ${sideX} ${sideBot} C ${cp1X} ${sideBot}, ${cp2X} ${centerBot}, ${centerX} ${centerBot}`);
-    botCurve.style.fill = 'none';
-    botCurve.style.stroke = 'var(--accent-primary)';
-    botCurve.style.strokeOpacity = '0.3';
-    botCurve.style.strokeWidth = '1';
-    svg.appendChild(botCurve);
+    for (const [a, b] of [[sideTop, centerTop], [sideBot, centerBot]]) {
+      const curve = document.createElementNS(SVG_NS, 'path');
+      curve.setAttribute('d', `M ${sideX} ${a} C ${cp1X} ${a}, ${cp2X} ${b}, ${centerX} ${b}`);
+      curve.style.fill = 'none';
+      curve.style.stroke = 'var(--accent-primary)';
+      curve.style.strokeOpacity = strokeOpacity(pair, 0.3);
+      curve.style.strokeWidth = pair.active ? '1.5' : '1';
+      svg.appendChild(curve);
+    }
   }
 }
 
@@ -162,83 +152,36 @@ function renderSimplified(
     const sideMid = (pair.side.top + pair.side.bottom) / 2;
     const centerMid = (pair.center.top + pair.center.bottom) / 2;
 
-    // Single thin line connecting midpoints
     const line = document.createElementNS(SVG_NS, 'line');
     line.setAttribute('x1', String(sideX));
     line.setAttribute('y1', String(sideMid));
     line.setAttribute('x2', String(centerX));
     line.setAttribute('y2', String(centerMid));
     line.style.stroke = 'var(--accent-primary)';
-    line.style.strokeOpacity = '0.35';
-    line.style.strokeWidth = '1.5';
+    line.style.strokeOpacity = strokeOpacity(pair, 0.35);
+    line.style.strokeWidth = pair.active ? '2' : '1.5';
     svg.appendChild(line);
 
-    // Small tick marks at the endpoints to show the range
     const tickLen = 3;
 
-    // Side tick (top to bottom of region)
     const sideTick = document.createElementNS(SVG_NS, 'line');
     sideTick.setAttribute('x1', String(sideX));
     sideTick.setAttribute('y1', String(pair.side.top));
     sideTick.setAttribute('x2', String(sideX));
     sideTick.setAttribute('y2', String(pair.side.bottom));
     sideTick.style.stroke = 'var(--accent-primary)';
-    sideTick.style.strokeOpacity = '0.25';
+    sideTick.style.strokeOpacity = strokeOpacity(pair, 0.25);
     sideTick.style.strokeWidth = '2';
     svg.appendChild(sideTick);
 
-    // Center tick
     const centerTick = document.createElementNS(SVG_NS, 'line');
     centerTick.setAttribute('x1', String(centerX));
     centerTick.setAttribute('y1', String(centerMid - tickLen));
     centerTick.setAttribute('x2', String(centerX));
     centerTick.setAttribute('y2', String(centerMid + tickLen));
     centerTick.style.stroke = 'var(--accent-primary)';
-    centerTick.style.strokeOpacity = '0.25';
+    centerTick.style.strokeOpacity = strokeOpacity(pair, 0.25);
     centerTick.style.strokeWidth = '2';
     svg.appendChild(centerTick);
   }
-}
-
-// ---------------------------------------------------------------------------
-// getLineRect
-// ---------------------------------------------------------------------------
-
-/**
- * Get the pixel Y range of a line range using actual DOM coordinates.
- *
- * @param view       - CodeMirror EditorView.
- * @param fromLine   - 0-based start line index.
- * @param lineCount  - Number of lines in the range.
- * @param refTop     - The top Y of the reference container (connector gap).
- * @returns RegionRect with top/bottom relative to refTop.
- */
-export function getLineRect(
-  view: {
-    coordsAtPos: (pos: number) => { top: number; bottom: number } | null;
-    state: { doc: { line: (n: number) => { from: number; to: number }; lines: number } };
-  },
-  fromLine: number,
-  lineCount: number,
-  refTop: number,
-): RegionRect {
-  const totalLines = view.state.doc.lines;
-
-  const firstLine = Math.max(1, Math.min(fromLine + 1, totalLines));
-  const lastLine = Math.max(1, Math.min(fromLine + lineCount, totalLines));
-
-  const firstPos = view.state.doc.line(firstLine).from;
-  const lastPos = view.state.doc.line(lastLine).from;
-
-  const topCoord = view.coordsAtPos(firstPos);
-  const botCoord = view.coordsAtPos(lastPos);
-
-  if (!topCoord || !botCoord) {
-    return { top: 0, bottom: 0 };
-  }
-
-  return {
-    top: topCoord.top - refTop,
-    bottom: botCoord.bottom - refTop,
-  };
 }

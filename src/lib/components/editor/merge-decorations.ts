@@ -1,9 +1,15 @@
 /**
  * CodeMirror decorations for the 3-way merge editor.
  *
- * Side panels: green (added), red (removed), purple (conflict) backgrounds.
- * Center panel: blue background on conflict placeholder lines, with
- * inline widget buttons for accept/ignore actions.
+ * Side panels: line backgrounds (added / conflict / active conflict) plus a
+ * block widget above every conflict chunk with accept / discard buttons for
+ * that side. Center panel: each conflict placeholder line is replaced by a
+ * widget carrying the same actions for both sides, with the state of each
+ * side read from the placeholder text (see `merge-placeholder.ts`).
+ *
+ * The buttons act on `mousedown`, as `@codemirror/merge` does for its own
+ * controls: inside a contenteditable host the browser may move focus and
+ * selection between mousedown and mouseup and swallow the click.
  */
 
 import {
@@ -18,6 +24,13 @@ import {
   type Extension,
   RangeSetBuilder,
 } from '@codemirror/state';
+import * as m from '$lib/paraglide/messages';
+import {
+  parsePlaceholder,
+  type ConflictMarker,
+  type ConflictSide,
+  type SideDecision,
+} from './merge-placeholder';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,12 +51,22 @@ export interface HighlightRange {
   conflictIndex: number;
 }
 
-/** Callbacks for conflict widget accept/ignore buttons. */
+/** Actions the conflict widgets can trigger. */
 export interface ConflictWidgetCallbacks {
-  acceptTheirs: (index: number) => void;
-  acceptOurs: (index: number) => void;
-  ignoreTheirs: (index: number) => void;
-  ignoreOurs: (index: number) => void;
+  decide: (index: number, side: ConflictSide, decision: 'accepted' | 'discarded') => void;
+  /** The user pointed at a conflict; used to highlight it across panels. */
+  activate: (index: number) => void;
+}
+
+/** One conflict chunk as shown on a side panel. */
+export interface SideConflict {
+  index: number;
+  /** 0-based first line of the chunk on this side. */
+  fromLine: number;
+  /** Line count on this side; 0 when this side deleted the block. */
+  lineCount: number;
+  decision: SideDecision;
+  active: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +78,12 @@ export const setMergeHighlights = StateEffect.define<HighlightRange[]>();
 
 /** Effect to pass conflict widget callbacks into the extension. */
 export const setConflictCallbacks = StateEffect.define<ConflictWidgetCallbacks>();
+
+/** Effect to (re)publish the conflict chunks of a side panel. */
+export const setSideConflicts = StateEffect.define<{ side: ConflictSide; conflicts: SideConflict[] }>();
+
+/** Effect to mark which conflict is active in the center panel. */
+export const setActiveConflict = StateEffect.define<number | null>();
 
 // ---------------------------------------------------------------------------
 // Line highlight decorations
@@ -130,95 +159,134 @@ export function mergeHighlightExtension(): Extension {
 }
 
 // ---------------------------------------------------------------------------
-// Conflict line widget
+// Shared button factory
 // ---------------------------------------------------------------------------
 
-/** Prefix used for conflict placeholder lines in the center editor. */
-const CONFLICT_PREFIX = '\u25C6 CONFLICT ';
+function button(
+  className: string,
+  text: string,
+  title: string,
+  onAct: () => void,
+): HTMLButtonElement {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = className;
+  btn.textContent = text;
+  btn.title = title;
+  btn.setAttribute('aria-label', title);
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onAct();
+  });
+  // Keyboard activation still arrives as a click.
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.detail === 0) onAct();
+  });
+  return btn;
+}
+
+function sideLabel(side: ConflictSide): string {
+  return side === 'theirs' ? m.merge_panel_theirs() : m.merge_panel_ours();
+}
+
+function acceptTitle(side: ConflictSide): string {
+  return side === 'theirs' ? m.merge_accept_theirs() : m.merge_accept_ours();
+}
+
+function discardTitle(side: ConflictSide): string {
+  return side === 'theirs' ? m.merge_discard_theirs() : m.merge_discard_ours();
+}
+
+function decisionBadge(decision: SideDecision): HTMLElement {
+  const badge = document.createElement('span');
+  badge.className = `cm-cw-state cm-cw-state-${decision}`;
+  badge.textContent = decision === 'accepted' ? m.merge_side_accepted() : m.merge_side_discarded();
+  return badge;
+}
+
+// ---------------------------------------------------------------------------
+// Center conflict widget
+// ---------------------------------------------------------------------------
 
 /**
- * Widget that replaces a conflict placeholder line with accept/ignore buttons.
+ * Widget that replaces a conflict placeholder line in the result panel.
  *
- * Layout: [ > ] [ x ]   CONFLICT N   [ x ] [ < ]
+ * Layout: [❯ accept theirs] [✕]   ◆ Conflict N   [✕] [accept ours ❮]
+ * A decided side shows its state instead of its buttons.
  */
 class ConflictLineWidget extends WidgetType {
   constructor(
-    private readonly conflictIndex: number,
+    private readonly marker: ConflictMarker,
+    private readonly active: boolean,
     private readonly callbacks: ConflictWidgetCallbacks,
   ) {
     super();
   }
 
   toDOM(): HTMLElement {
+    const { index } = this.marker;
     const wrap = document.createElement('div');
-    wrap.className = 'cm-conflict-widget';
+    wrap.className = 'cm-conflict-widget' + (this.active ? ' cm-conflict-widget-active' : '');
+    wrap.addEventListener('mousedown', () => this.callbacks.activate(index));
 
-    const btnAcceptTheirs = document.createElement('button');
-    btnAcceptTheirs.className = 'cm-cw-accept-theirs';
-    btnAcceptTheirs.title = 'Accept Theirs';
-    btnAcceptTheirs.textContent = '\u276F';
-    btnAcceptTheirs.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.callbacks.acceptTheirs(this.conflictIndex);
-    });
-
-    const btnIgnoreTheirs = document.createElement('button');
-    btnIgnoreTheirs.className = 'cm-cw-ignore';
-    btnIgnoreTheirs.title = 'Ignore Theirs';
-    btnIgnoreTheirs.textContent = '\u2715';
-    btnIgnoreTheirs.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.callbacks.ignoreTheirs(this.conflictIndex);
-    });
+    const sideGroup = (side: ConflictSide): HTMLElement => {
+      const group = document.createElement('span');
+      group.className = `cm-cw-side cm-cw-side-${side}`;
+      const decision = this.marker[side];
+      if (decision !== 'pending') {
+        group.appendChild(decisionBadge(decision));
+        return group;
+      }
+      const accept = button(
+        `cm-cw-accept cm-cw-accept-${side}`,
+        side === 'theirs' ? '❯' : '❮',
+        acceptTitle(side),
+        () => this.callbacks.decide(index, side, 'accepted'),
+      );
+      const discard = button(
+        'cm-cw-ignore',
+        '✕',
+        discardTitle(side),
+        () => this.callbacks.decide(index, side, 'discarded'),
+      );
+      if (side === 'theirs') {
+        group.append(accept, discard);
+      } else {
+        group.append(discard, accept);
+      }
+      return group;
+    };
 
     const label = document.createElement('span');
     label.className = 'cm-cw-label';
-    label.textContent = `\u25C6 CONFLICT ${this.conflictIndex}`;
+    label.textContent = `◆ ${m.merge_conflict_label({ n: String(index + 1) })}`;
 
-    const btnIgnoreOurs = document.createElement('button');
-    btnIgnoreOurs.className = 'cm-cw-ignore';
-    btnIgnoreOurs.title = 'Ignore Ours';
-    btnIgnoreOurs.textContent = '\u2715';
-    btnIgnoreOurs.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.callbacks.ignoreOurs(this.conflictIndex);
-    });
-
-    const btnAcceptOurs = document.createElement('button');
-    btnAcceptOurs.className = 'cm-cw-accept-ours';
-    btnAcceptOurs.title = 'Accept Ours';
-    btnAcceptOurs.textContent = '\u276E';
-    btnAcceptOurs.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.callbacks.acceptOurs(this.conflictIndex);
-    });
-
-    wrap.appendChild(btnAcceptTheirs);
-    wrap.appendChild(btnIgnoreTheirs);
-    wrap.appendChild(label);
-    wrap.appendChild(btnIgnoreOurs);
-    wrap.appendChild(btnAcceptOurs);
-
+    wrap.append(sideGroup('theirs'), label, sideGroup('ours'));
     return wrap;
   }
 
   eq(other: WidgetType): boolean {
     if (!(other instanceof ConflictLineWidget)) return false;
-    return other.conflictIndex === this.conflictIndex;
+    return (
+      other.marker.index === this.marker.index &&
+      other.marker.theirs === this.marker.theirs &&
+      other.marker.ours === this.marker.ours &&
+      other.active === this.active
+    );
+  }
+
+  ignoreEvent(): boolean {
+    return true;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Conflict line widget extension
-// ---------------------------------------------------------------------------
 
 interface ConflictWidgetState {
   decos: DecorationSet;
   callbacks: ConflictWidgetCallbacks | null;
+  active: number | null;
 }
 
 /**
@@ -227,17 +295,15 @@ interface ConflictWidgetState {
  */
 const conflictWidgetField = StateField.define<ConflictWidgetState>({
   create() {
-    return { decos: Decoration.none, callbacks: null };
+    return { decos: Decoration.none, callbacks: null, active: null };
   },
 
   update(value, tr) {
-    let callbacks = value.callbacks;
+    let { callbacks, active } = value;
 
-    // Check for callback updates
     for (const effect of tr.effects) {
-      if (effect.is(setConflictCallbacks)) {
-        callbacks = effect.value;
-      }
+      if (effect.is(setConflictCallbacks)) callbacks = effect.value;
+      if (effect.is(setActiveConflict)) active = effect.value;
     }
 
     // Rebuild decorations on every transaction (doc may have changed)
@@ -247,23 +313,19 @@ const conflictWidgetField = StateField.define<ConflictWidgetState>({
       const doc = tr.state.doc;
       for (let i = 1; i <= doc.lines; i++) {
         const line = doc.line(i);
-        if (line.text.startsWith(CONFLICT_PREFIX)) {
-          const indexStr = line.text.slice(CONFLICT_PREFIX.length).trim();
-          const conflictIndex = parseInt(indexStr, 10);
-          if (!isNaN(conflictIndex)) {
-            builder.add(
-              line.from,
-              line.to,
-              Decoration.replace({
-                widget: new ConflictLineWidget(conflictIndex, callbacks),
-              }),
-            );
-          }
-        }
+        const marker = parsePlaceholder(line.text);
+        if (!marker) continue;
+        builder.add(
+          line.from,
+          line.to,
+          Decoration.replace({
+            widget: new ConflictLineWidget(marker, marker.index === active, callbacks),
+          }),
+        );
       }
     }
 
-    return { decos: builder.finish(), callbacks };
+    return { decos: builder.finish(), callbacks, active };
   },
 
   provide(f) {
@@ -280,6 +342,166 @@ export function conflictLineWidgetExtension(): Extension {
 }
 
 // ---------------------------------------------------------------------------
+// Side panel conflict widget
+// ---------------------------------------------------------------------------
+
+/**
+ * Block widget shown above a conflict chunk on a side panel.
+ *
+ * Layout: ◆ Conflict N · <side>   [Accept] [Discard]
+ * Once this side is decided the buttons give way to a state badge.
+ */
+class SideConflictWidget extends WidgetType {
+  constructor(
+    private readonly side: ConflictSide,
+    private readonly conflict: SideConflict,
+    private readonly callbacks: ConflictWidgetCallbacks,
+  ) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const { index, decision, lineCount, active } = this.conflict;
+    const wrap = document.createElement('div');
+    wrap.className =
+      `cm-side-conflict cm-side-conflict-${this.side}` +
+      (active ? ' cm-side-conflict-active' : '') +
+      (decision !== 'pending' ? ' cm-side-conflict-decided' : '');
+    wrap.addEventListener('mousedown', () => this.callbacks.activate(index));
+
+    const label = document.createElement('span');
+    label.className = 'cm-cw-label';
+    label.textContent = `◆ ${m.merge_conflict_label({ n: String(index + 1) })}`;
+    wrap.appendChild(label);
+
+    if (lineCount === 0) {
+      const note = document.createElement('span');
+      note.className = 'cm-cw-note';
+      note.textContent = m.merge_side_deleted();
+      wrap.appendChild(note);
+    }
+
+    const spacer = document.createElement('span');
+    spacer.className = 'cm-cw-spacer';
+    wrap.appendChild(spacer);
+
+    if (decision !== 'pending') {
+      wrap.appendChild(decisionBadge(decision));
+      return wrap;
+    }
+
+    wrap.appendChild(
+      button(
+        `cm-cw-accept cm-cw-accept-${this.side}`,
+        `${this.side === 'theirs' ? '❯ ' : '❮ '}${m.merge_accept()}`,
+        acceptTitle(this.side),
+        () => this.callbacks.decide(index, this.side, 'accepted'),
+      ),
+    );
+    wrap.appendChild(
+      button(
+        'cm-cw-ignore',
+        `✕ ${m.merge_discard()}`,
+        discardTitle(this.side),
+        () => this.callbacks.decide(index, this.side, 'discarded'),
+      ),
+    );
+    return wrap;
+  }
+
+  eq(other: WidgetType): boolean {
+    if (!(other instanceof SideConflictWidget)) return false;
+    const a = this.conflict;
+    const b = other.conflict;
+    return (
+      other.side === this.side &&
+      a.index === b.index &&
+      a.fromLine === b.fromLine &&
+      a.lineCount === b.lineCount &&
+      a.decision === b.decision &&
+      a.active === b.active
+    );
+  }
+
+  ignoreEvent(): boolean {
+    return true;
+  }
+
+  get estimatedHeight(): number {
+    return 24;
+  }
+}
+
+interface SideWidgetState {
+  decos: DecorationSet;
+  callbacks: ConflictWidgetCallbacks | null;
+  side: ConflictSide;
+  conflicts: SideConflict[];
+}
+
+function buildSideDecos(state: SideWidgetState, doc: import('@codemirror/state').Text): DecorationSet {
+  if (!state.callbacks) return Decoration.none;
+  const builder = new RangeSetBuilder<Decoration>();
+  const sorted = [...state.conflicts].sort((a, b) => a.fromLine - b.fromLine);
+  let lastPos = -1;
+  for (const conflict of sorted) {
+    // A side that deleted the block anchors its widget to the line that
+    // follows the deletion, or to the end of the document.
+    const lineNum = Math.min(conflict.fromLine + 1, doc.lines);
+    const pos = conflict.fromLine >= doc.lines ? doc.length : doc.line(lineNum).from;
+    if (pos < lastPos) continue;
+    lastPos = pos;
+    builder.add(
+      pos,
+      pos,
+      Decoration.widget({
+        widget: new SideConflictWidget(state.side, conflict, state.callbacks),
+        block: true,
+        side: -1,
+      }),
+    );
+  }
+  return builder.finish();
+}
+
+const sideConflictField = StateField.define<SideWidgetState>({
+  create() {
+    return { decos: Decoration.none, callbacks: null, side: 'theirs', conflicts: [] };
+  },
+
+  update(value, tr) {
+    let next = value;
+    let dirty = false;
+    for (const effect of tr.effects) {
+      if (effect.is(setConflictCallbacks)) {
+        next = { ...next, callbacks: effect.value };
+        dirty = true;
+      } else if (effect.is(setSideConflicts)) {
+        next = { ...next, side: effect.value.side, conflicts: effect.value.conflicts };
+        dirty = true;
+      }
+    }
+    if (!dirty) {
+      return tr.docChanged ? { ...value, decos: value.decos.map(tr.changes) } : value;
+    }
+    return { ...next, decos: buildSideDecos(next, tr.state.doc) };
+  },
+
+  provide(f) {
+    return EditorView.decorations.from(f, (v) => v.decos);
+  },
+});
+
+/**
+ * Returns the side-panel conflict widget extension. Dispatch
+ * `setConflictCallbacks` once and `setSideConflicts` whenever the
+ * conflicts' state changes.
+ */
+export function sideConflictWidgetExtension(): Extension {
+  return sideConflictField;
+}
+
+// ---------------------------------------------------------------------------
 // Theme
 // ---------------------------------------------------------------------------
 
@@ -290,7 +512,7 @@ export function conflictLineWidgetExtension(): Extension {
  * - Green: additions (non-conflict changes)
  * - Red: removals (deleted lines)
  * - Purple: conflict chunks on side panels
- * - Blue: conflict location in center panel
+ * - Accent: conflict location in center panel
  */
 export function mergeDecorationTheme(): Extension {
   return EditorView.theme({
@@ -317,10 +539,49 @@ export function mergeDecorationTheme(): Extension {
     '.cm-conflict-widget': {
       display: 'flex',
       alignItems: 'center',
-      padding: '0 4px',
-      minHeight: '20px',
+      gap: '4px',
+      padding: '2px 6px',
+      minHeight: '24px',
       backgroundColor: 'color-mix(in srgb, var(--accent-primary) 12%, transparent)',
       borderLeft: '2px solid var(--accent-primary)',
+      cursor: 'default',
+    },
+    '.cm-conflict-widget-active': {
+      backgroundColor: 'color-mix(in srgb, var(--accent-primary) 24%, transparent)',
+      boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 40%, transparent)',
+    },
+    '.cm-cw-side': {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '2px',
+      minWidth: '58px',
+    },
+    '.cm-cw-side-ours': {
+      justifyContent: 'flex-end',
+    },
+    '.cm-side-conflict': {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '2px 6px 2px 8px',
+      minHeight: '24px',
+      backgroundColor: 'color-mix(in srgb, var(--accent-purple) 18%, transparent)',
+      borderLeft: '2px solid var(--accent-purple)',
+      borderBottom: '1px solid color-mix(in srgb, var(--accent-purple) 35%, transparent)',
+      fontFamily: 'var(--font-mono)',
+      fontSize: '11px',
+      cursor: 'default',
+    },
+    '.cm-side-conflict-active': {
+      backgroundColor: 'color-mix(in srgb, var(--accent-purple) 32%, transparent)',
+    },
+    '.cm-side-conflict-decided': {
+      backgroundColor: 'color-mix(in srgb, var(--accent-green) 12%, transparent)',
+      borderLeftColor: 'var(--accent-green)',
+      borderBottomColor: 'color-mix(in srgb, var(--accent-green) 30%, transparent)',
+    },
+    '.cm-cw-spacer': {
+      flex: '1',
     },
     '.cm-cw-label': {
       flex: '1',
@@ -328,35 +589,76 @@ export function mergeDecorationTheme(): Extension {
       color: 'var(--accent-primary)',
       fontSize: '11px',
       fontFamily: 'var(--font-mono)',
+      whiteSpace: 'nowrap',
     },
-    '.cm-cw-accept-theirs, .cm-cw-accept-ours': {
+    '.cm-side-conflict .cm-cw-label': {
+      flex: '0 0 auto',
+      color: 'var(--text-primary)',
+      fontWeight: '600',
+    },
+    '.cm-cw-note': {
+      color: 'var(--text-secondary)',
+      fontStyle: 'italic',
+      whiteSpace: 'nowrap',
+    },
+    '.cm-cw-accept': {
       background: 'color-mix(in srgb, var(--accent-green) 25%, transparent)',
       border: 'none',
       color: 'var(--accent-green)',
       borderRadius: '3px',
       padding: '2px 8px',
       fontSize: '11px',
+      fontFamily: 'var(--font-mono)',
       cursor: 'pointer',
       fontWeight: '700',
+      whiteSpace: 'nowrap',
+      lineHeight: '16px',
     },
-    '.cm-cw-accept-theirs:hover, .cm-cw-accept-ours:hover': {
+    '.cm-cw-accept:hover': {
       backgroundColor: 'color-mix(in srgb, var(--accent-green) 40%, transparent)',
       color: 'var(--text-primary)',
     },
     '.cm-cw-ignore': {
       background: 'none',
-      border: 'none',
+      border: '1px solid transparent',
+      borderRadius: '3px',
       color: 'var(--accent-red)',
-      padding: '2px 8px',
-      fontSize: '14px',
+      padding: '2px 6px',
+      fontSize: '11px',
+      fontFamily: 'var(--font-mono)',
       cursor: 'pointer',
-      opacity: '0.5',
+      opacity: '0.7',
       fontWeight: '700',
-      lineHeight: '1',
+      whiteSpace: 'nowrap',
+      lineHeight: '16px',
     },
     '.cm-cw-ignore:hover': {
-      color: 'var(--accent-red)',
       opacity: '1',
+      borderColor: 'color-mix(in srgb, var(--accent-red) 40%, transparent)',
+      backgroundColor: 'color-mix(in srgb, var(--accent-red) 12%, transparent)',
+    },
+    '.cm-cw-accept:focus-visible, .cm-cw-ignore:focus-visible': {
+      outline: '2px solid var(--accent-primary)',
+      outlineOffset: '1px',
+    },
+    '.cm-cw-state': {
+      fontSize: '10px',
+      fontFamily: 'var(--font-mono)',
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: '0.4px',
+      padding: '1px 6px',
+      borderRadius: '3px',
+      whiteSpace: 'nowrap',
+    },
+    '.cm-cw-state-accepted': {
+      color: 'var(--accent-green)',
+      backgroundColor: 'color-mix(in srgb, var(--accent-green) 18%, transparent)',
+    },
+    '.cm-cw-state-discarded': {
+      color: 'var(--text-secondary)',
+      backgroundColor: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)',
+      textDecoration: 'line-through',
     },
   });
 }
