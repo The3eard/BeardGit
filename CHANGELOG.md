@@ -2,6 +2,12 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
+## [Unreleased]
+
+### Fixed
+
+- **The conflict editor scrolls through a big block instead of skipping it, and every side has its own buttons.** Two things were wrong with the three-pane resolver. The side panes did not scroll at all: the wheel was intercepted and forwarded to the result pane, and the result is usually the shortest of the three because every unresolved conflict collapses to one placeholder line — a file whose merged result fit on screen left the 200 incoming lines next to it unreachable. And when the result did scroll, its one placeholder line mapped to the *start* of the block on each side and the next line to its *end*, so one notch past the placeholder jumped a side pane across the whole block. Each pane now scrolls on its own, and whichever pane you touched last leads the other two to the same fraction of the same chunk, so a 160-line block scrolls through against its one-line placeholder. A link button in the toolbar turns the coupling off. The accept and discard buttons only ever lived on that placeholder line, a 20px widget that the broken scroll made easy to lose, while the side panes, where the highlighted block actually is, had none. Every conflict chunk now carries a header on its own side with **Accept** and **Discard** for that side, pinned to the top of the pane while you are inside the block, and the placeholder widget keeps both sides' actions. The two `✕` buttons used to do the same thing — drop the placeholder, and with it the other side — so "discard theirs" silently discarded ours too; discard now applies to one side, a conflict is resolved once both sides are decided, and accepting both keeps theirs followed by ours. Undo in the result reverts the decision along with the text.
+
 ## [26.9.2] — Stars on the branches you use, and submodules all the way down — 2026-09-10
 
 ### Added
