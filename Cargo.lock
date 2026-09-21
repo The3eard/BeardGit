@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "ai-provider"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -63,7 +63,7 @@ dependencies = [
 
 [[package]]
 name = "ai-provider-common"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "ai-provider",
  "tempfile",
@@ -72,7 +72,7 @@ dependencies = [
 
 [[package]]
 name = "ai-runner"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "ai-provider",
  "async-trait",
@@ -133,7 +133,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "app-core"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "ai-provider",
  "ai-runner",
@@ -357,7 +357,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "auth"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "aes-gcm",
  "github-api",
@@ -393,7 +393,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "beardgit"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "app-core",
  "dirs",
@@ -735,7 +735,7 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "claude-code"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "ai-provider",
  "ai-provider-common",
@@ -750,7 +750,7 @@ dependencies = [
 
 [[package]]
 name = "cli-provider"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "forge-provider",
  "provider",
@@ -764,7 +764,7 @@ dependencies = [
 
 [[package]]
 name = "codex"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "ai-provider",
  "ai-provider-common",
@@ -780,7 +780,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1325,7 +1325,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1481,7 +1481,7 @@ checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
 name = "forge-provider"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "provider",
  "serde",
@@ -1794,7 +1794,7 @@ dependencies = [
 
 [[package]]
 name = "git-engine"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "chrono",
  "criterion",
@@ -1824,7 +1824,7 @@ dependencies = [
 
 [[package]]
 name = "github-api"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1841,7 +1841,7 @@ dependencies = [
 
 [[package]]
 name = "gitlab-api"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "async-trait",
  "mockito",
@@ -1934,7 +1934,7 @@ dependencies = [
 
 [[package]]
 name = "graph-builder"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "criterion",
  "git-engine",
@@ -2489,7 +2489,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2972,7 +2972,7 @@ dependencies = [
 
 [[package]]
 name = "mutation-events"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "git-engine",
  "git2",
@@ -3366,7 +3366,7 @@ dependencies = [
 
 [[package]]
 name = "opencode"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "ai-provider",
  "ai-provider-common",
@@ -3828,7 +3828,7 @@ dependencies = [
 
 [[package]]
 name = "provider"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "async-trait",
  "serde",
@@ -4087,7 +4087,7 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
 name = "requests-runner"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "auth",
  "chrono",
@@ -4108,7 +4108,7 @@ dependencies = [
 
 [[package]]
 name = "requests-store"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "rusqlite",
  "serde",
@@ -4272,14 +4272,14 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
 name = "rustls"
-version = "0.23.40"
+version = "0.23.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef86cd5876211988985292b91c96a8f2d298df24e75989a43a3c73f2d4d8168b"
+checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "once_cell",
  "ring",
@@ -4329,7 +4329,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4340,9 +4340,9 @@ checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.13"
+version = "0.103.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
+checksum = "f3c3cf1d8b1e7d4927e2d154c3fcb02979afb9939629c62cd9048d4f07b60ac2"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -4904,7 +4904,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "storage"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "dirs",
  "filetime",
@@ -5117,7 +5117,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "task-runner"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "async-trait",
  "serde",
@@ -5492,7 +5492,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5507,7 +5507,7 @@ dependencies = [
 
 [[package]]
 name = "terminal"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "libc",
  "portable-pty",
@@ -6321,7 +6321,7 @@ dependencies = [
 
 [[package]]
 name = "watcher"
-version = "26.9.2"
+version = "26.9.3"
 dependencies = [
  "dirs",
  "git2",
@@ -6498,7 +6498,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
