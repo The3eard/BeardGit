@@ -2,7 +2,7 @@
 
 All notable changes to BeardGit are documented here. Format follows [keepachangelog.com](https://keepachangelog.com).
 
-## [Unreleased]
+## [26.11.1] — An AppImage that runs where it is installed — 2026-11-06
 
 ### Fixed
 
