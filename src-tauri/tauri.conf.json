@@ -37,6 +37,7 @@
       "nsis"
     ],
     "category": "DeveloperTool",
+    "shortDescription": "One window for your whole repo",
     "createUpdaterArtifacts": true,
     "linux": {
       "appimage": {
