@@ -118,6 +118,21 @@
       <details class="release" open>
         <summary>
           <div class="release-head">
+            <span class="release-version mono">26.11.1</span>
+            <span class="release-date mono">2026-11-06</span>
+          </div>
+          <p class="release-title">An AppImage that runs where it is installed</p>
+        </summary>
+        <div class="release-group">
+          <h3 class="release-group-title fixed">Fixed</h3>
+          <ul class="release-list">
+            <li><strong>The Linux AppImage works for AppImage installers, sandboxes and the AppImage catalog.</strong> The image was built with <code class="mono">@tauri-apps/cli</code> 2.11.2, whose bundler left two defects in it. <code class="mono">.DirIcon</code>, the icon file managers and the catalog read, was an absolute symlink to the CI runner's build directory, so on every other machine it pointed at nothing; the catalog rejected the AppImage on that alone. And the launcher, <code class="mono">AppRun.wrapped</code>, was stored with mode <code class="mono">0770</code>: harmless when you start the AppImage yourself, but <code class="mono">firejail --appimage</code> and the catalog's test mount it as root and run it as another user, who cannot execute it. The CLI moves to 2.12.4, which writes a relative symlink and a <code class="mono">0755</code> launcher. The <code class="mono">.desktop</code> entry also had an empty <code class="mono">Categories=</code>, so menus and the catalog could not place the app anywhere; it now declares <code class="mono">Development</code>, and its <code class="mono">Comment</code> says what the app is instead of repeating the name. And the AppImage now carries AppStream metadata (<code class="mono">usr/share/metainfo/com.beardgit.app.appdata.xml</code>), so software centers and the catalog show its summary, homepage and license instead of &quot;unknown&quot;.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="release" open>
+        <summary>
+          <div class="release-head">
             <span class="release-version mono">26.9.3</span>
             <span class="release-date mono">2026-09-21</span>
           </div>
@@ -136,7 +151,7 @@
           </ul>
         </div>
       </details>
-      <details class="release" open>
+      <details class="release">
         <summary>
           <div class="release-head">
             <span class="release-version mono">26.9.2</span>
