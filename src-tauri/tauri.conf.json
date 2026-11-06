@@ -36,7 +36,16 @@
       "appimage",
       "nsis"
     ],
+    "category": "DeveloperTool",
+    "shortDescription": "One window for your whole repo",
     "createUpdaterArtifacts": true,
+    "linux": {
+      "appimage": {
+        "files": {
+          "/usr/share/metainfo/com.beardgit.app.appdata.xml": "linux/com.beardgit.app.appdata.xml"
+        }
+      }
+    },
     "externalBin": [
       "binaries/gh",
       "binaries/glab"
