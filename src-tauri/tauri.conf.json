@@ -36,6 +36,7 @@
       "appimage",
       "nsis"
     ],
+    "category": "DeveloperTool",
     "createUpdaterArtifacts": true,
     "externalBin": [
       "binaries/gh",
